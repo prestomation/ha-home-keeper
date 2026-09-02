@@ -1,33 +1,34 @@
 # Security model
 
-Home Keeper draws one line: **managing your home is an admin job, using it is not.**
-Everything that changes configuration or reveals what your things cost belongs to
-Home Assistant administrators. Everything a household member needs to see what is
-due and mark it done stays open to any signed-in user.
+Home Keeper has one rule: only an admin can manage the home. Any signed-in user
+can use it. Admins control the configuration and the appliance costs. Any user can
+see due tasks and complete them.
 
-This page says where that line falls, so you know what a non-admin account in your
-household can and cannot do.
+This page shows what a non-admin user can and cannot do.
 
-## Why the line is there
+## Why this rule exists
 
-A Home Assistant instance usually has one or two admins and a handful of ordinary
-users. A partner, older kids, a housemate, maybe a guest account on the wall tablet.
-Home Assistant already reserves Settings and Developer tools for admins, and its own
-`config/*` commands (device registry, entity registry, config entries) are
-admin-only. Home Keeper follows the same convention rather than inventing a second,
-weaker one.
+A Home Assistant instance usually has 1 or 2 admins and a few users, such as
+a partner, older children, a housemate, or a guest account on a wall tablet.
 
-The risks here are modest and domestic. A guest account should not be able to delete
-the appliance records you built up. It should not be able to redirect your reminders
-somewhere you won't see them, or read the purchase prices and serial numbers you keep
-for insurance.
+Home Assistant reserves Settings and Developer tools for admins. Home
+Assistant also restricts its own `config/*` commands, such as the device
+registry, the entity registry, and config entries, to admins. Home Keeper
+follows the same rule.
+
+The risks are small. A guest account must not:
+
+- delete appliance records
+- redirect notifications away from you
+- read purchase prices and serial numbers that you keep for insurance
 
 ## Admin only
 
-Administration lives in the **Home Keeper sidebar panel**, which is registered as an
-admin-only panel. A non-admin does not see it in the sidebar. Behind it, these
-operations are gated on the server, in both the websocket API the panel uses and the
-matching `home_keeper.*` service:
+The Home Keeper panel is admin-only. It is in the Home Assistant sidebar. A non-admin user does not see
+the panel.
+
+Home Keeper gates each admin operation in 2 places: the websocket API the
+panel uses, and the matching `home_keeper.*` service.
 
 | Operation | Services |
 | --- | --- |
@@ -37,90 +38,99 @@ matching `home_keeper.*` service:
 | Settings, profiles and notification delivery | `set_options` |
 | The home-inventory export (costs, serials, value totals) | `export_inventory` |
 
-Appliance changes are admin-only for a second reason: creating an appliance creates a
-Home Assistant **device**, and deleting one removes that device and its entities.
-Writing the device registry is a privilege Home Assistant reserves for admins, and
-Home Keeper does not hand it out through a side door.
+Home Keeper creates a Home Assistant device for each appliance, and removes
+the device when it deletes the appliance. Home Assistant reserves the
+device registry for admins, so appliance changes are admin-only for this
+reason too.
 
-Both surfaces are gated, deliberately. A websocket command and its service twin are
-the same operation over the same authenticated connection, so gating only the
-websocket command leaves `call_service` as an open door. When you add a new
-administrative operation, gate both.
+A websocket command and its service twin share one authenticated
+connection. If Home Keeper gates only the websocket command, `call_service`
+bypasses the gate. When you add a new admin operation, gate both the
+websocket command and the service.
 
-Calls that carry no user, such as an automation firing on a schedule, are treated as
-trusted, the same way Home Assistant treats them.
+Home Keeper trusts calls with no user, such as a scheduled automation, the
+same way Home Assistant does.
 
 ## Open to any signed-in user
 
-Usage is not gated, because a reminder nobody can act on is not a reminder:
+Any signed-in user can use these surfaces:
 
-- The **to-do list**, the **calendar**, and the per-task **device-page entities**.
-- The **dashboard task card**, including its document and product links.
-- Completing, snoozing and skipping tasks, and creating tasks.
-- Reading tasks and profiles.
+- The to-do list, the calendar, and the per-task device-page entities.
+- The dashboard task card, with its document and product links.
+- Complete, snooze, skip and create tasks.
+- Read tasks and profiles.
 
-Appliance data is readable by the card, so it is not admin-only, but a non-admin
-receives a **narrowed view** holding only what the card renders. That means an
-appliance's documents, its link-type custom fields, and the name and product URL of
-each part. Purchase costs, part costs, serial numbers, warranty dates and free-text
-custom fields are withheld. The narrowed view is a whitelist, so a field added to the
-appliance record later stays private until someone publishes it on purpose.
+The card reads appliance data, so a non-admin user gets a narrowed view: the
+appliance's documents, its link-type custom fields, and each part's name
+and product URL.
+
+The narrowed view withholds purchase costs, part costs, serial numbers,
+warranty dates, and free-text custom fields. The narrowed view is an allowlist. A new appliance field stays private until a
+developer adds it to the allowlist.
 
 ## Notifications
 
-Home Keeper delivers only to companion-app notify services (`notify.mobile_app_*`)
-and to `persistent_notification`. Any other target on a saved notification, or passed
-to `home_keeper.notify`, is refused: a saved one is dropped with a warning in the
-log, an explicitly requested one fails the call.
+Home Keeper delivers only to 2 targets: companion-app notify services
+(`notify.mobile_app_*`) and `persistent_notification`.
 
-The restriction exists so that Home Keeper cannot be used to relay text through a
-channel the caller could not reach on their own, such as an email or chat integration
-an admin configured. `persistent_notification` is allowed because it never leaves the
-instance.
+Home Keeper rejects any other target. A saved notification with another
+target is dropped, with a warning in the log. A call to `home_keeper.notify`
+with another target fails.
+
+This stops Home Keeper from relaying text through a channel the caller
+cannot reach directly, such as an email or chat integration an admin
+configured. `persistent_notification` is allowed because it never leaves
+the instance.
 
 ## Files and links
 
-Uploaded manuals, receipts and photos are served through an authenticated Home
-Assistant view. To open one in a browser tab, the panel mints a **signed URL** with a
-short lifetime (one hour for the panel, fifteen minutes for the
-`sign_document_url` / `sign_part_file_url` services, whose result may travel further).
+Home Keeper serves uploaded manuals, receipts and photos through an
+authenticated Home Assistant view.
 
-A signed URL is a bearer credential for the file it names. Anyone holding the link can
-fetch that file until it expires, without logging in, so a screenshot of a dashboard
-carrying one deserves the same care as the file itself. Home Assistant honours a
-signature on `GET` and `HEAD` only, and the upload endpoints also refuse any request
-that is not authenticated as a real user, so a link that can read a file can never be
-used to replace it.
+To open a file, the panel creates a signed URL. The signed URL lasts 1 hour
+for the panel, and 15 minutes for the `sign_document_url` and
+`sign_part_file_url` services. A service result can leave the panel, so it
+gets the shorter lifetime.
 
-Minting a signed URL is not admin-only, because the card needs one to open a document
-on a task anyone can complete. A known consequence, accepted rather than overlooked:
-a non-admin who guesses an appliance and document id learns whether that pair exists,
-from whether the request succeeds. Guessing is the operative word. The narrowed
-appliance view only lists documents already surfaced on a card.
+A signed URL is a bearer credential. Anyone who has the link can get the
+file until it expires, without a login. A screenshot with a signed URL
+needs the same care as the file itself.
 
-Only the two built JavaScript bundles are published as a static path. Home Assistant
-serves static paths before authentication, so the panel's source tree and its
-dependencies are deliberately not mounted.
+Home Assistant accepts a signature on `GET` and `HEAD` requests only. The
+upload endpoints also require a real authenticated user, so a link that can
+read a file can never replace it.
 
-Every URL Home Keeper renders into a link is scheme-checked as well as escaped.
-Escaping alone does not neutralise a `javascript:` link, and some links come from
-other integrations through `add_task`, so the check runs at the point of rendering
-even where the stored value was already validated.
+A signed URL is not admin-only. The card needs one to open a document on a task
+that any user can complete.
 
-## Outside the boundary
+Home Keeper accepts one consequence: a non-admin user who guesses an appliance id
+and a document id learns whether that pair exists, from whether the request
+succeeds. The narrowed appliance view only lists documents already shown on
+a card.
 
-- **An admin is an admin.** Home Keeper does not defend an instance against its own
-  administrators, and the integration's data is readable by anyone who can read the
-  Home Assistant configuration directory.
-- **Home Assistant's own authentication is the perimeter.** Nothing here helps if an
-  account is shared or a long-lived token leaks.
-- **A non-admin can still create and complete tasks**, which is the point. If you need
-  a read-only member, Home Assistant's own user model, not Home Keeper, is where that
-  belongs.
+Home Assistant serves only the 2 built JavaScript bundles as a static path. Home
+Assistant serves static paths before authentication, so Home Keeper does
+not mount the panel's source tree or its dependencies.
 
-## Reporting a problem
+Home Keeper escapes every URL it renders as a link, and it also checks that the
+URL scheme is safe, because an escaped `javascript:` link is still a live link.
+Some links come from other integrations through `add_task`, so the scheme check
+runs at render time even if the stored value was already validated.
+
+## Limits of this security model
+
+- **An admin is an admin.** Home Keeper does not protect an instance from
+  its own admins. Anyone who can read the Home Assistant configuration
+  directory can read the integration's data.
+- **Home Assistant's own authentication is the security perimeter.** This
+  page does not help if an account is shared or a long-lived token leaks.
+- **A non-admin user can create and complete tasks.** Home Keeper has no
+  read-only user. Use Home Assistant's own user model for that.
+
+## Report a problem
 
 Open an issue at
 [github.com/prestomation/ha-home-keeper/issues](https://github.com/prestomation/ha-home-keeper/issues).
-For something you would rather not post publicly, use GitHub's private vulnerability
-reporting on the same repository.
+
+For a problem you do not want to post publicly, use GitHub's private
+vulnerability reporting on the same repository.

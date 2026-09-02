@@ -70,7 +70,7 @@ def _notifications(entry: ConfigEntry) -> list[dict[str, Any]]:
     return value if isinstance(value, list) else []
 
 
-def _effective_filter_tasks(
+def effective_filter_tasks(
     hass: HomeAssistant, tasks: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     """Return *tasks* with **effective** label/area ids resolved for filtering.
@@ -84,6 +84,10 @@ def _effective_filter_tasks(
     the admin list and the dashboard card ("label = dog" picks up a task on a device or
     area labelled ``dog``). ``device_id`` is unchanged — a device filter matches the
     task's own device, like the frontend.
+
+    Public because the to-do list sync is the second consumer: ``todo_list_sync``
+    enriches through this same helper before planning, so a profile selects exactly
+    the same tasks for a synced to-do list as it does for a notification.
     """
     dev_reg = dr.async_get(hass)
     area_reg = ar.async_get(hass)
@@ -191,7 +195,7 @@ async def _send(
     surfaced in a *walk* (``None`` for an empty queue or a digest).
     """
     now = dt_util.now()
-    tasks = _effective_filter_tasks(hass, list(coord.store.get_tasks().values()))
+    tasks = effective_filter_tasks(hass, list(coord.store.get_tasks().values()))
     queue = profiles.due_queue(tasks, profile["filter"], now=now)
     if not queue:
         return 0, None

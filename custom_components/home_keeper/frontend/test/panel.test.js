@@ -426,7 +426,8 @@ describe('Notes render as Markdown (issue #163)', () => {
   it('gives an appliance its own Notes card, saved via update_asset', async () => {
     const asset = { id: 'a1', kind: 'virtual', name: 'Fridge', notes: 'Filter is *behind* the kick plate' };
     const { hass, calls } = makeHassWith({ assets: [asset] });
-    const panel = await mountPanel(hass, '/appliances/a1');
+    // An appliance's notes live under its Details sub-tab, which is a URL of its own.
+    const panel = await mountPanel(hass, '/appliances/a1/details');
 
     const md = await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
     expect(md, 'the appliance detail should render its notes').toBeTruthy();
@@ -472,11 +473,8 @@ describe('Notes render as Markdown (issue #163)', () => {
 
     const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
     editBtn.click();
-    // Editing from a detail page navigates to the owning list and re-opens the form
-    // there. `_navigate` only fires `location-changed`; in the real app HA's router
-    // answers by pushing a new `route` down. Nothing does that in jsdom, so stand in
-    // for the router here.
-    panel.route = { prefix: '/home-keeper', path: '/appliances' };
+    // Editing from a detail page opens the form beside that page — no navigation, so
+    // nothing here has to stand in for HA's router.
 
     const partForm = await waitFor(() => {
       const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];
@@ -509,7 +507,6 @@ describe('Notes render as Markdown (issue #163)', () => {
 
     const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
     editBtn.click();
-    panel.route = { prefix: '/home-keeper', path: '/appliances' };
 
     const partForm = await waitFor(() => {
       const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];
@@ -539,7 +536,6 @@ describe('Notes render as Markdown (issue #163)', () => {
 
     const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
     editBtn.click();
-    panel.route = { prefix: '/home-keeper', path: '/appliances' };
 
     const partForm = await waitFor(() => {
       const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];
@@ -709,14 +705,17 @@ function makeDocHass(overrides = {}) {
   return { hass, calls, signed };
 }
 
-// Open the appliance detail page and wait for its documents card to render.
-async function openApplianceDetail(hass) {
+// Open one of the appliance detail's sub-tabs and wait for its contents to render.
+// Each sub-tab is its own URL, and only the open one renders — so a test has to say
+// which section it is about.
+async function openApplianceDetail(hass, tab = 'documents') {
   const panel = document.createElement('home-keeper-panel');
-  panel.route = { prefix: '/home-keeper', path: '/appliances/a1' };
+  panel.route = { prefix: '/home-keeper', path: `/appliances/a1/${tab}` };
   document.body.appendChild(panel);
   panel.hass = hass;
-  const link = await waitFor(() => panel.shadowRoot?.querySelector('a.hk-doc-file'));
-  expect(link, 'the documents section should render').toBeTruthy();
+  const selector = tab === 'parts' ? '.hk-part-row' : 'a.hk-doc-file';
+  const link = await waitFor(() => panel.shadowRoot?.querySelector(selector));
+  expect(link, `the ${tab} section should render`).toBeTruthy();
   return panel;
 }
 
@@ -750,7 +749,8 @@ describe('Appliance detail — file links are real, pre-signed anchors (issue #1
 
   it("gives a part's attached file a pre-signed href too", async () => {
     const { hass, signed } = makeDocHass();
-    const panel = await openApplianceDetail(hass);
+    // A part's paperclip lives with the parts, not with the documents.
+    const panel = await openApplianceDetail(hass, 'parts');
     const clip = await waitFor(() => {
       const el = panel.shadowRoot?.querySelector('a.hk-part-file[data-part="p1"]');
       return el?.getAttribute('href') ? el : null;
@@ -1033,5 +1033,53 @@ describe('Settings tab — the Shopping list card', () => {
 
     await waitFor(() => (calls['home_keeper/set_options'] || 0) > 0);
     expect(calls.lastSetOptions.shopping_list_entity).toBe('todo.groceries');
+  });
+});
+
+describe('the sheet-threshold media query is bound and unbound with the element', () => {
+  // jsdom has no `matchMedia`, and `_syncDrawerModality` skips the whole block without
+  // one — so the panel's only viewport read is invisible to every other test here.
+  // This stubs a MediaQueryList that counts its own listeners.
+  function stubMatchMedia() {
+    const listeners = { added: 0, removed: 0 };
+    const mql = {
+      matches: false,
+      addEventListener: () => {
+        listeners.added += 1;
+      },
+      removeEventListener: () => {
+        listeners.removed += 1;
+      },
+    };
+    const prior = window.matchMedia;
+    window.matchMedia = () => mql;
+    return { listeners, restore: () => { window.matchMedia = prior; } };
+  }
+
+  it('unbinds on unmount and binds again when the element comes back', async () => {
+    const { listeners, restore } = stubMatchMedia();
+    try {
+      const hass = makeHassWith({ tasks: [] }).hass;
+
+      const panel = await mountPanel(hass, '/tasks');
+      await waitFor(() => panel.shadowRoot?.querySelector('.hk-wrap'));
+      expect(listeners.added, 'mounting binds the threshold listener').toBe(1);
+
+      // Unmounting takes it off: it closes over the element, so leaving it attached to
+      // a live MediaQueryList keeps the whole detached shadow tree reachable.
+      panel.remove();
+      expect(listeners.removed, 'unmounting unbinds it').toBe(1);
+
+      // …and coming back binds a fresh one. Clearing only the handler and leaving the
+      // query behind would make this silently skip the rebind — `_syncDrawerModality`
+      // only binds when the query is unset — and the panel would stop noticing the
+      // sheet threshold for the rest of its life.
+      document.body.appendChild(panel);
+      panel.route = { prefix: '/home-keeper', path: '/appliances' };
+      await waitFor(() => panel.shadowRoot?.querySelector('.hk-wrap'));
+      expect(listeners.added, 're-attaching binds a new listener').toBe(2);
+    } finally {
+      restore();
+    }
   });
 });

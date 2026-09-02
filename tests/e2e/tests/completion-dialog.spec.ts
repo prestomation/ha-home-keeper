@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { openPanel, trackPanelErrors } from './helpers';
+import { TASK } from '../fixture-ids';
 
-test.describe('Home Keeper panel — completion dialog', () => {
+test.describe('Home Keeper panel — completion dialog', { tag: '@responsive' }, () => {
   test('the completion-details dialog renders its action buttons and can be submitted', async ({
     page,
   }) => {
@@ -11,7 +12,7 @@ test.describe('Home Keeper panel — completion dialog', () => {
 
     // "Replace fridge filter" is seeded with completion_detail: "optional", which
     // opens the completion-details dialog on Done instead of completing in one tap.
-    await panel.locator('.done-btn[data-id="task_fridge_filter"]').click();
+    await panel.locator(`.done-btn[data-id="${TASK.fridgeFilter}"]`).click();
 
     // ha-dialog portals its surface, so wait on an inner field rather than the host.
     const dialog = panel.locator('ha-dialog[open]');
@@ -27,6 +28,17 @@ test.describe('Home Keeper panel — completion dialog', () => {
     await expect(footer).toHaveCount(1);
     await expect(footer.locator('ha-button[slot="primaryAction"]')).toHaveCount(1);
     await expect(footer.locator('ha-button[slot="secondaryAction"]')).toHaveCount(2);
+
+    // Regression guard for #262, the same class of break one API later: ha-dialog
+    // stopped reading `heading` and takes its title from a `headerTitle` slot, so the
+    // dialog opened as a bare ✕ over its body with no way to tell which task you were
+    // completing. Assert the slotted node *and* that the title is on screen — the
+    // attribute was still correct, still translated, and still asserted by anything
+    // that read it, which is exactly why nothing failed when it stopped being shown.
+    const title = dialog.locator('[slot="headerTitle"]');
+    await expect(title).toHaveCount(1);
+    await expect(title).toHaveText('Log: Replace fridge filter');
+    await expect(title).toBeVisible();
 
     await expect(dialog.getByRole('button', { name: 'Mark done' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Skip details' })).toBeVisible();
@@ -46,7 +58,7 @@ test.describe('Home Keeper panel — completion dialog', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
 
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
     await panel.locator('.hk-hist-move').first().click();
 
@@ -60,6 +72,13 @@ test.describe('Home Keeper panel — completion dialog', () => {
     await expect(footer).toHaveCount(1);
     await expect(footer.locator('ha-button[slot="primaryAction"]')).toHaveCount(1);
     await expect(footer.locator('ha-button[slot="secondaryAction"]')).toHaveCount(1);
+
+    // Same #262 guard as the completion dialog. Both dialogs are built by one helper
+    // now, but that is the thing under test: this is what fails if they diverge again.
+    const title = dialog.locator('[slot="headerTitle"]');
+    await expect(title).toHaveCount(1);
+    await expect(title).toHaveText('Move completion date');
+    await expect(title).toBeVisible();
 
     await expect(dialog.getByRole('button', { name: 'Save' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible();
@@ -85,7 +104,7 @@ test.describe('Home Keeper panel — completion dialog', () => {
     if (!(await monitored.evaluate((el: HTMLDetailsElement) => el.open))) {
       await monitored.locator('summary').click();
     }
-    await panel.locator('.detail-open[data-detail-id="task_nozzle_usage"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.nozzleUsage}"]`).click();
     const row = panel.locator('.hk-hist-list li').first();
     await expect(row.locator('.hk-hist-chips')).toContainText('at 660 h');
     await expect(panel.locator('.hk-meter-note').first()).toHaveText('180 h to go');

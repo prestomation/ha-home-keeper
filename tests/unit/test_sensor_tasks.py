@@ -651,3 +651,95 @@ def test_availability_dormant_missing_never_arms():
         now=now,
     )
     assert out == {"action": None, "condition_met": False, "crossed_at": None}
+
+
+# ── baseline_after_delete (undoing a usage completion) ───────────────────────
+
+
+def _completion(ts, *, reading=None, meter_start=..., **extra):
+    entry = {"ts": ts}
+    if reading is not None:
+        entry["reading"] = reading
+    if meter_start is not ...:
+        entry["meter_start"] = meter_start
+    entry.update(extra)
+    return entry
+
+
+def test_baseline_after_delete_restores_meter_start_of_only_completion():
+    # 45,000-start task, completed at 48,000 (meter_start recorded the 45,000). Undo
+    # must revert the baseline to 45,000, not leave it at 48,000 (progress back to
+    # "3,000 of 10,000", not stuck at zero). This is the reported bug.
+    ts = dt(2026, 6, 1, 10).isoformat()
+    task = _usage(10_000, baseline=48_000, completions=[], last_completed=None)
+    removed = _completion(ts, reading=48_000, meter_start=45_000)
+    assert s.baseline_after_delete(task, removed, was_latest=True) == (True, 45_000)
+
+
+def test_baseline_after_delete_restores_prior_completion_baseline():
+    # Two completions; undoing the latest reverts to the baseline it replaced, which
+    # equals the earlier completion's reading.
+    ts1 = dt(2026, 5, 1, 10).isoformat()
+    task = _usage(
+        10_000,
+        baseline=55_000,
+        completions=[_completion(ts1, reading=48_000, meter_start=45_000)],
+        last_completed=ts1,
+    )
+    removed = _completion(
+        dt(2026, 6, 1, 10).isoformat(), reading=55_000, meter_start=48_000
+    )
+    assert s.baseline_after_delete(task, removed, was_latest=True) == (True, 48_000)
+
+
+def test_baseline_after_delete_leaves_older_row_alone():
+    # Undoing a non-anchor (older) completion must not touch the meter.
+    ts_latest = dt(2026, 6, 1, 10).isoformat()
+    task = _usage(
+        10_000,
+        baseline=55_000,
+        completions=[_completion(ts_latest, reading=55_000, meter_start=48_000)],
+        last_completed=ts_latest,
+    )
+    removed = _completion(
+        dt(2026, 5, 1, 10).isoformat(), reading=48_000, meter_start=45_000
+    )
+    assert s.baseline_after_delete(task, removed, was_latest=False) == (False, None)
+
+
+def test_baseline_after_delete_ignores_non_usage_task():
+    task = _threshold(">", 90)
+    removed = _completion(dt(2026, 6, 1, 10).isoformat(), reading=95)
+    assert s.baseline_after_delete(task, removed, was_latest=True) == (False, None)
+
+
+def test_baseline_after_delete_falls_back_to_latest_remaining_reading():
+    # A pre-``meter_start`` entry (recorded before the field existed). Fall back to
+    # the now-latest remaining completion's reading.
+    ts1 = dt(2026, 5, 1, 10).isoformat()
+    task = _usage(
+        10_000,
+        baseline=55_000,
+        completions=[_completion(ts1, reading=48_000)],
+        last_completed=ts1,
+    )
+    removed = _completion(dt(2026, 6, 1, 10).isoformat(), reading=55_000)
+    assert s.baseline_after_delete(task, removed, was_latest=True) == (True, 48_000)
+
+
+def test_baseline_after_delete_clears_when_no_completion_remains():
+    # No ``meter_start`` and nothing left in history: clear the baseline (None) so the
+    # watcher re-anchors on its next reading rather than measuring from a stale figure.
+    task = _usage(10_000, baseline=48_000, completions=[], last_completed=None)
+    removed = _completion(dt(2026, 6, 1, 10).isoformat(), reading=48_000)
+    assert s.baseline_after_delete(task, removed, was_latest=True) == (True, None)
+
+
+def test_baseline_after_delete_restores_none_meter_start():
+    # A completion whose meter_start was itself None (entity was unavailable at
+    # creation) clears the baseline, distinct from the missing-key fallback.
+    task = _usage(10_000, baseline=48_000, completions=[], last_completed=None)
+    removed = _completion(
+        dt(2026, 6, 1, 10).isoformat(), reading=48_000, meter_start=None
+    )
+    assert s.baseline_after_delete(task, removed, was_latest=True) == (True, None)

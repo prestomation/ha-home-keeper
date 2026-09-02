@@ -35,6 +35,7 @@ _COMPONENT_DIR = _CUSTOM_COMPONENTS_DIR / "home_keeper"
 _PKG = "custom_components.home_keeper"
 _PURE_MODULES = (
     "const",
+    "backend_i18n",
     "recurrence",
     "models",
     "assets",
@@ -42,6 +43,11 @@ _PURE_MODULES = (
     "events",
     "transitions",
     "reconcile",
+    # ``todo_items`` holds the item-matching helpers both to-do syncs share, so it
+    # comes before the two planners that import it (``shopping``/``todo_list``): a
+    # module first pulled in by a sibling and then re-executed here would leave two
+    # copies of it loaded, one of them nobody's tests can reach.
+    "todo_items",
     "shopping",
     "problem_tasks",
     "sensor_tasks",
@@ -51,6 +57,15 @@ _PURE_MODULES = (
     "notifications",
     "tags",
     "card_resource",
+    "resolve",
+    # ``device_compat`` imports Home Assistant only under ``TYPE_CHECKING``, so the
+    # two device-registry shapes it reconciles are testable here with plain fakes.
+    "device_compat",
+    # Keep ``todo_list`` after the siblings it imports (shopping/profiles/
+    # reconcile/transitions) and before ``options``, which imports *it*: a module
+    # first pulled in by a sibling and then re-executed here would leave two
+    # copies of it loaded, one of them nobody's tests can reach.
+    "todo_list",
     # ``options`` imports Home Assistant only under ``TYPE_CHECKING``, so the merge
     # and normalization rules every write path shares are testable here. Keep it
     # after the siblings it does ``from . import`` (notifications/profiles/shopping).
@@ -62,6 +77,9 @@ _PURE_MODULES = (
     # ``from . import models``.
     "declarative_companions",
     "declarative_presets",
+    # ``api_surface`` is the index of every integrator-facing surface. Pure like the
+    # rest, and last because it does ``from . import options``.
+    "api_surface",
 )
 
 

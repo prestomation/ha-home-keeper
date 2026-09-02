@@ -54,6 +54,90 @@ export function safeFileHref(url: unknown): string {
   return isSafeImageUrl(url) ? escapeHTML(url) : '';
 }
 
+// ── Button weights ──────────────────────────────────────────────────────────
+/**
+ * The panel's four button weights, expressed in Home Assistant's own vocabulary.
+ *
+ * `ha-button` extends Web Awesome's `Button`, whose reactive attributes are
+ * `appearance` (`accent`/`filled`/`outlined`/`plain`) and `variant`
+ * (`brand`/`neutral`/`success`/`warning`/`danger`). **`raised` and `destructive` are
+ * not among them** — they are Material leftovers the element never reads, so a button
+ * carrying either renders at the default accent fill, exactly as a bare one does.
+ * That is why Done, Edit, Cancel and Delete all arrived at the same weight (#262):
+ * three quarters of the panel was asking for a weight in a language the button had
+ * stopped speaking. Ask in this one instead, and never re-introduce those two.
+ *
+ * Measured against the rendered pixels in the e2e container, on the default light
+ * theme's white card:
+ *
+ * | weight           | attributes                              | label vs its fill |
+ * | ---------------- | --------------------------------------- | ----------------- |
+ * | `primary`        | *(none — HA's default)*                 | 3.26:1 †          |
+ * | `secondary`      | `appearance=filled`                     | 6.02:1 ‡          |
+ * | `tertiary`       | `appearance=plain variant=neutral`      | 6.49:1            |
+ * | `danger`         | `appearance=plain variant=danger`       | 7.04:1            |
+ * | `danger-primary` | `variant=danger`                        | 4.59:1            |
+ *
+ * † Home Assistant's own filled-button pairing, used unchanged across HA itself.
+ * ‡ Only with the `[data-hk-weight="secondary"]::part(base)` ink override in `STYLES`
+ *   — HA's tonal label on its own tonal fill measures 2.85:1, which is what the
+ *   `.done-btn` rule was already working around one button at a time.
+ *
+ * `tertiary` is deliberately `neutral` rather than brand: `appearance="plain"` alone
+ * paints the label in the accent colour, which is 3.26:1 on a card and makes Cancel
+ * compete with the action beside it.
+ */
+export type BtnWeight = 'primary' | 'secondary' | 'tertiary' | 'danger' | 'danger-primary';
+
+/** Attribute set per weight. `primary` is the element's own default, so it adds none. */
+const BTN_ATTRS: Record<BtnWeight, Record<string, string>> = {
+  primary: {},
+  secondary: { appearance: 'filled' },
+  tertiary: { appearance: 'plain', variant: 'neutral' },
+  danger: { appearance: 'plain', variant: 'danger' },
+  'danger-primary': { variant: 'danger' },
+};
+
+/**
+ * Every attribute any weight can set, so re-weighting clears the previous one.
+ *
+ * Derived from the table rather than restated beside it: a hand-written list silently
+ * stops clearing an attribute the moment a weight adds one the list does not name, and
+ * the symptom is a button that keeps a colour from the weight it used to have.
+ */
+const BTN_ATTR_NAMES: readonly string[] = [
+  ...new Set(Object.values(BTN_ATTRS).flatMap((attrs) => Object.keys(attrs))),
+];
+
+/**
+ * The attributes for *weight*, as markup — `btnAttrs('tertiary')` →
+ * `appearance="plain" variant="neutral" data-hk-weight="tertiary"`.
+ *
+ * `data-hk-weight` is not decoration. It is what the tonal ink rule and the
+ * `button-weights` e2e guard select on, and it is the difference between "this button
+ * was given the primary weight" and "nobody thought about this button" — which, with
+ * `primary` spelled as the absence of attributes, are otherwise the same markup.
+ */
+export function btnAttrs(weight: BtnWeight): string {
+  const attrs = Object.entries(BTN_ATTRS[weight]).map(([k, v]) => `${k}="${v}"`);
+  attrs.push(`data-hk-weight="${weight}"`);
+  return attrs.join(' ');
+}
+
+/**
+ * Apply *weight* to an already-created `ha-button`, for the call sites that build
+ * their buttons with `createElement` rather than a template string. Idempotent:
+ * clears the attributes the new weight does not set, so a button can be re-weighted.
+ */
+export function setBtnWeight(el: Element, weight: BtnWeight): void {
+  const attrs = BTN_ATTRS[weight];
+  for (const name of BTN_ATTR_NAMES) {
+    if (name in attrs) el.setAttribute(name, attrs[name]);
+    else el.removeAttribute(name);
+  }
+  el.setAttribute('data-hk-weight', weight);
+}
+
 /**
  * A random UUID-v4 string for client-minted ids (document ids, working-copy entries).
  *
@@ -75,6 +159,80 @@ export function randomId(): string {
   return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex
     .slice(6, 8)
     .join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
+}
+
+/**
+ * Put *value* on the clipboard, resolving to whether it actually landed.
+ *
+ * `navigator.clipboard` is a **secure-context** API — the same trap as
+ * `crypto.randomUUID` above. Over a plain-HTTP LAN address, which is how plenty of
+ * people reach Home Assistant, it is simply absent, so the copy button beside an id
+ * would do nothing at all. Fall back to an off-screen textarea and the legacy
+ * `execCommand`, and report `false` when neither path works so the caller can say so
+ * rather than claiming a copy that never happened.
+ */
+export async function copyText(value: string): Promise<boolean> {
+  try {
+    // No `?.` guard: a missing `navigator.clipboard` throws here and lands in the
+    // same catch as a denied write, and one mechanism is better than two.
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    // Absent (the plain-HTTP case), denied, or the document is not focused.
+  }
+  const area = document.createElement('textarea');
+  area.value = value;
+  // Off-screen rather than `display:none`: a hidden element cannot be selected.
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.top = '-9999px';
+  document.body.appendChild(area);
+  try {
+    area.select();
+    return document.execCommand('copy');
+  } catch {
+    return false;
+  } finally {
+    area.remove();
+  }
+}
+
+/**
+ * Surface a transient message through Home Assistant's own toast.
+ *
+ * `composed` so the event escapes the shadow root it is fired in, `bubbles` so HA's
+ * listener further up the tree receives it. The panel and the card both need this and
+ * had a byte-identical copy each.
+ */
+export function toast(el: EventTarget, message: string): void {
+  el.dispatchEvent(
+    new CustomEvent('hass-notification', {
+      detail: { message },
+      bubbles: true,
+      composed: true,
+    }),
+  );
+}
+
+/**
+ * Send Home Assistant's SPA router to *path* — a device page, an integration page, the
+ * Home Keeper panel — without a full page load.
+ *
+ * Always a push (Back returns to where the user pressed) and always fired on `window`,
+ * because these are the navigations that *leave* the element behind: it may be
+ * unmounted by the time HA re-renders. The panel's own in-panel `_navigate` is a
+ * different thing — it fires from the panel element and can replace instead of push —
+ * so it stays there.
+ */
+export function navigateTo(path: string): void {
+  history.pushState(null, '', path);
+  window.dispatchEvent(
+    new CustomEvent('location-changed', {
+      detail: { replace: false },
+      bubbles: true,
+      composed: true,
+    }),
+  );
 }
 
 /** True when a triggered task is currently armed (due-now) vs dormant. */
@@ -144,8 +302,98 @@ export function readingUnit(
   return (state?.attributes?.unit_of_measurement as string | undefined) || '';
 }
 
-/** Human-readable summary of a task's recurrence rule. */
+// ── Dates and times, as a person would write them ───────────────────────────
+/**
+ * A date, in the viewer's language — "1 Jul 2026", not "7/1/2026".
+ *
+ * Absolute dates used to be formatted at each call site with a bare
+ * `toLocaleDateString()`/`toLocaleString()`, which gave the panel three different
+ * shapes on three surfaces, and none of them passed the language Home Assistant
+ * already knows, so a German user reading a German panel got US formatting.
+ */
+export function formatDate(value: string | Date | null | undefined, lang?: string): string {
+  const d = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(lang || undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * A date and time, to the minute — "1 Jul 2026, 13:00".
+ *
+ * Deliberately no seconds. `toLocaleString()` renders "7/1/2026, 1:00:00 PM", and a
+ * completion is a thing a person did on an afternoon, not an event log line: the
+ * ":00" at the end is precision the panel does not have and nobody asked for.
+ */
+export function formatDateTime(value: string | Date | null | undefined, lang?: string): string {
+  const d = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(lang || undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/** "today" / "yesterday" / "N days ago" for a past date, counted in whole days. */
+export function relativeDay(d: Date, now: Date = new Date()): string {
+  const days = Math.round((now.getTime() - d.getTime()) / 86_400_000);
+  if (days <= 0) return t('due.today');
+  if (days === 1) return t('due.yesterday');
+  return tn('due.days_ago', days);
+}
+
+/**
+ * Format a cost in the instance's configured currency, falling back to the bare
+ * number when Home Assistant has no currency set — or names one `Intl` refuses.
+ */
+export function formatCost(hass: Hass | undefined, amount: number): string {
+  const currency = hass?.config?.currency;
+  const lang = hass?.language;
+  // Stryker disable next-line ConditionalExpression: equivalent — with no currency
+  // configured, `Intl.NumberFormat` with `style: 'currency'` throws, and the catch
+  // below returns the very bare number this guard skips ahead to.
+  if (currency) {
+    try {
+      return new Intl.NumberFormat(lang, { style: 'currency', currency }).format(amount);
+    } catch {
+      /* an unknown currency code — fall through to a bare number */
+    }
+  }
+  return String(amount);
+}
+
+/**
+ * Sentence-case *text*, leaving everything after the first character alone.
+ *
+ * Scripts without letter case (Chinese) are unaffected: `toUpperCase` is a no-op on
+ * a character that has no upper-case mapping.
+ */
+function sentenceCase(text: string): string {
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
+
+/**
+ * Human-readable summary of a task's recurrence rule, in sentence case.
+ *
+ * The strings underneath it are inconsistent by history rather than by design: the
+ * clock ones were written as embeddable fragments ("every 12 months after
+ * completion") and the sensor and status ones as standalone labels ("Every 300 h of
+ * use", "Monitored"). Every caller renders the result as the first words of a line —
+ * a task row's meta, the detail page's Recurrence row, the form's live preview — so
+ * the case is fixed here rather than in sixteen locale files, where it would have to
+ * be re-decided per language and could not be enforced.
+ */
 export function recurrenceSummary(task: Task): string {
+  return sentenceCase(recurrenceText(task));
+}
+
+function recurrenceText(task: Task): string {
   // A triggered task has no schedule — it is "monitored" and only due when its
   // owning integration arms it (e.g. Battery Notes when a battery goes low).
   if (task.recurrence_type === 'triggered') return t('recurrence.triggered');
@@ -194,14 +442,54 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
   return new Date(task.next_due).getTime() <= now.getTime();
 }
 
+/**
+ * Units left before a dormant usage/meter task next comes due, or `null` when there
+ * is no live countdown to show.
+ *
+ * `target - max(0, currentReading - baseline)`, clamped at 0 — the same arithmetic
+ * the detail page's meter bar uses (`panel._sensorProgressBar`). Returns `null` for
+ * anything that isn't a `usage` sensor task with a numeric `target`/`baseline` and a
+ * readable numeric value on the bound entity (a threshold/state task, an un-anchored
+ * meter, or an unavailable sensor), so a caller falls back to "Monitored".
+ */
+export function meterRemaining(
+  task: Partial<Task> | null | undefined,
+  hass?: Hass,
+): number | null {
+  const s = task?.sensor;
+  if (!s || task?.recurrence_type !== 'sensor' || s.mode !== 'usage') return null;
+  if (typeof s.target !== 'number' || typeof s.baseline !== 'number') return null;
+  const state = s.entity_id ? hass?.states?.[s.entity_id] : undefined;
+  const raw = state
+    ? s.attribute
+      ? (state.attributes?.[s.attribute] as unknown)
+      : state.state
+    : undefined;
+  if (raw == null || raw === '') return null;
+  const reading = Number(raw);
+  if (Number.isNaN(reading)) return null;
+  const consumed = Math.max(0, reading - s.baseline);
+  return Math.max(0, s.target - consumed);
+}
+
 /** Compact relative description of a due date, e.g. "in 3 days" / "2 days ago". */
-export function dueLabel(task: Task, now: Date = new Date()): string {
+export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): string {
   // A dormant triggered/sensor task is armed-but-not-due: show "Monitored", not "no
   // date" — Home Keeper is watching the condition / sensor and will arm it.
   if (
     (task.recurrence_type === 'triggered' || task.recurrence_type === 'sensor') &&
     !task.next_due
   ) {
+    // A dormant usage/meter task can read as a live countdown ("in 7000 miles") — the
+    // meter analogue of a time task's "in 3 days" — when its bound sensor gives one.
+    // Every other dormant sensor/triggered task (threshold, state, integration-armed,
+    // or a meter with no reading yet) has no number, so it stays "Monitored".
+    const remaining = meterRemaining(task, hass);
+    if (remaining !== null) {
+      const unit = readingUnit(task, hass);
+      const value = unit ? `${round1(remaining)} ${unit}` : `${round1(remaining)}`;
+      return t('due.in_units', { value });
+    }
     return t('due.monitored');
   }
   // A completed one-off (do-once, now dormant) reads as "Completed".
@@ -224,15 +512,45 @@ export function dueLabel(task: Task, now: Date = new Date()): string {
   return ago === 1 ? t('due.yesterday') : tn('due.days_ago', ago);
 }
 
-/** Resolve a device id to its display name using hass.devices. */
+/**
+ * Resolve a device id to its display name using `hass.devices`, or `''` when there is
+ * no name to show.
+ *
+ * It used to fall back to the id itself, which meant a task pointing at a device that
+ * had left the registry — a removed integration, a deleted device — rendered
+ * `5ff1f1bb41a19a763aa4ab750cd37c97` as its chip, cut mid-string by the chip's own
+ * border. The id is not a name in any language, and it made things worse than a blank:
+ * the four callers that read `asset.name || deviceName(…) || t('appliance.fallbackName')`
+ * could never reach the friendly fallback, because a raw id is truthy.
+ *
+ * Returning `''` puts the decision where the context is. Every caller either already
+ * guards on an empty string or now does.
+ */
 export function deviceName(
   devices: Record<string, { name?: string; name_by_user?: string | null }> | undefined,
   deviceId: string | null | undefined,
 ): string {
+  // Stryker disable next-line ConditionalExpression: equivalent — a falsy id looks up
+  // `undefined` in the map, which the `!dev` guard below turns into the same ''. The
+  // early return is for readers, not for behaviour.
   if (!deviceId) return '';
   const dev = devices?.[deviceId];
-  if (!dev) return deviceId;
-  return dev.name_by_user || dev.name || deviceId;
+  if (!dev) return '';
+  return dev.name_by_user || dev.name || '';
+}
+
+/**
+ * The device id to group *task* under, or `undefined` for the "No device" bucket.
+ *
+ * The test is whether the device can be **named**, not whether it is in the registry:
+ * a bucket is headed by its label, and a device that is present but nameless resolves
+ * to `''`, which would head a section with nothing at all.
+ */
+export function groupableDeviceId(
+  devices: Record<string, { name?: string; name_by_user?: string | null }> | undefined,
+  deviceId: string | null | undefined,
+): string | undefined {
+  return deviceId && deviceName(devices, deviceId) ? deviceId : undefined;
 }
 
 /** Resolve a device to its integration domain via the config-entry → domain map. */
@@ -285,6 +603,16 @@ export function tagName(
 }
 
 /**
+ * Resolve a `person` entity id to its friendly name, falling back to the id itself.
+ * Unlike `deviceName`, the fallback is deliberate: a completion's "who" is a name the
+ * history line is built around, so `person.sam` still says more there than a blank.
+ */
+export function personName(hass: Hass | undefined, entityId: string): string {
+  const friendly = hass?.states?.[entityId]?.attributes?.friendly_name;
+  return typeof friendly === 'string' && friendly ? friendly : entityId;
+}
+
+/**
  * Whether *task* can only be completed by scanning its tag. Both halves are
  * required: the flag without a bound tag would describe a task nothing could ever
  * complete, so it reads as "not locked" rather than "locked forever".
@@ -299,14 +627,53 @@ export function scanRequired(task: Partial<Task>): boolean {
 export type PanelView = 'tasks' | 'appliances' | 'settings';
 
 /**
+ * The sub-tabs an appliance's detail page is divided into. Each is a URL of its own,
+ * so Back leaves a sub-tab the same way it leaves any other destination.
+ *
+ * `parts` is the default: it is the reason most appliances exist in Home Keeper.
+ */
+export const ASSET_TABS = [
+  'parts',
+  'tasks',
+  'documents',
+  'details',
+  'related',
+  'history',
+] as const;
+export type AssetTab = (typeof ASSET_TABS)[number];
+export const DEFAULT_ASSET_TAB: AssetTab = 'parts';
+
+/**
+ * The Settings tab's sections, in the order they are shown. Each is a URL of its own
+ * so a phone, which has no room for six sections at once, can show an index and open
+ * one section at a time with Back working normally.
+ *
+ * Unlike an appliance sub-tab there is no default: `/settings` with no section is the
+ * index itself, which is a real destination rather than a redirect.
+ */
+export const SETTINGS_SECTIONS = [
+  'general',
+  'shopping',
+  'problem',
+  'profiles',
+  'notifications',
+  'companions',
+] as const;
+export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+
+/**
  * A fully-resolved panel location: which tab is shown and, optionally, the
  * detail page open on top of it. This is the panel's entire navigation state —
  * it round-trips losslessly with the URL via {@link parseRoute} / {@link buildPath}
  * so the URL can be the single source of truth (high-fidelity deep linking).
+ *
+ * An appliance detail also carries which of its sub-tabs is open, and the Settings
+ * tab carries which of its sections is open (none meaning the section index).
  */
 export interface PanelLocation {
   view: PanelView;
-  detail: { kind: 'task' | 'asset'; id: string } | null;
+  detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab } | null;
+  section?: SettingsSection;
 }
 
 /**
@@ -314,17 +681,49 @@ export interface PanelLocation {
  * hands the panel) into a {@link PanelLocation}. Unknown/empty paths fall back to
  * the tasks list. The asset detail lives under the `appliances` segment but keeps
  * the internal `asset` kind.
+ *
+ * A third segment names an appliance sub-tab (`/appliances/<id>/documents`). An
+ * unrecognised one falls back to the default rather than 404-ing, and a bare
+ * `/appliances/<id>` — every link minted before sub-tabs existed, including the
+ * `configuration_url` on already-registered devices — keeps resolving.
+ *
+ * Under `settings` the second segment names a section (`/settings/notifications`).
+ * An unrecognised one falls back to the section index, not to a default section: a
+ * bare `/settings` is the index, and a typo should land there rather than somewhere
+ * arbitrary.
  */
 export function parseRoute(path: string | undefined | null): PanelLocation {
+  // Stryker disable next-line StringLiteral: equivalent — a null path with any other
+  // slash-free default parses to the same location, so no test can tell them apart.
   const parts = String(path ?? '')
     .split('/')
     .map((p) => p.trim())
     .filter(Boolean);
   const view: PanelView =
     parts[0] === 'appliances' ? 'appliances' : parts[0] === 'settings' ? 'settings' : 'tasks';
-  // Only the tasks/appliances lists drill into a detail page; settings has none.
-  if (parts[1] && view !== 'settings') {
+  if (view === 'settings') {
+    // Short-circuit rather than falling back to '': an empty-string default is
+    // indistinguishable from any other non-section string here, so it would only
+    // add a mutant no test could ever kill.
+    const raw = parts[1] && decodeURIComponent(parts[1]);
+    return raw && (SETTINGS_SECTIONS as readonly string[]).includes(raw)
+      ? { view, detail: null, section: raw as SettingsSection }
+      : { view, detail: null };
+  }
+  // Only the tasks/appliances lists drill into a detail page.
+  if (parts[1]) {
     const kind = view === 'appliances' ? 'asset' : 'task';
+    if (kind === 'asset') {
+      // Short-circuit rather than defaulting to '', for the same reason the settings
+      // branch does: an empty-string default is indistinguishable from any other
+      // non-tab string, so it only adds a mutant no test could ever kill.
+      const raw = parts[2] && decodeURIComponent(parts[2]);
+      const tab =
+        raw && (ASSET_TABS as readonly string[]).includes(raw)
+          ? (raw as AssetTab)
+          : DEFAULT_ASSET_TAB;
+      return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
+    }
     return { view, detail: { kind, id: decodeURIComponent(parts[1]) } };
   }
   return { view, detail: null };
@@ -334,11 +733,22 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
  * Build the route path (under the panel prefix) for a {@link PanelLocation} —
  * the inverse of {@link parseRoute}. The detail page's URL segment derives from
  * the view, so a task detail is `/tasks/<id>` and an asset detail is
- * `/appliances/<id>`.
+ * `/appliances/<id>`, plus its sub-tab where one is open.
+ *
+ * The default sub-tab is left off the URL: `/appliances/<id>` and
+ * `/appliances/<id>/parts` are the same page, and the shorter one is what a link
+ * to an appliance should look like.
+ *
+ * A Settings section appends itself the same way, and no section means the index.
  */
 export function buildPath(loc: PanelLocation): string {
-  if (loc.detail) return `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
-  return `/${loc.view}`;
+  if (loc.view === 'settings') {
+    return loc.section ? `/settings/${loc.section}` : '/settings';
+  }
+  if (!loc.detail) return `/${loc.view}`;
+  const base = `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
+  const tab = loc.detail.tab;
+  return tab && tab !== DEFAULT_ASSET_TAB ? `${base}/${tab}` : base;
 }
 
 // ── completion history ───────────────────────────────────────────────────────
@@ -400,4 +810,62 @@ export function assetSummary(
   const partCount = asset.parts?.length ?? 0;
   if (partCount) bits.push(tn('asset.parts', partCount));
   return bits.length ? bits.join(' · ') : t('asset.noDetails');
+}
+
+export interface AssetTreeEntry<T> {
+  item: T;
+  depth: number;
+}
+
+/**
+ * Flatten a list of assets into depth-first render order, respecting the
+ * parent_asset_id hierarchy. Assets whose parent is absent from the input
+ * are promoted to roots (handles cross-filter cases). Siblings at each
+ * level are sorted using the caller's comparator.
+ */
+export function buildAssetTree<
+  T extends { id: string; parent_asset_id?: string | null },
+>(assets: T[], compare: (a: T, b: T) => number): AssetTreeEntry<T>[] {
+  const ids = new Set(assets.map((a) => a.id));
+  const children = new Map<string, T[]>();
+  const roots: T[] = [];
+
+  for (const a of assets) {
+    const pid = a.parent_asset_id;
+    if (pid && ids.has(pid)) {
+      const arr = children.get(pid);
+      if (arr) arr.push(a);
+      else children.set(pid, [a]);
+    } else {
+      roots.push(a);
+    }
+  }
+
+  roots.sort(compare);
+  for (const arr of children.values()) arr.sort(compare);
+
+  const result: AssetTreeEntry<T>[] = [];
+  const visited = new Set<string>();
+
+  const walk = (nodes: T[], depth: number): void => {
+    for (const node of nodes) {
+      if (visited.has(node.id)) continue;
+      visited.add(node.id);
+      result.push({ item: node, depth });
+      const kids = children.get(node.id);
+      if (kids) walk(kids, depth + 1);
+    }
+  };
+
+  walk(roots, 0);
+
+  // Assets trapped in a pure cycle (A→B→A) have no root — promote any
+  // un-visited ones so they still appear in the output.
+  if (visited.size < assets.length) {
+    const remaining = assets.filter((a) => !visited.has(a.id));
+    remaining.sort(compare);
+    walk(remaining, 0);
+  }
+
+  return result;
 }

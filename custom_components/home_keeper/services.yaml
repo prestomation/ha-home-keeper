@@ -26,7 +26,9 @@ add_task:
         (condition-driven, no schedule; an owning integration arms it via trigger_task
         and clears it via complete_task), or sensor (due-state derived from a bound
         entity, uses "sensor"). interval/unit/freq/anchor are N/A for one-off,
-        triggered, and sensor.
+        triggered, and sensor. Optional: omit it and the type is inferred from the
+        schedule fields you passed - interval/unit means floating, freq/anchor means
+        fixed, and neither means a one-off due today.
       selector:
         select:
           options:
@@ -206,8 +208,8 @@ update_task:
   description: Update fields of an existing task.
   fields:
     task_id:
-      name: Task ID
-      description: The id of the task to update.
+      name: Task name or ID
+      description: The id of the task to update. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -369,7 +371,7 @@ delete_task:
   description: Delete a task.
   fields:
     task_id:
-      name: Task ID
+      name: Task name or ID
       required: true
       selector:
         text:
@@ -388,7 +390,7 @@ complete_task:
   description: Mark a task complete and advance its recurrence.
   fields:
     task_id:
-      name: Task ID
+      name: Task name or ID
       required: true
       selector:
         text:
@@ -456,8 +458,8 @@ update_completion:
     to it, because the baseline is the reading at the last completion.
   fields:
     task_id:
-      name: Task ID
-      description: The id of the task whose completion you are editing.
+      name: Task name or ID
+      description: The id of the task whose completion you are editing. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -511,8 +513,8 @@ move_completion:
     next-due dates from the result. Fires task_uncompleted then task_completed.
   fields:
     task_id:
-      name: Task ID
-      description: The id of the task whose completion you are moving.
+      name: Task name or ID
+      description: The id of the task whose completion you are moving. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -537,8 +539,8 @@ delete_completion:
     dates from the remaining history.
   fields:
     task_id:
-      name: Task ID
-      description: The id of the task whose completion you are removing.
+      name: Task name or ID
+      description: The id of the task whose completion you are removing. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -565,14 +567,14 @@ delete_archived_completion:
     id and the completion timestamp.
   fields:
     asset_id:
-      name: Asset ID
-      description: The id of the appliance whose archived history you are editing.
+      name: Appliance name or ID
+      description: The id of the appliance whose archived history you are editing. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     task_id:
-      name: Task ID
-      description: The id of the original task the archived completion belongs to.
+      name: Task name or ID
+      description: The id of the original task the archived completion belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -592,8 +594,8 @@ trigger_task:
     low after a prior replacement). Idempotent. Only valid for triggered tasks.
   fields:
     task_id:
-      name: Task ID
-      description: The id of the triggered task to arm.
+      name: Task name or ID
+      description: The id of the triggered task to arm. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -607,8 +609,8 @@ set_task_meter:
     current reading. Only valid for a sensor task in usage mode.
   fields:
     task_id:
-      name: Task ID
-      description: The id of the usage sensor task to re-anchor.
+      name: Task name or ID
+      description: The id of the usage sensor task to re-anchor. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -631,8 +633,8 @@ snooze_task:
     fires when the snooze lapses.
   fields:
     task_id:
-      name: Task ID
-      description: The id of the task to snooze.
+      name: Task name or ID
+      description: The id of the task to snooze. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -663,8 +665,8 @@ skip_task:
     occurrence. Other task types (one-off, triggered, or sensor) simply go dormant.
   fields:
     task_id:
-      name: Task ID
-      description: The id of the task to skip.
+      name: Task name or ID
+      description: The id of the task to skip. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -688,19 +690,19 @@ set_task_consumable:
     asset_id and part_id to clear the link.
   fields:
     task_id:
-      name: Task ID
-      description: The id of the task to link (or unlink).
+      name: Task name or ID
+      description: The id of the task to link (or unlink). Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     asset_id:
-      name: Asset ID
-      description: The id of the appliance the consumable belongs to. Omit to unlink.
+      name: Appliance name or ID
+      description: The id of the appliance the consumable belongs to. Omit to unlink. Its name works too. The panel shows the id.
       selector:
         text:
     part_id:
-      name: Part ID
-      description: The id of the consumable/part to link. Omit to unlink.
+      name: Part name or ID
+      description: The id of the consumable/part to link. Omit to unlink. Its name works too. The panel shows the id.
       selector:
         text:
 
@@ -841,7 +843,7 @@ add_asset:
         object:
     parent_asset_id:
       name: Parent appliance
-      description: Make this a subdevice of another (virtual) appliance.
+      description: Make this a subdevice of another (virtual) appliance. Give its name or its id.
       selector:
         text:
     related_device_ids:
@@ -856,8 +858,8 @@ update_asset:
   description: Update fields of an existing appliance/asset.
   fields:
     asset_id:
-      name: Asset ID
-      description: The id of the asset to update.
+      name: Appliance name or ID
+      description: The id of the asset to update. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -922,7 +924,7 @@ update_asset:
         object:
     parent_asset_id:
       name: Parent appliance
-      description: Make this a subdevice of another (virtual) appliance.
+      description: Make this a subdevice of another (virtual) appliance. Give its name or its id.
       selector:
         text:
     related_device_ids:
@@ -939,7 +941,7 @@ delete_asset:
     attached to it become standalone.
   fields:
     asset_id:
-      name: Asset ID
+      name: Appliance name or ID
       required: true
       selector:
         text:
@@ -951,7 +953,7 @@ archive_asset:
     device, entities, and attached tasks are left untouched. restore_asset undoes it.
   fields:
     asset_id:
-      name: Asset ID
+      name: Appliance name or ID
       required: true
       selector:
         text:
@@ -961,7 +963,7 @@ restore_asset:
   description: Undo archive_asset, returning an archived appliance to the default view.
   fields:
     asset_id:
-      name: Asset ID
+      name: Appliance name or ID
       required: true
       selector:
         text:
@@ -981,14 +983,14 @@ adjust_part_stock:
     reorder.
   fields:
     asset_id:
-      name: Asset ID
-      description: The id of the appliance the part belongs to.
+      name: Appliance name or ID
+      description: The id of the appliance the part belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     part_id:
-      name: Part ID
-      description: The id of the part whose stock to adjust.
+      name: Part name or ID
+      description: The id of the part whose stock to adjust. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1012,14 +1014,14 @@ remove_part_file:
     removal only (a service call can't carry binary bytes).
   fields:
     asset_id:
-      name: Asset ID
-      description: The id of the appliance the part belongs to.
+      name: Appliance name or ID
+      description: The id of the appliance the part belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     part_id:
-      name: Part ID
-      description: The id of the part whose file to remove.
+      name: Part name or ID
+      description: The id of the part whose file to remove. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1031,8 +1033,8 @@ add_asset_document:
     file documents from the panel. This service handles links only.
   fields:
     asset_id:
-      name: Asset ID
-      description: The id of the appliance to attach the document to.
+      name: Appliance name or ID
+      description: The id of the appliance to attach the document to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1052,14 +1054,14 @@ remove_asset_document:
     copy is deleted from disk too.
   fields:
     asset_id:
-      name: Asset ID
-      description: The id of the appliance the document belongs to.
+      name: Appliance name or ID
+      description: The id of the appliance the document belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     document_id:
-      name: Document ID
-      description: The id of the document to remove.
+      name: Document name or ID
+      description: The id of the document to remove. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1071,14 +1073,14 @@ update_asset_document:
     documents) change its URL. Uploaded file documents can only be renamed.
   fields:
     asset_id:
-      name: Asset ID
-      description: The id of the appliance the document belongs to.
+      name: Appliance name or ID
+      description: The id of the appliance the document belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     document_id:
-      name: Document ID
-      description: The id of the document to edit.
+      name: Document name or ID
+      description: The id of the document to edit. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1099,14 +1101,14 @@ sign_document_url:
     the file document's bytes from, e.g. an MCP-connected agent.
   fields:
     asset_id:
-      name: Asset ID
-      description: The id of the appliance the document belongs to.
+      name: Appliance name or ID
+      description: The id of the appliance the document belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     document_id:
-      name: Document ID
-      description: The id of the document to sign a URL for.
+      name: Document name or ID
+      description: The id of the document to sign a URL for. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1118,14 +1120,14 @@ sign_part_file_url:
     a part's attached file bytes from, e.g. an MCP-connected agent.
   fields:
     asset_id:
-      name: Asset ID
-      description: The id of the appliance the part belongs to.
+      name: Appliance name or ID
+      description: The id of the appliance the part belongs to. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
     part_id:
-      name: Part ID
-      description: The id of the part whose attached file to sign a URL for.
+      name: Part name or ID
+      description: The id of the part whose attached file to sign a URL for. Its name works too. The panel shows the id.
       required: true
       selector:
         text:
@@ -1144,11 +1146,11 @@ set_options:
     Settings tab and the options flow). Only the fields you pass change. Controls
     whether device_class "problem" binary sensors are synced as tasks (with
     entity / device / area / label exclusions), how long completed one-off tasks
-    are kept, and which to-do list auto-buy reminders are mirrored onto.
+    are kept, and which to-do list auto-buy reminders are synced onto.
   fields:
     sync_problem_sensors:
       name: Sync problem sensors as tasks
-      description: Mirror every device_class "problem" binary sensor as a task.
+      description: Sync every device_class "problem" binary sensor as a task.
       selector:
         boolean:
     one_off_retention_days:
@@ -1165,9 +1167,9 @@ set_options:
     shopping_list_entity:
       name: Shopping list
       description: >-
-        An existing to-do list to mirror auto-buy reminders onto. Ticking an item
+        An existing to-do list to sync auto-buy reminders onto. Ticking an item
         off there completes the Home Keeper reminder and restocks the part. Leave
-        empty to turn the mirror off.
+        empty to turn the sync off.
       selector:
         entity:
           filter:

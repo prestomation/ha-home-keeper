@@ -1484,3 +1484,95 @@ def test_a_seeded_fixed_task_derives_its_next_occurrence_from_now():
     next_due = datetime.fromisoformat(task["next_due"])
     assert next_due > NOW
     assert next_due == datetime(2026, 6, 14, 7, tzinfo=TZ)
+
+
+# ── inferring the recurrence type a creation call did not name ───────────────
+# `services.yaml` promises `name` is add_task's only required field, but the old
+# floating default needed a `unit` that has no default, so `{name: ...}` alone
+# failed validation. These pin each arm of `infer_recurrence_type`, including the
+# ones that must NOT change — a bare name becoming one-off is only safe if a call
+# that passes a cadence still gets that cadence.
+
+
+def test_bare_name_builds_a_one_off_due_now():
+    task = m.build_task({"name": "Take out bins"}, now=NOW)
+    assert task["recurrence_type"] == "one-off"
+    # The one-off `due` default supplies the date, so the task is actionable today
+    # rather than dormant.
+    assert task["next_due"] == NOW.isoformat()
+    # A one-off carries no cadence at all — `normalize_fields` returns before the
+    # interval/unit branch — so the keys are absent rather than None.
+    assert "interval" not in task
+    assert "unit" not in task
+
+
+def test_a_named_cadence_still_builds_a_floating_task():
+    # The regression this guards: `{name, interval, unit}` works today and must not
+    # quietly become a do-once task that discards the cadence it was handed.
+    task = m.build_task(
+        {"name": "Fridge filter", "interval": 3, "unit": "months"}, now=NOW
+    )
+    assert task["recurrence_type"] == "floating"
+    assert task["interval"] == 3
+    assert task["unit"] == "months"
+    assert task["next_due"] == NOW.isoformat()
+
+
+def test_a_unit_alone_still_builds_a_floating_task():
+    task = m.build_task({"name": "Water filter", "unit": "weeks"}, now=NOW)
+    assert task["recurrence_type"] == "floating"
+    assert task["unit"] == "weeks"
+    # The interval default (1) applies, so "unit only" means every one of them.
+    assert task["interval"] == 1
+
+
+def test_an_anchor_and_freq_still_build_a_fixed_task():
+    task = m.build_task(
+        {"name": "Rent", "freq": "MONTHLY", "anchor": "2026-07-01T09:00:00"},
+        now=NOW,
+    )
+    assert task["recurrence_type"] == "fixed"
+    assert task["freq"] == "MONTHLY"
+    assert task["anchor"] == datetime(2026, 7, 1, 9, tzinfo=TZ).isoformat()
+
+
+def test_a_partial_cadence_fails_naming_the_missing_field():
+    # An interval with no unit is a cadence the caller asked for and under-specified.
+    # Inferring one-off would silently drop the interval; say what is missing instead.
+    with raises_exactly(m.TaskValidationError, "invalid unit: None"):
+        m.build_task({"name": "Half a schedule", "interval": 3}, now=NOW)
+
+
+def test_an_explicit_recurrence_type_always_wins():
+    # Inference only fills a gap; it never overrides what the caller said. A caller
+    # who says "floating" and forgets the unit still gets the validation error.
+    with raises_exactly(m.TaskValidationError, "invalid unit: None"):
+        m.build_task(
+            {"name": "Explicitly floating", "recurrence_type": "floating"}, now=NOW
+        )
+    task = m.build_task(
+        {"name": "Explicitly triggered", "recurrence_type": "triggered"}, now=NOW
+    )
+    assert task["recurrence_type"] == "triggered"
+    # And it took the triggered path, not the one-off one: an inferred one-off would
+    # have been handed a `due` (defaulted to now), which a triggered task never has.
+    assert "due" not in task
+
+
+def test_inference_does_not_reach_updates():
+    # `merge_update` always carries the existing type forward, so an edit that omits
+    # `recurrence_type` keeps the task's own kind rather than being re-inferred as a
+    # one-off from an updates dict that names no schedule field.
+    task = m.build_task(
+        {
+            "name": "Fridge filter",
+            "recurrence_type": "floating",
+            "interval": 3,
+            "unit": "months",
+        },
+        now=NOW,
+    )
+    updated = m.merge_update(task, {"name": "Renamed"}, now=NOW)
+    assert updated["recurrence_type"] == "floating"
+    assert updated["interval"] == 3
+    assert updated["unit"] == "months"

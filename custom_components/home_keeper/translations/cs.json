@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Možnosti Home Keeper",
-        "description": "Zrcadlí binární senzory s třídou zařízení „problém“ jako úkoly. Synchronizovaný úkol zůstává aktivní, dokud senzor hlásí problém, a automaticky se vymaže, jakmile jej zdrojová integrace vyřeší; v Home Keeper jej nelze dokončit. Níže vylučte konkrétní senzory, oblasti nebo štítky.",
+        "description": "Synchronizuje binární senzory s třídou zařízení „problém“ jako úkoly. Synchronizovaný úkol zůstává aktivní, dokud senzor hlásí problém, a automaticky se vymaže, jakmile jej zdrojová integrace vyřeší; v Home Keeper jej nelze dokončit. Níže vylučte konkrétní senzory, oblasti nebo štítky.",
         "data": {
           "sync_problem_sensors": "Synchronizovat senzory problémů jako úkoly",
           "problem_sensor_exclude_entities": "Vyloučené senzory",
@@ -25,8 +25,9 @@
           "shopping_list_entity": "Nákupní seznam"
         },
         "data_description": {
+          "sync_problem_sensors": "Synchronizovaný úkol se uzavře, až když zdrojová integrace problém vyřeší, ne když klepnete na Hotovo. Připomenutí u něj nabízejí Odložit místo Hotovo.",
           "one_off_retention_days": "Automaticky smazat dokončený jednorázový úkol tolik dní po jeho dokončení. Hodnota 0 ponechá dokončené jednorázové úkoly navždy.",
-          "shopping_list_entity": "Zrcadlí automatické nákupní připomínky do tohoto seznamu úkolů. Odškrtnutí položky tam dokončí připomínku v Home Keeperu a doplní zásobu dílu. Ponechte prázdné pro vypnutí."
+          "shopping_list_entity": "Synchronizuje automatické nákupní připomínky do tohoto seznamu úkolů. Odškrtnutí položky tam dokončí připomínku v Home Keeperu a doplní zásobu dílu. Ponechte prázdné pro vypnutí."
         }
       }
     }
@@ -123,8 +124,8 @@
       "description": "Aktualizovat pole existujícího úkolu.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID úkolu, který se má aktualizovat."
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, který se má aktualizovat. Funguje i jeho název. Panel zobrazuje id."
         },
         "name": {
           "name": "Název",
@@ -209,8 +210,8 @@
       "description": "Smazat úkol.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID úkolu, který se má smazat."
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, který se má smazat. Funguje i jeho název. Panel zobrazuje id."
         },
         "force": {
           "name": "Vynutit",
@@ -223,8 +224,8 @@
       "description": "Označit úkol jako dokončený a posunout jeho opakování.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID úkolu, který se má dokončit."
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, který se má dokončit. Funguje i jeho název. Panel zobrazuje id."
         },
         "completed_at": {
           "name": "Dokončeno v",
@@ -261,8 +262,8 @@
       "description": "Upraví metadata (poznámku, cenu, fotku, kdo) již zaznamenaného dokončení určeného podle časového razítka. Nemění plán ani datum splatnosti.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID úkolu, jehož dokončení upravujete."
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, jehož dokončení upravujete. Funguje i jeho název. Panel zobrazuje id."
         },
         "ts": {
           "name": "Časové razítko dokončení",
@@ -295,8 +296,8 @@
       "description": "Aktivovat úkol řízený podmínkou (spouštěný) tak, aby se zobrazoval jako nyní splatný — uživatelský protějšek k Dokončit úkol (které jej vrátí zpět do nečinného stavu). Idempotentní; platí pouze pro spouštěné úkoly.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID spouštěného úkolu, který se má aktivovat."
+          "name": "Název nebo ID úkolu",
+          "description": "ID spouštěného úkolu, který se má aktivovat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -305,8 +306,8 @@
       "description": "Znovu ukotví výchozí hodnotu úkolu se snímačem spotřeby (měřidlem), aniž by zaznamenal splnění. Použijte ji, když byla práce hotová dřív, než ji Home Keeper sledoval, nebo když bylo připojené měřidlo vyměněno či vynulováno. Vynecháte-li výchozí hodnotu, ukotví se na aktuální hodnotu snímače. Platí pouze pro úkol se snímačem v režimu spotřeby.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID úkolu se snímačem spotřeby, který se má znovu ukotvit."
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu se snímačem spotřeby, který se má znovu ukotvit. Funguje i jeho název. Panel zobrazuje id."
         },
         "baseline": {
           "name": "Výchozí hodnota",
@@ -319,8 +320,8 @@
       "description": "Odložit datum splatnosti úkolu bez zaznamenání dokončení nebo posunutí jeho opakování.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID úkolu, který se má odložit."
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, který se má odložit. Funguje i jeho název. Panel zobrazuje id."
         },
         "hours": {
           "name": "Hodiny",
@@ -337,8 +338,8 @@
       "description": "Posunout úkol na jeho další výskyt bez zaznamenání dokončení.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID úkolu, který se má přeskočit."
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, který se má přeskočit. Funguje i jeho název. Panel zobrazuje id."
         },
         "origin": {
           "name": "Původ",
@@ -351,16 +352,16 @@
       "description": "Propojí úkol se spotřebním materiálem/dílem spotřebiče, takže jeho dokončení spotřebuje jeden náhradní kus ze zásob a při objednací hranici vyvolá událost nízkého stavu zásob. Vynechte asset_id a part_id pro zrušení propojení.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID spouštěného úkolu, který se má aktivovat."
+          "name": "Název nebo ID úkolu",
+          "description": "ID spouštěného úkolu, který se má aktivovat. Funguje i jeho název. Panel zobrazuje id."
         },
         "asset_id": {
-          "name": "ID majetku",
-          "description": "Id spotřebiče, ke kterému díl patří."
+          "name": "Název nebo ID majetku",
+          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "part_id": {
-          "name": "ID dílu",
-          "description": "Id dílu, jehož zásobu chcete upravit."
+          "name": "Název nebo ID dílu",
+          "description": "Id dílu, jehož zásobu chcete upravit. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -444,7 +445,7 @@
         },
         "parent_asset_id": {
           "name": "Nadřazený spotřebič",
-          "description": "Udělat z tohoto podzařízení jiného spotřebiče."
+          "description": "Udělat z tohoto podzařízení jiného spotřebiče. Zadejte její název nebo id."
         },
         "related_device_ids": {
           "name": "Související zařízení",
@@ -461,8 +462,8 @@
       "description": "Aktualizovat pole existujícího spotřebiče/majetku.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "ID majetku, který se má aktualizovat."
+          "name": "Název nebo ID majetku",
+          "description": "ID majetku, který se má aktualizovat. Funguje i jeho název. Panel zobrazuje id."
         },
         "name": {
           "name": "Název",
@@ -510,7 +511,7 @@
         },
         "parent_asset_id": {
           "name": "Nadřazený spotřebič",
-          "description": "Udělat z tohoto podzařízení jiného spotřebiče."
+          "description": "Udělat z tohoto podzařízení jiného spotřebiče. Zadejte její název nebo id."
         },
         "related_device_ids": {
           "name": "Související zařízení",
@@ -527,8 +528,8 @@
       "description": "Smazat spotřebič/majetek. Jeho virtuální zařízení (pokud existuje) je odstraněno a úkoly k němu připojené se osamostatní.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "ID majetku, který se má smazat."
+          "name": "Název nebo ID majetku",
+          "description": "ID majetku, který se má smazat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -537,8 +538,8 @@
       "description": "Skrýt spotřebič/majetek z výchozího zobrazení bez smazání jeho dat. Jeho zařízení, entity a připojené úkoly zůstanou nedotčené; restore_asset to vrátí zpět.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "ID majetku, který se má archivovat."
+          "name": "Název nebo ID majetku",
+          "description": "ID majetku, který se má archivovat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -547,8 +548,8 @@
       "description": "Vrátí zpět archive_asset a vrátí archivovaný spotřebič do výchozího zobrazení.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "ID majetku, který se má obnovit."
+          "name": "Název nebo ID majetku",
+          "description": "ID majetku, který se má obnovit. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -561,12 +562,12 @@
       "description": "Změní skladové množství náhradních dílů o znaménkovou hodnotu (omezeno na nulu); povolena jsou desetinná čísla. Když pokles dosáhne prahu pro doobjednání nebo ho překročí, spustí se událost nízké zásoby.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "Id spotřebiče, ke kterému díl patří."
+          "name": "Název nebo ID majetku",
+          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "part_id": {
-          "name": "ID dílu",
-          "description": "Id dílu, jehož zásobu chcete upravit."
+          "name": "Název nebo ID dílu",
+          "description": "Id dílu, jehož zásobu chcete upravit. Funguje i jeho název. Panel zobrazuje id."
         },
         "delta": {
           "name": "Delta",
@@ -603,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Nákupní seznam",
-          "description": "Existující seznam úkolů, do kterého se zrcadlí automatické nákupní připomínky. Odškrtnutí položky tam připomínku dokončí a doplní zásobu. Prázdné pole funkci vypne."
+          "description": "Existující seznam úkolů, do kterého se synchronizují automatické nákupní připomínky. Odškrtnutí položky tam připomínku dokončí a doplní zásobu. Prázdné pole funkci vypne."
         },
         "dismissed_companions": {
           "name": "Zamítnutí společníci",
@@ -616,12 +617,12 @@
       "description": "Odpojí přiložený soubor dílu (účtenka/technický list/fotka) a smaže jeho uloženou kopii z disku. Nahrajte nebo nahraďte soubor z panelu; tato služba zajišťuje pouze odebrání.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "Id spotřebiče, ke kterému díl patří."
+          "name": "Název nebo ID majetku",
+          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "part_id": {
-          "name": "ID dílu",
-          "description": "Id dílu, jehož soubor chcete odebrat."
+          "name": "Název nebo ID dílu",
+          "description": "Id dílu, jehož soubor chcete odebrat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -630,8 +631,8 @@
       "description": "Připojí dokument typu odkaz (manuál/záruka/účtenka) ke spotřebiči. Soubory nahrajte z panelu; tato služba zpracovává pouze odkazy.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "ID spotřebiče, ke kterému se dokument připojí."
+          "name": "Název nebo ID majetku",
+          "description": "ID spotřebiče, ke kterému se dokument připojí. Funguje i jeho název. Panel zobrazuje id."
         },
         "document": {
           "name": "Dokument",
@@ -644,12 +645,12 @@
       "description": "Odpojí dokument od spotřebiče. U nahraného souboru se uložená kopie smaže i z disku.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "ID spotřebiče, ke kterému dokument patří."
+          "name": "Název nebo ID majetku",
+          "description": "ID spotřebiče, ke kterému dokument patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "document_id": {
-          "name": "ID dokumentu",
-          "description": "ID dokumentu k odebrání."
+          "name": "Název nebo ID dokumentu",
+          "description": "ID dokumentu k odebrání. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -658,12 +659,12 @@
       "description": "Upraví existující dokument spotřebiče – přejmenuje jej nebo (u dokumentů s odkazem) změní jeho URL. Nahrané soubory lze pouze přejmenovat.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "ID spotřebiče, ke kterému dokument patří."
+          "name": "Název nebo ID majetku",
+          "description": "ID spotřebiče, ke kterému dokument patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "document_id": {
-          "name": "ID dokumentu",
-          "description": "ID dokumentu k úpravě."
+          "name": "Název nebo ID dokumentu",
+          "description": "ID dokumentu k úpravě. Funguje i jeho název. Panel zobrazuje id."
         },
         "changes": {
           "name": "Změny",
@@ -676,8 +677,8 @@
       "description": "Znovu časově označí již zaznamenané dokončení (posune jej do minulosti nebo jej opraví), určené podle aktuálního časového razítka. Na rozdíl od Upravit dokončení tato akce mění datum/čas dokončení a znovu odvozuje datum posledního dokončení a dalšího termínu úkolu z výsledku.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID úkolu, jehož dokončení přesouváte."
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, jehož dokončení přesouváte. Funguje i jeho název. Panel zobrazuje id."
         },
         "old_ts": {
           "name": "Aktuální časové razítko dokončení",
@@ -694,8 +695,8 @@
       "description": "Odebere jedno dokončení z historie úkolu (vrátí náhodné „hotovo“), určené jeho časovým razítkem.",
       "fields": {
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID úkolu, jehož dokončení odebíráte."
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, jehož dokončení odebíráte. Funguje i jeho název. Panel zobrazuje id."
         },
         "ts": {
           "name": "Časové razítko dokončení",
@@ -712,12 +713,12 @@
       "description": "Odebere jedno dokončení z archivované historie spotřebiče, určené ID původního úkolu a časovým razítkem.",
       "fields": {
         "asset_id": {
-          "name": "ID spotřebiče",
-          "description": "ID spotřebiče, jehož archivovanou historii upravujete."
+          "name": "Název nebo ID majetku",
+          "description": "ID spotřebiče, jehož archivovanou historii upravujete. Funguje i jeho název. Panel zobrazuje id."
         },
         "task_id": {
-          "name": "ID úkolu",
-          "description": "ID původního úkolu, k němuž archivované dokončení patří."
+          "name": "Název nebo ID úkolu",
+          "description": "ID původního úkolu, k němuž archivované dokončení patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "ts": {
           "name": "Časové razítko dokončení",
@@ -768,12 +769,12 @@
       "description": "Vytvoří krátkodobou URL adresu (bez potřeby autentizační hlavičky), ze které může externí volající stáhnout bajty dokumentu, např. agent připojený přes MCP.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "ID spotřebiče, ke kterému dokument patří."
+          "name": "Název nebo ID majetku",
+          "description": "ID spotřebiče, ke kterému dokument patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "document_id": {
-          "name": "ID dokumentu",
-          "description": "Id dokumentu, pro který se má podepsat URL."
+          "name": "Název nebo ID dokumentu",
+          "description": "Id dokumentu, pro který se má podepsat URL. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -782,12 +783,12 @@
       "description": "Vytvoří krátkodobou URL adresu (bez potřeby autentizační hlavičky), ze které může externí volající stáhnout bajty přiloženého souboru dílu, např. agent připojený přes MCP.",
       "fields": {
         "asset_id": {
-          "name": "ID majetku",
-          "description": "Id spotřebiče, ke kterému díl patří."
+          "name": "Název nebo ID majetku",
+          "description": "Id spotřebiče, ke kterému díl patří. Funguje i jeho název. Panel zobrazuje id."
         },
         "part_id": {
-          "name": "ID dílu",
-          "description": "Id dílu, jehož přiložený soubor se má podepsat."
+          "name": "Název nebo ID dílu",
+          "description": "Id dílu, jehož přiložený soubor se má podepsat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
     },
@@ -931,6 +932,18 @@
     },
     "declarative_companion_not_found": {
       "message": "Deklarativní společník nebyl nalezen: {spec_id}"
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

@@ -2,11 +2,27 @@
 
 ## Workflow
 
+- **All English text follows ASD-STE100 Simplified Technical English.** This
+  includes documentation, user-facing strings, code comments, PR text, and replies to
+  the maintainer. Keep text brief. Use short sentences, the active voice, one approved
+  name per thing, and no idiom. The full rules and the project glossary are in
+  `.amazonq/rules/writing-style.md`. Read that file before you write any prose.
 - **Never push directly to main.** Always use a feature branch and open a PR.
 - Wait for CI (tests, HACS validation, code review) and approval before merging.
 - **Always squash merge PRs.**
 - **CHANGELOG.md** — update for every user-facing change before tagging a release.
   Developer-only changes (CI config, AGENTS.md, IDEAS.md) don't need entries.
+- **Keep every CHANGELOG bullet to three sentences at most.** A bold lead naming the
+  change, then what a user notices, then a caveat or `(Fixes #N)` if one is needed.
+  That is the whole budget. Cut the worked example ("your odometer reads 48,000…"),
+  the before-and-after story, the list of every surface the new value shows up on, and
+  the inventory of new service fields and entity attributes — those read as release
+  notes written for the person who wrote the code. Detail belongs in `README.md`,
+  `docs/`, or the PR body; the changelog says what changed and stops. One bullet per
+  change, never a second paragraph. Three sentences is the budget for the **whole
+  bullet**, counting the bold lead as the first — not three per paragraph, and not three
+  on top of the lead. `(Fixes #N)` must land in the bullet's **first**
+  paragraph, because `ci/release-issues.py` quotes the bullet it first appears in.
 - **A stable release's `## [X.Y.Z]` notes describe what changed since the last
   _stable_ release — not since its betas.** When cutting `X.Y.Z` from an `X.Y.ZbN`
   line, write the section for someone upgrading from the previous stable version and
@@ -52,8 +68,20 @@
   try the feature via HACS *before* merge. The build is ephemeral and auto-deletes
   when the PR closes (see RELEASE.md → "Preview releases"). Bug-fix-only /
   developer-only PRs don't need it.
+- **Always have a Sonnet 4.5 subagent write user-facing text.** Any prose a *user* reads —
+  `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
+  `services.yaml` descriptions, the frontend locale — is drafted by a subagent spawned
+  with `model: sonnet`, not written inline. Give it the diff, the surrounding section for
+  voice, and the house rules it has to satisfy (the STE100 rules in
+  `.amazonq/rules/writing-style.md`, the three-sentence CHANGELOG budget, the
+  `(Fixes #N)` placement, the vale AI-tells style), then review what comes back and edit
+  it yourself before committing — the subagent drafts, you are still responsible for what
+  ships. Commit messages, PR bodies and code comments are *not* user-facing text and stay
+  inline.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
-  - Pure-logic unit tests need only `pip install pytest`: `pytest tests/unit -v`.
+  - Pure-logic unit tests need only `pip install pytest PyYAML`: `pytest tests/unit -v`.
+    (`PyYAML` is for the API-surface gate below, which reads `services.yaml`; without
+    it those few tests skip and the rest still run.)
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
 - **Mutation testing gates every PR** at an 80% mutation score on the code the PR
   changed — see "Mutation testing" below. It is too slow for the
@@ -71,6 +99,16 @@
   For an accepted false positive, either disable the rule for that file in
   `.vale.ini` (`ai-tells.RuleName = NO`) or wrap the exception inline with
   `<!-- vale ai-tells.RuleName = NO -->` / `<!-- vale ai-tells.RuleName = YES -->`.
+  **A clean local `vale` run is not proof CI is clean.** The `vale-action` in `lint.yml`
+  pins its own binary, and a locally-installed one can miss hits it reports:
+  `ai-tells.VerbTricolon` fired on a rewritten CHANGELOG bullet in CI while local Vale
+  3.9.1 found nothing in the whole file. When a run matters, check the rule's own regexes
+  against the text directly (`styles/ai-tells/<Rule>.yml` is plain YAML `tokens`). Match
+  Vale's scope when you do: the rules apply per **block**, so a list item and all its
+  continuation lines are one string, and patterns like `[^,]+` happily span sentence
+  boundaries — a "three items in series" rule can fire across two sentences of one
+  bullet. In practice keep at most one comma in a bullet after a modal (`can`, `could`,
+  `will`) or a pronoun (`you`, `we`, `they`); a second one is usually what trips it.
   Diff-scoping only checks added/changed lines, so a wholesale rewrite of a file's
   prose (not just a small edit) can surface pre-existing hits on lines that just
   moved. Run `vale <file>` on the whole file yourself before a rewrite-style PR to
@@ -244,7 +282,11 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   the User Guide (`website/docs/guide/`, gitignored) and copies `docs/INTEGRATING.md` /
   `docs/GLUE_INTEGRATIONS.md` / `docs/EVENTS.md` / `docs/DESIGN.md` into the Developer
   Guide (`website/developer/`, gitignored), rewriting links/images. **Edit the canonical sources (`README.md`,
-  `docs/*.md`), never the generated trees.** `README.md` therefore stays the
+  `docs/*.md`), never the generated trees.** Every README `## ` section must be in
+  `USER_SECTIONS` or `UNPUBLISHED_SECTIONS` in `website/scripts/doc-map.mjs`.
+  `sync-docs.mjs` fails the site build on an unlisted section, and
+  `tests/frontend/doc-anchors.test.js` fails first, so a new section cannot stay off
+  the site by accident. `README.md` therefore stays the
   comprehensive user doc (it's the source) — don't "slim" it. Screenshots are likewise
   not duplicated: `website/scripts/sync-assets.mjs` mirrors `docs/images/` into the
   static tree, so `docs/images/` stays the single home for screenshots and the
@@ -267,9 +309,20 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
 - **Fire a `home_keeper_<noun>_<verb>` event for every state change.** Built by a pure
   builder in `events.py`, fired at the `store.py` chokepoint (including the non-CRUD
   mutation paths), edge-triggered for transitions (`transitions.py` + the coordinator,
-  baselined silently on startup). A new event isn't done until it's in `docs/EVENTS.md`
-  and, if device-facing, in `device_trigger.py` with translation-parity labels. Events
-  need no new service. See `.amazonq/rules/architecture-and-code.md` and `docs/EVENTS.md`.
+  baselined silently on startup). A new event isn't done until it has an `EventSpec` in
+  `api_surface.py` and, if device-facing, a `device_trigger.py` trigger with
+  translation-parity labels. Events need no new service. See
+  `.amazonq/rules/architecture-and-code.md` and `docs/EVENTS.md`.
+- **Every integrator-facing surface is declared in `api_surface.py`.** Services, events
+  and payloads, device triggers, entity platforms and attributes, options, plus the
+  internal websocket commands and HTTP views. The runtime consumes it (the service
+  teardown iterates `SERVICE_NAMES`; `device_trigger.py` builds its maps from
+  `triggers_for()`), and `tests/unit/test_api_surface.py` parses the component's source
+  to fail on drift. The model holds names and structure only — every label and
+  description is resolved from `services.yaml`/`strings.json` at generation time, so the
+  Developer Guide's **API reference** and the Home Assistant UI read from one string.
+  `ci/generate_api_docs.py` renders that page into the gitignored `website/developer/`
+  on `npm run sync`; nothing is committed and nothing is hand-written.
 - **An options flow merges; it never replaces.** Home Assistant stores what an options
   flow returns from `async_create_entry` as the *entire* `entry.options`, and the
   Configure dialog renders only `options.FLOW_OPTIONS` — so return
@@ -327,7 +380,7 @@ bash ci/test-mutation-frontend.sh --all
 - **The mutable surface is an allowlist**, in exactly one place per language:
   `only_mutate` in `[tool.mutmut]` (pyproject.toml) and `mutate` in
   `stryker.conf.json`. It holds the pure Python core (`recurrence`, `models`,
-  `assets`, `reconcile`, `shopping`, `notifications`, `sensor_tasks`,
+  `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
   `problem_tasks`, `inventory`, `profiles`, `documents`, `events`, `transitions`,
   `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
   `card-filter`, `documents`, `markdown`, `i18n`, `limits`). `options.py` counts as
@@ -336,9 +389,10 @@ bash ci/test-mutation-frontend.sh --all
   (only the Docker tiers cover it — far too slow to run once per mutant),
   `const.py` / `companions_catalog.py` (data, not logic), `backend_i18n.py` (pure
   but with no unit-test entry point), `testing.py` (already coverage-omitted), and
-  `panel.ts` / `card.ts` / `api.ts` (only indirectly covered; ~7k lines that would
-  score near zero). Widen the allowlist when you add unit tests that would make
-  the score mean something.
+  `panel.ts` + its flat `panel-*.ts` region modules / `card.ts` / `api.ts` (only
+  indirectly covered, through the element's own tests; they would score near
+  zero). Widen the allowlist when you add unit tests that would make the score
+  mean something.
 - **The gate is a mutation score of 80%**, set in `[tool.mutation-gate] break` and
   mirrored in `thresholds.break` (stryker.conf.json). The two runners compare them
   and fail on a mismatch, so they cannot drift.

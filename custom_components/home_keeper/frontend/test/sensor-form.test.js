@@ -449,12 +449,16 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
     expect(summary).toBe('Every 100 h of use');
   });
 
+  // #262: these read "every 3 months…" while the sensor case two tests up read
+  // "Every 100 h of use" — the same drift the issue reported, sitting in one describe
+  // block. Both are the first words of the same line on screen, so both are sentence
+  // case now.
   it('covers the clock-based kinds too, not just sensor tasks', () => {
     expect(formRecurrenceSummary({ recurrence_type: 'floating', interval: 3, unit: 'months' })).toBe(
-      'every 3 months after completion',
+      'Every 3 months after completion',
     );
     expect(formRecurrenceSummary({ recurrence_type: 'fixed', interval: 2, freq: 'WEEKLY' })).toBe(
-      'every 2 weeks',
+      'Every 2 weeks',
     );
     // A triggered task is the trap here: buildTaskPayload drops recurrence_type for
     // that kind, so a naive preview reads "every day" instead of "Monitored".

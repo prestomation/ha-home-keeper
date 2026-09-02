@@ -3,9 +3,9 @@
 The to-do entity is a thin projection over the task store, but it imports Home
 Assistant (``TodoItem``/``CoordinatorEntity``/``dt_util``). Like ``test_calendar.py``
 we load ``todo.py`` under the synthetic ``hk`` package used by the other pure unit
-tests (see ``tests/conftest.py``), stubbing only the HA symbols it references, and
-drive it against an in-memory coordinator/store. The real store/entity wiring is
-exercised by the integration suite.
+tests (see ``tests/conftest.py``), over the shared HA stub tree in ``ha_stubs.py``,
+and drive it against an in-memory coordinator/store. The real store/entity wiring
+is exercised by the integration suite.
 
 What's pinned here is the dormancy rule (#221): a task with no ``next_due`` whose
 kind goes dormant — a completed do-once task, an unarmed triggered/sensor task — is
@@ -16,15 +16,14 @@ an undated one can never be cleared.
 from __future__ import annotations
 
 import asyncio
-import enum
 import importlib.util
 import sys
 import types
-import typing
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from ha_stubs import install_ha_stubs
 
 _COMPONENT_DIR = (
     Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
@@ -34,145 +33,11 @@ TZ = timezone(timedelta(hours=-4))
 DUE = datetime(2026, 7, 15, 9, 0, tzinfo=TZ)
 
 
-def _real_ha_present() -> bool:
-    """True only when the *real* Home Assistant package is installed.
-
-    A hand-built stub ``homeassistant`` module (e.g. from ``test_calendar.py``) has
-    no ``__file__``; the real package does. This distinguishes them so we fill gaps
-    over a stub tree but never shadow real submodules.
-    """
-    mod = sys.modules.get("homeassistant")
-    if mod is None:
-        try:  # pragma: no cover - depends on environment
-            import homeassistant as mod  # type: ignore[no-redef]
-        except ImportError:
-            return False
-    return getattr(mod, "__file__", None) is not None
-
-
-def _install_ha_stubs() -> None:
-    """Additively register the HA symbols ``todo.py`` imports.
-
-    Idempotent and non-clobbering, like ``test_coordinator_purge.py``: the other
-    pure-unit suites install their own partial ``homeassistant`` stub trees, so we
-    only *fill gaps* rather than early-return or overwrite — otherwise load order
-    between the suites would matter.
-    """
-    if _real_ha_present():  # pragma: no cover - real HA env
-        return
-
-    def _mod(name: str) -> types.ModuleType:
-        existing = sys.modules.get(name)
-        if existing is not None:
-            return existing
-        m = types.ModuleType(name)
-        sys.modules[name] = m
-        return m
-
-    ha = _mod("homeassistant")
-    components = _mod("homeassistant.components")
-    ha.components = components
-
-    comp_todo = _mod("homeassistant.components.todo")
-    if not hasattr(comp_todo, "TodoItem"):
-
-        class TodoItem:
-            def __init__(
-                self,
-                *,
-                uid=None,
-                summary=None,
-                status=None,
-                due=None,
-                description=None,
-            ) -> None:
-                self.uid = uid
-                self.summary = summary
-                self.status = status
-                self.due = due
-                self.description = description
-
-        class TodoItemStatus(enum.Enum):
-            NEEDS_ACTION = "needs_action"
-            COMPLETED = "completed"
-
-        class TodoListEntity:
-            pass
-
-        class TodoListEntityFeature(enum.IntFlag):
-            CREATE_TODO_ITEM = 1
-            DELETE_TODO_ITEM = 2
-            UPDATE_TODO_ITEM = 4
-
-        comp_todo.TodoItem = TodoItem
-        comp_todo.TodoItemStatus = TodoItemStatus
-        comp_todo.TodoListEntity = TodoListEntity
-        comp_todo.TodoListEntityFeature = TodoListEntityFeature
-    components.todo = comp_todo
-
-    config_entries = _mod("homeassistant.config_entries")
-    if not hasattr(config_entries, "ConfigEntry"):
-        config_entries.ConfigEntry = type("ConfigEntry", (), {})
-
-    core = _mod("homeassistant.core")
-    if not hasattr(core, "HomeAssistant"):
-        core.HomeAssistant = type("HomeAssistant", (), {})
-
-    exceptions = _mod("homeassistant.exceptions")
-    if not hasattr(exceptions, "HomeAssistantError"):
-
-        class HomeAssistantError(Exception):
-            def __init__(
-                self,
-                *args,
-                translation_domain=None,
-                translation_key=None,
-                translation_placeholders=None,
-            ) -> None:
-                super().__init__(*args)
-                self.translation_domain = translation_domain
-                self.translation_key = translation_key
-                self.translation_placeholders = translation_placeholders
-
-        exceptions.HomeAssistantError = HomeAssistantError
-
-    helpers = _mod("homeassistant.helpers")
-    entity_platform = _mod("homeassistant.helpers.entity_platform")
-    if not hasattr(entity_platform, "AddEntitiesCallback"):
-        entity_platform.AddEntitiesCallback = object
-    helpers.entity_platform = entity_platform
-
-    update_coordinator = _mod("homeassistant.helpers.update_coordinator")
-    if not hasattr(update_coordinator, "CoordinatorEntity"):
-        _T = typing.TypeVar("_T")
-
-        class CoordinatorEntity(typing.Generic[_T]):
-            def __init__(self, coordinator) -> None:
-                self.coordinator = coordinator
-
-        update_coordinator.CoordinatorEntity = CoordinatorEntity
-
-    util = _mod("homeassistant.util")
-    dt_mod = _mod("homeassistant.util.dt")
-    if not hasattr(dt_mod, "parse_datetime"):
-
-        def parse_datetime(value):
-            if not value:
-                return None
-            try:
-                return datetime.fromisoformat(value)
-            except (TypeError, ValueError):
-                return None
-
-        dt_mod.parse_datetime = parse_datetime
-    util.dt = dt_mod
-
-
 def _load_todo() -> types.ModuleType:
     """Load ``todo.py`` as ``hk.todo`` so its relative imports resolve."""
     if "hk.todo" in sys.modules:
         return sys.modules["hk.todo"]
-    _install_ha_stubs()
+    install_ha_stubs()
     # ``from .coordinator import HomeKeeperCoordinator`` — the real module pulls in
     # HA/store; the entity only needs the name for typing, so stub it if no other
     # suite has already registered one (test_coordinator_purge.py loads the real one).
@@ -197,7 +62,12 @@ HomeAssistantError = sys.modules["homeassistant.exceptions"].HomeAssistantError
 
 
 class FakeStore:
-    """The slice of ``store.py`` the entity touches, recording what it was asked."""
+    """The slice of ``store.py`` the entity touches, recording what it was asked.
+
+    Private to this suite: the entity reads one task at a time, completes without
+    an origin, and renames — it shares no method signature with the store double
+    the to-do sync drivers run against.
+    """
 
     def __init__(self, tasks: dict) -> None:
         self._tasks = tasks
@@ -291,6 +161,83 @@ def test_armed_one_off_is_listed_with_its_due_date() -> None:
     assert item.status is TodoItemStatus.NEEDS_ACTION
     assert item.due == date(2026, 7, 15)
     assert item.description == "bring photos"
+
+
+# --- todo_items: the due date is a *local* calendar date (#250) ---------------
+
+
+def _local_tz(monkeypatch, offset_hours: int) -> None:
+    """Pin the entity's idea of "local" to a fixed offset, for one test.
+
+    Swaps the ``dt_util`` reference on ``hk.todo`` rather than reaching into Home
+    Assistant's own ``dt_util.DEFAULT_TIME_ZONE``. That global is owned by the test
+    framework: ``pytest-homeassistant-custom-component``'s ``verify_cleanup`` fixture
+    asserts it is still UTC at teardown, and it tears down *before* monkeypatch undoes
+    a patch, so setting it errors every test that does — visible only in the CI lane
+    that installs real Home Assistant. Patching the module attribute keeps the whole
+    substitution inside ``todo.py``'s namespace, so this behaves the same either way.
+
+    What it pins is the unit-level contract: the entity must ask ``as_local`` for the
+    zone before taking a date. That the real ``as_local`` resolves HA's configured zone
+    is Home Assistant's business, asserted end-to-end by the integration suite.
+    """
+    zone = timezone(timedelta(hours=offset_hours))
+    real = todo.dt_util
+    monkeypatch.setattr(
+        todo,
+        "dt_util",
+        types.SimpleNamespace(
+            parse_datetime=real.parse_datetime,
+            as_local=lambda value: value.astimezone(zone),
+        ),
+    )
+
+
+def test_due_date_is_taken_in_home_assistants_timezone(monkeypatch) -> None:
+    """#250: a ``+00:00`` next_due at local midnight showed the previous day.
+
+    The reporter's own numbers, on Europe/London in BST. Their task's last completion
+    was entered through the panel's date picker, which sends local midnight expressed
+    in UTC, so ``next_due`` landed on ``+00:00``. Taking ``.date()`` in that offset
+    read the 26th while the panel and ``list_tasks`` both read the 27th.
+    """
+    _local_tz(monkeypatch, 1)
+    entity, _store, _calls = _entity(
+        _task("vacuum", "floating", next_due="2026-08-26T23:00:00+00:00")
+    )
+    (item,) = entity.todo_items
+    assert item.due == date(2026, 8, 27)
+
+
+def test_due_date_shifts_back_when_local_trails_the_stored_offset(monkeypatch) -> None:
+    """The opposite direction, so the conversion cannot pass by doing nothing.
+
+    ``2026-07-15T01:00:00+01:00`` is 2026-07-14 20:00 in a UTC-4 zone, so the local
+    date is the 14th even though the stored string opens with the 15th. A fix that
+    only ever moved dates forward, or that read the stored offset again, fails here.
+    """
+    _local_tz(monkeypatch, -4)
+    entity, _store, _calls = _entity(
+        _task("filter", "floating", next_due="2026-07-15T01:00:00+01:00")
+    )
+    (item,) = entity.todo_items
+    assert item.due == date(2026, 7, 14)
+
+
+def test_due_date_is_unchanged_when_the_offset_already_matches_local(
+    monkeypatch,
+) -> None:
+    """A next_due already written in the local offset keeps its date.
+
+    This is the majority case — a completion made "now" is stored with HA's own
+    offset — and it is why the bug hid for so long: those tasks were always right.
+    """
+    _local_tz(monkeypatch, 1)
+    entity, _store, _calls = _entity(
+        _task("live", "floating", next_due="2026-08-27T00:00:00+01:00")
+    )
+    (item,) = entity.todo_items
+    assert item.due == date(2026, 8, 27)
 
 
 def test_skipped_one_off_is_dropped() -> None:

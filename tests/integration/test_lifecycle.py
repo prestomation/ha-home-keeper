@@ -19,7 +19,7 @@ def _list_tasks(ha):
     return resp.get("service_response", resp)["tasks"]
 
 
-def _todo_summaries(ha):
+def _todo_items(ha):
     """The to-do list's actual items, not just the count the entity state carries."""
     resp = call_service(
         ha,
@@ -29,7 +29,11 @@ def _todo_summaries(ha):
         return_response=True,
     )
     payload = resp.get("service_response", resp)
-    return [item["summary"] for item in payload["todo.home_keeper_tasks"]["items"]]
+    return payload["todo.home_keeper_tasks"]["items"]
+
+
+def _todo_summaries(ha):
+    return [item["summary"] for item in _todo_items(ha)]
 
 
 def test_todo_entity_exists_with_seeded_tasks(ha):
@@ -87,6 +91,48 @@ def test_completed_one_off_leaves_the_todo_list(ha):
         # ...and the completion history stayed at the single real completion.
         task = next(t for t in _list_tasks(ha) if t["id"] == task_id)
         assert len(task["completions"]) == 1
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+
+
+def test_todo_due_date_uses_home_assistants_timezone(ha):
+    """Regression (#250): a UTC-stored next_due showed the previous local day.
+
+    The container runs on America/New_York (ha_config/configuration.yaml), so a due
+    time of 02:00 UTC is 22:00 the day before, locally. The entity used to call
+    ``.date()`` on the parsed timestamp, which read the date in whatever offset the
+    store happened to hold — the 15th here, one day past what the panel showed.
+
+    This has to be an integration assertion: what is being pinned is the date Home
+    Assistant's own ``todo.get_items`` hands to a card, a digest or an automation, and
+    a unit test that stubs ``dt_util`` cannot see that contract.
+    """
+    name = "Timezone todo probe"
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": name,
+            "recurrence_type": "one-off",
+            # A one-off's next_due is its stored due verbatim, so this pins the exact
+            # offset the bug needs: 2026-07-14 22:00 EDT.
+            "due": "2026-07-15T02:00:00+00:00",
+        },
+        return_response=True,
+    )
+    task_id = resp.get("service_response", resp)["task_id"]
+    try:
+        item = next(i for i in _todo_items(ha) if i["summary"] == name)
+        assert item["due"] == "2026-07-14", (
+            "the to-do item must be dated in HA's timezone, not the stored offset"
+        )
+        # The panel reads next_due directly, and the two surfaces must agree about
+        # which day that instant falls on.
+        task = next(t for t in _list_tasks(ha) if t["id"] == task_id)
+        assert task["next_due"].startswith("2026-07-15T02:00:00"), (
+            "the stored instant itself is correct and must not have been rewritten"
+        )
     finally:
         call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
 

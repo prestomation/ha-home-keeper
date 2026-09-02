@@ -245,6 +245,71 @@ def test_resolve_notification_by_id_then_name():
     assert n.resolve_notification(notifs, None) is None
 
 
+# ── per-task button sets ────────────────────────────────────────────────────
+
+BLOCKED = {"id": "t", "managed_by": {"completion_blocked": True}}
+ALL_VERBS = ["complete", "snooze", "skip", "open"]
+
+
+def test_is_completion_blocked_reads_the_managed_by_marker():
+    assert n.is_completion_blocked(BLOCKED)
+    assert not n.is_completion_blocked({"id": "t"})
+    assert not n.is_completion_blocked({"id": "t", "managed_by": None})
+    assert not n.is_completion_blocked({"id": "t", "managed_by": {}})
+    assert not n.is_completion_blocked({"id": "t", "managed_by": {"integration": "x"}})
+    assert not n.is_completion_blocked(
+        {"id": "t", "managed_by": {"completion_blocked": False}}
+    )
+
+
+def test_is_completion_blocked_ignores_a_non_mapping_managed_by():
+    # Hand-written YAML/service payloads reach the store as anything at all.
+    assert not n.is_completion_blocked({"id": "t", "managed_by": "completion_blocked"})
+    assert not n.is_completion_blocked({"id": "t", "managed_by": ["blocked"]})
+
+
+def test_actions_for_an_ordinary_task_is_the_configured_set_unchanged():
+    task = {"id": "t"}
+    assert n.actions_for(task, ALL_VERBS) == ALL_VERBS
+    assert n.actions_for(task, ["open"]) == ["open"]
+    assert n.actions_for(task, []) == []
+    # A copy, so a caller can't mutate the stored notification through it.
+    configured = ["complete", "snooze"]
+    assert n.actions_for(task, configured) is not configured
+
+
+def test_actions_for_a_blocked_task_drops_the_verbs_the_store_refuses():
+    # Mark done and Skip both assert the problem is dealt with; the store rejects
+    # both, and notifier swallows the rejection, so they'd read as dead buttons.
+    assert n.actions_for(BLOCKED, ALL_VERBS) == ["snooze", "open"]
+    assert n.actions_for(BLOCKED, ["complete", "skip"]) == ["snooze"]
+
+
+def test_actions_for_a_blocked_task_keeps_the_configured_order():
+    assert n.actions_for(BLOCKED, ["open", "snooze"]) == ["open", "snooze"]
+
+
+def test_actions_for_a_blocked_task_offers_snooze_even_when_unconfigured():
+    # A walk advances only on a successful action. Without Snooze, one of these at the
+    # head of the queue would re-send forever and never reach the tasks behind it.
+    assert n.actions_for(BLOCKED, ["complete", "open"]) == ["snooze", "open"]
+    assert n.actions_for(BLOCKED, []) == ["snooze"]
+
+
+def test_build_notification_offers_only_snooze_and_open_on_a_blocked_task():
+    now = dt(2026, 6, 13, 12)
+    task = {
+        "id": "t1",
+        "name": "Sump pump problem",
+        "next_due": dt(2026, 6, 12, 12).isoformat(),
+        "managed_by": {"completion_blocked": True},
+    }
+    notif = n.normalize_notification({"id": "n1", "actions": ALL_VERBS})
+    payload = n.build_notification(task, notification=notif, now=now, lang="en")
+    verbs = [n.decode_action(a["action"])[0] for a in payload["data"]["actions"]]
+    assert verbs == ["snooze", "open"]
+
+
 # ── payload building ────────────────────────────────────────────────────────
 
 
@@ -273,6 +338,20 @@ def test_build_notification_walk_actions_and_tag():
     # Every button carries the task's next_due, so a tap on any of them can be checked
     # for freshness — not just "Mark done".
     assert all(a["action"].endswith(f"::{n.due_token(t)}") for a in actions)
+    # The companion app stacks a channel's notifications by `group`, so the exact
+    # string is a payload contract, not decoration.
+    assert payload["data"]["group"] == "home_keeper"
+
+
+def test_build_notification_falls_back_to_the_product_name_for_a_nameless_task():
+    # A task can reach here with a blank name (a contributed task, a bad service
+    # call). The phone shows the title verbatim, so an empty one reads as a bug.
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "n1", "actions": ["open"]})
+    for name in (None, ""):
+        t = {"id": "t1", "name": name, "next_due": dt(2026, 6, 10).isoformat()}
+        payload = n.build_notification(t, notification=notif, now=now)
+        assert payload["title"] == "Home Keeper"
 
 
 def test_overdue_phrase_singular_and_due_now():

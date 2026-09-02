@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     # Forked PRs get no write token — skip gracefully (same as the docs preview).
     if: github.event.pull_request.head.repo.full_name == github.repository
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -92,6 +92,24 @@ jobs:
           # The intermediate WebM isn't published — only gif (embed) + mp4 (link).
           rm -f "$VIDEO_DIR"/*.webm
 
+      # Which tours actually produced a gif. The two are independent tests, so one
+      # can flake without the other; without this the comment would embed a broken
+      # image next to a good one.
+      - name: Note which tours were captured
+        id: variants
+        if: github.event.action != 'closed'
+        env:
+          VIDEO_DIR: ${{ github.workspace }}/_walkthrough_out
+        run: |
+          for name in walkthrough walkthrough-phone; do
+            key="$(echo "$name" | tr - _)"
+            if [ -f "$VIDEO_DIR/$name.gif" ]; then
+              echo "$key=yes" >> "$GITHUB_OUTPUT"
+            else
+              echo "$key=no" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
       - name: Dump Home Assistant logs on capture failure
         if: github.event.action != 'closed' && steps.capture.outcome == 'failure'
         working-directory: tests/integration
@@ -126,6 +144,8 @@ jobs:
         uses: actions/github-script@v9
         env:
           CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
+          HAS_DESKTOP: ${{ steps.variants.outputs.walkthrough }}
+          HAS_PHONE: ${{ steps.variants.outputs.walkthrough_phone }}
           EVENT_ACTION: ${{ github.event.action }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
@@ -141,22 +161,37 @@ jobs:
             const base = `https://${owner.toLowerCase()}.github.io/${repo}/pr-preview-media/pr-${n}`;
             const gif = `${base}/walkthrough.gif`;
             const mp4 = `${base}/walkthrough.mp4`;
+            const gifPhone = `${base}/walkthrough-phone.gif`;
+            const mp4Phone = `${base}/walkthrough-phone.mp4`;
 
             let body;
             if (action === 'closed') {
               // Preview was torn down; leave a tombstone rather than a broken image.
               body = [marker, '### 🎥 Panel walkthrough', '', '_Preview removed — the PR is closed._'].join('\n');
             } else if (outcome === 'success') {
-              body = [
-                marker,
-                '### 🎥 Panel walkthrough',
-                '',
-                `<img src="${gif}" alt="Home Keeper panel walkthrough" width="820">`,
-                '',
-                `▶️ [Higher-quality MP4](${mp4})`,
-                '',
+              const lines = [marker, '### 🎥 Panel walkthrough', ''];
+              if (process.env.HAS_DESKTOP === 'yes') {
+                lines.push(
+                  `<img src="${gif}" alt="Home Keeper panel walkthrough" width="820">`,
+                  '',
+                  `▶️ [Higher-quality MP4](${mp4})`,
+                  '',
+                );
+              }
+              if (process.env.HAS_PHONE === 'yes') {
+                lines.push(
+                  '#### On a phone',
+                  '',
+                  `<img src="${gifPhone}" alt="Home Keeper panel walkthrough on a phone" width="300">`,
+                  '',
+                  `▶️ [Higher-quality MP4](${mp4Phone})`,
+                  '',
+                );
+              }
+              lines.push(
                 'Auto-generated from this PR\'s HEAD by `walkthrough-preview.yml` — updated on every push, removed when the PR closes. (A committed `<video>` tag is stripped by GitHub\'s sanitizer, so the gif carries the motion and the mp4 is linked.)',
-              ].join('\n');
+              );
+              body = lines.join('\n');
             } else {
               body = [
                 marker,

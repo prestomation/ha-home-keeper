@@ -11,9 +11,14 @@ import {
   isArmedTriggered,
   isOverdue,
   dueLabel,
+  meterRemaining,
   taskRecordsReading,
   readingUnit,
+  btnAttrs,
   deviceName,
+  formatDate,
+  formatDateTime,
+  setBtnWeight,
   deviceDomain,
   brandLogoUrl,
   areaName,
@@ -24,6 +29,15 @@ import {
   tasksForAsset,
   parseRoute,
   buildPath,
+  formatCost,
+  navigateTo,
+  personName,
+  relativeDay,
+  toast,
+  buildAssetTree,
+  ASSET_TABS,
+  DEFAULT_ASSET_TAB,
+  SETTINGS_SECTIONS,
 } from '../src/utils.ts';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -141,17 +155,17 @@ describe('recurrenceSummary', () => {
   it('describes floating tasks relative to completion', () => {
     expect(
       recurrenceSummary({ recurrence_type: 'floating', interval: 1, unit: 'months' }),
-    ).toBe('every month after completion');
+    ).toBe('Every month after completion');
     expect(
       recurrenceSummary({ recurrence_type: 'floating', interval: 3, unit: 'months' }),
-    ).toBe('every 3 months after completion');
+    ).toBe('Every 3 months after completion');
   });
   it('describes fixed tasks by frequency', () => {
     expect(recurrenceSummary({ recurrence_type: 'fixed', interval: 1, freq: 'DAILY' })).toBe(
-      'every day',
+      'Every day',
     );
     expect(recurrenceSummary({ recurrence_type: 'fixed', interval: 2, freq: 'WEEKLY' })).toBe(
-      'every 2 weeks',
+      'Every 2 weeks',
     );
   });
   it('describes triggered tasks as monitored (no schedule)', () => {
@@ -199,10 +213,76 @@ describe('dueLabel', () => {
     expect(dueLabel({ next_due: '2026-06-14T12:00:00Z' }, now)).toBe('tomorrow');
     expect(dueLabel({ next_due: '2026-06-16T12:00:00Z' }, now)).toBe('in 3 days');
     expect(dueLabel({ next_due: '2026-06-12T12:00:00Z' }, now)).toBe('yesterday');
+    // The multi-day past had no assertion, so nothing distinguished "3 days ago" from
+    // "yesterday" or from the plural template being wrong.
+    expect(dueLabel({ next_due: '2026-06-10T12:00:00Z' }, now)).toBe('3 days ago');
+    expect(dueLabel({ next_due: '2026-06-14T12:00:00Z' }, now)).not.toBe('in 1 day');
   });
   it('labels a dormant triggered task as Monitored', () => {
     expect(dueLabel({ recurrence_type: 'triggered' }, now)).toBe('Monitored');
     expect(dueLabel({ recurrence_type: 'triggered', next_due: null }, now)).toBe('Monitored');
+  });
+  it('reads a dormant usage meter as a live countdown "in X units"', () => {
+    // 45,000-start, every 10,000 mi, odometer now at 48,000 → 7,000 to go.
+    const task = {
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.odometer',
+        mode: 'usage',
+        target: 10000,
+        baseline: 45000,
+        unit: 'miles',
+      },
+    };
+    const hass = { states: { 'sensor.odometer': { state: '48000' } } };
+    expect(dueLabel(task, now, hass)).toBe('in 7000 miles');
+  });
+  it('falls back to the entity unit_of_measurement when the binding has no unit', () => {
+    const task = {
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.hours', mode: 'usage', target: 300, baseline: 100 },
+    };
+    const hass = {
+      states: { 'sensor.hours': { state: '150', attributes: { unit_of_measurement: 'h' } } },
+    };
+    expect(dueLabel(task, now, hass)).toBe('in 250 h');
+  });
+  it('omits the unit entirely when neither the binding nor the entity supplies one', () => {
+    const task = {
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.bare', mode: 'usage', target: 300, baseline: 100 },
+    };
+    const hass = { states: { 'sensor.bare': { state: '150' } } };
+    expect(dueLabel(task, now, hass)).toBe('in 250');
+  });
+  it('stays Monitored for a usage meter with no live reading or no hass', () => {
+    const task = {
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.odometer', mode: 'usage', target: 10000, baseline: 45000 },
+    };
+    expect(dueLabel(task, now)).toBe('Monitored');
+    expect(dueLabel(task, now, { states: {} })).toBe('Monitored');
+    expect(
+      dueLabel(task, now, { states: { 'sensor.odometer': { state: 'unavailable' } } }),
+    ).toBe('Monitored');
+  });
+  it('stays Monitored for a threshold/state sensor task or an un-anchored meter', () => {
+    const hass = { states: { 'sensor.x': { state: '95' } } };
+    expect(
+      dueLabel(
+        { recurrence_type: 'sensor', sensor: { entity_id: 'sensor.x', mode: 'threshold' } },
+        now,
+        hass,
+      ),
+    ).toBe('Monitored');
+    // usage mode but no baseline yet (freshly created, watcher hasn't anchored).
+    expect(
+      dueLabel(
+        { recurrence_type: 'sensor', sensor: { entity_id: 'sensor.x', mode: 'usage', target: 50 } },
+        now,
+        hass,
+      ),
+    ).toBe('Monitored');
   });
   it('counts calendar days, not rolling 24h windows, at time-of-day boundaries', () => {
     // Local dates so the assertion holds regardless of the test runner's timezone
@@ -225,6 +305,59 @@ describe('dueLabel', () => {
   });
 });
 
+describe('meterRemaining', () => {
+  const usage = (over = {}) => ({
+    recurrence_type: 'sensor',
+    sensor: { entity_id: 'sensor.m', mode: 'usage', target: 100, baseline: 20, ...over },
+  });
+  const at = (v) => ({ states: { 'sensor.m': { state: String(v) } } });
+
+  it('returns target minus consumed', () => {
+    expect(meterRemaining(usage(), at(50))).toBe(70); // 100 - (50 - 20)
+  });
+  it('clamps consumed at 0 when the reading is below the baseline (meter reset)', () => {
+    expect(meterRemaining(usage(), at(10))).toBe(100); // consumed can't go negative
+  });
+  it('clamps remaining at 0 when consumption has passed the target', () => {
+    expect(meterRemaining(usage(), at(200))).toBe(0);
+  });
+  it('reads an attribute when the binding names one', () => {
+    const task = usage({ attribute: 'liters' });
+    const hass = { states: { 'sensor.m': { state: '5', attributes: { liters: 60 } } } };
+    expect(meterRemaining(task, hass)).toBe(60); // 100 - (60 - 20)
+  });
+  it('is null when the named attribute is absent', () => {
+    const task = usage({ attribute: 'liters' });
+    const hass = { states: { 'sensor.m': { state: '5', attributes: {} } } };
+    expect(meterRemaining(task, hass)).toBeNull();
+  });
+  it('is null for a non-sensor task even if it carries a sensor binding', () => {
+    // Exercises the recurrence_type guard specifically (the binding is present).
+    expect(meterRemaining({ ...usage(), recurrence_type: 'floating' }, at(50))).toBeNull();
+  });
+  it('is null for a threshold-mode sensor task', () => {
+    expect(meterRemaining(usage({ mode: 'threshold' }), at(50))).toBeNull();
+  });
+  it('is null for a null task or an absent binding', () => {
+    expect(meterRemaining(null, at(50))).toBeNull();
+    expect(meterRemaining({ recurrence_type: 'sensor' }, at(50))).toBeNull();
+  });
+  it('is null without a numeric target or a numeric baseline', () => {
+    expect(meterRemaining(usage({ target: undefined }), at(50))).toBeNull();
+    expect(meterRemaining(usage({ baseline: undefined }), at(50))).toBeNull();
+  });
+  it('is null when hass, its states map, or the entity are missing', () => {
+    expect(meterRemaining(usage())).toBeNull(); // no hass at all
+    expect(meterRemaining(usage(), {})).toBeNull(); // hass but no states map
+    expect(meterRemaining(usage(), { states: {} })).toBeNull(); // entity not in states
+  });
+  it('is null when the reading is empty, absent, or non-numeric', () => {
+    expect(meterRemaining(usage(), at(''))).toBeNull(); // empty-string state
+    expect(meterRemaining(usage(), { states: { 'sensor.m': {} } })).toBeNull(); // no state prop
+    expect(meterRemaining(usage(), at('unavailable'))).toBeNull(); // non-numeric
+  });
+});
+
 describe('deviceName', () => {
   const devices = {
     abc: { id: 'abc', name: 'Fridge', name_by_user: 'Kitchen fridge' },
@@ -236,8 +369,8 @@ describe('deviceName', () => {
   it('falls back to name', () => {
     expect(deviceName(devices, 'def')).toBe('Furnace');
   });
-  it('returns id for unknown device, empty for none', () => {
-    expect(deviceName(devices, 'zzz')).toBe('zzz');
+  it('is empty for an unknown device and for none (#262)', () => {
+    expect(deviceName(devices, 'zzz')).toBe('');
     expect(deviceName(devices, null)).toBe('');
   });
 });
@@ -388,9 +521,37 @@ describe('parseRoute', () => {
     });
   });
   it('parses an asset detail under the appliances segment', () => {
+    // No sub-tab in the URL resolves to the default one, so every `/appliances/<id>`
+    // link minted before sub-tabs existed — including the `configuration_url` already
+    // written onto registered appliance devices — still lands somewhere real.
     expect(parseRoute('/appliances/xyz')).toEqual({
       view: 'appliances',
-      detail: { kind: 'asset', id: 'xyz' },
+      detail: { kind: 'asset', id: 'xyz', tab: 'parts' },
+    });
+  });
+  it('parses each appliance sub-tab from the third segment', () => {
+    for (const tab of ASSET_TABS) {
+      expect(parseRoute(`/appliances/xyz/${tab}`)).toEqual({
+        view: 'appliances',
+        detail: { kind: 'asset', id: 'xyz', tab },
+      });
+    }
+  });
+  it('falls back to the default sub-tab for an unknown one', () => {
+    // A hand-typed or stale URL should open the appliance, not nothing.
+    for (const bogus of ['nope', 'PARTS', '', 'documents2']) {
+      expect(parseRoute(`/appliances/xyz/${bogus}`).detail).toEqual({
+        kind: 'asset',
+        id: 'xyz',
+        tab: DEFAULT_ASSET_TAB,
+      });
+    }
+  });
+  it('does not give a task detail a sub-tab', () => {
+    // Only appliances have sub-tabs; a third segment on a task path is not one.
+    expect(parseRoute('/tasks/abc/documents')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: 'abc' },
     });
   });
   it('decodes percent-encoded ids and tolerates trailing slashes', () => {
@@ -398,6 +559,54 @@ describe('parseRoute', () => {
       view: 'tasks',
       detail: { kind: 'task', id: 'a/b' },
     });
+  });
+  it('decodes a percent-encoded section or sub-tab before matching it', () => {
+    // The segment is decoded and *then* matched, so an encoder that escaped a letter
+    // still lands on the section it named rather than silently on the fallback.
+    expect(parseRoute('/settings/%70rofiles').section).toBe('profiles');
+    expect(parseRoute('/appliances/x/%68istory').detail).toEqual({
+      kind: 'asset',
+      id: 'x',
+      tab: 'history',
+    });
+  });
+  it('trims whitespace around every segment', () => {
+    // A hand-typed or copy-pasted URL can carry stray space around a segment, and a
+    // segment that only looks like `settings` resolves to nothing at all.
+    expect(parseRoute(' /settings / problem ')).toEqual({
+      view: 'settings',
+      detail: null,
+      section: 'problem',
+    });
+    expect(parseRoute('/ appliances / xyz / history ').detail).toEqual({
+      kind: 'asset',
+      id: 'xyz',
+      tab: 'history',
+    });
+  });
+  it('parses each settings section from the second segment', () => {
+    for (const section of SETTINGS_SECTIONS) {
+      expect(parseRoute(`/settings/${section}`)).toEqual({
+        view: 'settings',
+        detail: null,
+        section,
+      });
+    }
+  });
+  it('reads a bare /settings as the section index, with no section', () => {
+    // Unlike an appliance sub-tab there is no default: the index is a destination in
+    // its own right, so no section is a state rather than a gap to fill in.
+    expect(parseRoute('/settings')).toEqual({ view: 'settings', detail: null });
+  });
+  it('falls back to the section index for an unknown section', () => {
+    for (const bogus of ['nope', 'General', 'profiles2', 'tasks']) {
+      expect(parseRoute(`/settings/${bogus}`)).toEqual({ view: 'settings', detail: null });
+    }
+  });
+  it('never gives settings a detail page', () => {
+    // Settings has sections, not records; a deeper path is still just a section.
+    expect(parseRoute('/settings/profiles/abc').detail).toBeNull();
+    expect(parseRoute('/settings/profiles/abc').section).toBe('profiles');
   });
 });
 
@@ -412,12 +621,43 @@ describe('buildPath', () => {
       '/appliances/x',
     );
   });
+  it('names a sub-tab in the path, but leaves the default one implicit', () => {
+    // `/appliances/x` and `/appliances/x/parts` are the same page, and a link to an
+    // appliance should be the short one.
+    expect(buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'x', tab: 'parts' } })).toBe(
+      '/appliances/x',
+    );
+    for (const tab of ASSET_TABS.filter((t) => t !== DEFAULT_ASSET_TAB)) {
+      expect(
+        buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'x', tab } }),
+      ).toBe(`/appliances/x/${tab}`);
+    }
+  });
+  it('encodes the id even with a sub-tab after it', () => {
+    expect(
+      buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'a/b', tab: 'history' } }),
+    ).toBe('/appliances/a%2Fb/history');
+  });
+  it('names a settings section in the path, and the index when there is none', () => {
+    expect(buildPath({ view: 'settings', detail: null })).toBe('/settings');
+    for (const section of SETTINGS_SECTIONS) {
+      expect(buildPath({ view: 'settings', detail: null, section })).toBe(`/settings/${section}`);
+    }
+  });
   it('round-trips with parseRoute', () => {
     const locs = [
       { view: 'tasks', detail: null },
       { view: 'appliances', detail: null },
+      { view: 'settings', detail: null },
+      ...SETTINGS_SECTIONS.map((section) => ({ view: 'settings', detail: null, section })),
       { view: 'tasks', detail: { kind: 'task', id: 'task-1' } },
-      { view: 'appliances', detail: { kind: 'asset', id: 'asset-9' } },
+      // An appliance always resolves with a sub-tab, so that is the shape a
+      // round-trip has to come back as.
+      { view: 'appliances', detail: { kind: 'asset', id: 'asset-9', tab: 'parts' } },
+      ...ASSET_TABS.map((tab) => ({
+        view: 'appliances',
+        detail: { kind: 'asset', id: 'asset-9', tab },
+      })),
     ];
     for (const loc of locs) {
       expect(parseRoute(buildPath(loc))).toEqual(loc);
@@ -507,5 +747,416 @@ describe('readingUnit — entities without attributes', () => {
 
   it('returns nothing when hass has no states map', () => {
     expect(readingUnit({ sensor: { entity_id: 'sensor.x' } }, {})).toBe('');
+  });
+});
+
+describe('buildAssetTree', () => {
+  const cmp = (a, b) => (a.name || '').localeCompare(b.name || '');
+  const asset = (id, name, parent_asset_id = null) => ({ id, name, parent_asset_id });
+
+  it('returns an empty array for empty input', () => {
+    expect(buildAssetTree([], cmp)).toEqual([]);
+  });
+
+  it('puts all parentless assets at depth 0, sorted', () => {
+    const result = buildAssetTree(
+      [asset('c', 'Cherry'), asset('a', 'Apple'), asset('b', 'Banana')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Apple', 0],
+      ['Banana', 0],
+      ['Cherry', 0],
+    ]);
+  });
+
+  it('nests a child under its parent', () => {
+    const result = buildAssetTree(
+      [asset('p', 'Parent'), asset('c', 'Child', 'p')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Parent', 0],
+      ['Child', 1],
+    ]);
+  });
+
+  it('handles multi-level nesting', () => {
+    const result = buildAssetTree(
+      [asset('g', 'Grandchild', 'c'), asset('p', 'Parent'), asset('c', 'Child', 'p')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Parent', 0],
+      ['Child', 1],
+      ['Grandchild', 2],
+    ]);
+  });
+
+  it('sorts siblings alphabetically within each level', () => {
+    const result = buildAssetTree(
+      [asset('p', 'Parent'), asset('d', 'Delta', 'p'), asset('a', 'Alpha', 'p'), asset('b', 'Bravo', 'p')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Parent', 0],
+      ['Alpha', 1],
+      ['Bravo', 1],
+      ['Delta', 1],
+    ]);
+  });
+
+  it('interleaves multiple root trees', () => {
+    const result = buildAssetTree(
+      [asset('x', 'Xray'), asset('x1', 'Xchild', 'x'), asset('a', 'Alpha'), asset('a1', 'Achild', 'a')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Alpha', 0],
+      ['Achild', 1],
+      ['Xray', 0],
+      ['Xchild', 1],
+    ]);
+  });
+
+  it('promotes a child to root when its parent is absent', () => {
+    const result = buildAssetTree(
+      [asset('c', 'Child', 'missing'), asset('r', 'Root')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Child', 0],
+      ['Root', 0],
+    ]);
+  });
+
+  it('handles mixed present and absent parents', () => {
+    const result = buildAssetTree(
+      [asset('a', 'Alpha'), asset('b', 'Bravo', 'a'), asset('c', 'Charlie', 'gone')],
+      cmp,
+    );
+    expect(result.map((e) => [e.item.name, e.depth])).toEqual([
+      ['Alpha', 0],
+      ['Bravo', 1],
+      ['Charlie', 0],
+    ]);
+  });
+
+  it('respects a custom comparator', () => {
+    const reverse = (a, b) => b.name.localeCompare(a.name);
+    const result = buildAssetTree(
+      [asset('a', 'Alpha'), asset('b', 'Bravo'), asset('c', 'Charlie')],
+      reverse,
+    );
+    expect(result.map((e) => e.item.name)).toEqual(['Charlie', 'Bravo', 'Alpha']);
+  });
+
+  it('terminates on a hypothetical cycle without infinite loop', () => {
+    const result = buildAssetTree(
+      [asset('a', 'A', 'b'), asset('b', 'B', 'a')],
+      cmp,
+    );
+    expect(result.length).toBe(2);
+    expect(result.every((e) => e.depth >= 0)).toBe(true);
+  });
+});
+
+describe('formatDate / formatDateTime (#262)', () => {
+  const ISO = '2026-07-01T13:00:00Z';
+
+  it('writes a date as a month name, not a numeric US-order string', () => {
+    // "7/1/2026" is ambiguous outside the US and was one of three different date
+    // shapes the panel used. Pin the shape, not just that a string comes back.
+    const out = formatDate(ISO, 'en-GB');
+    expect(out).toContain('2026');
+    expect(out).toMatch(/Jul/);
+    expect(out).not.toMatch(/\d+\/\d+\/\d+/);
+  });
+
+  it('drops seconds from a date-time', () => {
+    // The whole point: toLocaleString() gives "7/1/2026, 1:00:00 PM". A completion is
+    // something a person did on an afternoon, not a log line.
+    const out = formatDateTime(ISO, 'en-GB');
+    expect(out).toMatch(/Jul/);
+    expect(out).toMatch(/\d{1,2}:\d{2}/);
+    expect(out).not.toMatch(/\d{1,2}:\d{2}:\d{2}/);
+  });
+
+  it('honours the language it is given rather than the runtime default', () => {
+    // Both formatters, and both directions: a mutant that drops the language and
+    // always falls back to the runtime locale still produces a plausible-looking
+    // string, so the assertion has to be that two languages differ.
+    expect(formatDate(ISO, 'de-DE')).toMatch(/Juli|Jul/);
+    expect(formatDate(ISO, 'en-GB')).toMatch(/Jul/);
+    expect(formatDate(ISO, 'de-DE')).not.toBe(formatDate(ISO, 'en-GB'));
+    expect(formatDateTime(ISO, 'de-DE')).not.toBe(formatDateTime(ISO, 'en-GB'));
+    expect(formatDateTime(ISO, 'ja-JP')).not.toBe(formatDateTime(ISO, 'en-GB'));
+  });
+
+  it('falls back to the runtime locale when given no language', () => {
+    // `lang || undefined` — an empty string must mean "no preference", not a locale.
+    expect(formatDate(ISO)).toBe(formatDate(ISO, undefined));
+    expect(formatDate(ISO, '')).toBe(formatDate(ISO, undefined));
+    expect(formatDateTime(ISO)).toBe(formatDateTime(ISO, undefined));
+    expect(formatDateTime(ISO, '')).toBe(formatDateTime(ISO, undefined));
+  });
+
+  it('accepts a Date as well as an ISO string', () => {
+    expect(formatDate(new Date(ISO), 'en-GB')).toBe(formatDate(ISO, 'en-GB'));
+    expect(formatDateTime(new Date(ISO), 'en-GB')).toBe(formatDateTime(ISO, 'en-GB'));
+  });
+
+  it('is empty for nothing and for an unparseable value', () => {
+    for (const bad of [null, undefined, '', 'not a date']) {
+      expect(formatDate(bad, 'en-GB'), String(bad)).toBe('');
+      expect(formatDateTime(bad, 'en-GB'), String(bad)).toBe('');
+    }
+  });
+});
+
+describe('button weights (#262)', () => {
+  it('primary adds no appearance or variant — it is the element default', () => {
+    expect(btnAttrs('primary')).toBe('data-hk-weight="primary"');
+  });
+
+  it('spells each other weight in ha-button’s own vocabulary', () => {
+    expect(btnAttrs('secondary')).toBe('appearance="filled" data-hk-weight="secondary"');
+    // Neutral, not brand: plain-brand paints the label accent-coloured, which is
+    // 3.26:1 on a card and makes Cancel argue with the action beside it.
+    expect(btnAttrs('tertiary')).toBe(
+      'appearance="plain" variant="neutral" data-hk-weight="tertiary"',
+    );
+    expect(btnAttrs('danger')).toBe('appearance="plain" variant="danger" data-hk-weight="danger"');
+    expect(btnAttrs('danger-primary')).toBe('variant="danger" data-hk-weight="danger-primary"');
+  });
+
+  it('never emits the two attributes ha-button stopped reading', () => {
+    for (const weight of ['primary', 'secondary', 'tertiary', 'danger', 'danger-primary']) {
+      expect(btnAttrs(weight)).not.toMatch(/raised|destructive/);
+    }
+  });
+
+  it('setBtnWeight clears the attributes the new weight does not set', () => {
+    const el = document.createElement('span');
+    setBtnWeight(el, 'danger');
+    expect(el.getAttribute('appearance')).toBe('plain');
+    expect(el.getAttribute('variant')).toBe('danger');
+    // Re-weighting must not leave the old weight's attributes behind — a danger
+    // button re-weighted to primary would otherwise stay red.
+    setBtnWeight(el, 'primary');
+    expect(el.hasAttribute('appearance')).toBe(false);
+    expect(el.hasAttribute('variant')).toBe(false);
+    expect(el.getAttribute('data-hk-weight')).toBe('primary');
+  });
+
+  it('setBtnWeight leaves nothing behind, for every ordered pair of weights', () => {
+    // The strong form of the clearing rule: whatever a button was, becoming something
+    // else must leave it identical to a button that was always that. This is what
+    // fails if the cleared-attribute list ever stops covering the table it serves.
+    const weights = ['primary', 'secondary', 'tertiary', 'danger', 'danger-primary'];
+    const render = (el) =>
+      [...el.attributes]
+        .map((a) => `${a.name}="${a.value}"`)
+        .sort()
+        .join(' ');
+    for (const from of weights) {
+      for (const to of weights) {
+        const reweighted = document.createElement('span');
+        setBtnWeight(reweighted, from);
+        setBtnWeight(reweighted, to);
+        const fresh = document.createElement('span');
+        setBtnWeight(fresh, to);
+        expect(render(reweighted), `${from} -> ${to}`).toBe(render(fresh));
+      }
+    }
+  });
+
+  it('setBtnWeight agrees with btnAttrs for every weight', () => {
+    for (const weight of ['primary', 'secondary', 'tertiary', 'danger', 'danger-primary']) {
+      const el = document.createElement('span');
+      setBtnWeight(el, weight);
+      const rendered = [...el.attributes]
+        .map((a) => `${a.name}="${a.value}"`)
+        .sort()
+        .join(' ');
+      const expected = btnAttrs(weight).split(' ').sort().join(' ');
+      expect(rendered, weight).toBe(expected);
+    }
+  });
+});
+
+describe('recurrenceSummary sentence case (#262)', () => {
+  it('capitalises the clock-based fragments, which were written lowercase', () => {
+    // "every 12 months after completion" sat beside "Every 300 h of use" and
+    // "Monitored" in the same column of the same list.
+    expect(recurrenceSummary({ recurrence_type: 'floating', interval: 12, unit: 'months' })).toBe(
+      'Every 12 months after completion',
+    );
+    expect(recurrenceSummary({ recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY' })).toBe(
+      'Every month',
+    );
+  });
+
+  it('leaves the already-capitalised kinds untouched', () => {
+    expect(recurrenceSummary({ recurrence_type: 'triggered' })).toBe('Monitored');
+    expect(recurrenceSummary({ recurrence_type: 'one-off' })).toBe('One-off');
+  });
+
+  it('changes only the first character, never the rest of the sentence', () => {
+    // A blanket .toUpperCase() or a title-case pass would also hit the unit and the
+    // trailing clause; only the leading letter may move.
+    const out = recurrenceSummary({ recurrence_type: 'floating', interval: 3, unit: 'weeks' });
+    expect(out).toBe('Every 3 weeks after completion');
+    // Everything after the first character is exactly what the strings say — no
+    // title-casing of "Weeks", no capital on "After".
+    expect(out.slice(1)).toBe('very 3 weeks after completion');
+  });
+});
+
+describe('toast', () => {
+  it("emits HA's notification event from the element, escaping the shadow root", () => {
+    const el = document.createElement('div');
+    const seen = [];
+    el.addEventListener('hass-notification', (e) => seen.push(e));
+
+    toast(el, 'Saved');
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].type).toBe('hass-notification');
+    expect(seen[0].detail).toEqual({ message: 'Saved' });
+    // Both flags are load-bearing: HA listens above the panel/card, and the event is
+    // fired inside a shadow root. Either one false and the toast never shows.
+    expect(seen[0].bubbles).toBe(true);
+    expect(seen[0].composed).toBe(true);
+  });
+
+  it('carries whatever message it was given, including an empty one', () => {
+    const el = document.createElement('div');
+    let detail;
+    el.addEventListener('hass-notification', (e) => (detail = e.detail));
+    toast(el, '');
+    expect(detail).toEqual({ message: '' });
+  });
+});
+
+describe('navigateTo', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('pushes the path and tells HA’s router to re-route', () => {
+    const push = vi.spyOn(history, 'pushState').mockImplementation(() => {});
+    const seen = [];
+    const onNav = (e) => seen.push(e);
+    window.addEventListener('location-changed', onNav);
+
+    navigateTo('/config/devices/device/abc');
+
+    window.removeEventListener('location-changed', onNav);
+    // The title argument stays empty — HA's router reads the URL, and a title here
+    // would be the only thing that ever set the document title from a chip press.
+    expect(push).toHaveBeenCalledWith(null, '', '/config/devices/device/abc');
+    expect(seen).toHaveLength(1);
+    expect(seen[0].type).toBe('location-changed');
+    // Always a push, never a replace: Back returns to the page the user left.
+    expect(seen[0].detail).toEqual({ replace: false });
+    expect(seen[0].bubbles).toBe(true);
+    expect(seen[0].composed).toBe(true);
+  });
+
+  it('fires on window, not on the element that asked (which may be unmounted)', () => {
+    vi.spyOn(history, 'pushState').mockImplementation(() => {});
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const onEl = vi.fn();
+    el.addEventListener('location-changed', onEl);
+    const onWin = vi.fn();
+    window.addEventListener('location-changed', onWin);
+
+    navigateTo('/home-keeper/tasks/t1');
+
+    window.removeEventListener('location-changed', onWin);
+    el.remove();
+    expect(onWin).toHaveBeenCalledTimes(1);
+    expect(onEl).not.toHaveBeenCalled();
+  });
+});
+
+describe('relativeDay', () => {
+  const now = new Date('2026-06-13T12:00:00Z');
+
+  it('names the recent past in whole days', () => {
+    expect(relativeDay(new Date('2026-06-13T09:00:00Z'), now)).toBe('today');
+    expect(relativeDay(new Date('2026-06-12T12:00:00Z'), now)).toBe('yesterday');
+    expect(relativeDay(new Date('2026-06-10T12:00:00Z'), now)).toBe('3 days ago');
+    // Plural template, not "3 day ago" — and singular where singular is right.
+    expect(relativeDay(new Date('2026-06-12T12:00:00Z'), now)).not.toBe('1 days ago');
+  });
+
+  it('reads a future date as today rather than counting backwards', () => {
+    // A completion timestamped a few minutes ahead (clock skew) still happened now.
+    expect(relativeDay(new Date('2026-06-13T18:00:00Z'), now)).toBe('today');
+    expect(relativeDay(new Date('2026-06-20T12:00:00Z'), now)).toBe('today');
+  });
+
+  it('rounds to the nearest whole day at the half-day mark', () => {
+    // 1.4 days ago is still "yesterday"; 1.6 rounds up to two.
+    expect(relativeDay(new Date('2026-06-12T02:24:00Z'), now)).toBe('yesterday');
+    expect(relativeDay(new Date('2026-06-11T21:36:00Z'), now)).toBe('2 days ago');
+  });
+
+  it('defaults to the real clock when no now is given', () => {
+    expect(relativeDay(new Date())).toBe('today');
+    expect(relativeDay(new Date(Date.now() - 86_400_000))).toBe('yesterday');
+  });
+});
+
+describe('formatCost', () => {
+  it('formats in the instance currency, in the instance language', () => {
+    const hass = { config: { currency: 'USD' }, language: 'en-US' };
+    expect(formatCost(hass, 12.5)).toBe('$12.50');
+    const eu = { config: { currency: 'EUR' }, language: 'en-US' };
+    expect(formatCost(eu, 12.5)).toBe('€12.50');
+  });
+
+  it('falls back to the bare number when there is no currency to format in', () => {
+    expect(formatCost({ language: 'en-US' }, 12.5)).toBe('12.5');
+    expect(formatCost({ config: {} }, 12.5)).toBe('12.5');
+    expect(formatCost(undefined, 12.5)).toBe('12.5');
+  });
+
+  it('falls back to the bare number for a currency code Intl refuses', () => {
+    // A free-text currency in HA's config (or a code Intl has never heard of) used to
+    // throw out of the render; the number is worth more than an exception.
+    expect(formatCost({ config: { currency: 'not-a-currency' }, language: 'en-US' }, 12.5)).toBe(
+      '12.5',
+    );
+  });
+});
+
+describe('personName', () => {
+  const hass = {
+    states: {
+      'person.sam': { attributes: { friendly_name: 'Sam' } },
+      'person.blank': { attributes: { friendly_name: '' } },
+      'person.bare': { attributes: {} },
+      'person.stateless': {},
+      'person.odd': { attributes: { friendly_name: 42 } },
+    },
+  };
+
+  it('prefers the friendly name', () => {
+    expect(personName(hass, 'person.sam')).toBe('Sam');
+  });
+
+  it('falls back to the entity id whenever there is no name to show', () => {
+    // An empty friendly_name is not a name: it would render "Completed by " and stop.
+    expect(personName(hass, 'person.blank')).toBe('person.blank');
+    expect(personName(hass, 'person.bare')).toBe('person.bare');
+    // A state object with no attributes at all — HA hands those out for a moment
+    // during startup, and reaching through one used to throw out of the render.
+    expect(personName(hass, 'person.stateless')).toBe('person.stateless');
+    expect(personName(hass, 'person.odd')).toBe('person.odd');
+    expect(personName(hass, 'person.gone')).toBe('person.gone');
+    expect(personName({}, 'person.sam')).toBe('person.sam');
+    expect(personName(undefined, 'person.sam')).toBe('person.sam');
   });
 });

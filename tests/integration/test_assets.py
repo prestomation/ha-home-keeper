@@ -6,6 +6,8 @@ can attach to that virtual device (its per-task entities merge onto the same pag
 and that the asset CRUD services round-trip.
 """
 
+from datetime import UTC, datetime, timedelta
+
 from conftest import call_service, list_states
 
 
@@ -356,14 +358,77 @@ def test_wear_part_next_due_does_not_drift_on_asset_edit(ha):
     assert due_after == due_before, f"next_due drifted: {due_before} -> {due_after}"
 
 
+def test_back_dated_part_completion_stamps_the_local_date(ha):
+    """Regression (#250): last_replaced took the date in the completion's own offset.
+
+    Same root cause as the to-do due date, one layer deeper. A completion back-dated
+    through the panel's date picker arrives on a UTC offset, and the store's part stamp
+    used to call ``.date()`` on it directly. The container runs on America/New_York, so
+    02:00 UTC belongs to the previous local day — and because ``reconcile`` re-anchors
+    the part's recurrence to ``last_replaced``, a one-day shift here moves the whole
+    wear cycle, not just a label.
+    """
+    import time
+    import uuid
+
+    # Yesterday in UTC, at 02:00 — 21:00 or 22:00 the day before in New York, which
+    # side of a DST change it lands on. Always in the past, so it stays valid whenever
+    # the suite runs (a future last_replaced is rejected on the asset-edit path).
+    utc_day = (datetime.now(UTC) - timedelta(days=1)).date()
+    completed_at = f"{utc_day.isoformat()}T02:00:00+00:00"
+    expected_local = (utc_day - timedelta(days=1)).isoformat()
+
+    name = f"Timezone part probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": name,
+            "parts": [
+                {
+                    "name": "Gasket",
+                    "type": "wear",
+                    "replace_interval": 12,
+                    "replace_unit": "months",
+                }
+            ],
+        },
+    )
+    asset = None
+    for _ in range(20):
+        asset = _newest_asset_named(ha, name)
+        if asset and _part_tasks_for(ha, asset["id"]):
+            break
+        time.sleep(1)
+    assert asset and _part_tasks_for(ha, asset["id"]), (
+        "wear part should have created a task"
+    )
+    try:
+        task = _part_tasks_for(ha, asset["id"])[0]
+        call_service(
+            ha,
+            "home_keeper",
+            "complete_task",
+            {"task_id": task["id"], "completed_at": completed_at},
+        )
+        refreshed = _newest_asset_named(ha, name)
+        part = next(p for p in refreshed["parts"] if p["name"] == "Gasket")
+        assert part["last_replaced"] == expected_local, (
+            f"completed at {completed_at}; last_replaced must be the local date"
+        )
+    finally:
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
 def test_subdevice_has_warranty_independent_and_parent_seeded(ha):
     # Both the shades parent and the radio-shade subdevice are provisioned virtual
     # devices; list_assets reflects the parent link.
     resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
     assets = resp.get("service_response", resp)["assets"]
-    radio = next(a for a in assets if a["id"] == "asset_radio_shade")
-    shades = next(a for a in assets if a["id"] == "asset_shades")
-    assert radio["parent_asset_id"] == "asset_shades"
+    radio = next(a for a in assets if a["name"] == "Radio shade controller")
+    shades = next(a for a in assets if a["name"] == "Living room shades")
+    assert radio["parent_asset_id"] == shades["id"]
     assert radio["device_id"] and shades["device_id"]
 
 
@@ -380,7 +445,7 @@ def test_related_device_can_be_attached(ha):
     assets = resp.get("service_response", resp)["assets"]
     piano = next(a for a in assets if a["name"] == "Living room piano")
     # Relate it to the seeded water heater's (virtual) device as a foreign device.
-    wh = next(a for a in assets if a["id"] == "asset_water_heater")
+    wh = next(a for a in assets if a["name"] == "Garage water heater")
     call_service(
         ha,
         "home_keeper",

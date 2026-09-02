@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Opzioni di Home Keeper",
-        "description": "Rispecchia i sensori binari con classe dispositivo «problema» come attività. Un'attività sincronizzata resta attiva finché il sensore segnala un problema e si azzera automaticamente quando l'integrazione di origine lo risolve; non può essere completata in Home Keeper. Escludi sotto sensori, aree o etichette specifici.",
+        "description": "Sincronizza i sensori binari con classe dispositivo «problema» come attività. Un'attività sincronizzata resta attiva finché il sensore segnala un problema e si azzera automaticamente quando l'integrazione di origine lo risolve; non può essere completata in Home Keeper. Escludi sotto sensori, aree o etichette specifici.",
         "data": {
           "sync_problem_sensors": "Sincronizza i sensori di problema come attività",
           "problem_sensor_exclude_entities": "Sensori esclusi",
@@ -25,8 +25,9 @@
           "shopping_list_entity": "Lista della spesa"
         },
         "data_description": {
+          "sync_problem_sensors": "Un'attività sincronizzata si chiude solo quando l'integrazione di origine risolve il problema, non toccando Fatto. I suoi promemoria offrono Posticipa invece di Fatto.",
           "one_off_retention_days": "Elimina automaticamente un'attività singola completata dopo questo numero di giorni dal suo completamento. 0 conserva le attività singole completate per sempre.",
-          "shopping_list_entity": "Rispecchia i promemoria di acquisto automatico su questa lista attività. Spuntare una voce lì completa il promemoria di Home Keeper e ripristina la scorta del ricambio. Lascia vuoto per disattivare."
+          "shopping_list_entity": "Sincronizza i promemoria di acquisto automatico con questa lista attività. Spuntare una voce lì completa il promemoria di Home Keeper e ripristina la scorta del ricambio. Lascia vuoto per disattivare."
         }
       }
     }
@@ -123,8 +124,8 @@
       "description": "Aggiorna i campi di un'attività esistente.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività da aggiornare."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività da aggiornare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "name": {
           "name": "Nome",
@@ -209,8 +210,8 @@
       "description": "Elimina un'attività.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività da eliminare."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività da eliminare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "force": {
           "name": "Forza",
@@ -223,8 +224,8 @@
       "description": "Contrassegna un'attività come completata e fai avanzare la sua ricorrenza.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività da completare."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività da completare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "completed_at": {
           "name": "Completata il",
@@ -261,8 +262,8 @@
       "description": "Modifica i metadati (nota, costo, foto, chi) di un completamento già registrato, identificato dalla sua marca temporale. Non modifica la pianificazione né la data di scadenza.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività di cui stai modificando il completamento."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività di cui stai modificando il completamento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "ts": {
           "name": "Marca temporale del completamento",
@@ -295,8 +296,8 @@
       "description": "Arma un'attività guidata da condizione (attivata) in modo che risulti dovuta ora — la controparte rivolta all'utente di Completa attività (che la riporta in stato dormiente). Idempotente; valido solo per attività attivate.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività attivata da armare."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività attivata da armare. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -305,8 +306,8 @@
       "description": "Riancora il valore di partenza di un'attività con sensore di utilizzo (contatore) senza registrare un completamento. Utile quando il lavoro è stato svolto prima che Home Keeper lo monitorasse, o quando il contatore collegato è stato sostituito o azzerato. Omettendo il valore di partenza si ancora alla lettura attuale del sensore. Valido solo per un'attività con sensore in modalità utilizzo.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività con sensore di utilizzo da riancorare."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività con sensore di utilizzo da riancorare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "baseline": {
           "name": "Valore di partenza",
@@ -319,8 +320,8 @@
       "description": "Rinvia la data di scadenza di un'attività senza registrare un completamento né far avanzare la ricorrenza.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività da posporre."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività da posporre. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "hours": {
           "name": "Ore",
@@ -337,8 +338,8 @@
       "description": "Fai avanzare un'attività alla sua prossima occorrenza senza registrare un completamento.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività da saltare."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività da saltare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "origin": {
           "name": "Origine",
@@ -351,16 +352,16 @@
       "description": "Collega un'attività a un consumabile/componente di un elettrodomestico così che completandola si consumi un ricambio dalle scorte e si attivi un evento di scorte basse alla soglia di riordino. Ometti asset_id e part_id per rimuovere il collegamento.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività attivata da armare."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività attivata da armare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "asset_id": {
-          "name": "ID risorsa",
-          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "part_id": {
-          "name": "ID ricambio",
-          "description": "L'id del ricambio di cui regolare le scorte."
+          "name": "Nome o ID ricambio",
+          "description": "L'id del ricambio di cui regolare le scorte. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -444,7 +445,7 @@
         },
         "parent_asset_id": {
           "name": "Elettrodomestico principale",
-          "description": "Rendi questo un sotto-dispositivo di un altro elettrodomestico."
+          "description": "Rendi questo un sotto-dispositivo di un altro elettrodomestico. Indica il nome o l'id."
         },
         "related_device_ids": {
           "name": "Dispositivi correlati",
@@ -461,8 +462,8 @@
       "description": "Aggiorna i campi di un elettrodomestico/asset esistente.",
       "fields": {
         "asset_id": {
-          "name": "ID asset",
-          "description": "L'id dell'asset da aggiornare."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'asset da aggiornare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "name": {
           "name": "Nome",
@@ -510,7 +511,7 @@
         },
         "parent_asset_id": {
           "name": "Elettrodomestico principale",
-          "description": "Rendi questo un sotto-dispositivo di un altro elettrodomestico."
+          "description": "Rendi questo un sotto-dispositivo di un altro elettrodomestico. Indica il nome o l'id."
         },
         "related_device_ids": {
           "name": "Dispositivi correlati",
@@ -527,8 +528,8 @@
       "description": "Elimina un elettrodomestico/asset. Il suo dispositivo virtuale (se presente) viene rimosso e le attività ad esso collegate diventano autonome.",
       "fields": {
         "asset_id": {
-          "name": "ID asset",
-          "description": "L'id dell'asset da eliminare."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'asset da eliminare. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -537,8 +538,8 @@
       "description": "Nasconde un elettrodomestico/asset dalla vista predefinita senza eliminarne i dati. Il suo dispositivo, le entità e le attività collegate restano intatti; restore_asset annulla l'operazione.",
       "fields": {
         "asset_id": {
-          "name": "ID asset",
-          "description": "L'id dell'asset da archiviare."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'asset da archiviare. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -547,8 +548,8 @@
       "description": "Annulla archive_asset, riportando un elettrodomestico archiviato nella vista predefinita.",
       "fields": {
         "asset_id": {
-          "name": "ID asset",
-          "description": "L'id dell'asset da ripristinare."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'asset da ripristinare. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -561,12 +562,12 @@
       "description": "Modifica la quantità di ricambi disponibili di un delta con segno (limitato a zero); sono ammessi i decimali. Quando una diminuzione raggiunge o supera la soglia di riordino, viene attivato un evento di scorte basse.",
       "fields": {
         "asset_id": {
-          "name": "ID risorsa",
-          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "part_id": {
-          "name": "ID ricambio",
-          "description": "L'id del ricambio di cui regolare le scorte."
+          "name": "Nome o ID ricambio",
+          "description": "L'id del ricambio di cui regolare le scorte. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "delta": {
           "name": "Delta",
@@ -603,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Lista della spesa",
-          "description": "Una lista attività esistente su cui rispecchiare i promemoria di acquisto automatico. Spuntare una voce lì completa il promemoria e ripristina la scorta. Un campo vuoto disattiva la funzione."
+          "description": "Una lista attività esistente con cui sincronizzare i promemoria di acquisto automatico. Spuntare una voce lì completa il promemoria e ripristina la scorta. Un campo vuoto disattiva la funzione."
         },
         "dismissed_companions": {
           "name": "Companion ignorati",
@@ -616,12 +617,12 @@
       "description": "Scollega il file allegato di un ricambio (ricevuta/scheda tecnica/foto), eliminandone la copia salvata su disco. Carica/sostituisci un file dal pannello; questo servizio gestisce solo la rimozione.",
       "fields": {
         "asset_id": {
-          "name": "ID risorsa",
-          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "part_id": {
-          "name": "ID ricambio",
-          "description": "L'id del ricambio di cui rimuovere il file."
+          "name": "Nome o ID ricambio",
+          "description": "L'id del ricambio di cui rimuovere il file. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -630,8 +631,8 @@
       "description": "Allega un documento di tipo link (manuale/garanzia/ricevuta) a un elettrodomestico. Carica i file dal pannello; questo servizio gestisce solo i link.",
       "fields": {
         "asset_id": {
-          "name": "ID asset",
-          "description": "L'id dell'elettrodomestico a cui allegare il documento."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'elettrodomestico a cui allegare il documento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "document": {
           "name": "Documento",
@@ -644,12 +645,12 @@
       "description": "Scollega un documento da un elettrodomestico. Per un file caricato, anche la copia salvata viene eliminata dal disco.",
       "fields": {
         "asset_id": {
-          "name": "ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il documento."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'elettrodomestico a cui appartiene il documento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "document_id": {
-          "name": "ID documento",
-          "description": "L'id del documento da rimuovere."
+          "name": "Nome o ID documento",
+          "description": "L'id del documento da rimuovere. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -658,12 +659,12 @@
       "description": "Modifica un documento esistente di un elettrodomestico: rinominalo o (per i documenti di tipo collegamento) cambia il suo URL. I file caricati possono solo essere rinominati.",
       "fields": {
         "asset_id": {
-          "name": "ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il documento."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'elettrodomestico a cui appartiene il documento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "document_id": {
-          "name": "ID documento",
-          "description": "L'id del documento da modificare."
+          "name": "Nome o ID documento",
+          "description": "L'id del documento da modificare. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "changes": {
           "name": "Modifiche",
@@ -676,8 +677,8 @@
       "description": "Assegna una nuova marca temporale a un completamento già registrato (retrodatandolo o correggendolo), identificato dalla sua marca temporale attuale. A differenza di Aggiorna completamento, questo modifica la data/ora del completamento e ricalcola le date dell'ultimo completamento e della prossima scadenza dell'attività a partire dal risultato.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività di cui stai spostando il completamento."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività di cui stai spostando il completamento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "old_ts": {
           "name": "Marca temporale attuale del completamento",
@@ -694,8 +695,8 @@
       "description": "Rimuove un completamento dalla cronologia di un'attività (annulla un «fatto» accidentale), identificato dal suo timestamp.",
       "fields": {
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività di cui rimuovi il completamento."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività di cui rimuovi il completamento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "ts": {
           "name": "Timestamp completamento",
@@ -712,12 +713,12 @@
       "description": "Rimuove un completamento dalla cronologia archiviata di un elettrodomestico, identificato dall'id dell'attività originale e dal timestamp.",
       "fields": {
         "asset_id": {
-          "name": "ID elettrodomestico",
-          "description": "L'id dell'elettrodomestico di cui modifichi la cronologia archiviata."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'elettrodomestico di cui modifichi la cronologia archiviata. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "task_id": {
-          "name": "ID attività",
-          "description": "L'id dell'attività originale a cui appartiene il completamento archiviato."
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività originale a cui appartiene il completamento archiviato. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "ts": {
           "name": "Timestamp completamento",
@@ -768,12 +769,12 @@
       "description": "Genera un URL di breve durata (senza bisogno di intestazione di autenticazione) da cui un chiamante esterno può recuperare i byte del documento, ad es. un agente connesso tramite MCP.",
       "fields": {
         "asset_id": {
-          "name": "ID asset",
-          "description": "L'id dell'elettrodomestico a cui appartiene il documento."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'elettrodomestico a cui appartiene il documento. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "document_id": {
-          "name": "ID documento",
-          "description": "L'id del documento per cui firmare un URL."
+          "name": "Nome o ID documento",
+          "description": "L'id del documento per cui firmare un URL. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -782,12 +783,12 @@
       "description": "Genera un URL di breve durata (senza bisogno di intestazione di autenticazione) da cui un chiamante esterno può recuperare i byte del file allegato di un ricambio, ad es. un agente connesso tramite MCP.",
       "fields": {
         "asset_id": {
-          "name": "ID risorsa",
-          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio."
+          "name": "Nome o ID asset",
+          "description": "L'id dell'elettrodomestico a cui appartiene il ricambio. Funziona anche il suo nome. Il pannello mostra l'id."
         },
         "part_id": {
-          "name": "ID ricambio",
-          "description": "L'id del ricambio il cui file allegato va firmato."
+          "name": "Nome o ID ricambio",
+          "description": "L'id del ricambio il cui file allegato va firmato. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
     },
@@ -931,6 +932,18 @@
     },
     "declarative_companion_not_found": {
       "message": "Companion dichiarativo non trovato: {spec_id}"
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

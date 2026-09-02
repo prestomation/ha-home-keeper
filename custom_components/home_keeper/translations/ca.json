@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Opcions de Home Keeper",
-        "description": "Reflecteix els sensors binaris amb la classe de dispositiu «problema» com a tasques. Una tasca sincronitzada es manté activa mentre el sensor informa d'un problema i s'esborra automàticament quan la integració d'origen el resol; no es pot completar a Home Keeper. Exclou a sota sensors, àrees o etiquetes concrets.",
+        "description": "Sincronitza els sensors binaris amb la classe de dispositiu «problema» com a tasques. Una tasca sincronitzada es manté activa mentre el sensor informa d'un problema i s'esborra automàticament quan la integració d'origen el resol; no es pot completar a Home Keeper. Exclou a sota sensors, àrees o etiquetes concrets.",
         "data": {
           "sync_problem_sensors": "Sincronitza els sensors de problema com a tasques",
           "problem_sensor_exclude_entities": "Sensors exclosos",
@@ -25,8 +25,9 @@
           "shopping_list_entity": "Llista de la compra"
         },
         "data_description": {
+          "sync_problem_sensors": "Una tasca sincronitzada només es tanca quan la integració d'origen resol el problema, no quan toques Fet. Els recordatoris n'ofereixen Ajorna en lloc de Fet.",
           "one_off_retention_days": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 manté les tasques úniques completades per sempre.",
-          "shopping_list_entity": "Reflecteix els recordatoris de compra automàtica en aquesta llista de tasques. Marcar-hi un element completa el recordatori de Home Keeper i reposa l'estoc de la peça. Deixa-ho buit per desactivar-ho."
+          "shopping_list_entity": "Sincronitza els recordatoris de compra automàtica amb aquesta llista de tasques. Marcar-hi un element completa el recordatori de Home Keeper i reposa l'estoc de la peça. Deixa-ho buit per desactivar-ho."
         }
       }
     }
@@ -123,8 +124,8 @@
       "description": "Actualitzar els camps d'una tasca existent.",
       "fields": {
         "task_id": {
-          "name": "ID de tasca",
-          "description": "L'id de la tasca a actualitzar."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca a actualitzar. El seu nom també funciona. El tauler mostra l'id."
         },
         "name": {
           "name": "Nom",
@@ -209,8 +210,8 @@
       "description": "Eliminar una tasca.",
       "fields": {
         "task_id": {
-          "name": "ID de tasca",
-          "description": "L'id de la tasca a eliminar."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca a eliminar. El seu nom també funciona. El tauler mostra l'id."
         },
         "force": {
           "name": "Força",
@@ -223,8 +224,8 @@
       "description": "Marcar una tasca com a completada i avançar la seva recurrència.",
       "fields": {
         "task_id": {
-          "name": "ID de tasca",
-          "description": "L'id de la tasca a completar."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca a completar. El seu nom també funciona. El tauler mostra l'id."
         },
         "completed_at": {
           "name": "Completada el",
@@ -261,8 +262,8 @@
       "description": "Modifica les metadades (nota, cost, foto, qui) d'una realització ja registrada, identificada per la seva marca de temps. No canvia la planificació ni la data de venciment.",
       "fields": {
         "task_id": {
-          "name": "ID de tasca",
-          "description": "L'id de la tasca de la qual edites la realització."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca de la qual edites la realització. El seu nom també funciona. El tauler mostra l'id."
         },
         "ts": {
           "name": "Marca de temps de la realització",
@@ -295,8 +296,8 @@
       "description": "Armar una tasca controlada per condició (activada) perquè aparegui com a vençuda ara — la contrapart per a l'usuari de Completar tasca (que la retorna a l'estat inactiu). Idempotent; només vàlid per a tasques activades.",
       "fields": {
         "task_id": {
-          "name": "ID de tasca",
-          "description": "L'id de la tasca activada a armar."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca activada a armar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -305,8 +306,8 @@
       "description": "Torna a ancorar la línia base d'una tasca de sensor d'ús (comptador) sense registrar cap compleció. Fes-la servir quan la feina ja estigués feta abans que Home Keeper ho vigilés, o quan el comptador vinculat s'hagi substituït o posat a zero. Ometent la línia base, s'ancora a la lectura actual del sensor. Només és vàlida per a tasques de sensor en mode d'ús.",
       "fields": {
         "task_id": {
-          "name": "ID de tasca",
-          "description": "L'id de la tasca de sensor d'ús que s'ha de tornar a ancorar."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca de sensor d'ús que s'ha de tornar a ancorar. El seu nom també funciona. El tauler mostra l'id."
         },
         "baseline": {
           "name": "Línia base",
@@ -319,8 +320,8 @@
       "description": "Ajorna la data de venciment d'una tasca sense registrar una compleció ni avançar-ne la recurrència.",
       "fields": {
         "task_id": {
-          "name": "ID de tasca",
-          "description": "L'id de la tasca a posposar."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca a posposar. El seu nom també funciona. El tauler mostra l'id."
         },
         "hours": {
           "name": "Hores",
@@ -337,8 +338,8 @@
       "description": "Avança una tasca a la seva propera ocurrència sense registrar una compleció.",
       "fields": {
         "task_id": {
-          "name": "ID de tasca",
-          "description": "L'id de la tasca a ometre."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca a ometre. El seu nom també funciona. El tauler mostra l'id."
         },
         "origin": {
           "name": "Origen",
@@ -351,16 +352,16 @@
       "description": "Vincula una tasca a un consumible/peça d'un electrodomèstic perquè en completar-la es consumeixi un recanvi de l'estoc i es dispari un esdeveniment d'estoc baix al llindar de reposició. Omet asset_id i part_id per esborrar el vincle.",
       "fields": {
         "task_id": {
-          "name": "ID de tasca",
-          "description": "L'id de la tasca activada a armar."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca activada a armar. El seu nom també funciona. El tauler mostra l'id."
         },
         "asset_id": {
-          "name": "ID de l'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany la peça."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona. El tauler mostra l'id."
         },
         "part_id": {
-          "name": "ID de la peça",
-          "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc."
+          "name": "Nom o ID de la peça",
+          "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -444,7 +445,7 @@
         },
         "parent_asset_id": {
           "name": "Electrodomèstic pare",
-          "description": "Fer-ne un subdispositiu d'un altre electrodomèstic."
+          "description": "Fer-ne un subdispositiu d'un altre electrodomèstic. Indica'n el nom o l'id."
         },
         "related_device_ids": {
           "name": "Dispositius relacionats",
@@ -461,8 +462,8 @@
       "description": "Actualitzar els camps d'un electrodomèstic/actiu existent.",
       "fields": {
         "asset_id": {
-          "name": "ID d'actiu",
-          "description": "L'id de l'actiu a actualitzar."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'actiu a actualitzar. El seu nom també funciona. El tauler mostra l'id."
         },
         "name": {
           "name": "Nom",
@@ -510,7 +511,7 @@
         },
         "parent_asset_id": {
           "name": "Electrodomèstic pare",
-          "description": "Fer-ne un subdispositiu d'un altre electrodomèstic."
+          "description": "Fer-ne un subdispositiu d'un altre electrodomèstic. Indica'n el nom o l'id."
         },
         "related_device_ids": {
           "name": "Dispositius relacionats",
@@ -527,8 +528,8 @@
       "description": "Eliminar un electrodomèstic/actiu. El seu dispositiu virtual (si n'hi ha) s'elimina i les tasques que hi estan vinculades passen a ser independents.",
       "fields": {
         "asset_id": {
-          "name": "ID d'actiu",
-          "description": "L'id de l'actiu a eliminar."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'actiu a eliminar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -537,8 +538,8 @@
       "description": "Amaga un electrodomèstic/actiu de la vista predeterminada sense eliminar-ne les dades. El seu dispositiu, entitats i tasques vinculades no es toquen; restore_asset ho desfà.",
       "fields": {
         "asset_id": {
-          "name": "ID d'actiu",
-          "description": "L'id de l'actiu a arxivar."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'actiu a arxivar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -547,8 +548,8 @@
       "description": "Desfà archive_asset, tornant un electrodomèstic arxivat a la vista predeterminada.",
       "fields": {
         "asset_id": {
-          "name": "ID d'actiu",
-          "description": "L'id de l'actiu a restaurar."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'actiu a restaurar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -561,12 +562,12 @@
       "description": "Canvia la quantitat de recanvis disponibles per un delta amb signe (limitat a zero); s'admeten decimals. Quan una disminució arriba o supera el llindar de reabastiment, es dispara un esdeveniment d'estoc baix.",
       "fields": {
         "asset_id": {
-          "name": "ID de l'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany la peça."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona. El tauler mostra l'id."
         },
         "part_id": {
-          "name": "ID de la peça",
-          "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc."
+          "name": "Nom o ID de la peça",
+          "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc. El seu nom també funciona. El tauler mostra l'id."
         },
         "delta": {
           "name": "Delta",
@@ -603,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Llista de la compra",
-          "description": "Una llista de tasques existent on reflectir els recordatoris de compra automàtica. Marcar-hi un element completa el recordatori i reposa l'estoc. Deixa-ho buit per desactivar-ho."
+          "description": "Una llista de tasques existent on sincronitzar els recordatoris de compra automàtica. Marcar-hi un element completa el recordatori i reposa l'estoc. Deixa-ho buit per desactivar-ho."
         },
         "dismissed_companions": {
           "name": "Companys descartats",
@@ -616,12 +617,12 @@
       "description": "Desvincula el fitxer adjunt d'una peça (rebut/full d'especificacions/foto), eliminant-ne la còpia emmagatzemada del disc. Puja o substitueix un fitxer des del tauler; aquest servei només gestiona l'eliminació.",
       "fields": {
         "asset_id": {
-          "name": "ID de l'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany la peça."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona. El tauler mostra l'id."
         },
         "part_id": {
-          "name": "ID de la peça",
-          "description": "L'id de la peça el fitxer de la qual s'ha d'eliminar."
+          "name": "Nom o ID de la peça",
+          "description": "L'id de la peça el fitxer de la qual s'ha d'eliminar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -630,8 +631,8 @@
       "description": "Adjunta un document d'enllaç (manual/garantia/rebut) a un electrodomèstic. Puja els fitxers des del tauler; aquest servei només gestiona enllaços.",
       "fields": {
         "asset_id": {
-          "name": "ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual adjuntar el document."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual adjuntar el document. El seu nom també funciona. El tauler mostra l'id."
         },
         "document": {
           "name": "Document",
@@ -644,12 +645,12 @@
       "description": "Desvincula un document d'un electrodomèstic. Si era un fitxer pujat, també se n'elimina la còpia desada del disc.",
       "fields": {
         "asset_id": {
-          "name": "ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany el document."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany el document. El seu nom també funciona. El tauler mostra l'id."
         },
         "document_id": {
-          "name": "ID del document",
-          "description": "L'id del document a eliminar."
+          "name": "Nom o ID del document",
+          "description": "L'id del document a eliminar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -658,12 +659,12 @@
       "description": "Edita un document existent d'un electrodomèstic: canvia'n el nom o (per als documents d'enllaç) l'URL. Els documents de fitxers pujats només es poden reanomenar.",
       "fields": {
         "asset_id": {
-          "name": "ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany el document."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany el document. El seu nom també funciona. El tauler mostra l'id."
         },
         "document_id": {
-          "name": "ID del document",
-          "description": "L'id del document a editar."
+          "name": "Nom o ID del document",
+          "description": "L'id del document a editar. El seu nom també funciona. El tauler mostra l'id."
         },
         "changes": {
           "name": "Canvis",
@@ -676,8 +677,8 @@
       "description": "Torna a marcar la data i hora d'una realització ja registrada (retrocedeix-la o corregeix-la), identificada per la seva marca de temps actual. A diferència d'Actualitza la realització, això canvia la data/hora de la realització i torna a calcular les dates de darrera realització i propera venciment de la tasca a partir del resultat.",
       "fields": {
         "task_id": {
-          "name": "ID de tasca",
-          "description": "L'id de la tasca la realització de la qual estàs movent."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca la realització de la qual estàs movent. El seu nom també funciona. El tauler mostra l'id."
         },
         "old_ts": {
           "name": "Marca de temps de realització actual",
@@ -694,8 +695,8 @@
       "description": "Elimina una realització de l'historial d'una tasca (desfés un «fet» accidental), identificada per la seva marca de temps.",
       "fields": {
         "task_id": {
-          "name": "ID de la tasca",
-          "description": "L'id de la tasca de la qual elimineu la realització."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca de la qual elimineu la realització. El seu nom també funciona. El tauler mostra l'id."
         },
         "ts": {
           "name": "Marca de temps de la realització",
@@ -712,12 +713,12 @@
       "description": "Elimina una realització de l'historial arxivat d'un electrodomèstic, identificada per l'id de la tasca original i la marca de temps.",
       "fields": {
         "asset_id": {
-          "name": "ID de l'electrodomèstic",
-          "description": "L'id de l'electrodomèstic de què editeu l'historial arxivat."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'electrodomèstic de què editeu l'historial arxivat. El seu nom també funciona. El tauler mostra l'id."
         },
         "task_id": {
-          "name": "ID de la tasca",
-          "description": "L'id de la tasca original a la qual pertany la realització arxivada."
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca original a la qual pertany la realització arxivada. El seu nom també funciona. El tauler mostra l'id."
         },
         "ts": {
           "name": "Marca de temps de la realització",
@@ -768,12 +769,12 @@
       "description": "Genera un URL de curta durada (sense necessitat de capçalera d'autenticació) des del qual un servei extern pot obtenir els bytes del document, p. ex. un agent connectat per MCP.",
       "fields": {
         "asset_id": {
-          "name": "ID d'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany el document."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany el document. El seu nom també funciona. El tauler mostra l'id."
         },
         "document_id": {
-          "name": "ID del document",
-          "description": "L'id del document per al qual signar un URL."
+          "name": "Nom o ID del document",
+          "description": "L'id del document per al qual signar un URL. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -782,12 +783,12 @@
       "description": "Genera un URL de curta durada (sense necessitat de capçalera d'autenticació) des del qual un servei extern pot obtenir els bytes del fitxer adjunt d'una peça, p. ex. un agent connectat per MCP.",
       "fields": {
         "asset_id": {
-          "name": "ID de l'actiu",
-          "description": "L'id de l'electrodomèstic al qual pertany la peça."
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'electrodomèstic al qual pertany la peça. El seu nom també funciona. El tauler mostra l'id."
         },
         "part_id": {
-          "name": "ID de la peça",
-          "description": "L'id de la peça el fitxer adjunt de la qual s'ha de signar."
+          "name": "Nom o ID de la peça",
+          "description": "L'id de la peça el fitxer adjunt de la qual s'ha de signar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
     },
@@ -931,6 +932,18 @@
     },
     "declarative_companion_not_found": {
       "message": "No s'ha trobat cap companion declaratiu: {spec_id}"
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

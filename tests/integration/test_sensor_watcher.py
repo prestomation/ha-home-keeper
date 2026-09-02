@@ -514,6 +514,74 @@ def test_completing_a_usage_task_records_the_meter_reading_in_history(ha):
         _delete(ha, task_id)
 
 
+def test_deleting_a_completion_restores_the_partial_meter(ha):
+    # #235 follow-up: a task 15 units into a 50-unit interval, completed then undone
+    # (an accidental "done"), must revert the meter to that partial progress — not
+    # stay stuck at zero. Complete anchors the baseline at 215; deleting that
+    # completion has to put it back to 200 so "15 of 50" returns.
+    _set_meter(ha, 200)
+    task_id = _add_sensor_task(ha, {"entity_id": METER, "mode": "usage", "target": 50})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 200)
+        _set_meter(ha, 215)
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 200)
+
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        task = _poll_task(ha, task_id, lambda t: len(t.get("completions") or []) == 1)
+        # Completing moved the anchor forward (progress reset to zero) and stamped the
+        # baseline it replaced onto the entry.
+        assert task["sensor"]["baseline"] == 215
+        ts = task["completions"][0]["ts"]
+        assert task["completions"][0]["meter_start"] == 200
+
+        call_service(
+            ha, "home_keeper", "delete_completion", {"task_id": task_id, "ts": ts}
+        )
+        task = _poll_task(ha, task_id, lambda t: t["sensor"].get("baseline") == 200)
+        # The partial progress is back (15 of 50 at meter 215), and the history is
+        # empty again.
+        assert task["completions"] == [] or not task["completions"]
+        assert task["sensor"]["baseline"] == 200
+    finally:
+        _delete(ha, task_id)
+
+
+def test_deleting_an_older_completion_leaves_the_meter_alone(ha):
+    # Only the latest completion anchors the meter, so undoing an older row must not
+    # move the baseline (mirrors the update_completion older-row rule).
+    _set_meter(ha, 500)
+    task_id = _add_sensor_task(ha, {"entity_id": METER, "mode": "usage", "target": 100})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 500)
+        older = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        call_service(
+            ha,
+            "home_keeper",
+            "complete_task",
+            {"task_id": task_id, "completed_at": older, "reading": 450},
+        )
+        _set_meter(ha, 520)
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        task = _poll_task(ha, task_id, lambda t: len(t.get("completions") or []) == 2)
+        assert task["sensor"]["baseline"] == 520
+
+        older_ts = min(c["ts"] for c in task["completions"])
+        call_service(
+            ha,
+            "home_keeper",
+            "delete_completion",
+            {"task_id": task_id, "ts": older_ts},
+        )
+        task = _poll_task(ha, task_id, lambda t: len(t.get("completions") or []) == 1)
+        time.sleep(2)
+        task = _get_task(ha, task_id)
+        assert task["sensor"]["baseline"] == 520, (
+            "undoing an older row must not move the anchor"
+        )
+    finally:
+        _delete(ha, task_id)
+
+
 def test_a_caller_supplied_reading_wins_over_the_live_one(ha):
     # Back-dating: the work happened at 300 but the meter has since moved to 340.
     # Recording today's reading would put an obviously wrong number in the log and

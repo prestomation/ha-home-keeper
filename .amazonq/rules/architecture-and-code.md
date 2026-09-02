@@ -57,8 +57,22 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
 - The panel's navigation state is **high-fidelity deep-linked**: every navigable
   destination maps to a URL under the panel prefix (`/home-keeper`). Current
   scheme: `/tasks` (default), `/appliances`, `/tasks/<id>`, `/appliances/<id>`
-  (asset detail lives under the `appliances` segment). Forms are ephemeral
-  overlays and are intentionally **not** deep-linked.
+  (asset detail lives under the `appliances` segment), `/appliances/<id>/<tab>`
+  for an appliance's sub-tabs (`ASSET_TABS` in `utils.ts`), and
+  `/settings/<section>` for a Settings section (`SETTINGS_SECTIONS`). Forms are
+  ephemeral overlays and are intentionally **not** deep-linked.
+- **A route may render differently at different widths, but only CSS may decide
+  which.** `/settings/<section>` is one section beside a rail on a desktop and a
+  section on its own with a back arrow on a phone. The panel renders all of it —
+  rail, section index, and every section — puts the named section on the layout as
+  `data-section` and marks its card `.hk-sec-current`, and the media query picks.
+  Nothing in `_render()` or `_hydrate()` reads the viewport, so the rule below
+  about viewport-agnostic rendering still holds.
+- **A new URL segment must keep the old URLs working.** The sub-tab segment is
+  optional and an unrecognised value falls back to the default tab, because
+  `/appliances/<id>` is already written into every registered appliance device's
+  `configuration_url`. `buildPath` leaves the *default* tab out of the URL, so the
+  canonical link to an appliance stays the short one.
 - **The URL is the single source of truth.** HA hands the panel a
   `route = { prefix, path }` for every in-panel URL change, including browser
   Back/Forward. The `set route` setter parses `path` and is the *only* place that
@@ -75,6 +89,23 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   `buildPath`) so they unit-test in isolation and round-trip losslessly. Unknown
   or empty paths fall back to the tasks list; a detail URL whose id no longer
   exists renders the "gone" notice rather than erroring.
+- **Opening a form is not a navigation.** The edit drawer opens beside the page it
+  was pressed on — the list, or that object's own detail page — and the location does
+  not move (`_openEdit` / `_openEditAsset`, gated by `_editsThisPage`). Edit used to
+  navigate to the owning list, which threw away the schedule, notes and history that
+  the values being edited come from. Only a *cross-view* edit still navigates, because
+  a form mounts on its own view: the task form on `tasks`, the appliance form on
+  `appliances`. That one goes through `_navigate` plus `_pendingEdit`, since
+  `_applyLocation` clears ephemeral forms on the way.
+- **The drawer belongs to every page of its view, so mount it before any page-specific
+  wiring returns.** `_hydrate` returns early for a task detail ("a page of its own"),
+  so `_mountDrawerForm` runs above that return — mounted after it, Edit on a task page
+  opens an empty drawer.
+- **A form beside a detail page must not dim it.** The dimming that marks the edited
+  row on a list is keyed off `.hk-wrap:not([data-detail])`: on a detail page the page
+  *is* the subject of the form, so it stays at full contrast. Where a third column
+  would not fit (an appliance, read beside its list), the list steps aside above
+  1150px rather than everything shrinking.
 
 ## Pure, HA-free core
 - `recurrence.py` and `models.py` MUST NOT import anything from `homeassistant`.
@@ -89,6 +120,10 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   tier assert on the option merge rules every write path shares. Keep it that way —
   reach for `hass.<something>` at import time and `tests/unit/test_options.py` stops
   running without the HA harness.
+- `device_compat.py` sits on the same boundary for the same reason: it only ever calls
+  methods on a `DeviceRegistry` it is handed, so its `homeassistant` import is
+  `TYPE_CHECKING`-only and `tests/unit/test_device_compat.py` can drive both registry
+  shapes with plain fakes. Both modules are in the mutmut `only_mutate` allowlist.
 
 ## Datetimes & timezones
 - All datetimes are timezone-aware. Use `homeassistant.util.dt` (`dt_util`) at the
@@ -200,6 +235,13 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   effective area (`taskAreaId`). This is what lets a card be scoped to a "subject"
   (dog/car/kid) that isn't an HA area or device — keep this transitive rule intact when
   touching card filtering, and keep `card-filter.ts` pure/DOM-free.
+- **`card-filter.ts` is the one bucketing/grouping implementation for both surfaces.**
+  The panel and the card share `statusBucket`, `bucketByKey`, `taskAreaId`, `SOON_DAYS`
+  and `DAY_MS`; the two surfaces' genuine differences ride on `statusBucket`'s options
+  (the card splits out `today`, the panel adds `completed` for done one-offs), and the
+  defaults reproduce the card. The per-surface *section vocabularies* (labels, order)
+  stay in `panel.ts`'s `_groupTasks` and `card.ts`'s `groupTasks` on purpose. The module
+  is on the Stryker mutation surface — a new branch there needs a killing test.
 - All task mutations go through `HomeKeeperStore`; entities and the panel read via
   the `HomeKeeperCoordinator` and never mutate storage directly.
 - **Per-completion metadata.** A `completions[]` entry is `{ ts }` plus any of the
@@ -258,6 +300,18 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   `PROBLEM` `binary_sensor` (`assets.part_is_low`) for each `assets.part_has_reorder`
   part. Both enumerate via `coordinator.virtual_asset_parts(predicate)` and prune stale
   registry entries by unique-id shape (mirroring the asset-date-sensor cleanup).
+- **Read the device registry through `device_compat.py`, never `DeviceRegistry`
+  directly.** Home Assistant 2026.9 made `async_get` answer with a `ChildDeviceEntry`
+  (a separate class with no `connections`/`manufacturer`/`model`) as well as a
+  `DeviceEntry`, and turned `DeviceRegistry.devices` from an id-keyed mapping into a
+  collection of entries — so iterating it yields ids on one core and entries on the
+  next. `lint.yml` type-checks against *stable* HA, where `ChildDeviceEntry` has no
+  name, so the codebase keeps annotating registry devices as `dr.DeviceEntry` and
+  confines the approximation to that one module: `resolve_device` for a lookup by id,
+  `all_devices` to enumerate, `device_connections` for the one attribute a child
+  lacks. A child device is a valid attach target (HA links entities to either kind) —
+  don't filter them out. Reading any other `DeviceEntry`-only attribute off a resolved
+  device needs a helper there too, not a bare attribute access.
 - `diagnostics.py` provides **both** config-entry and **per-device**
   (`async_get_device_diagnostics`) downloads; the per-device one scopes to the device's
   appliance + its tasks. A device-level *action* was deliberately **not** added (the
@@ -279,6 +333,27 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   translations-parity test enforces this; hassfest requires the `services.yaml` ↔
   `strings.json` pairing). The websocket command, if any, is added alongside and
   delegates to the same `HomeKeeperStore` method — never a divergent code path.
+- **Every `*_id` service field accepts a name as well as an id, id first.** The ids are
+  `uuid4`s (`models.build_task`, `assets.build_asset`) that appear in no UI a person
+  reads, so an id-only field makes the whole service surface unusable by hand. This
+  follows Home Assistant core: `todo.update_item`'s single `item` field is labelled
+  "Item name or UID" and resolved by `_find_by_uid_or_summary`. Keep it **one field**
+  — never a `task_name` sibling beside `task_id` — and never rename the existing key,
+  which integrators and published automations already pass.
+  `resolve.py` holds the resolution (pure, HA-free, on the mutmut allowlist): exact id,
+  then exact name, then a trimmed/case-folded name, with parts and documents scoped to
+  their already-resolved asset. `__init__.py`'s `_task_ref`/`_asset_ref`/`_part_ref`/
+  `_document_ref` wrap it for the handlers.
+  **Ambiguity raises; it does not guess.** This is the one deliberate departure from
+  core, which takes the first name match: Home Keeper's names are not unique by design
+  (`docs/INTEGRATING.md` tells contributors to expect collisions) and the services
+  reached this way include `delete_task` and `delete_asset`. A name matching several
+  objects raises `<kind>_ambiguous` naming every candidate id. A name matching *nothing*
+  is passed through untouched so the handler's existing not-found error quotes what the
+  user actually typed.
+  The panel shows each object's id with a copy button (`panel.ts` `_idRow`), which is
+  what makes the id form reachable when a name is ambiguous. Websocket commands stay
+  id-only: the panel holds full objects and never types a name.
 - Read-only/report actions use `SupportsResponse.ONLY`; data mutations reload the
   entry or refresh the coordinator exactly as the equivalent CRUD service does.
 - **Uploaded document blobs are the one non-service mutation surface.** Asset documents
@@ -364,12 +439,43 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   **once per crossing** (keyed on `next_due` / threshold), never every refresh, and
   **baseline silently on startup** (the coordinator gates firing until setup completes)
   so a restart never replays a transition storm.
-- **Keep the catalog in sync.** A new event is not done until it's in
-  [`docs/EVENTS.md`](../../docs/EVENTS.md) (the canonical catalog: when it fires,
-  payload, semantics) and, if device-facing, exposed as a `device_trigger.py` trigger
-  with `strings.json` `device_automation` labels at full translation parity. Events are
-  *observations* of changes that already flow through services/store methods, so they
-  need **no** new service.
+- **Keep the catalog in sync.** A new event is not done until it has an `EventSpec` in
+  `api_surface.py` (name, payload shape, per-event extras, and the one-line "fires
+  when" the reference renders) and, if device-facing, a `device_trigger.py` trigger
+  with `strings.json` `device_automation` labels at full translation parity.
+  [`docs/EVENTS.md`](../../docs/EVENTS.md) keeps only what a table can't say: when
+  each event fires in context, edge-triggering, what a restart replays, worked
+  automations. Events are *observations* of changes that already flow through
+  services/store methods, so they need **no** new service.
+
+## The integrator-facing surface is modelled, and the reference is generated
+- **`api_surface.py` is the single index of every surface an integrator can touch** —
+  services, events and their payloads, device triggers, entity platforms and
+  attributes, config-entry options, plus the internal websocket commands and HTTP
+  views. A new one is not done until it has a spec there;
+  `tests/unit/test_api_surface.py` parses the component's own source and fails
+  otherwise, and `tests/integration/test_api_surface.py` checks the running system.
+- **The runtime consumes the model.** `__init__.async_unload_entry` iterates
+  `SERVICE_NAMES`; `device_trigger.py` builds `TASK_TRIGGERS`/`ASSET_TRIGGERS` from
+  `triggers_for()`. Never restate a modelled list as a second literal beside it —
+  that is exactly how `set_task_meter` shipped registered on setup and missing from
+  the teardown tuple, still callable against an unloaded integration.
+- **The model declares names and structure only.** Every string Home Assistant already
+  localizes — service and field labels, trigger labels, entity names, option labels,
+  error messages — is resolved at generation time from `services.yaml` /
+  `strings.json`, so the reference and the Home Assistant UI cannot describe the same
+  action differently. Never put a user-facing sentence in `api_surface.py`. The one
+  exception is `EventSpec.summary`: a bus event has no Home Assistant string source.
+- **The reference is generated, never written.** `ci/generate_api_docs.py` renders
+  `website/developer/api.md` from the model plus those two files, and `npm run sync`
+  runs it after `sync-docs.mjs` (which clears that directory). The page is gitignored
+  with the rest of the generated tree, so it can't go stale in git — which also means
+  a canonical doc links to it by its published URL, not a relative path.
+  `sync-docs.mjs` pulls those URLs back to site-relative routes so a PR preview links
+  within itself.
+- **`SURFACE_KINDS` lists the surfaces we don't offer too**, each with a status and a
+  one-sentence reason. A list of what exists can't tell you what was forgotten. Adding
+  a new kind of surface means adding a row there first.
 
 ## Errors, validation & security
 - Service handlers raise `ServiceValidationError` for user-facing errors.
@@ -444,6 +550,166 @@ fails instantly instead of after a long transfer) is mirrored in
 (`tests/unit/test_upload_limit_parity.py`). The backend stays the authority — the
 client check is a fast path, never the enforcement.
 
+### The panel's visual language is a token block, never literal colour
+- `STYLES` opens with a `:host` block of `--hk-*` tokens (accent/danger/warn/ok,
+  surface/page/line/ink, radii, `--hk-tap`). **Every rule reads a token; no rule
+  hard-codes a colour.** Each token resolves to a Home Assistant theme variable, or
+  to a `color-mix()` off one for the tints HA does not publish (a 12% mix over the
+  *surface* darkens with the surface, so it reads correctly in a dark theme too).
+  A design comp is drawn in one palette; pasting its hexes breaks dark mode and
+  every custom theme.
+- **One primary action per surface, and every button states its weight.** The
+  vocabulary lives in `utils.ts` as `BtnWeight` + `btnAttrs()` / `setBtnWeight()`:
+  `primary` (no attributes — HA's own default), `secondary` (`appearance="filled"`),
+  `tertiary` (`appearance="plain" variant="neutral"`), `danger`
+  (`appearance="plain" variant="danger"`) and `danger-primary` (`variant="danger"`).
+  **Never write `ha-button` attributes by hand**, and never re-introduce `raised` or
+  `destructive`: `ha-button` extends Web Awesome's `Button`, whose observed attributes
+  are `appearance`, `variant` and `size` only. Neither Material attribute is read, so
+  a button carrying one renders at the default accent fill exactly as a bare one does
+  — which is how twelve `raised` buttons, plus every bare one, silently converged on a
+  single weight (#262). `--mdc-theme-primary` is dead for the same reason.
+  - Because `primary` is spelled as the *absence* of attributes, "given the primary
+    weight" and "nobody thought about this button" are otherwise the same markup. The
+    helpers stamp `data-hk-weight`, which is what makes the difference legible, what
+    the tonal ink rule selects on, and what `tests/e2e/tests/button-weights.spec.ts`
+    walks.
+  - **Cancel is always `tertiary`.** A destructive action takes the weight of the
+    *surface's* purpose, not of the thing it destroys: `danger` where it sits among
+    other actions, `danger-primary` only on a surface whose whole job is the deletion
+    (the confirm scrim, and nowhere else).
+  - `tertiary` is `neutral` rather than brand on purpose — `appearance="plain"` alone
+    paints the label in the accent colour at 3.26:1 on a card.
+- Two shared primitives carry the system: `.hk-eyebrow` (uppercase micro-label
+  above a group) and `.hk-indent` (a rule down the left of fields that exist only
+  because of a choice above them). Reuse them rather than restating the rules.
+
+### Responsive: viewport media queries, sticky over fixed
+- Breakpoints are **viewport `@media` queries**, so `_render()` stays
+  viewport-agnostic and nothing depends on JS breakpoint state. **Never put
+  `container-type` on `:host`** — it makes the host a containing block for every
+  fixed descendant, which would anchor the phone tab bar to the bottom of the
+  content instead of the screen.
+- Prefer `position: sticky` for panes that stay put while the page scrolls (the
+  edit drawer, the appliance master pane, the Settings rail). Sticky is positioned
+  by its own scroll container, so it survives whatever transformed or contained
+  ancestor HA wraps a custom panel in — the same reason the confirm scrim is
+  appended to `document.body` rather than positioned from inside the shadow root.
+  `fixed` is for genuine viewport overlays (the phone tab bar, the bottom sheet).
+- Breakpoints in use: **1150px** (drawer becomes a bottom sheet), **1000px**
+  (Settings rail becomes an index, appliance master pane steps aside), **700px**
+  (phone: bottom tab bar, floating Add, wrapped filter chips, stacked rows). The
+  first two are 1150/1000 rather than the 900 they shipped with — see the sidebar
+  note below, which is what moved them.
+- **Never dim a container to recede it if a child must stay bright.** `opacity`
+  creates a stacking context, so an opaque child of a faded parent is still faded.
+  Fade the elements individually (see the drawer's treatment of the edited row).
+- **A media query measures the viewport; the panel gets the viewport minus Home
+  Assistant's ~256px sidebar.** Any breakpoint about *our* available width has to be
+  ~250px larger than the width being reasoned about. The drawer and the appliance
+  master pane both shipped with a 900px threshold that let a 400px drawer sit beside
+  a 320px list at a 1000px window, breaking task names one character per line; they
+  are 1150px and 1000px for this reason.
+- **Recede is not disable.** Dimming the list behind the drawer is presentation;
+  `pointer-events: none` on it takes away marking another task done, which the inline
+  form it replaced never did. Where the drawer genuinely covers the list (the phone
+  sheet) the content gets `inert` instead — which removes it from the tab order too,
+  something `pointer-events` never did.
+
+### Contrast and affordance are measured, not eyeballed
+- **Colour pairs are checked against rendered pixels, in both themes.** Sample the
+  computed colours through the shadow root and compute the ratio; the light and dark
+  failures are rarely the same ones. `--hk-accent-fg` on `--hk-accent` is 3.26:1 —
+  Home Assistant's own filled-button pairing, and not good enough for a 12px label,
+  so selected states use the soft/ink pair plus an edge.
+- **The `*-ink` tokens mix ~58% hue into `--primary-text-color`, not 78%.** At 78%
+  the mix barely moves off the hue in light mode, and stays red-on-red in dark. When
+  adding a semantic colour, pair a `*-soft` container with a `*-ink` label — never a
+  literal `#fff` over a mid-tone fill (that pairing measured 1.88–1.96:1).
+- **Enclosure means pressable.** A bordered status pill beside a borderless tonal
+  button reads as the pill being the control. Status chips carry no outline; the
+  row's action carries the ring.
+- **Reach into a Home Assistant component through its `part`, not its colour custom
+  properties.** `ha-button` reads only fill tokens, so the label colour is only
+  reachable as `::part(base)`. HA's tonal label on its own tonal fill measures
+  2.85:1, so every tonal button restates it from `--hk-accent-ink` — keyed off
+  `[data-hk-weight="secondary"]` rather than a class, so a button cannot opt out of
+  the fix by being written somewhere new.
+- **When a semantic colour needs a label, add the `*-ink` to match the `*-soft`.**
+  The `ok` family shipped with a container and no ink, which is why the "Connected"
+  chip was still white-on-mid-tone at 3.30:1 after #261 fixed its neighbours.
+
+### Accessibility contracts the panel has to keep
+- **`_render()` destroys the focused element, so `_render()` restores focus.**
+  Every control carries a stable `data-*` attribute; `_focusKey()` records one before
+  the rebuild and `_restoreFocus()` finds its replacement after. Without it every
+  activation drops a keyboard user at the top of the document.
+- **Focus a Home Assistant element through `_focus()`, never `el.focus()` directly.**
+  Its `focus()` dereferences a shadow root that may not exist yet immediately after an
+  `innerHTML` assignment, and the throw propagates out of `_render()` and skips
+  everything after it.
+- **State conveyed by colour needs a text equivalent.** The rail's dots carry
+  `role="img"` plus a label; the selected filter chip carries `aria-pressed`.
+- **Don't declare a widget role you have not implemented.** The appliance sub-tabs
+  and the phone tab bar are navigation between URLs, so they are buttons with
+  `aria-current="page"` — a `role="tab"` with no tabpanel, roving tabindex or arrow
+  keys is worse than no role at all.
+- `tests/e2e/tests/a11y.spec.ts` pins all of the above. The rest of the suite runs at
+  desktop width with a mouse and noticed none of it.
+
+### One `ha-form` per section — and seed each with only its own fields
+- `ha-form` renders its own rows and exposes no slot between them, so **a heading
+  between two fields is only reachable by splitting the schema.** The task form
+  (`taskSchemaSections`) and the problem-sensor settings card
+  (`problemSyncToggleSchema` + `problemSyncExclusionsSchema`) do this; in both
+  cases the *flat* schema builder is kept as the concatenation, with a unit test
+  asserting the two can never drift. `_renderAssetForm` has done this since before
+  the convention existed.
+- **Seed each section with `pickFormData(data, section.fields)`, never the whole
+  form.** `ha-form` emits its entire `data` object on every change, so a section
+  seeded with everything re-asserts a stale snapshot of every other section each
+  time it changes — typing a name and then changing the recurrence put the name
+  back to what it was before the first keystroke, and the save created nothing.
+- Because each event now carries only one section's fields, **a change handler
+  must check a field is present before reading it** (`'interval' in value`).
+  An unguarded read sees `undefined` for fields in other sections; the cadence
+  interval is coerced with `Number(...) || 1`, so it silently became 1.
+- Keep the wrapper's id (`hk-task-form`) on a `<div>` around the section forms, so
+  every `#hk-task-form <selector>` descendant lookup still resolves. Tests that
+  dispatch `value-changed` must address the *section that owns the field* — an
+  event dispatched at the wrapper reaches no listener and passes vacuously.
+
+### The panel is one element plus flat region modules
+
+`panel.ts` holds the element itself — the field declarations, `set hass` / `set route`,
+`_applyLocation`, `_render`, `_hydrate`, `connectedCallback`/`disconnectedCallback`,
+the form/note-editor lifecycles, and `_attachNotePreview` (the **only**
+`MarkdownPreview` constructor; `_disposeAllPreviews` is the only teardown). Everything
+else lives in a flat `panel-*.ts` region module (styles, icons, types, controls, lists,
+detail, chips, history, settings, dialogs, asset editors, upload, task/asset forms).
+
+- **Region modules export free functions over `PanelHost`** (`panel-host.ts`) — no
+  sub-controller classes, no mixins, no forwarder shims. A method moves as `this.` →
+  `p.`; a region that wires listeners exports `wireXxx(p, root)` called from
+  `_hydrate` at the position its inline block occupied (`_hydrate`'s ordering is
+  load-bearing — the detail-page early return and the `.detail-open` single-wiring
+  rule live in `wireDetail`).
+- **`PanelHost` is the coupling surface.** Every member is public-with-underscore on
+  the class and nothing outside `src/panel-*.ts` may use it. Adding a member is a
+  deliberate widening — prefer passing a value as an argument.
+- **New frontend modules stay flat in `src/`.** `i18n-parity.test.js` reads `src/*.ts`
+  with a non-recursive `readdirSync`, and Stryker's `disableTypeChecks` glob is also
+  non-recursive — a subdirectory silently drops out of the key-usage gate and the
+  type-check disabling.
+- **`panel-*.ts` modules stay off the Stryker `mutate` list**, like `panel.ts` — they
+  are covered indirectly through the element by `panel.test.js` and friends, and a
+  1,000-line region with no direct unit tests would score near zero. Pure logic that
+  earns direct tests belongs in an on-surface module (`utils`, `forms`, `documents`,
+  `card-filter`) instead.
+- Shared mutable state contracts to respect when touching regions: `_liveHassEls` is
+  pushed to via `_makeForm` and reset only in `_render`; `_assetEdit.asset` is mutated
+  in place by the metadata/parts/documents editors and read by `_submitAssetForm`.
+
 ### Don't build on lazily-loaded HA components
 Only use an HA custom element that is registered on a *custom panel's* page. Several
 (`ha-progress-bar`, `ha-progress-ring`) exist in HA's frontend but only inside
@@ -452,8 +718,52 @@ elements; `REQUIRED_COMPONENTS` only *waits* for a registration, it can't cause 
 Verify with `customElements.get('<tag>')` on `/home-keeper` in the e2e container before
 depending on one, and otherwise build the element from plain DOM plus theme CSS
 variables (`var(--primary-color)`, `var(--divider-color)`) — see the upload progress
-bar (`.hk-upload`). HA has broken us this way before (issue #144, `ha-dialog`'s slot
-API).
+bar (`.hk-upload`).
+
+**The same element has now broken us three times, always the same way: an API we were
+still using stopped being read, and nothing failed.** #144 took `ha-dialog`'s action
+buttons (only a `footer` slot survived), #262 took its title (`heading` is ignored; the
+title comes from a `headerTitle` slot) and, in the same release, every `raised` and
+`destructive` on `ha-button`. A string that is still correct, still translated and
+still asserted by anything reading the attribute is not evidence it reaches the screen.
+
+- **Both `ha-dialog`s are built by `panel-dialogs.ts`'s `makeDialog`.** Do not
+  hand-roll a third — the first two were duplicated side by side and each break had to
+  be fixed twice. It sets the title *both* ways: a current frontend renders the slotted
+  span and ignores the attribute, an older one renders the attribute and drops the
+  span, because a light-DOM child whose slot name matches no slot is not rendered at
+  all. Neither can show it twice, so this needs no feature detection. The delete
+  confirmation is deliberately **not** an `ha-dialog`: it is a body-level scrim so its
+  destructive `variant` resolves against HA's document-level theme, where the panel's
+  `:host` tokens do not reach. Do not fold it into `makeDialog`; its teardown is
+  `teardownOverlay`, the one dismantling all three of its exits share.
+- **Assert on rendered pixels, not on markup, whenever HA owns the rendering.** Read
+  the computed style off the element's `part`, the way
+  `tests/e2e/tests/button-weights.spec.ts` does. An attribute assertion would have
+  passed throughout both of the above.
+- **Probe the real element before designing against it.** `observedAttributes` on the
+  constructor is the authoritative answer to "does it still read this?", and a
+  throwaway spec in the e2e container gets it in a minute.
+
+### Frontend registrations outlive the config entry — never tear one down on unload
+The sidebar panel and the card's Lovelace resource are registered against the *HA
+run*, not the entry: both name a static module URL that
+`async_register_static_paths` serves until restart, and setup re-registers each one
+identically. An ordinary unload is almost always the first half of a **reload**, and
+reloads are routine here — saving options, a synced problem sensor appearing, a
+purged one-off, a language change. Dropping the registration in
+`async_unload_entry` therefore deletes it for as long as setup takes, on a schedule
+the user never asked for.
+
+For the panel that is user-visible damage, not churn: HA's `partial-panel-resolver`
+answers `home-keeper` disappearing out of `hass.panels` by navigating to the default
+panel, so a reload throws anyone reading the panel back to their dashboard. It reads
+as random because it is a race with the frontend's `get_panels` refetch — a fast
+reload usually wins, a slow one never does (#247). Tear both down in
+`async_remove_entry` instead, plus the panel when `entry.disabled_by` is set (HA
+sets it *before* unloading, and a disabled entry is the one unload that isn't coming
+back). Services are different: re-registering them is invisible, so they still go on
+the last loaded entry's unload.
 
 ### A dashboard asset ships as a Lovelace resource, not just an extra module URL
 `frontend.add_extra_js_url` reaches the browser exactly one way: `IndexView` renders an
@@ -591,6 +901,13 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   off. Same split as the problem-sensor sync: pure `shopping.py` (the diff engine +
   `normalize_target`, in `only_mutate`) and HA-aware `shopping_sync.py` (reads the list
   over `todo.get_items`, applies with `todo.add_item`/`update_item`/`remove_item`).
+  The questions both to-do syncs ask a list — how an item is addressed in a service
+  call, whether it is ticked off, which live item a tracked entry points at, whether
+  an open line already says this — are facts about a to-do list rather than about
+  either sync, so they live once in the pure `todo_items.py` (`item_identity`,
+  `item_is_open`, `resolve_tracked`, `find_open`, plus the two `STATUS_*` values;
+  also in `only_mutate`). What differs between the syncs — what a *vanished* line
+  means, what a key is, when a line is wanted at all — stays in each planner.
   Rules that hold it together:
   - **Two-way.** A line ticked off on the external list completes the reminder with
     `origin=ORIGIN_SHOPPING_LIST` (authorizes nothing, like `ORIGIN_SENSOR_RECOVER`),
@@ -625,6 +942,79 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   - Every `todo.*` call is best-effort (the `notifier.py` precedent) and `async_sync`
     swallows what reaches it: a pass runs off the back of a completion or a stock
     adjustment and must never be the thing that fails.
+- **To-do list sync.** Profile-filtered tasks kept in step with
+  *external* `todo.*` lists. **A sync is a profile** — there is no sync record and
+  no sync id: a profile carries a `sync` block
+  (`{entity_id, two_way, vanish_as_completed}`, normalized by
+  `profiles.normalize_sync`) naming the one list it syncs onto, so the config rides
+  on the existing panel-managed `profiles` option (**not** in `FLOW_OPTIONS`).
+  Clearing `sync.entity_id` is both the off switch and the delete, and one list per
+  profile is the cap — a household wanting two lists writes two profiles, which it
+  needed anyway to say what goes on each. Same split as the shopping-list sync: pure
+  `todo_list.py` (the diff engine, in `only_mutate`, matching items through the
+  shared `todo_items.py`) and HA-aware
+  `todo_list_sync.py`. It inherits the shopping-list sync's rules verbatim —
+  retry-not-compensate, an unreadable list is not an empty one, `needs_pass` gates the
+  read, never sync onto our own to-do entity, every `todo.*` call best-effort — plus
+  its own. **Both drivers subclass `TodoSyncDriver` (`todo_sync_driver.py`)**, which
+  owns the HA-facing machinery they run identically: the re-entrancy guard and pass
+  budget in `async_sync` (`_sync_once` is the abstract hook), `_read_lists`,
+  `_call`/`_supports`, `_warn_once`, and `_async_stop`/`_handle_state_change`.
+  Everything it logs is a `ClassVar[str]` knob (and `_logger`, so a message still
+  reads as coming from its own module). Deliberately **not** shared: each planner's
+  `plan_sync` semantics, target resolution, `_apply` (only the to-do sync writes
+  `due_date`/`description`, capability-gated by `_capabilities`), the listener sets
+  (one target vs many plus `_TASK_EVENTS`), the sweep guards, and what an inbound
+  tick does. `problem_sync.py` is **not** a subclass — it drives the entity registry,
+  not a to-do list. Add a shared method only when both bodies are already identical
+  bar a log string:
+  - **The profile is both filter and timing.** A sync shows exactly what
+    `profiles.matches_filter` selects for that profile (status `overdue` = when due,
+    `due_soon` = the 3-day window, `all` = everything scheduled). The driver enriches
+    tasks with effective labels first (`notifier.effective_filter_tasks`), so a sync
+    agrees with the panel/card. A profile cannot fail to resolve itself, so there is no
+    "misconfigured sync" state to hold — don't reintroduce one. Auto-buy reminders
+    are excluded: the shopping-list sync owns them, and two syncs must not fight over
+    one line.
+  - **Bookkeeping is keyed per profile** (`sync_key(profile_id, task_id)`) in the
+    storage doc's `todo_list_items`, so two profiles can hold the same task on two
+    lists; one `claimed` set spans all of them so they never share one line. Entries
+    snapshot the task's `last_completed` at bind time — a live value strictly newer is
+    the pure "completed inside Home Keeper since it was synced" detector (an undo therefore
+    reads as content drift, never as a tick).
+  - **A completed item is never touched, and recurrence adds a fresh one.** Completing
+    a task ticks its item off and drops the entry; the next due cycle adds a new item
+    beside the old record.
+  - **A profile saved before `sync` existed reads back switched off.** `normalize_sync`
+    rebuilds the block from a fixed key set and `options.current_options` re-normalizes
+    on every read, so that is the whole migration.
+  - **Vanish semantics deliberately diverge from the shopping-list sync.** With `two_way`
+    and `vanish_as_completed` on, a tracked open item that disappeared completes the
+    task — required for providers (Todoist) whose `todo` entity drops completed items —
+    but only when the entry captured a `uid`. Otherwise a vanish means deleted → recreate
+    (strict self-healing). With `two_way` off the inbound direction is inert and a ticked
+    item freezes its entry so phase 2 doesn't re-add against the user's wishes.
+  - **A write's own outcome outranks a later read of the list.** `todo.add_item` returns
+    nothing, so a fresh entry has no `uid` and is matched by summary next pass — but some
+    lists don't make an added item readable straight away (HA's CalDAV entity refreshes
+    its cache in a fire-and-forget task where `local_todo` and Todoist await theirs). So
+    "I can't see it" is **not** proof the add failed: reading it that way added the item
+    twice, permanently, since the bookkeeping only ever points at one copy. An
+    unconfirmed entry is therefore *held* — stamped with `added_at`, carried forward
+    **verbatim** because the summary is its only handle — until `UNCONFIRMED_GRACE`
+    (20 min, chosen to clear CalDAV's 15-minute poll) expires, then re-added so a
+    genuinely lost add still repairs. The same stamp gates the ticked-item arm, or a
+    summary match onto the predecessor we just ticked off would complete the task twice
+    and strand its replacement. Wall clock, not a pass count: the driver runs up to four
+    passes back to back with no delay between them.
+  - **Content is capability-gated in the planner**, not the driver: due dates
+    (`SET_DUE_DATE_ON_ITEM`, written date-only like our own `todo.py`) and
+    descriptions (`SET_DESCRIPTION_ON_ITEM`, carrying the task's notes) are neither
+    emitted nor diffed for a list that can't hold them, or every pass would re-plan
+    the same update forever.
+  - Inbound completions use `origin=ORIGIN_TODO_SYNC` (authorizes nothing);
+    `require_tag_scan` tasks reject it by design — the driver warns once and drops the
+    entry so a fresh open item reappears, honest feedback that the tick "didn't take".
 - **Problem-sensor sync.** When the `sync_problem_sensors` option is on, every
   `binary_sensor` with `device_class: problem` is mirrored as a **triggered** task by
   the pure `problem_tasks.reconcile_problem_tasks` (wrapped by
@@ -649,6 +1039,26 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   re-hydrates it onto a freshly built mirror (`notes_by_entity`), so a note outlives
   the task being deleted and recreated (sync toggled, sensor excluded) and reappears
   the next time the same problem fires.
+  - **A synced task is an ordinary member of a Profile, and Snooze is the one verb it
+    accepts.** `profiles.matches_filter` and its TS twin `card-filter.profileMatches`
+    used to drop these outright, so no Profile ever saw one — in the panel, on the card,
+    or in a notification (#248). An armed mirror is real overdue work and belongs in the
+    filter. Keep a rule like that **out of the filter**: the two matchers are pinned to
+    each other by `tests/fixtures/profile_filter_cases.json` and must keep selecting the
+    same tasks for the panel, the card and the server.
+  - **`snooze_task` is deliberately not gated by `_reject_synced_problem`; `complete_task`
+    and `skip_task` still are.** Splitting the guard that way is the point: complete and
+    skip both assert the problem is dealt with, which only the originating integration
+    can decide, while snooze defers the reminder and leaves the problem standing. It
+    also survives the sync — `reconcile_problem_tasks` reads armed as
+    `next_due is not None`, so a snoozed mirror stays armed while its sensor is bad and
+    still auto-clears when the sensor returns to OK. This is what lets these tasks ride
+    in a *walk* notification, which advances only on a successful action:
+    `notifications.actions_for` drops complete/skip for a `completion_blocked` task
+    (keyed on that marker, the same one every surface uses to hide *Done*, not on the
+    `problem_sensor` source) and offers Snooze **even when the notification's own button
+    set omits it**, so a walk can never park on one forever. Never offer a button the
+    store will refuse: `notifier` swallows the rejection, so it reads as a dead button.
 - **Options have three editing surfaces that share `options.py`.** Config-entry
   `options` are edited from the **options flow**, the **`home_keeper.set_options`
   service**, AND the panel's **Settings tab** (via `home_keeper/get_options` +
@@ -663,8 +1073,9 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   exclusions, and `one_off_retention_days` (int; `0` = keep forever) which the
   **coordinator's periodic refresh** uses to auto-delete completed one-offs
   (`recurrence.one_off_expired` collects expired ids; `_purge_expired_one_offs` deletes
-  via `store.delete_task`), and `shopping_list_entity` (a `todo.*` entity id; `""` =
-  off) driving the shopping-list mirror. Put a new option's default in
+  via `store.delete_task`), `shopping_list_entity` (a `todo.*` entity id; `""` =
+  off) driving the shopping-list mirror. The to-do list sync has no option of its own —
+  its config is the `sync` block inside each profile. Put a new option's default in
   `options.py`'s `_empty_options` **and** its coercion in `_normalize` — both, or the
   key is invisible to every reader and dropped by every writer — then add it to all
   three surfaces (flow schema *and* `FLOW_OPTIONS`, `SET_OPTIONS_SCHEMA`, Settings
@@ -673,7 +1084,8 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   - **The options *flow* merges; it never replaces.** Home Assistant stores whatever
     an options flow returns from `async_create_entry` as `entry.options` **verbatim**
     — the whole object, not a patch. The Configure dialog renders only
-    `options.FLOW_OPTIONS`; `profiles`, `notifications` and `dismissed_companions` are
+    `options.FLOW_OPTIONS`; `profiles` (to-do list sync included),
+    `notifications` and `dismissed_companions` are
     panel-only, so returning `user_input` deleted every one of them on each save, and
     notifications then stopped firing with nothing on screen to say why (`notifier`
     reads a missing key back as `[]`). `async_step_init` returns
@@ -798,6 +1210,20 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   `hass` itself — the HA-aware caller (`store.py`, `websocket_api.py`,
   `companions.py`) threads `hass.config.language` in, the same pattern
   `store.reconcile_part_tasks` already established for wear-part task names.
+- **Warm the tables in the executor before anything asks for a string.**
+  `backend_i18n` has no HA import by design, so it cannot dispatch its own reads the
+  way `notifier.py` does (#150) — and its `functools.cache` only helps *after* the
+  first read, which lands on whichever loop-bound caller gets there first (the
+  problem-sensor reconcile during setup, a websocket error reply, a CSV export). HA's
+  blocking-call detector logs every one of those as `Detected blocking call to
+  read_text ... inside the event loop` (#247). `async_setup_entry` runs
+  `backend_i18n.preload` through `hass.async_add_executor_job` before it touches the
+  store, so every later `resolve_*` is a cache hit; `preload` always warms English
+  alongside the requested language, because that is the fallback both resolvers
+  reach for. Add a table to this module and you add it to `preload` —
+  `tests/unit/test_backend_i18n_preload.py` checks *every* cached table, and
+  `tests/integration/test_event_loop_blocking.py` reads HA's own log back to catch
+  anything the unit lane can't see.
 
 ## Companion discovery (implemented)
 - Home Keeper surfaces integrations that work with it in the panel's **Settings →

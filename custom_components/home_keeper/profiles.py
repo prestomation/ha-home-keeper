@@ -1,10 +1,15 @@
 """Pure helpers for **profiles** — named, reusable task filters (no HA imports).
 
-A *profile* is a saved filter (``{id, name, filter}``) that answers "which tasks am I
-interested in" — a status (overdue / due-soon / all) plus optional label/area/device
-filters. It is deliberately **decoupled from notifications**: notifications
-(``notifications.py``) are one consumer that references a profile by id, but the same
-profile also drives the panel's admin list filter and the Lovelace card.
+A *profile* is a saved filter (``{id, name, filter, sync}``) that answers "which tasks
+am I interested in" — a status (overdue / due-soon / all) plus optional
+label/area/device filters. It is deliberately **decoupled from notifications**:
+notifications (``notifications.py``) are one consumer that references a profile by id,
+but the same profile also drives the panel's admin list filter and the Lovelace card.
+
+The ``sync`` block is a second consumer living *inside* the profile rather than beside
+it: it names one external ``todo.*`` list the profile's tasks are synced onto, so a
+household gets at most one list per profile and no second id to keep in step. Clearing
+``entity_id`` is the off switch — and the delete. ``todo_list.py`` reads it.
 
 Everything here is HA-free so it's unit-testable in isolation (like ``recurrence.py``).
 The filter semantics are the single source of truth that the TS side (``card-filter``)
@@ -19,6 +24,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from . import recurrence
+from .shopping import normalize_target
 from .transitions import DUE_SOON_WINDOW
 
 # Filter status: which due-state a task must be in to belong to a profile's list.
@@ -55,18 +61,38 @@ def normalize_filter(raw: Any) -> dict[str, Any]:
     }
 
 
+def normalize_sync(raw: Any) -> dict[str, Any]:
+    """Coerce a profile's ``sync`` block — the to-do list it syncs onto — to shape.
+
+    Rebuilt from a fixed key set like :func:`normalize_filter`, so a profile saved
+    before the block existed reads back as sync **off** and needs no migration.
+    ``entity_id`` goes through ``shopping.normalize_target``, the same coercion the
+    shopping list's target uses: anything unusable — a cleared picker, an entity
+    outside the ``todo`` domain, a typo — collapses to ``""``, which is both the off
+    switch and, since a sync *is* its profile, the delete. Both toggles default on,
+    because a household that picks a list means the obvious thing by it.
+    """
+    raw = raw if isinstance(raw, dict) else {}
+    return {
+        "entity_id": normalize_target(raw.get("entity_id")),
+        "two_way": bool(raw.get("two_way", True)),
+        "vanish_as_completed": bool(raw.get("vanish_as_completed", True)),
+    }
+
+
 def normalize_profile(raw: Any) -> dict[str, Any]:
-    """Coerce one raw profile to the stored, fully-defaulted ``{id, name, filter}``.
+    """Coerce one raw profile to the stored ``{id, name, filter, sync}``.
 
     Generates a stable ``id`` when absent (so notifications/cards can reference it
-    across edits) and defaults every field so forms and consumers never special-case a
-    missing key.
+    across edits — and so the sync's bookkeeping keys survive an edit) and defaults
+    every field so forms and consumers never special-case a missing key.
     """
     raw = raw if isinstance(raw, dict) else {}
     return {
         "id": str(raw.get("id") or uuid.uuid4().hex),
         "name": str(raw.get("name") or "Tasks"),
         "filter": normalize_filter(raw.get("filter")),
+        "sync": normalize_sync(raw.get("sync")),
     }
 
 
@@ -75,6 +101,16 @@ def normalize_profiles(raw: Any) -> list[dict[str, Any]]:
     if not isinstance(raw, (list, tuple)):
         return []
     return [normalize_profile(p) for p in raw if isinstance(p, dict)]
+
+
+def synced_profiles(profiles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The profiles that actually sync onto a list — the rest have sync off.
+
+    What the driver needs to answer "is any list worth watching", which is a
+    different question from what the planner needs: a profile whose picker was
+    cleared still has items out there to take back off.
+    """
+    return [p for p in profiles if str(p["sync"]["entity_id"])]
 
 
 def resolve_profile(
@@ -95,11 +131,6 @@ def resolve_profile(
 # ── filtering & queueing ────────────────────────────────────────────────────────
 
 
-def _is_problem_sensor(task: dict[str, Any]) -> bool:
-    source = task.get("source")
-    return isinstance(source, dict) and "problem_sensor" in source
-
-
 def matches_filter(
     task: dict[str, Any],
     filt: dict[str, Any],
@@ -109,11 +140,18 @@ def matches_filter(
 ) -> bool:
     """Whether *task* belongs to a profile's list under *filt* at *now*.
 
-    A task qualifies only if it is actionable now: enabled, scheduled (a non-``None``
-    ``next_due``), and not a synced ``problem`` sensor (those can't be completed from
-    Home Keeper). On top of that it must clear the label/area/device filters (each is
+    A task qualifies only if it is live now: enabled and scheduled (a non-``None``
+    ``next_due``). On top of that it must clear the label/area/device filters (each is
     an OR within the list, AND across the lists; an empty list means "any") and the
     ``status`` due-state.
+
+    A ``problem``-sensor-synced task is an ordinary member of that set. It is armed —
+    ``next_due`` set to the moment the sensor went bad, so it reads as overdue — while
+    the sensor reports a problem, and dormant (``next_due is None``, excluded by the
+    check above) once the sensor clears. Dropping the armed ones outright hid a whole
+    class of overdue work from every Profile, in the panel and on the card, under every
+    status (#248). They are still left out of *walk* notifications, but that belongs to
+    delivery rather than to the filter — see ``notifications.is_walkable``.
 
     The ``exclude_labels``/``exclude_areas``/``exclude_devices`` lists then subtract:
     any hit drops the task even when it satisfied every include list, so exclusions win.
@@ -123,7 +161,7 @@ def matches_filter(
 
     This pure matcher reads the ``labels``/``area_id``/
     ``device_id`` on the task dict; the HA-aware caller
-    (``notifier._effective_filter_tasks``) enriches those with **effective**
+    (``notifier.effective_filter_tasks``) enriches those with **effective**
     (device/area-inherited) ids before calling, so a Profile selects the same tasks here
     as it does on the panel/card, which resolve inheritance inline. The shared
     ``tests/fixtures/profile_filter_cases.json`` pins this agreement.
@@ -131,8 +169,6 @@ def matches_filter(
     if not task.get("enabled", True):
         return False
     if task.get("next_due") is None:
-        return False
-    if _is_problem_sensor(task):
         return False
 
     status = filt.get("status", STATUS_OVERDUE)

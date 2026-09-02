@@ -37,6 +37,25 @@ E2E_DIR = ROOT / "tests" / "e2e"
 #: `.detail-open[data-detail-id="…"]` — how the capture harnesses open a detail page.
 DETAIL_ID = re.compile(r'data-detail-id="([^"]+)"')
 
+#: The harnesses interpolate a constant rather than pasting a uuid, so the id reads
+#: `${TASK.nozzleUsage}` in the source. Resolve those through `fixture-ids.ts` before
+#: measuring them against the seed.
+FIXTURE_IDS = E2E_DIR / "fixture-ids.ts"
+CONST_REF = re.compile(r"^\$\{(\w+)\.(\w+)\}$")
+CONST_DECL = re.compile(r"export const (\w+) = \{(.*?)\} as const;", re.S)
+CONST_ENTRY = re.compile(r"(\w+):\s*'([^']+)'")
+
+
+def _fixture_id_constants() -> dict[str, str]:
+    """`{"TASK.nozzleUsage": "<uuid>"}` from the e2e fixture-id module."""
+    source = FIXTURE_IDS.read_text()
+    return {
+        f"{group}.{name}": value
+        for group, body in CONST_DECL.findall(source)
+        for name, value in CONST_ENTRY.findall(body)
+    }
+
+
 #: Names the integration and e2e suites create as they run. None should ever be
 #: committed. ``e2e`` is deliberately broad: the browser specs had no teardown at
 #: all until they grew one, and eight of their leftovers reached git precisely
@@ -90,10 +109,10 @@ def test_seeded_fixture_has_no_archived_assets() -> None:
 def test_every_id_the_capture_harnesses_click_is_seeded() -> None:
     """Nothing the screenshot/walkthrough tours open may go missing from the seed.
 
-    The tours navigate by stable seeded id (``data-detail-id="task_nozzle_usage"``), so
-    dropping one from the fixture breaks the capture — and because the walkthrough is a
-    *soft* gate, that surfaces only as a "capture failed" PR comment while every check
-    stays green. Restoring the fixture by hand did exactly that once.
+    The tours navigate by a stable seeded id (``data-detail-id="${TASK.nozzleUsage}"``),
+    so dropping one from the fixture breaks the capture — and because the walkthrough
+    is a *soft* gate, that surfaces only as a "capture failed" PR comment while every
+    check stays green. Restoring the fixture by hand did exactly that once.
     """
     payload = json.loads(FIXTURE.read_text())
     seeded = {
@@ -101,9 +120,16 @@ def test_every_id_the_capture_harnesses_click_is_seeded() -> None:
         for key in ("tasks", "assets")
         for record in _records(payload, key)
     }
+    constants = _fixture_id_constants()
     missing: dict[str, set[str]] = {}
     for script in sorted(E2E_DIR.glob("*.capture.ts")):
-        wanted = set(DETAIL_ID.findall(script.read_text()))
+        wanted = set()
+        for raw in DETAIL_ID.findall(script.read_text()):
+            # An unresolvable `${GROUP.name}` is a typo'd constant, and stays in the
+            # set under its own text so the failure names it rather than silently
+            # dropping the assertion for that harness.
+            ref = CONST_REF.match(raw)
+            wanted.add(constants.get(f"{ref[1]}.{ref[2]}", raw) if ref else raw)
         if absent := wanted - seeded:
             missing[script.name] = absent
     assert not missing, (

@@ -13,11 +13,12 @@ Covers the three pieces of the repair:
   resolve still heals the task sitting on the same device.
 
 ``devices.py`` imports Home Assistant, so — like ``test_calendar.py`` and
-``test_coordinator_purge.py`` — we stub the handful of HA symbols it references,
-register a fake for its HA-aware ``store`` sibling, and load the **real**
-``devices.py`` under the synthetic ``hk`` package. The device registry is then
-injected per-test by patching the module's ``dr`` binding, so the tests drive the
-shipped functions rather than a copy of them. The real ``DeviceRegistry`` contract
+``test_coordinator_purge.py`` — we load it over the shared stub tree in
+``ha_stubs.py``, register a fake for its HA-aware ``store`` sibling, and load the
+**real** ``devices.py`` under the synthetic ``hk`` package. The device registry is
+then injected per-test by patching the module's ``dr`` binding, so the tests drive
+the shipped functions rather than a copy of them — the stub tree's own registry
+symbols exist only to let the import resolve. The real ``DeviceRegistry`` contract
 itself is exercised by ``tests/upgrade/test_upgrade_repair.py`` against a genuine
 Home Assistant.
 """
@@ -31,6 +32,8 @@ import types
 from dataclasses import dataclass
 from pathlib import Path
 
+from ha_stubs import install_ha_stubs
+
 _COMPONENT_DIR = (
     Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
 )
@@ -41,69 +44,8 @@ SWITCHBOT_ENTRY = "switchbot_entry"
 
 
 # ── loading the real module ──────────────────────────────────────────────────
-def _real_ha_present() -> bool:
-    """True only when the *real* Home Assistant package is installed.
-
-    A hand-built stub ``homeassistant`` module (e.g. from ``test_calendar.py``) has
-    no ``__file__``; the real package does. This distinguishes them so we fill gaps
-    over a stub tree but never shadow real submodules.
-    """
-    mod = sys.modules.get("homeassistant")
-    if mod is None:
-        try:  # pragma: no cover - depends on environment
-            import homeassistant as mod  # type: ignore[no-redef]
-        except ImportError:
-            return False
-    return getattr(mod, "__file__", None) is not None
-
-
-def _install_ha_stubs() -> None:
-    """Additively register the HA symbols ``devices.py`` imports.
-
-    Idempotent and non-clobbering, on the same contract as ``test_calendar.py`` and
-    ``test_coordinator_purge.py``: those install their own partial ``homeassistant``
-    stub trees, so we only *fill gaps* rather than early-return or overwrite, and
-    load order between the suites stays irrelevant.
-    """
-    if _real_ha_present():  # pragma: no cover - real HA env
-        return
-
-    def _mod(name: str) -> types.ModuleType:
-        existing = sys.modules.get(name)
-        if existing is not None:
-            return existing
-        m = types.ModuleType(name)
-        sys.modules[name] = m
-        return m
-
-    _mod("homeassistant")
-    _mod("homeassistant.helpers")
-    for name, attrs in (
-        ("homeassistant.config_entries", ("ConfigEntry",)),
-        ("homeassistant.core", ("HomeAssistant",)),
-        ("homeassistant.helpers.area_registry", ("async_get",)),
-        (
-            "homeassistant.helpers.device_registry",
-            (
-                "async_get",
-                "async_entries_for_config_entry",
-                "DeviceRegistry",
-                "DeviceEntry",
-            ),
-        ),
-        (
-            "homeassistant.helpers.entity_registry",
-            ("async_get", "async_entries_for_device"),
-        ),
-    ):
-        module = _mod(name)
-        for attr in attrs:
-            if not hasattr(module, attr):
-                setattr(module, attr, type(attr, (), {}))
-
-
 def _load_devices() -> types.ModuleType:
-    _install_ha_stubs()
+    install_ha_stubs()
     # devices.py imports HomeKeeperStore for a type annotation only; the real
     # store.py imports Home Assistant, so a name-only stand-in is enough.
     store_mod = types.ModuleType("hk.store")
@@ -188,12 +130,48 @@ class FakeRegistry:
         return None
 
 
+class ModernFakeRegistry(FakeRegistry):
+    """``FakeRegistry`` with Home Assistant 2026.9's ``devices`` shape.
+
+    Up to 2026.8 ``DeviceRegistry.devices`` was a mapping keyed by device id, which is
+    what :class:`FakeRegistry` models; from 2026.9 it is a collection of entries, so
+    iterating it yields the entries themselves. The repair reads every device from it,
+    so it has to cope with both — see ``device_compat.all_devices``.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        by_id = self.devices
+        self.devices = _EntryCollection(by_id.values())
+        self._by_id = by_id
+
+    def async_get(self, device_id: str) -> FakeDevice | None:
+        return self._by_id.get(device_id)
+
+
+class _EntryCollection:
+    """A collection of device entries: iterable, sized, and not a mapping."""
+
+    def __init__(self, devices):
+        self._devices = list(devices)
+
+    def __iter__(self):
+        return iter(self._devices)
+
+    def __len__(self):
+        return len(self._devices)
+
+
 class FakeStore:
     """Task/asset storage with the two repoint methods the repair drives.
 
     The repoints mirror ``store.py``'s (including the ``source`` namespace copies
     contributors match on) and count their writes, so a test can assert both the
     healed state and that a settled install writes nothing.
+
+    Private to this suite: it speaks a device-registry vocabulary (repoints, a
+    duplicate merge, assets) that no other suite's store double shares a method
+    with.
     """
 
     def __init__(self, tasks: dict | None = None, assets: list | None = None):
@@ -624,4 +602,20 @@ def test_heal_feeds_the_composite_map_to_the_duplicate_merge():
     )
     store = FakeStore()
     heal(FakeRegistry([survivor]), store)
+    assert store.merged == {"zwave_real": DEAD_THERMOSTAT}
+
+
+def test_heal_reads_every_device_from_a_2026_9_shaped_registry():
+    """The same merge map, off the collection-shaped ``devices`` of HA 2026.9 (#253).
+
+    Iterating the old mapping yields device *ids*, so a helper that iterated the new
+    collection the same way would hand the merge step strings instead of entries.
+    """
+    survivor = FakeDevice(
+        "zwave_real",
+        config_entries=frozenset({ZWAVE_ENTRY}),
+        composite_device_id=DEAD_THERMOSTAT,
+    )
+    store = FakeStore()
+    heal(ModernFakeRegistry([survivor]), store)
     assert store.merged == {"zwave_real": DEAD_THERMOSTAT}

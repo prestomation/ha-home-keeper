@@ -36,13 +36,24 @@ describe('profileMatches gating', () => {
     expect(profileMatches(task({ next_due: '' }), {}, {}, {}, NOW)).toBe(false);
   });
 
-  it('excludes problem-sensor tasks', () => {
-    // These are driven by a binary sensor, not a schedule; notifying on them
-    // would duplicate the sensor's own alert.
+  it('includes an armed problem-sensor task (#248)', () => {
+    // These used to be dropped outright, so a synced problem never showed under any
+    // Profile — in the panel or on the card. An armed one is dated (next_due = when
+    // the sensor went bad) and overdue, so it belongs like any other overdue task.
     expect(profileMatches(task({ source: { problem_sensor: 'binary_sensor.x' } }), {}, {}, {}, NOW)).toBe(
-      false,
+      true,
     );
-    // A source of another shape must not be swept up with them.
+    // A dormant one (sensor back to OK) is undated, so the rule above still drops it.
+    expect(
+      profileMatches(
+        task({ next_due: null, source: { problem_sensor: 'binary_sensor.x' } }),
+        {},
+        {},
+        {},
+        NOW,
+      ),
+    ).toBe(false);
+    // Sources of other shapes keep behaving as before.
     expect(profileMatches(task({ source: { part: { asset_id: 'a1' } } }), {}, {}, {}, NOW)).toBe(
       true,
     );

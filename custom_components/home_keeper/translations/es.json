@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Opciones de Home Keeper",
-        "description": "Refleja los sensores binarios con la clase de dispositivo «problema» como tareas. Una tarea sincronizada permanece activa mientras su sensor informa de un problema y se borra automáticamente cuando la integración de origen lo resuelve; no se puede completar en Home Keeper. Excluye abajo sensores, áreas o etiquetas concretos.",
+        "description": "Sincroniza los sensores binarios con la clase de dispositivo «problema» como tareas. Una tarea sincronizada permanece activa mientras su sensor informa de un problema y se borra automáticamente cuando la integración de origen lo resuelve; no se puede completar en Home Keeper. Excluye abajo sensores, áreas o etiquetas concretos.",
         "data": {
           "sync_problem_sensors": "Sincronizar sensores de problema como tareas",
           "problem_sensor_exclude_entities": "Sensores excluidos",
@@ -25,8 +25,9 @@
           "shopping_list_entity": "Lista de la compra"
         },
         "data_description": {
+          "sync_problem_sensors": "Una tarea sincronizada solo se cierra cuando la integración de origen resuelve el problema, no al pulsar Hecho. Sus recordatorios ofrecen Posponer en lugar de Hecho.",
           "one_off_retention_days": "Eliminar automáticamente una tarea única completada transcurridos estos días desde su finalización. El valor 0 conserva las tareas únicas completadas para siempre.",
-          "shopping_list_entity": "Refleja los recordatorios de compra automática en esta lista de tareas. Al marcar un elemento allí se completa el recordatorio de Home Keeper y se repone el repuesto. Déjalo vacío para desactivarlo."
+          "shopping_list_entity": "Sincroniza los recordatorios de compra automática con esta lista de tareas. Al marcar un elemento allí se completa el recordatorio de Home Keeper y se repone el repuesto. Déjalo vacío para desactivarlo."
         }
       }
     }
@@ -123,8 +124,8 @@
       "description": "Actualizar los campos de una tarea existente.",
       "fields": {
         "task_id": {
-          "name": "ID de la tarea",
-          "description": "El id de la tarea a actualizar."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea a actualizar. Su nombre también funciona. El panel muestra el id."
         },
         "name": {
           "name": "Nombre",
@@ -209,8 +210,8 @@
       "description": "Eliminar una tarea.",
       "fields": {
         "task_id": {
-          "name": "ID de la tarea",
-          "description": "El id de la tarea a eliminar."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea a eliminar. Su nombre también funciona. El panel muestra el id."
         },
         "force": {
           "name": "Forzar",
@@ -223,8 +224,8 @@
       "description": "Marcar una tarea como completada y avanzar su recurrencia.",
       "fields": {
         "task_id": {
-          "name": "ID de la tarea",
-          "description": "El id de la tarea a completar."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea a completar. Su nombre también funciona. El panel muestra el id."
         },
         "completed_at": {
           "name": "Completada el",
@@ -261,8 +262,8 @@
       "description": "Modifica los metadatos (nota, coste, foto, quién) de una finalización ya registrada, identificada por su marca de tiempo. No cambia la programación ni la fecha de vencimiento.",
       "fields": {
         "task_id": {
-          "name": "ID de la tarea",
-          "description": "El id de la tarea cuya finalización estás editando."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea cuya finalización estás editando. Su nombre también funciona. El panel muestra el id."
         },
         "ts": {
           "name": "Marca de tiempo de finalización",
@@ -295,8 +296,8 @@
       "description": "Armar una tarea controlada por condición (activada) para que aparezca como vencida ahora — la contraparte para el usuario de Completar tarea (que la devuelve a estado inactivo). Idempotente; solo válido para tareas activadas.",
       "fields": {
         "task_id": {
-          "name": "ID de la tarea",
-          "description": "El id de la tarea activada a armar."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea activada a armar. Su nombre también funciona. El panel muestra el id."
         }
       }
     },
@@ -305,8 +306,8 @@
       "description": "Vuelve a anclar la línea base de una tarea de sensor de uso (contador) sin registrar una finalización. Úsala cuando el trabajo se hizo antes de que Home Keeper lo vigilara, o cuando el contador vinculado se sustituyó o se puso a cero. Si omites la línea base, se ancla a la lectura actual del sensor. Solo es válida para tareas de sensor en modo de uso.",
       "fields": {
         "task_id": {
-          "name": "ID de la tarea",
-          "description": "El id de la tarea de sensor de uso que se va a volver a anclar."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea de sensor de uso que se va a volver a anclar. Su nombre también funciona. El panel muestra el id."
         },
         "baseline": {
           "name": "Línea base",
@@ -319,8 +320,8 @@
       "description": "Aplazar la fecha de vencimiento de una tarea sin registrar una finalización ni avanzar su recurrencia.",
       "fields": {
         "task_id": {
-          "name": "ID de la tarea",
-          "description": "El id de la tarea que se va a posponer."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea que se va a posponer. Su nombre también funciona. El panel muestra el id."
         },
         "hours": {
           "name": "Horas",
@@ -337,8 +338,8 @@
       "description": "Avanzar una tarea a su próxima repetición sin registrar una finalización.",
       "fields": {
         "task_id": {
-          "name": "ID de la tarea",
-          "description": "El id de la tarea que se va a omitir."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea que se va a omitir. Su nombre también funciona. El panel muestra el id."
         },
         "origin": {
           "name": "Origen",
@@ -351,16 +352,16 @@
       "description": "Vincula una tarea a un consumible/pieza de un electrodoméstico para que al completarla se consuma un repuesto del stock y se dispare un evento de stock bajo en el umbral de reposición. Omite asset_id y part_id para quitar el vínculo.",
       "fields": {
         "task_id": {
-          "name": "ID de la tarea",
-          "description": "El id de la tarea activada a armar."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea activada a armar. Su nombre también funciona. El panel muestra el id."
         },
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del electrodoméstico al que pertenece la pieza."
+          "name": "Nombre o ID del activo",
+          "description": "El id del electrodoméstico al que pertenece la pieza. Su nombre también funciona. El panel muestra el id."
         },
         "part_id": {
-          "name": "ID de la pieza",
-          "description": "El id de la pieza cuyo stock se va a ajustar."
+          "name": "Nombre o ID de la pieza",
+          "description": "El id de la pieza cuyo stock se va a ajustar. Su nombre también funciona. El panel muestra el id."
         }
       }
     },
@@ -444,7 +445,7 @@
         },
         "parent_asset_id": {
           "name": "Electrodoméstico principal",
-          "description": "Convertir esto en un subdispositivo de otro electrodoméstico."
+          "description": "Convertir esto en un subdispositivo de otro electrodoméstico. Indica su nombre o su id."
         },
         "related_device_ids": {
           "name": "Dispositivos relacionados",
@@ -461,8 +462,8 @@
       "description": "Actualizar los campos de un electrodoméstico/activo existente.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del activo a actualizar."
+          "name": "Nombre o ID del activo",
+          "description": "El id del activo a actualizar. Su nombre también funciona. El panel muestra el id."
         },
         "name": {
           "name": "Nombre",
@@ -510,7 +511,7 @@
         },
         "parent_asset_id": {
           "name": "Electrodoméstico principal",
-          "description": "Convertir esto en un subdispositivo de otro electrodoméstico."
+          "description": "Convertir esto en un subdispositivo de otro electrodoméstico. Indica su nombre o su id."
         },
         "related_device_ids": {
           "name": "Dispositivos relacionados",
@@ -527,8 +528,8 @@
       "description": "Eliminar un electrodoméstico/activo. Su dispositivo virtual (si lo hay) se elimina y las tareas adjuntas a él pasan a ser independientes.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del activo a eliminar."
+          "name": "Nombre o ID del activo",
+          "description": "El id del activo a eliminar. Su nombre también funciona. El panel muestra el id."
         }
       }
     },
@@ -537,8 +538,8 @@
       "description": "Ocultar un electrodoméstico/activo de la vista predeterminada sin eliminar sus datos. Su dispositivo, entidades y tareas adjuntas no se modifican; restore_asset lo deshace.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del activo a archivar."
+          "name": "Nombre o ID del activo",
+          "description": "El id del activo a archivar. Su nombre también funciona. El panel muestra el id."
         }
       }
     },
@@ -547,8 +548,8 @@
       "description": "Deshacer archive_asset, devolviendo un electrodoméstico archivado a la vista predeterminada.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del activo a restaurar."
+          "name": "Nombre o ID del activo",
+          "description": "El id del activo a restaurar. Su nombre también funciona. El panel muestra el id."
         }
       }
     },
@@ -561,12 +562,12 @@
       "description": "Cambia la cantidad de repuestos disponibles según un delta con signo (limitado a cero); se admiten decimales. Cuando una disminución alcanza o cruza el umbral de reposición, se dispara un evento de stock bajo.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del electrodoméstico al que pertenece la pieza."
+          "name": "Nombre o ID del activo",
+          "description": "El id del electrodoméstico al que pertenece la pieza. Su nombre también funciona. El panel muestra el id."
         },
         "part_id": {
-          "name": "ID de la pieza",
-          "description": "El id de la pieza cuyo stock se va a ajustar."
+          "name": "Nombre o ID de la pieza",
+          "description": "El id de la pieza cuyo stock se va a ajustar. Su nombre también funciona. El panel muestra el id."
         },
         "delta": {
           "name": "Delta",
@@ -603,7 +604,7 @@
         },
         "shopping_list_entity": {
           "name": "Lista de la compra",
-          "description": "Una lista de tareas existente donde reflejar los recordatorios de compra automática. Marcar un elemento allí completa el recordatorio y repone las existencias. Vacío lo desactiva."
+          "description": "Una lista de tareas existente donde sincronizar los recordatorios de compra automática. Marcar un elemento allí completa el recordatorio y repone las existencias. Vacío lo desactiva."
         },
         "dismissed_companions": {
           "name": "Companions descartados",
@@ -616,12 +617,12 @@
       "description": "Desvincula el archivo adjunto de una pieza (recibo/ficha técnica/foto), eliminando su copia almacenada del disco. Sube o reemplaza un archivo desde el panel; este servicio solo gestiona la eliminación.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del electrodoméstico al que pertenece la pieza."
+          "name": "Nombre o ID del activo",
+          "description": "El id del electrodoméstico al que pertenece la pieza. Su nombre también funciona. El panel muestra el id."
         },
         "part_id": {
-          "name": "ID de la pieza",
-          "description": "El id de la pieza cuyo archivo se va a eliminar."
+          "name": "Nombre o ID de la pieza",
+          "description": "El id de la pieza cuyo archivo se va a eliminar. Su nombre también funciona. El panel muestra el id."
         }
       }
     },
@@ -630,8 +631,8 @@
       "description": "Adjunta un documento de enlace (manual/garantía/recibo) a un electrodoméstico. Sube los archivos desde el panel; este servicio solo gestiona enlaces.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del electrodoméstico al que adjuntar el documento."
+          "name": "Nombre o ID del activo",
+          "description": "El id del electrodoméstico al que adjuntar el documento. Su nombre también funciona. El panel muestra el id."
         },
         "document": {
           "name": "Documento",
@@ -644,12 +645,12 @@
       "description": "Desvincula un documento de un electrodoméstico. Si era un archivo subido, también se elimina su copia almacenada del disco.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del electrodoméstico al que pertenece el documento."
+          "name": "Nombre o ID del activo",
+          "description": "El id del electrodoméstico al que pertenece el documento. Su nombre también funciona. El panel muestra el id."
         },
         "document_id": {
-          "name": "ID del documento",
-          "description": "El id del documento a eliminar."
+          "name": "Nombre o ID del documento",
+          "description": "El id del documento a eliminar. Su nombre también funciona. El panel muestra el id."
         }
       }
     },
@@ -658,12 +659,12 @@
       "description": "Edita un documento existente de un electrodoméstico: cámbiale el nombre o (para documentos de enlace) cambia su URL. Los archivos subidos solo se pueden renombrar.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del electrodoméstico al que pertenece el documento."
+          "name": "Nombre o ID del activo",
+          "description": "El id del electrodoméstico al que pertenece el documento. Su nombre también funciona. El panel muestra el id."
         },
         "document_id": {
-          "name": "ID del documento",
-          "description": "El id del documento a editar."
+          "name": "Nombre o ID del documento",
+          "description": "El id del documento a editar. Su nombre también funciona. El panel muestra el id."
         },
         "changes": {
           "name": "Cambios",
@@ -676,8 +677,8 @@
       "description": "Vuelve a fechar una finalización ya registrada (retrasarla o corregirla), identificada por su marca de tiempo actual. A diferencia de Actualizar finalización, esto cambia la fecha/hora de la finalización y recalcula las fechas de última finalización y próximo vencimiento de la tarea a partir del resultado.",
       "fields": {
         "task_id": {
-          "name": "ID de la tarea",
-          "description": "El id de la tarea cuya finalización estás moviendo."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea cuya finalización estás moviendo. Su nombre también funciona. El panel muestra el id."
         },
         "old_ts": {
           "name": "Marca de tiempo de finalización actual",
@@ -694,8 +695,8 @@
       "description": "Elimina una finalización del historial de una tarea (deshacer un «hecho» accidental), identificada por su marca de tiempo.",
       "fields": {
         "task_id": {
-          "name": "ID de tarea",
-          "description": "El id de la tarea cuya finalización eliminas."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea cuya finalización eliminas. Su nombre también funciona. El panel muestra el id."
         },
         "ts": {
           "name": "Marca de tiempo de finalización",
@@ -712,12 +713,12 @@
       "description": "Elimina una finalización del historial archivado de un electrodoméstico, identificada por el id de la tarea original y la marca de tiempo.",
       "fields": {
         "asset_id": {
-          "name": "ID de electrodoméstico",
-          "description": "El id del electrodoméstico cuyo historial archivado editas."
+          "name": "Nombre o ID del activo",
+          "description": "El id del electrodoméstico cuyo historial archivado editas. Su nombre también funciona. El panel muestra el id."
         },
         "task_id": {
-          "name": "ID de tarea",
-          "description": "El id de la tarea original a la que pertenece la finalización archivada."
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea original a la que pertenece la finalización archivada. Su nombre también funciona. El panel muestra el id."
         },
         "ts": {
           "name": "Marca de tiempo de finalización",
@@ -768,12 +769,12 @@
       "description": "Genera una URL de corta duración (sin necesidad de cabecera de autenticación) desde la que un llamador externo puede obtener los bytes del documento, p. ej. un agente conectado por MCP.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del electrodoméstico al que pertenece el documento."
+          "name": "Nombre o ID del activo",
+          "description": "El id del electrodoméstico al que pertenece el documento. Su nombre también funciona. El panel muestra el id."
         },
         "document_id": {
-          "name": "ID del documento",
-          "description": "El id del documento para el que firmar una URL."
+          "name": "Nombre o ID del documento",
+          "description": "El id del documento para el que firmar una URL. Su nombre también funciona. El panel muestra el id."
         }
       }
     },
@@ -782,12 +783,12 @@
       "description": "Genera una URL de corta duración (sin necesidad de cabecera de autenticación) desde la que un llamador externo puede obtener los bytes del archivo adjunto de una pieza, p. ej. un agente conectado por MCP.",
       "fields": {
         "asset_id": {
-          "name": "ID del activo",
-          "description": "El id del electrodoméstico al que pertenece la pieza."
+          "name": "Nombre o ID del activo",
+          "description": "El id del electrodoméstico al que pertenece la pieza. Su nombre también funciona. El panel muestra el id."
         },
         "part_id": {
-          "name": "ID de la pieza",
-          "description": "El id de la pieza cuyo archivo adjunto se va a firmar."
+          "name": "Nombre o ID de la pieza",
+          "description": "El id de la pieza cuyo archivo adjunto se va a firmar. Su nombre también funciona. El panel muestra el id."
         }
       }
     },
@@ -931,6 +932,18 @@
     },
     "declarative_companion_not_found": {
       "message": "Companion declarativo no encontrado: {spec_id}"
+    },
+    "asset_ambiguous": {
+      "message": "Several appliances are named {name}. Use an id instead: {ids}"
+    },
+    "document_ambiguous": {
+      "message": "Several documents are named {name}. Use an id instead: {ids}"
+    },
+    "part_ambiguous": {
+      "message": "Several parts are named {name}. Use an id instead: {ids}"
+    },
+    "task_ambiguous": {
+      "message": "Several tasks are named {name}. Use an id instead: {ids}"
     }
   }
 }

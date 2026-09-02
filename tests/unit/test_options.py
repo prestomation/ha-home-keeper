@@ -49,7 +49,14 @@ _FULL: dict[str, Any] = {
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS: ["label-1"],
     const.OPTION_DISMISSED_COMPANIONS: ["acme_vacuum"],
     const.OPTION_PROFILES: [
-        {"id": "p1", "name": "My chores", "filter": {"status": "overdue"}}
+        {
+            "id": "p1",
+            "name": "My chores",
+            "filter": {"status": "overdue"},
+            # The to-do list this profile syncs onto rides *inside* the profile,
+            # so the options flow has to preserve it along with everything else.
+            "sync": {"entity_id": "todo.family", "two_way": False},
+        }
     ],
     const.OPTION_NOTIFICATIONS: [
         {"id": "n1", "name": "Walk", "profile_id": "p1", "targets": []}
@@ -98,6 +105,13 @@ def test_merge_flow_input_preserves_the_keys_the_form_does_not_render() -> None:
     ):
         assert merged[key] == before[key], f"{key} was not preserved"
     assert merged[const.OPTION_PROFILES], "sanity: the fixture must seed profiles"
+    # A profile's to-do list sync has no key of its own to be preserved by, so it
+    # is spelled out: the form deleting it would silently stop a synced list.
+    assert merged[const.OPTION_PROFILES][0]["sync"] == {
+        "entity_id": "todo.family",
+        "two_way": False,
+        "vanish_as_completed": True,
+    }
     # ...and the fields the form *does* own took their new values.
     for key, value in _SUBMISSION.items():
         assert merged[key] == value

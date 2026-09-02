@@ -31,6 +31,7 @@ from .const import (
     EVENT_TASK_OVERDUE,
     OPTION_ONE_OFF_RETENTION_DAYS,
 )
+from .device_compat import resolve_device
 from .options import current_options
 from .reconcile import buy_source
 from .store import HomeKeeperStore
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from .problem_sync import ProblemSensorSync
     from .sensor_watcher import SensorTaskWatcher
     from .shopping_sync import ShoppingListSync
+    from .todo_list_sync import TodoListSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -122,6 +124,9 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.sensor_watcher: SensorTaskWatcher | None = None
         # The shopping-list mirror, attached during async_setup_entry.
         self.shopping_sync: ShoppingListSync | None = None
+        # The to-do list syncs (profile-filtered tasks on external to-do lists),
+        # attached during async_setup_entry.
+        self.todo_list_sync: TodoListSync | None = None
         # Edge state for the time-based task events (overdue / due-soon). Carried
         # across refreshes so each is fired at most once per ``next_due``; see
         # transitions.detect_transitions. Seeded from the process-lifetime store so it
@@ -243,6 +248,13 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         # backstop. A no-op until something is actually mirrored.
         if self.shopping_sync is not None:
             self.shopping_sync.async_schedule_sweep()
+        # And sweep the to-do list syncs on the same cadence, for the same blind
+        # spot — plus one of their own: a task *falling due* mutates nothing, so no
+        # task event fires for it and only this periodic tick notices that a chore
+        # now belongs on a synced list. A no-op until a sync is configured or
+        # something has been put on a list.
+        if self.todo_list_sync is not None:
+            self.todo_list_sync.async_schedule_sweep()
         return tasks
 
     async def _purge_expired_one_offs(self) -> None:
@@ -305,9 +317,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         Single source of truth for "is this an existing device we can merge onto?"
         so the DeviceInfo and name-prefix decisions can't drift apart.
         """
-        if not device_id:
-            return None
-        return dr.async_get(self.hass).async_get(device_id)
+        return resolve_device(dr.async_get(self.hass), device_id)
 
     def task_uses_existing_device(self, task: dict[str, Any]) -> bool:
         """True when the task's per-task entities merge onto an existing device.
@@ -402,3 +412,19 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             ),
             None,
         )
+
+
+def find_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
+    """The loaded Home Keeper coordinator, or None while no entry is loaded.
+
+    The coordinator hangs off the config entry's ``runtime_data``, so everything
+    outside the entry's own setup — websocket commands, services, device triggers,
+    the document views — starts by finding it here. Returning None rather than
+    raising is deliberate: an entry is momentarily unloaded during every reload, and
+    each caller has its own way of saying so.
+    """
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        coord = getattr(entry, "runtime_data", None)
+        if isinstance(coord, HomeKeeperCoordinator):
+            return coord
+    return None

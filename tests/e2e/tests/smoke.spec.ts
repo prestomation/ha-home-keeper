@@ -1,5 +1,16 @@
 import { test, expect, Locator } from '@playwright/test';
-import { calendarCard, openPanel, openDashboard, openTodoCard, trackPanelErrors } from './helpers';
+import {
+  calendarCard,
+  expectTabActive,
+  gotoTab,
+  openDashboard,
+  openPanel,
+  openTodoCard,
+  tabBar,
+  trackPanelErrors,
+} from './helpers';
+import { ASSET, TASK } from '../fixture-ids';
+import { deleteTask, listTasks } from './helpers';
 
 /**
  * Pick an option from an HA `ha-select` dropdown by visible label. HA's current
@@ -15,7 +26,7 @@ async function chooseHaSelect(
   await selectLocator.page().getByRole('menuitem', { name: optionLabel }).first().click();
 }
 
-test.describe('Home Keeper panel — smoke', () => {
+test.describe('Home Keeper panel — smoke', { tag: '@responsive' }, () => {
   test('panel renders with seeded tasks and no panel errors', async ({ page }) => {
     const errors = trackPanelErrors(page);
     await openPanel(page);
@@ -23,7 +34,7 @@ test.describe('Home Keeper panel — smoke', () => {
     const panel = page.locator('home-keeper-panel').first();
     await expect(panel.locator('.hk-toolbar-title').first()).toContainText('Home Keeper');
     // Built from HA components: tabs, an add button, and ha-card rows.
-    await expect(panel.locator('#tab-tasks')).toBeVisible();
+    await expect(tabBar(panel, 'tasks')).toBeVisible();
     await expect(panel.locator('#add-btn')).toBeVisible();
     await expect(panel.locator('.hk-name')).toContainText(['Replace fridge filter']);
     await expect(panel.locator('ha-card.hk-card').first()).toBeVisible();
@@ -68,7 +79,7 @@ test.describe('Home Keeper panel — smoke', () => {
   test('Appliances tab lists the seeded virtual device and opens its form', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-appliances').click();
+    await gotoTab(panel, 'appliances');
     // The seeded "Garage water heater" virtual appliance appears with its chip.
     await expect(panel.locator('.hk-name')).toContainText(['Garage water heater']);
     await expect(panel.getByText('Virtual device').first()).toBeVisible();
@@ -95,7 +106,7 @@ test.describe('Home Keeper panel — smoke', () => {
   test('appliance form parts editor adds a part and reveals wear fields', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-appliances').click();
+    await gotoTab(panel, 'appliances');
     await panel.locator('#add-btn').click();
     await expect(panel.locator('#hk-asset-form')).toBeVisible();
     // Related-device multi-picker and icon picker exist for a virtual asset.
@@ -122,7 +133,7 @@ test.describe('Home Keeper panel — smoke', () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     // Clicking a task's row opens its detail page, which shows the history inline.
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     const rows = panel.locator('.hk-hist-list li');
     await expect(rows.first()).toBeVisible();
     const before = await rows.count();
@@ -138,8 +149,9 @@ test.describe('Home Keeper panel — smoke', () => {
   test('appliance detail shows retained history of a removed task', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('#tab-appliances').click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await gotoTab(panel, 'appliances');
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+    await panel.locator('.hk-subtab[data-tab="history"]').click();
     // The water heater's history includes a task that was deleted while still
     // assigned to it — surfaced as an archived "removed task" group.
     await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
@@ -158,7 +170,7 @@ test.describe('Home Keeper panel — smoke', () => {
     await expect(panel.locator('ha-assist-chip.hk-overdue').first()).toBeVisible();
     // Switching group-by to "None" renders a flat list (no group sections).
     await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
-    await panel.locator('.hk-seg[data-seg="group"] .hk-seg-btn', { hasText: 'None' }).click();
+    await panel.locator('select[data-seg-select="group"]').selectOption('none');
     await expect(panel.locator('details.hk-group')).toHaveCount(0);
     await expect(panel.locator('ha-card.hk-card').first()).toBeVisible();
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
@@ -166,18 +178,18 @@ test.describe('Home Keeper panel — smoke', () => {
 
 });
 
-test.describe('Home Keeper panel — deep linking & Back', () => {
+test.describe('Home Keeper panel — deep linking & Back', { tag: '@responsive' }, () => {
   test('opening a detail page reflects in the URL', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     await expect(panel.locator('#back-btn')).toBeVisible();
-    await expect(page).toHaveURL(/\/home-keeper\/tasks\/task_fridge_filter$/);
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.fridgeFilter}$`));
   });
 
   test('a task detail URL deep-links straight to the detail page', async ({ page }) => {
     const errors = trackPanelErrors(page);
-    await page.goto('/home-keeper/tasks/task_fridge_filter', { waitUntil: 'domcontentloaded' });
+    await page.goto(`/home-keeper/tasks/${TASK.fridgeFilter}`, { waitUntil: 'domcontentloaded' });
     const panel = page.locator('home-keeper-panel').first();
     await panel.waitFor({ state: 'attached', timeout: 45_000 });
     // Lands on the detail page (Back button present), not the list.
@@ -196,21 +208,21 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
   test('browser Back returns to the list, not out of the panel', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     await expect(panel.locator('#back-btn')).toBeVisible();
     // The browser Back button steps back to the list inside the panel.
     await page.goBack();
     await expect(page).toHaveURL(/\/home-keeper(\/tasks)?$/);
-    await expect(panel.locator('#tab-tasks')).toBeVisible();
+    await expectTabActive(panel, 'tasks');
     await expect(panel.locator('#back-btn')).toHaveCount(0);
   });
 
   test('the in-panel Back button returns to the list', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    await panel.locator('.detail-open[data-detail-id="task_fridge_filter"]').click();
+    await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     await panel.locator('#back-btn').click();
-    await expect(panel.locator('#tab-tasks')).toBeVisible();
+    await expectTabActive(panel, 'tasks');
     await expect(panel.locator('#back-btn')).toHaveCount(0);
   });
 
@@ -222,16 +234,50 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
     const panel = page.locator('home-keeper-panel').first();
 
     // Navigate to the Appliances tab and open the water heater detail.
-    await panel.locator('#tab-appliances').click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
+    await gotoTab(panel, 'appliances');
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
     await expect(panel.locator('#back-btn')).toBeVisible();
-    await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater$/);
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}$`));
 
     // In-panel Back must return to the appliances list, not leave the panel.
     await panel.locator('#back-btn').click();
     await expect(page).toHaveURL(/\/home-keeper(\/appliances)?$/);
-    await expect(panel.locator('#tab-appliances')).toBeVisible();
+    await expectTabActive(panel, 'appliances');
     await expect(panel.locator('#back-btn')).toHaveCount(0);
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('a sub-tab is a lateral step, so Back leaves the appliance rather than retracing it', async ({
+    page,
+  }) => {
+    // `_setAssetTab` navigates with `replace`, deliberately: Back should leave the
+    // appliance, not walk back through every sub-tab you glanced at on the way
+    // through it — the same rule the top-level tabs follow. Nothing pinned that, so a
+    // change to push would have been silent, and it is exactly the kind of thing a
+    // redesign moves by accident.
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    await gotoTab(panel, 'appliances');
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}$`));
+
+    // Two sub-tab moves, each replacing the last.
+    await panel.locator('.hk-subtab[data-tab="documents"]').click();
+    await expect(page).toHaveURL(
+      new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}/documents$`),
+    );
+    await panel.locator('.hk-subtab[data-tab="history"]').click();
+    await expect(page).toHaveURL(
+      new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}/history$`),
+    );
+
+    // One Back returns to the list the appliance was opened from — not to Documents,
+    // and not out of the panel.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/home-keeper(\/appliances)?$/);
+    await expectTabActive(panel, 'appliances');
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
@@ -239,7 +285,7 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
     page,
   }) => {
     const errors = trackPanelErrors(page);
-    await page.goto('/home-keeper/appliances/asset_water_heater', {
+    await page.goto(`/home-keeper/appliances/${ASSET.waterHeater}`, {
       waitUntil: 'domcontentloaded',
     });
     const panel = page.locator('home-keeper-panel').first();
@@ -263,20 +309,29 @@ test.describe('Home Keeper panel — deep linking & Back', () => {
     const panel = page.locator('home-keeper-panel').first();
 
     // Navigate to the Appliances tab and open the water heater (has active related tasks).
-    await panel.locator('#tab-appliances').click();
-    await panel.locator('.detail-open[data-detail-id="asset_water_heater"]').click();
-    await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater$/);
+    await gotoTab(panel, 'appliances');
+    await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}$`));
 
-    // Open the first related task from inside the appliance detail.
+    // Open the first related task from inside the appliance detail. Its tasks are a
+    // sub-tab, and switching to one replaces rather than pushes — so the sub-tab is
+    // part of where you were, not a step Back has to retrace.
+    await panel.locator('.hk-subtab[data-tab="tasks"]').click();
+    await expect(page).toHaveURL(
+      new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}/tasks$`),
+    );
     const relatedTask = panel.locator('.hk-rel.detail-open[data-detail-kind="task"]').first();
     await expect(relatedTask).toBeVisible();
     const relatedTaskId = await relatedTask.getAttribute('data-detail-id');
     await relatedTask.click();
     await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${relatedTaskId}$`));
 
-    // In-panel Back must return to the appliance detail, not the task list.
+    // In-panel Back must return to the appliance detail — and to the sub-tab it was
+    // showing, not the appliance's default one — rather than to the task list.
     await panel.locator('#back-btn').click();
-    await expect(page).toHaveURL(/\/home-keeper\/appliances\/asset_water_heater$/);
+    await expect(page).toHaveURL(
+      new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}/tasks$`),
+    );
     // Back button is still visible because we're still inside a detail page.
     await expect(panel.locator('#back-btn')).toBeVisible();
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
@@ -305,5 +360,73 @@ test.describe('Home Keeper panel — dashboard', () => {
     const calendar = calendarCard(page);
     await expect(calendar).toBeVisible({ timeout: 30_000 });
     await expect(calendar).not.toContainText('Renew car registration');
+  });
+});
+
+
+/**
+ * One task, all the way through the panel: created, edited, completed, deleted.
+ *
+ * Every one of these steps was already covered — but each on its own, from a seeded
+ * fixture. Nothing walked a task a user actually made through the whole life it has,
+ * so a break in the seams between them (a save that does not reach the list, a
+ * completion that does not reach the page, a delete that leaves the row behind) had
+ * nowhere to fail. It creates and removes its own task, so the seeded store is
+ * unchanged either way.
+ */
+test.describe('Home Keeper panel — one task, end to end', () => {
+  const NAME = `Round trip ${Date.now()}`;
+  let createdId: string | undefined;
+
+  test.afterAll(async () => {
+    // Belt and braces: the test deletes through the UI, but a failure part-way must
+    // not leave a task behind in the committed fixture.
+    if (createdId) await deleteTask(createdId);
+    for (const t of await listTasks()) {
+      if (String(t.name || '').startsWith('Round trip ')) await deleteTask(t.id);
+    }
+  });
+
+  test('create it, edit it, complete it, delete it', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    // Create.
+    await panel.locator('#add-btn').click();
+    await expect(panel.locator('#hk-form')).toBeVisible();
+    await panel.locator('#hk-form input').first().fill(NAME);
+    await panel.locator('#f-save').click();
+    await expect(panel.locator('#hk-form')).toHaveCount(0);
+    const row = panel.locator('.hk-card', { hasText: NAME });
+    await expect(row).toBeVisible();
+    createdId = (await listTasks()).find((t) => t.name === NAME)?.id;
+    expect(createdId, 'the created task should exist in the store').toBeTruthy();
+
+    // Edit, from its own page — and the page updates in place rather than needing a
+    // reload to show what was just saved.
+    await row.locator('.detail-open').click();
+    await expect(panel.locator('.hk-detail-title')).toContainText(NAME);
+    await panel.locator('.d-edit').click();
+    await expect(panel.locator('#hk-form')).toBeVisible();
+    await panel.locator('#hk-form input').first().fill(`${NAME} edited`);
+    await panel.locator('#f-save').click();
+    await expect(panel.locator('#hk-form')).toHaveCount(0);
+    await expect(panel.locator('.hk-detail-title')).toContainText(`${NAME} edited`);
+
+    // Complete, and the completion reaches the history on the page it was done from.
+    await panel.locator('.d-done').click();
+    await expect(panel.locator('.hk-hist-list li')).toHaveCount(1);
+
+    // Delete, and the row is gone from the list it came from.
+    await panel.locator('.d-del').click();
+    const scrim = page.locator('.hk-confirm-scrim');
+    await expect(scrim).toBeVisible();
+    await scrim.locator('ha-button').filter({ hasText: /Delete/i }).click();
+    await expect(scrim).toHaveCount(0);
+    await expect(panel.locator('.hk-card', { hasText: NAME })).toHaveCount(0);
+    createdId = undefined;
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 });

@@ -1,6 +1,7 @@
-import { Page, expect } from '@playwright/test';
+import { Locator, Page, expect } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import type { Viewport } from '../viewports';
 
 /** Route for the Home Keeper sidebar panel. */
 export const PANEL_URL = '/home-keeper';
@@ -167,6 +168,19 @@ export const shoppingListCard = (page: Page) =>
     .filter({ hasText: 'Shopping list' })
     .first();
 
+/**
+ * The household's own to-do list card — a seeded `local_todo` list standing in for
+ * the Todoist project or kitchen-tablet list a *to-do list sync* writes onto.
+ *
+ * Scoped by title for the same reason as the two above: three to-do cards share the
+ * dashboard and masonry decides the column order.
+ */
+export const familyChoresCard = (page: Page) =>
+  page
+    .locator('hui-todo-list-card, todo-list-card')
+    .filter({ hasText: 'Family chores' })
+    .first();
+
 /** The native calendar card. Assumes the dashboard is already open. */
 export const calendarCard = (page: Page) => page.locator('ha-calendar, hui-calendar-card').first();
 
@@ -232,4 +246,94 @@ export function trackPanelErrors(page: Page): string[] {
     }
   });
   return errors;
+}
+
+/**
+ * Open an appliance's detail page on a given sub-tab.
+ *
+ * The appliance detail is divided into sub-tabs (Parts, Tasks, Documents, Details,
+ * Related, History), each with a URL of its own and only the open one rendered — so
+ * a test has to say which section it is about. Passing through the list rather than
+ * deep-linking keeps the master pane's selection in the picture.
+ */
+export async function openAppliance(page: Page, assetId: string, tab?: string): Promise<Locator> {
+  const panel = page.locator('home-keeper-panel').first();
+  // Through the tab rather than the master pane: the appliances *list* is a
+  // top-level `#hk-list` at every width, while the 268px master pane only exists
+  // once a detail is open and is `display: none` below 1000px anyway.
+  await gotoTab(panel, 'appliances');
+  await panel.locator(`.detail-open[data-detail-id="${assetId}"]`).click();
+  // Below 1000px `.hk-subtabs` is a nowrap horizontal scroller, so Related and
+  // History sit off the right edge; Playwright scrolls them into view itself.
+  if (tab) await panel.locator(`.hk-subtab[data-tab="${tab}"]`).click();
+  return panel;
+}
+
+/** The three top-level destinations, whichever bar is drawing them. */
+export type PanelTab = 'tasks' | 'appliances' | 'settings';
+
+/**
+ * Whichever of the panel's two tab bars this width draws.
+ *
+ * `_tabs()` and `_bottomTabs()` both render at every width — the ids differ
+ * (`#tab-*` vs `#mtab-*`) only because two elements cannot share one — and a media
+ * query decides which shows. Resolving `:visible` is how a spec asks for "the tab
+ * bar" without reading the viewport, which is the same invariant `_render()` keeps.
+ */
+export function tabBar(panel: Locator, tab: PanelTab): Locator {
+  return panel.locator(`#tab-${tab}:visible, #mtab-${tab}:visible`).first();
+}
+
+/** Switch view through whichever tab bar is on screen. */
+export async function gotoTab(panel: Locator, tab: PanelTab): Promise<void> {
+  const bar = tabBar(panel, tab);
+  await expect(bar, `neither #tab-${tab} nor #mtab-${tab} is visible`).toBeVisible();
+  await bar.click();
+}
+
+/**
+ * Assert the panel is *showing* `tab`.
+ *
+ * Not the same as its tab bar being visible, which is what the deep-linking specs
+ * used to check: the phone bar is on screen on every view, so `toBeVisible()` there
+ * passes whatever the panel is showing. The two bars mark the current destination
+ * differently (`ha-tab-group-tab[active]` against `aria-current="page"`), so this
+ * asks for whichever mark this width draws.
+ */
+export async function expectTabActive(panel: Locator, tab: PanelTab): Promise<void> {
+  await expect(
+    panel.locator(`#tab-${tab}[active]:visible, #mtab-${tab}[aria-current="page"]:visible`).first(),
+  ).toBeVisible();
+}
+
+/**
+ * Open a Settings section, whether it is already on the page or has to be reached
+ * through the index.
+ *
+ * Below 1000px the rail is gone and the index is the screen: one section opens at a
+ * time and the URL names it. Above it every section is already rendered and there is
+ * nothing to open — which is why this asks what is on screen rather than the width.
+ */
+export async function openSettingsSection(
+  panel: Locator,
+  section: 'general' | 'shopping' | 'problem' | 'profiles' | 'notifications' | 'companions',
+): Promise<void> {
+  await gotoTab(panel, 'settings');
+  // Settle on the layout that holds all three parts, so the branch below is decided
+  // on a drawn page. Not `index.or(rail)`: `or()` matches on presence and both are
+  // always in the DOM, so it resolves to two elements and trips strict mode.
+  await expect(panel.locator('.hk-settings-layout')).toBeVisible();
+  const row = panel.locator(`.hk-index-row[data-section="${section}"]`);
+  if (await row.isVisible()) await row.click();
+}
+
+/**
+ * Resize, then open the panel — for the specs that *prove* the split is CSS by
+ * crossing a breakpoint themselves. Resizing before the first render means the
+ * panel's first paint already sees the width under test.
+ */
+export async function openPanelAt(page: Page, size: Viewport): Promise<Locator> {
+  await page.setViewportSize(size);
+  await openPanel(page);
+  return page.locator('home-keeper-panel').first();
 }

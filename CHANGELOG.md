@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.16.0b9]
+## [0.20.0b3]
 
 ### Added
 
@@ -48,6 +48,398 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   The managed tasks themselves emit the ordinary `home_keeper_task_*` events, so
   automations that already listen there just work. See docs/INTEGRATING.md and
   docs/EVENTS.md. (Fixes #231)
+
+## [0.20.0b2]
+
+### Added
+
+- **Duplicate a task from its page.** The create form opens already filled in with a
+  copy, so a row of near-identical tasks costs one edit each rather than a full
+  re-entry. A task another integration owns keeps a greyed Duplicate that explains
+  why. (Fixes #279)
+
+## [0.20.0b1]
+
+### Fixed
+
+- **Sending a task to a CalDAV to-do list (Nextcloud, Baikal, Radicale) no longer
+  creates a duplicate.** The duplicate was permanent: editing the task afterward
+  updated only one copy and deleting it left the other behind on the server. The same
+  timing could also complete a recurring task twice and skip its next occurrence.
+
+## [0.19.0] - 2026-09-01
+
+### Added
+
+- **Home Keeper has a new look.** 0.19 is primarily a UI refresh.
+
+### Fixed
+
+- **Ready for Home Assistant 2026.9.** That release reshapes the device registry and
+  adds child devices, so Home Keeper reads both shapes and a task or appliance you
+  attached to a device still finds it after the upgrade. (Fixes #253)
+
+## [0.19.0b8]
+
+### Fixed
+
+- **The admin panel's dropdown menus (Profile, Group by, and similar filters) are
+  themed when open, not just when closed.** Their popup list previously fell back to
+  the browser's default grey-on-white, unreadable against a dark Home Assistant
+  theme.
+
+## [0.19.0b7]
+
+### Changed
+
+- **Websocket completion-editing errors now report the code `invalid_task` instead
+  of `not_allowed`.** Only the machine-readable code changes; the message shown to
+  the user is the same as before.
+
+### Fixed
+
+- **Completing a task from the panel now settles buy reminders.** The panel's own
+  completion path only refreshed, so a completed auto-buy task left its reminder
+  sitting there until the next reload. The service, button and to-do paths already
+  settled correctly.
+
+- **The `export_inventory` service now writes the CSV in your language.** The
+  service wrote English column headers while the panel's own export was already
+  localized.
+
+- **Deleting an appliance over the websocket now runs the same cleanup as the
+  service.** The websocket handler carried its own copy of the cleanup code and
+  could drift from the service's.
+
+## [0.19.0b6]
+
+### Changed
+
+- **The fields a recurrence choice reveals now sit under "Schedule details".** The
+  heading used to read "Because of the kind you picked", which described the form's
+  behaviour rather than naming the fields below it.
+
+### Fixed
+
+- **`home_keeper.add_task` works with just a name.** It needed a unit it never
+  defaulted, so the simplest call failed. A name on its own now creates a one-off due
+  today, and a call that passes a schedule still gets that schedule.
+
+- **Closing the edit drawer puts the keyboard back where it was.** Escape, Cancel and
+  the close button all left focus at the top of the page, so a keyboard reader who
+  opened a form and changed their mind had to tab back to where they were.
+
+- **Escape closes the drawer again after a delete you thought better of.** Opening the
+  delete confirmation took the drawer's Escape away and cancelling never gave it back,
+  which left the form with no keyboard way out for the rest of that edit.
+
+- **The task list's scope pills no longer answer to "Group by".** A screen reader
+  announced them with the same name as the Group by dropdown beside them, so the two
+  controls were impossible to tell apart. They are now "Show".
+
+- **Settings says what Profiles, Notifications and Companions hold when they hold
+  nothing.** All three rows went blank on a fresh install, which is the one moment the
+  answer matters most.
+
+- **A task kept in step with an appliance part or a synced sensor explains itself.**
+  Its page offered no Edit and no Delete and said nothing about why, so it read as a
+  surface that had failed to finish rendering.
+
+- **The phone tab bar no longer sits live under an open edit sheet.** Tapping through
+  the sheet's overlay switched tab and discarded the form without asking.
+
+## [0.19.0b5]
+
+### Changed
+
+- **One word for keeping Home Keeper in step with something outside it: sync.** The
+  panel, the options flow and the service descriptions said "mirror" in some places and
+  "sync" in others for the same feature. Every surface now says sync, in all sixteen
+  languages.
+
+- **The to-do list sync reports itself as `home_keeper_todo_sync`.** An automation
+  matching on the old `origin: home_keeper_todo_mirror` needs that one string updated.
+  Nothing else changes: the sync re-adopts the lines already on your list on its first
+  pass.
+
+## [0.19.0b4]
+
+### Fixed
+
+- **Dialogs have their titles back.** Completing a task or moving a completion date
+  opened a panel with nothing but a close button above it, so there was no way to tell
+  which task you were about to log. (Fixes #262)
+
+- **Buttons say how important they are again.** Done, Edit, Delete and Cancel had all
+  drifted into the same solid blue. Each action is drawn at its own weight now, and a
+  red fill appears only where you are asked to confirm a deletion.
+
+- **A device Home Assistant no longer knows shows nothing instead of its internal id.**
+  A task that outlived its device used to display a long string of letters and numbers
+  where the device name belongs.
+
+- **The "Managed by …" and "Connected" chips are readable again.** Both were drawn as
+  pale text on a mid-tone fill, below the contrast a label needs.
+
+- **The integration chips in a task row are quieter.** They were the loudest thing on
+  the line, which put the integration's name ahead of the task's own.
+
+- **A finished one-off looks finished however the list is grouped.** Only Group by
+  Status used to set it aside. Grouping by area left it mid-list, looking like work
+  still to do.
+
+- **Dates read like dates.** The panel showed "7/1/2026, 1:00:00 PM" for the date a
+  task was completed, and used a different format on each screen.
+
+## [0.19.0b3]
+
+### Changed
+
+- **Edit opens beside the page you pressed it on.** A task's or appliance's page now
+  stays on screen while its form is open, instead of being replaced by the list it came
+  from. On an appliance the list pane steps aside so the form is a second column rather
+  than a third.
+
+### Fixed
+
+- **Picking a Settings section no longer jumps to the top of the page first.** The rail
+  now moves its mark on the page already drawn, so the scroll to that section starts
+  from where you were reading.
+
+## [0.19.0b2]
+
+### Changed
+
+- **The panel has a new look.** A task row carries its status in a coloured edge and
+  a pill at the end of the line, and the filter row fits on one line with a count on
+  each scope. On a phone the tabs move to the bottom of the screen and the scope
+  pills wrap onto a second row rather than scrolling out of view.
+
+- **Editing opens in a drawer beside the list instead of a card above it.** The list
+  keeps its place, the row you are editing stays lit, and Save sits in a header that
+  does not scroll away. Delete and History join it in a footer.
+
+- **An appliance is read next to the list it came from.** Its sections are now
+  sub-tabs (Parts, Tasks, Documents, Details, Related, History), each with an address
+  of its own, so Back leaves a sub-tab and a sub-tab can be linked to.
+
+- **Settings names every section and what it is set to.** A rail beside the sections
+  marks which features are on and how many profiles, notifications and companions
+  you have. On a phone it opens on an index of the six instead, and each section has
+  an address of its own.
+
+- **The panel is easier to use with a keyboard and a screen reader.** Focus stays on
+  the control you just used instead of jumping to the top of the page, the edit sheet
+  on a phone behaves as a dialog that Escape closes, and the filter chips, dropdowns
+  and Settings dots now say what they are rather than showing it in colour alone.
+
+### Fixed
+
+- **The due date on a one-off task has a label again.** Creating a task that happens
+  just once showed a raw translation key above its date picker in every language.
+
+- **Text on coloured chips and buttons is readable again.** The Done button, the
+  overdue pill, the "Integration offline" chip and the selected filter were all drawn
+  below the contrast a label needs, in one theme or the other.
+
+- **A task row on a phone no longer carries an empty line.** The spacer that pushes
+  Done to the end of a single-line row stayed in a wrapped one, where it took a whole
+  line to itself and left a visible gap under the task name.
+
+## [0.19.0b1]
+
+### Fixed
+
+- **Ready for Home Assistant 2026.9.** That release reshapes the device registry and
+  adds child devices, so Home Keeper reads both shapes and a task or appliance you
+  attached to a device still finds it after the upgrade. (Fixes #253)
+
+## [0.18.0] - 2026-08-29
+
+### Added
+
+- **Send tasks to your to-do lists.** A Profile in *Settings → Profiles* mirrors the
+  tasks it selects onto any Home Assistant to-do list (such as a Todoist project), and
+  checking an item off there completes the task in Home Keeper. Recurring tasks add a
+  fresh item each time they fall due, leaving the checked-off one as your record.
+  (Fixes #239)
+- **Services take a task's name, not just its id.** Every `task_id`, `asset_id`,
+  `part_id` and `document_id` field now accepts the name you gave the thing, and the
+  panel prints the id with a copy button for when two share one. Home Keeper reports an
+  ambiguous name instead of guessing which you meant.
+- **Snooze a problem you can't fix right now.** A task mirroring a `problem` sensor now
+  accepts Snooze, and its reminders show that button instead of Mark done. Marking one
+  done is still blocked since only the integration that owns the sensor can decide
+  it's fixed.
+
+### Changed
+
+- **Profile status labels now spell out what's included.** The choices were always
+  cumulative, so the old *Due soon* already covered overdue tasks too. The new names
+  are *Overdue only*, *Overdue and due soon* and *Every scheduled task*.
+
+### Fixed
+
+- **Synced problem sensors show up in Profiles again.** Picking any Profile used to
+  hide every mirrored `problem` sensor. (Fixes #248)
+- **To-do items show the right due date outside UTC.** A task due at local midnight showed
+  the previous day on `todo.home_keeper_tasks` while the panel showed the correct one. A
+  wear part's last-replaced date shifted the same way when the replacement was back-dated.
+  (Fixes #250)
+
+## [0.18.0b4]
+
+### Added
+
+- **Send tasks to your to-do lists.** A Profile in *Settings → Profiles* mirrors the
+  tasks it selects onto any Home Assistant to-do list (such as a Todoist project), and
+  checking an item off there completes the task in Home Keeper. Recurring tasks add a
+  fresh item each time they fall due, leaving the checked-off one as your record.
+  (Fixes #239)
+
+## [0.18.0b3]
+
+### Added
+
+- **Services take a task's name, not just its id.** Every `task_id`, `asset_id`,
+  `part_id` and `document_id` field now accepts the name you gave the thing, and the
+  panel prints the id with a copy button for when two share one. Home Keeper reports an
+  ambiguous name instead of guessing which you meant.
+
+## [0.18.0b2]
+
+### Fixed
+
+- **To-do items show the right due date outside UTC.** A task due at local midnight showed
+  the previous day on `todo.home_keeper_tasks` while the panel showed the correct one. A
+  wear part's last-replaced date shifted the same way when the replacement was back-dated.
+  (Fixes #250)
+
+## [0.18.0b1]
+
+### Fixed
+
+- **Synced problem sensors show up in Profiles again.** Picking any Profile used to
+  hide every mirrored `problem` sensor. (Fixes #248)
+
+### Added
+
+- **Snooze a problem you can't fix right now.** A task mirroring a `problem` sensor now
+  accepts Snooze, and its reminders show that button instead of Mark done. Marking one
+  done is still blocked since only the integration that owns the sensor can decide
+  it's fixed.
+
+### Changed
+
+- **Profile status labels now spell out what's included.** The choices were always
+  cumulative, so the old *Due soon* already covered overdue tasks too. The new names
+  are *Overdue only*, *Overdue and due soon* and *Every scheduled task*.
+
+## [0.17.0] - 2026-08-26
+
+### Added
+
+- **Tree view for the appliance list.** A View toggle on the Appliances tab
+  switches between the flat list and a tree that nests child devices under their
+  parents. (Fixes #215)
+
+### Fixed
+
+- **Home Keeper no longer throws you back to your dashboard.** Anything that reloaded
+  the integration took the sidebar panel down until setup finished, and Home Assistant
+  drops you out of a panel that vanishes under it. The panel now survives a reload.
+  (Fixes #247)
+- **"Detected blocking call" warnings from Home Keeper are gone.** The integration read
+  its backend string tables on Home Assistant's event loop the first time it needed a
+  translated message. Startup now reads them off the loop instead.
+
+## [0.17.0b1]
+
+### Added
+
+- **Tree view for the appliance list.** A View toggle on the Appliances tab
+  switches between the flat list and a tree that nests child devices under their
+  parents. (Fixes #215)
+
+## [0.16.0] - 2026-08-25
+
+### Added
+
+- **Profiles gain exclusion filters.** A Profile's filter now has an **Exclude**
+  counterpart for its label, area and device pickers. An exclusion beats the include side
+  and inherits the same way it does, so a task carrying an excluded label through its
+  device or area is dropped too. (Fixes #214)
+- **Buy reminders now reach your own shopping list.** Point **Settings → Shopping
+  list** at a to-do list the household already uses and every auto-created "Buy {part}"
+  reminder is put on it. It works both ways: ticking the line off at the shop completes
+  the reminder and restocks the part, and only the lines Home Keeper added are ever
+  managed. (Fixes #220)
+- **Shopping filter in the panel and dashboard card.** A new "Shopping" option in the
+  task filter bar shows only the auto-created buy tasks, and the same filter is
+  available as `filter: shopping` on the dashboard card. (Fixes #220)
+- **Stock you measure instead of count.** A spare part carries an optional **stock unit**
+  and a **used per completion** amount, and every spare quantity now accepts decimals so
+  fabric softener topped up a third of a bottle no longer reads as three bottles gone.
+  Leaving both fields empty keeps the whole-spare counting from before. (Fixes #220)
+- **Start a usage meter somewhere other than "now".** A usage/meter task's new
+  **Starting reading** anchors it where the machine was actually last serviced instead
+  of at whatever the sensor reads today, and **Last completed** now appears on sensor
+  tasks too. Completing a sensor task also records what the sensor read at the time,
+  which every history row shows and the pencil edits. (Fixes #235)
+- **Usage/meter tasks now count down on the overview.** A meter task shows how far off
+  it is, "in 7000 miles", rather than only "Monitored". (Threshold and state tasks,
+  which have no interval to count down, still read "Monitored".)
+
+### Fixed
+
+- **"Mark done" on a notification works before the task is due.** A notification built
+  from a Profile set to **Due soon** or **All** shows tasks that aren't overdue yet, and
+  its **Mark done** button did nothing at all when tapped. It now completes the task
+  whenever the notification still reflects that task's current schedule. (Fixes #216)
+- **A finished do-once task no longer sits on the to-do list forever.** Checking off a
+  one-off task retires it everywhere else, but `todo.home_keeper_tasks` kept showing it
+  unchecked with its due date gone. It now drops off the list as soon as it is done and
+  comes back at its due date if the completion is undone. (Fixes #221)
+- **The dashboard card no longer breaks on an ordinary page reload.** A dashboard using
+  the Home Keeper card could show "Custom element doesn't exist: home-keeper-card"
+  because the card reached the browser only through the page Home Assistant caches. It is
+  now registered as a dashboard resource under **Settings > Dashboards > Resources**,
+  which the frontend fetches fresh on every load and which existing installs pick up on
+  the next restart. (Fixes #228)
+- **Opening Configure no longer wipes your notifications and profiles.** Saving the
+  integration's options dialog replaced the whole settings object with just the seven
+  fields on that form, deleting every notification, every profile and every dismissed
+  companion suggestion. The dialog now changes only its own fields.
+- **Undoing a meter task's completion keeps your partial progress.** Deleting a
+  usage/meter completion reset the meter to zero and left it there. It now reverts to
+  where it was before that completion, so 3,000 of 10,000 miles goes back to 3,000.
+  (Fixes #235)
+- **"Mark done" on a notification now clears an auto-buy reminder.** Completing a
+  "Buy {part}" reminder from a notification restocked the part but left the reminder
+  standing until something else settled it. Every other way of completing it already
+  cleared it.
+- **Documented that auto-clearing sensor tasks consume consumable stock.** A sensor task
+  with *Clear when back to normal* linked to a consumable part draws down one spare on
+  auto-completion, the same as completing it by hand. This was always the behavior but
+  was not mentioned in the README or the events reference.
+
+## [0.16.0b9]
+
+### Added
+
+- **Usage/meter tasks now count down on the overview.** A meter task waiting for its
+  sensor to advance used to read only "Monitored" in the task list. It now shows how
+  far off it is, "in 7000 miles", the meter version of the "in 3 days" a time-based
+  task shows, so you can see at a glance which of your metered jobs is closest without
+  opening each one. (Threshold and state tasks, which have no interval to count down,
+  still read "Monitored".)
+
+### Fixed
+
+- **Undoing a meter task's completion keeps your partial progress.** Deleting a
+  usage/meter completion (undoing an accidental "done") reset the meter to zero and
+  left it there. It now reverts to exactly where it was before that completion: 3,000
+  of 10,000 miles goes back to 3,000, not zero. (Fixes #235)
 
 ## [0.16.0b8]
 

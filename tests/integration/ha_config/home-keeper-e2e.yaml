@@ -36,6 +36,13 @@ views:
       - type: todo-list
         title: Shopping list
         entity: todo.shopping_list
+      # A household list of the household's own — a seeded `local_todo` entry —
+      # standing in for the Todoist project or kitchen-tablet list a to-do list sync
+      # points at. Here so a browser test (and the README screenshot) can see the
+      # synced chore land on it, due date and all.
+      - type: todo-list
+        title: Family chores
+        entity: todo.family_chores
       - type: calendar
         entities:
           - calendar.home_keeper_upcoming_tasks

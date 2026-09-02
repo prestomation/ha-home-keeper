@@ -57,8 +57,20 @@
       "expected": false
     },
     {
-      "name": "synced problem-sensor task, status all -> excluded",
+      "name": "armed problem-sensor task, status all -> included (#248)",
       "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": { "problem_sensor": { "entity_id": "binary_sensor.x" } } },
+      "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "armed problem-sensor task, status overdue -> included (armed reads as overdue)",
+      "task": { "id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": { "problem_sensor": { "entity_id": "binary_sensor.x" } } },
+      "filter": { "status": "overdue", "labels": [], "areas": [], "devices": [] },
+      "expected": true
+    },
+    {
+      "name": "dormant problem-sensor task (sensor clear) -> excluded, like any undated task",
+      "task": { "id": "t", "enabled": true, "next_due": null, "labels": [], "source": { "problem_sensor": { "entity_id": "binary_sensor.x" } } },
       "filter": { "status": "all", "labels": [], "areas": [], "devices": [] },
       "expected": false
     },

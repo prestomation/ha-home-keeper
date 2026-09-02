@@ -47,6 +47,15 @@ template:
         unique_id: hk_demo_water_tank_low
         device_class: moisture
         state: "{{ is_state('input_boolean.hk_demo_flag', 'on') }}"
+  # A low-battery flag, kept "on", so the bundled **Low battery** declarative
+  # companion has one entity to match: the preset picker's preview, the walkthrough
+  # and the declarative-companions e2e spec all read "1 match" off this sensor. Not
+  # device_class problem, so the problem-sensor sync leaves it alone.
+  - binary_sensor:
+      - name: "HK demo remote battery"
+        unique_id: hk_demo_remote_battery
+        device_class: battery
+        state: "{{ true }}"
   # A fixed cumulative run-hours counter, standing in for the kind of
   # ``total_usage_hours`` sensor an appliance integration exposes. Constant so the
   # seeded usage task's progress ("120 of 300 h used") renders identically on every
