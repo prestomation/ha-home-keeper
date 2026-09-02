@@ -762,72 +762,89 @@ integration can decide the problem is dealt with.
 
 ## Send tasks to your to-do lists
 
-A chore that only exists in Home Keeper is easy to ignore, so a
-[Profile](#profiles-saved-filters-you-reuse-everywhere) syncs its tasks onto a to-do
-list the household already checks. Any `todo` entity works, whether that's a Todoist
-project, Google Tasks, or a `local_todo` list on the kitchen tablet.
+A task in Home Keeper alone is easy to forget. A
+[Profile](#profiles-saved-filters-you-reuse-everywhere) can sync its tasks onto a
+to-do list the household already uses. Any `todo` entity works. Examples are a
+Todoist project, Google Tasks, or a `local_todo` list on the kitchen tablet.
 
-**How it's used.** Open **Settings → Profiles** and expand the profile whose tasks you
-want to send. Inside it is a **Sync to a to-do list** group holding a **To-do list**
-picker. Pick a list there and the profile's tasks start appearing on it. Clearing the
-picker switches the sync off again and takes the profile's own open items back off the
-list, so there is nothing else to delete.
+### How it works
 
-There is no separate Settings section for this and no second record to keep in step
-with the Profile. The Profile carries the sync itself. Its filters decide which tasks
-are sent, and its **Include** tier is the timing. *Overdue only* puts a task on the list the
-moment it falls due, *Overdue and due soon* three days ahead, *Every scheduled task*
-as soon as it is scheduled.
+Open **Settings → Profiles** and expand the profile you want to sync. The profile
+has a **Sync to a to-do list** group with a **To-do list** picker. Pick a list. The
+profile's tasks then appear on it. Clear the picker to turn sync off. This also
+removes the profile's open items from the list.
 
-One Profile syncs to one list. A household that wants two lists writes two Profiles,
-which is what it needed anyway to say what belongs on each.
+The profile carries the sync. No other record exists. The profile's filters
+choose which tasks sync. The profile's **Include** tier sets the timing:
 
-**Use cases.** *"House chores turn up in the same Todoist project as the rest of my
-life, and checking one off at work marks it done at home."* *"Each kid's chores go to
-a list of their own."* Make a Profile per person and give each one its own list.
+- **Overdue only**: the task appears when it falls due.
+- **Overdue and due soon**: the task appears 3 days before it falls due.
+- **Every scheduled task**: the task appears as soon as it is scheduled.
 
-It works in both directions:
+One profile syncs to one list. A household with 2 lists needs 2 profiles.
 
-- **Check the item off anywhere** and Home Keeper completes the task, logging it in
-  the completion history like any other Done. A recurring task then reschedules, and a
-  fresh item appears when it next falls due. The checked-off item stays put as your
+### Use cases
+
+- House tasks appear in the same Todoist project as your other tasks. A completion
+  at work marks the task complete at home.
+- Each child has a list of their own. Make a profile per child and point it at that
+  list.
+
+### Two-way sync
+
+Sync works in both directions.
+
+- A user marks the item complete on any device. Home Keeper completes the task and
+  logs it in the completion history. A recurring task reschedules, and a new item
+  appears when the task next falls due. The completed item stays on the list as a
   record.
-- **Complete the task in Home Keeper** and the item is ticked off to match.
-- **A task that stops qualifying** (rescheduled, disabled, filtered out of the
-  Profile) has its open item removed, because there is nothing left to do.
+- A user completes the task in Home Keeper. Home Keeper marks the item complete on
+  the list.
+- A task stops matching the profile's filters, or a user reschedules or disables
+  it. Home Keeper removes the open item, because the task is not due.
 
-Items carry the task's due date and notes when the list supports them. Home Keeper
-only manages the items it added, and it never touches anything already checked off.
+Items carry the task's due date and notes, when the list supports these fields.
+Home Keeper manages only the items it added. Home Keeper never changes an item
+that is already marked complete.
 
-Under the picker are two switches for the awkward cases, both on by default. Switch
-**Two-way sync** off for a display-only list that never completes tasks. **Treat
-removed items as completed** exists because some providers, Todoist included, hide
-checked-off items from Home Assistant, so an item that disappears is read as "done".
-If your list reports completions properly (a `local_todo` list does) you may turn that
-one off, and a deleted item is re-added on the next pass instead.
+### Options
 
-A task that requires an NFC/RFID tag scan still syncs. Checking its item off
-remotely completes nothing and the item returns on the next pass. That refusal is
-the point of requiring the scan.
+There are 2 switches under the picker. Both are on by default.
 
-**A to-do item you add on the list yourself never becomes a Home Keeper task.** The
-sync is a delivery surface. It puts Home Keeper's tasks onto the list. Anything else
-on that list stays yours. Home Keeper only ever touches the items it wrote itself.
-A Home Keeper task carries recurrence, a device and completion history that a plain
-to-do line cannot hold. The one thing that travels inward is a checkmark. Ticking
-off one of Home Keeper's own items completes the task behind it.
+- **Two-way sync**: turn this off for a display-only list. When this switch is
+  off, a completed item does not complete the task.
+- **Treat removed items as completed**: some providers, such as Todoist, hide
+  completed items from Home Assistant. Home Keeper reads a missing item as
+  complete. Turn this off if your list reports completions correctly, such as a
+  `local_todo` list. When this switch is off, Home Keeper re-adds a deleted item on
+  the next sync.
 
-- **CalDAV lists work too** (Nextcloud, Baikal, Radicale). Home Assistant polls a
-  CalDAV server every 15 minutes, so ticking an item off there can take that long to
-  reach Home Keeper.
-- **In Nextcloud, point the sync at a task list.** The default **Personal** calendar
-  holds only events, so it never appears as a to-do list in Home Assistant at all.
+A task that requires an NFC or RFID tag scan still syncs to the list. A remote
+completion of its item has no effect on the task, and the item returns on the next
+sync. The scan is the requirement.
 
-**The Todoist recipe.** Install Home Assistant's own
-[Todoist integration](https://www.home-assistant.io/integrations/todoist/) and give it
-your Todoist API token. Every Todoist project then shows up as a `todo` entity. Point
-a Profile's **To-do list** picker at the project's entity and your chores follow you
-onto every device Todoist reaches.
+An item that a user adds to the list never becomes a Home Keeper task. The sync
+sends tasks to the list, and only a completion travels back. A Home Keeper task
+carries recurrence, a device, and completion history. A plain to-do item cannot
+hold these.
+
+### CalDAV and Nextcloud
+
+CalDAV lists work with the sync, such as Nextcloud, Baikal, and Radicale. Home
+Assistant polls a CalDAV server every 15 minutes. A completion on the server can
+take up to 15 minutes to reach Home Keeper.
+
+In Nextcloud, point the sync at a task list. The default **Personal** calendar
+holds only events. It does not appear as a to-do list in Home Assistant.
+
+### Todoist
+
+Install Home Assistant's own
+[Todoist integration](https://www.home-assistant.io/integrations/todoist/) and
+give it your Todoist API token. Each Todoist project then appears as a `todo`
+entity. Point a profile's **To-do list** picker at the project's entity. Home
+Keeper then sends the profile's tasks to that project on every device that runs
+Todoist.
 
 ![A Profile's Sync to a to-do list group, with the list it syncs onto picked](docs/images/47-panel-profile-sync.png)
 
