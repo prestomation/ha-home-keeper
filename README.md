@@ -665,25 +665,7 @@ The tab has 6 sections:
   exclusions. The exclusions apply only when the sync is on.
 - **Companions** lists the integrations that work with Home Keeper.
 
-A rail beside the sections shows the name and the current value of each section. The
-dot is green when the feature is on. It is amber when notifications are configured
-but no mobile app is available to deliver them. Sections that hold a list show a
-count instead of a dot. Each section also shows its current value under its name.
-
 ![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
-
-### On a phone
-
-On a phone, the Settings tab opens as an index of its sections. Each row shows the
-section name with its current value and its dot or count. Tap a row to open the section.
-A back arrow returns to the index. Each section has its own URL, such as
-`/home-keeper/settings/notifications`, so the browser Back button and links to a
-section work.
-
-<p>
-  <img src="docs/images/50-panel-mobile-settings-index.png" alt="The Settings section index at phone width" width="300">
-  <img src="docs/images/51-panel-mobile-settings-section.png" alt="One Settings section open on a phone, with a back arrow" width="300">
-</p>
 
 ### Companions
 
@@ -872,71 +854,62 @@ automations can use. See [Events & automations](#events--automations).
 
 ## Dashboard task card
 
-The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizable list
-of your tasks with a one-tap **Done** button on each row. It's a focused
-do-and-glance surface: mark tasks done, add a new one from the header **+**, and open
-any documentation links a task shows (see below), while **editing and deleting a task
-live in the sidebar panel**, so a stray tap on the dashboard can't open a form or
-accidentally delete a task. It's auto-registered (Home Keeper adds its own entry under
-**Settings > Dashboards > Resources**, so there's nothing for you to set up) and
-appears in the dashboard **"Add card"** picker. Its GUI editor lets you filter (by
-status, area, device, **label**, recurrence type, a "due within N days" horizon, or a
-saved [Profile](#profiles-saved-filters-you-reuse-everywhere)), sort, group, cap rows,
-and toggle what each row shows. It's built from HA's own components and theme and
-reflects completions made anywhere else in real time.
+Home Keeper supports a dashboard card, **Home Keeper Tasks** (`custom:home-keeper-card`),
+that lists tasks and completes them with a **Done** button. This is useful for a task
+list on a dashboard or a wall tablet. The card resource is registered automatically.
+To add the card, select **Home Keeper Tasks** in the dashboard **Add card** picker.
 
-**Hide card when empty** makes the card disappear from the dashboard entirely
-(header and all) instead of showing a "No tasks match this filter." message when its
-filter matches nothing, handy for a dashboard built from several per-subject cards
-(the dog, the car, each kid) where you only want to see the ones with something due.
+From the card, a user can:
+
+- complete a task with **Done**
+- add a task with the **+** button in the header
+- open the document links that a task shows
+
+Editing and deletion of a task are supported only in the panel.
+
+The card editor has these options:
+
+- Filter by status, area, device, label, recurrence type, a "due within N days"
+  window, or a saved [Profile](#profiles-saved-filters-you-reuse-everywhere).
+- Sort and group the tasks, and limit the number of rows.
+- Select what each row shows.
+- **Hide card when empty** removes the card from the dashboard when the filter matches
+  no task. Without it the card shows "No tasks match this filter."
+
+A completion made in the panel or on another surface is shown on the card immediately.
 
 ![Home Keeper task card grouped into status sections](docs/images/card-grouped.png)
 
 ### Show a task's appliance documents on the card
 
-When a task is attached to an [appliance](#appliances--virtual-devices), you can pin any
-of that appliance's documents, its **document links**, **uploaded files** (a PDF
-manual, a photo), and free-form **metadata links** (a reorder page, a warranty page, a
-how-to video), to the task's row, so the manual or parts page is one tap away while
-you're actually doing the job. Nothing shows by default. You choose per task.
+A task that is attached to an [appliance](#appliances--virtual-devices) can show the
+appliance's documents on its row. This includes document links and uploaded files
+and metadata links. Nothing is shown by default.
 
-How to use it:
+1. Open the task in the panel editor.
+2. In **Links to show on card**, select the documents. The field is shown only if the
+   appliance has at least 1 document.
 
-- **Pick the documents**: open the task in the panel's editor and use **Links to show on
-  card**, a multi-select that lists every document (link or uploaded file) and metadata
-  link on the task's appliance. (The picker only appears once the attached appliance has
-  at least one document.) You can also set them via the `home_keeper.add_task` /
-  `home_keeper.update_task` services (`card_links`).
-- **On the card**: each chosen document renders as a compact chip on the task's row and
-  opens in a new tab, an uploaded file via a short-lived signed URL. They resolve
-  **live**, rename or remove one on the appliance and the card follows; a deleted one
-  simply drops off.
+The `card_links` field of the `home_keeper.add_task` and `home_keeper.update_task`
+services sets the same list. Each selected document is shown as a chip on the task
+row and opens in a new tab. An uploaded file opens through a short-lived signed URL.
+If a document is renamed or removed on the appliance, the chip is updated or removed.
 
 ![Home Keeper task card showing a row with "Owner's manual", "Reorder filter" and an "Installation guide (PDF)" file chip](docs/images/card-task-links.png)
 
 ### Filter by label: one card per subject
 
-Most homes have natural "buckets" of upkeep that don't map onto a room or a single
-device: **the dog, the car, home maintenance, each kid's chores**. Tag tasks with
-Home Assistant **labels** and point a card at one (or more) of them to get a focused
-list per subject, a card for the dog, one for the car, one per kid.
+A card can be limited to tasks with a Home Assistant label. This is useful for one
+card per subject, such as the car or the dog. A task matches a label if the task has
+the label or if its attached device or area has the label.
 
-A task matches a label filter if **the task itself** carries the label or its
-**attached device or area** does. So labelling a Home Keeper *virtual appliance*
-(which is a real device under *Settings → Devices*), or any device a task is attached
-to, automatically pulls its tasks into the matching card, and a subject never has to
-be modelled as an HA area or device.
-
-How to use it:
-
-- **Tag tasks**: open a task's form (in the panel or the card) and pick one or more
-  labels in the **Labels** field. You can also set labels via the
-  `home_keeper.add_task` / `home_keeper.update_task` services.
-- **Tag devices** (optional): apply the same labels to devices/appliances in
-  *Settings → Devices* to sweep all their tasks into a card without tagging each one.
-- **Point a card at a label**: in the card editor set **Limit to labels** (with an
-  **Any/All** match mode when you list several), and optionally enable **Show labels**
-  to render each task's label chips.
+1. Open the task and select the labels in the **Labels** field. The
+   `home_keeper.add_task` and `home_keeper.update_task` services also set labels.
+2. Optional. Apply the same labels to devices or appliances in **Settings → Devices**
+   to include all their tasks.
+3. In the card editor, set **Limit to labels**. With more than 1 label, set the
+   **Any/All** match mode.
+4. Optional. Enable **Show labels** to show each task's labels on its row.
 
 ![Home Keeper card filtered to the "dog" label, showing label chips on each row](docs/images/card-label-filter.png)
 

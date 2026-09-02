@@ -81,6 +81,9 @@ keys the same as the English source (see "Translations" in
   not "The profile carries the sync".
 - Do not personify the software. It does not carry, know, want, learn, remember,
   or refuse. It supports, stores, reads, writes, adds, removes, and marks.
+- Do not describe the UI. The user can see it. Do not describe a rail, a dot, a
+  color, a layout, or how a page looks on a phone. Write what the user does and
+  what the software does in response: "Select a list in the To-do list picker."
 - Do not invent a reason for a behavior. Write what the software does today. Do
   not write why, unless the maintainer stated the reason. "Items that a user adds
   are not imported" is a fact. "Because a to-do item cannot hold a recurrence" is
