@@ -40,7 +40,7 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
   await centre(group);
   await page.mouse.move(0, 0);
   await page.waitForTimeout(500);
-  await companions.screenshot({ path: `${OUT}/21b-panel-declarative-companions-empty.png` });
+  await companions.screenshot({ path: `${OUT}/21b-panel-declarative-empty.png` });
 
   // 21c. The preset picker: one card per bundled recipe. Device Pulse is greyed out
   // and says which integration it needs, because the e2e container does not have it.
