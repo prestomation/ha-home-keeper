@@ -166,7 +166,9 @@ The copy does not include:
 
 - the completion history
 - the starting reading of a meter task
-- the NFC tag
+- the NFC tag and the require-scan setting
+- the required completion fields
+- integration-provided chips and the integration source
 
 A task that another owner manages cannot be duplicated. **Duplicate** is disabled for
 these tasks and shows the owner when pressed. This applies to:
@@ -564,7 +566,7 @@ Use **State** mode. Select the entity and the state that arms the task.
 **Automatic clearing.** Turn on **Clear when back to normal** to complete the task
 when the sensor returns to normal. A completion is recorded. If the task is
 [linked to a consumable](#link-a-task-to-a-consumable-auto-reorder), the automatic
-completion draws down 1 part. The switch is off by default.
+completion draws down the part's per-use amount. The switch is off by default.
 
 > **Difference from [problem-sensor sync](#sync-problem-binary-sensors-as-tasks).**
 > The sync creates a task for every `device_class: problem` sensor, and these tasks
@@ -617,7 +619,7 @@ appliance, or select an existing device.
   and model and serial number are prefilled from the device registry when present.
 
 An appliance has structured fields that Home Assistant reads: manufacturer and model
-and an mdi icon and a manual link and replacement cost. The **Notes** field renders
+and serial number and an mdi icon and replacement cost. The **Notes** field renders
 as [Markdown](#notes-are-markdown). **Custom fields** are a label with a value of type
 **text** or **link** or **date**. Common fields such as serial number and warranty
 expiry are seeded. Enable **track** on a date field to create a `date` **sensor** on
@@ -672,7 +674,8 @@ Each part can have 1 **attached file**, such as a receipt or a photo. Upload it 
 the part editor. Open or remove it from the same card.
 
 A part can track **spare inventory** with a *stock* count and a *reorder-at*
-threshold. A wear-item replacement uses 1 spare. When the stock drops to or below
+threshold. A wear-item replacement draws down the part's per-use amount. The default
+is 1 spare. When the stock drops to or below
 the threshold Home Keeper fires a `home_keeper_part_low_stock` event for use in an
 automation. Any task can be
 **[linked to a consumable part](#link-a-task-to-a-consumable-auto-reorder)** and a
@@ -726,8 +729,9 @@ The sync works in both directions:
 - If the part is restocked another way, the item is removed. A manual stock change
   and switching Auto-create buy task off both count.
 
-Home Keeper modifies only the items it added and does not modify a completed item.
-Clear the setting to turn the feature off.
+Home Keeper manages the items it added and an open item with the same name that
+is already on the list. A completed item is not modified. Clear the setting to turn
+the feature off.
 
 ![The Settings tab's Shopping list card, with a to-do list picked](docs/images/45-panel-settings-shopping.png)
 
@@ -1091,8 +1095,8 @@ The tab has 6 sections:
   [Profiles](#profiles-saved-filters-you-reuse-everywhere).
 - **Notifications** holds the notification configurations. See
   [Notifications](#notifications-actionable-reminders-on-your-phone).
-- **Problem sensor sync** has the sync switch and the entity, area, and label
-  exclusions. The exclusions apply only when the sync is on.
+- **Problem sensor sync** has the sync switch and the exclusions for entities and
+  devices and areas and labels. The exclusions apply only when the sync is on.
 - **Companions** lists the integrations that work with Home Keeper.
 
 ![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
@@ -1193,10 +1197,14 @@ data:
 ## Events & automations
 
 Home Keeper fires a Home Assistant bus event for every state change. Use these
-events to build automations. Tasks fire events for creation, update, completion,
-uncompletion, a completion edit, deletion, arming, and the time-based overdue and
-due-soon transitions. Spare parts fire events for low stock, out of stock, and
-restocked. Appliances fire events for creation, update, and deletion.
+events to build automations. The events are:
+
+| Object | Events |
+| --- | --- |
+| Task | created, updated, completed, uncompleted, completion edited, deleted, armed, snoozed, skipped, overdue, due soon |
+| Part | low stock, out of stock, restocked |
+| Appliance | created, updated, deleted, archived, restored |
+| Companion | connected, suggested |
 
 There are 2 ways to trigger on an event. Select a device trigger in the visual
 automation editor on a Home Keeper appliance, such as "Task became overdue" or
