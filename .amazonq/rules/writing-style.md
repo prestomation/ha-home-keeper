@@ -111,6 +111,10 @@ keys the same as the English source (see "Translations" in
   when they are in different bullets. Do not start 2 sentences in a row with the
   same word, or `StackedAnaphora` fires. The local `vale` binary misses some hits
   that CI reports, so match the regexes in `styles/ai-tells/*.yml` by hand.
+- Do not start a list item with a bold noun phrase and a colon, such as
+  "**The dashboard card**: ...". `LabelAndExplain` fires on "The X:" and "A X:".
+  Write the item as a sentence. A bold UI name followed by a colon, such as
+  "**Two-way sync**: turn this off ...", is acceptable because it has no article.
 
 ## Glossary of approved names
 
