@@ -1357,7 +1357,12 @@ export const STYLES = `
   .hk-decl-preset-name { font-weight: 500; }
   .hk-decl-preset-desc { color: var(--secondary-text-color); font-size: 0.9rem; }
   .hk-decl-preset-req { color: var(--warning-color); font-size: 0.85rem; }
-  .hk-decl-dialog-body { min-width: min(560px, 85vw); gap: 8px; }
+  /* No min-width: an ha-dialog is a fixed width (580px at its default "medium"),
+     so a body wider than that dialog's content box does not widen the dialog — it
+     overruns it. A 560px floor put every row 28px past the right padding edge, and
+     the switches on the Enabled and Auto-clear rows were clipped by the dialog's
+     own border. Fill the box instead. */
+  .hk-decl-dialog-body { width: 100%; box-sizing: border-box; gap: 8px; }
   .hk-decl-dialog-body ha-form { display: block; }
   .hk-decl-section-title {
     font-size: 0.75rem; font-weight: 600; color: var(--secondary-text-color);
