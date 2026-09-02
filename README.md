@@ -247,76 +247,49 @@ history.
 
 ## Getting around the panel
 
-<!-- vale ai-tells.ColonUsage = NO -->
-Everything lives behind three tabs: **Tasks**, **Appliances** and **Settings**.
+The panel has the tabs **Tasks**, **Appliances**, and **Settings**.
 
 ![The Tasks tab: scope pills with counts, a task row per line with its status at the end](docs/images/1-panel-task-list.png)
 
-A task row shows what it is, when it is due, and one action. How overdue it is rides
-a pill at the end of the line, and the row's left edge is coloured to match, so a
-list can be skimmed for the red ones. The filter row above sits on one line: scope
-pills carrying a count each, then the saved **Profile** and **Group by** pickers,
-then **Add task**.
+On the **Tasks** tab:
 
-**Editing opens in a drawer beside what you were reading.** Press **Edit** on a task
-or an appliance and the form opens as a column next to that page. The page stays
-readable while its values are being changed. Adding from a list opens the same drawer
-beside the list with the row being edited lit and the rest of the list receding.
-**Save** sits in a header that does not scroll away and **Delete** in a footer at the
-other end. The form is grouped into Basics, Schedule, Placement and Completion. Fields
-that a recurrence choice reveals are indented behind a rule so it is clear what they
-depend on.
+- Select a scope pill to filter the list by status.
+- Select a saved Profile in the **Profile** picker or a grouping in **Group by**.
+- Press **Add task** to create a task.
+- Press **Edit** on a task to open its form. The form has the groups Basics,
+  Schedule, Placement, and Completion. Press **Save** in the header or **Delete** in
+  the footer.
 
 ![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
 
-![Adding a task in the drawer, with the row being edited marked in the list behind it](docs/images/2-panel-create-floating.png)
-
-**An appliance is read next to the list it came from.** Its list stays as a pane on
-the left with the appliance you are looking at marked in it, and the appliance's own
-sections are sub-tabs: **Parts**, **Tasks**, **Documents**, **Details**, **Related**
-and **History**, each carrying how much it holds. Each sub-tab has an address of its
-own (`/home-keeper/appliances/<id>/documents`), so browser Back leaves a sub-tab like
-any other page and you can link straight to one.
-Editing an appliance opens beside it too, and the list pane steps aside to make room.
+On the **Appliances** tab, select an appliance to open it. An appliance has the
+sub-tabs **Parts**, **Tasks**, **Documents**, **Details**, **Related**, and
+**History**. Each sub-tab has its own URL, such as
+`/home-keeper/appliances/<id>/documents`. Press **Edit** to open the appliance form.
 
 ![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
 
-![An appliance's page with its edit form open beside it, the appliance list stepped aside to make room](docs/images/55-panel-appliance-detail-edit.png)
-
-**On a phone** the tabs move to the bottom of the screen. **Add task** turns into a
-floating button. The edit drawer becomes a full-height sheet. The scope pills come
-apart into separate chips that wrap onto a second row, so no filter ends up off the
-edge of the screen. The appliance list steps aside while you read an appliance. The
-back arrow brings it back.
-
-<p>
-  <img src="docs/images/52-panel-mobile-tasks.png" alt="The Tasks tab on a phone, with the scope pills wrapped onto two rows above the list" width="300">
-  <img src="docs/images/53-panel-mobile-appliances.png" alt="The Appliances tab on a phone" width="300">
-</p>
-<!-- vale ai-tells.ColonUsage = YES -->
-
 ### Duplicate a task
 
-Ten soil-moisture sensors, one per plant, need ten near-identical "water the flowers"
-tasks. Only the name, the sensor and the device change from one to the next. The rest
-is the same rule typed out ten times. Press **Duplicate** on the task's page and the
-create form opens already filled in with a copy.
+To create a task from a copy of another task, press **Duplicate** on the task's page.
+The create form opens with the values of the original. Change the values and press
+**Create**. Nothing is saved before **Create**.
 
-Nothing is saved until you press **Create**. Rename the copy and point it at the
-other sensor.
+The copy does not include:
+
+- the completion history
+- the starting reading of a meter task
+- the NFC tag
+
+A task that another owner manages cannot be duplicated. **Duplicate** is disabled for
+these tasks and shows the owner when pressed. This applies to:
+
+- a wear item from an appliance part
+- a synced problem sensor
+- a condition-driven task
+- a task that another integration manages
 
 ![A task's page with Duplicate beside Edit, and the create form open in the drawer prefilled with a copy](docs/images/56-panel-task-duplicate-drawer.png)
-
-The copy leaves three things behind on purpose. Its completion history starts empty,
-because none of that work happened to this task. A meter task's **starting reading**
-resets too, so the copy anchors against whatever its own sensor reads now rather than
-inheriting an anchor from another machine. The NFC tag stays with the original, since
-one sticker completes one task.
-
-Some tasks are not Home Keeper's to copy: a wear item derived from an appliance part, a
-synced problem sensor, a condition-driven task, or one another integration manages.
-Those keep a greyed-out **Duplicate**. Press it and Home Keeper says which owner drives
-the task, rather than offering a button that does nothing.
 
 ## Complete tasks with NFC/RFID tags
 
