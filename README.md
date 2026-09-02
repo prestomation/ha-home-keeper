@@ -818,9 +818,8 @@ There are 2 switches under the picker. Both are on by default.
   ignores a completed item.
 - **Treat removed items as completed**: providers such as Todoist hide
   completed items from Home Assistant. Home Keeper reads a missing item as
-  complete. Turn this off if your list reports completions correctly, such as a
-  `local_todo` list. When this switch is off, Home Keeper re-adds a deleted item on
-  the next sync.
+  complete. Turn this off if your list reports completions correctly. A
+  `local_todo` list does. Home Keeper then re-adds a deleted item on the next sync.
 
 Tasks that require an NFC or RFID tag scan still sync to the list. A remote
 completion of the item has no effect on the task, and the item returns on the next
