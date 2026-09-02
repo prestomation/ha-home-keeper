@@ -117,6 +117,8 @@ export const ANCHOR_ROUTES = {
   // The Settings section links across to the to-do list sync section (→ todo-sync page).
   '#send-tasks-to-your-to-do-lists': '/docs/guide/todo-sync',
   '#dashboard-task-card': '/docs/guide/dashboard-card',
+  // The Notifications section links across to the events section (→ events page).
+  '#events--automations': '/docs/guide/events',
   // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
   // section (→ sensor-tasks page); "Parts & wear items" under Appliances; and
   // "Sync problem binary sensors" under Condition-driven tasks (→ triggered-tasks),
