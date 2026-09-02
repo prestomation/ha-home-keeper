@@ -76,8 +76,9 @@ const TRIGGER_KEYS_BY_MODE: Record<string, readonly string[]> = {
 };
 
 /** Kept whatever the mode is. A spec's trigger normally omits `entity_id` — the
- *  reconciler stamps it per match — but it is mode-independent where it appears. */
-const TRIGGER_KEYS_ALWAYS = ['mode', 'entity_id'];
+ *  reconciler stamps it per match — but where it appears it is mode-independent.
+ *  `mode` is not listed: the rewrite always stamps the new one itself. */
+const TRIGGER_KEYS_EVERY_MODE = ['entity_id'];
 
 /** What a mode's form shows for a key it defaults rather than leaves empty. Seed the
  *  draft with the same values, or the two disagree: the State box read "on" while the
@@ -96,7 +97,7 @@ const TRIGGER_DEFAULTS: Record<string, Record<string, unknown>> = {
  * its form shows. Pure — the caller assigns the result over `draft.trigger`.
  */
 export function triggerForMode(trigger: Trigger, nextMode: string): Trigger {
-  const keep = new Set([...TRIGGER_KEYS_ALWAYS, ...(TRIGGER_KEYS_BY_MODE[nextMode] ?? [])]);
+  const keep = new Set([...TRIGGER_KEYS_EVERY_MODE, ...(TRIGGER_KEYS_BY_MODE[nextMode] ?? [])]);
   const next: Trigger = {};
   for (const [key, value] of Object.entries(trigger)) {
     if (keep.has(key)) next[key] = value;
