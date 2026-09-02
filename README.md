@@ -117,6 +117,52 @@ it) to a room. Areas are also settable from `home_keeper.add_task` /
 
 ![The Tasks tab grouped by Area, with the task under its room instead of Unassigned](docs/images/42c-panel-tasks-grouped-by-area.png)
 
+## Getting around the panel
+
+The panel has the tabs **Tasks**, **Appliances**, and **Settings**.
+
+![The Tasks tab: scope pills with counts, a task row per line with its status at the end](docs/images/1-panel-task-list.png)
+
+On the **Tasks** tab:
+
+- Select a scope pill to filter the list by status.
+- Select a saved Profile in the **Profile** picker or a grouping in **Group by**.
+- Press **Add task** to create a task.
+- Press **Edit** on a task to open its form. The form has the groups Basics,
+  Schedule, Placement, and Completion. Press **Save** in the header or **Delete** in
+  the footer.
+
+![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
+
+On the **Appliances** tab, select an appliance to open it. An appliance has the
+sub-tabs **Parts**, **Tasks**, **Documents**, **Details**, **Related**, and
+**History**. Each sub-tab has its own URL, such as
+`/home-keeper/appliances/<id>/documents`. Press **Edit** to open the appliance form.
+
+![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
+
+### Duplicate a task
+
+To create a task from a copy of another task, press **Duplicate** on the task's page.
+The create form opens with the values of the original. Change the values and press
+**Create**. Nothing is saved before **Create**.
+
+The copy does not include:
+
+- the completion history
+- the starting reading of a meter task
+- the NFC tag
+
+A task that another owner manages cannot be duplicated. **Duplicate** is disabled for
+these tasks and shows the owner when pressed. This applies to:
+
+- a wear item from an appliance part
+- a synced problem sensor
+- a condition-driven task
+- a task that another integration manages
+
+![A task's page with Duplicate beside Edit, and the create form open in the drawer prefilled with a copy](docs/images/56-panel-task-duplicate-drawer.png)
+
 ## One-off (do-once) tasks
 
 Not everything repeats. **One-off** tasks are for things you do exactly once:
@@ -244,52 +290,6 @@ appliances from the **Home Keeper** sidebar panel, and **use** them through nati
 entities and the dashboard card. The panel list view can group/filter tasks, and
 tapping any row opens a detail page with the full schedule, notes, and completion
 history.
-
-## Getting around the panel
-
-The panel has the tabs **Tasks**, **Appliances**, and **Settings**.
-
-![The Tasks tab: scope pills with counts, a task row per line with its status at the end](docs/images/1-panel-task-list.png)
-
-On the **Tasks** tab:
-
-- Select a scope pill to filter the list by status.
-- Select a saved Profile in the **Profile** picker or a grouping in **Group by**.
-- Press **Add task** to create a task.
-- Press **Edit** on a task to open its form. The form has the groups Basics,
-  Schedule, Placement, and Completion. Press **Save** in the header or **Delete** in
-  the footer.
-
-![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
-
-On the **Appliances** tab, select an appliance to open it. An appliance has the
-sub-tabs **Parts**, **Tasks**, **Documents**, **Details**, **Related**, and
-**History**. Each sub-tab has its own URL, such as
-`/home-keeper/appliances/<id>/documents`. Press **Edit** to open the appliance form.
-
-![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
-
-### Duplicate a task
-
-To create a task from a copy of another task, press **Duplicate** on the task's page.
-The create form opens with the values of the original. Change the values and press
-**Create**. Nothing is saved before **Create**.
-
-The copy does not include:
-
-- the completion history
-- the starting reading of a meter task
-- the NFC tag
-
-A task that another owner manages cannot be duplicated. **Duplicate** is disabled for
-these tasks and shows the owner when pressed. This applies to:
-
-- a wear item from an appliance part
-- a synced problem sensor
-- a condition-driven task
-- a task that another integration manages
-
-![A task's page with Duplicate beside Edit, and the create form open in the drawer prefilled with a copy](docs/images/56-panel-task-duplicate-drawer.png)
 
 ## Complete tasks with NFC/RFID tags
 
@@ -618,274 +618,6 @@ detail then shows the linked part and its current stock.
 
 ![A task detail showing its linked consumable and current spare stock](docs/images/33-panel-linked-consumable-detail.png)
 
-## Settings
-
-The **Settings** tab in the panel edits the integration options. The form matches the
-Home Assistant options flow and saves each change immediately. The same options are
-available in the options flow under **Settings → Devices & services → Configure** and
-through the `home_keeper.set_options` service.
-
-The tab has 6 sections:
-
-- **General** sets how long completed one-off tasks are kept.
-- **Shopping list** selects the to-do list that
-  [buy reminders are synced to](#send-buy-reminders-to-your-shopping-list).
-- **Profiles** holds the saved filters. See
-  [Profiles](#profiles-saved-filters-you-reuse-everywhere).
-- **Notifications** holds the notification configurations. See
-  [Notifications](#notifications-actionable-reminders-on-your-phone).
-- **Problem sensor sync** has the sync switch and the entity, area, and label
-  exclusions. The exclusions apply only when the sync is on.
-- **Companions** lists the integrations that work with Home Keeper.
-
-![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
-
-### Companions
-
-A companion is an integration that works with Home Keeper. Examples are a pet-care
-tracker that creates recurring tasks and a glue integration that turns a low battery
-into a replacement task. The **Companions** section at the end of the Settings tab
-lists them in 2 groups:
-
-- **Connected** lists the companions that registered themselves with Home Keeper.
-  Examples are [Pawsistant](https://github.com/prestomation/pawsistant) and the
-  [Battery Notes glue integration](https://github.com/prestomation/ha-home-keeper-battery-notes).
-  Each row has a **Configure** button that opens the companion's own page.
-- **Suggested** lists popular integrations that Home Keeper detects from a catalog
-  and that have no glue integration installed. An example is **Battery Notes**. Each
-  row has an **Install** link and a **Dismiss** button.
-
-To add a companion or a [glue integration](docs/GLUE_INTEGRATIONS.md) to the catalog,
-[open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20).
-
-![The Companions section on the Settings tab: connected integrations with Configure buttons](docs/images/21-panel-companions.png)
-
-## Profiles (saved filters you reuse everywhere)
-
-Home Keeper supports saving a filter as a **Profile**. A Profile has a status tier and
-optional **label**, **area**, and **device** filters. Create and edit Profiles in
-**Settings → Profiles**.
-
-A Profile is used in 4 places:
-
-- A notification selects a Profile to designate which tasks are sent.
-- A to-do list sync uses a Profile to designate which tasks are synchronized.
-- The **Profile** dropdown on the **Tasks** tab filters the task list in the panel.
-- The **Filter by profile** option in the card editor filters the dashboard card.
-
-### Status tiers
-
-The **Include** setting has 3 tiers. Each tier includes the tiers before it:
-
-- **Overdue only**: overdue tasks.
-- **Overdue and due soon**: overdue tasks and tasks that are due in the next 3 days.
-- **Every scheduled task**: all scheduled tasks.
-
-### Exclusions
-
-**Exclude labels**, **Exclude areas**, and **Exclude devices** remove tasks from the
-Profile. An exclusion takes precedence over the include filters. Nothing is removed
-if the exclusion is empty. This is useful for a Profile of all tasks except the tasks with one
-label, such as `professional`.
-
-Exclusions apply to inherited labels and areas. A task that has the `professional`
-label through its device or its area is also excluded.
-
-### Synced problem sensors
-
-A task synced from a [`problem` binary sensor](#sync-problem-binary-sensors-as-tasks)
-is included in a Profile while its sensor reports a problem. A notification for this
-task shows **Snooze** instead of **Mark done** and **Skip**.
-
-![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
-
-![The Tasks tab filtered to a saved Profile via the Profile dropdown](docs/images/23-panel-profile-filter.png)
-
-## Send tasks to your to-do lists
-
-Home Keeper supports synchronizing the tasks from a
-[Profile](#profiles-saved-filters-you-reuse-everywhere) to any `todo` entity. This
-is useful for tracking these tasks in an external to-do system that is separately
-integrated into your Home Assistant setup, such as Google Tasks, Todoist, or CalDAV.
-
-### Configuration
-
-Open **Settings → Profiles** and expand the profile. In the **Sync to a to-do list**
-group, select a list in the **To-do list** picker. The profile's tasks are then added
-to that list. Clear the picker to stop the sync. Home Keeper then removes the
-profile's open items from the list.
-
-The profile designates which tasks are synchronized to the configured to-do list.
-The profile's filters select the tasks. The profile's **Include** tier sets when a
-task is added to the list:
-
-- **Overdue only**: when the task becomes due.
-- **Overdue and due soon**: 3 days before the task becomes due.
-- **Every scheduled task**: as soon as the task is scheduled.
-
-One profile synchronizes to one list. Configure a profile per list, such as a
-profile per child with a different list in each.
-
-### Two-way sync
-
-Synchronization works in both directions:
-
-- If an item is marked complete on the to-do list, Home Keeper completes the task
-  and records the completion in the task's history. A recurring task is rescheduled
-  and a new item is added when the task next becomes due. The completed item
-  remains on the list.
-- If a task is completed in Home Keeper, the item is marked complete on the list.
-- If a task no longer matches the profile or is rescheduled or disabled, Home
-  Keeper removes its open item from the list.
-
-Items include the task's due date and notes if the list supports these fields.
-Home Keeper modifies only the items it added and does not modify an item that is
-already complete.
-
-Items that a user adds to the list are not imported into Home Keeper. Only the
-completion state is read back from the list.
-
-Tasks that require an NFC or RFID tag scan are synchronized, but a completion on the
-to-do list does not complete the task. The item is re-added on the next sync.
-
-### Options
-
-2 switches are under the picker. Both are on by default.
-
-- **Two-way sync**: turn this off for a display-only list. Completions on the list
-  are then ignored.
-- **Treat removed items as completed**: some providers such as Todoist hide
-  completed items from Home Assistant. With this switch on a removed item is treated
-  as complete. Turn it off if the list reports completions correctly. A `local_todo`
-  list does. A removed item is then re-added on the next sync.
-
-### CalDAV and Nextcloud
-
-CalDAV lists such as Nextcloud, Baikal, and Radicale are supported. Home Assistant
-polls a CalDAV server every 15 minutes, so a completion on the server can take up to
-15 minutes to reach Home Keeper.
-
-In Nextcloud, select a task list. The default **Personal** calendar contains only
-events and is not exposed as a `todo` entity.
-
-![A Profile's Sync to a to-do list group, with the list it syncs onto picked](docs/images/47-panel-profile-sync.png)
-
-![A synced task with its due date on a to-do list card](docs/images/48-todo-sync-synced-task.png)
-
-<!-- vale ai-tells.OverusedVocabulary = NO -->
-## Notifications (actionable reminders on your phone)
-<!-- vale ai-tells.OverusedVocabulary = YES -->
-
-Home Keeper supports sending a mobile-app notification for due tasks, with the
-action buttons **Mark done**, **Snooze**, **Skip**, and **Open**. This is useful
-for completing a task from the phone lock screen and for sending each user the
-tasks from their own profile. The buttons act on the task in Home Keeper:
-
-- **Mark done** completes the task and advances the recurrence.
-- **Snooze** defers the due date by the configured snooze duration.
-- **Skip** moves the task to its next occurrence.
-- **Open** opens the task in Home Keeper.
-
-### Configuration
-
-Configure notifications in **Settings → Notifications**. Each notification has these
-fields:
-
-- **Profile**: the [Profile](#profiles-saved-filters-you-reuse-everywhere) that
-  selects the tasks. All due tasks are included if no profile is set.
-- **Send to**: one or more `mobile_app_*` companion-app devices selected from a
-  list. Only these devices and `persistent_notification` are supported as targets.
-  Other notify services are not supported.
-- **Buttons**: which of the 4 buttons are shown and the snooze duration.
-- **Style**: **walk** or **digest**. A walk sends the first due task. Each Mark done,
-  Snooze, or Skip then sends the next due task. When no task is due the walk sends
-  an "All caught up" notification. The digest style sends one summary of all due
-  tasks.
-- **Auto-send**: send the notification when a matching task becomes overdue or
-  due soon.
-
-### Language
-
-The button labels and the notification text are localized to the language that is
-configured for the Home Assistant instance in **Settings → System → General**. The
-setting is instance-wide, so every user receives notifications in the same
-language.
-
-### Automations
-
-With **Auto-send** on, a notification is sent when a task in the profile becomes
-overdue or due soon. Use a Home Assistant automation for more control over when
-notifications are sent. Send only when a person is at home, or send during a "Chore
-time" calendar event.
-
-The `home_keeper.notify` service sends a notification from an automation. Set
-`notification:` to a saved notification or `profile:` to a saved Profile. Set
-`target:` to override the destinations. The button actions fire events that other
-automations can use. See [Events & automations](#events--automations).
-
-![The Settings → Notifications card with a "My chores" profile: targets, filter, buttons, style, snooze and auto-send toggles](docs/images/22-panel-notifications.png)
-
-## Dashboard task card
-
-Home Keeper supports a dashboard card, **Home Keeper Tasks** (`custom:home-keeper-card`),
-that lists tasks and completes them with a **Done** button. This is useful for a task
-list on a dashboard or a wall tablet. The card resource is registered automatically.
-To add the card, select **Home Keeper Tasks** in the dashboard **Add card** picker.
-
-From the card, a user can:
-
-- complete a task with **Done**
-- add a task with the **+** button in the header
-- open the document links that a task shows
-
-Editing and deletion of a task are supported only in the panel.
-
-The card editor has these options:
-
-- Filter by status, area, device, label, recurrence type, a "due within N days"
-  window, or a saved [Profile](#profiles-saved-filters-you-reuse-everywhere).
-- Sort and group the tasks, and limit the number of rows.
-- Select what each row shows.
-- **Hide card when empty** removes the card from the dashboard when the filter matches
-  no task. Without it the card shows "No tasks match this filter."
-
-A completion made in the panel or on another surface is shown on the card immediately.
-
-![Home Keeper task card grouped into status sections](docs/images/card-grouped.png)
-
-### Show a task's appliance documents on the card
-
-A task that is attached to an [appliance](#appliances--virtual-devices) can show the
-appliance's documents on its row. This includes document links and uploaded files
-and metadata links. Nothing is shown by default.
-
-1. Open the task in the panel editor.
-2. In **Links to show on card**, select the documents. The field is shown only if the
-   appliance has at least 1 document.
-
-The `card_links` field of the `home_keeper.add_task` and `home_keeper.update_task`
-services sets the same list. Each selected document is shown as a chip on the task
-row and opens in a new tab. An uploaded file opens through a short-lived signed URL.
-If a document is renamed or removed on the appliance, the chip is updated or removed.
-
-![Home Keeper task card showing a row with "Owner's manual", "Reorder filter" and an "Installation guide (PDF)" file chip](docs/images/card-task-links.png)
-
-### Filter by label: one card per subject
-
-A card can be limited to tasks with a Home Assistant label. This is useful for one
-card per subject, such as the car or the dog. A task matches a label if the task has
-the label or if its attached device or area has the label.
-
-1. Open the task and select the labels in the **Labels** field. The
-   `home_keeper.add_task` and `home_keeper.update_task` services also set labels.
-2. Optional. Apply the same labels to devices or appliances in **Settings → Devices**
-   to include all their tasks.
-3. In the card editor, set **Limit to labels**. With more than 1 label, set the
-   **Any/All** match mode.
-4. Optional. Enable **Show labels** to show each task's labels on its row.
-
-![Home Keeper card filtered to the "dog" label, showing label chips on each row](docs/images/card-label-filter.png)
-
 ## Appliances & virtual devices
 
 Most appliances you actually maintain (a "dumb" fridge, furnace, or water heater)
@@ -1138,6 +870,274 @@ integrations HA won't let us reparent), which show up alongside the appliance.
 > expiry and an *Anode rod* **wear item** set to "replace every 12 months." The water
 > heater now has its own device page with a warranty-expiry sensor, plus an automatic
 > *"Replace Anode rod"* to-do that's due 12 months after each completion.
+
+## Profiles (saved filters you reuse everywhere)
+
+Home Keeper supports saving a filter as a **Profile**. A Profile has a status tier and
+optional **label**, **area**, and **device** filters. Create and edit Profiles in
+**Settings → Profiles**.
+
+A Profile is used in 4 places:
+
+- A notification selects a Profile to designate which tasks are sent.
+- A to-do list sync uses a Profile to designate which tasks are synchronized.
+- The **Profile** dropdown on the **Tasks** tab filters the task list in the panel.
+- The **Filter by profile** option in the card editor filters the dashboard card.
+
+### Status tiers
+
+The **Include** setting has 3 tiers. Each tier includes the tiers before it:
+
+- **Overdue only**: overdue tasks.
+- **Overdue and due soon**: overdue tasks and tasks that are due in the next 3 days.
+- **Every scheduled task**: all scheduled tasks.
+
+### Exclusions
+
+**Exclude labels**, **Exclude areas**, and **Exclude devices** remove tasks from the
+Profile. An exclusion takes precedence over the include filters. Nothing is removed
+if the exclusion is empty. This is useful for a Profile of all tasks except the tasks with one
+label, such as `professional`.
+
+Exclusions apply to inherited labels and areas. A task that has the `professional`
+label through its device or its area is also excluded.
+
+### Synced problem sensors
+
+A task synced from a [`problem` binary sensor](#sync-problem-binary-sensors-as-tasks)
+is included in a Profile while its sensor reports a problem. A notification for this
+task shows **Snooze** instead of **Mark done** and **Skip**.
+
+![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
+
+![The Tasks tab filtered to a saved Profile via the Profile dropdown](docs/images/23-panel-profile-filter.png)
+
+## Send tasks to your to-do lists
+
+Home Keeper supports synchronizing the tasks from a
+[Profile](#profiles-saved-filters-you-reuse-everywhere) to any `todo` entity. This
+is useful for tracking these tasks in an external to-do system that is separately
+integrated into your Home Assistant setup, such as Google Tasks, Todoist, or CalDAV.
+
+### Configuration
+
+Open **Settings → Profiles** and expand the profile. In the **Sync to a to-do list**
+group, select a list in the **To-do list** picker. The profile's tasks are then added
+to that list. Clear the picker to stop the sync. Home Keeper then removes the
+profile's open items from the list.
+
+The profile designates which tasks are synchronized to the configured to-do list.
+The profile's filters select the tasks. The profile's **Include** tier sets when a
+task is added to the list:
+
+- **Overdue only**: when the task becomes due.
+- **Overdue and due soon**: 3 days before the task becomes due.
+- **Every scheduled task**: as soon as the task is scheduled.
+
+One profile synchronizes to one list. Configure a profile per list, such as a
+profile per child with a different list in each.
+
+### Two-way sync
+
+Synchronization works in both directions:
+
+- If an item is marked complete on the to-do list, Home Keeper completes the task
+  and records the completion in the task's history. A recurring task is rescheduled
+  and a new item is added when the task next becomes due. The completed item
+  remains on the list.
+- If a task is completed in Home Keeper, the item is marked complete on the list.
+- If a task no longer matches the profile or is rescheduled or disabled, Home
+  Keeper removes its open item from the list.
+
+Items include the task's due date and notes if the list supports these fields.
+Home Keeper modifies only the items it added and does not modify an item that is
+already complete.
+
+Items that a user adds to the list are not imported into Home Keeper. Only the
+completion state is read back from the list.
+
+Tasks that require an NFC or RFID tag scan are synchronized, but a completion on the
+to-do list does not complete the task. The item is re-added on the next sync.
+
+### Options
+
+2 switches are under the picker. Both are on by default.
+
+- **Two-way sync**: turn this off for a display-only list. Completions on the list
+  are then ignored.
+- **Treat removed items as completed**: some providers such as Todoist hide
+  completed items from Home Assistant. With this switch on a removed item is treated
+  as complete. Turn it off if the list reports completions correctly. A `local_todo`
+  list does. A removed item is then re-added on the next sync.
+
+### CalDAV and Nextcloud
+
+CalDAV lists such as Nextcloud, Baikal, and Radicale are supported. Home Assistant
+polls a CalDAV server every 15 minutes, so a completion on the server can take up to
+15 minutes to reach Home Keeper.
+
+In Nextcloud, select a task list. The default **Personal** calendar contains only
+events and is not exposed as a `todo` entity.
+
+![A Profile's Sync to a to-do list group, with the list it syncs onto picked](docs/images/47-panel-profile-sync.png)
+
+![A synced task with its due date on a to-do list card](docs/images/48-todo-sync-synced-task.png)
+
+<!-- vale ai-tells.OverusedVocabulary = NO -->
+## Notifications (actionable reminders on your phone)
+<!-- vale ai-tells.OverusedVocabulary = YES -->
+
+Home Keeper supports sending a mobile-app notification for due tasks, with the
+action buttons **Mark done**, **Snooze**, **Skip**, and **Open**. This is useful
+for completing a task from the phone lock screen and for sending each user the
+tasks from their own profile. The buttons act on the task in Home Keeper:
+
+- **Mark done** completes the task and advances the recurrence.
+- **Snooze** defers the due date by the configured snooze duration.
+- **Skip** moves the task to its next occurrence.
+- **Open** opens the task in Home Keeper.
+
+### Configuration
+
+Configure notifications in **Settings → Notifications**. Each notification has these
+fields:
+
+- **Profile**: the [Profile](#profiles-saved-filters-you-reuse-everywhere) that
+  selects the tasks. All due tasks are included if no profile is set.
+- **Send to**: one or more `mobile_app_*` companion-app devices selected from a
+  list. Only these devices and `persistent_notification` are supported as targets.
+  Other notify services are not supported.
+- **Buttons**: which of the 4 buttons are shown and the snooze duration.
+- **Style**: **walk** or **digest**. A walk sends the first due task. Each Mark done,
+  Snooze, or Skip then sends the next due task. When no task is due the walk sends
+  an "All caught up" notification. The digest style sends one summary of all due
+  tasks.
+- **Auto-send**: send the notification when a matching task becomes overdue or
+  due soon.
+
+### Language
+
+The button labels and the notification text are localized to the language that is
+configured for the Home Assistant instance in **Settings → System → General**. The
+setting is instance-wide, so every user receives notifications in the same
+language.
+
+### Automations
+
+With **Auto-send** on, a notification is sent when a task in the profile becomes
+overdue or due soon. Use a Home Assistant automation for more control over when
+notifications are sent. Send only when a person is at home, or send during a "Chore
+time" calendar event.
+
+The `home_keeper.notify` service sends a notification from an automation. Set
+`notification:` to a saved notification or `profile:` to a saved Profile. Set
+`target:` to override the destinations. The button actions fire events that other
+automations can use. See [Events & automations](#events--automations).
+
+![The Settings → Notifications card with a "My chores" profile: targets, filter, buttons, style, snooze and auto-send toggles](docs/images/22-panel-notifications.png)
+
+## Dashboard task card
+
+Home Keeper supports a dashboard card, **Home Keeper Tasks** (`custom:home-keeper-card`),
+that lists tasks and completes them with a **Done** button. This is useful for a task
+list on a dashboard or a wall tablet. The card resource is registered automatically.
+To add the card, select **Home Keeper Tasks** in the dashboard **Add card** picker.
+
+From the card, a user can:
+
+- complete a task with **Done**
+- add a task with the **+** button in the header
+- open the document links that a task shows
+
+Editing and deletion of a task are supported only in the panel.
+
+The card editor has these options:
+
+- Filter by status, area, device, label, recurrence type, a "due within N days"
+  window, or a saved [Profile](#profiles-saved-filters-you-reuse-everywhere).
+- Sort and group the tasks, and limit the number of rows.
+- Select what each row shows.
+- **Hide card when empty** removes the card from the dashboard when the filter matches
+  no task. Without it the card shows "No tasks match this filter."
+
+A completion made in the panel or on another surface is shown on the card immediately.
+
+![Home Keeper task card grouped into status sections](docs/images/card-grouped.png)
+
+### Show a task's appliance documents on the card
+
+A task that is attached to an [appliance](#appliances--virtual-devices) can show the
+appliance's documents on its row. This includes document links and uploaded files
+and metadata links. Nothing is shown by default.
+
+1. Open the task in the panel editor.
+2. In **Links to show on card**, select the documents. The field is shown only if the
+   appliance has at least 1 document.
+
+The `card_links` field of the `home_keeper.add_task` and `home_keeper.update_task`
+services sets the same list. Each selected document is shown as a chip on the task
+row and opens in a new tab. An uploaded file opens through a short-lived signed URL.
+If a document is renamed or removed on the appliance, the chip is updated or removed.
+
+![Home Keeper task card showing a row with "Owner's manual", "Reorder filter" and an "Installation guide (PDF)" file chip](docs/images/card-task-links.png)
+
+### Filter by label: one card per subject
+
+A card can be limited to tasks with a Home Assistant label. This is useful for one
+card per subject, such as the car or the dog. A task matches a label if the task has
+the label or if its attached device or area has the label.
+
+1. Open the task and select the labels in the **Labels** field. The
+   `home_keeper.add_task` and `home_keeper.update_task` services also set labels.
+2. Optional. Apply the same labels to devices or appliances in **Settings → Devices**
+   to include all their tasks.
+3. In the card editor, set **Limit to labels**. With more than 1 label, set the
+   **Any/All** match mode.
+4. Optional. Enable **Show labels** to show each task's labels on its row.
+
+![Home Keeper card filtered to the "dog" label, showing label chips on each row](docs/images/card-label-filter.png)
+
+## Settings
+
+The **Settings** tab in the panel edits the integration options. The form matches the
+Home Assistant options flow and saves each change immediately. The same options are
+available in the options flow under **Settings → Devices & services → Configure** and
+through the `home_keeper.set_options` service.
+
+The tab has 6 sections:
+
+- **General** sets how long completed one-off tasks are kept.
+- **Shopping list** selects the to-do list that
+  [buy reminders are synced to](#send-buy-reminders-to-your-shopping-list).
+- **Profiles** holds the saved filters. See
+  [Profiles](#profiles-saved-filters-you-reuse-everywhere).
+- **Notifications** holds the notification configurations. See
+  [Notifications](#notifications-actionable-reminders-on-your-phone).
+- **Problem sensor sync** has the sync switch and the entity, area, and label
+  exclusions. The exclusions apply only when the sync is on.
+- **Companions** lists the integrations that work with Home Keeper.
+
+![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
+
+### Companions
+
+A companion is an integration that works with Home Keeper. Examples are a pet-care
+tracker that creates recurring tasks and a glue integration that turns a low battery
+into a replacement task. The **Companions** section at the end of the Settings tab
+lists them in 2 groups:
+
+- **Connected** lists the companions that registered themselves with Home Keeper.
+  Examples are [Pawsistant](https://github.com/prestomation/pawsistant) and the
+  [Battery Notes glue integration](https://github.com/prestomation/ha-home-keeper-battery-notes).
+  Each row has a **Configure** button that opens the companion's own page.
+- **Suggested** lists popular integrations that Home Keeper detects from a catalog
+  and that have no glue integration installed. An example is **Battery Notes**. Each
+  row has an **Install** link and a **Dismiss** button.
+
+To add a companion or a [glue integration](docs/GLUE_INTEGRATIONS.md) to the catalog,
+[open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20).
+
+![The Companions section on the Settings tab: connected integrations with Configure buttons](docs/images/21-panel-companions.png)
 
 ## Services
 
