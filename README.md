@@ -814,9 +814,9 @@ that is already marked complete.
 
 There are 2 switches under the picker. Both are on by default.
 
-- **Two-way sync**: turn this off for a display-only list, and a completed item
-  then has no effect on the task.
-- **Treat removed items as completed**: some providers, such as Todoist, hide
+- **Two-way sync**: turn this off for a display-only list. Home Keeper then
+  ignores a completed item.
+- **Treat removed items as completed**: providers such as Todoist hide
   completed items from Home Assistant. Home Keeper reads a missing item as
   complete. Turn this off if your list reports completions correctly, such as a
   `local_todo` list. When this switch is off, Home Keeper re-adds a deleted item on
