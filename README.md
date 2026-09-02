@@ -746,7 +746,7 @@ label through its device or its area is also excluded.
 
 A task synced from a [`problem` binary sensor](#sync-problem-binary-sensors-as-tasks)
 is included in a Profile while its sensor reports a problem. A notification for this
-task shows **Snooze** instead of **Mark done**.
+task shows **Snooze** instead of **Mark done** and **Skip**.
 
 ![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
 
