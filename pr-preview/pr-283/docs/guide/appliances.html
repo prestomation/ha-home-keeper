@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Appliances | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-283/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-283/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-283/docs/guide/appliances"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Appliances | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports appliances for maintenance tasks and warranty records on"><meta data-rh="true" property="og:description" content="Home Keeper supports appliances for maintenance tasks and warranty records on"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-283/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-283/docs/guide/appliances"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-283/docs/guide/appliances" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-283/docs/guide/appliances" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Appliances","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-283/docs/guide/appliances"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-283/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-283/assets/js/runtime~main.7ae38b1e.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-283/assets/js/runtime~main.cd12a31e.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-283/assets/js/main.cea73f88.js" defer="defer"></script>
 </head>
 <body>
@@ -98,12 +98,11 @@ the to-do list and in the panel. Only 1 buy task exists while the stock is low.<
 default is 1. Set the restock quantity high enough to lift the stock above the
 threshold. If the stock stays at or below the threshold, the reminder remains.</p>
 <p>A buy task has no due date, and a task with no due date is due immediately. Before
-version 0.20, the buy task was shown in the Overdue section with the same red pill as
-late maintenance. The buy task now has a <strong>Shopping</strong> section of its own, on the Tasks
-tab and on the <a class="" href="/ha-home-keeper/pr-preview/pr-283/docs/guide/dashboard-card">dashboard card</a>. Its pill reads <strong>Low stock</strong> in
-the warning colour. The counts do not change. The scope pills, the overdue
-<code>binary_sensor</code> of the task, and a saved Profile all still count the buy task as
-overdue.</p>
+version 0.20, the buy task was shown in the Overdue section with the overdue
+maintenance tasks. The buy task now has a <strong>Shopping</strong> section of its own, on the
+Tasks tab and on the <a class="" href="/ha-home-keeper/pr-preview/pr-283/docs/guide/dashboard-card">dashboard card</a>. Its status reads
+<strong>Low stock</strong>. The scope pills, the overdue <code>binary_sensor</code> of the task, and a saved
+Profile all still count the buy task as overdue.</p>
 <p><img decoding="async" loading="lazy" alt="A part editor with Auto-create buy task enabled and a Restock quantity field" src="/ha-home-keeper/pr-preview/pr-283/assets/images/39-panel-part-auto-buy-88c6a1e4536d8e48f1c485d73af24543.png" width="440" height="720" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="send-buy-reminders-to-your-shopping-list">Send buy reminders to your shopping list<a href="#send-buy-reminders-to-your-shopping-list" class="hash-link" aria-label="Direct link to Send buy reminders to your shopping list" title="Direct link to Send buy reminders to your shopping list" translate="no">​</a></h4>
 <p>Select a to-do list in <strong>Settings → Shopping list</strong>. Every auto-created
