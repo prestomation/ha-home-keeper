@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-287/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-287/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-287/assets/js/runtime~main.29677d09.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-287/assets/js/runtime~main.beda013d.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-287/assets/js/main.180ceefe.js" defer="defer"></script>
 </head>
 <body>
@@ -17,43 +17,11 @@ versioning, with PEP 440 pre-release suffixes (<code>bN</code>/<code>aN</code>/<
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0200b3">[0.20.0b3]<a href="#0200b3" class="hash-link" aria-label="Direct link to [0.20.0b3]" title="Direct link to [0.20.0b3]" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added">Added<a href="#added" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
 <ul>
-<li class="">
-<p><strong>Declarative companions: task-per-entity recipes without a separate integration.</strong>
-A companion for Home Keeper used to mean a hand-coded glue integration in a separate
-repo (Battery Notes is the reference). A <strong>declarative companion</strong> is a recipe you
-configure from the panel. You point it at a target integration (or use an entity id
-regex), pick a trigger mode (usage, threshold, state, or the new <strong>availability</strong>),
-and provide a Jinja template for the task name and notes. Home Keeper
-then materializes one managed sensor task per matching entity, one to check
-when a battery goes low, one to update firmware when the update entity flips on,
-one per Nest Hub that Device Pulse reports as failing pings, and so on.
-Tasks live in the same to-do, calendar, and device-page surfaces as any hand-created
-task, complete auto-clearing when the condition recovers, and survive entity renames
-(dedupe is on <code>entity_registry_id</code>, not <code>entity_id</code>).</p>
-<p>Bundled presets include <strong>Device Pulse</strong> (targets studiobts/home-assistant-device-pulse&#x27;s
-per-device ping sensors, requires the integration), <strong>Low battery</strong> (device_class
-battery, works alongside the Battery Notes glue), and <strong>Firmware update available</strong>
-(update domain, covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab in one recipe).
-Open Settings → Companions → <em>Add from preset</em>, review the seeded form, save. The
-Add dialog has a live-preview panel that shows how many entities match and what
-the first ten task names will render as, with a soft warning at &gt;50 matches and a
-hard 500-match cap so a runaway regex can&#x27;t fan out silently.</p>
-<p>A new <code>availability</code> sensor mode arms when an entity is <code>unavailable</code>/<code>unknown</code> for
-a hold interval. It inverts the &quot;no reading = do nothing&quot; policy of the other three
-modes, so this is the arm signal rather than something to skip. Baseline-safe: an entity
-that starts life unavailable does NOT arm a fresh task. No bundled preset uses
-availability today. The mode exists for user-authored companions (&quot;task me when
-my ZHA devices go offline&quot;) and covers the &quot;useful without a specific integration&quot;
-case from the issue.</p>
-<p>Fully scripted via services: <code>add_declarative_companion</code>, <code>update_declarative_companion</code>,
-<code>delete_declarative_companion</code>, <code>list_declarative_companions</code> (admin-only), plus
-matching WebSocket commands and a read-only <code>preview_declarative_companion</code> the
-panel uses for the live-preview poll. Spec CRUD also fires
-<code>home_keeper_declarative_companion_added</code> / <code>_updated</code> / <code>_removed</code> bus events.
-The managed tasks themselves emit the ordinary <code>home_keeper_task_*</code> events, so
-automations that already listen there just work. See docs/INTEGRATING.md and
-docs/EVENTS.md. (Fixes #231)</p>
-</li>
+<li class=""><strong>Declarative companions: task-per-entity recipes without a separate integration.</strong>
+A user configures a recipe in Settings → Companions, or starts from a bundled
+preset such as Device Pulse, Low battery and Firmware update available, and Home
+Keeper opens one task per matching entity after a live preview of the matches.
+(Fixes #231) (Fixes #230)</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0200b2">[0.20.0b2]<a href="#0200b2" class="hash-link" aria-label="Direct link to [0.20.0b2]" title="Direct link to [0.20.0b2]" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added-1">Added<a href="#added-1" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
