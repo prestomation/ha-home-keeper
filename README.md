@@ -762,7 +762,7 @@ integration can decide the problem is dealt with.
 
 ## Send tasks to your to-do lists
 
-A task that exists only in Home Keeper is easy to forget. A
+Tasks that exist only in Home Keeper are easy to forget, so a
 [Profile](#profiles-saved-filters-you-reuse-everywhere) syncs its tasks onto a
 to-do list that the household already uses. Any `todo` entity works:
 
@@ -814,16 +814,16 @@ that is already marked complete.
 
 There are 2 switches under the picker. Both are on by default.
 
-- **Two-way sync**: turn this off for a display-only list. When this switch is
-  off, a completed item does not complete the task.
+- **Two-way sync**: turn this off for a display-only list, and a completed item
+  then has no effect on the task.
 - **Treat removed items as completed**: some providers, such as Todoist, hide
   completed items from Home Assistant. Home Keeper reads a missing item as
   complete. Turn this off if your list reports completions correctly, such as a
   `local_todo` list. When this switch is off, Home Keeper re-adds a deleted item on
   the next sync.
 
-A task that requires an NFC or RFID tag scan still syncs to the list. A remote
-completion of its item has no effect on the task, and the item returns on the next
+Tasks that require an NFC or RFID tag scan still sync to the list. A remote
+completion of the item has no effect on the task, and the item returns on the next
 sync. The scan is the requirement.
 
 An item that a user adds to the list never becomes a Home Keeper task. The sync
