@@ -802,9 +802,7 @@ Home Keeper modifies only the items it added and does not modify an item that is
 already complete.
 
 Items that a user adds to the list are not imported into Home Keeper. Only the
-completion state is read back from the list. A Home Keeper task has a recurrence
-schedule and a completion history and can be attached to a device. A to-do item
-has none of these.
+completion state is read back from the list.
 
 Tasks that require an NFC or RFID tag scan are synchronized, but a completion on the
 to-do list does not complete the task. The item is re-added on the next sync.
@@ -829,13 +827,6 @@ polls a CalDAV server every 15 minutes, so a completion on the server can take u
 In Nextcloud, select a task list. The default **Personal** calendar contains only
 events and is not exposed as a `todo` entity.
 
-### Todoist
-
-Install the Home Assistant
-[Todoist integration](https://www.home-assistant.io/integrations/todoist/) and
-configure it with your Todoist API token. Each Todoist project is then exposed as a
-`todo` entity. Select the project's entity in the profile's **To-do list** picker.
-
 ![A Profile's Sync to a to-do list group, with the list it syncs onto picked](docs/images/47-panel-profile-sync.png)
 
 ![A synced task with its due date on a to-do list card](docs/images/48-todo-sync-synced-task.png)
@@ -844,48 +835,53 @@ configure it with your Todoist API token. Each Todoist project is then exposed a
 ## Notifications (actionable reminders on your phone)
 <!-- vale ai-tells.OverusedVocabulary = YES -->
 
-Home Keeper can push a **mobile-app notification** for what's due, with tappable
-buttons (**Mark done**, **Snooze**, **Skip**, **Open**) that route straight back into
-Home Keeper. Because the action lands inside the integration, it **recalculates the
-schedule correctly**. Completing advances the recurrence. Snoozing defers the due date
-and re-arms a fresh reminder. Skipping moves it to the next occurrence. A generic
-reminder automation can't do any of that, because it doesn't know your intervals.
+Home Keeper supports sending a mobile-app notification for due tasks, with the
+action buttons **Mark done**, **Snooze**, **Skip**, and **Open**. This is useful
+for completing a task from the phone lock screen and for sending each user the
+tasks from their own profile. The buttons act on the task in Home Keeper:
 
-**Use cases.** *"Nudge me the moment a chore goes overdue, and let me clear it from the
-lock screen."* *"Every evening my **Chores** calendar event fires an automation that asks
-Home Keeper what's on my list: it sends the first task, and as I tap **Done** the next
-one arrives."* *"My partner and I each get our **own** filtered chore list on our own
-phones."*
+- **Mark done** completes the task and advances the recurrence.
+- **Snooze** defers the due date by the configured duration and sends a new
+  notification when the snooze ends.
+- **Skip** moves the task to its next occurrence.
+- **Open** opens the task in Home Keeper.
 
-**How it's used.** Configure **notifications** in **Settings → Notifications**. Each
-notification is a delivery config with:
+### Configuration
 
-- **Profile**: the saved [Profile](#profiles-saved-filters-you-reuse-everywhere) whose
-  filter decides which tasks this notification covers (leave it unset to cover every due
-  task).
-- **Send to**: one or more `mobile_app_*` companion-app devices (picked from a live
-  list). Those and `persistent_notification` are the destinations Home Keeper will
-  send to; other notify services are refused (see
-  [the security model](docs/SECURITY.md)).
-- **Buttons**: which of *Mark done / Snooze / Skip / Open* appear, and the snooze
-  duration.
-- **Style**: a **walk** (sends the first due task, then the next each time you action
-  one) or a single **digest** summary.
-- **Auto-send**: fire automatically when a matching task becomes overdue / due-soon.
+Configure notifications in **Settings → Notifications**. Each notification has these
+fields:
 
-The action buttons and notification text (overdue/due-soon phrasing, the digest
-summary, "All caught up") are localized to your **Home Assistant instance's
-configured language** (Settings → System → General). This is instance-wide, not
-per-user. If your household has members using HA in different languages, everyone
-gets notifications in the same language.
+- **Profile**: the [Profile](#profiles-saved-filters-you-reuse-everywhere) that
+  selects the tasks. All due tasks are included if no profile is set.
+- **Send to**: one or more `mobile_app_*` companion-app devices selected from a
+  list. Only these devices and `persistent_notification` are supported as targets.
+  Other notify services are rejected. See [the security model](docs/SECURITY.md).
+- **Buttons**: which of the 4 buttons are shown and the snooze duration.
+- **Style**: **walk** or **digest**. A walk sends the first due task and then the
+  next task each time a button is used. The digest style sends one summary of all
+  due tasks.
+- **Auto-send**: send the notification when a matching task becomes overdue or
+  due soon.
 
-Trigger a notification on demand from any automation with the **`home_keeper.notify`**
-service (`notification:` a saved notification, or `profile:` a saved Profile, optionally
-with a `target:` override). It returns how many tasks matched and which was sent. The
-button taps and the standalone
-`home_keeper.snooze_task` / `home_keeper.skip_task` services all emit events
-(`home_keeper_task_completed` / `_snoozed` / `_skipped`) carrying
-`origin: home_keeper_notification_action`, so other automations can react.
+### Language
+
+The button labels and the notification text are localized to the language that is
+configured for the Home Assistant instance in **Settings → System → General**. The
+setting is instance-wide, so every user receives notifications in the same
+language.
+
+### Automations
+
+The `home_keeper.notify` service sends a notification from an automation. Set
+`notification:` to a saved notification or `profile:` to a saved Profile. Set
+`target:` to override the destinations. The service returns the number of matched
+tasks and the task that was sent.
+
+A button action fires the event `home_keeper_task_completed`,
+`home_keeper_task_snoozed`, or `home_keeper_task_skipped` with
+`origin: home_keeper_notification_action`. The `home_keeper.snooze_task` and
+`home_keeper.skip_task` services fire the same events. Automations can react to
+these events.
 
 ![The Settings → Notifications card with a "My chores" profile: targets, filter, buttons, style, snooze and auto-send toggles](docs/images/22-panel-notifications.png)
 

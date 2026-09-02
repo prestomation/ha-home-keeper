@@ -81,6 +81,10 @@ keys the same as the English source (see "Translations" in
   not "The profile carries the sync".
 - Do not personify the software. It does not carry, know, want, learn, remember,
   or refuse. It supports, stores, reads, writes, adds, removes, and marks.
+- Do not invent a reason for a behavior. Write what the software does today. Do
+  not write why, unless the maintainer stated the reason. "Items that a user adds
+  are not imported" is a fact. "Because a to-do item cannot hold a recurrence" is
+  an invented reason.
 - Do not invent context that the software does not have. A to-do list has no
   concept of home or work. A task has no concept of a child.
 - The passive voice is acceptable when the actor is obvious or is the software:
