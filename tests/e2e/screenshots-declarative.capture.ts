@@ -1,11 +1,17 @@
 /**
  * Focused screenshot capture for the declarative-companions surface.
  *
- * The main ``screenshots.capture.ts`` walks every documented panel surface in
- * one big test — great for a complete refresh, brittle when a single earlier
- * step flakes. This standalone capture only touches Settings → Companions and
- * the declarative-companion add/preset dialogs, so a green run gives us the
- * three shots the PR needs even when other steps upstream are flaky.
+ * The main ``screenshots.capture.ts`` walks every documented panel surface in one big
+ * test — great for a complete refresh, brittle when a single earlier step flakes.
+ * This standalone capture only touches Settings → Companions and the two
+ * declarative-companion dialogs, so a green run gives us the three shots the PR needs
+ * even when other steps upstream are flaky.
+ *
+ * Both dialogs are `ha-dialog`s, which centre themselves in the **viewport**. The
+ * Settings page is several screens tall, so a `fullPage: true` capture would grow the
+ * page around a dialog pinned near the top and photograph mostly empty cards — the
+ * two dialog shots are therefore viewport captures, and the subsection shot is the
+ * Companions card on its own.
  *
  * Run:
  *   CHROMIUM_EXEC=$(ls /opt/pw-browsers/chromium-*\/chrome-linux/chrome | head -1) \
@@ -13,49 +19,51 @@
  *     npx playwright test --config=screenshots-declarative.config.ts
  */
 import { test, expect } from '@playwright/test';
-import { openPanel } from './tests/helpers';
+import { openPanel, openSettingsSection } from './tests/helpers';
+import { centre } from './shots';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
 test('capture declarative-companion panel surfaces', async ({ page }) => {
   await openPanel(page);
   const panel = page.locator('home-keeper-panel').first();
-  await panel.locator('#tab-settings').click();
-  await expect(panel.locator('#hk-companions')).toBeVisible();
 
-  // Section header + empty-state row + Add / Add-from-preset buttons.
-  await expect(panel.locator('.hk-companion-group-decl')).toBeVisible();
-  await panel.locator('.hk-companion-group-decl').scrollIntoViewIfNeeded();
+  await openSettingsSection(panel, 'companions');
+  const companions = panel.locator('#hk-companions');
+  await expect(companions).toBeVisible();
+
+  // 21b. The subsection at the foot of the Companions card: heading, help, the two
+  // Add buttons, and the empty-state line. Shot as the card rather than the page —
+  // the Settings page above it is four cards of unrelated settings.
+  const group = companions.locator('.hk-companion-group-decl');
+  await expect(group).toBeVisible();
+  await centre(group);
+  await page.mouse.move(0, 0);
   await page.waitForTimeout(500);
-  await page.screenshot({
-    path: `${OUT}/21b-panel-declarative-companions-empty.png`,
-    fullPage: true,
-  });
+  await companions.screenshot({ path: `${OUT}/21b-panel-declarative-companions-empty.png` });
 
-  // Preset picker modal (native <dialog> the panel appends inside its shadowRoot).
+  // 21c. The preset picker: one card per bundled recipe. Device Pulse is greyed out
+  // and says which integration it needs, because the e2e container does not have it.
   await panel.locator('.hk-decl-preset').click();
-  const picker = panel.locator('dialog.hk-decl-modal');
+  const picker = panel.locator('ha-dialog.hk-decl-picker');
   await expect(picker).toBeVisible();
   await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(3);
+  await expect(picker.locator('.hk-decl-preset-card.hk-decl-preset-disabled')).toHaveCount(1);
   await page.waitForTimeout(400);
-  await page.screenshot({
-    path: `${OUT}/21c-panel-declarative-preset-picker.png`,
-    fullPage: true,
-  });
+  await page.screenshot({ path: `${OUT}/21c-panel-declarative-preset-picker.png` });
 
-  // Add dialog seeded from the Low Battery preset (no upstream integration
-  // required). Live-preview panel visible on the right.
-  await picker
-    .locator('.hk-decl-preset-card')
-    .filter({ hasText: /Low battery/i })
-    .click();
-  const addDlg = panel.locator('dialog.hk-decl-dialog');
-  await expect(addDlg).toBeVisible();
-  await expect(addDlg.locator('.hk-decl-preview')).toBeVisible();
-  // Wait for the debounced preview poll.
-  await page.waitForTimeout(1_500);
-  await page.screenshot({
-    path: `${OUT}/21d-panel-declarative-add-dialog.png`,
-    fullPage: true,
-  });
+  // 21d. The add dialog, seeded from Low battery (the one preset that needs no
+  // upstream integration). The preview under the form counts the entities the recipe
+  // would turn into tasks, so wait for its header rather than for a fixed delay.
+  await picker.locator('.hk-decl-preset-card', { hasText: 'Low battery' }).click();
+  const addDialog = panel.locator('ha-dialog.hk-decl-dialog');
+  await expect(addDialog).toBeVisible();
+  await expect(addDialog.locator('.hk-decl-preview')).toBeVisible();
+  await expect(addDialog.locator('.hk-decl-preview-header')).toBeVisible({ timeout: 20_000 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/21d-panel-declarative-add-dialog.png` });
+
+  // Cancelled, not saved: the capture must leave the seeded store as it found it.
+  await addDialog.locator('.hk-decl-cancel').click();
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
 });

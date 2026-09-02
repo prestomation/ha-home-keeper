@@ -57,6 +57,12 @@ const COGNATE_IDENTICAL = {
   'zh-Hans': ['detail.id', 'field.doc_url'],
 };
 
+// Fold the declarative cognates into the per-locale allowlist. They stay in their own
+// map above so each one carries its reason, instead of disappearing into these lists.
+for (const [lang, keys] of Object.entries(DECLARATIVE_COGNATES)) {
+  COGNATE_IDENTICAL[lang] = [...(COGNATE_IDENTICAL[lang] ?? []), ...keys];
+}
+
 // Concatenate all panel TypeScript sources once for static key analysis.
 const SRC = (() => {
   // CI runs vitest from the repo root; fall back to the frontend dir if invoked

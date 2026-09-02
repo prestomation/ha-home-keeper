@@ -1,9 +1,4 @@
 /** Config for the standalone declarative-companion screenshot capture. */
-import baseConfig from './playwright.config';
+import { captureConfig } from './capture-config';
 
-export default {
-  ...baseConfig,
-  testDir: '.',
-  testMatch: 'screenshots-declarative.capture.ts',
-  timeout: 60_000,
-};
+export default captureConfig('screenshots-declarative.capture.ts');

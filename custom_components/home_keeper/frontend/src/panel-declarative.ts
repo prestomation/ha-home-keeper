@@ -15,11 +15,21 @@
  * they open, title and close the way the completion dialogs do and pick up the next
  * `ha-dialog` fix with them. The draft is edited **in place** (every section's form
  * writes into the same object), which is what lets a trigger-mode change re-render
- * the dialog with a different schema without losing what was typed.
+ * the dialog with a different schema without losing what was typed. The one part the
+ * mode change replaces is the trigger block itself: see `triggerForMode`, which drops
+ * the keys the new mode does not accept.
  */
 
 import * as api from './api';
-import { selBool, selNumber, selSelect, selSelectCustom, selText, type FormField } from './forms';
+import {
+  pickFormData,
+  selBool,
+  selNumber,
+  selSelect,
+  selSelectCustom,
+  selText,
+  type FormField,
+} from './forms';
 import { t } from './i18n';
 import { makeDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
@@ -42,7 +52,61 @@ const PREVIEW_DEBOUNCE_MS = 350;
 const MATCH_WARN = 50;
 
 /** The trigger block read loosely: which keys it carries depends on the mode. */
-type Trigger = Record<string, unknown> & { mode?: string };
+export type Trigger = Record<string, unknown> & { mode?: string };
+
+/**
+ * The trigger keys each mode keeps, mirroring `models.normalize_sensor`.
+ *
+ * The backend does not ignore a key that belongs to another mode — `_reject_fields`
+ * raises on it — so a mode change must drop them. A recipe seeded from the Device
+ * Pulse preset carries `comparison` and `value`; switching it to *state* kept both,
+ * and the save came back "sensor.comparison is not valid for a state-mode sensor
+ * task" (issues #230 / #231).
+ *
+ * `usage` drops `for_seconds` and `clear_on_recover`: a meter has no condition to
+ * hold or to recover from, and `normalize_sensor` reads neither in that mode.
+ * `availability` drops `attribute`, because the form offers no attribute box there,
+ * and a carried-over one would be a setting nobody can see or clear.
+ */
+const TRIGGER_KEYS_BY_MODE: Record<string, readonly string[]> = {
+  usage: ['attribute', 'target', 'baseline', 'unit', 'also_every', 'combinator'],
+  threshold: ['attribute', 'comparison', 'value', 'for_seconds', 'clear_on_recover'],
+  state: ['attribute', 'state', 'for_seconds', 'clear_on_recover'],
+  availability: ['for_seconds', 'clear_on_recover'],
+};
+
+/** Kept whatever the mode is. A spec's trigger normally omits `entity_id` — the
+ *  reconciler stamps it per match — but it is mode-independent where it appears. */
+const TRIGGER_KEYS_ALWAYS = ['mode', 'entity_id'];
+
+/** What a mode's form shows for a key it defaults rather than leaves empty. Seed the
+ *  draft with the same values, or the two disagree: the State box read "on" while the
+ *  draft carried no `state`, and the save failed as "sensor.state is required".
+ *  `value` and `target` are left out on purpose — they are genuinely the user's to
+ *  type, and an empty required box says so. */
+const TRIGGER_DEFAULTS: Record<string, Record<string, unknown>> = {
+  usage: {},
+  threshold: { comparison: '>=', clear_on_recover: true },
+  state: { state: 'on', clear_on_recover: true },
+  availability: { clear_on_recover: true },
+};
+
+/**
+ * *trigger* rewritten for *nextMode*: the keys that mode accepts, plus the defaults
+ * its form shows. Pure — the caller assigns the result over `draft.trigger`.
+ */
+export function triggerForMode(trigger: Trigger, nextMode: string): Trigger {
+  const keep = new Set([...TRIGGER_KEYS_ALWAYS, ...(TRIGGER_KEYS_BY_MODE[nextMode] ?? [])]);
+  const next: Trigger = {};
+  for (const [key, value] of Object.entries(trigger)) {
+    if (keep.has(key)) next[key] = value;
+  }
+  for (const [key, value] of Object.entries(TRIGGER_DEFAULTS[nextMode] ?? {})) {
+    if (next[key] === undefined) next[key] = value;
+  }
+  next.mode = nextMode;
+  return next;
+}
 
 /** A blank recipe, for the Add-from-scratch path. */
 export function emptyDeclarativeCompanion(): DeclarativeCompanion {
@@ -60,11 +124,9 @@ export function emptyDeclarativeCompanion(): DeclarativeCompanion {
       exclude_area_ids: [],
       exclude_label_ids: [],
     },
-    trigger: {
-      mode: 'state',
-      state: 'on',
-      clear_on_recover: true,
-    } as unknown as DeclarativeCompanion['trigger'],
+    // The same rule that rewrites the trigger on a mode change builds the first one,
+    // so a blank draft and a switched one can never carry different keys.
+    trigger: triggerForMode({}, 'state') as unknown as DeclarativeCompanion['trigger'],
     task_template: { name_template: '{{ friendly_name }}', notes_template: '', labels: [] },
     per_entity_overrides: {},
   };
@@ -333,27 +395,34 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     computeHelper: (s: { name: string }): string =>
       s.name === 'notes_template' ? t('declarative.companions.template_help') : '',
   };
+  // Each section is its own `ha-form` (one heading between two fields is only
+  // reachable by splitting the schema) and carries `data-decl-section` so a test can
+  // address the form that owns a field rather than counting elements.
   const section = (
-    titleKey: string,
+    key: string,
     schema: FormField[],
     data: Record<string, unknown>,
     onChange: (value: Record<string, unknown>) => void,
   ): void => {
     const title = document.createElement('div');
     title.className = 'hk-decl-section-title';
-    title.textContent = t(titleKey);
+    title.textContent = t('declarative.companions.section_' + key);
     body.appendChild(title);
-    body.appendChild(
-      p._makeForm(
-        schema,
-        data,
-        (value) => {
-          onChange(value);
-          schedulePreview();
-        },
-        labelling,
-      ),
+    const form = p._makeForm(
+      schema,
+      // `ha-form` echoes its whole `data` back on every change, so seed it with this
+      // section's own fields only. Seeded with the rest, a state trigger kept handing
+      // back the threshold's comparison and value and re-wrote them into the draft.
+      pickFormData(data, schema),
+      (value) => {
+        onChange(value);
+        schedulePreview();
+      },
+      labelling,
     );
+    form.classList.add('hk-decl-form');
+    form.dataset.declSection = key;
+    body.appendChild(form);
   };
   const str = (v: unknown): string | undefined => {
     const s = String(v ?? '').trim();
@@ -364,7 +433,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
 
   // 1. Identity.
   section(
-    'declarative.companions.section_identity',
+    'identity',
     [
       { name: 'name', required: true, selector: selText() },
       { name: 'description', selector: selText() },
@@ -383,7 +452,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   const integrations = (p._installedIntegrations ?? []).map((d) => ({ value: d, label: d }));
   const sel = draft.selection;
   section(
-    'declarative.companions.section_selection',
+    'selection',
     [
       { name: 'integration', selector: selSelectCustom(integrations) },
       { name: 'domain', selector: selSelectCustom(DOMAINS.map((d) => ({ value: d, label: d }))) },
@@ -435,13 +504,17 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   if (mode === 'usage') {
     triggerSchema.push({ name: 'target', required: true, selector: selNumber(0, 'any') });
   }
-  triggerSchema.push(
-    { name: 'for_seconds', selector: selNumber(0) },
-    { name: 'clear_on_recover', selector: selBool() },
-  );
+  // A hold and an auto-clear belong to the edge-driven modes only; a usage meter has
+  // no condition to hold or recover from, and `normalize_sensor` reads neither there.
+  if (mode !== 'usage') {
+    triggerSchema.push(
+      { name: 'for_seconds', selector: selNumber(0) },
+      { name: 'clear_on_recover', selector: selBool() },
+    );
+  }
   if (mode !== 'availability') triggerSchema.push({ name: 'attribute', selector: selText() });
   section(
-    'declarative.companions.section_trigger',
+    'trigger',
     triggerSchema,
     {
       mode,
@@ -454,24 +527,33 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       attribute: trig.attribute,
     },
     (v) => {
-      const next = typeof v.mode === 'string' ? v.mode : mode;
-      trig.mode = next;
+      // Each read is guarded: the section carries only the current mode's fields, so
+      // an unguarded read would write `undefined` over a key another mode owns.
       if ('state' in v) trig.state = String(v.state ?? '');
       if ('comparison' in v) trig.comparison = String(v.comparison ?? '>=');
       if ('value' in v) trig.value = num(v.value);
       if ('target' in v) trig.target = num(v.target);
-      trig.for_seconds = num(v.for_seconds) ?? 0;
-      trig.clear_on_recover = v.clear_on_recover !== false;
-      const attribute = str(v.attribute);
-      if (attribute) trig.attribute = attribute;
-      else delete trig.attribute;
-      if (next !== mode) p._render();
+      if ('for_seconds' in v) trig.for_seconds = num(v.for_seconds) ?? 0;
+      if ('clear_on_recover' in v) trig.clear_on_recover = v.clear_on_recover !== false;
+      if ('attribute' in v) {
+        const attribute = str(v.attribute);
+        if (attribute) trig.attribute = attribute;
+        else delete trig.attribute;
+      }
+      const next = typeof v.mode === 'string' ? v.mode : mode;
+      trig.mode = next;
+      if (next === mode) return;
+      // The mode owns which keys are legal, and the backend rejects the others rather
+      // than ignoring them. Rewrite the trigger for the new mode, then rebuild the
+      // dialog on the new schema — the draft is edited in place, so the rest survives.
+      draft.trigger = triggerForMode(trig, next) as unknown as DeclarativeCompanion['trigger'];
+      p._render();
     },
   );
 
   // 4. Task template.
   section(
-    'declarative.companions.section_template',
+    'template',
     [
       { name: 'name_template', required: true, selector: selText() },
       { name: 'notes_template', selector: selText(true) },
