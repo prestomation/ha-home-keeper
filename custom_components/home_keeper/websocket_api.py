@@ -1032,7 +1032,11 @@ async def ws_add_declarative_companion(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "home_keeper/update_declarative_companion",
-        vol.Required("id"): str,
+        # NOT "id": every websocket message carries the connection's own message
+        # id, and the frontend client stamps it over whatever the caller put
+        # there. A spec id sent as "id" never arrives — it is replaced by an
+        # integer, which then fails this schema.
+        vol.Required("companion_id"): str,
         vol.Required("updates"): dict,
     }
 )
@@ -1049,7 +1053,7 @@ async def ws_update_declarative_companion(
         return
     try:
         spec = await coord.store.async_update_declarative_companion(
-            msg["id"], msg["updates"]
+            msg["companion_id"], msg["updates"]
         )
     except KeyError:
         _err(
@@ -1058,7 +1062,7 @@ async def ws_update_declarative_companion(
             msg,
             "not_found",
             "declarative_companion_not_found",
-            spec_id=msg["id"],
+            spec_id=msg["companion_id"],
         )
         return
     except TaskValidationError as err:
@@ -1077,7 +1081,9 @@ async def ws_update_declarative_companion(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "home_keeper/delete_declarative_companion",
-        vol.Required("id"): str,
+        # See the note on the update command: "id" is the message envelope's own
+        # field, so a spec id sent under that name never reaches this handler.
+        vol.Required("companion_id"): str,
     }
 )
 @websocket_api.require_admin
@@ -1091,7 +1097,7 @@ async def ws_delete_declarative_companion(
     if coord is None:
         _not_loaded(hass, connection, msg)
         return
-    removed = await coord.store.async_delete_declarative_companion(msg["id"])
+    removed = await coord.store.async_delete_declarative_companion(msg["companion_id"])
     connection.send_result(msg["id"], {"ok": True, "entity_set_changed": removed})
 
 

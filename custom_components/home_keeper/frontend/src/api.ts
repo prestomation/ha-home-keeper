@@ -666,7 +666,13 @@ export async function addDeclarativeCompanion(
   return res.companion;
 }
 
-/** Update fields of a stored spec by id. Any subset of the spec's fields may be sent. */
+/**
+ * Update fields of a stored spec by id. Any subset of the spec's fields may be sent.
+ *
+ * The spec id rides as `companion_id`, never as `id`: the websocket client stamps
+ * the connection's own message id over an `id` key, so a spec id sent under that
+ * name is silently replaced by an integer before it leaves the browser.
+ */
 export async function updateDeclarativeCompanion(
   hass: Hass,
   id: string,
@@ -674,18 +680,22 @@ export async function updateDeclarativeCompanion(
 ): Promise<DeclarativeCompanion> {
   const res = await hass.callWS<{ companion: DeclarativeCompanion }>({
     type: 'home_keeper/update_declarative_companion',
-    id,
+    companion_id: id,
     updates,
   });
   return res.companion;
 }
 
-/** Remove a spec and every managed task it materialized. Returns whether the reload was needed. */
+/** Remove a spec and every managed task it materialized. `companion_id` for the
+ *  reason `updateDeclarativeCompanion` gives. */
 export async function deleteDeclarativeCompanion(
   hass: Hass,
   id: string,
 ): Promise<void> {
-  await hass.callWS({ type: 'home_keeper/delete_declarative_companion', id });
+  await hass.callWS({
+    type: 'home_keeper/delete_declarative_companion',
+    companion_id: id,
+  });
 }
 
 /** The shipped presets the panel offers under "Add from preset". */
