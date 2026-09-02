@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">To-do list sync | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-277/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-277/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-277/docs/guide/todo-sync"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="To-do list sync | Home Keeper"><meta data-rh="true" name="description" content="A chore that only exists in Home Keeper is easy to ignore, so a"><meta data-rh="true" property="og:description" content="A chore that only exists in Home Keeper is easy to ignore, so a"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-277/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-277/docs/guide/todo-sync"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-277/docs/guide/todo-sync" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-277/docs/guide/todo-sync" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"To-do list sync","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-277/docs/guide/todo-sync"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-277/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-277/assets/js/runtime~main.726718f4.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-277/assets/js/runtime~main.fc06366d.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-277/assets/js/main.f25ada3c.js" defer="defer"></script>
 </head>
 <body>
@@ -51,6 +51,19 @@ one off, and a deleted item is re-added on the next pass instead.</p>
 <p>A task that requires an NFC/RFID tag scan still syncs. Checking its item off
 remotely completes nothing and the item returns on the next pass. That refusal is
 the point of requiring the scan.</p>
+<p><strong>A to-do item you add on the list yourself never becomes a Home Keeper task.</strong> The
+sync is a delivery surface. It puts Home Keeper&#x27;s tasks onto the list. Anything else
+on that list stays yours. Home Keeper only ever touches the items it wrote itself.
+A Home Keeper task carries recurrence, a device and completion history that a plain
+to-do line cannot hold. The one thing that travels inward is a checkmark. Ticking
+off one of Home Keeper&#x27;s own items completes the task behind it.</p>
+<ul>
+<li class=""><strong>CalDAV lists work too</strong> (Nextcloud, Baikal, Radicale). Home Assistant polls a
+CalDAV server every 15 minutes, so ticking an item off there can take that long to
+reach Home Keeper.</li>
+<li class=""><strong>In Nextcloud, point the sync at a task list.</strong> The default <strong>Personal</strong> calendar
+holds only events, so it never appears as a to-do list in Home Assistant at all.</li>
+</ul>
 <p><strong>The Todoist recipe.</strong> Install Home Assistant&#x27;s own
 <a href="https://www.home-assistant.io/integrations/todoist/" target="_blank" rel="noopener noreferrer" class="">Todoist integration</a> and give it
 your Todoist API token. Every Todoist project then shows up as a <code>todo</code> entity. Point
