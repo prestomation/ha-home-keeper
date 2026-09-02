@@ -762,10 +762,13 @@ integration can decide the problem is dealt with.
 
 ## Send tasks to your to-do lists
 
-A task in Home Keeper alone is easy to forget. A
-[Profile](#profiles-saved-filters-you-reuse-everywhere) can sync its tasks onto a
-to-do list the household already uses. Any `todo` entity works. Examples are a
-Todoist project, Google Tasks, or a `local_todo` list on the kitchen tablet.
+A task that exists only in Home Keeper is easy to forget. A
+[Profile](#profiles-saved-filters-you-reuse-everywhere) syncs its tasks onto a
+to-do list that the household already uses. Any `todo` entity works:
+
+- a Todoist project
+- Google Tasks
+- a `local_todo` list on the kitchen tablet
 
 ### How it works
 
