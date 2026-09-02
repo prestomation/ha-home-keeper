@@ -719,13 +719,10 @@ optional **label**, **area**, and **device** filters. Create and edit Profiles i
 
 A Profile is used in 4 places:
 
-- **Notifications**: a notification selects a Profile to designate which tasks are
-  sent.
-- **To-do list sync**: a Profile designates which tasks are synchronized to a to-do
-  list.
-- **The Tasks tab**: the **Profile** dropdown filters the task list in the panel.
-- **The dashboard card**: the **Filter by profile** option in the card editor filters
-  the card.
+- A notification selects a Profile to designate which tasks are sent.
+- A to-do list sync uses a Profile to designate which tasks are synchronized.
+- The **Profile** dropdown on the **Tasks** tab filters the task list in the panel.
+- The **Filter by profile** option in the card editor filters the dashboard card.
 
 ### Status tiers
 
