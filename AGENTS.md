@@ -2,6 +2,11 @@
 
 ## Workflow
 
+- **All English text follows ASD-STE100 Simplified Technical English.** This
+  includes documentation, user-facing strings, code comments, PR text, and replies to
+  the maintainer. Keep text brief. Use short sentences, the active voice, one approved
+  name per thing, and no idiom. The full rules and the project glossary are in
+  `.amazonq/rules/writing-style.md`. Read that file before you write any prose.
 - **Never push directly to main.** Always use a feature branch and open a PR.
 - Wait for CI (tests, HACS validation, code review) and approval before merging.
 - **Always squash merge PRs.**
@@ -67,7 +72,8 @@
   `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
   `services.yaml` descriptions, the frontend locale — is drafted by a subagent spawned
   with `model: sonnet`, not written inline. Give it the diff, the surrounding section for
-  voice, and the house rules it has to satisfy (the three-sentence CHANGELOG budget, the
+  voice, and the house rules it has to satisfy (the STE100 rules in
+  `.amazonq/rules/writing-style.md`, the three-sentence CHANGELOG budget, the
   `(Fixes #N)` placement, the vale AI-tells style), then review what comes back and edit
   it yourself before committing — the subagent drafts, you are still responsible for what
   ships. Commit messages, PR bodies and code comments are *not* user-facing text and stay
