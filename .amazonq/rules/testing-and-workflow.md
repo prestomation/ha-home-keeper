@@ -4,12 +4,25 @@
 - Never push directly to `main`. Work on a feature branch and open a PR; squash
   merge.
 - Update `CHANGELOG.md` for every user-facing change before a release.
+- **All user-facing text is written in Simplified Technical English (ASD-STE100):**
+  `README.md`, the canonical `docs/*.md`, `CHANGELOG.md` bullets, `strings.json`,
+  `services.yaml` descriptions, the frontend locale. One idea per sentence, 20 words
+  maximum for an instruction and 25 for a description, 6 sentences maximum per
+  paragraph. Active voice, present tense, imperative for instructions. No `-ing` word as
+  a subject or noun. One word for one meaning, repeated rather than varied. No idiom and
+  no metaphor. Keep articles, drop contractions, keep noun clusters to three words. Use
+  a list for steps and conditions. Technical names are exempt.
+- **STE and the `ai-tells` vale style conflict; satisfy both.** `ai-tells` matches per
+  paragraph, so STE's short parallel sentences trip it. `ParallelStaccato` fires on a
+  following sentence that starts with a short subject plus "does not"/"do not";
+  `VerbTricolon` fires on three comma-separated segments and spans sentence boundaries,
+  so keep a paragraph at two commas or fewer; `CataphoricForecasting` fires on a
+  sentence-initial count ("Both automations", not "The two automations").
 - **User-facing text is drafted by a Sonnet 4.5 subagent** (`model: sonnet`), not written
-  inline: `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
-  `services.yaml` descriptions, the frontend locale. Hand it the diff, the surrounding
-  section for voice, and the house rules it must satisfy; review and edit the draft before
-  committing. Commit messages, PR bodies and code comments stay inline — they are not
-  user-facing.
+  inline. Hand it the diff, the surrounding section for voice, and the house rules it
+  must satisfy (the STE rules and the vale shapes above); review and edit the draft
+  before committing — a first draft rarely lands STE on its own. Commit messages, PR
+  bodies and code comments stay inline — they are not user-facing.
 - **Keep every CHANGELOG bullet to three sentences at most.** A bold lead naming the
   change, then what a user notices, then a caveat or `(Fixes #N)` if one is needed.
   Cut the worked example, the before-and-after story, the list of every surface the

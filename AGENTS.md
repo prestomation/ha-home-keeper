@@ -63,15 +63,51 @@
   try the feature via HACS *before* merge. The build is ephemeral and auto-deletes
   when the PR closes (see RELEASE.md → "Preview releases"). Bug-fix-only /
   developer-only PRs don't need it.
-- **Always have a Sonnet 4.5 subagent write user-facing text.** Any prose a *user* reads —
-  `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
-  `services.yaml` descriptions, the frontend locale — is drafted by a subagent spawned
-  with `model: sonnet`, not written inline. Give it the diff, the surrounding section for
-  voice, and the house rules it has to satisfy (the three-sentence CHANGELOG budget, the
-  `(Fixes #N)` placement, the vale AI-tells style), then review what comes back and edit
-  it yourself before committing — the subagent drafts, you are still responsible for what
-  ships. Commit messages, PR bodies and code comments are *not* user-facing text and stay
-  inline.
+- **Write all user-facing text in Simplified Technical English (ASD-STE100).** Any
+  prose a *user* reads — `README.md`, the canonical `docs/*.md`, `CHANGELOG.md`
+  bullets, `strings.json`, `services.yaml` descriptions, the frontend locale — follows
+  the STE writing rules. The point is a document that a reader with limited English,
+  or a translator, or a screen reader, gets right the first time. The rules that matter
+  most here:
+  - **One idea per sentence.** 20 words maximum for an instruction, 25 for a
+    description. 6 sentences maximum per paragraph.
+  - **Active voice, present tense, imperative for instructions.** "Change the value",
+    never "the value should be changed" or "you will want to change the value".
+  - **No `-ing` word as a subject or a noun.** "Missing the deadline calls the service"
+    is wrong. Write "The automation calls the service if you miss the deadline."
+  - **One word, one meaning, every time.** Pick a term and repeat it. Never reach for a
+    synonym to vary the prose: "follow-up task" stays "follow-up task", not "the
+    follow-up", "the second task", or "it".
+  - **No idiom, no metaphor, no figurative language.** "Write-off", "sharp edge", "in
+    step with", "on top of", "loudly", "under the hood" are all out. Say the literal
+    thing.
+  - **Keep articles, drop contractions.** Noun clusters stay at three words or fewer.
+  - **Use a list for steps and for conditions**, rather than a sentence that carries
+    three of them.
+  - Technical names (`home_keeper.skip_task`, `next_due`, entity ids) are exempt and
+    stay exactly as they are.
+- **STE and the vale AI-tells style pull against each other. Satisfy both.** STE wants
+  short parallel sentences; `ai-tells` rejects several of exactly those shapes, and it
+  matches **per paragraph**, not per sentence. Three patterns cause almost every
+  collision:
+  - `ParallelStaccato` fires on a sentence that follows another and starts with a short
+    subject plus "does not" / "do not". Rewrite as a positive statement, or as "X
+    ignores Y", or move the negation inside the sentence.
+  - `VerbTricolon` fires on three comma-separated segments, and its `[^,]+` spans
+    sentence boundaries. Keep a paragraph at two commas or fewer. Turning "If you miss
+    the deadline, the automation calls X" into "The automation calls X for a task that
+    is late" removes the comma and stays STE.
+  - `CataphoricForecasting` fires on a sentence-initial count. "Both automations" works
+    where "The two automations" does not.
+  A clean local `vale` run is still not proof CI is clean (see the caveat below), so
+  check candidate prose against the rules' own regexes as well.
+- **A Sonnet 4.5 subagent drafts user-facing text.** Spawn it with `model: sonnet`, not
+  written inline. Give it the diff, the surrounding section for voice, and the house
+  rules it has to satisfy (the STE rules above, the three-sentence CHANGELOG budget, the
+  `(Fixes #N)` placement, the vale AI-tells shapes). Then review what comes back and
+  edit it yourself before committing. The subagent drafts; you are still responsible for
+  what reaches a user, and the draft usually needs a real STE pass. Commit messages, PR
+  bodies and code comments are *not* user-facing text and stay inline.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only `pip install pytest PyYAML`: `pytest tests/unit -v`.
     (`PyYAML` is for the API-surface gate below, which reads `services.yaml`; without

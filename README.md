@@ -1303,36 +1303,42 @@ silently baselined on restart (no "overdue" storm after a reboot). The full cata
 
 ### Deadlines and follow-ups
 
-Some recurring tasks have a real deadline. The weekly trash has to be at the curb
-before the truck comes. When it misses the truck the occurrence is a write-off, and
-when it makes the truck there is a bin at the curb to fetch the next evening.
-Ordinary Home Assistant automations cover both cases, on top of services Home Keeper
-already has.
+Some recurring tasks have a deadline. The weekly trash task is one example. The bin
+must go out before the truck comes. Home Assistant automations can cancel the
+occurrence for a bin that is late. They can also remind you to bring the bin back the
+next evening. The automations use the Home Keeper services.
 
-The setup is one weekly fixed task ("Take out trash") plus one triggered task
-("Bring the bin back in"). `home_keeper.list_tasks` returns every task, so an
-automation reads a task's `next_due` and `last_completed` with `response_variable`
-and decides from there.
+The example uses two tasks. Make a fixed weekly task with the name "Take out trash".
+Make a triggered task with the name "Bring the bin back in". The service
+`home_keeper.list_tasks` returns all the tasks. An automation reads `next_due` and
+`last_completed` from the result with `response_variable`.
 
-Missing the deadline calls `home_keeper.skip_task`. That advances the fixed task one
-occurrence without recording a completion. The week is written off rather than marked
-done. Making the deadline calls `home_keeper.trigger_task` on the follow-up instead.
-It then reads as due now. Completing it later puts it back to dormant for next week.
+The first automation runs after the deadline. It calls `home_keeper.skip_task` for a
+task that is still due. This service moves the fixed task forward one occurrence.
+Home Keeper records no completion for that week.
 
-Create the follow-up task once, not every week. A newly created triggered task
-starts armed, so complete it once right after you create it to leave it dormant.
+The second automation runs in the evening. It calls `home_keeper.trigger_task` for a
+task that you completed in time. This service arms the follow-up task. The follow-up
+task becomes due. Complete the follow-up task to make it dormant again.
 
-Both automations read the task's own `next_due` instead of the wall clock. By the
-time the second one runs, the completion or the skip has already moved `next_due` to
-next Wednesday, so `next_due - 7 days` is the occurrence that just passed.
-`grace_hours: 12` turns that Wednesday 7pm slot into a Thursday 7am cutoff. A week
-you skipped or finished early cannot arm the follow-up by accident.
+Make the follow-up task one time only. A new triggered task is armed. Complete this
+task one time immediately. The task then becomes dormant. Home Keeper uses the same
+task every week.
 
-Adapt the recipe before you use it. The `timedelta(days=7)` hard-codes a weekly
-task. Match it to your own interval. The task lookup has no fallback for a name that
-matches nothing. It fails the automation loudly instead of quietly skipping the
-wrong task. Keep the template's name in step with the task name. Disable the
-automations if you rename or delete that task.
+Both automations read `next_due` from the task. The clock is not part of the
+condition. A completion or a skip moves `next_due` to the next Wednesday. The value
+`next_due - 7 days` is then the occurrence that ended. The value `grace_hours: 12`
+changes the Wednesday 19:00 occurrence to a Thursday 07:00 deadline. A week that you
+skipped cannot arm the follow-up task.
+
+Change the example before you use it:
+
+- The value `timedelta(days=7)` is correct for a weekly task only. Change the value
+  to your interval.
+- Use the same task name in the template and in the task. The automation stops with
+  an error if no task has this name. This behavior prevents an operation on a
+  different task.
+- Stop the automations if you rename or delete the task.
 
 ```yaml
 automation:
@@ -1384,15 +1390,15 @@ automation:
           task_id: Bring the bin back in
 ```
 
-`origin` on `skip_task` is a free-form marker of your choosing. It comes back in the
-`home_keeper_task_skipped` event, so another automation can tell why an occurrence
-was skipped.
+The `origin` field of `skip_task` accepts any text. Home Keeper puts this text in the
+`home_keeper_task_skipped` event. A different automation can read the text and find
+the cause of the skip.
 
-#### Variant: a dated one-off instead of a triggered task
+#### Variant: a dated one-off task
 
-To avoid keeping a standing triggered task, create the follow-up as a dated one-off
-when the trash goes out. The tradeoff is a completed one-off left behind every week,
-where the triggered task gets reused.
+You can use a one-off task in place of the triggered task. This automation makes a
+new one-off task after each completion of the trash task. One completed one-off task
+stays in the list each week. The triggered task is used again each week.
 
 ```yaml
   - alias: "Trash: create a dated one-off follow-up"
