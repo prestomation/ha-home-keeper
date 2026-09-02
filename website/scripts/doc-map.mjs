@@ -120,6 +120,8 @@ export const DOC_ROUTES = {
 
 // README same-page anchors that now live on their own User Guide pages.
 export const ANCHOR_ROUTES = {
+  // The Features section links across to Concepts (→ concepts page).
+  '#concepts': '/docs/guide/concepts',
   '#one-off-do-once-tasks': '/docs/guide/one-off-tasks',
   '#sensor-based-tasks-usage-meters-thresholds--states': '/docs/guide/sensor-tasks',
   '#appliances--virtual-devices': '/docs/guide/appliances',
