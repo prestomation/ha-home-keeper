@@ -41,12 +41,12 @@ keys the same as the English source (see "Translations" in
 - Keep a sentence to 20 words or fewer in instructions. Keep a sentence to 25 words or
   fewer in descriptive text.
 - Give one instruction per sentence. Give one idea per sentence.
-- Use the active voice. Write "Home Keeper creates a device", not "a device is
-  created".
+- Prefer the active voice when the reader is the actor. See "Voice" below for
+  when the passive voice is acceptable.
 - Use the simple present tense for descriptions. Use the imperative for instructions.
-- Do not use verb forms that end in "-ing" as verbs. Write "before you start the
-  container", not "before starting the container". A name such as "Settings" or
-  "the pending review" is a technical name and is permitted.
+- Do not use a verb form that ends in "-ing" as the main verb. Write "before you
+  start the container", not "before starting the container". As a noun it is
+  acceptable: "synchronizing the tasks".
 - Do not omit articles. Write "open the panel", not "open panel".
 - Do not omit "that" after "make sure", "confirm", and "check".
 - Put a condition before its instruction. Write "If the task has a device, the
@@ -70,12 +70,35 @@ keys the same as the English source (see "Translations" in
 - Write a heading as a noun phrase or a command. Write "Admin operations" or
   "Install the panel".
 
+### Voice
+
+- State the fact first. Start a feature section with what the software supports
+  or does: "Home Keeper supports synchronizing the tasks from a profile to any
+  `todo` entity." Then say what it is useful for. Do not open with why a reader
+  can care, a problem statement, or a scene from a household.
+- Write about the software and the configuration, not about people. Write "The
+  profile designates which tasks are synchronized to the configured to-do list",
+  not "The profile carries the sync".
+- Do not personify the software. It does not carry, know, want, learn, remember,
+  or refuse. It supports, stores, reads, writes, adds, removes, and marks.
+- Do not invent context that the software does not have. A to-do list has no
+  concept of home or work. A task has no concept of a child.
+- The passive voice is acceptable when the actor is obvious or is the software:
+  "the item is marked complete on the list". Prefer the active voice when the
+  reader is the actor: "select a list".
+- A verb form that ends in "-ing" is acceptable as a noun: "synchronizing the
+  tasks" and "for tracking these tasks". Do not use it as the main verb of a
+  sentence.
+
 ### Tone
 
 - Do not write for effect. Do not use "simply", "just", "note that", or
   "it is important to note".
 - Do not tell a story. Write what the software does and what the user does.
 - Do not repeat a point in different words.
+- The house rules above are enforced by the `HomeKeeper` Vale style in
+  `styles/HomeKeeper/`. It is committed, and `.vale.ini` loads it next to
+  `ai-tells`. Add a token there when a new banned word appears in review.
 - The `vale` job in `lint.yml` still runs. STE and the `ai-tells` style agree on
   most points. If they disagree, STE wins, and you disable the vale rule for that
   line with an inline comment.

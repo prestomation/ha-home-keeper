@@ -73,7 +73,7 @@ developer adds it to the allowlist.
 Home Keeper delivers only to 2 targets: companion-app notify services
 (`notify.mobile_app_*`) and `persistent_notification`.
 
-Home Keeper refuses any other target. A saved notification with another
+Home Keeper rejects any other target. A saved notification with another
 target is dropped, with a warning in the log. A call to `home_keeper.notify`
 with another target fails.
 
