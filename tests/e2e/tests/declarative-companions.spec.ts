@@ -32,6 +32,19 @@ async function listSpecs(): Promise<Array<Record<string, any>>> {
   return (await callService('home_keeper', 'list_declarative_companions', {}, true)).companions;
 }
 
+/**
+ * Wait for an `ha-dialog` to be on screen.
+ *
+ * The host element itself never reports visible — `ha-dialog` portals its surface,
+ * so Playwright measures a zero-size host — which is why every dialog assertion in
+ * this suite waits on a node *inside* the dialog instead. `within` names one the
+ * dialog cannot be usable without.
+ */
+async function expectDialogOpen(dialog: Locator, within: string): Promise<void> {
+  await expect(dialog).toHaveCount(1, { timeout: 20_000 });
+  await expect(dialog.locator(within).first()).toBeVisible({ timeout: 20_000 });
+}
+
 /** The declarative subsection of the Companions card, with Settings already open. */
 async function openDeclarativeSection(page: Page): Promise<Locator> {
   await openPanel(page);
@@ -111,7 +124,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
 
     await panel.locator('.hk-decl-preset').click();
     const picker = panel.locator('ha-dialog.hk-decl-picker');
-    await expect(picker).toBeVisible();
+    await expectDialogOpen(picker, '.hk-decl-preset-card');
     await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(3);
 
     // Low battery needs nothing installed, so it is pickable.
@@ -138,10 +151,11 @@ test.describe('Home Keeper panel — declarative companions', () => {
 
     await panel.locator('.hk-decl-preset').click();
     const picker = panel.locator('ha-dialog.hk-decl-picker');
+    await expectDialogOpen(picker, '.hk-decl-preset-card');
     await picker.locator('.hk-decl-preset-card', { hasText: 'Low battery' }).click();
 
     const dialog = panel.locator('ha-dialog.hk-decl-dialog');
-    await expect(dialog).toBeVisible();
+    await expectDialogOpen(dialog, '[data-decl-section="identity"]');
     // The preview is debounced and then round-trips to the backend, so it lands a
     // moment after the dialog. One battery binary sensor is seeded, and only one.
     await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(
@@ -212,6 +226,14 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await scrim.locator('ha-button').last().click();
 
     await expect(scrim).toHaveCount(0);
+    // The store first, then the panel. Confirming Delete re-renders the panel
+    // immediately, and a re-render rebuilds the section's innerHTML — so a row that
+    // is merely *between renders* satisfies `toHaveCount(0)` while the recipe is
+    // still stored. That is how a delete the backend rejected outright read as a
+    // successful one, all the way to the task assertion below.
+    await expect
+      .poll(async () => (await listSpecs()).some((s) => s.id === specId), { timeout: 20_000 })
+      .toBe(false);
     await expect(row).toHaveCount(0, { timeout: 20_000 });
     await expect
       .poll(
@@ -231,7 +253,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
 
     await panel.locator('.hk-decl-add').click();
     const dialog = panel.locator('ha-dialog.hk-decl-dialog');
-    await expect(dialog).toBeVisible();
+    await expectDialogOpen(dialog, '[data-decl-section="identity"]');
 
     // Name it, and narrow the selection to the one seeded battery sensor — a blank
     // recipe matches every entity in the registry, which is a lot of tasks to make
