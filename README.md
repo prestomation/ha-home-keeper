@@ -805,38 +805,6 @@ with the appliance.
 > water heater then has a device page with a warranty-expiry sensor and a
 > *"Replace Anode rod"* task that is due 12 months after each completion.
 
-#### Declarative companions (config-driven, no separate integration)
-
-A **declarative companion** is a recipe you configure from the panel. You point it
-at a target integration (or use an entity id regex), pick a trigger mode
-(*usage meter*, *threshold*, *state*, or the new **availability**), and provide Jinja
-templates for the task name and notes. Home Keeper materializes one managed sensor
-task per matching entity, one *"Replace {device} battery"* task per binary sensor
-reporting low battery, one *"Update {friendly_name}"* per update entity flipping on,
-one per Device Pulse per-device sensor above zero failed pings. Tasks live in the
-same to-do, calendar, and device-page surfaces as any hand-created task and auto-clear
-when the condition recovers.
-
-The *Add from preset* picker offers:
-
-- **Device Pulse**, targets [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse)'s per-device
-  ping sensors. Requires the Device Pulse integration installed.
-- **Low battery**, matches every `binary_sensor` with `device_class: battery` reporting
-  `on`. Works alongside the Battery Notes glue if you have both.
-- **Firmware update available**, matches every `update.*` entity reporting `on`.
-  Covers UniFi, ESPHome, HACS, Reolink, Bambu Lab firmware updates in one recipe.
-
-The *Add companion* dialog shows a live preview of every match, so you know before you
-save how many tasks a recipe will create. There's a soft warning above 50 matches and a
-hard 500-match cap. See [INTEGRATING.md](docs/INTEGRATING.md) for the full spec shape
-and the paired services.
-
-![Settings → Companions with the new Declarative companions subsection empty-state](docs/images/21b-panel-declarative-companions-empty.png)
-
-![The three-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](docs/images/21c-panel-declarative-preset-picker.png)
-
-![The Add dialog seeded from the Low Battery preset, with the live-preview panel on the right](docs/images/21d-panel-declarative-add-dialog.png)
-
 ## Profiles (saved filters you reuse everywhere)
 
 Home Keeper supports saving a filter as a **Profile**. A Profile has a status tier and
@@ -1152,6 +1120,38 @@ To add a companion or a [glue integration](docs/GLUE_INTEGRATIONS.md) to the cat
 [open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20).
 
 ![The Companions section on the Settings tab: connected integrations with Configure buttons](docs/images/21-panel-companions.png)
+
+#### Declarative companions (config-driven, no separate integration)
+
+A **declarative companion** is a recipe you configure from the panel. You point it
+at a target integration (or use an entity id regex), pick a trigger mode
+(*usage meter*, *threshold*, *state*, or the new **availability**), and provide Jinja
+templates for the task name and notes. Home Keeper materializes one managed sensor
+task per matching entity, one *"Replace {device} battery"* task per binary sensor
+reporting low battery, one *"Update {friendly_name}"* per update entity flipping on,
+one per Device Pulse per-device sensor above zero failed pings. Tasks live in the
+same to-do, calendar, and device-page surfaces as any hand-created task and auto-clear
+when the condition recovers.
+
+The *Add from preset* picker offers:
+
+- **Device Pulse**, targets [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse)'s per-device
+  ping sensors. Requires the Device Pulse integration installed.
+- **Low battery**, matches every `binary_sensor` with `device_class: battery` reporting
+  `on`. Works alongside the Battery Notes glue if you have both.
+- **Firmware update available**, matches every `update.*` entity reporting `on`.
+  Covers UniFi, ESPHome, HACS, Reolink, Bambu Lab firmware updates in one recipe.
+
+The *Add companion* dialog shows a live preview of every match, so you know before you
+save how many tasks a recipe will create. There's a soft warning above 50 matches and a
+hard 500-match cap. See [INTEGRATING.md](docs/INTEGRATING.md) for the full spec shape
+and the paired services.
+
+![Settings → Companions with the new Declarative companions subsection empty-state](docs/images/21b-panel-declarative-companions-empty.png)
+
+![The three-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](docs/images/21c-panel-declarative-preset-picker.png)
+
+![The Add dialog seeded from the Low Battery preset, with the live-preview panel on the right](docs/images/21d-panel-declarative-add-dialog.png)
 
 
 
