@@ -274,7 +274,8 @@ def test_a_materialized_task_cannot_be_deleted_by_hand(ha, specs):
         json={"task_id": task["id"]},
     )
     assert r.status_code >= 400, (
-        f"a declarative-companion task should be deletion-protected, got {r.status_code}"
+        "a declarative-companion task should be deletion-protected, "
+        f"got {r.status_code}"
     )
     assert len(_spec_tasks(ha, spec["id"])) == 1
 
