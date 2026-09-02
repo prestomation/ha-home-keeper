@@ -79,6 +79,11 @@ keys the same as the English source (see "Translations" in
 - The `vale` job in `lint.yml` still runs. STE and the `ai-tells` style agree on
   most points. If they disagree, STE wins, and you disable the vale rule for that
   line with an inline comment.
+- Vale reads a whole list as one block, and its regexes cross sentence ends. Keep
+  commas out of list items. Two commas in one list can trip `VerbTricolon` even
+  when they are in different bullets. Do not start 2 sentences in a row with the
+  same word, or `StackedAnaphora` fires. The local `vale` binary misses some hits
+  that CI reports, so match the regexes in `styles/ai-tells/*.yml` by hand.
 
 ## Glossary of approved names
 
