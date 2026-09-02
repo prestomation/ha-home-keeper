@@ -1145,8 +1145,6 @@ The *Add companion* dialog shows a live preview of the matches before you save. 
 warning shows above 50 matches. A recipe cannot match more than 500 entities. See
 [INTEGRATING.md](docs/INTEGRATING.md) for the service reference.
 
-![Settings → Companions with the new Declarative companions subsection empty-state](docs/images/21b-panel-declarative-empty.png)
-
 ![The three-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](docs/images/21c-panel-declarative-preset-picker.png)
 
 ![The Add dialog seeded from the Low Battery preset, with the live-preview panel on the right](docs/images/21d-panel-declarative-add-dialog.png)
