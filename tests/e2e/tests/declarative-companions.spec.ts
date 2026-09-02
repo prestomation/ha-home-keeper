@@ -240,10 +240,12 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await fillSection(dialog, 'identity', 0, 'E2E mode switch probe');
     await fillSection(dialog, 'selection', 1, DEMO_BATTERY.replace('.', '\\.'));
 
-    // State → Threshold: the threshold's own fields appear.
-    const modeSelect = dialog.locator('[data-decl-section="trigger"] ha-select').first();
-    await chooseHaSelect(modeSelect, 'Threshold');
-    await expect(dialog.locator('[data-decl-section="trigger"]')).toContainText('Comparison');
+    // State → Threshold: the threshold's own fields appear. A field label is drawn
+    // inside the HA component's own shadow root, so it is reachable through
+    // `getByText` (which pierces) rather than through the section's `textContent`.
+    const trigger = dialog.locator('[data-decl-section="trigger"]');
+    await chooseHaSelect(trigger.locator('ha-select').first(), 'Threshold');
+    await expect(trigger.getByText('Comparison').first()).toBeVisible();
 
     // Threshold → State: the comparison and value go with it. Left behind, the save
     // fails with "sensor.comparison is not valid for a state-mode sensor task".
@@ -251,9 +253,8 @@ test.describe('Home Keeper panel — declarative companions', () => {
       dialog.locator('[data-decl-section="trigger"] ha-select').first(),
       'State',
     );
-    const trigger = dialog.locator('[data-decl-section="trigger"]');
-    await expect(trigger).toContainText('State to watch for');
-    await expect(trigger).not.toContainText('Comparison');
+    await expect(trigger.getByText('State to watch for').first()).toBeVisible();
+    await expect(trigger.getByText('Comparison')).toHaveCount(0);
 
     await dialog.locator('.hk-decl-save').click();
     // A rejected save keeps the dialog up with the backend's message in an alert.
