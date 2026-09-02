@@ -56,7 +56,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
+        "device_id": "f1313736aff9f3830d171879fdfc0426",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -433,7 +433,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
+        "device_id": "f1313736aff9f3830d171879fdfc0426",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -546,7 +546,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "20869f14f3f971ffa14d302ec1ccbd1d",
+        "device_id": "f1313736aff9f3830d171879fdfc0426",
         "identifiers": [
           [
             "home_keeper",
@@ -715,7 +715,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "38fc8a6288ef61807789fd638f6aebb5",
+        "device_id": "a03d241e115150c3b31006460ef22306",
         "identifiers": [
           [
             "home_keeper",
@@ -740,7 +740,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "1d7169cdea49653c7d15595155fcfcf7",
+        "device_id": "d3371d0e25d0a8ae569d66a88a7343e5",
         "identifiers": [
           [
             "home_keeper",
@@ -766,6 +766,7 @@
       "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer."
     },
     "shopping_items": {},
+    "declarative_companions": {},
     "todo_list_items": {}
   }
 }
