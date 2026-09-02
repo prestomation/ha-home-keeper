@@ -647,33 +647,38 @@ detail then shows the linked part and its current stock.
 
 ## Settings
 
-Home Keeper's integration options are editable right in the panel (a **Settings**
-tab alongside Tasks and Appliances) so you never have to dig through *Settings →
-Devices & services → Configure*. It's a plain form that matches the options flow and
-**saves as you change it**. The **General** card holds how long to keep completed
-one-offs. **Shopping list** picks the to-do list
-[buy reminders are synced onto](#send-buy-reminders-to-your-shopping-list).
-**Profiles** holds the saved filters, each carrying the to-do list
-[its tasks are synced onto](#send-tasks-to-your-to-do-lists).
-**Problem sensor sync** carries the toggle, with the entity / area / label exclusions
-indented behind it since they only bite while the sync is on. The same options remain
-available through the HA options flow and the `home_keeper.set_options` service (for
-automations).
+The **Settings** tab in the panel edits the integration options. The form matches the
+Home Assistant options flow and saves each change immediately. The same options are
+available in the options flow under **Settings → Devices & services → Configure** and
+through the `home_keeper.set_options` service.
 
-A rail beside the sections names each one and marks what it is set to. A green dot
-means the feature is on. An amber one means notifications are configured with no
-mobile app to deliver them. A section holding a list carries a count instead of a dot.
-Each card also states its current value in a line under its name, so the page can be
-read without opening anything.
+The tab has 6 sections:
+
+- **General** sets how long completed one-off tasks are kept.
+- **Shopping list** selects the to-do list that
+  [buy reminders are synced to](#send-buy-reminders-to-your-shopping-list).
+- **Profiles** holds the saved filters. See
+  [Profiles](#profiles-saved-filters-you-reuse-everywhere).
+- **Notifications** holds the notification configurations. See
+  [Notifications](#notifications-actionable-reminders-on-your-phone).
+- **Problem sensor sync** has the sync switch and the entity, area, and label
+  exclusions. The exclusions apply only when the sync is on.
+- **Companions** lists the integrations that work with Home Keeper.
+
+A rail beside the sections shows the name and the current value of each section. The
+dot is green when the feature is on. It is amber when notifications are configured
+but no mobile app is available to deliver them. Sections that hold a list show a
+count instead of a dot. Each section also shows its current value under its name.
 
 ![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
 
-**On a phone, Settings opens on an index of its sections.** There is no room for a
-rail beside six expanded sections, so each one becomes a row naming it, what it is set
-to and its dot or count. Tapping a row opens that section by itself, with a back arrow
-to the index. Each section has an address of its own
-(`/home-keeper/settings/notifications`). Browser Back leaves a section the way it
-leaves any other page. A link can point straight at one.
+### On a phone
+
+On a phone, the Settings tab opens as an index of its sections. Each row shows the
+section name with its current value and its dot or count. Tap a row to open the section.
+A back arrow returns to the index. Each section has its own URL, such as
+`/home-keeper/settings/notifications`, so the browser Back button and links to a
+section work.
 
 <p>
   <img src="docs/images/50-panel-mobile-settings-index.png" alt="The Settings section index at phone width" width="300">
@@ -682,32 +687,21 @@ leaves any other page. A link can point straight at one.
 
 ### Companions
 
-A **companion** is any integration that works with Home Keeper, a pet-care tracker that
-schedules recurring chores, a bridge that turns low batteries into replacement tasks, and
-so on. You shouldn't have to *already know* a companion exists to benefit from it, so the
-**Companions** section at the bottom of the Settings tab surfaces them for you:
+A companion is an integration that works with Home Keeper. Examples are a pet-care
+tracker that creates recurring tasks and a glue integration that turns a low battery
+into a replacement task. The **Companions** section at the end of the Settings tab
+lists them in 2 groups:
 
-- **Connected**: companions that are integrated with Home Keeper and have announced
-  themselves (e.g. [Pawsistant](https://github.com/prestomation/pawsistant), or the
-  [Battery Notes bridge](https://github.com/prestomation/ha-home-keeper-battery-notes)).
-  Each row has a **Configure** button that takes you to that companion's own page, so the
-  pet-care schedules or the battery-task options live where they belong, one click away.
-<!-- vale ai-tells.ColonUsage = NO -->
-- **Suggested**: Home Keeper also recognises a few *popular* integrations that aren't
-  companions yet. If you have one installed (e.g. **Battery Notes**) but not the small
-  "glue" that integrates it, Home Keeper points you at that companion with an **Install**
-  link. Not interested? **Dismiss** silences that suggestion.
-<!-- vale ai-tells.ColonUsage = YES -->
+- **Connected** lists the companions that registered themselves with Home Keeper.
+  Examples are [Pawsistant](https://github.com/prestomation/pawsistant) and the
+  [Battery Notes glue integration](https://github.com/prestomation/ha-home-keeper-battery-notes).
+  Each row has a **Configure** button that opens the companion's own page.
+- **Suggested** lists popular integrations that Home Keeper detects from a catalog
+  and that have no glue integration installed. An example is **Battery Notes**. Each
+  row has an **Install** link and a **Dismiss** button.
 
-Companions surface in two directions: one can *register itself* (so Home Keeper never has
-to hard-code it), while a popular upstream is *detected* from a curated catalog. Either
-way you find out (from inside Home Keeper) that the pieces fit together.
-
-**Know a companion that should be here?** The Companions section links out to this page so
-you can always find the current list. If you maintain, or just know of, a companion or a
-small [glue integration](docs/GLUE_INTEGRATIONS.md) that isn't listed, please
-[open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20)
-so we can add it to the suggested-companions catalog.
+To add a companion or a [glue integration](docs/GLUE_INTEGRATIONS.md) to the catalog,
+[open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20).
 
 ![The Companions section on the Settings tab: connected integrations with Configure buttons](docs/images/21-panel-companions.png)
 
