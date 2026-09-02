@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Security model | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-285/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-285/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-285/developer/security"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Security model | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper has one rule: only an admin can manage the home. Any signed-in user"><meta data-rh="true" property="og:description" content="Home Keeper has one rule: only an admin can manage the home. Any signed-in user"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-285/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-285/developer/security"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-285/developer/security" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-285/developer/security" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Security","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-285/developer/security"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-285/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-285/assets/js/runtime~main.ff68a6a1.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-285/assets/js/runtime~main.b76709bc.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-285/assets/js/main.80242324.js" defer="defer"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@ follows the same rule.</p>
 <li class="">read purchase prices and serial numbers that you keep for insurance</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="admin-only">Admin only<a href="#admin-only" class="hash-link" aria-label="Direct link to Admin only" title="Direct link to Admin only" translate="no">​</a></h2>
-<p>The Home Keeper sidebar panel is admin-only. A non-admin user does not see
+<p>The Home Keeper panel is admin-only. It is in the Home Assistant sidebar. A non-admin user does not see
 the panel.</p>
 <p>Home Keeper gates each admin operation in 2 places: the websocket API the
 panel uses, and the matching <code>home_keeper.*</code> service.</p>
@@ -85,8 +85,8 @@ same way Home Assistant does.</p>
 appliance&#x27;s documents, its link-type custom fields, and each part&#x27;s name
 and product URL.</p>
 <p>The narrowed view withholds purchase costs, part costs, serial numbers,
-warranty dates, and free-text custom fields. It is a list of allowed
-fields, so a new field stays private until an admin adds it to the list.</p>
+warranty dates, and free-text custom fields. The narrowed view is an allowlist. A new appliance field stays private until a
+developer adds it to the allowlist.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="notifications">Notifications<a href="#notifications" class="hash-link" aria-label="Direct link to Notifications" title="Direct link to Notifications" translate="no">​</a></h2>
 <p>Home Keeper delivers only to 2 targets: companion-app notify services
 (<code>notify.mobile_app_*</code>) and <code>persistent_notification</code>.</p>
@@ -102,7 +102,8 @@ the instance.</p>
 authenticated Home Assistant view.</p>
 <p>To open a file, the panel creates a signed URL. The signed URL lasts 1 hour
 for the panel, and 15 minutes for the <code>sign_document_url</code> and
-<code>sign_part_file_url</code> services, because their result can leave the panel.</p>
+<code>sign_part_file_url</code> services. A service result can leave the panel, so it
+gets the shorter lifetime.</p>
 <p>A signed URL is a bearer credential. Anyone who has the link can get the
 file until it expires, without a login. A screenshot with a signed URL
 needs the same care as the file itself.</p>
@@ -111,17 +112,17 @@ upload endpoints also require a real authenticated user, so a link that can
 read a file can never replace it.</p>
 <p>A signed URL is not admin-only. The card needs one to open a document on a task
 that any user can complete.</p>
-<p>One consequence is accepted: a non-admin user who guesses an appliance id
+<p>Home Keeper accepts one consequence: a non-admin user who guesses an appliance id
 and a document id learns whether that pair exists, from whether the request
 succeeds. The narrowed appliance view only lists documents already shown on
 a card.</p>
 <p>Home Assistant serves only the 2 built JavaScript bundles as a static path. Home
 Assistant serves static paths before authentication, so Home Keeper does
 not mount the panel&#x27;s source tree or its dependencies.</p>
-<p>Home Keeper escapes every URL it renders as a link. It also checks the URL
-scheme. Escaping alone does not stop a <code>javascript:</code> link, and some
-links come from other integrations through <code>add_task</code>. Home Keeper checks
-the scheme at render time, even when it already validated the stored value.</p>
+<p>Home Keeper escapes every URL it renders as a link, and it also checks that the
+URL scheme is safe, because an escaped <code>javascript:</code> link is still a live link.
+Some links come from other integrations through <code>add_task</code>, so the scheme check
+runs at render time even if the stored value was already validated.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="limits-of-this-security-model">Limits of this security model<a href="#limits-of-this-security-model" class="hash-link" aria-label="Direct link to Limits of this security model" title="Direct link to Limits of this security model" translate="no">​</a></h2>
 <ul>
 <li class=""><strong>An admin is an admin.</strong> Home Keeper does not protect an instance from
