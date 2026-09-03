@@ -397,6 +397,19 @@ def test_an_unowned_task_is_never_selected_by_a_companions_list():
     )
 
 
+def test_an_explicitly_null_managed_by_owns_nothing():
+    # `managed_by: None` is not the same shape as an absent key, and both reach the
+    # matcher: `add_task` stores what it is given. They must read the same.
+    now = dt(2026, 6, 13, 12)
+    t = task("5", "Nulled", dt(2026, 6, 10), managed_by=None)
+    assert not p.matches_filter(
+        t, {"status": "all", "companions": ["battery_notes"]}, now=now
+    )
+    assert p.matches_filter(
+        t, {"status": "all", "exclude_companions": ["battery_notes"]}, now=now
+    )
+
+
 def test_a_managed_by_without_an_integration_key_owns_nothing():
     # managed_by is a free-form dict at the service boundary, so a block missing the
     # required key must read as "unowned" rather than crash or match everything.

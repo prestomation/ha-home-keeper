@@ -256,6 +256,14 @@ describe('profileMatches companions', () => {
     expect(profileMatches(nameless, { companions: ['battery_notes'] }, {}, {}, NOW)).toBe(false);
   });
 
+  it('treats an explicitly null managed_by like an absent one', () => {
+    const nulled = task({ managed_by: null });
+    expect(profileMatches(nulled, { companions: ['battery_notes'] }, {}, {}, NOW)).toBe(false);
+    expect(
+      profileMatches(nulled, { exclude_companions: ['battery_notes'] }, {}, {}, NOW),
+    ).toBe(true);
+  });
+
   it('drops a task owned by an excluded integration', () => {
     const filter = { exclude_companions: ['battery_notes'] };
     expect(profileMatches(owned('battery_notes'), filter, {}, {}, NOW)).toBe(false);
