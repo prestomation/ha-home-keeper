@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { callService, openPanel, openSettingsSection, trackPanelErrors } from './helpers';
+import { settleToasts } from '../shots';
 
 test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () => {
   test('Settings tab renders the options form and deep-links', async ({ page }) => {
@@ -71,12 +72,24 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       const errors = trackPanelErrors(page);
       await openPanel(page);
       const panel = page.locator('home-keeper-panel').first();
+      // Home Assistant raises its own "Home Assistant has started!" toast on a cold
+      // boot, into the same slot this test reads at the end. Clear it here, before
+      // the row is open: settling later gives Home Assistant time to replace the
+      // custom-panel element, and a fresh panel folds every row again.
+      await settleToasts(page);
       await openSettingsSection(panel, 'notifications');
       const card = panel.locator('#hk-notifications');
       await expect(card).toBeVisible();
-      // Rows collapse by default; open the seeded one to reach its editor.
-      await card.locator('.hk-item-header').first().click();
-      const form = card.locator('.hk-item-body ha-form').first();
+      // Rows collapse by default, so open the seeded one to reach its editor.
+      // Guarded rather than a bare click, for that same panel swap.
+      const row = card.locator('.hk-item-card').first();
+      const openRow = async (): Promise<void> => {
+        const header = row.locator('> .hk-item-header');
+        if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+        await expect(row.locator('.hk-item-body ha-form')).toBeVisible();
+      };
+      await openRow();
+      const form = row.locator('.hk-item-body ha-form').first();
       await expect(form).toBeVisible();
 
       // Both controls are drawn, under the labels the locale file gives them.
@@ -99,13 +112,19 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(actions.locator('.hk-notify-test')).toHaveText('Test');
       await expect(actions.locator('.hk-notify-delete')).toBeVisible();
 
-      // Pressing it reaches `home_keeper.notify`. This notification names a profile
-      // that matches everything and has no target, so the service rejects it with its
-      // own localized message — which is exactly what proves the call went through
-      // rather than being swallowed in the panel.
+      // Pressing it reaches `home_keeper.notify`. This notification has no target, so
+      // the service rejects it — and the panel shows the service's *own* localized
+      // message rather than a generic failure. That message is the reason Test stays
+      // enabled with no target configured: it says what to do about it, which a
+      // disabled button cannot.
+      await openRow();
       await actions.locator('.hk-notify-test').click();
-      await expect(panel.locator('#hk-notifications')).toBeVisible();
+      const toast = page.locator('.message');
+      await expect(toast).toContainText(/has no target to send to/i);
+      await expect(toast).toContainText(/Send to/i);
+
       // The panel stays up and does not log an error of its own.
+      await expect(panel.locator('#hk-notifications')).toBeVisible();
       expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
     } finally {
       await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
