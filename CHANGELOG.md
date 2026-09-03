@@ -10,6 +10,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Fixed
 
+- **Settings no longer loses an edit when you go to the next row too soon.** Each row in
+  *Settings → Notifications* and *Settings → Profiles* saves a moment after you stop
+  typing. The first row showed Saved and then lost its value. (Fixes #255)
+
 - **The Test button now shows the correct result.** In *Settings → Notifications* it
   said that no task was due after it sent the notification to the phone. (Fixes #255)
 

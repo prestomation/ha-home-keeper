@@ -228,6 +228,74 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     }
   });
 
+  test('two notifications configured back to back both keep their channel (#255)', async ({
+    page,
+  }) => {
+    // The reporter's second finding: the panel said "Saved" and the channel was gone on
+    // the next load. Configuring one notification and starting on the next is the
+    // ordinary way to use this card, and the autosave debounce dropped the first row's
+    // write. The unit suite pins the mechanism; this proves it through a real `ha-form`
+    // and a real config-entry round trip, which is where it was actually seen.
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: 'e2e_two_profile',
+          name: 'Everything',
+          filter: { status: 'all', labels: [], areas: [], devices: [] },
+        },
+      ],
+      notifications: ['Bins', 'Medication'].map((name, i) => ({
+        id: `e2e_two_${i}`,
+        name,
+        profile_id: 'e2e_two_profile',
+        targets: [],
+        actions: ['complete'],
+        style: 'walk',
+        snooze_hours: 24,
+        channel: '',
+        urgency: 'normal',
+        auto: { overdue: false, due_soon: false },
+      })),
+    });
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      await settleToasts(page);
+      await openSettingsSection(panel, 'notifications');
+      const card = panel.locator('#hk-notifications');
+      for (const h of await card.locator('.hk-item-card > .hk-item-header').all()) {
+        if ((await h.getAttribute('aria-expanded')) !== 'true') await h.click();
+      }
+      await expect(card.locator('.hk-item-body ha-form').first()).toBeVisible();
+      const channelOf = (row: number) =>
+        card.locator('.hk-item-card').nth(row).locator('ha-selector-text').nth(1).locator('input');
+
+      // Type into the first row, then move to the second without pausing — the debounce
+      // window is 600ms and a person crosses it easily.
+      await channelOf(0).click();
+      await page.keyboard.type('Trash', { delay: 30 });
+      await channelOf(1).click();
+      await page.keyboard.type('Medication', { delay: 30 });
+
+      await expect
+        .poll(
+          () =>
+            page.evaluate(async () => {
+              const hass = (document.querySelector('home-assistant') as any).hass;
+              const res = await hass.callWS({ type: 'home_keeper/get_options' });
+              return res.options.notifications.map((n: any) => n.channel);
+            }),
+          { timeout: 15_000 },
+        )
+        .toEqual(['Trash', 'Medication']);
+
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
+    }
+  });
+
   test('the problem-sensor toggle explains what clears a synced task', async ({ page }) => {
     // The consequences of the toggle aren't guessable from its label: such a task
     // clears only when its source integration resolves the problem, so its reminders

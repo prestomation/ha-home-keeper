@@ -625,10 +625,30 @@ async function persistOptionList(
   }
 }
 
-/** The per-keystroke form saves, debounced under the list's own key so a text edit
- *  doesn't fire a config-entry reload on every character. */
-function persistDebounced(p: PanelHost, key: OptionListKey, list: Profile[] | Notification[]): void {
-  p._debounce(key, () => void persistOptionList(p, key, list, false));
+/**
+ * The per-keystroke form saves, debounced so a text edit doesn't fire a config-entry
+ * reload on every character.
+ *
+ * Two details here are load-bearing, and getting either wrong silently drops an edit
+ * the user was told was saved (#255).
+ *
+ * The timer is keyed **per row**, not per list. One timer for the whole list means
+ * touching a second row inside the 600ms window cancels the first row's pending save,
+ * and the first row's edit is never written.
+ *
+ * *buildList* is called when the timer **fires**, not when it is armed. A list built
+ * at keystroke time is a snapshot of `p._options` from before any save that lands in
+ * between, so writing it would put every other row back to where it was. Building late
+ * composes instead: `persistOptionList` updates `p._options` synchronously before it
+ * awaits, so a row saving second already sees the row that saved first.
+ */
+function persistDebounced(
+  p: PanelHost,
+  key: OptionListKey,
+  itemId: string,
+  buildList: () => Profile[] | Notification[],
+): void {
+  p._debounce(`${key}:${itemId}`, () => void persistOptionList(p, key, buildList(), false));
 }
 
 // ── profiles ────────────────────────────────────────────────────────────────
@@ -691,10 +711,11 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
       let filter = profileFormData(profile);
       let sync: ProfileSync = toProfileSync(profile.sync);
       const saveProfile = (): void => {
-        const next = (p._options?.profiles ?? []).map((x) =>
-          x.id === profile.id ? profileFormToProfile(profile.id, filter, sync) : x,
+        persistDebounced(p, 'profiles', profile.id, () =>
+          (p._options?.profiles ?? []).map((x) =>
+            x.id === profile.id ? profileFormToProfile(profile.id, filter, sync) : x,
+          ),
         );
-        persistDebounced(p, 'profiles', next);
       };
 
       body.appendChild(
@@ -931,7 +952,7 @@ function notificationEditor(
           (value) => {
             if (typeof value.name === 'string') nameSpan.textContent = value.name;
             current = notifyFormToNotification(notification.id, value);
-            persistDebounced(p, 'notifications', listWith(current));
+            persistDebounced(p, 'notifications', notification.id, () => listWith(current));
           },
           {
             computeLabel: (s) => {
