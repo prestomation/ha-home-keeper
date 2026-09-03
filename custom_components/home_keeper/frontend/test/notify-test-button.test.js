@@ -45,9 +45,17 @@ const NOTIFICATION = {
   auto: { overdue: false, due_soon: false },
 };
 
-/** A `hass` that records every call and answers `home_keeper.notify` with the counts
- *  the real service returns. `notifyResult` sets what that run reports. */
-function makeHass({ notifyResult = { matched: 3, sent: 1 }, notifyError = null, gate } = {}) {
+/**
+ * A `hass` that records every call and answers `home_keeper.notify` the way the real
+ * service does. `notifyResult` sets what that run reports.
+ *
+ * Note the shape: `sent` is the **task id** a walk surfaced (`null` for a digest, or
+ * for a queue that was empty), not a count — `matched` is the count. An earlier
+ * fixture here invented `sent: 1`, and the panel read that number as "one went out",
+ * so every real delivery reported "no task is due" (#255). A fixture that does not
+ * match the service is worse than no fixture: it makes the broken read pass.
+ */
+function makeHass({ notifyResult = { matched: 3, sent: 't1' }, notifyError = null, gate } = {}) {
   const calls = [];
   const options = {
     sync_problem_sensors: false,
@@ -202,17 +210,35 @@ describe('Settings → Notifications — the Test button', () => {
   });
 
   it('says a notification went out', async () => {
-    const { hass } = makeHass({ notifyResult: { matched: 3, sent: 1 } });
+    // `waitFor` answers null on a timeout rather than throwing, so it is a wait and
+    // never an assertion. Every toast case below states what it expects afterwards —
+    // without that, this test sat green through the whole of #255.
+    const { hass } = makeHass({ notifyResult: { matched: 3, sent: 't1' } });
     const panel = await mountSettings(hass);
     const toasts = toastsOf(panel);
     testBtn(panel).click();
     await waitFor(() => toasts.includes('Notification sent.'));
+    expect(toasts).toContain('Notification sent.');
+    expect(toasts.join('\n')).not.toContain('sent nothing');
+  });
+
+  it('says a digest went out, though it walked to no task', async () => {
+    // A digest is one summary of everything due, so it names no task and answers
+    // `sent: null` on a run that delivered. `matched` is the only count of what went
+    // out, which is why the toast reads that and not `sent`.
+    const { hass } = makeHass({ notifyResult: { matched: 3, sent: null } });
+    const panel = await mountSettings(hass);
+    const toasts = toastsOf(panel);
+    testBtn(panel).click();
+    await waitFor(() => toasts.includes('Notification sent.'));
+    expect(toasts).toContain('Notification sent.');
+    expect(toasts.join('\n')).not.toContain('sent nothing');
   });
 
   it('distinguishes "nothing was due" from a failure', async () => {
-    // `sent: 0` is a successful run of a filter that matched nothing. Reporting it as
-    // an error would send somebody hunting for a delivery problem that is not there.
-    const { hass } = makeHass({ notifyResult: { matched: 0, sent: 0 } });
+    // A run that matched nothing is a success, not an error. Reporting it as one would
+    // send somebody hunting for a delivery problem that is not there.
+    const { hass } = makeHass({ notifyResult: { matched: 0, sent: null } });
     const panel = await mountSettings(hass);
     const toasts = toastsOf(panel);
     testBtn(panel).click();

@@ -962,8 +962,12 @@ function notificationEditor(
  *
  * Pending edits are saved first: `home_keeper.notify` resolves the notification out of
  * stored options, so an unsaved channel or urgency would test the previous delivery
- * and quietly report success. `sent: 0` is a real outcome rather than an error, and
- * says the filter matched nothing, so it gets its own message.
+ * and quietly report success. A run that matched nothing is a real outcome rather than
+ * an error, and says the filter found nothing due, so it gets its own message.
+ *
+ * `matched` is what says a notification went out, not `sent`: `sent` is the *task id*
+ * a walk surfaced, and a digest that delivered answers `null` for it. Reading `sent`
+ * as a count made every real delivery report "no task is due" (#255).
  */
 async function testNotification(
   p: PanelHost,
@@ -974,8 +978,8 @@ async function testNotification(
   if (!hass) return;
   try {
     p._options = await api.setOptions(hass, { notifications: listWith(current()) });
-    const { sent } = await api.runNotification(hass, current().id);
-    toast(p, sent > 0 ? t('notify.test_sent') : t('notify.test_none'));
+    const { matched } = await api.runNotification(hass, current().id);
+    toast(p, matched > 0 ? t('notify.test_sent') : t('notify.test_none'));
   } catch (err) {
     toast(p, String((err as { message?: string })?.message || err));
   }

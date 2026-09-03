@@ -365,12 +365,16 @@ export type NotifyStyle = 'walk' | 'digest';
  *  iOS's `push.interruption-level`, so the panel never asks which phone you carry. */
 export type NotifyUrgency = 'quiet' | 'normal' | 'high' | 'critical';
 
-/** What `home_keeper.notify` reports back: how many tasks the filter matched, and how
- *  many notifications went out. `sent: 0` on a match-free run is a success, not a
- *  failure, which is why the two counts are separate. */
+/** What `home_keeper.notify` reports back. */
 export interface NotifyRun {
+  /** How many tasks the filter matched. The service rejects a run with no target
+   *  before it gets this far, so a non-zero count means a notification went out.
+   *  `matched: 0` is a success — the filter found nothing due — not a failure. */
   matched: number;
-  sent: number;
+  /** The **task id** a walk surfaced, or `null` for a digest and for an empty queue.
+   *  Not a count: reading it as one made every real delivery report "no task is due"
+   *  (#255). Whether anything went out is `matched`. */
+  sent: string | null;
 }
 
 /** Which tasks a profile surfaces (a saved filter). */

@@ -100,8 +100,9 @@ export async function setOptions(
  * This is the one panel action that goes through a service rather than a Home Keeper
  * websocket command. `notify` already declares this operation for automations, and a
  * websocket twin would be a second delivery path to keep in step with it for no gain:
- * the panel wants exactly what an automation gets. `return_response` carries back the
- * `{matched, sent}` counts so the caller can tell "delivered" from "nothing was due".
+ * the panel wants exactly what an automation gets. `return_response` carries back
+ * `{matched, sent}` so the caller can tell "delivered" from "nothing was due" — read
+ * `matched` for that, since `sent` is a task id (see `NotifyRun`).
  */
 export async function runNotification(
   hass: Hass,
@@ -114,7 +115,7 @@ export async function runNotification(
     service_data: { notification: notificationId },
     return_response: true,
   });
-  return { matched: res?.response?.matched ?? 0, sent: res?.response?.sent ?? 0 };
+  return { matched: res?.response?.matched ?? 0, sent: res?.response?.sent ?? null };
 }
 
 const INTRO_DISMISSED_KEY = 'home_keeper_intro_dismissed';
