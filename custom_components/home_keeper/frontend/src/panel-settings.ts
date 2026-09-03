@@ -504,7 +504,8 @@ function itemCard(o: {
   isOpen: () => boolean;
   setOpen: (open: boolean) => void;
   fill: (body: HTMLElement, nameSpan: HTMLElement) => void;
-  onTest?: () => void;
+  /** Returns its promise so the button can hold itself down for the round trip. */
+  onTest?: () => Promise<void>;
   onDelete?: () => void;
 }): HTMLElement {
   const isExpanded = o.isOpen();
@@ -543,7 +544,15 @@ function itemCard(o: {
       test.className = 'hk-notify-test';
       setBtnWeight(test, 'secondary');
       test.textContent = t('notify.test');
-      test.addEventListener('click', o.onTest);
+      // Held down for the round trip. A save plus a send is slow enough to look
+      // unresponsive, and every press delivers a real notification to a real phone,
+      // so an impatient double-press would send twice.
+      const onTest = o.onTest;
+      test.addEventListener('click', () => {
+        if (test.hasAttribute('disabled')) return;
+        test.setAttribute('disabled', '');
+        void onTest().finally(() => test.removeAttribute('disabled'));
+      });
       actions.appendChild(test);
     }
     if (o.onDelete) {
@@ -902,7 +911,7 @@ function notificationEditor(
       if (open) p._itemExpanded.add(notification.id);
       else p._itemExpanded.delete(notification.id);
     },
-    onTest: () => void testNotification(p, () => current, listWith),
+    onTest: () => testNotification(p, () => current, listWith),
     onDelete: () => void deleteNotification(p, notification.id),
     fill: (body, nameSpan) => {
       body.appendChild(

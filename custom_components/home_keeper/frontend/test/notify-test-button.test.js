@@ -47,7 +47,7 @@ const NOTIFICATION = {
 
 /** A `hass` that records every call and answers `home_keeper.notify` with the counts
  *  the real service returns. `notifyResult` sets what that run reports. */
-function makeHass({ notifyResult = { matched: 3, sent: 1 }, notifyError = null } = {}) {
+function makeHass({ notifyResult = { matched: 3, sent: 1 }, notifyError = null, gate } = {}) {
   const calls = [];
   const options = {
     sync_problem_sensors: false,
@@ -82,7 +82,9 @@ function makeHass({ notifyResult = { matched: 3, sent: 1 }, notifyError = null }
           return Promise.resolve({ value: true });
         case 'call_service':
           if (notifyError) return Promise.reject(new Error(notifyError));
-          return Promise.resolve({ response: notifyResult });
+          // `gate` holds the send open so a test can observe the in-flight state; the
+          // default stub resolves inside one microtask, which is too fast to see.
+          return (gate ?? Promise.resolve()).then(() => ({ response: notifyResult }));
         default:
           return Promise.resolve({});
       }
@@ -162,6 +164,41 @@ describe('Settings → Notifications — the Test button', () => {
     const sendAt = calls.findIndex((c) => c.type === 'call_service');
     expect(saveAt).toBeGreaterThan(-1);
     expect(saveAt).toBeLessThan(sendAt);
+  });
+
+  it('holds itself down so a double-press does not send twice', async () => {
+    // Every press delivers a real notification to a real phone, and a save plus a send
+    // is slow enough to look unresponsive, so the second press of an impatient
+    // double-press has to be dropped rather than queued.
+    let release;
+    const gate = new Promise((r) => {
+      release = r;
+    });
+    const { hass, calls } = makeHass({ gate });
+    const panel = await mountSettings(hass);
+    const btn = testBtn(panel);
+    btn.click();
+    await waitFor(() => serviceCalls(calls).length);
+    // Still in flight: the button is held down and further presses are dropped.
+    expect(btn.hasAttribute('disabled')).toBe(true);
+    btn.click();
+    btn.click();
+    release();
+    await waitFor(() => !btn.hasAttribute('disabled'));
+    expect(serviceCalls(calls)).toHaveLength(1);
+    // …and it comes back for the next press rather than staying dead.
+    btn.click();
+    await waitFor(() => serviceCalls(calls).length === 2);
+  });
+
+  it('comes back after a failed send', async () => {
+    // A button left disabled by an error is worse than the error: the delivery cannot
+    // be retried once the target is fixed.
+    const { hass } = makeHass({ notifyError: 'nope' });
+    const panel = await mountSettings(hass);
+    const btn = testBtn(panel);
+    btn.click();
+    await waitFor(() => !btn.hasAttribute('disabled'));
   });
 
   it('says a notification went out', async () => {
