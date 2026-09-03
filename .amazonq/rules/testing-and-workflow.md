@@ -19,6 +19,13 @@
   `docs/`, or the PR; the changelog says what changed and stops. One bullet per change,
   never a second paragraph. Three sentences is the budget for the **whole bullet**,
   counting the bold lead as the first, not three per paragraph.
+- **Credit an outside contributor in the bullet for their change.** End the bullet
+  with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
+  not count against the three-sentence budget. Every change that came from a PR by
+  someone outside the project gets one, in the same change that writes the bullet.
+  `summarize()` in `ci/release-issues.py` quotes only the bold lead, so the credit
+  stays in the CHANGELOG. It does not reach the issue comment, and it does not
+  notify the contributor on each release.
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).
