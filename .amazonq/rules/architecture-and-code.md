@@ -333,6 +333,16 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   translations-parity test enforces this; hassfest requires the `services.yaml` ↔
   `strings.json` pairing). The websocket command, if any, is added alongside and
   delegates to the same `HomeKeeperStore` method — never a divergent code path.
+- **A websocket command is optional, and the panel may call the service instead.**
+  The rule above forbids a *service-less* websocket command, not a panel action with
+  no websocket twin. When the service already exists and the panel wants exactly what
+  an automation gets, `hass.callWS({type: 'call_service', …, return_response: true})`
+  is the right call: a twin would be a second delivery path to keep in step for no
+  latency gain, and a *test* button that exercised a different path from the real one
+  would prove nothing. Settings → Notifications' **Test** (`api.runNotification`) is
+  the reference case — it is the panel's only service call, and it is deliberate.
+  A panel action that a service does *not* already cover still lands as a service
+  first; this is not a way around that.
 - **Every `*_id` service field accepts a name as well as an id, id first.** The ids are
   `uuid4`s (`models.build_task`, `assets.build_asset`) that appear in no UI a person
   reads, so an id-only field makes the whole service surface unusable by hand. This

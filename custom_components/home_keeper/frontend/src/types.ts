@@ -365,6 +365,14 @@ export type NotifyStyle = 'walk' | 'digest';
  *  iOS's `push.interruption-level`, so the panel never asks which phone you carry. */
 export type NotifyUrgency = 'quiet' | 'normal' | 'high' | 'critical';
 
+/** What `home_keeper.notify` reports back: how many tasks the filter matched, and how
+ *  many notifications went out. `sent: 0` on a match-free run is a success, not a
+ *  failure, which is why the two counts are separate. */
+export interface NotifyRun {
+  matched: number;
+  sent: number;
+}
+
 /** Which tasks a profile surfaces (a saved filter). */
 export interface NotifyFilter {
   labels: string[];

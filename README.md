@@ -975,6 +975,10 @@ fields:
 - **Auto-send**: send the notification when a matching task becomes overdue or
   due soon.
 
+Press **Test** on a notification to send it now. Home Keeper saves the notification
+first, then calls `home_keeper.notify` for it, so the phone receives the delivery the
+form shows. If no task is due, Home Keeper sends nothing and says so.
+
 ### Channels and urgency
 
 Home Keeper supports a **Notification channel** and an **Urgency** on each
@@ -984,7 +988,8 @@ arrive in the same way.
 On Android the channel is a notification channel. The companion app creates the
 channel the first time a notification uses the name. The channel then appears in the
 phone settings for Home Assistant, where the user sets its sound and its Do Not
-Disturb override.
+Disturb override. A Medication channel can then make a sound during Do Not Disturb
+while a Batteries channel stays silent.
 
 An iPhone has no channels. Home Keeper sends the same name as a thread identifier, so
 these notifications group together. The urgency becomes the iOS interruption level.
@@ -1033,7 +1038,8 @@ again until the task is complete. The `home_keeper.notify` service sends nothing
 no task matches, so a schedule that runs all day costs nothing on a day with no due
 task. Build these automations in **Settings → Automations & scenes**.
 
-Send the notification every 2 hours between 08:00 and 21:00:
+**Repeat a notification every 2 hours.** This automation sends *Walk my chores*
+again every 2 hours between 08:00 and 21:00.
 
 ```yaml
 automation:
@@ -1051,8 +1057,8 @@ automation:
           notification: Walk my chores
 ```
 
-Send the notification every 30 minutes in the evening, and only when a person is at
-home:
+**Send only when a person is at home.** This automation looks every 30 minutes in the
+evening. It sends the notification only when the person entity is home.
 
 ```yaml
 automation:
@@ -1073,8 +1079,9 @@ automation:
           notification: Walk my chores
 ```
 
-Send the notification every 15 minutes in a short window. Give this notification its
-own channel at Critical urgency:
+**Repeat a critical notification every 15 minutes.** This automation looks every 15
+minutes between 08:00 and 10:00. Give the notification its own channel at Critical
+urgency.
 
 ```yaml
 automation:

@@ -10,15 +10,18 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **Give a notification its own channel and urgency.** A reminder in *Settings →
-  Notifications* is delivered on a notification channel you name, at an urgency from
-  *Quiet* up to *Critical*. Medication rings through Do Not Disturb while battery
-  reminders make no sound, and an iPhone gets the matching interruption level.
-  (Fixes #255)
+- **Give a notification its own channel and urgency.** In *Settings → Notifications* a
+  notification can use its own channel name and an urgency from *Quiet* to *Critical*.
+  A Medication notification can then make a sound during Do Not Disturb while a
+  Batteries notification stays silent. (Fixes #255)
 
-- **The Notifications page shows three worked automations.** One re-sends a reminder
-  every couple of hours until the task is done. Another holds reminders back until you
-  are home.
+- **Send a notification now with Test.** Each notification in *Settings →
+  Notifications* has a **Test** button that delivers it to the phone at once. Use it to
+  check a channel or an urgency without a wait for a task to come due.
+
+- **The Notifications page shows 3 worked automations.** One resends a notification
+  every 2 hours until the task is complete. Another sends a notification only when a
+  person is at home.
 
 ## [0.20.0b2]
 
