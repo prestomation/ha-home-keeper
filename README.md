@@ -1006,8 +1006,9 @@ notification immediately. An idle phone otherwise holds it until the next batch.
 
 Critical urgency has a condition on each platform. The user must allow **Critical
 Alerts** for Home Assistant in the iPhone settings. On Android a channel keeps the
-settings it was created with, so a change of urgency does not change a channel that
-exists. Give the channel a new name, or change the channel in the phone settings.
+settings it was created with. A change of urgency does not move a channel that
+already exists. Give the channel a new name or change the channel in the phone
+settings.
 
 If the channel is empty, the notification arrives on the General channel of the
 companion app.
