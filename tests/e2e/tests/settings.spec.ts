@@ -84,7 +84,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(form).toContainText('Urgency');
       // …and each explains itself, including the two things a user cannot guess: that
       // an iPhone has no channels, and that Critical needs a permission there.
-      await expect(form).toContainText(/iPhones have no channels/i);
+      await expect(form).toContainText(/An iPhone has no channels/i);
       await expect(form).toContainText(/Critical Alerts allowed for Home Assistant/i);
       // The saved channel round-tripped into the field rather than rendering blank.
       await expect
@@ -93,6 +93,19 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
         )
         .toContain('Medication');
 
+      // Test sits beside Delete, so the delivery just configured can be checked on the
+      // phone rather than waited for.
+      const actions = card.locator('.hk-item-actions').first();
+      await expect(actions.locator('.hk-notify-test')).toHaveText('Test');
+      await expect(actions.locator('.hk-notify-delete')).toBeVisible();
+
+      // Pressing it reaches `home_keeper.notify`. This notification names a profile
+      // that matches everything and has no target, so the service rejects it with its
+      // own localized message — which is exactly what proves the call went through
+      // rather than being swallowed in the panel.
+      await actions.locator('.hk-notify-test').click();
+      await expect(panel.locator('#hk-notifications')).toBeVisible();
+      // The panel stays up and does not log an error of its own.
       expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
     } finally {
       await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
