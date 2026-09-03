@@ -171,11 +171,16 @@ export interface ProfileFilter {
   labels: string[];
   areas: string[];
   devices: string[];
+  /** Integration domains from a task's `managed_by.integration` — the companion that
+   *  owns it. Scopes a profile to one source ("just the battery tasks") without every
+   *  companion having to learn to apply a label. */
+  companions?: string[];
   /** Ids that disqualify a task even when it cleared every include list above.
    *  Empty (or absent, on a profile saved before these existed) excludes nothing. */
   exclude_labels?: string[];
   exclude_areas?: string[];
   exclude_devices?: string[];
+  exclude_companions?: string[];
 }
 
 /**
@@ -205,6 +210,10 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  * "everything except the jobs that need a tradesperson" is one profile rather than a
  * label on every task that isn't one. They read the same effective ids, so excluding a
  * label also drops a task that only inherits it from its device or area.
+ *
+ * `companions` scopes by the integration that owns a task (`managed_by.integration`),
+ * which is how "a card of just the battery tasks" stays one saved profile instead of a
+ * setting each companion has to grow.
  *
  * A `problem`-sensor-synced task is an ordinary member of the set. It carries a
  * `next_due` of the moment its sensor went bad while the problem stands, so it reads as
@@ -236,10 +245,17 @@ export function profileMatches(
   if (wantAreas.length && !listHas(wantAreas, areaId)) return false;
   const wantDevices = filter.devices ?? [];
   if (wantDevices.length && !listHas(wantDevices, task.device_id)) return false;
+  // The owning integration, from the `managed_by` block a companion sets on
+  // `add_task`. A task nobody claims has none, so `listHas` rejects it from a
+  // non-empty include list and spares it from every exclude list.
+  const companion = task.managed_by?.integration;
+  const wantCompanions = filter.companions ?? [];
+  if (wantCompanions.length && !listHas(wantCompanions, companion)) return false;
   // Exclusions subtract, and win over the include lists above.
   if (filter.exclude_labels?.some((id) => taskLabels.has(id))) return false;
   if (listHas(filter.exclude_areas, areaId)) return false;
-  return !listHas(filter.exclude_devices, task.device_id);
+  if (listHas(filter.exclude_devices, task.device_id)) return false;
+  return !listHas(filter.exclude_companions, companion);
 }
 
 function matchesLabels(

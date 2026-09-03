@@ -378,10 +378,15 @@ export interface NotifyFilter {
   labels: string[];
   areas: string[];
   devices: string[];
+  /** Integration domains from a task's `managed_by.integration` — the companion that
+   *  owns it. A task no integration claims has none, so it is never selected here and
+   *  never dropped by `exclude_companions`. */
+  companions: string[];
   /** Ids that disqualify a task even when it cleared the include lists above. */
   exclude_labels: string[];
   exclude_areas: string[];
   exclude_devices: string[];
+  exclude_companions: string[];
   status: NotifyStatus;
 }
 

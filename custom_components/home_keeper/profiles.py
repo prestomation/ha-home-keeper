@@ -54,9 +54,11 @@ def normalize_filter(raw: Any) -> dict[str, Any]:
         "labels": _str_list(raw.get("labels")),
         "areas": _str_list(raw.get("areas")),
         "devices": _str_list(raw.get("devices")),
+        "companions": _str_list(raw.get("companions")),
         "exclude_labels": _str_list(raw.get("exclude_labels")),
         "exclude_areas": _str_list(raw.get("exclude_areas")),
         "exclude_devices": _str_list(raw.get("exclude_devices")),
+        "exclude_companions": _str_list(raw.get("exclude_companions")),
         "status": status if status in STATUSES else STATUS_OVERDUE,
     }
 
@@ -153,14 +155,21 @@ def matches_filter(
     status (#248). They are still left out of *walk* notifications, but that belongs to
     delivery rather than to the filter — see ``notifications.is_walkable``.
 
-    The ``exclude_labels``/``exclude_areas``/``exclude_devices`` lists then subtract:
-    any hit drops the task even when it satisfied every include list, so exclusions win.
+    The ``exclude_labels``/``exclude_areas``/``exclude_devices``/``exclude_companions``
+    lists then subtract: any hit drops the task even when it satisfied every include
+    list, so exclusions win.
     An empty exclude list excludes nothing. Exclusions read the same **effective** ids
     as the include lists, so excluding a label also drops a task that merely inherits
     it from its device or area.
 
+    ``companions`` scopes by the integration that owns the task — the ``integration``
+    of its ``managed_by`` block — so "only the battery tasks" is one profile rather
+    than a label every companion has to learn to apply. A task no integration claims
+    has no companion: a ``companions`` list never selects it, and an
+    ``exclude_companions`` list never drops it.
+
     This pure matcher reads the ``labels``/``area_id``/
-    ``device_id`` on the task dict; the HA-aware caller
+    ``device_id``/``managed_by`` on the task dict; the HA-aware caller
     (``notifier.effective_filter_tasks``) enriches those with **effective**
     (device/area-inherited) ids before calling, so a Profile selects the same tasks here
     as it does on the panel/card, which resolve inheritance inline. The shared
@@ -183,6 +192,12 @@ def matches_filter(
     task_labels = set(task.get("labels") or [])
     area_id = task.get("area_id")
     device_id = task.get("device_id")
+    # The integration that owns this task, from the ``managed_by`` block a companion
+    # sets on ``add_task``. That block is the documented ownership contract and the
+    # only provenance Home Keeper reads — ``source`` is the integration's own
+    # namespace and stays opaque (docs/INTEGRATING.md). A task nobody claims has no
+    # companion, so a ``companions`` list never selects it.
+    companion = (task.get("managed_by") or {}).get("integration")
 
     labels = filt.get("labels") or []
     if labels and not (task_labels & set(labels)):
@@ -193,18 +208,24 @@ def matches_filter(
     devices = filt.get("devices") or []
     if devices and device_id not in devices:
         return False
+    companions = filt.get("companions") or []
+    if companions and companion not in companions:
+        return False
 
     # Exclusions are applied last and win: a task that cleared every include list is
     # still dropped if it carries an excluded label, sits in an excluded area, or hangs
     # off an excluded device. That's what makes "everything I can do myself" expressible
     # as one profile instead of labelling every task that *isn't* a call-out.
-    # An unset area/device can never be listed: ``_str_list`` drops ``None``/``""``, so
-    # a task with no area is not swept up by a non-empty ``exclude_areas``.
+    # An unset area/device/companion can never be listed: ``_str_list`` drops
+    # ``None``/``""``, so a task with no area — or one no integration claims — is not
+    # swept up by a non-empty ``exclude_areas`` / ``exclude_companions``.
     if task_labels & set(filt.get("exclude_labels") or []):
         return False
     if area_id in (filt.get("exclude_areas") or []):
         return False
-    return device_id not in (filt.get("exclude_devices") or [])
+    if device_id in (filt.get("exclude_devices") or []):
+        return False
+    return companion not in (filt.get("exclude_companions") or [])
 
 
 def _due_key(task: dict[str, Any]) -> tuple[datetime, str]:

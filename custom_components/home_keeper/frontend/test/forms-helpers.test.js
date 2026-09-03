@@ -262,9 +262,11 @@ describe('profile form round-trip', () => {
       labels: ['l1'],
       areas: ['a1'],
       devices: ['d1'],
+      companions: ['battery_notes'],
       exclude_labels: ['l2'],
       exclude_areas: ['a2'],
       exclude_devices: ['d2'],
+      exclude_companions: ['dog_glue'],
     },
   };
 
@@ -275,9 +277,11 @@ describe('profile form round-trip', () => {
       labels: ['l1'],
       areas: ['a1'],
       devices: ['d1'],
+      companions: ['battery_notes'],
       exclude_labels: ['l2'],
       exclude_areas: ['a2'],
       exclude_devices: ['d2'],
+      exclude_companions: ['dog_glue'],
     });
   });
 
@@ -325,9 +329,11 @@ describe('profile form round-trip', () => {
       labels: [],
       areas: [],
       devices: [],
+      companions: [],
       exclude_labels: [],
       exclude_areas: [],
       exclude_devices: [],
+      exclude_companions: [],
     });
   });
 

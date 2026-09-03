@@ -2,6 +2,7 @@ import { t } from './i18n';
 import { recurrenceSummary, round1 } from './utils';
 import type {
   Asset,
+  Companion,
   Hass,
   MetadataEntry,
   Notification,
@@ -1368,16 +1369,66 @@ export function profileSyncSchema(exclude: string[] = []): FormField[] {
  * The include lists come first, then the `exclude_*` lists that subtract from them —
  * so a profile can say "everything overdue except the jobs that need a tradesperson".
  */
-export function profileSchema(): FormField[] {
+/** One entry in the profile form's companion picker: an integration domain + its label. */
+export interface CompanionOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * The integrations a profile can filter by: every **connected** companion, plus every
+ * integration that already owns a task (`managed_by.integration`).
+ *
+ * The union matters in both directions. A companion can own tasks without ever
+ * registering — `managed_by` is the ownership contract, registering is only how a
+ * companion appears under Settings, so the registry alone would leave real, filterable
+ * tasks unpickable. And a task's owner can go away — uninstall the glue and its tasks
+ * are orphaned, not deleted — so the tasks alone would drop a companion out of the
+ * picker while a saved profile still names it. A domain a task claims but no companion
+ * registers has no display name to borrow, so it labels itself.
+ *
+ * Suggested-but-not-installed companions are deliberately absent: they own no tasks, so
+ * filtering by one selects nothing.
+ */
+export function companionOptions(companions: Companion[], tasks: Task[]): CompanionOption[] {
+  const names = new Map<string, string>();
+  for (const c of companions) {
+    if (c.status === 'connected') names.set(c.domain, c.name);
+  }
+  for (const task of tasks) {
+    const domain = task.managed_by?.integration;
+    if (!domain) continue;
+    // A registered companion's own name wins: it is the one the user sees under
+    // Settings → Companions, and `display_name` is free text the owner sets per task.
+    if (!names.has(domain)) names.set(domain, task.managed_by?.display_name || domain);
+  }
+  return [...names.entries()]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function profileSchema(companions: CompanionOption[] = []): FormField[] {
+  // Home Assistant has no companion selector, so the include/exclude pair is a
+  // multi-select over *companionOptions* — the integrations this install can actually
+  // filter by. Both fields drop out when there are none, rather than showing a picker
+  // with nothing in it on an install that runs no companions.
+  const companionFields: FormField[] = companions.length
+    ? [
+        { name: 'companions', selector: selSelect(companions, true) },
+        { name: 'exclude_companions', selector: selSelect(companions, true) },
+      ]
+    : [];
   return [
     { name: 'name', required: true, selector: selText() },
     { name: 'status', selector: selSelect(notifyOptions(NOTIFY_STATUSES)) },
     { name: 'labels', selector: selLabel(true) },
     { name: 'areas', selector: selArea(true) },
     { name: 'devices', selector: selDevice(true) },
+    ...(companionFields.length ? [companionFields[0]] : []),
     { name: 'exclude_labels', selector: selLabel(true) },
     { name: 'exclude_areas', selector: selArea(true) },
     { name: 'exclude_devices', selector: selDevice(true) },
+    ...(companionFields.length ? [companionFields[1]] : []),
   ];
 }
 
@@ -1389,9 +1440,11 @@ export function profileFormData(p: Profile): Record<string, unknown> {
     labels: p.filter.labels,
     areas: p.filter.areas,
     devices: p.filter.devices,
+    companions: p.filter.companions,
     exclude_labels: p.filter.exclude_labels,
     exclude_areas: p.filter.exclude_areas,
     exclude_devices: p.filter.exclude_devices,
+    exclude_companions: p.filter.exclude_companions,
   };
 }
 
@@ -1416,9 +1469,11 @@ export function profileFormToProfile(
       labels: strList(data.labels),
       areas: strList(data.areas),
       devices: strList(data.devices),
+      companions: strList(data.companions),
       exclude_labels: strList(data.exclude_labels),
       exclude_areas: strList(data.exclude_areas),
       exclude_devices: strList(data.exclude_devices),
+      exclude_companions: strList(data.exclude_companions),
     },
   };
 }
