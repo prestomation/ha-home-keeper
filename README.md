@@ -1104,7 +1104,7 @@ Each automation sends the same notification, so the phone replaces the previous 
 instead of adding a second. The next run of the automation finds no due task after
 the task is complete, and the notifications stop.
 
-![The Settings → Notifications card with a notification on the Chores channel at High urgency](docs/images/22-panel-notifications.png)
+![The Settings → Notifications card with a notification on the Chores channel at High urgency, and a Test button beside Delete](docs/images/22-panel-notifications.png)
 
 
 ## Dashboard task card
