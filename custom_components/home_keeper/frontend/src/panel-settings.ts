@@ -547,6 +547,16 @@ function itemCard(o: {
       // Held down for the round trip. A save plus a send is slow enough to look
       // unresponsive, and every press delivers a real notification to a real phone,
       // so an impatient double-press would send twice.
+      //
+      // The flag lives on this button element rather than on the host, which is safe
+      // because `set hass` only refreshes on its *first* call — a later hass update
+      // (including the config-entry reload this handler's own save triggers) pushes
+      // into `_liveHassEls` without re-rendering, so the button survives the send it
+      // started. The one case that does defeat it is Home Assistant replacing the
+      // whole panel element mid-flight, which remounts every row enabled. That is the
+      // same swap `walkthrough.capture.ts` guards its row-opens against, it needs the
+      // swap to land inside a ~1s round trip, and it costs one duplicate test
+      // notification, so it is not worth hoisting this state onto the host to cover.
       const onTest = o.onTest;
       test.addEventListener('click', () => {
         if (test.hasAttribute('disabled')) return;
