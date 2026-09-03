@@ -44,9 +44,11 @@
   section forgot.
 - **Credit an outside contributor in the bullet for their change.** End the bullet
   with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
-  not count against the three-sentence budget. Every change that came from a PR by
-  someone outside the project gets one, in the same change that writes the bullet.
-  `ci/release-issues.py` quotes only the bold lead, so the credit stays in the
+  not count against the three-sentence budget. An outside contributor is anyone
+  without write access to the repository when the PR opens. Their change gets a
+  credit in the same PR that writes the bullet. If a maintainer and a contributor
+  share the work, the contributor gets the credit. `summarize()` in
+  `ci/release-issues.py` quotes only the bold lead. The credit stays in the
   CHANGELOG. It does not reach the issue comment, and it does not notify the
   contributor on each release.
 - **Keep linking issues from a PR with `Fixes #N`.** Closing-on-merge is turned off
