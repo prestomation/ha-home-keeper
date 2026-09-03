@@ -56,7 +56,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "8bd73ec4947e9257112074a41eba3a02",
+        "device_id": "e4f0e513f6c6fe8558f8ddb8db98e3e6",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -433,7 +433,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "8bd73ec4947e9257112074a41eba3a02",
+        "device_id": "e4f0e513f6c6fe8558f8ddb8db98e3e6",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -546,7 +546,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "8bd73ec4947e9257112074a41eba3a02",
+        "device_id": "e4f0e513f6c6fe8558f8ddb8db98e3e6",
         "identifiers": [
           [
             "home_keeper",
@@ -715,7 +715,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "949cc478c2c1de22b6502da9228eb343",
+        "device_id": "455a27e44e7943435ce57e26f787d602",
         "identifiers": [
           [
             "home_keeper",
@@ -740,7 +740,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "e074eadf852156936f534ed2a35b9d9f",
+        "device_id": "f61302905dda5129d0ea7527b898ed67",
         "identifiers": [
           [
             "home_keeper",

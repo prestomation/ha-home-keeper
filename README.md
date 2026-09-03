@@ -848,6 +848,8 @@ task. A companion that is only a suggestion is not listed, because it owns no ta
 > **Companions** filter does not select it, and an **Exclude companions** filter does
 > not remove it. Use a label filter for tasks you make yourself.
 
+![A Profile filtered to the Battery Notes companion in Settings → Profiles](docs/images/profile-companion-filter.png)
+
 ### Exclusions
 
 **Exclude labels**, **Exclude areas**, **Exclude devices**, and **Exclude companions**

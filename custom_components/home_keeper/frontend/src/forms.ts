@@ -1396,11 +1396,12 @@ export function companionOptions(companions: Companion[], tasks: Task[]): Compan
     if (c.status === 'connected') names.set(c.domain, c.name);
   }
   for (const task of tasks) {
-    const domain = task.managed_by?.integration;
+    const owner = task.managed_by;
+    const domain = owner?.integration;
     if (!domain) continue;
     // A registered companion's own name wins: it is the one the user sees under
     // Settings → Companions, and `display_name` is free text the owner sets per task.
-    if (!names.has(domain)) names.set(domain, task.managed_by?.display_name || domain);
+    if (!names.has(domain)) names.set(domain, owner.display_name || domain);
   }
   return [...names.entries()]
     .map(([value, label]) => ({ value, label }))

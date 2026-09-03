@@ -1483,9 +1483,13 @@ describe('profileSchema companions fields', () => {
     expect(names.indexOf('exclude_companions')).toBe(names.indexOf('exclude_devices') + 1);
   });
 
-  it('offers the given companions as a multi-select', () => {
-    const field = profileSchema(options).find((f) => f.name === 'companions');
-    expect(field.selector.select.multiple).toBe(true);
-    expect(field.selector.select.options).toEqual(options);
+  it('offers the given companions as a multi-select on both fields', () => {
+    // Both have to be multi-select. A single-value exclude field would silently cap a
+    // profile at excluding one integration.
+    for (const name of ['companions', 'exclude_companions']) {
+      const field = profileSchema(options).find((f) => f.name === name);
+      expect(field.selector.select.multiple).toBe(true);
+      expect(field.selector.select.options).toEqual(options);
+    }
   });
 });
