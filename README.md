@@ -828,11 +828,10 @@ The **Include** setting has 3 tiers. Each tier includes the tiers before it:
 
 ### Filter by companion
 
-An integration that creates tasks in Home Keeper is a
-[companion](#companions). The Battery Notes
-glue is one: it raises a **Replace battery** task when a battery gets low. Every task a
-companion creates records which integration owns it, and the panel shows a **Managed
-by** chip on that task.
+A [companion](#companions) is an integration that creates tasks in Home Keeper. The
+Battery Notes glue is one example, and it raises a **Replace battery** task when a
+battery gets low. Every task a companion creates records which integration owns it, and
+the panel shows a **Managed by** chip on that task.
 
 The **Companions** filter selects tasks by their owner. This makes one card per source
 without any manual work:
@@ -844,9 +843,9 @@ without any manual work:
 The picker lists each connected companion, and each integration that already owns a
 task. A companion that is only a suggestion is not listed, because it owns no tasks.
 
-> **A task you create in the panel has no companion.** No integration owns it, so a
-> **Companions** filter does not select it, and an **Exclude companions** filter does
-> not remove it. Use a label filter for tasks you make yourself.
+> **A task you create in the panel has no companion.** No integration owns it. A
+> **Companions** filter does not select it and an **Exclude companions** filter does not
+> remove it. Use a label filter for tasks you make yourself.
 
 ![A Profile filtered to the Battery Notes companion in Settings → Profiles](docs/images/profile-companion-filter.png)
 

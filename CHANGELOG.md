@@ -11,9 +11,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **Profiles can filter by companion.** A profile now selects or rejects tasks by the
-  integration that created them, so one card or notification can cover a single
-  integration. A task you create yourself has no companion, so a companion filter does
-  not select it.
+  integration that created them. One card or notification can then cover a single
+  source, and a task you create yourself is never selected.
 
 ## [0.20.0b3]
 
