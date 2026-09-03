@@ -472,7 +472,7 @@ export const STYLES = `
     background: var(--secondary-background-color);
     border-radius: 999px; padding: 1px 8px;
   }
-  .hk-notify-delete { align-self: flex-end; }
+  .hk-item-actions { display: flex; justify-content: flex-end; gap: 8px; }
   .hk-notify-add { margin-top: 12px; }
   /* Collapsible settings section headers (Profiles, Notifications). */
   .hk-section-header {

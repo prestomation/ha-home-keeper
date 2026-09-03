@@ -8,6 +8,7 @@ import type {
   NotifyAction,
   NotifyStatus,
   NotifyStyle,
+  NotifyUrgency,
   Part,
   Profile,
   ProfileSync,
@@ -1305,6 +1306,8 @@ export function partSchema(part: Part): FormField[] {
 const NOTIFY_STATUSES: NotifyStatus[] = ['all', 'overdue', 'due_soon'];
 const NOTIFY_ACTIONS: NotifyAction[] = ['complete', 'snooze', 'skip', 'open'];
 const NOTIFY_STYLES: NotifyStyle[] = ['walk', 'digest'];
+// Quietest first, so the dropdown reads as a ladder rather than an unordered set.
+const NOTIFY_URGENCIES: NotifyUrgency[] = ['quiet', 'normal', 'high', 'critical'];
 
 /** Localized `{value,label}` options for a notify enum (status/action/style). */
 const notifyOptions = (values: string[]): { value: string; label: string }[] =>
@@ -1441,6 +1444,9 @@ export function notificationSchema(targets: string[], profiles: Profile[]): Form
     },
     { name: 'actions', selector: selSelect(notifyOptions(NOTIFY_ACTIONS), true) },
     { name: 'style', selector: selSelect(notifyOptions(NOTIFY_STYLES)) },
+    // How it lands on the phone, kept together and after the delivery basics.
+    { name: 'channel', selector: selText() },
+    { name: 'urgency', selector: selSelect(notifyOptions(NOTIFY_URGENCIES)) },
     { name: 'snooze_hours', selector: selNumber(1) },
     { name: 'auto_overdue', selector: selBool() },
     { name: 'auto_due_soon', selector: selBool() },
@@ -1455,6 +1461,8 @@ export function notifyFormData(n: Notification): Record<string, unknown> {
     targets: n.targets,
     actions: n.actions,
     style: n.style,
+    channel: n.channel,
+    urgency: n.urgency,
     snooze_hours: n.snooze_hours,
     auto_overdue: n.auto.overdue,
     auto_due_soon: n.auto.due_soon,
@@ -1473,6 +1481,8 @@ export function notifyFormToNotification(
     targets: strList(data.targets),
     actions: strList(data.actions) as NotifyAction[],
     style: (data.style as NotifyStyle) ?? 'walk',
+    channel: String(data.channel ?? '').trim(),
+    urgency: (data.urgency as NotifyUrgency) ?? 'normal',
     snooze_hours: Number(data.snooze_hours ?? 24) || 24,
     auto: { overdue: !!data.auto_overdue, due_soon: !!data.auto_due_soon },
   };

@@ -605,6 +605,23 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
           },
         },
       ],
+      // Seeded alongside the profile so step 7 has a notification to open. It
+      // carries a channel and a raised urgency, because an empty box beside a
+      // default choice shows the controls without showing what they are for.
+      notifications: [
+        {
+          id: 'walkthrough_chores_notify',
+          name: 'Walk my chores',
+          profile_id: 'walkthrough_family_chores',
+          targets: [],
+          actions: ['complete', 'snooze', 'open'],
+          style: 'walk',
+          channel: 'Chores',
+          urgency: 'high',
+          snooze_hours: 24,
+          auto: { overdue: true, due_soon: false },
+        },
+      ],
     });
   });
   await openPanel(page);
@@ -649,6 +666,28 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     await panel.locator(`.hk-rail-link[data-section="${section}"]`).click();
     await page.waitForTimeout(BEAT * 2);
   }
+
+  // 7b. Notifications, opened rather than passed. How a notification lands on the
+  //     phone is set here — the channel it arrives on and how loudly — and Test
+  //     sends it now, so the answer comes back on the phone instead of at the next
+  //     due date. Guarded the same way as the profile row above: Home Assistant can
+  //     replace the panel element under the tour, and a fresh one folds every row.
+  await panel.locator('.hk-rail-link[data-section="notifications"]').click();
+  const notifyCard = panel.locator('#hk-notifications');
+  await expect(notifyCard).toBeVisible();
+  const notifyRow = notifyCard.locator('.hk-item-card').first();
+  const openNotifyRow = async (): Promise<void> => {
+    const header = notifyRow.locator('> .hk-item-header');
+    if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+    await expect(notifyRow.locator('.hk-item-body ha-form')).toBeVisible();
+  };
+  await openNotifyRow();
+  await page.waitForTimeout(BEAT * 2);
+  // The two delivery fields are below the fold of a long form, so frame them the way
+  // the sync group is framed rather than trusting the row's own top.
+  await openNotifyRow();
+  await notifyRow.locator('.hk-item-actions').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 3);
 
   // 8. The usage surfaces — the native to-do list and calendar, and beside them the
   //    family's own list, now carrying the synced chores with their due dates.

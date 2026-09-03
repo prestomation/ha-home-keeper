@@ -142,6 +142,30 @@ def test_normalize_notification_bad_snooze_falls_back():
     assert n.normalize_notification({"snooze_hours": 6})["snooze_hours"] == 6
 
 
+def test_normalize_notification_defaults_channel_and_urgency():
+    notif = n.normalize_notification({"id": "x"})
+    assert notif["channel"] == ""
+    assert notif["urgency"] == "normal"
+    assert n.DEFAULT_URGENCY == "normal"
+
+
+def test_normalize_notification_strips_the_channel_name():
+    # The channel name is echoed straight into the payload and Android creates a
+    # channel per distinct string, so " Meds " and "Meds" must not become two.
+    assert n.normalize_notification({"channel": "  Meds  "})["channel"] == "Meds"
+    assert n.normalize_notification({"channel": None})["channel"] == ""
+    assert n.normalize_notification({"channel": 7})["channel"] == "7"
+
+
+def test_normalize_notification_clamps_an_unknown_urgency():
+    # Urgency drives which keys reach the phone, so an unrecognised value has to land
+    # on the quiet default rather than pass through and ask iOS for a critical alert.
+    for bad in ("URGENT", "max", "", None, 3):
+        assert n.normalize_notification({"urgency": bad})["urgency"] == "normal"
+    for good in n.URGENCIES:
+        assert n.normalize_notification({"urgency": good})["urgency"] == good
+
+
 def test_split_targets_partitions_by_prefix():
     accepted, rejected = n.split_targets(
         ["mobile_app_phone", "smtp_family", "mobile_app_tablet", "telegram"]
@@ -383,6 +407,150 @@ def test_build_all_clear_default_english():
     assert payload["title"] == "All caught up"
     assert payload["message"] == "No tasks due right now. 🎉"
     assert payload["data"]["tag"] == "home_keeper_p"
+
+
+# ── channel & urgency (#255) ────────────────────────────────────────────────
+#
+# One stored (channel, urgency) pair, two payload vocabularies. Every assertion here
+# compares the *whole* data dict rather than checking a key is present: a payload key
+# with the wrong value is a notification that lands silently, or one that overrides Do
+# Not Disturb when it should not, and "has an importance" cannot tell those apart.
+
+
+def test_payload_data_unconfigured_is_what_it_always_was():
+    # The regression that matters most. Every notification saved before these fields
+    # existed normalizes to no channel at `normal` urgency, and must keep sending the
+    # exact payload it sent then — nothing extra for the phone to interpret.
+    notif = n.normalize_notification({"id": "n1"})
+    assert n.payload_data(notif) == {"tag": "home_keeper_n1", "group": "home_keeper"}
+    assert n.payload_data(notif, actions=[]) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "actions": [],
+    }
+
+
+def test_payload_data_quiet_asks_both_platforms_to_stay_quiet():
+    notif = n.normalize_notification({"id": "n1", "urgency": "quiet"})
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "importance": "low",
+        "push": {"interruption-level": "passive"},
+    }
+
+
+def test_payload_data_high_wakes_the_phone():
+    # `ttl: 0` + `priority: high` is the companion app's documented way past Android's
+    # Doze batching. Without them a "high" reminder can arrive an hour late, which is
+    # indistinguishable to the user from the feature not working.
+    notif = n.normalize_notification({"id": "n1", "urgency": "high"})
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "importance": "high",
+        "ttl": 0,
+        "priority": "high",
+        "push": {"interruption-level": "time-sensitive"},
+    }
+
+
+def test_payload_data_critical_carries_the_ios_critical_sound():
+    notif = n.normalize_notification({"id": "n1", "urgency": "critical"})
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "importance": "max",
+        "ttl": 0,
+        "priority": "high",
+        "push": {
+            "interruption-level": "critical",
+            "sound": {"name": "default", "critical": 1, "volume": 1.0},
+        },
+    }
+
+
+def test_payload_data_critical_sound_is_a_copy_per_payload():
+    # The sound table is module state. Handing the same dict to two payloads would let
+    # anything downstream that edits one silently edit every future critical alert.
+    notif = n.normalize_notification({"id": "n1", "urgency": "critical"})
+    first = n.payload_data(notif)["push"]["sound"]
+    first["volume"] = 0.1
+    assert n.payload_data(notif)["push"]["sound"]["volume"] == 1.0
+
+
+def test_payload_data_channel_reaches_both_platforms():
+    # Android names a notification channel; iOS has none, so the same string threads
+    # the reminders instead. One field in the panel, two keys on the wire.
+    notif = n.normalize_notification({"id": "n1", "channel": "Medication"})
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "channel": "Medication",
+        "push": {"thread-id": "Medication"},
+    }
+
+
+def test_payload_data_combines_channel_and_urgency():
+    notif = n.normalize_notification(
+        {"id": "n1", "channel": "Medication", "urgency": "critical"}
+    )
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "channel": "Medication",
+        "importance": "max",
+        "ttl": 0,
+        "priority": "high",
+        "push": {
+            "thread-id": "Medication",
+            "interruption-level": "critical",
+            "sound": {"name": "default", "critical": 1, "volume": 1.0},
+        },
+    }
+
+
+def test_payload_data_keeps_one_group_across_channels():
+    # The channel decides how a reminder behaves; the group decides where it sits in
+    # the shade. Home Keeper's notifications stack together either way, so `group` is
+    # a fixed contract that a channel must not quietly redefine.
+    for channel in ("", "Medication", "Chores"):
+        notif = n.normalize_notification({"id": "n1", "channel": channel})
+        assert n.payload_data(notif)["group"] == "home_keeper"
+
+
+def test_every_urgency_is_reachable_and_distinct():
+    # A typo in either mapping table that collapsed two urgencies onto one payload
+    # would leave the panel offering a choice that does nothing.
+    notif = {"id": "n1", "channel": "C"}
+    seen = [
+        n.payload_data(n.normalize_notification({**notif, "urgency": u}))
+        for u in n.URGENCIES
+    ]
+    assert len(seen) == 4
+    for i, a in enumerate(seen):
+        for b in seen[i + 1 :]:
+            assert a != b
+
+
+def test_all_three_builders_carry_channel_and_urgency():
+    # `payload_data` is shared, but a builder that stopped calling it would still pass
+    # its own tag/group assertions above. Pin every send path to the real thing.
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification(
+        {"id": "n1", "channel": "Chores", "urgency": "high", "actions": ["open"]}
+    )
+    t = task("t1", "Furnace filter", dt(2026, 6, 10))
+    payloads = [
+        n.build_notification(t, notification=notif, now=now),
+        n.build_digest([t], notification=notif, now=now),
+        n.build_all_clear(notif),
+    ]
+    for payload in payloads:
+        assert payload["data"]["channel"] == "Chores"
+        assert payload["data"]["importance"] == "high"
+        assert payload["data"]["push"]["thread-id"] == "Chores"
+        assert payload["data"]["push"]["interruption-level"] == "time-sensitive"
 
 
 # ── translated payload text (#150) ──────────────────────────────────────────

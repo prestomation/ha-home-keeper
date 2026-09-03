@@ -504,6 +504,8 @@ function itemCard(o: {
   isOpen: () => boolean;
   setOpen: (open: boolean) => void;
   fill: (body: HTMLElement, nameSpan: HTMLElement) => void;
+  /** Returns its promise so the button can hold itself down for the round trip. */
+  onTest?: () => Promise<void>;
   onDelete?: () => void;
 }): HTMLElement {
   const isExpanded = o.isOpen();
@@ -532,13 +534,46 @@ function itemCard(o: {
   if (!isExpanded) body.style.display = 'none';
   o.fill(body, nameSpan);
 
-  if (o.onDelete) {
-    const del = document.createElement('ha-button');
-    del.className = 'hk-notify-delete';
-    setBtnWeight(del, 'danger');
-    del.textContent = t('notify.delete');
-    del.addEventListener('click', o.onDelete);
-    body.appendChild(del);
+  // One right-aligned footer row, so a row that has both actions keeps Delete where it
+  // has always been and puts the safe action to its left.
+  if (o.onTest || o.onDelete) {
+    const actions = document.createElement('div');
+    actions.className = 'hk-item-actions';
+    if (o.onTest) {
+      const test = document.createElement('ha-button');
+      test.className = 'hk-notify-test';
+      setBtnWeight(test, 'secondary');
+      test.textContent = t('notify.test');
+      // Held down for the round trip. A save plus a send is slow enough to look
+      // unresponsive, and every press delivers a real notification to a real phone,
+      // so an impatient double-press would send twice.
+      //
+      // The flag lives on this button element rather than on the host, which is safe
+      // because `set hass` only refreshes on its *first* call — a later hass update
+      // (including the config-entry reload this handler's own save triggers) pushes
+      // into `_liveHassEls` without re-rendering, so the button survives the send it
+      // started. The one case that does defeat it is Home Assistant replacing the
+      // whole panel element mid-flight, which remounts every row enabled. That is the
+      // same swap `walkthrough.capture.ts` guards its row-opens against, it needs the
+      // swap to land inside a ~1s round trip, and it costs one duplicate test
+      // notification, so it is not worth hoisting this state onto the host to cover.
+      const onTest = o.onTest;
+      test.addEventListener('click', () => {
+        if (test.hasAttribute('disabled')) return;
+        test.setAttribute('disabled', '');
+        void onTest().finally(() => test.removeAttribute('disabled'));
+      });
+      actions.appendChild(test);
+    }
+    if (o.onDelete) {
+      const del = document.createElement('ha-button');
+      del.className = 'hk-notify-delete';
+      setBtnWeight(del, 'danger');
+      del.textContent = t('notify.delete');
+      del.addEventListener('click', o.onDelete);
+      actions.appendChild(del);
+    }
+    body.appendChild(actions);
   }
   card.appendChild(body);
 
@@ -872,6 +907,12 @@ function notificationEditor(
   notification: Notification,
   profiles: Profile[],
 ): HTMLElement {
+  // The row's live value. Test must send what the form shows, so it saves this rather
+  // than trusting whatever the last debounced write happened to catch.
+  let current: Notification = notification;
+  const listWith = (n: Notification): Notification[] =>
+    (p._options?.notifications ?? []).map((x) => (x.id === notification.id ? n : x));
+
   return itemCard({
     className: 'hk-item-card',
     name: notification.name,
@@ -880,6 +921,7 @@ function notificationEditor(
       if (open) p._itemExpanded.add(notification.id);
       else p._itemExpanded.delete(notification.id);
     },
+    onTest: () => testNotification(p, () => current, listWith),
     onDelete: () => void deleteNotification(p, notification.id),
     fill: (body, nameSpan) => {
       body.appendChild(
@@ -888,10 +930,8 @@ function notificationEditor(
           notifyFormData(notification),
           (value) => {
             if (typeof value.name === 'string') nameSpan.textContent = value.name;
-            const next = (p._options?.notifications ?? []).map((n) =>
-              n.id === notification.id ? notifyFormToNotification(notification.id, value) : n,
-            );
-            persistDebounced(p, 'notifications', next);
+            current = notifyFormToNotification(notification.id, value);
+            persistDebounced(p, 'notifications', listWith(current));
           },
           {
             computeLabel: (s) => {
@@ -899,11 +939,46 @@ function notificationEditor(
               if (s.name === 'profile_id') return t('notify.profile');
               return t('notify.' + s.name);
             },
+            // Both fields do something the field name cannot say. A channel is
+            // Android's word and means nothing on an iPhone. Its sound and Do Not
+            // Disturb settings belong to the phone once the channel exists, so a later
+            // urgency change does not move a channel that already exists. Critical
+            // needs a permission on iOS.
+            computeHelper: (s) => {
+              if (s.name === 'channel') return t('notify.channel_help');
+              if (s.name === 'urgency') return t('notify.urgency_help');
+              return '';
+            },
           },
         ),
       );
     },
   });
+}
+
+/**
+ * Send this notification now, so the delivery just configured can be checked on the
+ * phone without waiting for a task to come due.
+ *
+ * Pending edits are saved first: `home_keeper.notify` resolves the notification out of
+ * stored options, so an unsaved channel or urgency would test the previous delivery
+ * and quietly report success. `sent: 0` is a real outcome rather than an error, and
+ * says the filter matched nothing, so it gets its own message.
+ */
+async function testNotification(
+  p: PanelHost,
+  current: () => Notification,
+  listWith: (n: Notification) => Notification[],
+): Promise<void> {
+  const hass = p._hass;
+  if (!hass) return;
+  try {
+    p._options = await api.setOptions(hass, { notifications: listWith(current()) });
+    const { sent } = await api.runNotification(hass, current().id);
+    toast(p, sent > 0 ? t('notify.test_sent') : t('notify.test_none'));
+  } catch (err) {
+    toast(p, String((err as { message?: string })?.message || err));
+  }
 }
 
 function addNotification(p: PanelHost): Promise<void> {
@@ -917,6 +992,8 @@ function addNotification(p: PanelHost): Promise<void> {
     actions: ['complete', 'snooze', 'open'],
     snooze_hours: 24,
     style: 'walk',
+    channel: '',
+    urgency: 'normal',
     auto: { overdue: false, due_soon: false },
   };
   return persistOptionList(

@@ -6,6 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.20.0b3]
+
+### Added
+
+- **Give a notification its own channel and urgency.** In *Settings → Notifications* a
+  notification can use its own channel name and an urgency from *Quiet* to *Critical*.
+  A Medication notification can then make a sound during Do Not Disturb while a
+  Batteries notification stays silent. (Fixes #255)
+
+- **Send a notification now with Test.** Each notification in *Settings →
+  Notifications* has a **Test** button that delivers it to the phone at once. Use it to
+  check a channel or an urgency without a wait for a task to come due.
+
+- **The Notifications page shows 3 worked automations.** One resends a notification
+  every 2 hours until the task is complete. Another sends a notification only when a
+  person is at home.
+
 ## [0.20.0b2]
 
 ### Added
