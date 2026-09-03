@@ -42,6 +42,15 @@
   because `(#N)` is also the squash-merge PR number and the two can't be told apart.
   The job posts a CI warning naming any issue a shipped commit referenced that the
   section forgot.
+- **Credit an outside contributor in the bullet for their change.** End the bullet
+  with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
+  not count against the three-sentence budget. An outside contributor is anyone
+  without write access to the repository when the PR opens. Their change gets a
+  credit in the same PR that writes the bullet. If a maintainer and a contributor
+  share the work, the contributor gets the credit. `summarize()` in
+  `ci/release-issues.py` quotes only the bold lead. The credit stays in the
+  CHANGELOG. It does not reach the issue comment, and it does not notify the
+  contributor on each release.
 - **Keep linking issues from a PR with `Fixes #N`.** Closing-on-merge is turned off
   for this repository, so the keyword links the PR to the issue — that's what fills in
   the issue's **Development** panel and its linked-pull-request relationship — without
