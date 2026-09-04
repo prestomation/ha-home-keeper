@@ -35,7 +35,7 @@
 | custom\_components/home\_keeper/panel.py               |       29 |       29 |        4 |        0 |      0% |    10-107 |
 | custom\_components/home\_keeper/problem\_sync.py       |      113 |      113 |       40 |        0 |      0% |    10-219 |
 | custom\_components/home\_keeper/problem\_tasks.py      |       65 |        2 |       26 |        1 |     97% |   200-201 |
-| custom\_components/home\_keeper/profiles.py            |       74 |        1 |       32 |        1 |     98% |       102 |
+| custom\_components/home\_keeper/profiles.py            |       80 |        1 |       36 |        1 |     98% |       104 |
 | custom\_components/home\_keeper/reconcile.py           |      121 |        0 |       70 |        1 |     99% | 295-\>293 |
 | custom\_components/home\_keeper/recurrence.py          |      226 |       10 |      114 |       10 |     94% |53, 106, 136, 173, 184, 213, 258, 310, 334, 576 |
 | custom\_components/home\_keeper/resolve.py             |       48 |        0 |       16 |        0 |    100% |           |
@@ -54,7 +54,7 @@
 | custom\_components/home\_keeper/todo\_sync\_driver.py  |       96 |        4 |       22 |        3 |     94% |119, 199-\>205, 225-226, 259 |
 | custom\_components/home\_keeper/transitions.py         |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py      |      334 |      334 |       36 |        0 |      0% |     8-948 |
-| **TOTAL**                                              | **6399** | **2929** | **2194** |   **86** | **55%** |           |
+| **TOTAL**                                              | **6405** | **2929** | **2198** |   **86** | **55%** |           |
 
 
 ## Setup coverage badge
