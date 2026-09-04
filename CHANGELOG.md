@@ -11,8 +11,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **Duplicate a task from its detail page.** The create form opens already filled in
-  with a copy, so a row of near-identical tasks costs one edit each. A task that
-  another integration owns keeps a greyed Duplicate that explains why. (Fixes #279)
+  with a copy, so a row of near-identical tasks costs one edit each. A task another
+  integration owns keeps a greyed Duplicate that explains why, as does a buy task.
+  (Fixes #279)
 
 - **Give a notification its own channel and urgency.** A Medication notification can
   then make a sound during Do Not Disturb while a Batteries notification stays silent.
@@ -50,22 +51,12 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 - **A buy task is no longer shown as overdue work.** A task with no due date is due
   immediately, so a buy task was shown in the Overdue section with the overdue
-  maintenance tasks. It now has a Shopping section of its own and its status reads
-  **Low stock**.
-
-- **A buy task now reads Low stock on every page.** Its own detail page and an
-  appliance's Tasks tab still showed **Overdue** in red. One task gave two different
-  answers about itself.
-
-- **Duplicate is no longer offered on a buy task.** The copy kept no link to the part.
-  Nothing retired the copy after a restock and no shopping list ever received it.
+  maintenance tasks. It now has a Shopping section of its own and reads **Low stock**
+  on every page.
 
 - **Settings no longer loses an edit when you go to the next row too soon.** Each row
   in *Settings → Notifications* and *Settings → Profiles* saves a moment after you stop
   typing. The first row showed Saved and then lost its value. (Fixes #255)
-
-- **The Test button now shows the correct result.** In *Settings → Notifications* it
-  said that no task was due after it sent the notification to the phone. (Fixes #255)
 
 - **The Shopping filter is kept after a page reload.** The task list changed back to
   **All** each time the page was refreshed.
