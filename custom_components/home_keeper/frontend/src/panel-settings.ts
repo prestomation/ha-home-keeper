@@ -650,6 +650,12 @@ function renderProfiles(p: PanelHost, host: HTMLElement): void {
       count: profiles.length,
     },
     (body) => {
+      // The combination rule governs every filter in every profile below, so it sits
+      // with the section intro rather than under one field.
+      const filters = document.createElement('div');
+      filters.className = 'hk-settings-intro';
+      filters.textContent = t('notify.filters_help');
+      body.appendChild(filters);
       if (!profiles.length) {
         const alert = document.createElement('ha-alert');
         alert.setAttribute('alert-type', 'info');

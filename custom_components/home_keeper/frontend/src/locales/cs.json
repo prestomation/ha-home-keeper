@@ -342,6 +342,7 @@
   "notify.exclude_companions": "Vyloučit doplňky",
   "notify.exclude_devices": "Vyloučit zařízení",
   "notify.exclude_labels": "Vyloučit štítky",
+  "notify.filters_help": "Úkol musí odpovídat alespoň jedné hodnotě v každém filtru, který nastavíte.",
   "notify.heading": "Oznámení",
   "notify.help": "Posílejte úkoly k vyřízení do telefonu. Každé oznámení vybere profil a přidá cíle, tlačítka a styl.",
   "notify.need_profile": "Nejprve přidejte profil — oznámení jej potřebuje k výběru, co odeslat.",

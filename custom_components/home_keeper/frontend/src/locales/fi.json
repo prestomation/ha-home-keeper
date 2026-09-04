@@ -324,6 +324,7 @@
   "notify.exclude_companions": "Jätä pois kumppanit",
   "notify.exclude_devices": "Jätä pois laitteet",
   "notify.exclude_labels": "Jätä pois tunnisteet",
+  "notify.filters_help": "Tehtävän on vastattava vähintään yhtä arvoa jokaisessa asettamassasi suodattimessa.",
   "notify.heading": "Ilmoitukset",
   "notify.help": "Lähetä erääntyvät puhelimeen. Jokainen ilmoitus valitsee profiilin ja lisää kohteet, painikkeet ja tyylin.",
   "notify.need_profile": "Lisää ensin profiili — ilmoitus tarvitsee sellaisen valitakseen, mitä lähetetään.",

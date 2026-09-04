@@ -324,6 +324,7 @@
   "notify.exclude_companions": "Begleiter ausschließen",
   "notify.exclude_devices": "Geräte ausschließen",
   "notify.exclude_labels": "Etiketten ausschließen",
+  "notify.filters_help": "Eine Aufgabe muss mindestens einen Wert in jedem Filter erfüllen, den du setzt.",
   "notify.heading": "Benachrichtigungen",
   "notify.help": "Sende Fälliges an ein Telefon. Jede Benachrichtigung wählt ein Profil und ergänzt Ziele, Schaltflächen und einen Stil.",
   "notify.need_profile": "Füge zuerst ein Profil hinzu — eine Benachrichtigung braucht eines, um auszuwählen, was gesendet wird.",

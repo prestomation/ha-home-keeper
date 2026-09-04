@@ -333,6 +333,7 @@
   "notify.exclude_companions": "Exclure les compagnons",
   "notify.exclude_devices": "Exclure les appareils",
   "notify.exclude_labels": "Exclure les étiquettes",
+  "notify.filters_help": "Une tâche doit correspondre à au moins une valeur dans chaque filtre que vous définissez.",
   "notify.heading": "Notifications",
   "notify.help": "Envoyez les tâches dues sur un téléphone. Chaque notification choisit un profil et ajoute des cibles, des boutons et un style.",
   "notify.need_profile": "Ajoutez d'abord un profil — une notification en a besoin pour choisir quoi envoyer.",

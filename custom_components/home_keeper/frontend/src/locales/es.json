@@ -333,6 +333,7 @@
   "notify.exclude_companions": "Excluir complementos",
   "notify.exclude_devices": "Excluir dispositivos",
   "notify.exclude_labels": "Excluir etiquetas",
+  "notify.filters_help": "Una tarea debe coincidir con al menos un valor de cada filtro que definas.",
   "notify.heading": "Notificaciones",
   "notify.help": "Envía lo que vence a un teléfono. Cada notificación elige un perfil y añade destinos, botones y un estilo.",
   "notify.need_profile": "Añade primero un perfil — una notificación lo necesita para elegir qué enviar.",

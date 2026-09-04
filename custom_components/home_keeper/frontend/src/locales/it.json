@@ -333,6 +333,7 @@
   "notify.exclude_companions": "Escludi integrazioni partner",
   "notify.exclude_devices": "Escludi dispositivi",
   "notify.exclude_labels": "Escludi etichette",
+  "notify.filters_help": "Un'attività deve corrispondere ad almeno un valore in ogni filtro che imposti.",
   "notify.heading": "Notifiche",
   "notify.help": "Invia ciò che è dovuto a un telefono. Ogni notifica sceglie un profilo e aggiunge destinazioni, pulsanti e uno stile.",
   "notify.need_profile": "Aggiungi prima un profilo — una notifica ne ha bisogno per scegliere cosa inviare.",

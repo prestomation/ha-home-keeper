@@ -324,6 +324,7 @@
   "notify.exclude_companions": "Utelat følgesvenner",
   "notify.exclude_devices": "Utelat enheter",
   "notify.exclude_labels": "Utelat etiketter",
+  "notify.filters_help": "En oppgave må samsvare med minst én verdi i hvert filter du angir.",
   "notify.heading": "Varsler",
   "notify.help": "Send det forfalte til en telefon. Hvert varsel velger en profil og legger til mål, knapper og en stil.",
   "notify.need_profile": "Legg til en profil først — et varsel trenger en for å velge hva som skal sendes.",

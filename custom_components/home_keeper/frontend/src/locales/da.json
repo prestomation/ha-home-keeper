@@ -324,6 +324,7 @@
   "notify.exclude_companions": "Udelad ledsagere",
   "notify.exclude_devices": "Udelad enheder",
   "notify.exclude_labels": "Udelad etiketter",
+  "notify.filters_help": "En opgave skal matche mindst én værdi i hvert filter, du angiver.",
   "notify.heading": "Notifikationer",
   "notify.help": "Send det forfaldne til en telefon. Hver notifikation vælger en profil og tilføjer mål, knapper og en stil.",
   "notify.need_profile": "Tilføj først en profil — en notifikation skal bruge en til at vælge, hvad der skal sendes.",

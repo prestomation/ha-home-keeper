@@ -333,6 +333,7 @@
   "notify.exclude_companions": "Exclou complements",
   "notify.exclude_devices": "Exclou dispositius",
   "notify.exclude_labels": "Exclou etiquetes",
+  "notify.filters_help": "Una tasca ha de coincidir amb almenys un valor de cada filtre que defineixis.",
   "notify.heading": "Notificacions",
   "notify.help": "Envia el que venç a un telèfon. Cada notificació tria un perfil i hi afegeix destinacions, botons i un estil.",
   "notify.need_profile": "Afegeix primer un perfil — una notificació en necessita un per triar què enviar.",
