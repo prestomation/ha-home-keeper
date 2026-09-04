@@ -596,10 +596,40 @@ function itemCard(o: {
 type OptionListKey = 'profiles' | 'notifications';
 
 /**
+ * How many saves of each list this panel has issued, so a save can tell whether it is
+ * still the newest by the time its answer arrives.
+ *
+ * Per host and weakly held: two panels must not share a counter, and a panel Home
+ * Assistant has thrown away must not be kept alive by one.
+ */
+const saveSeq = new WeakMap<PanelHost, Map<OptionListKey, number>>();
+
+/** Claim the next sequence number for *key*, and a check for still being the newest. */
+function claimSave(p: PanelHost, key: OptionListKey): () => boolean {
+  let byKey = saveSeq.get(p);
+  if (!byKey) {
+    byKey = new Map();
+    saveSeq.set(p, byKey);
+  }
+  const seq = (byKey.get(key) ?? 0) + 1;
+  byKey.set(key, seq);
+  return () => saveSeq.get(p)?.get(key) === seq;
+}
+
+/**
  * Save one of the option lists: write it locally first so the form doesn't flicker,
  * then persist, optionally expand whatever the backend appended (an id is only known
  * after the round-trip), re-render if asked, and say so. A failure toasts the
  * backend's own message and leaves the reload to restore the truth.
+ *
+ * The answer is only taken when this save is still the newest for its list. Two rows
+ * can have writes in flight at once, and the answers are not guaranteed to arrive in
+ * the order they were sent: an earlier one landing last would put `p._options` back to
+ * the state before the later row was saved, and the next row to build a list from it
+ * would then write that staleness to disk — losing a value the user was told was
+ * saved. The out-of-date answer is dropped instead. Nothing is lost by dropping it:
+ * the newest write already carries every earlier row's value, because each list is
+ * built from `p._options` after the earlier save updated it (see `persistDebounced`).
  */
 async function persistOptionList(
   p: PanelHost,
@@ -609,11 +639,15 @@ async function persistOptionList(
   expandLast = false,
 ): Promise<void> {
   if (!p._hass) return;
+  const isNewest = claimSave(p, key);
   p._options = { ...(p._options as HomeKeeperOptions), [key]: list };
   try {
-    p._options = await api.setOptions(p._hass, {
+    const merged = await api.setOptions(p._hass, {
       [key]: list,
     } as Partial<HomeKeeperOptions>);
+    // A later save owns the truth now, and its own answer will set it.
+    if (!isNewest()) return;
+    p._options = merged;
     if (expandLast) {
       const saved: { id: string }[] = p._options?.[key] ?? [];
       if (saved.length) p._itemExpanded.add(saved[saved.length - 1].id);
@@ -621,6 +655,11 @@ async function persistOptionList(
     if (render) p._render();
     toast(p, t('settings.saved'));
   } catch (err) {
+    // The optimistic write above stands. The user keeps what they typed and sees the
+    // backend's own message, and the next save of this list carries the value again —
+    // a retry rather than a silent revert. Rolling back here would take the text out
+    // of the field under them, which is worse for the common case (a transient
+    // failure) than re-sending it.
     toast(p, String((err as { message?: string })?.message || err));
   }
 }

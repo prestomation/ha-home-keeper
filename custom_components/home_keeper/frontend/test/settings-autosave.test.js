@@ -47,9 +47,17 @@ const notification = (id, name) => ({
   auto: { overdue: false, due_soon: false },
 });
 
-/** A `hass` whose `set_options` merges like the backend's, so a write that drops a
- *  key is visible here exactly as it would be after a reload. */
-function makeHass(notifications) {
+/**
+ * A `hass` whose `set_options` merges like the backend's, so a write that drops a key
+ * is visible here exactly as it would be after a reload. Each answer carries a snapshot
+ * of the options as they stood when that write was applied, which is what makes a
+ * late-arriving answer a *stale* one rather than merely an old copy of the same thing.
+ *
+ * With `outOfOrder`, the first write's answer is held until the second has been
+ * answered. Writes still apply in arrival order — only the answers are reordered, which
+ * is all a websocket guarantees.
+ */
+function makeHass(notifications, { outOfOrder = false } = {}) {
   const options = {
     sync_problem_sensors: false,
     problem_sensor_exclude_entities: [],
@@ -62,6 +70,10 @@ function makeHass(notifications) {
     notifications,
   };
   const saves = [];
+  let releaseFirst;
+  const firstAnswer = new Promise((r) => {
+    releaseFirst = r;
+  });
   const hass = {
     language: 'en',
     states: { 'notify.mobile_app_phone': { entity_id: 'notify.mobile_app_phone' } },
@@ -74,10 +86,15 @@ function makeHass(notifications) {
           return Promise.resolve({ assets: [] });
         case 'home_keeper/get_options':
           return Promise.resolve({ options, own_todo_entities: [] });
-        case 'home_keeper/set_options':
+        case 'home_keeper/set_options': {
           saves.push(structuredClone(msg.options));
-          Object.assign(options, msg.options);
-          return Promise.resolve({ options });
+          Object.assign(options, msg.options); // applied on arrival, like the backend
+          const answer = { options: structuredClone(options) };
+          if (!outOfOrder) return Promise.resolve(answer);
+          if (saves.length === 1) return firstAnswer.then(() => answer);
+          if (saves.length === 2) return Promise.resolve(answer).then((a) => (releaseFirst(), a));
+          return Promise.resolve(answer);
+        }
         case 'home_keeper/get_companions':
           return Promise.resolve({ companions: [] });
         case 'frontend/get_user_data':
@@ -123,6 +140,27 @@ describe('Settings → Notifications — autosave across rows', () => {
 
     await waitFor(() => options.notifications.every((n) => n.channel));
     expect(options.notifications.map((n) => n.channel)).toEqual(['Trash', 'Medication']);
+  });
+
+  it('drops an out-of-date answer instead of writing it back over a newer row', async () => {
+    // Two rows can have writes in flight at once, and a websocket does not promise the
+    // answers come back in the order they were sent. An early answer landing last used
+    // to put the panel's own copy of the options back to before the later row saved,
+    // and the next row to build a list from that copy wrote the staleness to disk. The
+    // third edit here is what turns a stale copy into a value lost for good.
+    const { hass, options } = makeHass(
+      [notification('n1', 'A'), notification('n2', 'B'), notification('n3', 'C')],
+      { outOfOrder: true },
+    );
+    const panel = await mountSettings(hass);
+
+    edit(panel, 0, { channel: 'Alpha' });
+    edit(panel, 1, { channel: 'Beta' });
+    await waitFor(() => options.notifications[1].channel === 'Beta');
+    edit(panel, 2, { channel: 'Gamma' });
+
+    await waitFor(() => options.notifications[2].channel === 'Gamma');
+    expect(options.notifications.map((n) => n.channel)).toEqual(['Alpha', 'Beta', 'Gamma']);
   });
 
   it('saves each row once rather than re-writing the whole card per row', async () => {
