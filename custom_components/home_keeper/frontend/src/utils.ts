@@ -451,6 +451,14 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
  * browser for the panel and the card, and in Python for a notification — and
  * `tests/fixtures/profile_filter_cases.json` holds them to it.
  *
+ * The agreement is on a *missing* id, which is what the fixture pins and what the
+ * reconciler can actually produce. On an id present but **empty** the two part
+ * company: this asks for truthy, `buy_source` only for the key. Left alone rather
+ * than papered over, because nothing can reach it — the reconciler mints real uuids,
+ * and `models.build_task` is the only other way in. Worth knowing if that ever stops
+ * being true, since the divergence would show as a task one surface excludes and
+ * another does not.
+ *
  * Lives here beside `isOverdue` because the two are read together: a buy reminder is
  * *also* overdue, and every surface that draws a status has to know which of the two
  * to say. `statusChipHtml` is that answer, and `card-filter.ts` re-exports this for
