@@ -8,6 +8,12 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ## [0.20.0b4]
 
+### Changed
+
+- **Each Settings card now shows its save status next to its name, in place of a pop-up
+  message.** The status reads *Saving…* and then *Saved*. A save that fails shows *Not
+  saved* on the card and also keeps the pop-up, which gives the reason.
+
 ### Fixed
 
 - **Settings no longer loses an edit when you go to the next row too soon.** Each row in

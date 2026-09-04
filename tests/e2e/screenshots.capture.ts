@@ -1206,9 +1206,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           actions: ['complete', 'snooze', 'open'],
           snooze_hours: 24,
           style: 'walk',
-          // A channel and a raised urgency so the shot shows both controls holding a
-          // real value rather than an empty box beside the default choice.
-          channel: 'Chores',
+          // Urgency is seeded so the shot shows the control holding a real value rather
+          // than the default choice. The channel is left empty on purpose and typed in
+          // below, which is what puts the card's autosave status in the shot.
+          channel: '',
           urgency: 'high',
           auto: { overdue: true, due_soon: false },
         },
@@ -1236,6 +1237,20 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-notifications')).toBeVisible();
   for (const h of await panel.locator('#hk-notifications .hk-item-header').all()) await h.click();
   await expect(panel.locator('#hk-notifications .hk-item-body ha-form').first()).toBeVisible();
+  // Type the channel rather than seeding it, so the shot carries the autosave status
+  // this card reports with. There is no Save button here, and the status beside the
+  // section name is the only thing that says a change was written — a capture with an
+  // empty header would document the card as it never actually looks in use.
+  await panel
+    .locator('#hk-notifications .hk-item-card')
+    .first()
+    .locator('ha-selector-text')
+    .nth(1)
+    .locator('input')
+    .fill('Chores');
+  await expect(panel.locator('#hk-notifications .hk-save-status')).toHaveText('Saved', {
+    timeout: 15_000,
+  });
   await page.waitForTimeout(300);
   await panel.locator('#hk-notifications').screenshot({ path: `${OUT}/22-panel-notifications.png` });
 

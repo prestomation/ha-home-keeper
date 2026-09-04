@@ -487,6 +487,19 @@ export const STYLES = `
     background: var(--secondary-background-color);
     border-radius: 999px; padding: 1px 8px; flex: 0 0 auto;
   }
+  /* Autosave status, beside the name of the card that saved. Quiet by default — it
+     reports something the user did not ask about — and only coloured when it needs
+     acting on. It replaces a toast, so it must not take a line of its own or push the
+     header around: no background, no border, and it never grows or shrinks. */
+  .hk-save-status {
+    display: none; font-size: 0.8rem; color: var(--secondary-text-color);
+    font-weight: 400; flex: 0 0 auto; white-space: nowrap;
+  }
+  /* The element is always in the header so it can announce its own changes, but it
+     takes no room until the card has actually saved: an empty flex item would still
+     draw the parent's gap and shift every header that has never been saved. */
+  .hk-save-status.on { display: inline; }
+  .hk-save-status.failed { color: var(--error-color); font-weight: 500; }
   .hk-section-chevron {
     color: var(--secondary-text-color); flex: 0 0 auto;
     transition: transform 0.2s ease; transform: rotate(-90deg);

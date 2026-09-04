@@ -56,8 +56,11 @@ const notification = (id, name) => ({
  * With `outOfOrder`, the first write's answer is held until the second has been
  * answered. Writes still apply in arrival order — only the answers are reordered, which
  * is all a websocket guarantees.
+ *
+ * `hold(n)` returns a promise the nth write waits on before answering, for watching the
+ * in-flight state. `fail` rejects every write with that message.
  */
-function makeHass(notifications, { outOfOrder = false } = {}) {
+function makeHass(notifications, { outOfOrder = false, hold, fail } = {}) {
   const options = {
     sync_problem_sensors: false,
     problem_sensor_exclude_entities: [],
@@ -89,6 +92,18 @@ function makeHass(notifications, { outOfOrder = false } = {}) {
           return Promise.resolve({ options, own_todo_entities: [] });
         case 'home_keeper/set_options': {
           saves.push(structuredClone(msg.options));
+          if (fail) return Promise.reject(new Error(fail));
+          const held = hold?.(saves.length);
+          if (held) {
+            return held.then(() => {
+              for (const list of Object.values(msg.options)) {
+                if (!Array.isArray(list)) continue;
+                for (const row of list) if (row && row.id === '') row.id = `gen${(nextId += 1)}`;
+              }
+              Object.assign(options, msg.options);
+              return { options: structuredClone(options) };
+            });
+          }
           // Applied on arrival, like the backend — which also names any row that
           // arrived without an id, the way `normalize_notification` does.
           for (const list of Object.values(msg.options)) {
@@ -125,6 +140,11 @@ async function mountSettings(hass) {
 
 const rows = (panel) => [...panel.shadowRoot.querySelectorAll('#hk-notifications .hk-item-card')];
 const formOf = (row) => row.querySelector('.hk-item-body > ha-form');
+
+/** What the Notifications card is currently saying about itself, or '' before it has
+ *  ever saved. This replaced a toast, so it is the only success feedback there is. */
+const status = (panel, cardId = 'hk-notifications') =>
+  panel.shadowRoot.getElementById(cardId)?.querySelector('.hk-save-status')?.textContent ?? '';
 
 /** Edit one row the way `ha-form` does — the whole form value, one field changed. */
 function edit(panel, index, patch) {
@@ -170,9 +190,9 @@ describe('Settings → Notifications — autosave across rows', () => {
     expect(options.notifications.map((n) => n.channel)).toEqual(['Alpha', 'Beta', 'Gamma']);
   });
 
-  it('still says Saved for a save another row overtook', async () => {
+  it('still reports itself for a save another row overtook', async () => {
     // Being overtaken is not a failure. Only the stale copy of the options is dropped:
-    // an add still expands its new row and every save still reports itself, or pressing
+    // an add still expands its new row and the card still settles to Saved, or pressing
     // *Add notification* while another row's autosave is in flight would look like it
     // did nothing.
     const { hass, options } = makeHass(
@@ -180,14 +200,12 @@ describe('Settings → Notifications — autosave across rows', () => {
       { outOfOrder: true },
     );
     const panel = await mountSettings(hass);
-    const toasts = [];
-    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
 
     edit(panel, 0, { channel: 'Alpha' });
     edit(panel, 1, { channel: 'Beta' });
 
-    await waitFor(() => toasts.filter((m) => m === 'Saved').length === 2);
-    expect(toasts.filter((m) => m === 'Saved')).toHaveLength(2);
+    await waitFor(() => status(panel) === 'Saved');
+    expect(status(panel)).toBe('Saved');
     expect(options.notifications.map((n) => n.channel)).toEqual(['Alpha', 'Beta']);
   });
 
@@ -228,6 +246,105 @@ describe('Settings → Notifications — autosave across rows', () => {
 
     await waitFor(() => options.notifications.every((n) => n.channel));
     expect(saves).toHaveLength(2);
+  });
+});
+
+describe('Settings — how an autosave reports itself', () => {
+  it('says nothing until the card has actually saved something', async () => {
+    // The status reports an operation the user did not ask about, so a card nobody has
+    // touched must be silent. A permanent "Saved" on a fresh install would be noise.
+    const { hass } = makeHass([notification('n1', 'A')]);
+    const panel = await mountSettings(hass);
+    expect(status(panel)).toBe('');
+    expect(status(panel, 'hk-settings')).toBe('');
+  });
+
+  it('shows Saving while the write is in flight, then Saved', async () => {
+    let release;
+    const gate = new Promise((r) => {
+      release = r;
+    });
+    const { hass } = makeHass([notification('n1', 'A')], { hold: () => gate });
+    const panel = await mountSettings(hass);
+
+    edit(panel, 0, { channel: 'Trash' });
+    await waitFor(() => status(panel) === 'Saving…');
+    expect(status(panel)).toBe('Saving…');
+    release();
+    await waitFor(() => status(panel) === 'Saved');
+    expect(status(panel)).toBe('Saved');
+  });
+
+  it('raises no toast when a save works', async () => {
+    // The whole point of the change: three rows configured in a row used to queue three
+    // toasts across the bottom of a phone, over the form still being edited.
+    const { hass, options } = makeHass([notification('n1', 'A'), notification('n2', 'B')]);
+    const panel = await mountSettings(hass);
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+
+    edit(panel, 0, { channel: 'Trash' });
+    edit(panel, 1, { channel: 'Meds' });
+
+    await waitFor(() => options.notifications.every((n) => n.channel));
+    await waitFor(() => status(panel) === 'Saved');
+    expect(toasts, `unexpected toast(s): ${toasts.join(' | ')}`).toEqual([]);
+  });
+
+  it('stays on Saving until the last of several writes has answered', async () => {
+    // Two rows saving at once are one operation to the person watching. Flicking to
+    // Saved while the second is still going would be a lie.
+    let release;
+    const gate = new Promise((r) => {
+      release = r;
+    });
+    const { hass } = makeHass([notification('n1', 'A'), notification('n2', 'B')], {
+      hold: (n) => (n === 1 ? gate : null),
+    });
+    const panel = await mountSettings(hass);
+
+    edit(panel, 0, { channel: 'Trash' });
+    edit(panel, 1, { channel: 'Meds' });
+    await waitFor(() => status(panel) === 'Saving…');
+    // The second write has been answered; the first is still open, so the card must not
+    // claim to be saved yet.
+    expect(status(panel)).toBe('Saving…');
+    release();
+    await waitFor(() => status(panel) === 'Saved');
+  });
+
+  it('says Not saved on a failure, and still toasts the reason', async () => {
+    // A failure is the one thing a toast could never say afterwards: it vanishes, and
+    // the card then looks exactly like a saved one. The status stays put; the toast
+    // carries the backend's own message, which the status has no room for.
+    const { hass } = makeHass([notification('n1', 'A')], { fail: 'Not authorised' });
+    const panel = await mountSettings(hass);
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+
+    edit(panel, 0, { channel: 'Trash' });
+
+    await waitFor(() => status(panel) === 'Not saved');
+    expect(status(panel)).toBe('Not saved');
+    expect(toasts).toContain('Not authorised');
+  });
+
+  it('reports an option card too, not just the rows', async () => {
+    // The option cards save through `saveOptions` and the row lists through
+    // `persistOptionList`. Both report the same way: fixing only Profiles and
+    // Notifications would trade one inconsistency for another.
+    const { hass } = makeHass([notification('n1', 'A')]);
+    const panel = await mountSettings(hass);
+    const form = panel.shadowRoot.querySelector('#hk-settings ha-form');
+    form.dispatchEvent(
+      new CustomEvent('value-changed', {
+        detail: { value: { ...form.data, sync_problem_sensors: true } },
+      }),
+    );
+    await waitFor(() => status(panel, 'hk-settings') === 'Saved');
+    expect(status(panel, 'hk-settings')).toBe('Saved');
+    // …and it did not leak into the Notifications card.
+    expect(status(panel)).toBe('');
   });
 });
 
