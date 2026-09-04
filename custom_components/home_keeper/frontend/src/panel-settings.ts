@@ -622,14 +622,19 @@ function claimSave(p: PanelHost, key: OptionListKey): () => boolean {
  * after the round-trip), re-render if asked, and say so. A failure toasts the
  * backend's own message and leaves the reload to restore the truth.
  *
- * The answer is only taken when this save is still the newest for its list. Two rows
- * can have writes in flight at once, and the answers are not guaranteed to arrive in
- * the order they were sent: an earlier one landing last would put `p._options` back to
- * the state before the later row was saved, and the next row to build a list from it
- * would then write that staleness to disk — losing a value the user was told was
- * saved. The out-of-date answer is dropped instead. Nothing is lost by dropping it:
- * the newest write already carries every earlier row's value, because each list is
- * built from `p._options` after the earlier save updated it (see `persistDebounced`).
+ * An answer **only replaces `p._options` when this save is still the newest** for its
+ * list. Two rows can have writes in flight at once, and the answers are not guaranteed
+ * to arrive in the order they were sent: an earlier one landing last would put
+ * `p._options` back to the state before the later row was saved, and the next row to
+ * build a list from it would then write that staleness to disk — losing a value the
+ * user was told was saved. Nothing is lost by ignoring the out-of-date copy, because
+ * the newest write already carries every earlier row's value: each list is built from
+ * `p._options` after the earlier save updated it (see `persistDebounced`).
+ *
+ * Only that assignment is skipped. Being superseded is not a failure, so the save still
+ * expands, re-renders and says "Saved" — a person who pressed *Add notification* has to
+ * get their row and their toast whether or not another row's autosave happened to land
+ * in between.
  */
 async function persistOptionList(
   p: PanelHost,
@@ -646,8 +651,7 @@ async function persistOptionList(
       [key]: list,
     } as Partial<HomeKeeperOptions>);
     // A later save owns the truth now, and its own answer will set it.
-    if (!isNewest()) return;
-    p._options = merged;
+    if (isNewest()) p._options = merged;
     if (expandLast) {
       const saved: { id: string }[] = p._options?.[key] ?? [];
       if (saved.length) p._itemExpanded.add(saved[saved.length - 1].id);

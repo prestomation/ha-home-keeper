@@ -163,6 +163,27 @@ describe('Settings → Notifications — autosave across rows', () => {
     expect(options.notifications.map((n) => n.channel)).toEqual(['Alpha', 'Beta', 'Gamma']);
   });
 
+  it('still says Saved for a save another row overtook', async () => {
+    // Being overtaken is not a failure. Only the stale copy of the options is dropped:
+    // an add still expands its new row and every save still reports itself, or pressing
+    // *Add notification* while another row's autosave is in flight would look like it
+    // did nothing.
+    const { hass, options } = makeHass(
+      [notification('n1', 'A'), notification('n2', 'B')],
+      { outOfOrder: true },
+    );
+    const panel = await mountSettings(hass);
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+
+    edit(panel, 0, { channel: 'Alpha' });
+    edit(panel, 1, { channel: 'Beta' });
+
+    await waitFor(() => toasts.filter((m) => m === 'Saved').length === 2);
+    expect(toasts.filter((m) => m === 'Saved')).toHaveLength(2);
+    expect(options.notifications.map((n) => n.channel)).toEqual(['Alpha', 'Beta']);
+  });
+
   it('saves each row once rather than re-writing the whole card per row', async () => {
     // A per-row timer must not become a per-row *storm*: each row still coalesces its
     // own keystrokes, so two edited rows are two writes, not four.
