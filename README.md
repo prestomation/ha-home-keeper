@@ -826,6 +826,17 @@ The **Include** setting has 3 tiers. Each tier includes the tiers before it:
 - **Overdue and due soon**: overdue tasks and tasks that are due in the next 3 days.
 - **Every scheduled task**: all scheduled tasks.
 
+### How filters combine
+
+A filter can hold more than one value, and Home Keeper matches a task with any one of
+them. A **Labels** filter set to `urgent` and `safety` selects tasks with either label. A
+Profile with values in more than one filter shows only the tasks that match every one of
+them. Each filter you set makes the result smaller. It never makes the result larger.
+
+> **A Profile with values in both Labels and Companions does not show both groups
+> together.** It shows only the tasks that match both filters. To combine 2 groups of
+> tasks, put both values in one filter. An example is 2 labels in **Labels**.
+
 ### Filter by companion
 
 A [companion](#companions) is an integration that creates tasks in Home Keeper. The
