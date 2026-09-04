@@ -6,6 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.20.0b5]
+
+### Changed
+
+- **Each Settings card now shows its save status next to its name, in place of a pop-up
+  message.** The status reads *Saving…* and then *Saved*. A save that fails shows *Not
+  saved* on the card and also keeps the pop-up, which gives the reason.
+
+### Fixed
+
+- **Settings no longer loses an edit when you go to the next row too soon.** Each row in
+  *Settings → Notifications* and *Settings → Profiles* saves a moment after you stop
+  typing. The first row showed Saved and then lost its value. (Fixes #255)
+
+- **The Test button now shows the correct result.** In *Settings → Notifications* it
+  said that no task was due after it sent the notification to the phone. (Fixes #255)
+
 ## [0.20.0b4]
 
 ### Added

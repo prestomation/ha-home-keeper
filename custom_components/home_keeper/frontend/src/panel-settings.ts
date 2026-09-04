@@ -322,6 +322,8 @@ function settingsCard(
       <div class="hk-form-title">${escapeHTML(t(headingKey))}</div>
       ${summary ? `<div class="hk-settings-value">${escapeHTML(summary)}</div>` : ''}
       <div class="hk-settings-intro">${escapeHTML(t(helpKey))}</div>`;
+  // This card autosaves, so it says so beside its own name rather than through a toast.
+  inner.querySelector('.hk-form-title')?.appendChild(saveStatusSlot(p, id));
 
   const build = (fields: FormField[]): HTMLElement =>
     p._makeForm(
@@ -332,7 +334,7 @@ function settingsCard(
         // Each form carries only its own fields, which is exactly what the options
         // endpoint wants: it merges partial updates, so a change to the toggle never
         // has to restate the exclusions to leave them alone.
-        void saveOptions(p, value as Partial<HomeKeeperOptions>);
+        void saveOptions(p, id, value as Partial<HomeKeeperOptions>);
       },
       {
         computeLabel: (s) => (s.name ? t('settings.' + s.name) : ''),
@@ -408,11 +410,113 @@ function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): str
   return '';
 }
 
-async function saveOptions(p: PanelHost, value: Partial<HomeKeeperOptions>): Promise<void> {
+// ── autosave status ─────────────────────────────────────────────────────────
+//
+// Every Settings card saves itself; none has a Save button. That used to be reported
+// with Home Assistant's toast, which is wrong for this job in two ways. A toast is
+// what the rest of the panel raises for an *error* or for something the user pressed
+// (copy an id, upload a document, send a Test notification) — saving a task or an
+// appliance, the most deliberate writes here, raise nothing at all. And one toast per
+// save meant configuring three rows queued three of them across the bottom of a phone,
+// over the form still being edited.
+//
+// So a card says its own state, beside its own name: nothing until it is first saved,
+// then Saving…, Saved, or Not saved. It covers nothing, it scales to any number of
+// rows, and it can say the one thing a toast never could — that a save *failed* and
+// the card in front of you is not what is stored. A failure still toasts as well,
+// because only the toast carries the backend's own message.
+
+type SaveState = 'saving' | 'saved' | 'failed';
+
+/** Per card: how many writes are in flight, and the state to show. Weakly held per
+ *  host for the same reasons as `saveSeq`. */
+const saveStatus = new WeakMap<PanelHost, Map<string, { pending: number; state: SaveState }>>();
+
+function statusMap(p: PanelHost): Map<string, { pending: number; state: SaveState }> {
+  let byCard = saveStatus.get(p);
+  if (!byCard) {
+    byCard = new Map();
+    saveStatus.set(p, byCard);
+  }
+  return byCard;
+}
+
+function markSaving(p: PanelHost, cardId: string): void {
+  const entry = statusMap(p).get(cardId);
+  statusMap(p).set(cardId, { pending: (entry?.pending ?? 0) + 1, state: 'saving' });
+  paintSaveStatus(p, cardId);
+}
+
+/**
+ * One write finished. The card only leaves *Saving…* once the **last** in-flight write
+ * for it has answered — two rows saving at once are one operation to the person
+ * watching, and flicking to Saved while the second is still going would be a lie.
+ * A failure sticks even if a later write succeeds: it is the state the user has to act
+ * on, and it is cleared by the next save they start.
+ */
+function markSettled(p: PanelHost, cardId: string, ok: boolean): void {
+  const byCard = statusMap(p);
+  const entry = byCard.get(cardId);
+  const pending = Math.max(0, (entry?.pending ?? 1) - 1);
+  const failed = !ok || entry?.state === 'failed';
+  byCard.set(cardId, {
+    pending,
+    state: failed ? 'failed' : pending > 0 ? 'saving' : 'saved',
+  });
+  paintSaveStatus(p, cardId);
+}
+
+const STATUS_KEY: Record<SaveState, string> = {
+  saving: 'settings.status_saving',
+  saved: 'settings.status_saved',
+  failed: 'settings.status_failed',
+};
+
+/** Write the card's current state into its status element, in place. */
+function applyStatus(p: PanelHost, cardId: string, el: HTMLElement): void {
+  const entry = statusMap(p).get(cardId);
+  el.className = entry ? `hk-save-status on ${entry.state}` : 'hk-save-status';
+  el.textContent = entry ? t(STATUS_KEY[entry.state]) : '';
+}
+
+/**
+ * The status element a card header keeps for itself.
+ *
+ * Built once per render and then updated **in place** — never replaced. It is an
+ * `aria-live` region, and a live region only announces a change if it was already in
+ * the document when the change happened; swapping the element out on every state
+ * change would announce nothing. Being announced is the point: the toast this replaces
+ * was read out by Home Assistant, and a status a screen reader cannot hear would be a
+ * step backwards. It carries the card's state across a re-render because the state
+ * lives on the host, not in the DOM.
+ */
+function saveStatusSlot(p: PanelHost, cardId: string): HTMLElement {
+  const el = document.createElement('span');
+  el.dataset.statusFor = cardId;
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  applyStatus(p, cardId, el);
+  return el;
+}
+
+/** Update the live status beside *cardId*'s name, if that card is on screen. */
+function paintSaveStatus(p: PanelHost, cardId: string): void {
+  const el = p.shadowRoot
+    ?.getElementById(cardId)
+    ?.querySelector<HTMLElement>(`[data-status-for="${cardId}"]`);
+  if (el) applyStatus(p, cardId, el);
+}
+
+async function saveOptions(
+  p: PanelHost,
+  cardId: string,
+  value: Partial<HomeKeeperOptions>,
+): Promise<void> {
   if (!p._hass) return;
   // Keep local state in sync optimistically so the form doesn't flicker; the
   // backend persists, reloads the entry and re-runs the problem-sensor sync.
   p._options = { ...(p._options as HomeKeeperOptions), ...value };
+  markSaving(p, cardId);
   try {
     await api.setOptions(p._hass, value);
     // setOptions resolves only once the backend has reloaded and reconciled the
@@ -421,8 +525,9 @@ async function saveOptions(p: PanelHost, value: Partial<HomeKeeperOptions>): Pro
     // still editing) so the change is reflected the moment they return to the
     // Tasks tab, rather than lingering until the next refresh.
     await p._reload();
-    toast(p, t('settings.saved'));
+    markSettled(p, cardId, true);
   } catch (err) {
+    markSettled(p, cardId, false);
     toast(p, String((err as { message?: string })?.message || err));
   }
 }
@@ -458,6 +563,12 @@ function settingsListSection(
       <span class="hk-form-title hk-section-title">${escapeHTML(t(o.headingKey))}</span>
       ${o.count ? `<span class="hk-section-count">${o.count}</span>` : ''}
       <ha-icon icon="mdi:chevron-down" class="hk-section-chevron${isCollapsed ? '' : ' open'}"></ha-icon>`;
+  // The rows inside autosave, so the section says so beside its own name. Before the
+  // chevron, which stays the rightmost thing in every header.
+  header.insertBefore(
+    saveStatusSlot(p, o.id),
+    header.querySelector('.hk-section-chevron'),
+  );
   inner.appendChild(header);
 
   // Collapsible body
@@ -596,11 +707,56 @@ function itemCard(o: {
  *  key, which is what lets one helper serve both. */
 type OptionListKey = 'profiles' | 'notifications';
 
+/** The card each option list is rendered into, so a row's save can report itself
+ *  against the section the user is looking at. */
+const LIST_CARD_ID: Record<OptionListKey, string> = {
+  profiles: 'hk-profiles',
+  notifications: 'hk-notifications',
+};
+
+/**
+ * How many saves of each list this panel has issued, so a save can tell whether it is
+ * still the newest by the time its answer arrives.
+ *
+ * Per host and weakly held: two panels must not share a counter, and a panel Home
+ * Assistant has thrown away must not be kept alive by one. A replacement panel
+ * therefore starts its own count, which is right rather than a gap — an in-flight save
+ * from the panel it replaced resolves against *that* host's counter and writes to
+ * *that* host's `_options`, so a discarded element cannot reach across to this one.
+ */
+const saveSeq = new WeakMap<PanelHost, Map<OptionListKey, number>>();
+
+/** Claim the next sequence number for *key*, and a check for still being the newest. */
+function claimSave(p: PanelHost, key: OptionListKey): () => boolean {
+  let byKey = saveSeq.get(p);
+  if (!byKey) {
+    byKey = new Map();
+    saveSeq.set(p, byKey);
+  }
+  const seq = (byKey.get(key) ?? 0) + 1;
+  byKey.set(key, seq);
+  return () => saveSeq.get(p)?.get(key) === seq;
+}
+
 /**
  * Save one of the option lists: write it locally first so the form doesn't flicker,
  * then persist, optionally expand whatever the backend appended (an id is only known
  * after the round-trip), re-render if asked, and say so. A failure toasts the
  * backend's own message and leaves the reload to restore the truth.
+ *
+ * An answer **only replaces `p._options` when this save is still the newest** for its
+ * list. Two rows can have writes in flight at once, and the answers are not guaranteed
+ * to arrive in the order they were sent: an earlier one landing last would put
+ * `p._options` back to the state before the later row was saved, and the next row to
+ * build a list from it would then write that staleness to disk — losing a value the
+ * user was told was saved. Nothing is lost by ignoring the out-of-date copy, because
+ * the newest write already carries every earlier row's value: each list is built from
+ * `p._options` after the earlier save updated it (see `persistDebounced`).
+ *
+ * Only that assignment is skipped. Being superseded is not a failure, so the save still
+ * expands, re-renders and settles the card's status — a person who pressed *Add
+ * notification* has to get their row whether or not another row's autosave happened to
+ * land in between.
  */
 async function persistOptionList(
   p: PanelHost,
@@ -610,26 +766,63 @@ async function persistOptionList(
   expandLast = false,
 ): Promise<void> {
   if (!p._hass) return;
+  const cardId = LIST_CARD_ID[key];
+  const isNewest = claimSave(p, key);
+  markSaving(p, cardId);
   p._options = { ...(p._options as HomeKeeperOptions), [key]: list };
   try {
-    p._options = await api.setOptions(p._hass, {
+    const merged = await api.setOptions(p._hass, {
       [key]: list,
     } as Partial<HomeKeeperOptions>);
+    // Stale answer: a newer save has already put its own value in `p._options`.
+    if (isNewest()) p._options = merged;
     if (expandLast) {
-      const saved: { id: string }[] = p._options?.[key] ?? [];
-      if (saved.length) p._itemExpanded.add(saved[saved.length - 1].id);
+      // Read the row out of **this** save's own answer rather than `p._options`. They
+      // are the same list in the ordinary case, but two adds in quick succession are
+      // not: the second answer holds both new rows, so the first add would expand the
+      // second one's row. The `id` guard drops the blank an add sends before the
+      // backend has named it, which would otherwise sit in the set forever.
+      const saved: { id: string }[] = merged[key] ?? [];
+      const last = saved[saved.length - 1];
+      if (last?.id) p._itemExpanded.add(last.id);
     }
     if (render) p._render();
-    toast(p, t('settings.saved'));
+    markSettled(p, cardId, true);
   } catch (err) {
+    markSettled(p, cardId, false);
+    // The optimistic write above stands. The user keeps what they typed and sees the
+    // backend's own message, and the next save of this list carries the value again —
+    // a retry rather than a silent revert. Rolling back here would take the text out
+    // of the field under them, which is worse for the common case (a transient
+    // failure) than re-sending it.
     toast(p, String((err as { message?: string })?.message || err));
   }
 }
 
-/** The per-keystroke form saves, debounced under the list's own key so a text edit
- *  doesn't fire a config-entry reload on every character. */
-function persistDebounced(p: PanelHost, key: OptionListKey, list: Profile[] | Notification[]): void {
-  p._debounce(key, () => void persistOptionList(p, key, list, false));
+/**
+ * The per-keystroke form saves, debounced so a text edit doesn't fire a config-entry
+ * reload on every character.
+ *
+ * Two details here are load-bearing, and getting either wrong silently drops an edit
+ * the user was told was saved (#255).
+ *
+ * The timer is keyed **per row**, not per list. One timer for the whole list means
+ * touching a second row inside the 600ms window cancels the first row's pending save,
+ * and the first row's edit is never written.
+ *
+ * *buildList* is called when the timer **fires**, not when it is armed. A list built
+ * at keystroke time is a snapshot of `p._options` from before any save that lands in
+ * between, so writing it would put every other row back to where it was. Building late
+ * composes instead: `persistOptionList` updates `p._options` synchronously before it
+ * awaits, so a row saving second already sees the row that saved first.
+ */
+function persistDebounced(
+  p: PanelHost,
+  key: OptionListKey,
+  itemId: string,
+  buildList: () => Profile[] | Notification[],
+): void {
+  p._debounce(`${key}:${itemId}`, () => void persistOptionList(p, key, buildList(), false));
 }
 
 // ── profiles ────────────────────────────────────────────────────────────────
@@ -698,10 +891,11 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
       let filter = profileFormData(profile);
       let sync: ProfileSync = toProfileSync(profile.sync);
       const saveProfile = (): void => {
-        const next = (p._options?.profiles ?? []).map((x) =>
-          x.id === profile.id ? profileFormToProfile(profile.id, filter, sync) : x,
+        persistDebounced(p, 'profiles', profile.id, () =>
+          (p._options?.profiles ?? []).map((x) =>
+            x.id === profile.id ? profileFormToProfile(profile.id, filter, sync) : x,
+          ),
         );
-        persistDebounced(p, 'profiles', next);
       };
 
       body.appendChild(
@@ -946,7 +1140,7 @@ function notificationEditor(
           (value) => {
             if (typeof value.name === 'string') nameSpan.textContent = value.name;
             current = notifyFormToNotification(notification.id, value);
-            persistDebounced(p, 'notifications', listWith(current));
+            persistDebounced(p, 'notifications', notification.id, () => listWith(current));
           },
           {
             computeLabel: (s) => {
@@ -977,8 +1171,12 @@ function notificationEditor(
  *
  * Pending edits are saved first: `home_keeper.notify` resolves the notification out of
  * stored options, so an unsaved channel or urgency would test the previous delivery
- * and quietly report success. `sent: 0` is a real outcome rather than an error, and
- * says the filter matched nothing, so it gets its own message.
+ * and quietly report success. A run that matched nothing is a real outcome rather than
+ * an error, and says the filter found nothing due, so it gets its own message.
+ *
+ * `matched` is what says a notification went out, not `sent`: `sent` is the *task id*
+ * a walk surfaced, and a digest that delivered answers `null` for it. Reading `sent`
+ * as a count made every real delivery report "no task is due" (#255).
  */
 async function testNotification(
   p: PanelHost,
@@ -989,8 +1187,8 @@ async function testNotification(
   if (!hass) return;
   try {
     p._options = await api.setOptions(hass, { notifications: listWith(current()) });
-    const { sent } = await api.runNotification(hass, current().id);
-    toast(p, sent > 0 ? t('notify.test_sent') : t('notify.test_none'));
+    const { matched } = await api.runNotification(hass, current().id);
+    toast(p, matched > 0 ? t('notify.test_sent') : t('notify.test_none'));
   } catch (err) {
     toast(p, String((err as { message?: string })?.message || err));
   }

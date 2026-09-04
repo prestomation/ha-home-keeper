@@ -216,12 +216,19 @@ async def _send(
         hass, notification, queue, now=now, lang=lang
     )
     await _send_payload(hass, notification["targets"], payload)
+    # The payload itself, not only a summary of it: the ``data`` block is where the
+    # channel and the urgency live, and it is the only place a report of "the channel
+    # did nothing on my phone" can be settled. Home Keeper builds that block, the
+    # companion app reads it, and nothing in between is visible from here — so the log
+    # says exactly what left Home Assistant.
     _LOGGER.debug(
-        "Home Keeper sent %s notification %r (%d due, reason=%s)",
+        "Home Keeper sent %s notification %r to %s (%d due, reason=%s): %s",
         notification["style"],
         notification["name"],
+        notification["targets"],
         len(queue),
         reason,
+        payload,
     )
     return len(queue), sent_id
 

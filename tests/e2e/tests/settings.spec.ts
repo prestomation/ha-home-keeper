@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { callService, openPanel, openSettingsSection, trackPanelErrors } from './helpers';
+import {
+  callService,
+  createTask,
+  deleteTask,
+  openPanel,
+  openSettingsSection,
+  trackPanelErrors,
+} from './helpers';
 import { settleToasts } from '../shots';
 
 test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () => {
@@ -125,6 +132,164 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
 
       // The panel stays up and does not log an error of its own.
       await expect(panel.locator('#hk-notifications')).toBeVisible();
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
+    }
+  });
+
+  test('Test reports a delivery, and a typed channel reaches storage (#255)', async ({ page }) => {
+    // Two halves of one report on #255. The seeded-value test above proves the field
+    // *renders*; nothing proved a channel typed into it is stored, and nothing drove
+    // Test against a notification that actually has something to send. Both are what
+    // the reporter hit.
+    // Overdue, so the profile's queue is not empty and the send is a real one.
+    const taskId = await createTask({
+      name: 'Take the bins out',
+      recurrence_type: 'one-off',
+      due: '2026-01-02T09:00:00-04:00',
+    });
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: 'e2e_send_profile',
+          name: 'Everything',
+          filter: { status: 'all', labels: [], areas: [], devices: [] },
+        },
+      ],
+      notifications: [
+        {
+          id: 'e2e_send',
+          name: 'Bins',
+          profile_id: 'e2e_send_profile',
+          // The one target that never leaves the instance, so the send is real
+          // without a phone in the loop.
+          targets: ['persistent_notification'],
+          actions: ['complete'],
+          style: 'walk',
+          snooze_hours: 24,
+          channel: '',
+          urgency: 'normal',
+          auto: { overdue: false, due_soon: false },
+        },
+      ],
+    });
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      await settleToasts(page);
+      await openSettingsSection(panel, 'notifications');
+      const card = panel.locator('#hk-notifications');
+      const row = card.locator('.hk-item-card').first();
+      const openRow = async (): Promise<void> => {
+        const header = row.locator('> .hk-item-header');
+        if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+        await expect(row.locator('.hk-item-body ha-form')).toBeVisible();
+      };
+      await openRow();
+      const form = row.locator('.hk-item-body ha-form').first();
+
+      // Type a channel and let the per-keystroke debounce settle. The assertion is on
+      // *stored* options, not on the field: a value that only lives in the form is
+      // exactly the failure the reporter saw on the phone.
+      // Name and channel are the form's only two text fields, in that order. Asserted
+      // by its label rather than taken on trust, so a reordered schema fails here
+      // instead of quietly typing into Name.
+      const channelField = form.locator('ha-selector-text').nth(1);
+      await expect(channelField).toContainText('Notification channel');
+      await channelField.locator('input').fill('Trash');
+      await expect
+        .poll(
+          () =>
+            page.evaluate(async () => {
+              const hass = (document.querySelector('home-assistant') as any).hass;
+              const res = await hass.callWS({ type: 'home_keeper/get_options' });
+              return res.options.notifications.find((n: any) => n.id === 'e2e_send')?.channel;
+            }),
+          { timeout: 15_000 },
+        )
+        .toBe('Trash');
+
+      // A due task, a real target: Test delivered, so it must say so. It reported
+      // "no task is due" because `notify` answers `sent` with the *task id* it walked
+      // to, and the panel read that string as a count.
+      await settleToasts(page);
+      await openRow();
+      await card.locator('.hk-notify-test').first().click();
+      const toast = page.locator('.message');
+      await expect(toast).toContainText('Notification sent.');
+      await expect(toast).not.toContainText('sent nothing');
+
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await deleteTask(taskId);
+      await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
+    }
+  });
+
+  test('two notifications configured back to back both keep their channel (#255)', async ({
+    page,
+  }) => {
+    // The reporter's second finding: the panel said "Saved" and the channel was gone on
+    // the next load. Configuring one notification and starting on the next is the
+    // ordinary way to use this card, and the autosave debounce dropped the first row's
+    // write. The unit suite pins the mechanism; this proves it through a real `ha-form`
+    // and a real config-entry round trip, which is where it was actually seen.
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: 'e2e_two_profile',
+          name: 'Everything',
+          filter: { status: 'all', labels: [], areas: [], devices: [] },
+        },
+      ],
+      notifications: ['Bins', 'Medication'].map((name, i) => ({
+        id: `e2e_two_${i}`,
+        name,
+        profile_id: 'e2e_two_profile',
+        targets: [],
+        actions: ['complete'],
+        style: 'walk',
+        snooze_hours: 24,
+        channel: '',
+        urgency: 'normal',
+        auto: { overdue: false, due_soon: false },
+      })),
+    });
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      await settleToasts(page);
+      await openSettingsSection(panel, 'notifications');
+      const card = panel.locator('#hk-notifications');
+      for (const h of await card.locator('.hk-item-card > .hk-item-header').all()) {
+        if ((await h.getAttribute('aria-expanded')) !== 'true') await h.click();
+      }
+      await expect(card.locator('.hk-item-body ha-form').first()).toBeVisible();
+      const channelOf = (row: number) =>
+        card.locator('.hk-item-card').nth(row).locator('ha-selector-text').nth(1).locator('input');
+
+      // Type into the first row, then move to the second without pausing — the debounce
+      // window is 600ms and a person crosses it easily.
+      await channelOf(0).click();
+      await page.keyboard.type('Trash', { delay: 30 });
+      await channelOf(1).click();
+      await page.keyboard.type('Medication', { delay: 30 });
+
+      await expect
+        .poll(
+          () =>
+            page.evaluate(async () => {
+              const hass = (document.querySelector('home-assistant') as any).hass;
+              const res = await hass.callWS({ type: 'home_keeper/get_options' });
+              return res.options.notifications.map((n: any) => n.channel);
+            }),
+          { timeout: 15_000 },
+        )
+        .toEqual(['Trash', 'Medication']);
+
       expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
     } finally {
       await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
