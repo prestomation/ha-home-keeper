@@ -70,6 +70,7 @@ function makeHass(notifications, { outOfOrder = false } = {}) {
     notifications,
   };
   const saves = [];
+  let nextId = 0;
   let releaseFirst;
   const firstAnswer = new Promise((r) => {
     releaseFirst = r;
@@ -88,7 +89,13 @@ function makeHass(notifications, { outOfOrder = false } = {}) {
           return Promise.resolve({ options, own_todo_entities: [] });
         case 'home_keeper/set_options': {
           saves.push(structuredClone(msg.options));
-          Object.assign(options, msg.options); // applied on arrival, like the backend
+          // Applied on arrival, like the backend — which also names any row that
+          // arrived without an id, the way `normalize_notification` does.
+          for (const list of Object.values(msg.options)) {
+            if (!Array.isArray(list)) continue;
+            for (const row of list) if (row && row.id === '') row.id = `gen${(nextId += 1)}`;
+          }
+          Object.assign(options, msg.options);
           const answer = { options: structuredClone(options) };
           if (!outOfOrder) return Promise.resolve(answer);
           if (saves.length === 1) return firstAnswer.then(() => answer);
@@ -104,7 +111,7 @@ function makeHass(notifications, { outOfOrder = false } = {}) {
       }
     },
   };
-  return { hass, options, saves };
+  return { hass, options, saves, panelIds: () => options.notifications.map((n) => n.id) };
 }
 
 async function mountSettings(hass) {
@@ -182,6 +189,27 @@ describe('Settings → Notifications — autosave across rows', () => {
     await waitFor(() => toasts.filter((m) => m === 'Saved').length === 2);
     expect(toasts.filter((m) => m === 'Saved')).toHaveLength(2);
     expect(options.notifications.map((n) => n.channel)).toEqual(['Alpha', 'Beta']);
+  });
+
+  it('expands the row each add created, not whichever landed last', async () => {
+    // An add sends a row with a blank id and learns the real one from its own answer.
+    // Two adds in quick succession means the second answer holds both new rows, so an
+    // add reading the shared options would open the other one's row — and reading them
+    // before any answer landed would put the blank id in the set for good.
+    const { hass, panelIds } = makeHass([notification('n1', 'A')], { outOfOrder: true });
+    const panel = await mountSettings(hass);
+    const add = () => panel.shadowRoot.querySelector('#hk-notify-add');
+
+    add().click();
+    add().click();
+
+    // Wait on the expansions, not on the stored rows: the double applies a write on
+    // arrival, so the rows exist before either answer has come back.
+    await waitFor(() => panel._itemExpanded.size >= 2);
+    const ids = panelIds();
+    // Both new rows are open, and no blank id was ever recorded.
+    expect([...panel._itemExpanded]).toEqual(expect.arrayContaining([ids[1], ids[2]]));
+    expect([...panel._itemExpanded]).not.toContain('');
   });
 
   it('saves each row once rather than re-writing the whole card per row', async () => {

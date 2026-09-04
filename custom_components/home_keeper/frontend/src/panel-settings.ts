@@ -600,7 +600,10 @@ type OptionListKey = 'profiles' | 'notifications';
  * still the newest by the time its answer arrives.
  *
  * Per host and weakly held: two panels must not share a counter, and a panel Home
- * Assistant has thrown away must not be kept alive by one.
+ * Assistant has thrown away must not be kept alive by one. A replacement panel
+ * therefore starts its own count, which is right rather than a gap — an in-flight save
+ * from the panel it replaced resolves against *that* host's counter and writes to
+ * *that* host's `_options`, so a discarded element cannot reach across to this one.
  */
 const saveSeq = new WeakMap<PanelHost, Map<OptionListKey, number>>();
 
@@ -650,11 +653,17 @@ async function persistOptionList(
     const merged = await api.setOptions(p._hass, {
       [key]: list,
     } as Partial<HomeKeeperOptions>);
-    // A later save owns the truth now, and its own answer will set it.
+    // Stale answer: a newer save has already put its own value in `p._options`.
     if (isNewest()) p._options = merged;
     if (expandLast) {
-      const saved: { id: string }[] = p._options?.[key] ?? [];
-      if (saved.length) p._itemExpanded.add(saved[saved.length - 1].id);
+      // Read the row out of **this** save's own answer rather than `p._options`. They
+      // are the same list in the ordinary case, but two adds in quick succession are
+      // not: the second answer holds both new rows, so the first add would expand the
+      // second one's row. The `id` guard drops the blank an add sends before the
+      // backend has named it, which would otherwise sit in the set forever.
+      const saved: { id: string }[] = merged[key] ?? [];
+      const last = saved[saved.length - 1];
+      if (last?.id) p._itemExpanded.add(last.id);
     }
     if (render) p._render();
     toast(p, t('settings.saved'));
