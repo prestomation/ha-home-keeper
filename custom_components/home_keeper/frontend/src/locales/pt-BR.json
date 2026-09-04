@@ -324,7 +324,7 @@
   "notify.channel": "Canal de notificação",
   "notify.channel_help": "O Android cria um canal de notificação com este nome. Os iPhone não têm canais e agrupam essas notificações sob o nome.",
   "notify.companions": "Complementos",
-  "notify.companions_help": "Selecione complementos para mostrar apenas as tarefas deles. Uma tarefa que você cria no painel não tem complemento, por isso este campo não a seleciona.",
+  "notify.companions_help": "Selecione complementos para mostrar apenas as tarefas deles.",
   "notify.defaultName": "Notificação",
   "notify.delete": "Excluir",
   "notify.devices": "Dispositivos",

@@ -315,7 +315,7 @@
   "notify.channel": "Meldingskanaal",
   "notify.channel_help": "Android maakt een meldingskanaal met deze naam. iPhones hebben geen kanalen en groeperen deze meldingen onder de naam.",
   "notify.companions": "Metgezellen",
-  "notify.companions_help": "Selecteer metgezellen om alleen hun taken te tonen. Een taak die je in het paneel maakt, heeft geen metgezel, dus dit veld selecteert die niet.",
+  "notify.companions_help": "Selecteer metgezellen om alleen hun taken te tonen.",
   "notify.defaultName": "Melding",
   "notify.delete": "Verwijderen",
   "notify.devices": "Apparaten",

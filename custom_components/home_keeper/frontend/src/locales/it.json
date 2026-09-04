@@ -324,7 +324,7 @@
   "notify.channel": "Canale di notifica",
   "notify.channel_help": "Android crea un canale di notifica con questo nome. Gli iPhone non hanno canali e raggruppano queste notifiche sotto il nome.",
   "notify.companions": "Integrazioni partner",
-  "notify.companions_help": "Seleziona le integrazioni partner per mostrare solo le loro attività. Un'attività che crei nel pannello non ha un'integrazione partner, quindi questo campo non la seleziona.",
+  "notify.companions_help": "Seleziona le integrazioni partner per mostrare solo le loro attività.",
   "notify.defaultName": "Notifica",
   "notify.delete": "Elimina",
   "notify.devices": "Dispositivi",

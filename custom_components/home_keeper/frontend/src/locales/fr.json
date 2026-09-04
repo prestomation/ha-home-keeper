@@ -324,7 +324,7 @@
   "notify.channel": "Canal de notification",
   "notify.channel_help": "Android crée un canal de notification portant ce nom. Les iPhone n'ont pas de canaux et regroupent ces notifications sous ce nom.",
   "notify.companions": "Compagnons",
-  "notify.companions_help": "Sélectionnez des compagnons pour n'afficher que leurs tâches. Une tâche que vous créez dans le panneau n'a pas de compagnon, donc ce champ ne la sélectionne pas.",
+  "notify.companions_help": "Sélectionnez des compagnons pour n'afficher que leurs tâches.",
   "notify.defaultName": "Notification",
   "notify.delete": "Supprimer",
   "notify.devices": "Appareils",

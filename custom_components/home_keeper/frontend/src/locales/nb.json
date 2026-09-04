@@ -315,7 +315,7 @@
   "notify.channel": "Varselkanal",
   "notify.channel_help": "Android oppretter en varselkanal med dette navnet. iPhone har ingen kanaler og grupperer disse varslene under navnet.",
   "notify.companions": "Følgesvenner",
-  "notify.companions_help": "Velg følgesvenner for å vise bare deres oppgaver. En oppgave du oppretter i panelet, har ingen følgesvenn, så dette feltet velger den ikke.",
+  "notify.companions_help": "Velg følgesvenner for å vise bare deres oppgaver.",
   "notify.defaultName": "Varsel",
   "notify.delete": "Slett",
   "notify.devices": "Enheter",

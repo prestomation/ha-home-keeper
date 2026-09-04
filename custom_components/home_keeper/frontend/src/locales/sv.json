@@ -315,7 +315,7 @@
   "notify.channel": "Aviseringskanal",
   "notify.channel_help": "Android skapar en aviseringskanal med det här namnet. iPhone har inga kanaler och grupperar dessa aviseringar under namnet.",
   "notify.companions": "Följeslagare",
-  "notify.companions_help": "Välj följeslagare för att bara visa deras uppgifter. En uppgift du skapar i panelen har ingen följeslagare, så det här fältet väljer inte den.",
+  "notify.companions_help": "Välj följeslagare för att bara visa deras uppgifter.",
   "notify.defaultName": "Avisering",
   "notify.delete": "Ta bort",
   "notify.devices": "Enheter",

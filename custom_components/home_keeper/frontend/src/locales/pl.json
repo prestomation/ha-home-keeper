@@ -333,7 +333,7 @@
   "notify.channel": "Kanał powiadomień",
   "notify.channel_help": "Android tworzy kanał powiadomień o tej nazwie. iPhone nie ma kanałów i grupuje te powiadomienia pod tą nazwą.",
   "notify.companions": "Powiązane integracje",
-  "notify.companions_help": "Wybierz powiązane integracje, aby pokazać tylko ich zadania. Zadanie utworzone przez ciebie w panelu nie ma powiązanej integracji, więc to pole go nie wybiera.",
+  "notify.companions_help": "Wybierz powiązane integracje, aby pokazać tylko ich zadania.",
   "notify.defaultName": "Powiadomienie",
   "notify.delete": "Usuń",
   "notify.devices": "Urządzenia",

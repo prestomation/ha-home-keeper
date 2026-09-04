@@ -315,7 +315,7 @@
   "notify.channel": "Notifikationskanal",
   "notify.channel_help": "Android opretter en notifikationskanal med dette navn. iPhones har ingen kanaler og grupperer disse notifikationer under navnet.",
   "notify.companions": "Ledsagere",
-  "notify.companions_help": "Vælg ledsagere for kun at vise deres opgaver. En opgave, du opretter i panelet, har ingen ledsager, så dette felt vælger den ikke.",
+  "notify.companions_help": "Vælg ledsagere for kun at vise deres opgaver.",
   "notify.defaultName": "Notifikation",
   "notify.delete": "Slet",
   "notify.devices": "Enheder",

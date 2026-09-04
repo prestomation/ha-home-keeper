@@ -333,7 +333,7 @@
   "notify.channel": "Kanál oznámení",
   "notify.channel_help": "Android vytvoří kanál oznámení s tímto názvem. iPhone kanály nemá a tato oznámení seskupuje podle názvu.",
   "notify.companions": "Doplňky",
-  "notify.companions_help": "Vyberte doplňky, aby se zobrazily jen jejich úkoly. Úkol, který vytvoříte v panelu, nemá doplněk, proto jej toto pole nevybere.",
+  "notify.companions_help": "Vyberte doplňky, aby se zobrazily jen jejich úkoly.",
   "notify.defaultName": "Oznámení",
   "notify.delete": "Odstranit",
   "notify.devices": "Zařízení",

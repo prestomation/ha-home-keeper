@@ -324,7 +324,7 @@
   "notify.channel": "Canal de notificació",
   "notify.channel_help": "Android crea un canal de notificació amb aquest nom. Els iPhone no tenen canals i agrupen aquestes notificacions sota el nom.",
   "notify.companions": "Complements",
-  "notify.companions_help": "Selecciona complements per mostrar només les seves tasques. Una tasca que crees al tauler no té complement, per això aquest camp no la selecciona.",
+  "notify.companions_help": "Selecciona complements per mostrar només les seves tasques.",
   "notify.defaultName": "Notificació",
   "notify.delete": "Suprimeix",
   "notify.devices": "Dispositius",

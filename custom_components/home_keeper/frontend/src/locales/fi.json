@@ -315,7 +315,7 @@
   "notify.channel": "Ilmoituskanava",
   "notify.channel_help": "Android luo tämännimisen ilmoituskanavan. iPhonessa ei ole kanavia, ja nämä ilmoitukset ryhmitellään nimen mukaan.",
   "notify.companions": "Kumppanit",
-  "notify.companions_help": "Valitse kumppanit, jos haluat näyttää vain niiden tehtävät. Paneelissa luomallasi tehtävällä ei ole kumppania, joten tämä kenttä ei valitse sitä.",
+  "notify.companions_help": "Valitse kumppanit, jos haluat näyttää vain niiden tehtävät.",
   "notify.defaultName": "Ilmoitus",
   "notify.delete": "Poista",
   "notify.devices": "Laitteet",

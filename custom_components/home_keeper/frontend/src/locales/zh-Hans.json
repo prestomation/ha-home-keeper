@@ -315,7 +315,7 @@
   "notify.channel": "通知渠道",
   "notify.channel_help": "Android 会创建同名的通知渠道。iPhone 没有渠道，只按该名称将这些通知归为一组。",
   "notify.companions": "配套集成",
-  "notify.companions_help": "选择配套集成，仅显示它们创建的任务。你在面板中创建的任务没有配套集成，因此此字段不会选中它。",
+  "notify.companions_help": "选择配套集成，仅显示它们创建的任务。",
   "notify.defaultName": "通知",
   "notify.delete": "删除",
   "notify.devices": "设备",

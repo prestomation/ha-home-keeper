@@ -315,7 +315,7 @@
   "notify.channel": "Notification channel",
   "notify.channel_help": "Android creates a notification channel with this name. An iPhone has no channels and groups these notifications under the name.",
   "notify.companions": "Companions",
-  "notify.companions_help": "Select companions to show only their tasks. A task you create in the panel has no companion, so this field does not select it.",
+  "notify.companions_help": "Select companions to show only their tasks.",
   "notify.defaultName": "Notification",
   "notify.delete": "Delete",
   "notify.devices": "Devices",

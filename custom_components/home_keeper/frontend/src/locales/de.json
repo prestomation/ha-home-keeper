@@ -315,7 +315,7 @@
   "notify.channel": "Benachrichtigungskanal",
   "notify.channel_help": "Android legt einen Benachrichtigungskanal mit diesem Namen an. iPhones haben keine Kanäle und gruppieren diese Benachrichtigungen unter dem Namen.",
   "notify.companions": "Begleiter",
-  "notify.companions_help": "Wähle Begleiter aus, um nur deren Aufgaben anzuzeigen. Eine Aufgabe, die du im Panel erstellst, hat keinen Begleiter und wird von diesem Feld nicht ausgewählt.",
+  "notify.companions_help": "Wähle Begleiter aus, um nur deren Aufgaben anzuzeigen.",
   "notify.defaultName": "Benachrichtigung",
   "notify.delete": "Löschen",
   "notify.devices": "Geräte",
