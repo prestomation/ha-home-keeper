@@ -8,6 +8,12 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ## [0.20.0b4]
 
+### Added
+
+- **Profiles can filter by companion.** A profile now selects or rejects tasks by the
+  integration that created them. One card or notification can then cover a single
+  source, and a task you create yourself is never selected.
+
 ### Changed
 
 - **Each Settings card now shows its save status next to its name, in place of a pop-up

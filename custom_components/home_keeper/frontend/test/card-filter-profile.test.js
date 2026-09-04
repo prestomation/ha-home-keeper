@@ -231,3 +231,65 @@ describe('profileMatches exclusions', () => {
     expect(profileMatches(bare, { exclude_devices: ['d1'] }, {}, {}, NOW)).toBe(true);
   });
 });
+
+describe('profileMatches companions', () => {
+  const owned = (integration) =>
+    task({ managed_by: { integration, display_name: 'Battery Notes' } });
+
+  it('selects only tasks owned by a named integration', () => {
+    const filter = { companions: ['battery_notes'] };
+    expect(profileMatches(owned('battery_notes'), filter, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(owned('printer_glue'), filter, {}, {}, NOW)).toBe(false);
+  });
+
+  it('matches any of several named integrations', () => {
+    const filter = { companions: ['battery_notes', 'dog_glue'] };
+    expect(profileMatches(owned('dog_glue'), filter, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(owned('printer_glue'), filter, {}, {}, NOW)).toBe(false);
+  });
+
+  it('never selects a task no integration owns', () => {
+    // A task made in the panel has no managed_by, so "just the battery tasks" must
+    // not quietly include the user's own chores.
+    expect(profileMatches(task(), { companions: ['battery_notes'] }, {}, {}, NOW)).toBe(false);
+    const nameless = task({ managed_by: { display_name: 'Nameless' } });
+    expect(profileMatches(nameless, { companions: ['battery_notes'] }, {}, {}, NOW)).toBe(false);
+  });
+
+  it('treats an explicitly null managed_by like an absent one', () => {
+    const nulled = task({ managed_by: null });
+    expect(profileMatches(nulled, { companions: ['battery_notes'] }, {}, {}, NOW)).toBe(false);
+    expect(
+      profileMatches(nulled, { exclude_companions: ['battery_notes'] }, {}, {}, NOW),
+    ).toBe(true);
+  });
+
+  it('drops a task owned by an excluded integration', () => {
+    const filter = { exclude_companions: ['battery_notes'] };
+    expect(profileMatches(owned('battery_notes'), filter, {}, {}, NOW)).toBe(false);
+    expect(profileMatches(owned('dog_glue'), filter, {}, {}, NOW)).toBe(true);
+  });
+
+  it('does not sweep up an unowned task with a non-empty exclude list', () => {
+    expect(
+      profileMatches(task(), { exclude_companions: ['battery_notes'] }, {}, {}, NOW),
+    ).toBe(true);
+  });
+
+  it('lets the exclude list win over a matching include', () => {
+    expect(
+      profileMatches(
+        owned('battery_notes'),
+        { companions: ['battery_notes'], exclude_companions: ['battery_notes'] },
+        {},
+        {},
+        NOW,
+      ),
+    ).toBe(false);
+  });
+
+  it('treats an empty or absent companions list as every owner', () => {
+    expect(profileMatches(owned('battery_notes'), { companions: [] }, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(owned('battery_notes'), {}, {}, {}, NOW)).toBe(true);
+  });
+});

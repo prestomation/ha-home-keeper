@@ -38,9 +38,11 @@ def test_normalize_profile_defaults_and_id():
         "labels": [],
         "areas": [],
         "devices": [],
+        "companions": [],
         "exclude_labels": [],
         "exclude_areas": [],
         "exclude_devices": [],
+        "exclude_companions": [],
         "status": "overdue",
     }
 
@@ -215,9 +217,11 @@ def test_normalize_filter_reads_every_input_key():
         "labels": ["l"],
         "areas": ["a"],
         "devices": ["d"],
+        "companions": ["c"],
         "exclude_labels": ["xl"],
         "exclude_areas": ["xa"],
         "exclude_devices": ["xd"],
+        "exclude_companions": ["xc"],
         "status": "all",
     }
     assert p.normalize_filter(raw) == raw
@@ -344,3 +348,129 @@ def test_conformance_fixture_matches_filter():
         assert got is case["expected"], (
             f"{case['name']}: expected {case['expected']}, got {got}"
         )
+
+
+# ── companions (filter by the integration that owns the task) ───────────────
+
+
+def _owned(tid="1", integration="battery_notes"):
+    """An overdue task owned by *integration*, as a companion's add_task creates it."""
+    return task(
+        tid,
+        "Replace battery",
+        dt(2026, 6, 10),
+        managed_by={"integration": integration, "display_name": "Battery Notes"},
+    )
+
+
+def test_companions_selects_only_the_named_owner():
+    now = dt(2026, 6, 13, 12)
+    assert p.matches_filter(
+        _owned(), {"status": "all", "companions": ["battery_notes"]}, now=now
+    )
+    assert not p.matches_filter(
+        _owned(integration="printer_glue"),
+        {"status": "all", "companions": ["battery_notes"]},
+        now=now,
+    )
+
+
+def test_companions_matches_any_of_several():
+    now = dt(2026, 6, 13, 12)
+    filt = {"status": "all", "companions": ["battery_notes", "dog_glue"]}
+    assert p.matches_filter(_owned(integration="dog_glue"), filt, now=now)
+    assert not p.matches_filter(_owned(integration="printer_glue"), filt, now=now)
+
+
+def test_an_unowned_task_is_never_selected_by_a_companions_list():
+    # A task the user made in the panel has no managed_by block, so it belongs to no
+    # companion. It must not leak into "just the battery tasks".
+    now = dt(2026, 6, 13, 12)
+    hand_made = task("2", "Water plants", dt(2026, 6, 10))
+    assert not p.matches_filter(
+        hand_made, {"status": "all", "companions": ["battery_notes"]}, now=now
+    )
+    # ...and the same task is untouched by an exclude list, which is the other half of
+    # the rule: excluding a companion must not sweep up everything unowned.
+    assert p.matches_filter(
+        hand_made, {"status": "all", "exclude_companions": ["battery_notes"]}, now=now
+    )
+
+
+def test_an_explicitly_null_managed_by_owns_nothing():
+    # `managed_by: None` is not the same shape as an absent key, and both reach the
+    # matcher: `add_task` stores what it is given. They must read the same.
+    now = dt(2026, 6, 13, 12)
+    t = task("5", "Nulled", dt(2026, 6, 10), managed_by=None)
+    assert not p.matches_filter(
+        t, {"status": "all", "companions": ["battery_notes"]}, now=now
+    )
+    assert p.matches_filter(
+        t, {"status": "all", "exclude_companions": ["battery_notes"]}, now=now
+    )
+
+
+def test_a_managed_by_without_an_integration_key_owns_nothing():
+    # managed_by is a free-form dict at the service boundary, so a block missing the
+    # required key must read as "unowned" rather than crash or match everything.
+    now = dt(2026, 6, 13, 12)
+    t = task("3", "Odd", dt(2026, 6, 10), managed_by={"display_name": "Nameless"})
+    assert not p.matches_filter(
+        t, {"status": "all", "companions": ["battery_notes"]}, now=now
+    )
+    assert p.matches_filter(
+        t, {"status": "all", "exclude_companions": ["battery_notes"]}, now=now
+    )
+
+
+def test_exclude_companions_drops_the_owner_and_wins_over_an_include():
+    now = dt(2026, 6, 13, 12)
+    assert not p.matches_filter(
+        _owned(), {"status": "all", "exclude_companions": ["battery_notes"]}, now=now
+    )
+    assert p.matches_filter(
+        _owned(integration="dog_glue"),
+        {"status": "all", "exclude_companions": ["battery_notes"]},
+        now=now,
+    )
+    # Exclusions are applied last and win, exactly as they do for labels/areas/devices.
+    assert not p.matches_filter(
+        _owned(),
+        {
+            "status": "all",
+            "companions": ["battery_notes"],
+            "exclude_companions": ["battery_notes"],
+        },
+        now=now,
+    )
+
+
+def test_an_empty_companions_list_selects_every_owner():
+    now = dt(2026, 6, 13, 12)
+    assert p.matches_filter(_owned(), {"status": "all", "companions": []}, now=now)
+    assert p.matches_filter(_owned(integration="dog_glue"), {"status": "all"}, now=now)
+
+
+def test_companions_is_anded_with_the_other_axes():
+    # Each axis narrows: the right owner in the wrong area is still dropped.
+    now = dt(2026, 6, 13, 12)
+    t = task(
+        "4",
+        "Replace battery",
+        dt(2026, 6, 10),
+        area_id="kitchen",
+        managed_by={"integration": "battery_notes", "display_name": "Battery Notes"},
+    )
+    filt = {"status": "all", "companions": ["battery_notes"], "areas": ["garage"]}
+    assert not p.matches_filter(t, filt, now=now)
+    assert p.matches_filter(t, {**filt, "areas": ["kitchen"]}, now=now)
+
+
+def test_normalize_filter_coerces_companion_lists():
+    filt = p.normalize_filter(
+        {"companions": ["battery_notes", None, ""], "exclude_companions": ("dog_glue",)}
+    )
+    # None/"" are dropped so an unowned task can never be named by a list, and a tuple
+    # is accepted like the other axes.
+    assert filt["companions"] == ["battery_notes"]
+    assert filt["exclude_companions"] == ["dog_glue"]
