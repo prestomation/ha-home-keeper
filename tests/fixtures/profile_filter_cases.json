@@ -1,5 +1,5 @@
 {
-  "_comment": "Cross-language conformance cases for the Profile filter. Both the Python pure matcher (profiles.matches_filter) and the TypeScript pure matcher (card-filter.profileMatches) must agree on every case, so a saved Profile selects the same tasks in a notification (server-side), the admin task list, and the dashboard card. Tasks here carry their EFFECTIVE label/area ids directly (own + any inherited from device/area), since each side resolves inheritance before/inside matching; these cases pin the shared matcher logic with empty registries. The exclude_labels/exclude_areas/exclude_devices lists subtract after the include lists and win over them; an omitted exclude key means the same as an empty one, which is how a profile saved before exclusions existed keeps behaving. now is a fixed instant so date math is deterministic.",
+  "_comment": "Cross-language conformance cases for the Profile filter. Both the Python pure matcher (profiles.matches_filter) and the TypeScript pure matcher (card-filter.profileMatches) must agree on every case, so a saved Profile selects the same tasks in a notification (server-side), the admin task list, and the dashboard card. Tasks here carry their EFFECTIVE label/area ids directly (own + any inherited from device/area), since each side resolves inheritance before/inside matching; these cases pin the shared matcher logic with empty registries. The exclude_labels/exclude_areas/exclude_devices/exclude_companions lists subtract after the include lists and win over them; an omitted exclude key means the same as an empty one, which is how a profile saved before exclusions existed keeps behaving. now is a fixed instant so date math is deterministic.",
   "now": "2026-06-16T12:00:00Z",
   "cases": [
     {
@@ -193,6 +193,90 @@
       "task": { "id": "t", "enabled": true, "next_due": "2026-06-21T12:00:00Z", "labels": [] },
       "filter": { "status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_labels": ["pro"] },
       "expected": false
+    },
+    {
+      "name": "companions: a task owned by the named integration matches",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "battery_notes", "display_name": "Battery Notes"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["battery_notes"]},
+      "expected": true
+    },
+    {
+      "name": "companions: a task owned by another integration is dropped",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "printer_glue", "display_name": "Printer Glue"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["battery_notes"]},
+      "expected": false
+    },
+    {
+      "name": "companions: any of several named integrations matches",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "dog_glue", "display_name": "Dog Glue"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["battery_notes", "dog_glue"]},
+      "expected": true
+    },
+    {
+      "name": "companions: an unowned task is never selected by a non-empty list",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": []},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["battery_notes"]},
+      "expected": false
+    },
+    {
+      "name": "companions: managed_by without an integration key selects nothing",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"display_name": "Nameless"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["battery_notes"]},
+      "expected": false
+    },
+    {
+      "name": "companions: an empty list selects every owner",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "battery_notes", "display_name": "Battery Notes"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": []},
+      "expected": true
+    },
+    {
+      "name": "exclude_companions: the named owner drops the task",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "battery_notes", "display_name": "Battery Notes"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_companions": ["battery_notes"]},
+      "expected": false
+    },
+    {
+      "name": "exclude_companions: a different owner is untouched",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "dog_glue", "display_name": "Dog Glue"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_companions": ["battery_notes"]},
+      "expected": true
+    },
+    {
+      "name": "exclude_companions: an unowned task is not swept up by a non-empty list",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": []},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_companions": ["battery_notes"]},
+      "expected": true
+    },
+    {
+      "name": "exclude_companions: the exclude wins over a matching include",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "battery_notes", "display_name": "Battery Notes"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["battery_notes"], "exclude_companions": ["battery_notes"]},
+      "expected": false
+    },
+    {
+      "name": "companions: an include list cannot rescue a task the status window dropped",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-30T12:00:00Z", "labels": [], "managed_by": {"integration": "battery_notes", "display_name": "Battery Notes"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["battery_notes"]},
+      "expected": false
+    },
+    {
+      "name": "companions and labels are ANDed: the owner matches but the label does not",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": ["indoor"], "managed_by": {"integration": "battery_notes", "display_name": "Battery Notes"}},
+      "filter": {"status": "overdue", "labels": ["outdoor"], "areas": [], "devices": [], "companions": ["battery_notes"]},
+      "expected": false
+    },
+    {
+      "name": "companions: an explicitly null managed_by owns nothing, like an absent one",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": null},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["battery_notes"]},
+      "expected": false
+    },
+    {
+      "name": "exclude_companions: an explicitly null managed_by is not swept up either",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": null},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_companions": ["battery_notes"]},
+      "expected": true
     }
   ]
 }

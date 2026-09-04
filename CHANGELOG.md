@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.20.0b4]
+
+### Added
+
+- **Profiles can filter by companion.** A profile now selects or rejects tasks by the
+  integration that created them. One card or notification can then cover a single
+  source, and a task you create yourself is never selected.
+
 ## [0.20.0b3]
 
 ### Added

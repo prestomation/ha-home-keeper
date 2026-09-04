@@ -23,6 +23,7 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
 import {
+  companionOptions,
   generalSchema,
   notificationSchema,
   notifyFormData,
@@ -649,6 +650,12 @@ function renderProfiles(p: PanelHost, host: HTMLElement): void {
       count: profiles.length,
     },
     (body) => {
+      // The combination rule governs every filter in every profile below, so it sits
+      // with the section intro rather than under one field.
+      const filters = document.createElement('div');
+      filters.className = 'hk-settings-intro';
+      filters.textContent = t('notify.filters_help');
+      body.appendChild(filters);
       if (!profiles.length) {
         const alert = document.createElement('ha-alert');
         alert.setAttribute('alert-type', 'info');
@@ -699,7 +706,7 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
 
       body.appendChild(
         p._makeForm(
-          profileSchema(),
+          profileSchema(companionOptions(p._companions ?? [], p._tasks ?? [])),
           filter,
           (value) => {
             filter = value;
@@ -716,7 +723,13 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
             // "Overdue and due soon" already covers everything overdue. Nothing in a
             // single-select says so, which read as a missing multi-select (#248), so
             // the helper spells it out.
-            computeHelper: (s) => (s.name === 'status' ? t('notify.status_help') : ''),
+            computeHelper: (s) => {
+              if (s.name === 'status') return t('notify.status_help');
+              // A task the user made has no owning integration, so a companion
+              // filter silently leaves it out. Say so where the choice is made.
+              if (s.name === 'companions') return t('notify.companions_help');
+              return '';
+            },
           },
         ),
       );
@@ -832,9 +845,11 @@ function addProfile(p: PanelHost): Promise<void> {
       labels: [],
       areas: [],
       devices: [],
+      companions: [],
       exclude_labels: [],
       exclude_areas: [],
       exclude_devices: [],
+      exclude_companions: [],
     },
     // No list picked: the sync does nothing until one is, and both switches
     // carry the defaults the backend normalizer would fill in.
