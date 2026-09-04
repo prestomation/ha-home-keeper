@@ -443,6 +443,25 @@ export function isOverdue(task: Task, now: Date = new Date()): boolean {
 }
 
 /**
+ * Whether *task* is one of Home Keeper's auto-created "Buy {part}" reminders.
+ *
+ * Both ids are required, mirroring the backend's `reconcile.buy_source`: the pair is
+ * what identifies the part being bought, and half of it identifies nothing. The two
+ * have to agree, because a Profile carrying `exclude_shopping` is matched in the
+ * browser for the panel and the card, and in Python for a notification — and
+ * `tests/fixtures/profile_filter_cases.json` holds them to it.
+ *
+ * Lives here beside `isOverdue` because the two are read together: a buy reminder is
+ * *also* overdue, and every surface that draws a status has to know which of the two
+ * to say. `statusChipHtml` is that answer, and `card-filter.ts` re-exports this for
+ * the pure list-shaping code.
+ */
+export function isBuyTask(task: Task): boolean {
+  const buy = task.source?.buy;
+  return Boolean(buy && buy.asset_id && buy.part_id);
+}
+
+/**
  * Units left before a dormant usage/meter task next comes due, or `null` when there
  * is no live countdown to show.
  *
@@ -510,6 +529,53 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
   if (days > 0) return days === 1 ? t('due.tomorrow') : tn('due.in_days', days);
   const ago = Math.abs(days);
   return ago === 1 ? t('due.yesterday') : tn('due.days_ago', ago);
+}
+
+/**
+ * The right-hand status pill for *task*, as it reads on every surface that draws one:
+ * the panel's list row and its detail page, an appliance's related-tasks list, and the
+ * dashboard card's row.
+ *
+ * One function on purpose. An auto-created buy reminder is minted as a one-off with no
+ * due date, and a dateless one-off is due *now* — so it is technically overdue from the
+ * moment a part goes low, and reading it as late work is what put "Overdue" beside
+ * genuinely late maintenance. Saying "Low stock" instead was written into two of the
+ * four renderers and missed in the other two, which left one task showing two different
+ * statuses depending on where you looked at it. A copy per surface is free to disagree,
+ * so there is no longer a copy per surface.
+ *
+ * Only the wording and the colour move. A buy reminder is still overdue to every filter
+ * pill, count, binary sensor and Profile, so no number changes.
+ *
+ * *elapsed* appends how overdue the task is ("3 days overdue") instead of a bare
+ * "Overdue". The panel's list row asks for it, where urgency has to read at a glance
+ * down a long list; the detail page and the card do not, having the date in view
+ * already. Whole elapsed days only, and only past a full day — a task overdue by hours
+ * reading "1 day overdue" would overstate it.
+ */
+export function statusChipHtml(
+  task: Task,
+  hass?: Hass,
+  opts: { elapsed?: boolean; now?: Date } = {},
+): string {
+  const now = opts.now ?? new Date();
+  const chip = (label: string, cls = '') =>
+    `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
+  // "Low stock" answers an *open* reminder. A reminder that was bought while the part
+  // stayed under its reorder point keeps its row — the reconciler only retires it once
+  // the stock is back up — and that row belongs to the Completed section, which is
+  // where `statusBucket` puts it by running its `completed` check ahead of its buy
+  // check. The pill runs them in the same order for the same reason: a row filed under
+  // Completed must not carry a chip arguing it is still outstanding.
+  const boughtAlready =
+    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  if (isBuyTask(task) && !boughtAlready) return chip(t('chip.lowStock'), 'hk-shopping');
+  if (!isOverdue(task, now)) return chip(dueLabel(task, now, hass));
+  const days = task.next_due
+    ? Math.floor((now.getTime() - new Date(task.next_due).getTime()) / 86_400_000)
+    : 0;
+  const label = opts.elapsed && days >= 1 ? tn('due.overdue_by', days) : t('chip.overdue');
+  return chip(label, 'hk-overdue');
 }
 
 /**

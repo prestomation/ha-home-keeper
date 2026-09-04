@@ -1,6 +1,6 @@
 import { t } from './i18n';
 import type { HassArea, HassDevice, RecurrenceType, Task } from './types';
-import { areaName, deviceName, groupableDeviceId } from './utils';
+import { areaName, deviceName, groupableDeviceId, isBuyTask } from './utils';
 
 /**
  * Pure (DOM-free) filtering / sorting / grouping for the dashboard card. Kept
@@ -76,16 +76,11 @@ export interface HomeKeeperCardConfig {
 /**
  * Whether *task* is one of Home Keeper's auto-created "Buy {part}" reminders.
  *
- * Both ids are required, mirroring the backend's `reconcile.buy_source`: the pair is
- * what identifies the part being bought, and half of it identifies nothing. The two
- * have to agree, because a Profile carrying `exclude_shopping` is matched here for
- * the panel and the card, and in Python for a notification — and
- * `tests/fixtures/profile_filter_cases.json` holds them to it.
+ * Defined in `utils.ts`, beside `isOverdue` and the `statusChipHtml` that reads both,
+ * and re-exported here so the pure list-shaping code keeps importing it from one
+ * place. See that definition for why both ids are required.
  */
-export function isBuyTask(task: Task): boolean {
-  const buy = task.source?.buy;
-  return Boolean(buy && buy.asset_id && buy.part_id);
-}
+export { isBuyTask };
 
 /** Tasks due within this many days (and not overdue) count as "due soon". */
 export const SOON_DAYS = 7;

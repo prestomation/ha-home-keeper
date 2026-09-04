@@ -114,6 +114,68 @@ describe('a buy reminder in the task list', () => {
   });
 });
 
+describe('a buy reminder away from the task list', () => {
+  /** Boot straight onto a task's detail page. `mountPanel` waits for the list's Add
+   *  button, which a detail page does not have. */
+  async function openTask(id, hass) {
+    const panel = document.createElement('home-keeper-panel');
+    panel.route = { prefix: '/home-keeper', path: `/tasks/${id}` };
+    document.body.appendChild(panel);
+    panel.hass = hass;
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-detail-actions'));
+    return panel;
+  }
+
+  it('reads as low stock on its own detail page', async () => {
+    // The list row and the card row were taught to say "Low stock"; the detail page
+    // was not, so opening the very same reminder turned it back into red "Overdue".
+    // One task cannot have two statuses depending on where it is looked at.
+    const hass = makeHass({ tasks: [buyTask(), lateTask()] });
+    const panel = await openTask('buy1', hass);
+
+    const chip = panel.shadowRoot.querySelector('.hk-chips ha-assist-chip');
+    expect(chip.getAttribute('label')).toBe('Low stock');
+    expect(chip.classList.contains('hk-shopping')).toBe(true);
+    expect(chip.classList.contains('hk-overdue')).toBe(false);
+  });
+
+  it('keeps Overdue on a genuinely late task’s detail page', async () => {
+    const hass = makeHass({ tasks: [buyTask(), lateTask()] });
+    const panel = await openTask('late1', hass);
+
+    const chip = panel.shadowRoot.querySelector('.hk-chips ha-assist-chip');
+    expect(chip.getAttribute('label')).toBe('Overdue');
+    expect(chip.classList.contains('hk-overdue')).toBe(true);
+  });
+
+  it('reads as low stock in an appliance’s related tasks', async () => {
+    // The worst of the two misses: this list sits directly beneath the parts panel
+    // that already says the part is low, so it read "Low stock: 1" and "Overdue"
+    // about the same part, inches apart.
+    const asset = {
+      id: 'a1',
+      name: 'Garage water heater',
+      device_id: 'dev-wh',
+      parts: [{ id: 'p1', name: 'Anode rod', stock: 1, reorder_at: 3 }],
+    };
+    const hass = makeHass({
+      tasks: [buyTask({ device_id: 'dev-wh' }), lateTask({ device_id: 'dev-wh' })],
+      assets: [asset],
+    });
+    const { panel } = await mountPanel('/appliances/a1/tasks', hass);
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-rel'));
+
+    const byId = {};
+    for (const row of panel.shadowRoot.querySelectorAll('.hk-rel')) {
+      byId[row.getAttribute('data-detail-id')] = row.querySelector('ha-assist-chip');
+    }
+    expect(byId.buy1.getAttribute('label')).toBe('Low stock');
+    expect(byId.buy1.classList.contains('hk-shopping')).toBe(true);
+    expect(byId.late1.getAttribute('label')).toBe('Overdue');
+    expect(byId.late1.classList.contains('hk-overdue')).toBe(true);
+  });
+});
+
 describe('the remembered filter', () => {
   it('restores a Shopping selection across a reload', async () => {
     // _setFilter has always written this; only the reader was missing 'shopping',

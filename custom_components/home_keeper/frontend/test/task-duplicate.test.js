@@ -195,6 +195,21 @@ describe('A task Home Keeper does not own keeps a greyed Duplicate', () => {
       { id: 't1', name: 'Water flowers', recurrence_type: 'triggered' },
       "This can't be duplicated in Home Keeper. It's kept in step by the integration or wear item that created it.",
     ],
+    [
+      // The copy would be worse than an unowned lookalike. `reconcile_buy_tasks`
+      // retires the real reminder the moment the part is restocked; the copy carries
+      // no `source.buy`, so nothing retires it, the shopping-list mirror never sees
+      // it, and a Profile set to exclude shopping cannot drop it.
+      'an auto-created buy reminder',
+      {
+        id: 't1',
+        name: 'Buy Anode rod',
+        recurrence_type: 'one-off',
+        next_due: '2026-08-01T10:00:00+00:00',
+        source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+      },
+      "This can't be duplicated in Home Keeper. It's kept in step by the integration or wear item that created it.",
+    ],
   ];
 
   it.each(cases)('greys Duplicate for %s and explains on tap', async (_label, task, reason) => {
