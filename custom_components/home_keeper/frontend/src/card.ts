@@ -2,6 +2,7 @@ import * as api from './api';
 import {
   filterTasks,
   groupTasks,
+  isBuyTask,
   profileMatches,
   sortTasks,
   type CardFilter,
@@ -201,6 +202,15 @@ const STYLES = `
     --ha-assist-chip-container-color: var(--error-color);
     --md-assist-chip-label-text-color: var(--text-primary-color, #fff);
     --ha-assist-chip-label-text-color: var(--text-primary-color, #fff);
+    --md-assist-chip-outline-color: transparent;
+  }
+  /* A buy reminder is a nudge, not a fault, so it reads in the warning colour
+     rather than the overdue red — telling the two apart at a glance is the point.
+     Dark text on amber, because white on this hue is unreadable. */
+  ha-assist-chip.hk-shopping {
+    --ha-assist-chip-container-color: var(--warning-color, #ffa600);
+    --md-assist-chip-label-text-color: #1b2429;
+    --ha-assist-chip-label-text-color: #1b2429;
     --md-assist-chip-outline-color: transparent;
   }
   /* Managed-by: a compact circular icon badge (the integration's own icon),
@@ -781,10 +791,18 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   private _row(task: Task): string {
-    const overdue = isOverdue(task);
-    const statusChip = overdue
-      ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-      : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
+    // An auto-created buy reminder has no due date of its own — it is minted the
+    // moment a part goes low, and a dateless one-off is due now, so it reads as
+    // overdue while nothing is late. Say what is true instead, and keep the danger
+    // rail for work that really is behind. Mirrors the panel's own row; it is still
+    // overdue to every filter and count, so nothing moves but the styling.
+    const buy = isBuyTask(task);
+    const overdue = isOverdue(task) && !buy;
+    const statusChip = buy
+      ? `<ha-assist-chip class="hk-shopping" label="${escapeHTML(t('chip.lowStock'))}"></ha-assist-chip>`
+      : overdue
+        ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
+        : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
     // Managed-by reads as a compact icon-only chip (the integration's own icon,
     // else a generic one) with the full "Managed by X" as a hover/long-press
     // tooltip — keeps the row tight instead of a full-width pill.

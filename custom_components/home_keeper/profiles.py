@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from . import recurrence
+from .reconcile import buy_source
 from .shopping import normalize_target
 from .transitions import DUE_SOON_WINDOW
 
@@ -44,8 +45,8 @@ def normalize_filter(raw: Any) -> dict[str, Any]:
     """Coerce a profile ``filter`` block to its stored shape.
 
     This rebuilds the block from a fixed key set rather than merging, so it doubles as
-    the allowlist: a key absent here never survives a save. The ``exclude_*`` lists are
-    additive and default to empty, which is why a profile stored before they existed
+    the allowlist: a key absent here never survives a save. The ``exclude_*`` keys are
+    additive and default to off, which is why a profile stored before they existed
     needs no migration — ``options.current_options`` re-normalizes on every read.
     """
     raw = raw if isinstance(raw, dict) else {}
@@ -59,6 +60,7 @@ def normalize_filter(raw: Any) -> dict[str, Any]:
         "exclude_areas": _str_list(raw.get("exclude_areas")),
         "exclude_devices": _str_list(raw.get("exclude_devices")),
         "exclude_companions": _str_list(raw.get("exclude_companions")),
+        "exclude_shopping": bool(raw.get("exclude_shopping")),
         "status": status if status in STATUSES else STATUS_OVERDUE,
     }
 
@@ -168,6 +170,10 @@ def matches_filter(
     has no companion: a ``companions`` list never selects it, and an
     ``exclude_companions`` list never drops it.
 
+    ``exclude_shopping`` subtracts alongside them, but by *kind*: it drops the
+    auto-created "Buy {part}" reminders, which have no id of their own to name. Off by
+    default, so a profile saved before it existed keeps every task it had.
+
     This pure matcher reads the ``labels``/``area_id``/
     ``device_id``/``managed_by`` on the task dict; the HA-aware caller
     (``notifier.effective_filter_tasks``) enriches those with **effective**
@@ -224,6 +230,12 @@ def matches_filter(
     if area_id in (filt.get("exclude_areas") or []):
         return False
     if device_id in (filt.get("exclude_devices") or []):
+        return False
+    # Shopping is excluded by *kind* rather than by id, because an auto-created buy
+    # reminder carries no label or area of its own to name — it inherits the
+    # appliance's. Without this the only way to keep "Buy softener" out of a spoken
+    # digest was a script filtering on ``source.buy`` by hand (#220).
+    if filt.get("exclude_shopping") and buy_source(task) is not None:
         return False
     return companion not in (filt.get("exclude_companions") or [])
 

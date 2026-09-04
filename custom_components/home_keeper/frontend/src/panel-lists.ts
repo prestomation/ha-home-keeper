@@ -12,7 +12,7 @@
  */
 
 import * as api from './api';
-import { DAY_MS, bucketByKey, profileMatches } from './card-filter';
+import { DAY_MS, bucketByKey, isBuyTask, profileMatches } from './card-filter';
 import { t, tn } from './i18n';
 import {
   deviceChip,
@@ -207,7 +207,14 @@ export function assetsList(p: PanelHost): string {
 }
 
 function taskCard(p: PanelHost, task: Task): string {
-  const overdue = isOverdue(task);
+  // An auto-created buy reminder is minted as a one-off with no due date, and a
+  // dateless one-off is due *now* — so it is technically overdue from the moment a
+  // part goes low, and "Overdue by 3 days" on it means "low for 3 days". Reading it
+  // as late work is what put these rows beside genuinely late maintenance, so the
+  // row drops the danger treatment and says what is actually true: low stock. It is
+  // still overdue everywhere that counts tasks, so no count moves.
+  const buy = isBuyTask(task);
+  const overdue = isOverdue(task) && !buy;
   const dev = task.device_id ? deviceChip(p, task.device_id) : '';
   const tag = tagChip(p, task);
   const managed = managedChip(p, task);
@@ -230,11 +237,13 @@ function taskCard(p: PanelHost, task: Task): string {
   // How overdue it is now rides the right-hand status pill rather than the meta line,
   // so urgency reads at the end of the row instead of buried mid-sentence. Under a
   // full day it stays the bare "Overdue" — "1 day overdue" would overstate it.
-  const statusChip = overdue
-    ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(
-        overdueDays >= 1 ? tn('due.overdue_by', overdueDays) : t('chip.overdue'),
-      )}"></ha-assist-chip>`
-    : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, p._hass))}"></ha-assist-chip>`;
+  const statusChip = buy
+    ? `<ha-assist-chip class="hk-shopping" label="${escapeHTML(t('chip.lowStock'))}"></ha-assist-chip>`
+    : overdue
+      ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(
+          overdueDays >= 1 ? tn('due.overdue_by', overdueDays) : t('chip.overdue'),
+        )}"></ha-assist-chip>`
+      : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, p._hass))}"></ha-assist-chip>`;
   const n = task.completions?.length ?? 0;
   // A dormant triggered task (monitored, not due) has nothing to mark done — its
   // owning integration arms it when the condition fires; hide the action. A

@@ -13,6 +13,7 @@ export type CardSort = 'due' | 'name' | 'recent' | 'area';
 export type CardGroupBy = 'none' | 'status' | 'area' | 'device';
 export type StatusBucket =
   | 'overdue'
+  | 'shopping'
   | 'soon'
   | 'today'
   | 'later'
@@ -72,6 +73,20 @@ export interface HomeKeeperCardConfig {
   hide_when_empty?: boolean;
 }
 
+/**
+ * Whether *task* is one of Home Keeper's auto-created "Buy {part}" reminders.
+ *
+ * Both ids are required, mirroring the backend's `reconcile.buy_source`: the pair is
+ * what identifies the part being bought, and half of it identifies nothing. The two
+ * have to agree, because a Profile carrying `exclude_shopping` is matched here for
+ * the panel and the card, and in Python for a notification — and
+ * `tests/fixtures/profile_filter_cases.json` holds them to it.
+ */
+export function isBuyTask(task: Task): boolean {
+  const buy = task.source?.buy;
+  return Boolean(buy && buy.asset_id && buy.part_id);
+}
+
 /** Tasks due within this many days (and not overdue) count as "due soon". */
 export const SOON_DAYS = 7;
 
@@ -128,6 +143,14 @@ export function statusBucket(
   if (!task.next_due) return 'none';
   const due = new Date(task.next_due).getTime();
   if (Number.isNaN(due)) return 'none';
+  // An auto-created buy reminder gets its own section rather than joining the
+  // overdue pile. It is minted as a one-off with no due date, and a dateless
+  // one-off is due *now*, so it reads as overdue from the moment a part goes low
+  // — sitting beside genuinely late maintenance while nothing is actually late.
+  // Only the sections move: it still counts as overdue for the filter pills, the
+  // per-task binary sensors and any Profile, so no surface contradicts another.
+  // Below the `completed` check so a reminder that was bought still lands there.
+  if (isBuyTask(task)) return 'shopping';
   if (due <= now) return 'overdue';
   if (today && due <= endOfToday(now)) return 'today';
   if (due - now <= SOON_DAYS * DAY_MS) return 'soon';
@@ -181,6 +204,9 @@ export interface ProfileFilter {
   exclude_areas?: string[];
   exclude_devices?: string[];
   exclude_companions?: string[];
+  /** Drop the auto-created "Buy {part}" reminders. Excludes by *kind*, not by id:
+   *  a buy reminder has no label or area of its own to name. Absent means off. */
+  exclude_shopping?: boolean;
 }
 
 /**
@@ -210,6 +236,8 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  * "everything except the jobs that need a tradesperson" is one profile rather than a
  * label on every task that isn't one. They read the same effective ids, so excluding a
  * label also drops a task that only inherits it from its device or area.
+ * `exclude_shopping` subtracts beside them but by *kind*, dropping the auto-created
+ * buy reminders — they carry no id of their own, only the appliance's.
  *
  * `companions` scopes by the integration that owns a task (`managed_by.integration`),
  * which is how "a card of just the battery tasks" stays one saved profile instead of a
@@ -255,6 +283,8 @@ export function profileMatches(
   if (filter.exclude_labels?.some((id) => taskLabels.has(id))) return false;
   if (listHas(filter.exclude_areas, areaId)) return false;
   if (listHas(filter.exclude_devices, task.device_id)) return false;
+  // By kind rather than by id — a buy reminder has none of its own to name.
+  if (filter.exclude_shopping && isBuyTask(task)) return false;
   return !listHas(filter.exclude_companions, companion);
 }
 
@@ -285,7 +315,7 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
     case 'no_due':
       return !dated;
     case 'shopping':
-      return Boolean(task.source?.buy);
+      return isBuyTask(task);
     case 'all':
     default:
       return true;
@@ -382,6 +412,7 @@ export interface Group<T = Task> {
 
 const STATUS_ORDER: { bucket: StatusBucket; labelKey: string }[] = [
   { bucket: 'overdue', labelKey: 'chip.overdue' },
+  { bucket: 'shopping', labelKey: 'filter.shopping' },
   { bucket: 'today', labelKey: 'due.today' },
   { bucket: 'soon', labelKey: 'filter.soon' },
   { bucket: 'later', labelKey: 'section.later' },

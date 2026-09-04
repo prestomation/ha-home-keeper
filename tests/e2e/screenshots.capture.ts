@@ -113,11 +113,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   await page.screenshot({ path: `${OUT}/1-panel-task-list.png`, fullPage: true });
 
-  // 1a1. Shopping filter — click the Shopping segment to show only buy-task tasks.
-  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'Shopping' }).click();
-  await page.screenshot({ path: `${OUT}/44-panel-shopping-filter.png`, fullPage: true });
-  // Switch back to All so the remaining shots see the full list.
-  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
+  // (The Shopping-filter shot lives further down, after the step that actually puts a
+  // buy reminder in the store — taken here it only ever captured "No tasks match this
+  // filter", which is a picture of nothing.)
 
   // 1a2. Completion-details dialog — a task whose capture mode is "optional" or
   // "required" opens this dialog on Done so you can record a note, cost, who and a
@@ -1123,6 +1121,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
       await new Promise((r) => setTimeout(r, 1000));
     }
   }, { ASSET, PART });
+
+  // 16b. The task list now that a part is low, which is the only moment these two
+  // shots say anything. A buy reminder has no due date of its own, so it reads as
+  // due immediately — it gets its own **Shopping** section rather than joining the
+  // overdue pile, and a "Low stock" pill in place of the overdue one.
+  await openPanel(page);
+  await panel.locator('#tab-tasks').click();
+  await expect(panel.locator('details.hk-group[data-bucket="shopping"]')).toBeVisible();
+  await page.screenshot({ path: `${OUT}/45-panel-shopping-section.png`, fullPage: true });
+
+  // 16c. …and the Shopping filter on its own, now that it has something to filter to.
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'Shopping' }).click();
+  await expect(panel.locator('ha-card.hk-card')).not.toHaveCount(0);
+  await page.screenshot({ path: `${OUT}/44-panel-shopping-filter.png`, fullPage: true });
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
 
   // 17. The Settings tab — friendly forms mirroring the options flow: a General
   // card (one-off retention), a Shopping list card (where auto-buy reminders are

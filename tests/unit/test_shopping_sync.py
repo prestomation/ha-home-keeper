@@ -99,12 +99,26 @@ def _item(summary="Buy Anode rod", uid="i1", status=sh.STATUS_NEEDS_ACTION):
     return {"uid": uid, "summary": summary, "status": status}
 
 
+def _asset(unit="", restock=None):
+    """The appliance ``_buy_task``'s reminder points at, holding one part."""
+    part = {"id": "part1", "name": "Anode rod", "stock_unit": unit}
+    if restock is not None:
+        part["restock_quantity"] = restock
+    return {"asset1": {"id": "asset1", "name": "Water heater", "parts": [part]}}
+
+
 class _FakeStore(FakeSyncStore):
     """The shared driver store, plus this driver's own mirroring bookkeeping."""
 
-    def __init__(self, tasks=None, items=None):
+    def __init__(self, tasks=None, items=None, assets=None):
         super().__init__(tasks)
         self._shopping = items or {}
+        # The mirror reads these to put the restock amount on the line; an empty
+        # map is the plain "buy one spare" case every other test here wants.
+        self._assets = assets if assets is not None else {}
+
+    def get_assets(self):
+        return self._assets
 
     def get_shopping_items(self):
         return self._shopping
@@ -160,6 +174,20 @@ def test_a_low_part_puts_an_item_on_the_list_and_is_remembered():
     ]
     assert store.get_shopping_items() == {
         KEY: {"entity_id": TARGET, "summary": "Buy Anode rod", "uid": None}
+    }
+
+
+def test_a_measured_part_puts_its_amount_on_the_line():
+    # The whole point of threading the asset map through: the amount has to reach
+    # the service call, not just the planner.
+    hass = _FakeHass({TARGET: []})
+    store = _FakeStore(tasks={"t1": _buy_task()}, assets=_asset(unit="ml", restock=500))
+    _sync(hass, store)
+    assert _services(hass, "add_item") == [
+        {"entity_id": TARGET, "item": "Buy Anode rod (500 ml)"}
+    ]
+    assert store.get_shopping_items() == {
+        KEY: {"entity_id": TARGET, "summary": "Buy Anode rod (500 ml)", "uid": None}
     }
 
 

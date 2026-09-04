@@ -30,10 +30,12 @@ by the caller.
 
 from __future__ import annotations
 
+import decimal
 import math
 import re
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
 from .const import (
@@ -104,6 +106,14 @@ _ICON_RE = re.compile(r"^[a-z0-9-]+:[a-z0-9-]+$")
 # keep stock in (millilitres of softener, metres of trimmer line, thirds of a bottle)
 # while staying far short of the noise floor of a binary float.
 _STOCK_DECIMALS = 3
+# The same three places as a Decimal step, for the one place that has to round the
+# way JavaScript's toFixed does rather than the way Python's round does. See
+# ``format_quantity``.
+_QUANTUM = Decimal(1).scaleb(-_STOCK_DECIMALS)
+# Digits to quantize with. A double runs to 309 integer digits and 1074 fractional
+# ones, and the default 28-digit context raises on anything past about 1e25 — which
+# is a poor way for a formatter to behave, however unreachable the input.
+_QUANTIZE_PRECISION = 400
 # A unit is a short label rendered beside a number ("ml", "m", "bottles"), not prose.
 _MAX_UNIT_LEN = 16
 
@@ -738,6 +748,71 @@ def part_consume_quantity(part: dict) -> float:
 def part_restock_quantity(part: dict) -> float:
     """How much completing a part's buy reminder puts back (one spare by default)."""
     return _positive_quantity(part.get("restock_quantity"), 1)
+
+
+def format_quantity(value: float, unit: str = "") -> str:
+    """A spare quantity as text, with *unit* appended when the part has one.
+
+    The Python twin of the panel's ``formatQuantity`` (``frontend/src/utils.ts``), and
+    it has to stay one: both render the same numbers, and a household reading "500 ml"
+    in the panel should not find "500.0 ml" on their shopping list. A whole result
+    collapses to an ``int``, so the ordinary count-the-filters case reads "3" rather
+    than "3.0". ``tests/fixtures/quantity_format_cases.json`` holds the two to it.
+
+    The rounding is deliberately **not** :func:`_round_stock`. That uses Python's
+    ``round``, which breaks a tie to the even digit, while the panel's ``toFixed``
+    breaks it away from zero — so a value landing exactly halfway rendered "0.062"
+    here and "0.063" there. Quantizing the exact binary value half-up reproduces
+    ``toFixed`` instead (checked against it over 8000 values, 2000 of them
+    deliberate halfway cases). Stock is rounded to the same three places on the way
+    into storage, so in practice both sides already see a settled number. This keeps
+    them identical for anything that reaches the formatter unrounded.
+
+    The agreement is guaranteed over the range a quantity can actually hold — stock
+    and its thresholds are bounded by ``MAX_INTERVAL`` on the way in, and the per-use
+    amounts are floored positive by :func:`_positive_quantity`. Past about 1e21
+    JavaScript switches to exponential notation and Python does not, so the two would
+    part company there; nothing that far out can reach either formatter.
+
+    Total, like :func:`_positive_quantity`: a value too large to quantize, or not a
+    number at all, falls back to plain ``repr`` rather than raising. Rendering a
+    number oddly is a blemish, but raising here would take down a whole
+    shopping-list sync pass over one malformed part.
+    """
+    label = str(unit or "").strip()
+    number = float(value)
+    if math.isfinite(number):
+        # Room for the widest double plus the three places we quantize to; the
+        # default context is 28 digits, which a value past ~1e25 overruns.
+        with decimal.localcontext() as ctx:
+            ctx.prec = _QUANTIZE_PRECISION
+            quantized = float(
+                Decimal(number).quantize(_QUANTUM, rounding=decimal.ROUND_HALF_UP)
+            )
+        whole = int(quantized)
+        text = str(whole if quantized == whole else quantized)
+    else:
+        text = str(number)
+    return f"{text} {label}" if label else text
+
+
+def part_restock_label(part: dict) -> str:
+    """How much a buy reminder is asking for, as a short suffix — or ``""``.
+
+    Three cases, and the empty one is the point: a part measured in something reads
+    "500 ml", a part that restocks several spares at a time reads "×2", and the
+    ordinary one-whole-spare part reads nothing at all. Appending "(×1)" to every
+    reminder would be noise on the common case, and — because the shopping-list mirror
+    matches its own lines by summary — would rewrite every line already on a
+    household's list for no gain.
+    """
+    unit = part_stock_unit(part)
+    quantity = part_restock_quantity(part)
+    if unit:
+        return format_quantity(quantity, unit)
+    if quantity > 1:
+        return f"×{format_quantity(quantity)}"
+    return ""
 
 
 def part_wants_buy_task(part: dict) -> bool:

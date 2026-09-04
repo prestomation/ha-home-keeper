@@ -391,6 +391,9 @@ export interface NotifyFilter {
   exclude_areas: string[];
   exclude_devices: string[];
   exclude_companions: string[];
+  /** Drop the auto-created "Buy {part}" reminders — by kind, since they carry no
+   *  id of their own to exclude. */
+  exclude_shopping: boolean;
   status: NotifyStatus;
 }
 

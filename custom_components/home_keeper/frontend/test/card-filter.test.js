@@ -68,6 +68,48 @@ describe('statusBucket', () => {
   });
 });
 
+// A buy reminder is minted as a dateless one-off, which is due *now*, so it is
+// overdue from birth. Without its own bucket it lands beside genuinely late
+// maintenance for as long as the part stays low.
+describe('statusBucket: auto-buy reminders', () => {
+  const buy = (extra = {}) =>
+    task({
+      id: 'buy',
+      name: 'Buy filter',
+      recurrence_type: 'one-off',
+      next_due: new Date(NOW - 3 * DAY).toISOString(),
+      source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+      ...extra,
+    });
+
+  it('buckets an open buy reminder as shopping, not overdue', () => {
+    expect(statusBucket(buy(), NOW)).toBe('shopping');
+    expect(statusBucket(buy(), NOW, { today: false, completed: true })).toBe('shopping');
+  });
+
+  it('leaves an ordinary overdue task alone', () => {
+    expect(statusBucket(overdue, NOW)).toBe('overdue');
+  });
+
+  it('does not claim a task whose source is something else', () => {
+    expect(statusBucket(buy({ source: { part: { asset_id: 'a1' } } }), NOW)).toBe('overdue');
+    expect(statusBucket(buy({ source: {} }), NOW)).toBe('overdue');
+  });
+
+  it('lets a bought reminder reach the completed section on the panel', () => {
+    // Ordering matters: the completed check runs first, so a one-off that has been
+    // bought reads as done rather than sitting in Shopping forever.
+    const bought = buy({ next_due: null, last_completed: new Date(NOW - DAY).toISOString() });
+    expect(statusBucket(bought, NOW, { today: false, completed: true })).toBe('completed');
+    // …and on the card, which has no completed section, it is simply undated.
+    expect(statusBucket(bought, NOW)).toBe('none');
+  });
+
+  it('sends a dateless buy reminder to none rather than shopping', () => {
+    expect(statusBucket(buy({ next_due: null }), NOW)).toBe('none');
+  });
+});
+
 // The card and the panel share this bucketing but differ on two sections; the
 // defaults are the card's, and { today: false, completed: true } is the panel's.
 describe('statusBucket per-surface options', () => {
@@ -318,6 +360,32 @@ describe('groupTasks', () => {
       'status:soon',
       'status:later',
       'status:monitored',
+    ]);
+  });
+
+  it('gives buy reminders a Shopping section, right under Overdue', () => {
+    setLanguage('en');
+    const buy = task({
+      id: 'buy',
+      name: 'Buy filter',
+      recurrence_type: 'one-off',
+      next_due: new Date(NOW - 3 * DAY).toISOString(),
+      source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+    });
+    const groups = groupTasks([later, overdue, buy, soon], 'status', {}, {}, NOW);
+    expect(groups.map((g) => g.key)).toEqual([
+      'status:overdue',
+      'status:shopping',
+      'status:soon',
+      'status:later',
+    ]);
+    expect(groups.find((g) => g.key === 'status:shopping').label).toBe('Shopping');
+    // The point of the change: it is no longer sitting in Overdue.
+    expect(groups.find((g) => g.key === 'status:overdue').items.map((t) => t.id)).toEqual([
+      overdue.id,
+    ]);
+    expect(groups.find((g) => g.key === 'status:shopping').items.map((t) => t.id)).toEqual([
+      'buy',
     ]);
   });
 

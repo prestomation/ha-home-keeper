@@ -451,7 +451,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       if (g === 'none' || g === 'status' || g === 'area' || g === 'device' || g === 'integration')
         this._groupBy = g;
       const f = localStorage.getItem(LS_FILTER);
-      if (f === 'all' || f === 'overdue' || f === 'soon') this._filter = f;
+      if (f === 'all' || f === 'overdue' || f === 'soon' || f === 'shopping')
+        this._filter = f;
       const af = localStorage.getItem(LS_ASSET_FILTER);
       if (af === 'active' || af === 'archived') this._assetFilter = af;
       const av = localStorage.getItem(LS_ASSET_VIEW);
