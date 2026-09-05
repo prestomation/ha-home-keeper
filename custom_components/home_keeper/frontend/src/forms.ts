@@ -864,8 +864,13 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   // still has to be *sent*, because a creation has no stored task to fall back on.
   // `merge_update` keeps the existing list when an update omits it, which is why the
   // edit path never needed this; a duplicate goes through `add_task` instead, and
-  // silently came out demanding only the default note. Sent only when non-empty, so an
-  // ordinary edit's payload is unchanged.
+  // silently came out demanding only the default note.
+  //
+  // Skipping an empty array loses nothing: `normalize_completion_required_fields`
+  // ends `return result or ["note"]`, so an empty list is not a state a `required`
+  // task can be in, and a `none`/`optional` task is forced empty there regardless of
+  // what we send. The guard is therefore about keeping an ordinary edit's payload
+  // byte-identical, not about suppressing a meaningful value.
   const requiredFields = task.completion_required_fields;
   if (Array.isArray(requiredFields) && requiredFields.length) {
     payload.completion_required_fields = [...requiredFields];
