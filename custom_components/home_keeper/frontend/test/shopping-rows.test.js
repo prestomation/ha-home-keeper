@@ -101,16 +101,94 @@ describe('a buy reminder in the task list', () => {
     expect(sections.overdue).toEqual(['late1']);
   });
 
-  it('still counts as overdue on the filter pills', async () => {
-    // The reason the sections move and nothing else does: a panel that said "1
-    // overdue" while the binary sensors said 2 would just be a second bug.
+  it('is counted by the Shopping pill, not the Overdue one', async () => {
+    // The pill is the panel's word for late work, and a buy reminder is not late work
+    // — it is overdue only by the clock. Counting it here put "Overdue 2" above a list
+    // whose own headings read Overdue 1 and Shopping 1, and clicking the pill drew a
+    // Shopping section under a heading that says Overdue. Shopping has its own pill
+    // right beside this one, so nothing goes unseen by leaving it out of this one.
     const hass = makeHass({ tasks: [buyTask(), lateTask()] });
     const { panel } = await mountPanel('/', hass);
     await waitFor(() => panel.shadowRoot?.querySelector('.hk-seg[data-seg="filter"]'));
-    const pill = panel.shadowRoot.querySelector(
-      '.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="overdue"] .hk-seg-count',
-    );
-    expect(pill.textContent.trim()).toBe('2');
+    const count = (val) =>
+      panel.shadowRoot
+        .querySelector(`.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="${val}"] .hk-seg-count`)
+        .textContent.trim();
+    expect(count('overdue')).toBe('1');
+    expect(count('shopping')).toBe('1');
+    // All still counts both — it is the one pill that promises everything.
+    expect(count('all')).toBe('2');
+  });
+
+  it('is not listed when the Overdue pill is chosen', async () => {
+    // The count and the list come from one predicate, so this is what the count means.
+    localStorage.setItem('home-keeper.filter', 'overdue');
+    const hass = makeHass({ tasks: [buyTask(), lateTask()] });
+    const { panel } = await mountPanel('/', hass);
+    const found = await rows(panel);
+    expect(Object.keys(found)).toEqual(['late1']);
+  });
+});
+
+describe('a buy reminder away from the task list', () => {
+  /** Boot straight onto a task's detail page. `mountPanel` waits for the list's Add
+   *  button, which a detail page does not have. */
+  async function openTask(id, hass) {
+    const panel = document.createElement('home-keeper-panel');
+    panel.route = { prefix: '/home-keeper', path: `/tasks/${id}` };
+    document.body.appendChild(panel);
+    panel.hass = hass;
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-detail-actions'));
+    return panel;
+  }
+
+  it('reads as low stock on its own detail page', async () => {
+    // The list row and the card row were taught to say "Low stock"; the detail page
+    // was not, so opening the very same reminder turned it back into red "Overdue".
+    // One task cannot have two statuses depending on where it is looked at.
+    const hass = makeHass({ tasks: [buyTask(), lateTask()] });
+    const panel = await openTask('buy1', hass);
+
+    const chip = panel.shadowRoot.querySelector('.hk-chips ha-assist-chip');
+    expect(chip.getAttribute('label')).toBe('Low stock');
+    expect(chip.classList.contains('hk-shopping')).toBe(true);
+    expect(chip.classList.contains('hk-overdue')).toBe(false);
+  });
+
+  it('keeps Overdue on a genuinely late task’s detail page', async () => {
+    const hass = makeHass({ tasks: [buyTask(), lateTask()] });
+    const panel = await openTask('late1', hass);
+
+    const chip = panel.shadowRoot.querySelector('.hk-chips ha-assist-chip');
+    expect(chip.getAttribute('label')).toBe('Overdue');
+    expect(chip.classList.contains('hk-overdue')).toBe(true);
+  });
+
+  it('reads as low stock in an appliance’s related tasks', async () => {
+    // The worst of the two misses: this list sits directly beneath the parts panel
+    // that already says the part is low, so it read "Low stock: 1" and "Overdue"
+    // about the same part, inches apart.
+    const asset = {
+      id: 'a1',
+      name: 'Garage water heater',
+      device_id: 'dev-wh',
+      parts: [{ id: 'p1', name: 'Anode rod', stock: 1, reorder_at: 3 }],
+    };
+    const hass = makeHass({
+      tasks: [buyTask({ device_id: 'dev-wh' }), lateTask({ device_id: 'dev-wh' })],
+      assets: [asset],
+    });
+    const { panel } = await mountPanel('/appliances/a1/tasks', hass);
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-rel'));
+
+    const byId = {};
+    for (const row of panel.shadowRoot.querySelectorAll('.hk-rel')) {
+      byId[row.getAttribute('data-detail-id')] = row.querySelector('ha-assist-chip');
+    }
+    expect(byId.buy1.getAttribute('label')).toBe('Low stock');
+    expect(byId.buy1.classList.contains('hk-shopping')).toBe(true);
+    expect(byId.late1.getAttribute('label')).toBe('Overdue');
+    expect(byId.late1.classList.contains('hk-overdue')).toBe(true);
   });
 });
 

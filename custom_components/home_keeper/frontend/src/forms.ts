@@ -653,9 +653,9 @@ export function consumableLinkToken(task: Partial<Task>): string {
  * A copy of *task*, seeded into the **create** drawer.
  *
  * Duplication answers "ten near-identical tasks" (#279): the copy keeps the *rule* —
- * recurrence, cadence, sensor binding, placement, labels, card links, capture mode —
- * and drops this task's identity, its record of what happened, and any binding to one
- * physical object.
+ * recurrence, cadence, sensor binding, placement, labels, card links, capture mode and
+ * the fields that mode makes mandatory — and drops this task's identity, its record of
+ * what happened, and any binding to one physical object.
  *
  * Built as an **allowlist**, the same discipline `buildTaskPayload` follows, so a
  * field added to `Task` later cannot leak into a copy by simply existing.
@@ -699,6 +699,12 @@ export function duplicateTaskSeed(task: Task): Partial<Task> {
     labels: [...(task.labels ?? [])],
     card_links: cardLinkTokens(task),
     completion_detail: task.completion_detail ?? 'none',
+    // Capture mode is two fields, not one: `completion_detail` says whether anything
+    // is mandatory, this says which. Carrying only the first made a copy of a task
+    // requiring a note and a photo come out requiring the default note alone — a copy
+    // that behaves differently from its original, which is the one thing duplication
+    // must not do. The form renders no control for it, so it rides along untouched.
+    completion_required_fields: [...(task.completion_required_fields ?? [])],
     consumable_link: consumableLinkToken(task),
   };
   if (sensor) seed.sensor = sensor;
@@ -853,6 +859,22 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   // Card links likewise apply to every kind and always round-trip — an empty array
   // clears the selection on update. Convert the form's tokens back to references.
   payload.card_links = cardLinksFromTokens(cardLinkTokens(task));
+  // Which fields a `required` task makes mandatory. The form has a capture-*mode*
+  // picker and no control for this list, so it is carried rather than edited — but it
+  // still has to be *sent*, because a creation has no stored task to fall back on.
+  // `merge_update` keeps the existing list when an update omits it, which is why the
+  // edit path never needed this; a duplicate goes through `add_task` instead, and
+  // silently came out demanding only the default note.
+  //
+  // Skipping an empty array loses nothing: `normalize_completion_required_fields`
+  // ends `return result or ["note"]`, so an empty list is not a state a `required`
+  // task can be in, and a `none`/`optional` task is forced empty there regardless of
+  // what we send. The guard is therefore about keeping an ordinary edit's payload
+  // byte-identical, not about suppressing a meaningful value.
+  const requiredFields = task.completion_required_fields;
+  if (Array.isArray(requiredFields) && requiredFields.length) {
+    payload.completion_required_fields = [...requiredFields];
+  }
   if (!task.id) {
     const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
     if (lastCompleted) payload.last_completed = lastCompleted;

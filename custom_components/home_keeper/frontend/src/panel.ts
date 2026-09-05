@@ -75,6 +75,7 @@ import {
   type BtnWeight,
   buildPath,
   escapeHTML,
+  isBuyTask,
   parseRoute,
   scanRequired,
   type PanelLocation,
@@ -968,6 +969,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    *  integration-managed one are both authored elsewhere: a copy would be an unowned
    *  lookalike of a row its owner still reconciles.
    *
+   *  An auto-created **buy reminder** is the same case, and the copy is worse than a
+   *  lookalike. `reconcile_buy_tasks` owns the real one and retires it the moment the
+   *  part is restocked; the copy carries no `source.buy`, so nothing ever retires it,
+   *  the shopping-list mirror never sees it, and a Profile set to exclude shopping
+   *  cannot drop it. It would sit in Overdue as "Buy X (copy)" forever.
+   *
    *  A *triggered* task is blocked for a harder reason than ownership. Its payload
    *  carries only descriptive fields — sending a cadence would re-arm a dormant task
    *  — so a copy would reach the backend with no schedule at all and be inferred as a
@@ -977,6 +984,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _canDuplicate(task: Task): boolean {
     if (task.recurrence_type === 'triggered') return false;
     if (task.managed_by) return false;
+    if (isBuyTask(task)) return false;
     return !sourceOwnedTask(task);
   }
 

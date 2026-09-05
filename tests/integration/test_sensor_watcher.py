@@ -65,6 +65,34 @@ def _delete(ha, task_id):
         pass
 
 
+def _list_assets(ha):
+    resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+    return resp.get("service_response", resp)["assets"]
+
+
+def _poll_part(ha, asset_id, part_id, predicate, timeout=40):
+    """Wait for a part to satisfy *predicate*, tolerating a mid-reload read.
+
+    Same shape as `_poll_task`: creating or clearing a task that owns device entities
+    schedules a deferred reload, during which a read can 500. Swallow it and let the
+    next tick try again rather than failing the poll on a transient.
+    """
+    deadline = time.monotonic() + timeout
+    last = None
+    while time.monotonic() < deadline:
+        try:
+            asset = next((a for a in _list_assets(ha) if a["id"] == asset_id), None)
+            last = next(
+                (p for p in (asset or {}).get("parts", []) if p["id"] == part_id), None
+            )
+        except Exception:
+            last = None
+        if last is not None and predicate(last):
+            return last
+        time.sleep(1)
+    raise AssertionError(f"part {part_id} never satisfied predicate; last={last}")
+
+
 def test_usage_sensor_task_arms_when_meter_advances(ha):
     # Anchor the meter, then create a usage task with target 50 so its baseline is
     # stamped at the current reading on setup.
@@ -412,6 +440,82 @@ def test_clear_on_recover_completes_the_task_when_the_sensor_goes_back(ha):
     finally:
         _delete(ha, task_id)
         _set_flag(ha, False)
+
+
+def test_clear_on_recover_draws_down_a_linked_consumable(ha):
+    """A task that completes *itself* still consumes its part's stock (#220).
+
+    Asked outright by the reporter: if a `clear_on_recover` task is linked to a
+    part, does the stock go down when the sensor recovers, or only when somebody
+    presses Done? It goes down, because `sensor_watcher._apply_edge` clears the task
+    by calling the same `store.complete_task` every other surface uses, and the stock
+    side-effect there branches on the task's *source* rather than on who completed
+    it — `origin` only rides along into the event so an automation can tell the two
+    apart.
+
+    That is true by construction and was true before this test existed. It is worth
+    asserting because nothing did: a refactor that gated the draw-down on a
+    user-initiated completion would pass every other test in the suite and silently
+    stop counting the reporter's fabric softener. The amount matters as much as the
+    fact, so the part measures itself in millilitres and spends 250 per completion
+    rather than the default one whole spare.
+    """
+    appliance = "Recover consumable rig"
+    _set_flag(ha, False)
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": appliance,
+            "parts": [
+                {
+                    "name": "Recover softener",
+                    "type": "consumable",
+                    "stock": 1000,
+                    "stock_unit": "ml",
+                    "consume_quantity": 250,
+                }
+            ],
+        },
+    )
+    asset = next(a for a in _list_assets(ha) if a["name"] == appliance)
+    asset_id, part_id = asset["id"], asset["parts"][0]["id"]
+
+    task_id = _add_sensor_task(
+        ha,
+        {"entity_id": TANK, "mode": "state", "state": "on", "clear_on_recover": True},
+    )
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        call_service(
+            ha,
+            "home_keeper",
+            "set_task_consumable",
+            {"task_id": task_id, "asset_id": asset_id, "part_id": part_id},
+        )
+        _poll_task(ha, task_id, lambda t: (t.get("source") or {}).get("part"))
+
+        _set_flag(ha, True)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+
+        # Nobody presses Done — the tank refills and the task clears itself.
+        _set_flag(ha, False)
+        cleared = _poll_task(ha, task_id, lambda t: t.get("next_due") is None)
+        assert cleared["last_completed"] is not None
+
+        part = _poll_part(ha, asset_id, part_id, lambda p: p.get("stock") != 1000)
+        msg = "a self-clearing completion spends consume_quantity"
+        assert part["stock"] == 750, msg
+        # The part's own record follows too, exactly as a hand-pressed Done leaves it.
+        assert part["last_replaced"] is not None
+    finally:
+        _delete(ha, task_id)
+        _set_flag(ha, False)
+        try:
+            call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset_id})
+        except Exception:
+            pass
 
 
 def test_without_clear_on_recover_the_task_stays_armed(ha):

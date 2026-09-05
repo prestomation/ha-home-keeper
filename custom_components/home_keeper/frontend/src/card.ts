@@ -2,7 +2,6 @@ import * as api from './api';
 import {
   filterTasks,
   groupTasks,
-  isBuyTask,
   profileMatches,
   sortTasks,
   type CardFilter,
@@ -37,6 +36,7 @@ import {
   deviceName,
   dueLabel,
   escapeHTML,
+  isBuyTask,
   isHttpUrl,
   isOverdue,
   labelName,
@@ -44,6 +44,7 @@ import {
   recurrenceSummary,
   safeFileHref,
   scanRequired,
+  statusChipHtml,
   toast,
 } from './utils';
 
@@ -791,18 +792,11 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   private _row(task: Task): string {
-    // An auto-created buy reminder has no due date of its own — it is minted the
-    // moment a part goes low, and a dateless one-off is due now, so it reads as
-    // overdue while nothing is late. Say what is true instead, and keep the danger
-    // rail for work that really is behind. Mirrors the panel's own row; it is still
-    // overdue to every filter and count, so nothing moves but the styling.
-    const buy = isBuyTask(task);
-    const overdue = isOverdue(task) && !buy;
-    const statusChip = buy
-      ? `<ha-assist-chip class="hk-shopping" label="${escapeHTML(t('chip.lowStock'))}"></ha-assist-chip>`
-      : overdue
-        ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-        : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
+    // The danger rail follows the status pill: a buy reminder reads "Low stock" rather
+    // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge
+    // that says this work is late.
+    const overdue = isOverdue(task) && !isBuyTask(task);
+    const statusChip = statusChipHtml(task, this._hass);
     // Managed-by reads as a compact icon-only chip (the integration's own icon,
     // else a generic one) with the full "Managed by X" as a hover/long-press
     // tooltip — keeps the row tight instead of a full-width pill.
