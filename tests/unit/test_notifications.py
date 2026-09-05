@@ -444,6 +444,51 @@ def test_due_in_translates_and_pluralizes():
     assert few != many
 
 
+def test_every_due_phrase_is_localized():
+    """All four phrasings honour *lang*, not only the two that count days.
+
+    ``_t`` falls back to English for an unknown language, so a phrase that quietly
+    stopped passing *lang* through would still return a real sentence and read as
+    working. Only a locale comparison catches it, and "due now" and "due soon" take
+    no placeholder, so nothing else in this file was pinning them.
+    """
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+
+    def phrase(next_due, lang):
+        t = task("t", "X", next_due)
+        return n.build_notification(t, notification=notif, now=now, lang=lang)[
+            "message"
+        ]
+
+    assert phrase(now, "es") == "Vence ahora."
+    assert phrase(now + timedelta(days=1), "es") == "Vence pronto."
+    assert phrase(now, "de") == "Jetzt fällig."
+    assert phrase(now + timedelta(days=1), "de") == "Bald fällig."
+
+
+def test_build_notification_threads_the_due_soon_window_through():
+    """The window reaches the phrase, rather than the phrase reading its own default.
+
+    Both are ``DUE_SOON_WINDOW`` in every real call, so a dropped argument changes
+    nothing until someone passes a different one — which is exactly when it would
+    matter, and exactly when nobody would be looking.
+    """
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+    t = task("t", "X", now + timedelta(days=5))
+
+    assert (
+        n.build_notification(t, notification=notif, now=now)["message"]
+        == "Due in 5 days."
+    )
+    # A window wide enough to swallow the same task calls it due soon instead.
+    wide = n.build_notification(
+        t, notification=notif, now=now, window=timedelta(days=30)
+    )
+    assert wide["message"] == "Due soon."
+
+
 def test_sends_when_empty_only_for_the_all_clear_value():
     # The one branch that decides whether an empty queue still delivers.
     assert n.sends_when_empty(n.WHEN_EMPTY_ALL_CLEAR) is True
