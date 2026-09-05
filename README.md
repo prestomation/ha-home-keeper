@@ -1117,8 +1117,9 @@ nothing in that condition by default.
 
 Home Keeper sends a notification once. Use a Home Assistant automation to send it
 again until the task is complete. The `home_keeper.notify` service sends nothing when
-no task matches, unless the call sets `when_empty: all_clear`. A schedule that runs all
-day thus costs nothing on a day with no due task. Build these automations in **Settings → Automations & scenes**.
+no task matches, unless the call sets `when_empty: all_clear`. A schedule that runs
+all day costs nothing on a day with no due task. Build these automations in
+**Settings → Automations & scenes**.
 
 **Repeat a notification every 2 hours.** This automation sends *Walk my chores*
 again every 2 hours between 08:00 and 21:00.
