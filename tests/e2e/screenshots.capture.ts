@@ -1240,16 +1240,19 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           },
         },
         {
-          // A Profile no task can satisfy, so the notification below renders the
+          // A Profile nothing currently matches, so the notification below renders the
           // *other* state of the button beside Test. Without it the shot would only
-          // ever document the enabled half of a control that has two.
+          // ever document the enabled half of a control that has two. The filter is an
+          // ordinary one over a real area that happens to hold no task — an invented
+          // device id would match nothing too, but it would draw the picker's "unknown
+          // device" error and document the Profiles card as misconfigured.
           id: 'demo_empty',
-          name: 'The boat',
+          name: 'Bedroom jobs',
           filter: {
             status: 'overdue',
             labels: [],
-            areas: [],
-            devices: ['demo_no_such_device'],
+            areas: ['bedroom'],
+            devices: [],
             exclude_labels: [],
             exclude_areas: [],
             exclude_devices: [],
@@ -1276,13 +1279,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           // Bound to the Profile that matches nothing, so its footer shows the greyed
           // "Test a task" beside a Test that can still deliver the all-clear.
           id: 'demo_boat',
-          name: 'Boat jobs',
+          name: 'Bedroom jobs',
           profile_id: 'demo_empty',
           targets: [],
           actions: ['complete', 'open'],
           snooze_hours: 24,
           style: 'digest',
-          channel: 'Boat',
+          channel: 'Bedroom',
           urgency: 'normal',
           auto: { overdue: false, due_soon: false },
         },

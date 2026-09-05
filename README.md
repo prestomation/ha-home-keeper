@@ -1048,12 +1048,12 @@ fields:
 
 Press **Test** on a notification to send it now. Home Keeper saves the notification
 first, then calls `home_keeper.notify` for it, so the phone receives the delivery the
-form shows. Test always sends something. It sends a real task card when the Profile
-holds a task, and the "All caught up" card when the Profile holds none.
+form shows. Test always sends a notification. The notification shows a task when the
+Profile holds one. It says "All caught up" when the Profile holds none.
 
-A second button beside Test sends the other card. It reads **Test all clear** when the
-Profile holds a task. It reads **Test a task** and stays grey when the Profile holds
-none, because Home Keeper has no task to build a card from.
+A second button beside Test sends whichever notification Test does not. It reads
+**Test all clear** when the Profile holds a task. It reads **Test a task** and stays
+grey when the Profile holds none, because Home Keeper has no task to show.
 
 ### Channels and urgency
 
