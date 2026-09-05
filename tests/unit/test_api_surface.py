@@ -382,6 +382,16 @@ _FULL_COMPANION: dict[str, Any] = {
     "upstream_domain": "upstream",
     "docs_url": "https://example.com",
 }
+_FULL_DECLARATIVE_SPEC: dict[str, Any] = {
+    "id": "spec-1",
+    "name": "Firmware update available",
+    "description": "One task per update entity",
+    "enabled": True,
+    "preset_id": "firmware_update_available",
+    "selection": {"domain": "update"},
+    "trigger": {"mode": "state", "state": "on"},
+    "task_template": {"name_template": "{{ friendly_name }}"},
+}
 
 
 def test_payload_spines_match_the_event_builders() -> None:
@@ -399,6 +409,11 @@ def test_payload_spines_match_the_event_builders() -> None:
         "asset": (events.asset_event_data, ({},), (_FULL_ASSET,)),
         "stock": (events.stock_event_data, ({}, {}), (_FULL_ASSET, _FULL_PART)),
         "companion": (events.companion_event_data, ({},), (_FULL_COMPANION,)),
+        "declarative_companion": (
+            events.declarative_companion_event_data,
+            ({},),
+            (_FULL_DECLARATIVE_SPEC,),
+        ),
     }
     assert set(probes) == set(api_surface.PAYLOAD_SPINES), (
         "a spine is modelled with no builder behind it"

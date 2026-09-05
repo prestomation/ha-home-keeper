@@ -140,6 +140,15 @@ function sensorProgress(p: PanelHost, task: Task): string {
       ? `${entity} (${cond})`
       : `${entity}: ${String(raw)} (${cond})`;
   }
+  // Availability reads the *absence* of a value, so it also has to come before the
+  // numeric coercion. Three-way, mirroring `sensor_watcher.read_availability_status`:
+  // an entity that is not in the state machine at all is "not found", which is
+  // neither the arm signal nor a healthy reading.
+  if (s.mode === 'availability') {
+    if (!state) return t('sensor.availabilityMissing', { entity });
+    const gone = raw == null || raw === '' || raw === 'unavailable' || raw === 'unknown';
+    return t(gone ? 'sensor.availabilityUnavailable' : 'sensor.availabilityAvailable', { entity });
+  }
   const reading = raw == null || raw === '' ? NaN : Number(raw);
   if (s.mode === 'threshold') {
     const cond = `${s.comparison ?? ''} ${s.value ?? ''}`.trim();

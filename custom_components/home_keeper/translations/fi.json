@@ -799,6 +799,34 @@
           "description": "Sen varaosan tunnus, jonka liitetylle tiedostolle URL allekirjoitetaan. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Lisää deklaratiivinen kumppani",
+      "description": "Rekisteröi deklaratiivisen kumppanin — reseptin, joka luo yhden hallitun sensoritehtävän jokaista entiteettiä kohti, joka vastaa suodattimia (kohdeintegraatio + entiteettisuodattimet), Jinja-mallilla laaditulla tehtävän nimellä ja muistiinpanoilla. Vain järjestelmänvalvojille."
+    },
+    "update_declarative_companion": {
+      "name": "Päivitä deklaratiivinen kumppani",
+      "description": "Päivittää tallennetun deklaratiivisen kumppanimäärittelyn kenttiä id:n perusteella. Vain järjestelmänvalvojille.",
+      "fields": {
+        "id": {
+          "name": "Kumppanin id",
+          "description": "Määrittelyn pysyvä uuid, list_declarative_companions-vastauksesta."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Poista deklaratiivinen kumppani",
+      "description": "Poistaa deklaratiivisen kumppanimäärittelyn ja jokaisen hallitun tehtävän, jonka se on luonut. Vain järjestelmänvalvojille.",
+      "fields": {
+        "id": {
+          "name": "Kumppanin id",
+          "description": "Määrittelyn pysyvä uuid, list_declarative_companions-vastauksesta."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Listaa deklaratiiviset kumppanit",
+      "description": "Palauttaa vastauksena jokaisen tallennetun deklaratiivisen kumppanimäärittelyn."
     }
   },
   "entity": {
@@ -906,6 +934,12 @@
     },
     "failed_to_store_file": {
       "message": "Tiedoston tallentaminen epäonnistui."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklaratiivista kumppania ei löytynyt: {spec_id}"
     },
     "asset_ambiguous": {
       "message": "Several appliances are named {name}. Use an id instead: {ids}"

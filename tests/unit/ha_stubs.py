@@ -256,6 +256,15 @@ def _install_helpers() -> None:
             setattr(device_registry, name, type(name, (), {}))
     helpers.device_registry = device_registry
 
+    dispatcher = _mod("homeassistant.helpers.dispatcher")
+    # ``store.py`` tells the declarative reconciler that the specs changed. The
+    # suites here drive the store directly, so the send is a no-op.
+    if not hasattr(dispatcher, "async_dispatcher_send"):
+        dispatcher.async_dispatcher_send = lambda hass, signal, *args: None
+    if not hasattr(dispatcher, "async_dispatcher_connect"):
+        dispatcher.async_dispatcher_connect = lambda hass, signal, target: lambda: None
+    helpers.dispatcher = dispatcher
+
     entity_platform = _mod("homeassistant.helpers.entity_platform")
     if not hasattr(entity_platform, "AddEntitiesCallback"):
         entity_platform.AddEntitiesCallback = object

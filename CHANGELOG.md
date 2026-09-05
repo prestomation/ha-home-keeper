@@ -6,6 +6,26 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.21.0b2]
+
+### Added
+
+- **Declarative companions: task-per-entity recipes without a separate integration.**
+  A user configures a recipe in Settings → Companions, or starts from a bundled
+  preset for Device Pulse or firmware updates, and Home Keeper opens one task per
+  matching entity after a live preview of the matches. (Fixes #231) (Fixes #230)
+
+- **A sensor task now supports an availability mode.** The task arms when the
+  entity reports unavailable or unknown, after an optional hold. A user can also
+  bind one task to one entity by hand in the ordinary task form.
+
+### Fixed
+
+- **A task with a hold now falls due the moment the hold ends.** The hold used to
+  complete at the next reading from the watched entity or at the five-minute
+  refresh. An entity that goes offline sends no more readings, which is the case
+  an availability task waits for.
+
 ## [0.21.0b1]
 
 ### Added

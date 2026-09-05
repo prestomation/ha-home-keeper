@@ -72,6 +72,7 @@ from .coordinator import (
     find_coordinator,
     task_has_entities,
 )
+from .declarative_companion_sync import DeclarativeCompanionSync
 from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
 from .resolve import (
@@ -82,7 +83,11 @@ from .resolve import (
     resolve_part_id,
     resolve_task_id,
 )
-from .sensor_watcher import SensorTaskWatcher, read_sensor_value
+from .sensor_watcher import (
+    SensorTaskWatcher,
+    async_discard_new_tasks,
+    read_sensor_value,
+)
 from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
 from .todo_list_sync import TodoListSync
@@ -542,6 +547,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     problem_sync = ProblemSensorSync(hass, entry, coordinator)
     await problem_sync.async_initial_reconcile()
     coordinator.problem_sync = problem_sync
+    # Declarative-companion reconciler materializes managed sensor tasks for every
+    # stored spec against the current entity registry. Runs before platforms
+    # forward so newly-created tasks' device-page entities are registered by the
+    # time platforms fetch the task list.
+    declarative_sync = DeclarativeCompanionSync(hass, entry, coordinator)
+    await declarative_sync.async_initial_reconcile()
+    coordinator.declarative_sync = declarative_sync
     await coordinator.async_request_refresh()
 
     await panel.async_register_panel(hass)
@@ -589,6 +601,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Now that platforms are up, start the live problem-sensor listeners (these may
     # reload the entry when a synced task is created/removed, so they run last).
     problem_sync.async_start_listeners()
+    # Same for the declarative-companion reconciler: a registry change / spec
+    # edit may create or remove managed tasks (with per-task entities), so its
+    # listener also triggers reloads.
+    declarative_sync.async_start_listeners()
     # Sensor-based tasks: baseline the watcher's edge state / usage meters BEFORE
     # attaching it to the coordinator, so the first evaluation only reacts to genuine
     # transitions (an already-over-threshold sensor at boot does not arm). Then start
@@ -1393,6 +1409,43 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_list_companions(call: ServiceCall) -> dict[str, Any]:
         return {"companions": companions.async_list_companions(hass)}
 
+    async def handle_add_declarative_companion(
+        call: ServiceCall,
+    ) -> dict[str, Any]:
+        """Create a declarative-companion spec.
+
+        Admin-only: a declarative companion creates managed tasks tied to the
+        config entry (deletion-protected) and dispatches an entry reload, both
+        of which are administration. Mirrors ``ws_add_declarative_companion``.
+        """
+        await _verify_admin(call)
+        coord = _coordinator()
+        spec = await coord.store.async_add_declarative_companion(dict(call.data))
+        return {"companion": spec}
+
+    async def handle_update_declarative_companion(
+        call: ServiceCall,
+    ) -> dict[str, Any]:
+        await _verify_admin(call)
+        coord = _coordinator()
+        data = dict(call.data)
+        spec_id = data.pop("id")
+        spec = await coord.store.async_update_declarative_companion(spec_id, data)
+        return {"companion": spec}
+
+    async def handle_delete_declarative_companion(call: ServiceCall) -> None:
+        await _verify_admin(call)
+        coord = _coordinator()
+        await coord.store.async_delete_declarative_companion(call.data["id"])
+
+    async def handle_list_declarative_companions(
+        call: ServiceCall,
+    ) -> dict[str, Any]:
+        coord = _coordinator()
+        return {
+            "companions": list(coord.store.get_declarative_companions().values()),
+        }
+
     hass.services.async_register(
         DOMAIN,
         "export_inventory",
@@ -1414,6 +1467,39 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN,
         "list_companions",
         handle_list_companions,
+        schema=vol.Schema({}),
+        supports_response=SupportsResponse.ONLY,
+    )
+    # Declarative-companion CRUD. Schemas kept minimal (dict pass-through) here
+    # because the pure normalizer owns every field-level validation. Service
+    # docstrings + services.yaml describe the spec shape.
+    hass.services.async_register(
+        DOMAIN,
+        "add_declarative_companion",
+        handle_add_declarative_companion,
+        schema=vol.Schema({}, extra=vol.ALLOW_EXTRA),
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "update_declarative_companion",
+        handle_update_declarative_companion,
+        schema=vol.Schema(
+            {vol.Required("id"): cv.string},
+            extra=vol.ALLOW_EXTRA,
+        ),
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "delete_declarative_companion",
+        handle_delete_declarative_companion,
+        schema=vol.Schema({vol.Required("id"): cv.string}),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "list_declarative_companions",
+        handle_list_declarative_companions,
         schema=vol.Schema({}),
         supports_response=SupportsResponse.ONLY,
     )
@@ -1491,6 +1577,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     panel.async_unregister_panel(hass)
     await card.async_unregister_card_resource(hass)
     discard_edge_state(hass, entry.entry_id)
+    async_discard_new_tasks(hass, entry.entry_id)
     store = HomeKeeperStore(hass)
     await store.async_remove()
     await manuals.async_delete_all_documents(hass)

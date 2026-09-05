@@ -241,6 +241,34 @@ describe('recurrenceSummary', () => {
       recurrenceSummary({ recurrence_type: 'fixed', interval: 1 }),
     ).toBe('Every day');
   });
+
+  it('describes an availability task without borrowing the meter’s words', () => {
+    // The mode has no `target`, so before it had a case of its own it fell through to
+    // the usage branch and rendered "Every of use" — a sentence with a hole in it.
+    const summary = recurrenceSummary({
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.hallway_lux', mode: 'availability' },
+    });
+    expect(summary).not.toContain('of use');
+    expect(summary).toContain('unavailable');
+  });
+
+  it('still describes the other sensor modes in their own words', () => {
+    // The guard above sits between `threshold` and the meter, so it is exactly the
+    // kind of edit that can swallow a neighbour.
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'sensor',
+        sensor: { entity_id: 'sensor.h', mode: 'threshold', comparison: '>', value: 0 },
+      }),
+    ).toContain('> 0');
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'sensor',
+        sensor: { entity_id: 'sensor.h', mode: 'usage', target: 300 },
+      }),
+    ).toContain('of use');
+  });
 });
 
 describe('isArmedTriggered', () => {

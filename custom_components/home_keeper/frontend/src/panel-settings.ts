@@ -39,6 +39,7 @@ import {
   type FormField,
 } from './forms';
 import { t, tn } from './i18n';
+import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import type { PanelHost } from './panel-host';
 import { COMPANIONS_DOCS_URL, DOCS_URL } from './panel-icons';
 import type {
@@ -99,7 +100,11 @@ export function settingsSectionList(p: PanelHost): {
         )}"></span>`;
   const count = (n: number): string =>
     n ? `<span class="hk-rail-count">${escapeHTML(String(n))}</span>` : '';
-  const companionsOn = p._companions.filter((c) => c.status === 'connected').length;
+  // A declarative recipe counts as a companion of its own: it is doing the job a
+  // glue integration would, and the card lists it beside them.
+  const companionsOn =
+    p._companions.filter((c) => c.status === 'connected').length +
+    p._declarativeCompanions.length;
   const sections: { key: SettingsSection; card: string; label: string; mark: string }[] = [
     { key: 'general', card: 'hk-settings-general', label: t('settings.general_heading'), mark: '' },
     {
@@ -144,7 +149,10 @@ export function settingsSectionList(p: PanelHost): {
   const listed: Partial<Record<SettingsSection, string>> = {
     profiles: names(opts?.profiles),
     notifications: names(opts?.notifications),
-    companions: names(p._companions.filter((c) => c.status === 'connected')),
+    companions: names([
+      ...p._companions.filter((c) => c.status === 'connected'),
+      ...p._declarativeCompanions,
+    ]),
   };
   return sections.map((s) => ({
     ...s,
@@ -1264,10 +1272,15 @@ function renderCompanions(p: PanelHost, host: HTMLElement): void {
       ...suggested.map((c) => companionRow(c)),
     );
   }
+  // Declarative companions close the card: recipes Home Keeper runs itself, so they
+  // belong beside the integrations they stand in for. Always rendered, empty or not,
+  // so a first-time reader learns they exist.
+  sections.push(declarativeSection(p));
   inner.innerHTML = sections.join('');
   card.appendChild(inner);
   host.appendChild(card);
   wireCompanions(p, inner);
+  wireDeclarativeSection(p, inner);
 }
 
 /** One companion row's HTML (icon, name + status chip, description, actions). Takes

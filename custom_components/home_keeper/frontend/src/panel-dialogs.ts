@@ -268,7 +268,7 @@ function renderConfirmDeleteDialog(p: PanelHost): void {
  * the attribute and drops the span, because a light-DOM child whose slot name
  * matches no slot is not rendered at all. Neither can show the title twice.
  */
-function makeDialog(
+export function makeDialog(
   title: string,
   onClosed: () => void,
 ): { dialog: HTMLElement; body: HTMLElement; footer: HTMLElement; mount: () => void } {
@@ -279,7 +279,16 @@ function makeDialog(
   heading.setAttribute('slot', 'headerTitle');
   heading.textContent = title;
   dialog.appendChild(heading);
-  dialog.addEventListener('closed', onClosed);
+  // `ha-dialog` fires `closed` when it is removed from the DOM, not only when the
+  // user dismisses it — and `_render()` removes it, because the dialog host is
+  // rebuilt with the rest of the panel. So a re-render *while a dialog is open*
+  // reported itself as a dismissal: the handler cleared the dialog state that the
+  // very same render was about to rebuild, and the dialog vanished mid-edit. A
+  // disconnected dialog is never the one the user closed.
+  dialog.addEventListener('closed', () => {
+    if (!dialog.isConnected) return;
+    onClosed();
+  });
 
   const body = document.createElement('div');
   body.className = 'hk-completion-body';

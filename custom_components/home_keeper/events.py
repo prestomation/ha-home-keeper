@@ -140,3 +140,29 @@ def companion_event_data(companion: dict[str, Any]) -> dict[str, Any]:
         "config_entry_id": companion.get("config_entry_id"),
         "upstream_domain": companion.get("upstream_domain"),
     }
+
+
+def declarative_companion_event_data(
+    spec: dict[str, Any], *, match_count: int | None = None
+) -> dict[str, Any]:
+    """Return the payload for `home_keeper_declarative_companion_added` / `_updated` /
+    `_removed`.
+
+    A *spec* row is a declarative-companion configuration; the payload carries
+    enough for an automation to react to CRUD without re-querying — spec id,
+    display name, whether it's enabled, whether it came from a shipped preset,
+    and (when the reconciler has run) the current match count. The managed sensor
+    tasks the spec expands into emit the ordinary `home_keeper_task_*` events on
+    their own, so automations that want per-task detail filter those via
+    ``managed_by.integration == "home_keeper"`` +
+    ``source.declarative_companion.spec_id``.
+    """
+    data: dict[str, Any] = {
+        "spec_id": spec.get("id"),
+        "name": spec.get("name"),
+        "enabled": bool(spec.get("enabled", True)),
+        "preset_id": spec.get("preset_id"),
+    }
+    if match_count is not None:
+        data["match_count"] = int(match_count)
+    return data

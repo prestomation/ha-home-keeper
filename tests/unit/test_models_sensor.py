@@ -714,3 +714,233 @@ def test_a_blank_seed_is_not_treated_as_a_date():
 def test_a_sensor_task_records_when_it_was_created():
     task = m.build_task(_oil_change(), now=NOW)
     assert task["created"] == NOW.isoformat()
+
+
+# ── availability mode ────────────────────────────────────────────────────────
+def test_availability_mode_normalizes_with_defaults():
+    """Availability is the fourth mode; clear_on_recover defaults to True."""
+    cfg = m.normalize_sensor({"entity_id": "sensor.zwave_node", "mode": "availability"})
+    assert cfg == {
+        "entity_id": "sensor.zwave_node",
+        "mode": "availability",
+        "clear_on_recover": True,
+    }
+
+
+def test_availability_carries_for_seconds():
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.node",
+            "mode": "availability",
+            "for_seconds": 3600,
+        }
+    )
+    assert cfg["for_seconds"] == 3600
+
+
+def test_availability_clear_on_recover_can_be_disabled():
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.node",
+            "mode": "availability",
+            "clear_on_recover": False,
+        }
+    )
+    assert "clear_on_recover" not in cfg
+
+
+@pytest.mark.parametrize(
+    "sensor",
+    [
+        # Threshold-only fields are meaningless for availability.
+        {"entity_id": "sensor.x", "mode": "availability", "comparison": ">"},
+        {"entity_id": "sensor.x", "mode": "availability", "value": 10},
+        # State fields likewise.
+        {"entity_id": "sensor.x", "mode": "availability", "state": "on"},
+        # Usage-only fields.
+        {"entity_id": "sensor.x", "mode": "availability", "target": 100},
+    ],
+)
+def test_availability_rejects_cross_mode_fields(sensor):
+    with pytest.raises(m.TaskValidationError):
+        m.normalize_sensor(sensor)
+
+
+# ── allow_missing_entity kwarg ──────────────────────────────────────────────
+def test_normalize_sensor_requires_entity_id_by_default():
+    with pytest.raises(m.TaskValidationError):
+        m.normalize_sensor({"mode": "state", "state": "on"}, allow_missing_entity=False)
+
+
+def test_normalize_sensor_allows_missing_entity_id_when_opted_in():
+    """Declarative-companion specs use this to validate a trigger template."""
+    cfg = m.normalize_sensor(
+        {"mode": "state", "state": "on"}, allow_missing_entity=True
+    )
+    assert "entity_id" not in cfg
+    assert cfg["mode"] == "state"
+    assert cfg["state"] == "on"
+
+
+def test_normalize_sensor_allow_missing_still_carries_entity_when_present():
+    cfg = m.normalize_sensor(
+        {"entity_id": "sensor.x", "mode": "state", "state": "on"},
+        allow_missing_entity=True,
+    )
+    assert cfg["entity_id"] == "sensor.x"
+
+
+# ── error-message text ──────────────────────────────────────────────────────
+# Message content is part of the contract — the panel echoes these into the form
+# error tooltip so the user knows which field to fix. Each test asserts the
+# *exact* message so an ``XX...XX`` / ``UPPERCASE`` / ``None`` mutation is
+# caught (a regex ``match=`` substring search would still accept the
+# ``XX...XX`` wrapper).
+
+
+def _reject_with(data: dict, expected: str) -> None:
+    with raises_exactly(m.TaskValidationError, expected):
+        m.normalize_sensor(data)
+
+
+def test_normalize_sensor_entity_id_error_is_exact():
+    _reject_with(
+        {"mode": "state", "state": "on"},
+        "sensor.entity_id is required",
+    )
+
+
+def test_normalize_sensor_usage_target_missing_error_is_exact():
+    _reject_with(
+        {"entity_id": "sensor.x", "mode": "usage"},
+        "sensor.target must be a number",
+    )
+
+
+def test_normalize_sensor_usage_target_non_positive_error_is_exact():
+    _reject_with(
+        {"entity_id": "sensor.x", "mode": "usage", "target": 0},
+        "sensor.target must be > 0",
+    )
+
+
+def test_normalize_sensor_usage_target_boundary_accepts_one():
+    # The lower gate is ``> 0``; a mutant that shifts it to ``> 1`` fails
+    # this because 1 is the smallest valid target.
+    cfg = m.normalize_sensor({"entity_id": "sensor.x", "mode": "usage", "target": 1})
+    assert cfg["target"] == 1
+
+
+def test_normalize_sensor_threshold_value_missing_error_is_exact():
+    _reject_with(
+        {"entity_id": "sensor.x", "mode": "threshold", "comparison": ">"},
+        "sensor.value must be a number",
+    )
+
+
+def test_normalize_sensor_threshold_value_error_reports_field_from_finite_float():
+    # ``_finite_float(value_raw, "sensor.value")`` — the field-name argument
+    # gets mutated; a NaN input triggers the finite-guard path that embeds
+    # the field name in the message.
+    _reject_with(
+        {
+            "entity_id": "sensor.x",
+            "mode": "threshold",
+            "comparison": ">",
+            "value": float("nan"),
+        },
+        "sensor.value must be a finite number",
+    )
+
+
+def test_normalize_sensor_usage_baseline_error_reports_field_from_finite_float():
+    _reject_with(
+        {
+            "entity_id": "sensor.x",
+            "mode": "usage",
+            "target": 10,
+            "baseline": float("nan"),
+        },
+        "sensor.baseline must be a finite number",
+    )
+
+
+def test_normalize_sensor_usage_unit_length_boundary():
+    # ``if len(unit_label) > MAX_SENSOR_UNIT_LEN`` — a mutant that shifts to
+    # ``>= MAX`` would reject a unit label of exactly MAX; assert it's kept.
+    unit = "u" * m.MAX_SENSOR_UNIT_LEN
+    cfg = m.normalize_sensor(
+        {"entity_id": "sensor.x", "mode": "usage", "target": 1, "unit": unit}
+    )
+    assert cfg["unit"] == unit
+    _reject_with(
+        {"entity_id": "sensor.x", "mode": "usage", "target": 1, "unit": unit + "!"},
+        f"sensor.unit must be <= {m.MAX_SENSOR_UNIT_LEN} characters",
+    )
+
+
+def test_normalize_sensor_usage_combinator_error_is_exact():
+    _reject_with(
+        {
+            "entity_id": "sensor.x",
+            "mode": "usage",
+            "target": 1,
+            "also_every": {"interval": 1, "unit": "days"},
+            "combinator": "bogus",
+        },
+        "invalid sensor.combinator: 'bogus'",
+    )
+
+
+def test_normalize_sensor_threshold_comparison_error_is_exact():
+    _reject_with(
+        {
+            "entity_id": "sensor.x",
+            "mode": "threshold",
+            "comparison": "bogus",
+            "value": 5,
+        },
+        "invalid sensor comparison: 'bogus'",
+    )
+
+
+# ── availability mode: message + clear_on_recover truthy path ───────────────
+
+
+def test_availability_rejects_field_with_mode_name_in_message():
+    # The rejection message names the offending field and the mode; a mutant
+    # that swaps ``"availability"`` (the mode argument to ``_reject_fields``)
+    # for ``None`` / ``XXavailabilityXX`` / ``AVAILABILITY`` breaks the exact
+    # string.
+    _reject_with(
+        {"entity_id": "sensor.x", "mode": "availability", "state": "on"},
+        "sensor.state is not valid for a availability-mode sensor task",
+    )
+
+
+def test_availability_clear_on_recover_explicit_true_is_stored():
+    # ``clear_on_recover is None or bool(clear_on_recover)`` — a mutant that
+    # collapses the second half to ``bool(None)`` still yields True on
+    # ``clear_on_recover=None`` (via the ``is None`` half). Passing True
+    # explicitly forces the second half to matter.
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.x",
+            "mode": "availability",
+            "clear_on_recover": True,
+        }
+    )
+    assert cfg["clear_on_recover"] is True
+
+
+def test_availability_clear_on_recover_truthy_non_bool_is_stored_as_true():
+    # A truthy non-bool exercises the ``bool(clear_on_recover)`` conversion
+    # and its coercion to a real ``True`` in the stored dict.
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.x",
+            "mode": "availability",
+            "clear_on_recover": "yes",
+        }
+    )
+    assert cfg["clear_on_recover"] is True

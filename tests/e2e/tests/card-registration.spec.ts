@@ -46,9 +46,19 @@ test.use({
 });
 
 const CARD_BUNDLE = 'home-keeper-card.js';
-// `index.html.template` renders each entry in `extra_modules` as an inline
-// `import("/home_keeper_panel/home-keeper-card.js?v=<hash>");`.
-const CARD_IMPORT = /import\(\s*(["'])[^"']*home-keeper-card\.js[^"']*\1\s*\)\s*;?/g;
+// `index.html.template` renders each entry in `extra_modules` as an inline import.
+// Home Assistant 2026.9 wrapped that import in a rejection handler:
+//
+//   import("{{ extra_module }}").catch(function (err) {
+//     console.error("Failed to load extra module {{ extra_module }}", err);
+//   });
+//
+// The handler repeats the URL in its message, so stripping the `import(...)` call
+// alone leaves the bundle named in the shell and the strip's own guard below fails.
+// The optional group therefore takes the chained `.catch(...)` with it. It stays
+// optional so the bare `import("<url>");` older releases render is still stripped.
+const CARD_IMPORT =
+  /import\(\s*(["'])[^"']*home-keeper-card\.js[^"']*\1\s*\)(?:\s*\.catch\(\s*function\s*\([^)]*\)\s*\{[^{}]*\}\s*\))?\s*;?/g;
 
 test.describe('Home Keeper card — delivery (#228)', () => {
   test('renders from an app shell that never imported its bundle', async ({ page }) => {

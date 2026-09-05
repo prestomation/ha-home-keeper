@@ -412,6 +412,10 @@ function recurrenceText(task: Task): string {
         value: s.value ?? '',
       });
     }
+    // Availability has no reading to describe — the condition *is* the entity being
+    // gone. Without its own case it fell through to the meter below and read "Every
+    // of use", because a mode with no `target` renders the usage string empty.
+    if (s.mode === 'availability') return t('recurrence.sensorAvailability');
     const target = s.unit ? `${s.target ?? ''} ${s.unit}` : (s.target ?? '');
     const summary = t('recurrence.sensorUsage', { target });
     if (!s.also_every) return summary;

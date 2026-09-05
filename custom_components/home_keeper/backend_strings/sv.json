@@ -9,5 +9,9 @@
   "inventory.csv.cost": "Kostnad",
   "inventory.csv.spares_value": "Reservdelsvärde",
   "inventory.csv.details": "Detaljer",
-  "inventory.csv.total": "TOTALT"
+  "inventory.csv.total": "TOTALT",
+  "declarative_preset.device_pulse.name": "Device Pulse",
+  "declarative_preset.device_pulse.description": "Övervakar ping-sensorerna per enhet från din Device Pulse-integration och öppnar en uppgift för varje enhet som har missat pingar i mer än en timme. Kräver Device Pulse-integrationen.",
+  "declarative_preset.firmware_update_available.name": "Firmware-uppdatering tillgänglig",
+  "declarative_preset.firmware_update_available.description": "Övervakar varje uppdateringsentitet (UniFi, ESPHome, HACS, kameror, skrivare osv.) och öppnar en uppgift för att installera den nya versionen."
 }

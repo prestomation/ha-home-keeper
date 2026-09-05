@@ -9,5 +9,9 @@
   "inventory.csv.cost": "Koszt",
   "inventory.csv.spares_value": "Wartość zapasów",
   "inventory.csv.details": "Szczegóły",
-  "inventory.csv.total": "SUMA"
+  "inventory.csv.total": "SUMA",
+  "declarative_preset.device_pulse.name": "Device Pulse",
+  "declarative_preset.device_pulse.description": "Monitoruje sensory ping poszczególnych urządzeń z Twojej integracji Device Pulse i otwiera zadanie dla każdego urządzenia, które od ponad godziny nie odpowiada na pingi. Wymaga integracji Device Pulse.",
+  "declarative_preset.firmware_update_available.name": "Dostępna aktualizacja oprogramowania",
+  "declarative_preset.firmware_update_available.description": "Monitoruje każdą encję aktualizacji (UniFi, ESPHome, HACS, kamery, drukarki itp.) i otwiera zadanie zainstalowania nowej wersji."
 }

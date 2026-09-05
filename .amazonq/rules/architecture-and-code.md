@@ -169,6 +169,28 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   on startup** (`async_baseline`) so a restart never replays a spurious arm — the same
   discipline as `transitions.py`. The coordinator's periodic tick calls
   `sensor_watcher.async_evaluate(refresh=False)` before transition detection.
+- **The startup baseline protects history, so it covers only tasks that have some.**
+  "Already met, no crossing" is right for a task the user has dealt with and wrong for
+  a task made a second ago — and the two are the same code path, because materializing
+  a declarative companion's tasks reloads the config entry and the reload re-runs
+  `async_baseline`. The reconciler therefore names the ids it materialized
+  (`sensor_watcher.async_mark_tasks_new`, a `hass.data` set keyed by entry id so it
+  survives the reload that destroys the reconciler) and the baseline leaves the edge
+  unset for exactly those ids. **Mark ids only on the path that actually reloads**, and
+  the baseline **consumes** the set: a set left behind would arm again on the next
+  unrelated reload. Which tasks even have an edge to skip is the pure
+  `sensor_tasks.holds_edge_state` — a `usage` meter is still anchored, because its
+  baseline is a persisted reading and not an edge.
+- **A declarative companion's notes are re-rendered when the task arms.** The reconcile
+  pass renders name/notes from live state, but it runs on *registry* changes, so a
+  template that quotes the reading (`{{ state }} h left`) froze at whatever the entity
+  read when the task was made. `declarative_companion_sync.async_refresh_task_notes`
+  re-renders from the live entity at the arm transition only — every evaluation would
+  write to the store on each tick — and the watcher calls it *before* `trigger_task` so
+  `home_keeper_task_triggered` carries the fresh note. `notes` is not in
+  `managed_by.locked_fields`, but the reconcile pass already rewrites it from the
+  template, so the field is owned by the recipe and a hand edit does not survive either
+  path.
 - **The `sensor` block is the extension point for new recurrence dimensions.** When a
   usage task needs to be due on something *other* than its meter, add a key to
   `task["sensor"]` and a branch to the pure evaluator — don't reach for the top-level

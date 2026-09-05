@@ -11,8 +11,10 @@ export type Unit = 'days' | 'weeks' | 'months';
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 /** `state` compares the entity's state *string* rather than a number, which is what
  *  makes a binary sensor usable (`on`/`off` has no numeric reading). Not binary-only:
- *  any state-y entity works, e.g. `vacuum.x === 'docked'`. */
-export type SensorMode = 'usage' | 'threshold' | 'state';
+ *  any state-y entity works, e.g. `vacuum.x === 'docked'`. `availability` reads no
+ *  value at all — the entity reporting `unavailable`/`unknown`, or leaving the state
+ *  machine, is itself the condition. */
+export type SensorMode = 'usage' | 'threshold' | 'state' | 'availability';
 export type SensorComparison = '>=' | '<=' | '>' | '<' | '==' | '!=';
 
 /** How a usage task's meter target combines with its time backstop: `any` (the
@@ -26,9 +28,12 @@ export type SensorCombinator = 'any' | 'all';
  *  of the state. `also_every` is the usage task's optional **time backstop** — the
  *  "or every 6 months" half of a real service interval, measured from the last
  *  completion — and `unit` labels the meter ("300 h" rather than a bare "300").
- *  `for_seconds` (threshold/state) makes the condition hold before the task arms, and
- *  `clear_on_recover` (threshold/state) clears an armed task when the condition goes
- *  away instead of waiting for it to be completed by hand. */
+ *  `for_seconds` makes the condition hold before the task arms, and `clear_on_recover`
+ *  clears an armed task when the condition goes away instead of waiting for it to be
+ *  completed by hand; both belong to the edge-driven modes (threshold, state and
+ *  availability) and neither applies to a usage meter. An `availability` binding
+ *  carries no condition key of its own — `entity_id` (with an optional `attribute`)
+ *  is the whole binding. */
 export interface SensorBinding {
   entity_id: string;
   mode: SensorMode;
@@ -477,4 +482,91 @@ export interface Companion {
   // Suggested rows: where to install the glue, and which upstream triggered it.
   install_url?: string;
   upstream_domain?: string;
+}
+
+/**
+ * A declarative-companion spec — Home-Keeper-owned recipe that materializes one
+ * managed sensor task per matching entity. Persisted in `.storage/home_keeper`
+ * under `declarative_companions`, keyed by `id`. See backend
+ * `declarative_companions.py`.
+ */
+export interface DeclarativeCompanionSelection {
+  target_integration?: string;
+  domain?: string;
+  device_class?: string;
+  entity_regex?: string;
+  area_ids: string[];
+  label_ids: string[];
+  exclude_entity_ids: string[];
+  exclude_device_ids: string[];
+  exclude_area_ids: string[];
+  exclude_label_ids: string[];
+}
+
+export interface DeclarativeCompanionTaskTemplate {
+  name_template: string;
+  notes_template: string;
+  category?: string;
+  priority?: number;
+  labels: string[];
+}
+
+/**
+ * The trigger block on a spec is identical in shape to a sensor task's
+ * `sensor` binding — same modes (`usage` / `threshold` / `state`) plus the new
+ * `availability` mode. The reconciler stamps `entity_id` per match, so the
+ * spec omits it.
+ */
+export type DeclarativeCompanionTrigger = Omit<SensorBinding, 'entity_id'>;
+
+export interface DeclarativeCompanion {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  // Non-null when instantiated from a shipped preset (see
+  // `declarative_presets.py`). Lets the panel badge the row "from Device Pulse".
+  preset_id: string | null;
+  selection: DeclarativeCompanionSelection;
+  trigger: DeclarativeCompanionTrigger;
+  task_template: DeclarativeCompanionTaskTemplate;
+  // Reserved slot for per-entity overrides; v1 UI deferred, always an empty
+  // dict on the wire.
+  per_entity_overrides: Record<string, unknown>;
+  created?: string;
+  updated?: string;
+}
+
+/**
+ * One shipped declarative-companion preset the panel offers under
+ * "Add from preset". `requires_integration` is the HA integration domain the
+ * panel checks for in the entity registry before enabling the preset card.
+ */
+export interface DeclarativeCompanionPreset {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  requires_integration: string | null;
+  default_spec: Omit<DeclarativeCompanion, 'id' | 'created' | 'updated'>;
+}
+
+/**
+ * One row rendered by the Add/Edit dialog's live-preview panel. `count` is the
+ * total number of matches even when the sample is truncated to 10.
+ */
+export interface DeclarativeCompanionPreviewMatch {
+  entity_id: string;
+  entity_registry_id: string;
+  rendered_name: string;
+  rendered_notes: string;
+  device_name: string | null;
+  area_name: string | null;
+}
+
+export interface DeclarativeCompanionPreviewResult {
+  matched: DeclarativeCompanionPreviewMatch[];
+  count: number | null;
+  warnings: string[];
+  over_cap: boolean;
 }

@@ -8,6 +8,9 @@ import {
   taskSchema,
 } from '../src/forms.ts';
 import { recurrenceSummary } from '../src/utils.ts';
+// The locale is the source of truth for a label, so the assertions below compare
+// against it rather than restating English that a translation pass could change.
+import { t } from '../src/i18n.ts';
 
 describe('task form — sensor-based tasks', () => {
   it('offers sensor as a recurrence type', () => {
@@ -484,12 +487,13 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
 });
 
 describe('state mode — binary sensors', () => {
-  it('offers state alongside usage and threshold', () => {
+  it('offers state alongside usage, threshold and availability', () => {
     const mode = taskSchema({ recurrence_type: 'sensor' }).find((f) => f.name === 'sensor_mode');
     expect(mode.selector.select.options.map((o) => o.value)).toEqual([
       'usage',
       'threshold',
       'state',
+      'availability',
     ]);
   });
 
@@ -967,5 +971,200 @@ describe('sensorHintText — the starting-reading arithmetic', () => {
     const hint = sensorHintText(usage({ sensor_baseline: 'abc' }), { reading: 48000 });
     expect(hint).not.toContain('NaN');
     expect(hint).toContain('58000');
+  });
+});
+
+/**
+ * Availability mode — "tell me when this device goes away".
+ *
+ * The mode the declarative companions PR adds to the backend. The task form had no
+ * option for it, so an availability task opened for editing fell through to the
+ * *threshold* leg: Save stamped `comparison` and `value` onto the binding and the
+ * backend rejected it as "not valid for an availability-mode sensor task" — the same
+ * class of bug #230 reported against the recipe dialog.
+ */
+describe('availability mode — the entity going away is the condition', () => {
+  it('shows only the hold and the auto-clear, no condition fields', () => {
+    const names = taskSchema({ recurrence_type: 'sensor', sensor_mode: 'availability' }).map(
+      (f) => f.name,
+    );
+    expect(names).toContain('sensor_entity_id');
+    expect(names).toContain('sensor_for');
+    expect(names).toContain('sensor_clear_on_recover');
+    // Nothing to compare against: no meter target, no operator, no state string.
+    expect(names).not.toContain('sensor_target');
+    expect(names).not.toContain('sensor_comparison');
+    expect(names).not.toContain('sensor_value');
+    expect(names).not.toContain('sensor_state');
+  });
+
+  it('labels its option the way the other modes are labelled', () => {
+    // The dropdown is the only place this mode is named, so a wrong label is a mode
+    // nobody can find. Asserted against the locale rather than a literal, so a
+    // translation change is not a test failure.
+    const mode = taskSchema({ recurrence_type: 'sensor' }).find((f) => f.name === 'sensor_mode');
+    const option = mode.selector.select.options.find((o) => o.value === 'availability');
+    expect(option.label).toBe(t('opt.sensor_mode.availability'));
+    expect(option.label).not.toBe('');
+    // And it is not accidentally sharing another mode's label.
+    const labels = mode.selector.select.options.map((o) => o.label);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it('picks the mode up from a loaded binding, not just live edit state', () => {
+    const names = taskSchema({
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.hallway_lux', mode: 'availability' },
+    }).map((f) => f.name);
+    expect(names).toContain('sensor_clear_on_recover');
+    expect(names).not.toContain('sensor_value');
+  });
+
+  it('assembles a payload with no condition key', () => {
+    const payload = buildTaskPayload({
+      name: 'Check on the hallway sensor',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.hallway_lux',
+      sensor_mode: 'availability',
+      sensor_for: '900',
+    });
+    expect(payload.sensor).toEqual({
+      entity_id: 'sensor.hallway_lux',
+      mode: 'availability',
+      for_seconds: 900,
+      clear_on_recover: true,
+    });
+  });
+
+  it('never sends another mode’s fields left behind in edit state', () => {
+    // Switching threshold -> availability leaves `sensor_comparison` / `sensor_value`
+    // in the live form state. Sending either is what the backend rejects.
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'availability',
+      sensor_comparison: '>=',
+      sensor_value: '4',
+      sensor_state: 'on',
+      sensor_target: '300',
+      sensor_unit: 'h',
+    });
+    expect(payload.sensor).toEqual({
+      entity_id: 'sensor.x',
+      mode: 'availability',
+      clear_on_recover: true,
+    });
+  });
+
+  it('sends auto-clear as a real boolean so it can be turned off', () => {
+    // `normalize_sensor` defaults this mode's flag to True and only an explicit
+    // `false` disables it, so an omitted key would silently turn the switch back on.
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'availability',
+      sensor_clear_on_recover: false,
+    });
+    expect(payload.sensor.clear_on_recover).toBe(false);
+  });
+
+  it('seeds the auto-clear box on for a new availability task', () => {
+    // It is off for every other mode; matching the backend default here keeps the
+    // box honest about what a save would store.
+    expect(
+      taskFormData({ recurrence_type: 'sensor', sensor_mode: 'availability' })
+        .sensor_clear_on_recover,
+    ).toBe(true);
+    expect(
+      taskFormData({ recurrence_type: 'sensor', sensor_mode: 'state' }).sensor_clear_on_recover,
+    ).toBe(false);
+  });
+
+  it('keeps a stored auto-clear of false when the form reopens', () => {
+    expect(
+      taskFormData({
+        recurrence_type: 'sensor',
+        sensor: { entity_id: 'sensor.x', mode: 'availability', clear_on_recover: false },
+      }).sensor_clear_on_recover,
+    ).toBe(false);
+  });
+
+  it('round-trips an availability binding through the form unchanged', () => {
+    const sensor = {
+      entity_id: 'sensor.hallway_lux',
+      mode: 'availability',
+      for_seconds: 300,
+      clear_on_recover: true,
+    };
+    const reopened = taskFormData({ name: 'T', recurrence_type: 'sensor', sensor });
+    expect(buildTaskPayload(reopened).sensor).toEqual(sensor);
+  });
+
+  it('explains itself with no condition entered', () => {
+    // Every other mode returns '' until its condition is filled in; this one has no
+    // condition to fill in, so an empty hint would just look broken.
+    const hint = sensorHintText({ recurrence_type: 'sensor', sensor_mode: 'availability' });
+    expect(hint).not.toBe('');
+    expect(hint).toContain('unavailable');
+    expect(hint).not.toContain('{');
+    // With no hold there is no wait to describe, so the sentence must not offer one —
+    // a zero hold rendered as "for 0s" reads like a setting the user chose.
+    expect(hint).not.toMatch(/\d/);
+    expect(hint).toBe(t('hint.sensor.availability'));
+  });
+
+  it('says "for 0s" only when a hold is actually set', () => {
+    // The boundary itself: 0 is "no hold", 1 is a hold.
+    const none = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'availability',
+      sensor_for: 0,
+    });
+    const one = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'availability',
+      sensor_for: 1,
+    });
+    expect(none).toBe(t('hint.sensor.availability'));
+    expect(one).toBe(t('hint.sensor.availabilityFor', { seconds: 1 }));
+    expect(one).not.toBe(none);
+  });
+
+  it('names the hold in the hint when one is set', () => {
+    const hint = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'availability',
+      sensor_for: 600,
+    });
+    expect(hint).toContain('600');
+  });
+
+  it('adds the auto-clear sentence when the switch is on', () => {
+    const withClear = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'availability',
+      sensor_clear_on_recover: true,
+    });
+    const without = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'availability',
+      sensor_clear_on_recover: false,
+    });
+    expect(withClear.length).toBeGreaterThan(without.length);
+    expect(withClear.startsWith(without)).toBe(true);
+  });
+
+  it('summarises an availability task in its own words, not the meter’s', () => {
+    // It used to fall through to the usage string and read "Every of use".
+    const summary = formRecurrenceSummary({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'availability',
+    });
+    expect(summary).not.toContain('of use');
+    expect(summary).toContain('unavailable');
   });
 });

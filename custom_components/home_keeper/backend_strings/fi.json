@@ -9,5 +9,9 @@
   "inventory.csv.cost": "Hinta",
   "inventory.csv.spares_value": "Varaosien arvo",
   "inventory.csv.details": "Tiedot",
-  "inventory.csv.total": "YHTEENSÄ"
+  "inventory.csv.total": "YHTEENSÄ",
+  "declarative_preset.device_pulse.name": "Device Pulse",
+  "declarative_preset.device_pulse.description": "Seuraa Device Pulse -integraatiosi laitekohtaisia ping-sensoreita ja avaa tehtävän jokaiselle laitteelle, joka on epäonnistunut pingaamisessa yli tunnin. Vaatii Device Pulse -integraation.",
+  "declarative_preset.firmware_update_available.name": "Laiteohjelmistopäivitys saatavilla",
+  "declarative_preset.firmware_update_available.description": "Seuraa jokaista päivitysentiteettiä (UniFi, ESPHome, HACS, kamerat, tulostimet jne.) ja avaa tehtävän uuden version asentamiseksi."
 }
