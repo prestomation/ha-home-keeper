@@ -499,13 +499,17 @@ On the task form, select **Based on a sensor** and select the sensor and a mode:
   hold. For a `binary_sensor` the choices are **On** and **Off**. For any other
   entity the state is matched as text. An example is `vacuum.rosie` = `docked`. See
   [below](#when-a-device-just-tells-you).
+- **Availability**: arms when the entity reports unavailable or unknown. The
+  optional hold requires the entity to stay unavailable for a number of seconds
+  before the task arms. An optional attribute is treated as unavailable when it
+  is missing. This mode clears the task by default when the entity recovers.
 
 An armed sensor task behaves like any other task. It is on the to-do list and the
 calendar. It sets the device's overdue sensor and fires the
 `home_keeper_task_overdue` event. Before it is armed, a usage task shows the
-remaining usage in the task list, such as "in 7000 miles". A threshold or state
-task is listed as **Monitored**. The `home_keeper.add_task` service creates a sensor
-task with a `sensor` mapping.
+remaining usage in the task list, such as "in 7000 miles". A task in any mode
+other than usage is listed as **Monitored**. The `home_keeper.add_task` service
+creates a sensor task with a `sensor` mapping.
 
 ### Hours or months, whichever comes first
 
@@ -1303,23 +1307,26 @@ name and the task notes.
 Home Keeper opens one managed task for each entity that matches the recipe. The task
 clears when the condition recovers.
 
-The *Add from preset* picker offers 3 presets.
+The *Add from preset* picker offers 2 presets.
 
 - **Device Pulse** targets the per-device ping sensors from
   [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse).
   The Device Pulse integration must be installed.
-- **Low battery** matches every `binary_sensor` with `device_class: battery` that
-  reports `on`.
 - **Firmware update available** matches every `update.*` entity that reports `on`.
   This covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab.
+
+Low batteries have no preset. The [Battery Notes glue
+integration](docs/GLUE_INTEGRATIONS.md) already opens a task for each battery and
+also supplies the battery type and the count. Write a recipe for a low-battery
+`binary_sensor` if you do not use that glue integration.
 
 The *Add companion* dialog shows a live preview of the matches before you save. A
 warning shows above 50 matches. A recipe cannot match more than 500 entities. See
 [INTEGRATING.md](docs/INTEGRATING.md) for the service reference.
 
-![The three-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](docs/images/21c-panel-declarative-preset-picker.png)
+![The two-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](docs/images/21c-panel-declarative-preset-picker.png)
 
-![The Add dialog seeded from the Low Battery preset, with the live-preview panel on the right](docs/images/21d-panel-declarative-add-dialog.png)
+![The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right](docs/images/21d-panel-declarative-add-dialog.png)
 
 
 

@@ -752,8 +752,7 @@ def test_device_pulse_preset_uses_threshold_mode():
     assert preset["default_spec"]["trigger"]["mode"] == "threshold"
 
 
-def test_low_battery_and_firmware_have_no_integration_gate():
-    assert presets.preset_by_id("low_battery")["requires_integration"] is None
+def test_firmware_has_no_integration_gate():
     assert (
         presets.preset_by_id("firmware_update_available")["requires_integration"]
         is None

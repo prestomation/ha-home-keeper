@@ -12,8 +12,6 @@
   "inventory.csv.total": "TOTAL",
   "declarative_preset.device_pulse.name": "Device Pulse",
   "declarative_preset.device_pulse.description": "Watches your Device Pulse integration's per-device ping sensors and opens a task for each device that has been failing pings for over an hour. Requires the Device Pulse integration.",
-  "declarative_preset.low_battery.name": "Low battery",
-  "declarative_preset.low_battery.description": "Watches every low-battery binary sensor and opens a task to replace the battery. Works alongside the Battery Notes glue integration if you have it installed.",
   "declarative_preset.firmware_update_available.name": "Firmware update available",
   "declarative_preset.firmware_update_available.description": "Watches every update entity (UniFi, ESPHome, HACS, cameras, printers, etc.) and opens a task to apply the new version."
 }

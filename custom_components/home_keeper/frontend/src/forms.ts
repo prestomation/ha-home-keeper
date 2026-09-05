@@ -444,9 +444,20 @@ export function taskSchemaSections(
             { value: 'usage', label: t('opt.sensor_mode.usage') },
             { value: 'threshold', label: t('opt.sensor_mode.threshold') },
             { value: 'state', label: t('opt.sensor_mode.state') },
+            { value: 'availability', label: t('opt.sensor_mode.availability') },
           ]),
         },
-        ...(sensorMode === 'state'
+        // Availability watches for the entity to go away, so it has no condition of
+        // its own — only the hold and the auto-clear the edge modes share. Listed
+        // before `state` because an availability task opened for editing must not
+        // fall through to another mode's fields: the save would stamp that mode's
+        // keys onto the binding and the backend rejects them.
+        ...(sensorMode === 'availability'
+          ? [
+              { name: 'sensor_for', selector: selNumber(0) } as FormField,
+              { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
+            ]
+          : sensorMode === 'state'
           ? [
               // A binary sensor only ever reports on/off, so offer those directly
               // rather than making the user type a magic word. Any other entity keeps
@@ -725,7 +736,14 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // state that means "something needs doing" for every device class that matters
     // here (water tank low, battery almost empty, leak detected).
     sensor_state: sd.sensor_state ?? task.sensor?.state ?? 'on',
-    sensor_clear_on_recover: sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover ?? false,
+    // Off by default, except in availability mode: `normalize_sensor` defaults *that*
+    // mode's flag to True (a device coming back is the recovery signal), so a box
+    // seeded unchecked would misreport what the backend would store, and — since the
+    // payload sends this mode's flag as a real boolean — saving would turn it off.
+    sensor_clear_on_recover:
+      sd.sensor_clear_on_recover ??
+      task.sensor?.clear_on_recover ??
+      (sd.sensor_mode ?? task.sensor?.mode) === 'availability',
     sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
     sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
     sensor_unit: sd.sensor_unit ?? task.sensor?.unit ?? '',
@@ -962,11 +980,15 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
         ) || 'any') as SensorCombinator;
       }
     } else {
-      // The edge-driven modes (threshold / state) share the hold and the
-      // clear-on-recover flag; only the condition itself differs.
+      // The edge-driven modes (threshold / state / availability) share the hold and
+      // the clear-on-recover flag; only the condition itself differs. Availability
+      // has no condition at all — the entity going away *is* the condition — so it
+      // adds nothing here. It must still be matched explicitly: falling through to
+      // the threshold leg stamped `comparison` and `value` onto the binding, which
+      // the backend rejects as "not valid for an availability-mode sensor task".
       if (mode === 'state') {
         sensor.state = String(sd.sensor_state ?? task.sensor?.state ?? '').trim();
-      } else {
+      } else if (mode !== 'availability') {
         sensor.comparison = (sd.sensor_comparison as SensorComparison) ||
           task.sensor?.comparison ||
           '>=';
@@ -975,7 +997,15 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds) || 0;
       if (forSeconds > 0) sensor.for_seconds = forSeconds;
       const clearOnRecover = sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover;
-      if (clearOnRecover) sensor.clear_on_recover = true;
+      if (mode === 'availability') {
+        // Sent as a real boolean, unlike the two modes above. `normalize_sensor`
+        // defaults this mode's flag to **True** and only an explicit `False` turns
+        // auto-clear off, so omitting a cleared checkbox would silently turn it back
+        // on and the switch would do nothing.
+        sensor.clear_on_recover = clearOnRecover !== false;
+      } else if (clearOnRecover) {
+        sensor.clear_on_recover = true;
+      }
     }
     payload = {
       name: task.name,
@@ -1210,6 +1240,17 @@ export function sensorHintText(
       forSeconds > 0
         ? t('hint.sensor.stateFor', { state, seconds: forSeconds })
         : t('hint.sensor.state', { state }),
+    );
+  }
+
+  // Availability needs nothing entered to be describable — the entity picker above
+  // is the whole binding — so it never returns the empty string the other modes use
+  // for "not enough entered yet".
+  if (mode === 'availability') {
+    return withRecovery(
+      forSeconds > 0
+        ? t('hint.sensor.availabilityFor', { seconds: forSeconds })
+        : t('hint.sensor.availability'),
     );
   }
 

@@ -12,8 +12,6 @@
   "inventory.csv.total": "TOTAL",
   "declarative_preset.device_pulse.name": "Device Pulse",
   "declarative_preset.device_pulse.description": "Surveille les capteurs de ping par appareil de votre intégration Device Pulse et ouvre une tâche pour chaque appareil qui échoue aux pings depuis plus d'une heure. Nécessite l'intégration Device Pulse.",
-  "declarative_preset.low_battery.name": "Batterie faible",
-  "declarative_preset.low_battery.description": "Surveille chaque capteur binaire de batterie faible et ouvre une tâche pour remplacer la batterie. Fonctionne aux côtés de l'intégration glue Battery Notes si installée.",
   "declarative_preset.firmware_update_available.name": "Mise à jour du firmware disponible",
   "declarative_preset.firmware_update_available.description": "Surveille chaque entité de mise à jour (UniFi, ESPHome, HACS, caméras, imprimantes, etc.) et ouvre une tâche pour appliquer la nouvelle version."
 }

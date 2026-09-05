@@ -12,8 +12,6 @@
   "inventory.csv.total": "TOTAL",
   "declarative_preset.device_pulse.name": "Device Pulse",
   "declarative_preset.device_pulse.description": "Vigila els sensors de ping per dispositiu de la teva integració Device Pulse i obre una tasca per a cada dispositiu que ha fallat els pings durant més d'una hora. Requereix la integració Device Pulse.",
-  "declarative_preset.low_battery.name": "Bateria baixa",
-  "declarative_preset.low_battery.description": "Vigila cada sensor binari de bateria baixa i obre una tasca per substituir la bateria. Funciona al costat de la integració glue Battery Notes si la tens instal·lada.",
   "declarative_preset.firmware_update_available.name": "Actualització de firmware disponible",
   "declarative_preset.firmware_update_available.description": "Vigila cada entitat d'actualització (UniFi, ESPHome, HACS, càmeres, impressores, etc.) i obre una tasca per aplicar la nova versió."
 }

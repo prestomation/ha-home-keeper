@@ -49,13 +49,13 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
   // `ha-dialog` portals its surface, so the host itself never reports visible —
   // wait on a node inside it, the way the specs do.
   await expect(picker.locator('.hk-decl-preset-card').first()).toBeVisible({ timeout: 20_000 });
-  await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(3);
+  await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(2);
   await expect(picker.locator('.hk-decl-preset-card.hk-decl-preset-disabled')).toHaveCount(1);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/21c-panel-declarative-preset-picker.png` });
 
-  // 21d. The add dialog, seeded from Low battery (the one preset that needs no
-  // upstream integration).
+  // 21d. The add dialog, seeded from Firmware update available (the one preset that
+  // needs no upstream integration).
   //
   // `ha-dialog` caps its own height at the viewport, so at the default 720px the
   // four sections scroll inside the dialog and the preview — the whole point of the
@@ -63,7 +63,7 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
   // to lay out in full, then photograph the dialog surface rather than the page: at
   // this height a viewport shot would be mostly empty settings page.
   await page.setViewportSize({ width: 1280, height: 1800 });
-  await picker.locator('.hk-decl-preset-card', { hasText: 'Low battery' }).click();
+  await picker.locator('.hk-decl-preset-card', { hasText: 'Firmware update available' }).click();
   const addDialog = panel.locator('ha-dialog.hk-decl-dialog');
   await expect(addDialog.locator('[data-decl-section="identity"]')).toBeVisible({
     timeout: 20_000,

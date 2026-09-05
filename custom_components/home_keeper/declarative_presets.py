@@ -7,16 +7,12 @@ picking one seeds the Add dialog with the preset's ``default_spec``, the user
 reviews, then Save persists a full spec (which the reconciler then materializes
 into managed sensor tasks).
 
-Three presets ship in v1:
+Two presets ship in v1:
 
 * ``device_pulse`` — targets the standalone Device Pulse integration
   (studiobts/home-assistant-device-pulse) and watches its per-device
   ``sensor.*_total_failed_pings`` sensors via the existing ``threshold`` mode.
   Requires the Device Pulse integration to be installed.
-* ``low_battery`` — watches every ``binary_sensor`` with device_class ``battery``
-  reporting ``on`` (the HA-standard low-battery indicator). Works without a
-  companion integration; coexists with the Battery Notes glue (users may end up
-  with two tasks per battery if they run both, documented in the README).
 * ``firmware_update_available`` — watches every ``update.*`` entity reporting
   ``on`` (HA's built-in firmware/software-update surface). Covers UniFi, ESPHome,
   HACS, Reolink, Bambu Lab firmware updates in one recipe.
@@ -41,9 +37,8 @@ class PresetDefinition(TypedDict):
 
     ``requires_integration`` names the HA integration domain the panel should
     check for before enabling the preset card — ``None`` for presets that work
-    without a specific upstream (Low Battery, Firmware Update). The panel greys
-    out cards whose requirement isn't installed and shows a "Requires
-    <integration>" tooltip.
+    without a specific upstream (Firmware Update). The panel greys out cards whose
+    requirement isn't installed and shows a "Requires <integration>" tooltip.
     """
 
     id: str
@@ -90,40 +85,6 @@ CATALOG_PRESETS: list[PresetDefinition] = [
                     "Device Pulse reports {{ state }} failed pings "
                     "for {{ friendly_name }}."
                 ),
-                "labels": [],
-            },
-            "per_entity_overrides": {},
-        },
-    },
-    {
-        "id": "low_battery",
-        "name_key": "declarative_preset.low_battery.name",
-        "description_key": "declarative_preset.low_battery.description",
-        "icon": "mdi:battery-alert",
-        "requires_integration": None,
-        "default_spec": {
-            "name": "Low battery",
-            "description": "",
-            "enabled": True,
-            "preset_id": "low_battery",
-            "selection": {
-                "domain": "binary_sensor",
-                "device_class": "battery",
-                "area_ids": [],
-                "label_ids": [],
-                "exclude_entity_ids": [],
-                "exclude_device_ids": [],
-                "exclude_area_ids": [],
-                "exclude_label_ids": [],
-            },
-            "trigger": {
-                "mode": "state",
-                "state": "on",
-                "clear_on_recover": True,
-            },
-            "task_template": {
-                "name_template": "Replace {{ device_name or friendly_name }} battery",
-                "notes_template": "",
                 "labels": [],
             },
             "per_entity_overrides": {},

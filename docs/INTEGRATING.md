@@ -666,10 +666,10 @@ hold interval), and provide Jinja templates for the task name and notes. Home Ke
 materializes one managed sensor task per matching entity and keeps it in sync as
 entities are added, renamed, or removed.
 
-The bundled presets include **device_pulse** (per-device ping sensors from
-studiobts/home-assistant-device-pulse), **low_battery** (device_class battery), and
-**firmware_update_available** (update domain, covers UniFi, ESPHome, HACS, Reolink,
-Bambu Lab in one recipe). Full config surface via `home_keeper.add_declarative_companion` /
+The bundled presets are **device_pulse** (per-device ping sensors from
+studiobts/home-assistant-device-pulse) and **firmware_update_available** (update
+domain, covers UniFi, ESPHome, HACS, Reolink, Bambu Lab in one recipe). Full config
+surface via `home_keeper.add_declarative_companion` /
 `update_declarative_companion` / `delete_declarative_companion` /
 `list_declarative_companions` services (admin-only). Managed tasks fire the ordinary
 `home_keeper_task_*` events. Filter to declarative tasks via

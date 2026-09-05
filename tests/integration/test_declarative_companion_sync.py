@@ -13,11 +13,16 @@ The container config ships two template binary sensors this suite drives:
 * ``binary_sensor.hk_demo_water_tank_low`` (device_class ``moisture``) follows
   ``input_boolean.hk_demo_flag``, so a test can make a real off -> on transition.
 * ``binary_sensor.hk_demo_remote_battery`` (device_class ``battery``) is always
-  ``on``, which is what the shipped **Low battery** preset matches.
+  ``on``, so a recipe that selects it meets its trigger condition from the start.
 
-Neither has a device, so a task made from either owns no per-task entities and the
-reconciler asks the coordinator for a refresh instead of reloading the entry. The
-**device-backed** path matters just as much, and it is the harder one: a task with
+The config also ships one template update entity,
+``update.hk_demo_router_firmware``, whose latest version differs from its installed
+version. It is the only ``update`` entity in the container, so the shipped
+**Firmware update available** preset matches it and nothing else.
+
+None of the 3 has a device, so a task made from any of them owns no per-task entities
+and the reconciler asks the coordinator for a refresh instead of reloading the entry.
+The **device-backed** path matters just as much, and it is the harder one: a task with
 per-task entities forces an entry reload, the reload re-runs setup, and setup
 baselines the sensor watcher. ``sensor.e2e_battery_device_battery`` (the Battery
 Notes stub's static 42%, on a real registry device) is what this suite points at for
@@ -39,6 +44,9 @@ from conftest import HA_URL, call_service, poll_state
 TANK = "binary_sensor.hk_demo_water_tank_low"
 BATTERY = "binary_sensor.hk_demo_remote_battery"
 FLAG = "input_boolean.hk_demo_flag"
+# The one update entity in the container. The Firmware update available preset
+# selects the whole ``update`` domain, so this is the only entity it can match.
+FIRMWARE = "update.hk_demo_router_firmware"
 # The one entity in the container that has a real device AND is not Home Keeper's own.
 DEVICE_BATTERY = "sensor.e2e_battery_device_battery"
 
@@ -198,6 +206,27 @@ def _tank_spec(**overrides):
         "task_template": {
             "name_template": "Fill {{ friendly_name }}",
             "notes_template": "Reported by {{ entity_id }}.",
+        },
+    }
+    spec.update(overrides)
+    return spec
+
+
+def _battery_spec(**overrides):
+    """A ``state``-mode recipe that matches the one battery sensor in the config.
+
+    ``binary_sensor.hk_demo_remote_battery`` is already ``on`` when the recipe is
+    added, so this recipe covers the case where the trigger condition holds from
+    the first evaluation. The sensor has no device.
+    """
+    spec = {
+        "name": "Remote battery",
+        "description": "One task per low battery sensor",
+        "selection": {"domain": "binary_sensor", "device_class": "battery"},
+        "trigger": {"mode": "state", "state": "on", "clear_on_recover": True},
+        "task_template": {
+            "name_template": "Replace {{ device_name or friendly_name }} battery",
+            "notes_template": "",
         },
     }
     spec.update(overrides)
@@ -510,18 +539,17 @@ def test_deleting_the_spec_removes_the_recipe_and_every_task_it_made(ha, specs):
     assert all(s["id"] != spec["id"] for s in _list_specs(ha))
 
 
-# ── (e) the shipped Low battery preset ───────────────────────────────────────
+# ── (e) already-true conditions, and a shipped preset ────────────────────────
 
 
-def test_the_low_battery_preset_materializes_and_arms_on_the_battery_sensor(ha, specs):
-    """The shipped preset, installed as the panel installs it, on a live registry.
+def test_a_battery_recipe_materializes_and_arms_on_the_battery_sensor(ha, specs):
+    """A ``state`` recipe on a live registry, on a sensor that is already ``on``.
 
     ``binary_sensor.hk_demo_remote_battery`` is already ``on`` when the recipe is
-    added, and the task **arms** — which is what a user installing a low-battery
-    preset wants to see. The sensor has no device, so this recipe never reloads the
-    entry and the first evaluation reads the standing ``on`` as a fresh crossing.
-    ``test_a_device_backed_recipe_arms_on_a_condition_that_is_already_true`` covers
-    the harder path, where the reload runs the baseline in between.
+    added, and the task **arms**. The sensor has no device, so this recipe never
+    reloads the entry and the first evaluation reads the standing ``on`` as a fresh
+    crossing. ``test_a_device_backed_recipe_arms_on_a_condition_that_is_already_true``
+    covers the harder path, where the reload runs the baseline in between.
 
     The other half of the same rule is covered by
     ``test_a_task_that_survived_a_reload_stays_dormant_while_the_sensor_is_still_met``
@@ -529,10 +557,7 @@ def test_the_low_battery_preset_materializes_and_arms_on_the_battery_sensor(ha, 
     ``test_a_reload_with_the_sensor_already_on_does_not_rearm``: once a task exists,
     a battery that is still low does not resurrect it.
     """
-    preset = declarative_presets.preset_by_id("low_battery")
-    assert preset is not None, "the low_battery preset must ship"
-    spec = specs(dict(preset["default_spec"]))
-    assert spec["preset_id"] == "low_battery"
+    spec = specs(_battery_spec())
 
     task = _one_task(ha, spec["id"])
     src = task["source"]["declarative_companion"]
@@ -541,6 +566,46 @@ def test_the_low_battery_preset_materializes_and_arms_on_the_battery_sensor(ha, 
     assert "HK demo remote battery" in task["name"]
     assert task["sensor"] == {
         "entity_id": BATTERY,
+        "mode": "state",
+        "state": "on",
+        "clear_on_recover": True,
+    }
+
+    armed = _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
+    assert armed["id"] == task["id"]
+
+
+def test_a_shipped_preset_installs_and_materializes_as_the_picker_installs_it(
+    ha, specs
+):
+    """A catalog preset's ``default_spec``, saved unchanged, reaches a real task.
+
+    This is the one test that installs a **shipped** preset the way the panel's
+    picker does. It reads ``default_spec`` from the catalog and hands it straight to
+    ``add_declarative_companion``. A default_spec whose selection matches nothing, or
+    whose trigger the store rejects, fails here instead of shipping green.
+
+    ``test_every_preset_normalizes`` already runs every shipped default_spec through
+    ``normalize_declarative_companion``, and so through ``normalize_sensor``. This
+    test covers the other half: the recipe materializes a task on a live registry,
+    and the task arms.
+
+    ``update.hk_demo_router_firmware`` is the one update entity in the container. It
+    reports ``on`` from the start, because its latest version differs from its
+    installed version.
+    """
+    preset = declarative_presets.preset_by_id("firmware_update_available")
+    assert preset is not None, "the firmware_update_available preset must ship"
+    spec = specs(dict(preset["default_spec"]))
+    assert spec["preset_id"] == "firmware_update_available"
+
+    task = _one_task(ha, spec["id"])
+    src = task["source"]["declarative_companion"]
+    assert src["entity_id"] == FIRMWARE
+    # What the preset's own ``name_template`` renders for this entity.
+    assert task["name"] == "Update HK demo router firmware"
+    assert task["sensor"] == {
+        "entity_id": FIRMWARE,
         "mode": "state",
         "state": "on",
         "clear_on_recover": True,

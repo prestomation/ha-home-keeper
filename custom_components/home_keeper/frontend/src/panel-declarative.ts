@@ -447,8 +447,18 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   const preview = document.createElement('div');
   preview.className = 'hk-decl-preview';
   preview.textContent = t('declarative.companions.preview_loading');
-  const schedulePreview = (): void =>
+  const schedulePreview = (): void => {
+    // Only the dialog that is still on screen may own the pending preview. A trigger
+    // mode change re-renders the dialog from *inside* the section's change handler,
+    // so by the time the handler's own `schedulePreview()` runs, the new dialog has
+    // already scheduled one against its own node. Both share the `decl-preview`
+    // debounce key, so scheduling here would replace that live timer with one
+    // pointing at this render's node — which the re-render has just detached — and
+    // `refreshPreview` would return early, leaving "Loading preview…" on screen for
+    // good. Switching the mode is exactly the flow #230 reported.
+    if (!preview.isConnected) return;
     p._debounce('decl-preview', () => void refreshPreview(p, draft, preview), PREVIEW_DEBOUNCE_MS);
+  };
 
   // Every field is labelled from its own key rather than `field.<name>`, and the
   // one helper is the template vocabulary under the notes template.

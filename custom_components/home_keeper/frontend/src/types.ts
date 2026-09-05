@@ -11,8 +11,10 @@ export type Unit = 'days' | 'weeks' | 'months';
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 /** `state` compares the entity's state *string* rather than a number, which is what
  *  makes a binary sensor usable (`on`/`off` has no numeric reading). Not binary-only:
- *  any state-y entity works, e.g. `vacuum.x === 'docked'`. */
-export type SensorMode = 'usage' | 'threshold' | 'state';
+ *  any state-y entity works, e.g. `vacuum.x === 'docked'`. `availability` reads no
+ *  value at all — the entity reporting `unavailable`/`unknown`, or leaving the state
+ *  machine, is itself the condition. */
+export type SensorMode = 'usage' | 'threshold' | 'state' | 'availability';
 export type SensorComparison = '>=' | '<=' | '>' | '<' | '==' | '!=';
 
 /** How a usage task's meter target combines with its time backstop: `any` (the
@@ -26,9 +28,12 @@ export type SensorCombinator = 'any' | 'all';
  *  of the state. `also_every` is the usage task's optional **time backstop** — the
  *  "or every 6 months" half of a real service interval, measured from the last
  *  completion — and `unit` labels the meter ("300 h" rather than a bare "300").
- *  `for_seconds` (threshold/state) makes the condition hold before the task arms, and
- *  `clear_on_recover` (threshold/state) clears an armed task when the condition goes
- *  away instead of waiting for it to be completed by hand. */
+ *  `for_seconds` makes the condition hold before the task arms, and `clear_on_recover`
+ *  clears an armed task when the condition goes away instead of waiting for it to be
+ *  completed by hand; both belong to the edge-driven modes (threshold, state and
+ *  availability) and neither applies to a usage meter. An `availability` binding
+ *  carries no condition key of its own — `entity_id` (with an optional `attribute`)
+ *  is the whole binding. */
 export interface SensorBinding {
   entity_id: string;
   mode: SensorMode;

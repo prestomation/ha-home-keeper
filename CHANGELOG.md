@@ -12,9 +12,12 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 - **Declarative companions: task-per-entity recipes without a separate integration.**
   A user configures a recipe in Settings → Companions, or starts from a bundled
-  preset such as Device Pulse, Low battery and Firmware update available, and Home
-  Keeper opens one task per matching entity after a live preview of the matches.
-  (Fixes #231) (Fixes #230)
+  preset for Device Pulse or firmware updates, and Home Keeper opens one task per
+  matching entity after a live preview of the matches. (Fixes #231) (Fixes #230)
+
+- **A sensor task now supports an availability mode.** The task arms when the
+  entity reports unavailable or unknown, after an optional hold. A user can also
+  bind one task to one entity by hand in the ordinary task form.
 
 ### Fixed
 

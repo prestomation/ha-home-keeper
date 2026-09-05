@@ -12,10 +12,11 @@ import {
  *
  * A declarative companion is a recipe rather than an integration: it matches entities
  * by integration/domain/device-class/regex and materializes one managed sensor task
- * per match. The e2e container seeds `binary_sensor.hk_demo_remote_battery`
- * (device_class battery, always `on`), so the bundled **Low battery** preset matches
- * exactly one entity and the preview and the task count are both knowable. Device
- * Pulse is *not* installed there, so its preset card is the disabled case.
+ * per match. The e2e container seeds exactly one `update.*` entity
+ * (`update.hk_demo_router_firmware`, always `on`), so the bundled **Firmware update
+ * available** preset matches one entity and the preview and the task count are both
+ * knowable. Device Pulse is *not* installed there, so its preset card is the disabled
+ * case, and it is the only one of the two shipped presets that is gated.
  *
  * Two recipes can also select the same entity, and each one makes its own task for it.
  * The overlap test seeds one recipe, then opens the Add dialog on the same entity. The
@@ -28,7 +29,9 @@ import {
  * back "sensor.comparison is not valid for a state-mode sensor task".
  */
 
-/** The one entity the Low battery preset matches in the e2e container. */
+/** The one entity the Firmware update available preset matches in the e2e container. */
+const DEMO_UPDATE = 'update.hk_demo_router_firmware';
+/** A battery flag the container also seeds; the mode-switch test narrows onto it. */
 const DEMO_BATTERY = 'binary_sensor.hk_demo_remote_battery';
 
 /**
@@ -133,7 +136,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
-  test('the preset picker offers three recipes and gates the one that needs an integration', async ({
+  test('the preset picker offers two recipes and gates the one that needs an integration', async ({
     page,
   }) => {
     const errors = trackPanelErrors(page);
@@ -142,12 +145,14 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await panel.locator('.hk-decl-preset').click();
     const picker = panel.locator('ha-dialog.hk-decl-picker');
     await expectDialogOpen(picker, '.hk-decl-preset-card');
-    await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(3);
+    await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(2);
 
-    // Low battery needs nothing installed, so it is pickable.
-    const lowBattery = picker.locator('.hk-decl-preset-card', { hasText: 'Low battery' });
-    await expect(lowBattery).toBeEnabled();
-    await expect(lowBattery).not.toHaveClass(/hk-decl-preset-disabled/);
+    // Firmware update available needs nothing installed, so it is pickable.
+    const firmware = picker.locator('.hk-decl-preset-card', {
+      hasText: 'Firmware update available',
+    });
+    await expect(firmware).toBeEnabled();
+    await expect(firmware).not.toHaveClass(/hk-decl-preset-disabled/);
 
     // Device Pulse needs its upstream integration, which this container does not have.
     const devicePulse = picker.locator('.hk-decl-preset-card', { hasText: 'Device Pulse' });
@@ -162,29 +167,31 @@ test.describe('Home Keeper panel — declarative companions', () => {
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
-  test('the Low battery preset previews one match and materializes one task', async ({ page }) => {
+  test('the Firmware update preset previews one match and materializes one task', async ({
+    page,
+  }) => {
     const errors = trackPanelErrors(page);
     const panel = await openDeclarativeSection(page);
 
     await panel.locator('.hk-decl-preset').click();
     const picker = panel.locator('ha-dialog.hk-decl-picker');
     await expectDialogOpen(picker, '.hk-decl-preset-card');
-    await picker.locator('.hk-decl-preset-card', { hasText: 'Low battery' }).click();
+    await picker.locator('.hk-decl-preset-card', { hasText: 'Firmware update available' }).click();
 
     const dialog = panel.locator('ha-dialog.hk-decl-dialog');
     await expectDialogOpen(dialog, '[data-decl-section="identity"]');
     // The preview is debounced and then round-trips to the backend, so it lands a
-    // moment after the dialog. One battery binary sensor is seeded, and only one.
+    // moment after the dialog. One update entity is seeded, and only one.
     await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(
       'Showing 1 of 1 matches',
       { timeout: 20_000 },
     );
-    await expect(dialog.locator('.hk-decl-preview')).toContainText(DEMO_BATTERY);
+    await expect(dialog.locator('.hk-decl-preview')).toContainText(DEMO_UPDATE);
 
     await dialog.locator('.hk-decl-save').click();
     await expect(dialog).toHaveCount(0, { timeout: 20_000 });
 
-    const row = panel.locator('.hk-decl-row', { hasText: 'Low battery' });
+    const row = panel.locator('.hk-decl-row', { hasText: 'Firmware update available' });
     await expect(row).toHaveCount(1, { timeout: 20_000 });
     const specId = await row.getAttribute('data-spec-id');
     expect(specId).toBeTruthy();

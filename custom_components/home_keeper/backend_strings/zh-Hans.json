@@ -12,8 +12,6 @@
   "inventory.csv.total": "总计",
   "declarative_preset.device_pulse.name": "Device Pulse",
   "declarative_preset.device_pulse.description": "监控你的 Device Pulse 集成中每台设备的 ping 传感器，并为每台连续 ping 失败超过一小时的设备开启任务。需要 Device Pulse 集成。",
-  "declarative_preset.low_battery.name": "电量低",
-  "declarative_preset.low_battery.description": "监控每个低电量二进制传感器，并开启一个更换电池的任务。若已安装 Battery Notes glue 集成，可与其并行工作。",
   "declarative_preset.firmware_update_available.name": "固件更新可用",
   "declarative_preset.firmware_update_available.description": "监控每个更新实体（UniFi、ESPHome、HACS、摄像头、打印机等），并开启一个安装新版本的任务。"
 }

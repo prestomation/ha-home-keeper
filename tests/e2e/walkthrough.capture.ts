@@ -676,18 +676,20 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
 
   // 6a. Declarative companions — the same card's last section: recipes Home Keeper
   //     runs itself, one managed task per matching entity, no glue integration.
-  //     "Add from preset" opens the bundled recipes; picking Low battery seeds the
-  //     form, and the preview under it counts the entities the recipe would turn
-  //     into tasks. Cancelled rather than saved, so the tour leaves the seeded data
-  //     untouched.
+  //     "Add from preset" opens the bundled recipes; picking Firmware update
+  //     available seeds the form, and the preview under it counts the entities the
+  //     recipe would turn into tasks. Cancelled rather than saved, so the tour leaves
+  //     the seeded data untouched.
   await panel.locator('.hk-companion-group-decl').scrollIntoViewIfNeeded();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT);
   await panel.locator('.hk-decl-preset').click();
   const presetPicker = panel.locator('ha-dialog.hk-decl-picker');
-  await expect(presetPicker.locator('.hk-decl-preset-card')).toHaveCount(3);
+  await expect(presetPicker.locator('.hk-decl-preset-card')).toHaveCount(2);
   await page.waitForTimeout(BEAT * 2);
-  await presetPicker.locator('.hk-decl-preset-card', { hasText: 'Low battery' }).click();
+  await presetPicker
+    .locator('.hk-decl-preset-card', { hasText: 'Firmware update available' })
+    .click();
   const declForm = panel.locator('ha-dialog.hk-decl-dialog');
   await expect(declForm.locator('.hk-decl-preview-header')).toBeVisible();
   await page.waitForTimeout(BEAT * 3);

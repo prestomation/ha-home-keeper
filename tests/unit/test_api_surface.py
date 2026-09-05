@@ -384,11 +384,11 @@ _FULL_COMPANION: dict[str, Any] = {
 }
 _FULL_DECLARATIVE_SPEC: dict[str, Any] = {
     "id": "spec-1",
-    "name": "Low battery",
-    "description": "One task per low battery",
+    "name": "Firmware update available",
+    "description": "One task per update entity",
     "enabled": True,
-    "preset_id": "low_battery",
-    "selection": {"domain": "binary_sensor", "device_class": "battery"},
+    "preset_id": "firmware_update_available",
+    "selection": {"domain": "update"},
     "trigger": {"mode": "state", "state": "on"},
     "task_template": {"name_template": "{{ friendly_name }}"},
 }
