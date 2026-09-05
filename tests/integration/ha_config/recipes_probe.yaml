@@ -1,0 +1,29 @@
+# Test-only companion to `recipes.yaml`.
+#
+# The documented automation runs at a fixed time, 09:00:00 on a Thursday. A test
+# cannot wait for that time. This automation is the same, but an `input_datetime`
+# supplies the trigger time, and the test sets that value a few seconds in the future.
+# The suite therefore shows that a real `trigger: time` event drives the documented
+# action sequence, and not only that `automation.trigger` runs it.
+- alias: "TEST: time-triggered skip probe"
+  mode: single
+  triggers:
+    - trigger: time
+      at: input_datetime.hk_probe_at
+  actions:
+    - action: home_keeper.list_tasks
+      response_variable: hk
+    - variables:
+        task: "{{ hk.tasks | selectattr('name', 'eq', 'Take out trash') | first }}"
+    - condition: template
+      value_template: >-
+        {{ task.next_due is not none and as_datetime(task.next_due) <= now() }}
+    - action: home_keeper.skip_task
+      data:
+        task_id: "{{ task.id }}"
+        origin: trash_deadline
+    - action: input_text.set_value
+      target:
+        entity_id: input_text.hk_probe_result
+      data:
+        value: "skipped"

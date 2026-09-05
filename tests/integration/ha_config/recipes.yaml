@@ -1,0 +1,68 @@
+# The "Deadlines and follow-ups" automations from README.md, verbatim.
+#
+# `tests/integration/test_automation_recipes.py` drives these automations against the
+# real Home Assistant container. It also asserts that they parse to the same data as
+# the README blocks. A documented automation therefore cannot stop working unnoticed.
+- alias: "Trash: skip the occurrence if the bin did not go out"
+  mode: single
+  triggers:
+    - trigger: time
+      at: "09:00:00"
+  conditions:
+    - condition: time
+      weekday: [thu]
+  actions:
+    - action: home_keeper.list_tasks
+      response_variable: hk
+    - variables:
+        task: "{{ hk.tasks | selectattr('name', 'eq', 'Take out trash') | first }}"
+    - condition: template
+      value_template: >-
+        {{ task.next_due is not none and as_datetime(task.next_due) <= now() }}
+    - action: home_keeper.skip_task
+      data:
+        task_id: "{{ task.id }}"
+        origin: trash_deadline
+
+- alias: "Trash: arm 'bring the bin back in' if it went out in time"
+  mode: single
+  triggers:
+    - trigger: time
+      at: "20:00:00"
+  conditions:
+    - condition: time
+      weekday: [thu]
+  variables:
+    grace_hours: 12
+  actions:
+    - action: home_keeper.list_tasks
+      response_variable: hk
+    - variables:
+        task: "{{ hk.tasks | selectattr('name', 'eq', 'Take out trash') | first }}"
+        occurrence: "{{ as_datetime(task.next_due) - timedelta(days=7) }}"
+    - condition: template
+      value_template: >-
+        {{ task.last_completed is not none
+           and as_datetime(task.last_completed) >= as_datetime(occurrence)
+           and as_datetime(task.last_completed)
+               <= as_datetime(occurrence) + timedelta(hours=grace_hours) }}
+    - action: home_keeper.trigger_task
+      data:
+        task_id: Bring the bin back in
+
+- alias: "Trash: create a dated one-off follow-up"
+  mode: single
+  triggers:
+    - trigger: event
+      event_type: home_keeper_task_completed
+  conditions:
+    - condition: template
+      value_template: "{{ trigger.event.data.name == 'Take out trash' }}"
+  actions:
+    - action: home_keeper.add_task
+      data:
+        name: "Bring the bin back in"
+        recurrence_type: one-off
+        due: >-
+          {{ (now().replace(hour=20, minute=0, second=0, microsecond=0)
+              + timedelta(days=1)).isoformat() }}
