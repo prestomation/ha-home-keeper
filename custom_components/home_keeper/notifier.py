@@ -318,6 +318,13 @@ async def async_run_notify(
     a stored profile (see ``profiles.STATUS_NONE``). ``when_empty`` says what a queue
     that matched nothing does — skip, as it always has, or deliver the "All caught up"
     card. Together they are what lets the panel's Test button always land something.
+
+    That pairing also gives ``matched`` a second reading worth knowing before you
+    depend on it. Under ``when_empty: all_clear`` something is always delivered, so
+    ``matched`` says *which* card went out rather than whether one did: above zero is
+    a task, zero is the all-clear. Under the default it keeps its plain meaning, where
+    zero means nothing was sent.
+
     Returns
     ``(response, error)`` — on success ``response`` is ``{"matched", "sent"}``; when a
     named notification/profile can't be found ``error`` is a ``{"key", "placeholders"}``
