@@ -362,7 +362,7 @@
   "notify.targets": "Send til (mobilapps)",
   "notify.test": "Test",
   "notify.test_a_task": "Test en opgave",
-  "notify.test_a_task_blocked": "Ingen opgave matcher denne profil, så Home Keeper kan ikke sende et opgavekort.",
+  "notify.test_a_task_blocked": "Ingen opgave matcher denne profil, så Home Keeper har ingen opgave at vise.",
   "notify.test_all_clear": "Test alt er klaret",
   "notify.test_all_clear_sent": "Notifikation »Alt er klaret« sendt.",
   "notify.test_sent": "Notifikation sendt.",

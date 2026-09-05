@@ -371,7 +371,7 @@
   "notify.targets": "Invia a (app mobili)",
   "notify.test": "Prova",
   "notify.test_a_task": "Prova un’attività",
-  "notify.test_a_task_blocked": "Nessuna attività corrisponde a questo profilo, quindi Home Keeper non può inviare una scheda di attività.",
+  "notify.test_a_task_blocked": "Nessuna attività corrisponde a questo profilo, quindi Home Keeper non ha alcuna attività da mostrare.",
   "notify.test_all_clear": "Prova tutto in ordine",
   "notify.test_all_clear_sent": "Notifica «Tutto in ordine» inviata.",
   "notify.test_sent": "Notifica inviata.",

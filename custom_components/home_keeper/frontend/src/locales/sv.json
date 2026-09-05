@@ -362,7 +362,7 @@
   "notify.targets": "Skicka till (mobilappar)",
   "notify.test": "Testa",
   "notify.test_a_task": "Testa en uppgift",
-  "notify.test_a_task_blocked": "Ingen uppgift matchar den här profilen, så Home Keeper kan inte skicka ett uppgiftskort.",
+  "notify.test_a_task_blocked": "Ingen uppgift matchar den här profilen, så Home Keeper har ingen uppgift att visa.",
   "notify.test_all_clear": "Testa allt klart",
   "notify.test_all_clear_sent": "Avisering ”Allt klart” skickad.",
   "notify.test_sent": "Avisering skickad.",

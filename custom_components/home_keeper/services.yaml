@@ -755,6 +755,33 @@ notify:
       selector:
         text:
           multiple: true
+    status:
+      name: Status
+      description: >-
+        Overrides the profile's own due-state filter for this call. "overdue" keeps
+        only overdue tasks. "due_soon" adds the tasks that come due within three days.
+        "all" takes every scheduled task. "none" matches no task, which pairs with
+        when_empty: all_clear to send the "All caught up" notification on demand.
+        Defaults to the profile's own status if omitted.
+      selector:
+        select:
+          options:
+            - overdue
+            - due_soon
+            - all
+            - none
+    when_empty:
+      name: When nothing matches
+      description: >-
+        What a call sends if the filter matches no task. Defaults to "skip", so the
+        call sends nothing and an automation on a schedule costs nothing. Set it to
+        "all_clear" to send the "All caught up" notification instead, and confirm
+        delivery before a task comes due.
+      selector:
+        select:
+          options:
+            - skip
+            - all_clear
 
 list_tasks:
   name: List tasks

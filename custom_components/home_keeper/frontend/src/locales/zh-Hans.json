@@ -362,7 +362,7 @@
   "notify.targets": "发送到（移动应用）",
   "notify.test": "测试",
   "notify.test_a_task": "测试任务",
-  "notify.test_a_task_blocked": "没有任务匹配此配置文件，所以 Home Keeper 无法发送任务卡片。",
+  "notify.test_a_task_blocked": "没有任务匹配此配置文件，所以 Home Keeper 没有可显示的任务。",
   "notify.test_all_clear": "测试全部完成",
   "notify.test_all_clear_sent": "“全部完成”通知已发送。",
   "notify.test_sent": "通知已发送。",

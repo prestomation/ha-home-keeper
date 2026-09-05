@@ -362,7 +362,7 @@
   "notify.targets": "Send til (mobilapper)",
   "notify.test": "Test",
   "notify.test_a_task": "Test en oppgave",
-  "notify.test_a_task_blocked": "Ingen oppgave samsvarer med denne profilen, så Home Keeper kan ikke sende et oppgavekort.",
+  "notify.test_a_task_blocked": "Ingen oppgave samsvarer med denne profilen, så Home Keeper har ingen oppgave å vise.",
   "notify.test_all_clear": "Test alt er unnagjort",
   "notify.test_all_clear_sent": "Varsel «Alt er unnagjort» sendt.",
   "notify.test_sent": "Varsel sendt.",

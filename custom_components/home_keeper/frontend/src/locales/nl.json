@@ -362,7 +362,7 @@
   "notify.targets": "Sturen naar (mobiele apps)",
   "notify.test": "Testen",
   "notify.test_a_task": "Een taak testen",
-  "notify.test_a_task_blocked": "Geen taak komt overeen met dit profiel, dus Home Keeper kan geen taakkaart sturen.",
+  "notify.test_a_task_blocked": "Geen taak komt overeen met dit profiel, dus Home Keeper heeft geen taak om te tonen.",
   "notify.test_all_clear": "Helemaal bij testen",
   "notify.test_all_clear_sent": "Melding ‘Helemaal bij’ verzonden.",
   "notify.test_sent": "Melding verzonden.",

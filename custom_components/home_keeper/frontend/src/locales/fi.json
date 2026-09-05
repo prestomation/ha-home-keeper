@@ -362,7 +362,7 @@
   "notify.targets": "Lähetä (mobiilisovellukset)",
   "notify.test": "Testaa",
   "notify.test_a_task": "Testaa tehtävä",
-  "notify.test_a_task_blocked": "Yksikään tehtävä ei vastaa tätä profiilia, joten Home Keeper ei voi lähettää tehtäväkorttia.",
+  "notify.test_a_task_blocked": "Yksikään tehtävä ei vastaa tätä profiilia, joten Home Keeper ei löydä näytettävää tehtävää.",
   "notify.test_all_clear": "Testaa kaikki tehty",
   "notify.test_all_clear_sent": "Ilmoitus ”Kaikki tehty” lähetetty.",
   "notify.test_sent": "Ilmoitus lähetetty.",

@@ -380,7 +380,7 @@
   "notify.targets": "Wyślij do (aplikacje mobilne)",
   "notify.test": "Testuj",
   "notify.test_a_task": "Testuj zadanie",
-  "notify.test_a_task_blocked": "Żadne zadanie nie pasuje do tego profilu, więc Home Keeper nie może wysłać karty zadania.",
+  "notify.test_a_task_blocked": "Żadne zadanie nie pasuje do tego profilu, więc Home Keeper nie ma żadnego zadania do pokazania.",
   "notify.test_all_clear": "Testuj wszystko zrobione",
   "notify.test_all_clear_sent": "Powiadomienie „Wszystko zrobione” wysłane.",
   "notify.test_sent": "Powiadomienie wysłane.",

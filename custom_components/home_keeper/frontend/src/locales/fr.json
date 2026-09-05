@@ -371,7 +371,7 @@
   "notify.targets": "Envoyer à (applis mobiles)",
   "notify.test": "Tester",
   "notify.test_a_task": "Tester une tâche",
-  "notify.test_a_task_blocked": "Aucune tâche ne correspond à ce profil, donc Home Keeper ne peut pas envoyer de carte de tâche.",
+  "notify.test_a_task_blocked": "Aucune tâche ne correspond à ce profil, donc Home Keeper n’a aucune tâche à montrer.",
   "notify.test_all_clear": "Tester tout est à jour",
   "notify.test_all_clear_sent": "Notification « Tout est à jour » envoyée.",
   "notify.test_sent": "Notification envoyée.",

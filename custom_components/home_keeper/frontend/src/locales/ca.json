@@ -371,7 +371,7 @@
   "notify.targets": "Envia a (apps mòbils)",
   "notify.test": "Prova",
   "notify.test_a_task": "Prova una tasca",
-  "notify.test_a_task_blocked": "Cap tasca no coincideix amb aquest perfil, així que Home Keeper no pot enviar una targeta de tasca.",
+  "notify.test_a_task_blocked": "Cap tasca no coincideix amb aquest perfil, així que Home Keeper no té cap tasca per mostrar.",
   "notify.test_all_clear": "Prova tot al dia",
   "notify.test_all_clear_sent": "Notificació «Tot al dia» enviada.",
   "notify.test_sent": "Notificació enviada.",

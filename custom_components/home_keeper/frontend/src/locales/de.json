@@ -362,7 +362,7 @@
   "notify.targets": "Senden an (mobile Apps)",
   "notify.test": "Testen",
   "notify.test_a_task": "Eine Aufgabe testen",
-  "notify.test_a_task_blocked": "Keine Aufgabe erfüllt dieses Profil, also kann Home Keeper keine Aufgabenkarte senden.",
+  "notify.test_a_task_blocked": "Keine Aufgabe erfüllt dieses Profil, also hat Home Keeper keine Aufgabe zu zeigen.",
   "notify.test_all_clear": "Alles erledigt testen",
   "notify.test_all_clear_sent": "Benachrichtigung „Alles erledigt“ gesendet.",
   "notify.test_sent": "Benachrichtigung gesendet.",
