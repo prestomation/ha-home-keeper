@@ -202,6 +202,40 @@ describe('filterTasks', () => {
     expect(filterTasks(all, { type: '', filter: 'overdue' }, {}, NOW).map((t) => t.id)).toEqual(['o']);
   });
 
+  it('overdue means late work, so a buy reminder is not one', () => {
+    // A buy reminder is past due by the clock — dateless one-off, therefore due now —
+    // but `filter: shopping` is how a card asks for those. A card set to `overdue`
+    // with `group_by: status` otherwise drew a Shopping section under an Overdue
+    // filter, and disagreed with the panel's own Overdue pill about the same idea.
+    const buyReminder = task({
+      id: 'buy',
+      name: 'Buy filter',
+      recurrence_type: 'one-off',
+      next_due: new Date(NOW - 3 * DAY).toISOString(),
+      source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+    });
+    const withBuy = [...all, buyReminder];
+    expect(filterTasks(withBuy, { type: '', filter: 'overdue' }, {}, NOW).map((t) => t.id)).toEqual(
+      ['o'],
+    );
+    // It is still reachable, by the filter that names it.
+    expect(
+      filterTasks(withBuy, { type: '', filter: 'shopping' }, {}, NOW).map((t) => t.id),
+    ).toEqual(['buy']);
+    // And `all` still means all.
+    expect(filterTasks(withBuy, { type: '' }, {}, NOW)).toHaveLength(withBuy.length);
+  });
+
+  it('counts a task due at this exact moment as overdue', () => {
+    // The boundary is inclusive, matching `isOverdue`. A task whose due date is the
+    // current instant is due *now*, so it belongs in Overdue rather than falling
+    // through to Later for the one tick it sits on the line.
+    const exactly = task({ id: 'x', next_due: new Date(NOW).toISOString() });
+    expect(filterTasks([exactly], { type: '', filter: 'overdue' }, {}, NOW).map((t) => t.id)).toEqual(
+      ['x'],
+    );
+  });
+
   it('today includes overdue plus anything due before midnight', () => {
     const ids = filterTasks(all, { type: '', filter: 'today' }, {}, NOW).map((t) => t.id);
     expect(ids).toEqual(['o', 't']);

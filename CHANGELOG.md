@@ -54,6 +54,13 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   maintenance tasks. It now has a Shopping section of its own and reads **Low stock**
   on every page.
 
+- **The Overdue filter no longer counts the shopping tasks.** In the panel and on the
+  dashboard card, Overdue now means late work only. Use the Shopping filter beside it
+  to see the buy tasks, which a Profile still selects as before.
+
+- **A copy of a task asks for the same details as the task it came from.** A task set
+  to require a note and a photo made a copy that asked only for a note.
+
 - **Settings no longer loses an edit when you go to the next row too soon.** Each row
   in *Settings → Notifications* and *Settings → Profiles* saves a moment after you stop
   typing. The first row showed Saved and then lost its value. (Fixes #255)

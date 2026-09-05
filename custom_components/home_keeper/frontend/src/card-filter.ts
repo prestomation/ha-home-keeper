@@ -301,7 +301,12 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
   const dated = !Number.isNaN(due);
   switch (filter) {
     case 'overdue':
-      return dated && due <= now;
+      // Late work only. A buy reminder is overdue by the clock — dateless one-off,
+      // therefore due now — but `filter: shopping` is how a card asks for those, and a
+      // card set to `overdue` with `group_by: status` otherwise drew a Shopping section
+      // under an Overdue filter. Matches the panel's own Overdue pill: the two describe
+      // one idea and must not disagree about which tasks it holds.
+      return dated && due <= now && !isBuyTask(task);
     case 'soon':
       return statusBucket(task, now) === 'soon';
     case 'today':

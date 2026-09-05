@@ -160,6 +160,38 @@ describe('Duplicate a task from its page (#279)', () => {
     expect(sent.sensor).not.toHaveProperty('baseline');
   });
 
+  it('copies both halves of the capture mode, not just the mode', async () => {
+    // `completion_detail` says whether anything is mandatory on completion;
+    // `completion_required_fields` says which. Carrying only the first made a copy of
+    // a task requiring a note and a photo come out requiring the default note alone.
+    // The edit path never showed it because `merge_update` keeps the stored list when
+    // an update omits it — a duplicate creates instead, so there is nothing to keep.
+    const { panel, calls } = await openTask({
+      ...PLAIN,
+      completion_detail: 'required',
+      completion_required_fields: ['note', 'photo'],
+    });
+    panel.shadowRoot.querySelector('.d-dup').click();
+    await waitFor(() => panel.shadowRoot?.querySelector('#hk-form'));
+    expect(panel._edit.task.completion_required_fields).toEqual(['note', 'photo']);
+
+    panel.shadowRoot.querySelector('#f-save').click();
+    await waitFor(() => calls['home_keeper/add_task']);
+    expect(calls.last.task.completion_detail).toBe('required');
+    expect(calls.last.task.completion_required_fields).toEqual(['note', 'photo']);
+  });
+
+  it('leaves an ordinary task’s payload without the field list', async () => {
+    // Sent only when non-empty, so a task that never set one keeps sending exactly
+    // what it sent before — the backend fills the default for a `required` task.
+    const { panel, calls } = await openTask(PLAIN);
+    panel.shadowRoot.querySelector('.d-dup').click();
+    await waitFor(() => panel.shadowRoot?.querySelector('#hk-form'));
+    panel.shadowRoot.querySelector('#f-save').click();
+    await waitFor(() => calls['home_keeper/add_task']);
+    expect(calls.last.task).not.toHaveProperty('completion_required_fields');
+  });
+
   it('does not strip the original task while copying it', async () => {
     const { panel } = await openTask(PLAIN);
     panel.shadowRoot.querySelector('.d-dup').click();

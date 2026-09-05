@@ -101,16 +101,32 @@ describe('a buy reminder in the task list', () => {
     expect(sections.overdue).toEqual(['late1']);
   });
 
-  it('still counts as overdue on the filter pills', async () => {
-    // The reason the sections move and nothing else does: a panel that said "1
-    // overdue" while the binary sensors said 2 would just be a second bug.
+  it('is counted by the Shopping pill, not the Overdue one', async () => {
+    // The pill is the panel's word for late work, and a buy reminder is not late work
+    // — it is overdue only by the clock. Counting it here put "Overdue 2" above a list
+    // whose own headings read Overdue 1 and Shopping 1, and clicking the pill drew a
+    // Shopping section under a heading that says Overdue. Shopping has its own pill
+    // right beside this one, so nothing goes unseen by leaving it out of this one.
     const hass = makeHass({ tasks: [buyTask(), lateTask()] });
     const { panel } = await mountPanel('/', hass);
     await waitFor(() => panel.shadowRoot?.querySelector('.hk-seg[data-seg="filter"]'));
-    const pill = panel.shadowRoot.querySelector(
-      '.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="overdue"] .hk-seg-count',
-    );
-    expect(pill.textContent.trim()).toBe('2');
+    const count = (val) =>
+      panel.shadowRoot
+        .querySelector(`.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="${val}"] .hk-seg-count`)
+        .textContent.trim();
+    expect(count('overdue')).toBe('1');
+    expect(count('shopping')).toBe('1');
+    // All still counts both — it is the one pill that promises everything.
+    expect(count('all')).toBe('2');
+  });
+
+  it('is not listed when the Overdue pill is chosen', async () => {
+    // The count and the list come from one predicate, so this is what the count means.
+    localStorage.setItem('home-keeper.filter', 'overdue');
+    const hass = makeHass({ tasks: [buyTask(), lateTask()] });
+    const { panel } = await mountPanel('/', hass);
+    const found = await rows(panel);
+    expect(Object.keys(found)).toEqual(['late1']);
   });
 });
 
