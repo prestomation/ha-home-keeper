@@ -743,3 +743,30 @@ def test_baseline_after_delete_restores_none_meter_start():
         dt(2026, 6, 1, 10).isoformat(), reading=48_000, meter_start=None
     )
     assert s.baseline_after_delete(task, removed, was_latest=True) == (True, None)
+
+
+# ── which modes carry edge state ─────────────────────────────────────────────
+
+
+def test_holds_edge_state_is_true_for_every_rising_edge_mode():
+    # The watcher baselines edge state on startup, and skips that baseline for a task
+    # made after the last pass. This is the test that says which tasks have an edge to
+    # skip, so each mode has to answer for itself.
+    assert s.holds_edge_state("threshold") is True
+    assert s.holds_edge_state("state") is True
+    assert s.holds_edge_state("availability") is True
+
+
+def test_holds_edge_state_is_false_for_a_usage_meter():
+    # A usage meter compares the live reading against a persisted baseline, so it
+    # carries nothing between evaluations and the baseline pass must still anchor it.
+    assert s.holds_edge_state("usage") is False
+
+
+def test_holds_edge_state_treats_an_unknown_mode_as_a_meter():
+    # The watcher's baseline pass reads an unknown mode as ``usage`` (it is the else
+    # branch), so this must agree — otherwise a malformed binding would be skipped by
+    # one and anchored by the other.
+    assert s.holds_edge_state("banana") is False
+    assert s.holds_edge_state(None) is False
+    assert s.holds_edge_state("") is False

@@ -33,7 +33,7 @@ from homeassistant.helpers import (
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.template import Template, TemplateError
 
-from . import declarative_companions
+from . import declarative_companions, sensor_tasks, sensor_watcher
 from .const import (
     DOMAIN,
     SIGNAL_DECLARATIVE_SPECS_CHANGED,
@@ -43,6 +43,28 @@ if TYPE_CHECKING:
     from .coordinator import HomeKeeperCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _project_entry(entry: er.RegistryEntry) -> dict[str, Any]:
+    """Project one entity-registry entry into the plain-dict shape the pure pass reads.
+
+    Kept as a free function so the whole-registry snapshot and the single-entity
+    lookup that re-renders one task's notes cannot describe an entity differently.
+    """
+    return {
+        "entity_registry_id": entry.id,
+        "entity_id": entry.entity_id,
+        "platform": entry.platform,
+        "domain": entry.domain,
+        "device_class": entry.device_class,
+        "original_device_class": entry.original_device_class,
+        "device_id": entry.device_id,
+        "area_id": entry.area_id,
+        "labels": set(entry.labels or []),
+        "disabled": bool(entry.disabled),
+        "name": entry.name,
+        "original_name": entry.original_name,
+    }
 
 
 class DeclarativeCompanionSync:
@@ -70,8 +92,13 @@ class DeclarativeCompanionSync:
         Runs before the coordinator publishes its first refresh so entities for
         newly-materialized tasks are registered by the time platforms fetch the
         task list. Never reloads — the entry is still setting up.
+
+        A task made here did not exist before setup, so the watcher's baseline pass
+        (which runs later in the same setup) must leave its edge unset — the entity
+        may have started matching while Home Assistant was down.
         """
-        await self._reconcile_all()
+        _entity_set_changed, created = await self._reconcile_all()
+        sensor_watcher.async_mark_tasks_new(self._hass, self._entry.entry_id, created)
 
     @callback
     def async_start_listeners(self) -> None:
@@ -121,25 +148,21 @@ class DeclarativeCompanionSync:
         which the current filter shape doesn't expose).
         """
         ent_reg = er.async_get(self._hass)
-        entries: list[dict[str, Any]] = []
-        for entry in ent_reg.entities.values():
-            entries.append(
-                {
-                    "entity_registry_id": entry.id,
-                    "entity_id": entry.entity_id,
-                    "platform": entry.platform,
-                    "domain": entry.domain,
-                    "device_class": entry.device_class,
-                    "original_device_class": entry.original_device_class,
-                    "device_id": entry.device_id,
-                    "area_id": entry.area_id,
-                    "labels": set(entry.labels or []),
-                    "disabled": bool(entry.disabled),
-                    "name": entry.name,
-                    "original_name": entry.original_name,
-                }
-            )
+        entries = [_project_entry(entry) for entry in ent_reg.entities.values()]
         return {"entities": entries}
+
+    def _entry_for_entity(self, entity_id: str) -> dict[str, Any]:
+        """The snapshot projection of one entity, by entity id.
+
+        Falls back to a projection carrying only the ``entity_id``. A managed task
+        always names its entity, but the registry entry can already be gone (the
+        entity was removed and the reconcile pass that drops the task has not run
+        yet). The templates that read ``{{ entity_id }}`` and the live state still
+        render from that.
+        """
+        ent_reg = er.async_get(self._hass)
+        found = ent_reg.async_get(entity_id)
+        return _project_entry(found) if found is not None else {"entity_id": entity_id}
 
     # ── rendering ────────────────────────────────────────────────────────────
     def _template_variables(self, entry: dict[str, Any]) -> dict[str, Any]:
@@ -219,12 +242,15 @@ class DeclarativeCompanionSync:
         return name, notes
 
     # ── reconcile ────────────────────────────────────────────────────────────
-    async def _reconcile_all(self) -> bool:
+    async def _reconcile_all(self) -> tuple[bool, list[str]]:
         """Re-materialize every enabled spec against the current registry.
 
-        Returns whether *any* spec's entity set changed (a task was created or
-        removed) so the caller can decide between an entry reload and a plain
-        coordinator refresh.
+        Returns ``(entity_set_changed, created_task_ids)``. The flag says whether
+        *any* spec's entity set changed (a task was created or removed) so the caller
+        can decide between an entry reload and a plain coordinator refresh. The ids
+        name the tasks this pass made, which the sensor watcher needs so its next
+        baseline pass leaves their edge unset (see
+        :func:`sensor_watcher.async_mark_tasks_new`).
 
         Complexity: the snapshot is built once per pass, then each spec walks
         every entity to apply its filters (O(N specs x M entities)). For the
@@ -236,19 +262,21 @@ class DeclarativeCompanionSync:
         """
         snapshot = self._registry_snapshot()
         entity_set_changed = False
+        created: list[str] = []
         specs = self._coordinator.store.get_declarative_companions()
         for spec in list(specs.values()):
             if not spec.get("enabled", True):
                 # A disabled spec's managed tasks are dropped (reconcile with empty
                 # matches), so toggling enabled off cleans up without deleting the spec.
                 store = self._coordinator.store
-                changed = await store.reconcile_declarative_companion_tasks(
+                changed, made = await store.reconcile_declarative_companion_tasks(
                     spec,
                     {},
                     {},
                     config_entry_id=self._entry.entry_id,
                 )
                 entity_set_changed = entity_set_changed or changed
+                created.extend(made)
                 continue
             try:
                 matches = declarative_companions.expand_spec(spec, snapshot)
@@ -261,14 +289,60 @@ class DeclarativeCompanionSync:
                 key: self._render_match(spec, match) for key, match in matches.items()
             }
             store = self._coordinator.store
-            changed = await store.reconcile_declarative_companion_tasks(
+            changed, made = await store.reconcile_declarative_companion_tasks(
                 spec,
                 matches,
                 rendered,
                 config_entry_id=self._entry.entry_id,
             )
             entity_set_changed = entity_set_changed or changed
-        return entity_set_changed
+            created.extend(made)
+        return entity_set_changed, created
+
+    # ── notes refresh (called by the sensor watcher on an arm) ───────────────
+    async def async_refresh_task_notes(self, task_id: str) -> None:
+        """Re-render one managed task's notes from the live entity.
+
+        The sensor watcher calls this the moment it arms a declarative-companion
+        task. Notes are otherwise rendered only by the reconcile pass — at creation,
+        and on registry changes after that — so a template that quotes the reading
+        ("{{ state }} hours left") describes the value from that moment. A brush that
+        went from 145 hours to 3 arrived with a note reading 145. Rendering again
+        here makes the note describe the reading that armed the task.
+
+        Does nothing for a task no declarative companion manages, for a spec that has
+        gone away, for a spec with no notes template, and when the render matches
+        what is stored.
+
+        A note edited by hand is overwritten. ``notes`` is not one of the task's
+        ``managed_by.locked_fields``, but the reconcile pass already rewrites it from
+        the template whenever the registry moves (see
+        ``declarative_companions.reconcile_declarative_tasks``), so the field is
+        owned by the recipe in practice. Keeping the hand-edit here would make the
+        note survive an arm but not a rename of the device, which is a worse rule
+        than the one it replaces.
+        """
+        store = self._coordinator.store
+        task = store.get_tasks().get(task_id)
+        if task is None:
+            return
+        source = declarative_companions.declarative_source(task)
+        if source is None:
+            return
+        spec = store.get_declarative_companion(source.get("spec_id") or "")
+        if spec is None:
+            return
+        template = (spec.get("task_template") or {}).get("notes_template") or ""
+        if not template:
+            return
+        entity_id = sensor_tasks.bound_entity_id(task)
+        if not entity_id:
+            return
+        variables = self._template_variables(self._entry_for_entity(entity_id))
+        notes = self._render_one(template, variables)
+        if notes == task.get("notes"):
+            return
+        await store.update_task(task_id, {"notes": notes})
 
     # ── event handlers ───────────────────────────────────────────────────────
     @callback
@@ -303,12 +377,23 @@ class DeclarativeCompanionSync:
         self._hass.async_create_task(self._async_reconcile_and_maybe_reload())
 
     async def _async_reconcile_and_maybe_reload(self) -> None:
-        entity_set_changed = await self._reconcile_all()
+        entity_set_changed, created = await self._reconcile_all()
         if entity_set_changed:
+            # The reload re-runs setup, which baselines the sensor watcher's edge
+            # state and would record a task made a moment ago as already-met. Name
+            # the new tasks first: the set lives on ``hass.data``, because the reload
+            # destroys this object before the baseline reads it.
+            sensor_watcher.async_mark_tasks_new(
+                self._hass, self._entry.entry_id, created
+            )
             if not self._reload_scheduled:
                 self._reload_scheduled = True
                 self._hass.async_create_task(self._async_reload())
         else:
+            # No reload, so no baseline pass: the watcher has never seen these ids,
+            # and its next evaluation already reads a standing condition as a fresh
+            # crossing. Marking them would leave a set behind for a later, unrelated
+            # reload to consume.
             await self._coordinator.async_request_refresh()
 
     async def _async_reload(self) -> None:

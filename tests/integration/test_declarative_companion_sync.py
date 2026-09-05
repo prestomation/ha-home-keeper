@@ -15,10 +15,13 @@ The container config ships two template binary sensors this suite drives:
 * ``binary_sensor.hk_demo_remote_battery`` (device_class ``battery``) is always
   ``on``, which is what the shipped **Low battery** preset matches.
 
-Neither sensor has a device, so a materialized task owns no per-task entities. The
-reconciler therefore asks the coordinator for a refresh instead of reloading the
-entry — which is why the arming semantics below are the runtime ones, not the
-after-a-restart ones.
+Neither has a device, so a task made from either owns no per-task entities and the
+reconciler asks the coordinator for a refresh instead of reloading the entry. The
+**device-backed** path matters just as much, and it is the harder one: a task with
+per-task entities forces an entry reload, the reload re-runs setup, and setup
+baselines the sensor watcher. ``sensor.e2e_battery_device_battery`` (the Battery
+Notes stub's static 42%, on a real registry device) is what this suite points at for
+that case.
 
 Every spec this suite creates is removed again in the ``specs`` fixture: the
 container's store is the committed seed fixture, so a leak is a permanent addition
@@ -36,6 +39,8 @@ from conftest import HA_URL, call_service, poll_state
 TANK = "binary_sensor.hk_demo_water_tank_low"
 BATTERY = "binary_sensor.hk_demo_remote_battery"
 FLAG = "input_boolean.hk_demo_flag"
+# The one entity in the container that has a real device AND is not Home Keeper's own.
+DEVICE_BATTERY = "sensor.e2e_battery_device_battery"
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -199,6 +204,40 @@ def _tank_spec(**overrides):
     return spec
 
 
+def _device_battery_spec(**overrides):
+    """A ``threshold`` recipe matching the one device-backed sensor in the config.
+
+    The sensor reads a static 42%, so the condition (``<= 50``) is **already true**
+    when the recipe is added. The task it makes carries the sensor's device, which is
+    what forces the entry reload the arming tests below are about.
+    """
+    spec = {
+        "name": "Device battery",
+        "description": "One task per device battery below half",
+        "selection": {
+            "domain": "sensor",
+            "target_integration": "home_keeper_battery_notes",
+        },
+        "trigger": {"mode": "threshold", "comparison": "<=", "value": 50},
+        "task_template": {
+            "name_template": "Change the {{ device_name }} battery",
+            "notes_template": "{{ friendly_name }} reads {{ state }}%.",
+        },
+    }
+    spec.update(overrides)
+    return spec
+
+
+def _reload_entry(ha):
+    """Reload the Home Keeper config entry — the code path an HA restart takes."""
+    call_service(
+        ha,
+        "homeassistant",
+        "reload_config_entry",
+        {"entity_id": "todo.home_keeper_tasks"},
+    )
+
+
 @pytest.fixture
 def specs(ha):
     """Create declarative-companion specs and remove every one of them afterwards.
@@ -304,6 +343,96 @@ def test_the_bound_sensor_arms_the_task_and_recovery_clears_it(ha, specs):
     assert len(cleared["completions"]) == 1
 
 
+def test_the_notes_are_rendered_again_from_the_reading_that_armed_the_task(ha, specs):
+    """The note must describe the reading that armed the task, not an older one.
+
+    Notes are rendered by the reconcile pass, which runs on registry changes — not on
+    state changes. A note that quotes the entity ("{{ state }} hours left") therefore
+    froze at whatever the entity read when the task was made. The watcher re-renders
+    it on the arm transition, so the note a person opens matches the reason it is
+    there.
+    """
+    _set_flag(ha, False)
+    spec = specs(
+        _tank_spec(
+            name="Water tank reading",
+            task_template={
+                "name_template": "Fill {{ friendly_name }}",
+                "notes_template": "{{ entity_id }} reads {{ state }}.",
+            },
+        )
+    )
+    task = _one_task(ha, spec["id"])
+    assert task["notes"] == f"{TANK} reads off."
+    _let_the_watcher_subscribe()
+
+    _set_flag(ha, True)
+    armed = _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
+    assert armed["notes"] == f"{TANK} reads on.", (
+        "the note still quotes the reading from creation time"
+    )
+
+
+def test_a_device_backed_recipe_arms_on_a_condition_that_is_already_true(ha, specs):
+    """A recipe made for a condition standing right now must arm, device or not.
+
+    This is the case the device-less tests above cannot see. The battery reads 42%,
+    the recipe wants ``<= 50``, and the task it makes owns per-task entities — so the
+    reconciler reloads the entry, the reload re-runs setup, and setup calls
+    ``SensorTaskWatcher.async_baseline``. That pass records every already-matching
+    sensor task as met-without-a-crossing, which is right after a restart and wrong
+    for a task made a second ago: it would eat the rising edge and leave the task
+    dormant until the battery recovered and dropped again.
+
+    The reconciler therefore names the ids it materialized
+    (``sensor_watcher.async_mark_tasks_new``, held on ``hass.data`` so it survives the
+    reload) and the baseline leaves their edge unset. The first evaluation then reads
+    the standing 42% as a fresh crossing and arms.
+    """
+    spec = specs(_device_battery_spec())
+    task = _one_task(ha, spec["id"])
+    assert task["source"]["declarative_companion"]["entity_id"] == DEVICE_BATTERY
+    assert task["device_id"], (
+        "the whole point of this test is the device-backed reload path; "
+        "without a device the reconciler never reloads"
+    )
+
+    armed = _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
+    assert armed["id"] == task["id"], "arming must not replace the task"
+
+
+def test_a_task_that_survived_a_reload_stays_dormant_while_the_sensor_is_still_met(
+    ha, specs
+):
+    """The rule the fix above must not break, on the same device-backed task.
+
+    Once a task exists, an already-true condition at setup is history the user has
+    dealt with: the battery is still 42% after every reload, and a task completed at
+    42% must not come back each time Home Assistant restarts. Only the pass that
+    *made* the task skips the baseline, and the set of just-made ids is consumed by
+    the first baseline that reads it — so the second reload gets the ordinary
+    treatment.
+
+    ``test_sensor_watcher.test_a_reload_with_the_sensor_already_on_does_not_rearm``
+    pins the same rule for a hand-made sensor task.
+    """
+    spec = specs(_device_battery_spec(name="Device battery (reload)"))
+    task = _one_task(ha, spec["id"])
+    _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
+
+    # Somebody changes the battery. The sensor is a stub and stays at 42%.
+    call_service(ha, "home_keeper", "complete_task", {"task_id": task["id"]})
+    _poll_task(ha, spec["id"], lambda t: t.get("next_due") is None)
+
+    _reload_entry(ha)
+    time.sleep(20)
+    after = _poll_task(ha, spec["id"], lambda t: t["id"] == task["id"])
+    assert after["next_due"] is None, (
+        "a reload with the sensor still below the threshold must not re-arm a task "
+        "the user already dealt with"
+    )
+
+
 # ── (c) re-selection ─────────────────────────────────────────────────────────
 
 
@@ -388,17 +517,17 @@ def test_the_low_battery_preset_materializes_and_arms_on_the_battery_sensor(ha, 
     """The shipped preset, installed as the panel installs it, on a live registry.
 
     ``binary_sensor.hk_demo_remote_battery`` is already ``on`` when the recipe is
-    added, and the task **arms**. That is the runtime path, and it is deliberate:
-    ``SensorTaskWatcher.async_baseline`` records "already met, no crossing" once
-    during setup, so it can only cover tasks that exist by then. A task the
-    reconciler materializes afterwards carries no edge state, so the first
-    evaluation reads the standing ``on`` as a fresh false -> true crossing and arms
-    it — which is what a user adding a low-battery recipe wants to see.
+    added, and the task **arms** — which is what a user installing a low-battery
+    preset wants to see. The sensor has no device, so this recipe never reloads the
+    entry and the first evaluation reads the standing ``on`` as a fresh crossing.
+    ``test_a_device_backed_recipe_arms_on_a_condition_that_is_already_true`` covers
+    the harder path, where the reload runs the baseline in between.
 
     The other half of the same rule is covered by
-    ``test_sensor_watcher.test_a_reload_with_the_sensor_already_on_does_not_rearm``:
-    after a restart the baseline runs *after* the reconciler, so a battery that is
-    still low does not resurrect a task the user already dealt with.
+    ``test_a_task_that_survived_a_reload_stays_dormant_while_the_sensor_is_still_met``
+    and by ``test_sensor_watcher``'s
+    ``test_a_reload_with_the_sensor_already_on_does_not_rearm``: once a task exists,
+    a battery that is still low does not resurrect it.
     """
     preset = declarative_presets.preset_by_id("low_battery")
     assert preset is not None, "the low_battery preset must ship"

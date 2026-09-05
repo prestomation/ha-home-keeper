@@ -83,7 +83,11 @@ from .resolve import (
     resolve_part_id,
     resolve_task_id,
 )
-from .sensor_watcher import SensorTaskWatcher, read_sensor_value
+from .sensor_watcher import (
+    SensorTaskWatcher,
+    async_discard_new_tasks,
+    read_sensor_value,
+)
 from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
 from .todo_list_sync import TodoListSync
@@ -1573,6 +1577,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     panel.async_unregister_panel(hass)
     await card.async_unregister_card_resource(hass)
     discard_edge_state(hass, entry.entry_id)
+    async_discard_new_tasks(hass, entry.entry_id)
     store = HomeKeeperStore(hass)
     await store.async_remove()
     await manuals.async_delete_all_documents(hass)

@@ -20,6 +20,7 @@ task itself (tagged ``ORIGIN_SENSOR_RECOVER``) once the condition goes away.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -36,6 +37,7 @@ from homeassistant.util import dt as dt_util
 
 from . import sensor_tasks
 from .const import (
+    DOMAIN,
     ORIGIN_SENSOR_RECOVER,
     REC_SENSOR,
     SENSOR_MODE_AVAILABILITY,
@@ -48,6 +50,42 @@ if TYPE_CHECKING:
     from .coordinator import HomeKeeperCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# hass.data namespace holding, per config entry, the ids of sensor tasks that were
+# materialized after the last baseline pass. It lives on ``hass.data`` rather than on
+# the watcher (or the reconciler) because materializing a task with per-task entities
+# reloads the config entry, and the reload destroys both objects while
+# ``async_baseline`` runs again. A genuine HA restart starts with an empty
+# ``hass.data``, so a task that existed before setup keeps the ordinary treatment.
+_NEW_TASKS_STORE = f"{DOMAIN}_new_sensor_tasks"
+
+
+def _new_tasks_store(hass: HomeAssistant) -> dict[str, set[str]]:
+    """The process-lifetime just-made-task map keyed by config-entry id."""
+    return hass.data.setdefault(_NEW_TASKS_STORE, {})
+
+
+@callback
+def async_mark_tasks_new(
+    hass: HomeAssistant, entry_id: str, task_ids: Iterable[str]
+) -> None:
+    """Record tasks made just now so the next baseline pass leaves their edge unset.
+
+    A task made one second ago has no history to protect: the condition its recipe
+    watches may be true right now, and that is exactly what the user wants a task
+    for. Without this the baseline records it as already-met-without-a-crossing and
+    the task stays dormant until the condition goes away and comes back.
+    """
+    ids = {tid for tid in task_ids if tid}
+    if not ids:
+        return
+    _new_tasks_store(hass).setdefault(entry_id, set()).update(ids)
+
+
+@callback
+def async_discard_new_tasks(hass: HomeAssistant, entry_id: str) -> None:
+    """Drop an entry's just-made-task set (called when the entry is removed)."""
+    _new_tasks_store(hass).pop(entry_id, None)
 
 
 def _raw_reading(hass: HomeAssistant, cfg: dict[str, Any] | None) -> Any | None:
@@ -178,12 +216,26 @@ class SensorTaskWatcher:
         so the first evaluation only reacts to genuine transitions: a threshold sensor
         already above its limit at boot is recorded as already-met (no rising edge), and
         a usage task with no baseline yet is anchored to the current reading.
+
+        Tasks made after the last baseline pass are the one exception (see
+        :func:`async_mark_tasks_new`). Materializing a declarative companion's tasks
+        reloads the config entry, which runs this method again; baselining a task made
+        a second ago would eat the very edge the user made the recipe for. Their edge
+        is left unset, so the first evaluation reads a standing condition as a fresh
+        crossing and arms them. The set is consumed here, so it can neither grow
+        without bound nor reach an unrelated later reload.
         """
+        fresh = _new_tasks_store(self._hass).pop(self._entry.entry_id, set())
         for tid, task in self._sensor_tasks().items():
             cfg = sensor_tasks.sensor_config(task)
             if cfg is None:
                 continue
             mode = cfg.get("mode")
+            if tid in fresh and sensor_tasks.holds_edge_state(mode):
+                # Made after the last baseline: leave the edge unset so the first
+                # evaluation arms on a condition that is already true. A usage meter
+                # has no edge, so it is still anchored below.
+                continue
             if mode == SENSOR_MODE_THRESHOLD:
                 reading = read_sensor_value(self._hass, cfg)
                 met = reading is not None and sensor_tasks.compare(
@@ -326,7 +378,7 @@ class SensorTaskWatcher:
             await self._coordinator.store.set_sensor_baseline(tid, decision["baseline"])
             return False
         if action == sensor_tasks.ACTION_ARM:
-            await self._coordinator.store.trigger_task(tid)
+            await self._async_arm(tid)
             return True
         return False
 
@@ -372,6 +424,32 @@ class SensorTaskWatcher:
             ),
         )
 
+    async def _async_arm(self, tid: str) -> None:
+        """Arm a task, refreshing a declarative companion's notes first.
+
+        The notes of a task a declarative companion manages are rendered from the
+        entity's live state, but only when the reconciler runs — at creation, and on
+        registry changes after that. A template that quotes the reading ("{{ state }}
+        hours left") therefore describes the value from that moment, not the value
+        that armed the task. Rendering again on the arm makes the note describe the
+        reading the person is about to read it for.
+
+        The arm transition is the only place this happens: rendering on every
+        evaluation would write to the store on each tick, for no gain on a task
+        nobody is looking at. The refresh runs *before* the arm so the
+        ``home_keeper_task_triggered`` event already carries the fresh note.
+
+        A refresh must never stop a task from arming, so a failure is logged and
+        swallowed.
+        """
+        sync = self._coordinator.declarative_sync
+        if sync is not None:
+            try:
+                await sync.async_refresh_task_notes(tid)
+            except Exception:  # pragma: no cover - defensive
+                _LOGGER.exception("Could not refresh the notes of task %s", tid)
+        await self._coordinator.store.trigger_task(tid)
+
     async def _apply_edge(self, tid: str, decision: dict[str, Any]) -> bool:
         """Carry an edge decision's state forward and apply its action.
 
@@ -385,7 +463,7 @@ class SensorTaskWatcher:
         }
         action = decision["action"]
         if action == sensor_tasks.ACTION_ARM:
-            await self._coordinator.store.trigger_task(tid)
+            await self._async_arm(tid)
             return True
         if action == sensor_tasks.ACTION_CLEAR:
             # The condition went away on its own, so the work is done: record a real

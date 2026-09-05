@@ -1383,7 +1383,7 @@ class HomeKeeperStore:
         rendered_by_key: dict[tuple[str, str], tuple[str, str]],
         *,
         config_entry_id: str,
-    ) -> bool:
+    ) -> tuple[bool, list[str]]:
         """Materialize / update / orphan the managed tasks for *spec*.
 
         Called from ``declarative_companion_sync.py`` after it has built the
@@ -1394,9 +1394,12 @@ class HomeKeeperStore:
         the materialized tasks are the sensor watcher's responsibility, not this
         reconcile pass — the tasks look like ordinary sensor tasks to it.
 
-        Returns whether the per-task **entity set** changed (a task was created
-        or removed) so the caller can decide between a full entry reload and a
-        plain coordinator refresh.
+        Returns ``(entity_set_changed, created_task_ids)``. The flag says whether
+        the per-task **entity set** changed (a task was created or removed) so the
+        caller can decide between a full entry reload and a plain coordinator
+        refresh. The ids name the tasks this pass created, which the caller hands to
+        the sensor watcher so its next baseline pass leaves their edge unset — a
+        task made a moment ago must arm on a condition that is already true.
         """
         new_tasks, ops, changed = declarative_companions.reconcile_declarative_tasks(
             spec,
@@ -1407,12 +1410,14 @@ class HomeKeeperStore:
             now=dt_util.now(),
         )
         if not changed:
-            return False
+            return False, []
         self._tasks = new_tasks
         await self._save()
         entity_set_changed = False
+        created_ids: list[str] = []
         for kind, task in ops:
             if kind == "created":
+                created_ids.append(task["id"])
                 self._hass.bus.async_fire(
                     EVENT_TASK_CREATED, events.task_event_data(task)
                 )
@@ -1429,7 +1434,7 @@ class HomeKeeperStore:
                     EVENT_TASK_UPDATED,
                     events.task_event_data(task, extra={"changed_fields": []}),
                 )
-        return entity_set_changed
+        return entity_set_changed, created_ids
 
     async def complete_task(
         self,

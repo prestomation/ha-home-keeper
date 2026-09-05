@@ -50,6 +50,9 @@ from .const import (
     SENSOR_CMP_LT,
     SENSOR_CMP_NE,
     SENSOR_COMBINATOR_ALL,
+    SENSOR_MODE_AVAILABILITY,
+    SENSOR_MODE_STATE,
+    SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_USAGE,
 )
 
@@ -59,6 +62,24 @@ ACTION_REBASELINE = "rebaseline"  # persist a new usage baseline (silent bookkee
 # Clear an armed threshold/state task because its condition recovered and the binding
 # opted into ``clear_on_recover``. The watcher applies it as a real completion.
 ACTION_CLEAR = "clear"
+
+
+# The modes whose decision needs carried edge state (was the condition true last
+# tick, when did it cross). ``usage`` is the odd one out: it compares the live
+# reading against a persisted ``baseline``, so it carries no edge at all.
+_EDGE_MODES = (SENSOR_MODE_THRESHOLD, SENSOR_MODE_STATE, SENSOR_MODE_AVAILABILITY)
+
+
+def holds_edge_state(mode: Any) -> bool:
+    """Whether a binding in *mode* carries rising-edge state between evaluations.
+
+    The watcher baselines that edge state on startup so an already-true condition
+    does not replay as a fresh crossing. A task made after the last baseline pass
+    must be left out of it, and this is the test that says which tasks have an edge
+    to leave out. An unknown mode reads as ``usage`` everywhere else, so it reads as
+    "no edge" here too.
+    """
+    return mode in _EDGE_MODES
 
 
 def sensor_config(task: dict[str, Any]) -> dict[str, Any] | None:
