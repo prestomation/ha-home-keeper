@@ -388,6 +388,14 @@
         "target": {
           "name": "Ziel",
           "description": "Benachrichtigungsdienste, an die gesendet wird, überschreibt das Profil (z. B. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Überschreibt den eigenen Status des Profils für diesen Aufruf: overdue (nur überfällige Aufgaben), due_soon (überfällige und bald fällige Aufgaben), all (alle geplanten Aufgaben) oder none (passt auf keine Aufgabe, um die Benachrichtigung „Alles erledigt“ auf Abruf zu senden)."
+        },
+        "when_empty": {
+          "name": "Wenn nichts passt",
+          "description": "Was ein Aufruf sendet, wenn der Filter auf keine Aufgabe passt. Standardmäßig ist es skip: es wird nichts gesendet. Setze es auf all_clear, um stattdessen die Benachrichtigung „Alles erledigt“ zu senden."
         }
       }
     },

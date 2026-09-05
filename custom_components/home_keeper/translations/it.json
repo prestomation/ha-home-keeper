@@ -388,6 +388,14 @@
         "target": {
           "name": "Destinazione",
           "description": "Servizi di notifica a cui inviare, sostituendo il profilo (es. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Stato",
+          "description": "Sostituisce lo stato del profilo per questa chiamata: overdue (solo attività scadute), due_soon (attività scadute e in scadenza), all (tutte le attività programmate) o none (non corrisponde a nessuna attività, per inviare la notifica Tutto in ordine su richiesta)."
+        },
+        "when_empty": {
+          "name": "Quando nulla corrisponde",
+          "description": "Cosa invia una chiamata se il filtro non corrisponde a nessuna attività. Il valore predefinito è skip: non viene inviato nulla. Impostalo su all_clear per inviare invece la notifica Tutto in ordine."
         }
       }
     },

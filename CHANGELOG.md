@@ -6,6 +6,20 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.21.0b2]
+
+### Added
+
+- **The Test button now always sends a notification.** The notification shows a task
+  when the Profile holds one, and says "All caught up" when the Profile holds none. A
+  second button beside Test sends whichever notification Test does not.
+
+### Changed
+
+- **A notification for a task that is not due soon now says how far off it is.** The
+  text read "Due soon." for every task ahead of its due date, including one months
+  away.
+
 ## [0.21.0b1]
 
 ### Added

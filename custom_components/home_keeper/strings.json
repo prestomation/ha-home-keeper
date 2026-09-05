@@ -388,6 +388,14 @@
         "target": {
           "name": "Target",
           "description": "Notify services to send to, overriding the profile. Must be companion-app services (e.g. mobile_app_phone) or persistent_notification."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Overrides the profile's own status for this call. Use overdue, due_soon or all to widen the filter. Use none to match no task, which sends the all-clear notification on demand."
+        },
+        "when_empty": {
+          "name": "When nothing matches",
+          "description": "What a call sends if the filter matches no task. Defaults to skip, so the call sends nothing. Set it to all_clear to send the all-clear notification instead."
         }
       }
     },

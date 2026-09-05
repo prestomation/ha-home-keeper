@@ -388,6 +388,14 @@
         "target": {
           "name": "Destino",
           "description": "Serviços de notificação para enviar, substituindo o perfil (ex.: mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Substitui o status do perfil para esta chamada: overdue (somente tarefas atrasadas), due_soon (tarefas atrasadas e próximas do prazo), all (todas as tarefas agendadas) ou none (não corresponde a nenhuma tarefa, para enviar a notificação Tudo em dia sob demanda)."
+        },
+        "when_empty": {
+          "name": "Quando nada corresponde",
+          "description": "O que uma chamada envia se o filtro não corresponder a nenhuma tarefa. Por padrão é skip: nada é enviado. Defina como all_clear para enviar a notificação Tudo em dia em vez disso."
         }
       }
     },

@@ -388,6 +388,14 @@
         "target": {
           "name": "Cíl",
           "description": "Služby oznámení, na které se má odeslat, přepisující profil (např. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Stav",
+          "description": "Přepisuje vlastní stav profilu pro toto volání: overdue (jen úkoly po termínu), due_soon (úkoly po termínu a blížící se termínu), all (všechny naplánované úkoly) nebo none (neodpovídá žádný úkol, pro odeslání oznámení Vše splněno na vyžádání)."
+        },
+        "when_empty": {
+          "name": "Když nic neodpovídá",
+          "description": "Co odešle volání, když filtr neodpovídá žádnému úkolu. Výchozí je skip: neodešle se nic. Nastavte jej na all_clear a odešlete oznámení Vše splněno."
         }
       }
     },

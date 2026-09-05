@@ -388,6 +388,14 @@
         "target": {
           "name": "Mål",
           "description": "Aviseringstjänster att skicka till, som åsidosätter profilen (t.ex. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Åsidosätter profilens egen status för det här anropet: overdue (endast försenade uppgifter), due_soon (försenade och snart förfallna uppgifter), all (alla schemalagda uppgifter) eller none (matchar ingen uppgift, för att skicka aviseringen Allt klart vid behov)."
+        },
+        "when_empty": {
+          "name": "När inget matchar",
+          "description": "Vad ett anrop skickar om filtret inte matchar någon uppgift. Som standard är det skip: inget skickas. Ställ in det på all_clear för att i stället skicka aviseringen Allt klart."
         }
       }
     },

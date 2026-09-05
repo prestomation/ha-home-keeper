@@ -388,6 +388,14 @@
         "target": {
           "name": "Cible",
           "description": "Services de notification à utiliser, remplaçant le profil (par ex. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Statut",
+          "description": "Remplace le statut du profil pour cet appel : overdue (uniquement les tâches en retard), due_soon (tâches en retard et bientôt dues), all (toutes les tâches planifiées) ou none (ne correspond à aucune tâche, pour envoyer la notification Tout est à jour à la demande)."
+        },
+        "when_empty": {
+          "name": "Quand rien ne correspond",
+          "description": "Ce qu’un appel envoie si le filtre ne correspond à aucune tâche. Par défaut, c’est skip : rien n’est envoyé. Réglez-le sur all_clear pour envoyer la notification Tout est à jour à la place."
         }
       }
     },

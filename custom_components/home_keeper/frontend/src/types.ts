@@ -359,6 +359,19 @@ export interface PanelInfo {
 }
 
 export type NotifyStatus = 'all' | 'overdue' | 'due_soon';
+/** The status vocabulary a single `home_keeper.notify` call may ask for. Wider than
+ *  `NotifyStatus` by `'none'`, which matches nothing on purpose and is how the panel
+ *  asks for the "All caught up" card on demand. It is service-only: `normalize_filter`
+ *  on the backend coerces a stored `'none'` back to `'overdue'`, so it must never
+ *  reach a saved profile — keep `NOTIFY_STATUSES` in `forms.ts` three-valued. */
+export type NotifyRunStatus = NotifyStatus | 'none';
+/** What a single `home_keeper.notify` call does when its filter matched no task. */
+export type NotifyWhenEmpty = 'skip' | 'all_clear';
+/** The per-call overrides `home_keeper.notify` accepts alongside a notification id. */
+export interface NotifyRunOptions {
+  status?: NotifyRunStatus;
+  when_empty?: NotifyWhenEmpty;
+}
 export type NotifyAction = 'complete' | 'snooze' | 'skip' | 'open';
 export type NotifyStyle = 'walk' | 'digest';
 /** How loudly a notification lands. Platform-neutral on purpose: the backend
@@ -370,7 +383,11 @@ export type NotifyUrgency = 'quiet' | 'normal' | 'high' | 'critical';
 export interface NotifyRun {
   /** How many tasks the filter matched. The service rejects a run with no target
    *  before it gets this far, so a non-zero count means a notification went out.
-   *  `matched: 0` is a success — the filter found nothing due — not a failure. */
+   *  `matched: 0` is a success — the filter found nothing due — not a failure.
+   *
+   *  Under `when_empty: 'all_clear'` it says *which* card went out rather than
+   *  whether one did: `matched > 0` is a task card, `matched: 0` is the "All caught
+   *  up" card. Something is delivered either way. */
   matched: number;
   /** The **task id** a walk surfaced, or `null` for a digest and for an empty queue.
    *  Not a count: reading it as one made every real delivery report "no task is due"

@@ -1048,7 +1048,12 @@ fields:
 
 Press **Test** on a notification to send it now. Home Keeper saves the notification
 first, then calls `home_keeper.notify` for it, so the phone receives the delivery the
-form shows. If no task is due, Home Keeper sends nothing and says so.
+form shows. Test always sends a notification. The notification shows a task when the
+Profile holds one. It says "All caught up" when the Profile holds none.
+
+A second button beside Test sends whichever notification Test does not. It reads
+**Test all clear** when the Profile holds a task. It reads **Test a task** and stays
+grey when the Profile holds none, because Home Keeper has no task to show.
 
 ### Channels and urgency
 
@@ -1103,12 +1108,18 @@ The `home_keeper.notify` service sends a notification from an automation. Set
 `target:` to override the destinations. The button actions fire events that other
 automations can use. See [Events & automations](#events--automations).
 
+Two more fields change one call. `status:` replaces the Profile's own status for that
+call, so `all` sends every task the Profile holds without a second Profile. `when_empty:
+all_clear` sends the "All caught up" card when no task matches. Home Keeper sends
+nothing in that condition by default.
+
 ### Automation examples
 
 Home Keeper sends a notification once. Use a Home Assistant automation to send it
 again until the task is complete. The `home_keeper.notify` service sends nothing when
-no task matches, so a schedule that runs all day costs nothing on a day with no due
-task. Build these automations in **Settings → Automations & scenes**.
+no task matches, unless the call sets `when_empty: all_clear`. A schedule that runs
+all day costs nothing on a day with no due task. Build these automations in
+**Settings → Automations & scenes**.
 
 **Repeat a notification every 2 hours.** This automation sends *Walk my chores*
 again every 2 hours between 08:00 and 21:00.
