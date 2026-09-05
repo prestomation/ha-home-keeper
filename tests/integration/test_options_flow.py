@@ -29,10 +29,10 @@ ENTRY_ID = "home_keeper_test_entry"
 # deliberately clears profiles and notifications so later tests start clean, and it
 # sorts ahead of this file.
 # The profile carries a to-do list sync, which is where that setting lives now —
-# there is no separate mirror key for the form to forget. Pointed at a list that does
+# there is no separate sync key for the form to forget. Pointed at a list that does
 # not exist on purpose: this test is about what a save keeps, and a live target would
-# have the mirror put the seeded tasks on a real to-do list and leave them there. An
-# unresolvable target logs once and mirrors nothing, which is exactly the inert seed
+# have the sync put the seeded tasks on a real to-do list and leave them there. An
+# unresolvable target logs once and syncs nothing, which is exactly the inert seed
 # this case wants.
 PROFILE = {
     "id": "options_flow_profile",

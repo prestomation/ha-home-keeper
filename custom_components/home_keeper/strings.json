@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Home Keeper options",
-        "description": "Mirror binary sensors with the \"problem\" device class as tasks. A synced task stays active while its sensor reports a problem and clears automatically when the source integration resolves it. It can't be completed in Home Keeper. Exclude specific sensors, devices, areas, or labels below.",
+        "description": "Sync binary sensors with the \"problem\" device class as tasks. A synced task stays active while its sensor reports a problem and clears automatically when the source integration resolves it. It can't be completed in Home Keeper. Exclude specific sensors, devices, areas, or labels below.",
         "data": {
           "sync_problem_sensors": "Sync problem sensors as tasks",
           "problem_sensor_exclude_entities": "Excluded sensors",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "A synced task clears only when the source integration resolves the problem, not when you tap Done. Reminders for one offer Snooze in place of Mark done.",
           "one_off_retention_days": "Auto-delete a completed one-off task this many days after it is completed. 0 keeps completed one-offs forever.",
-          "shopping_list_entity": "Mirror auto-buy reminders onto this to-do list. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the mirror off."
+          "shopping_list_entity": "Sync auto-buy reminders onto this to-do list. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the sync off."
         }
       }
     }
@@ -47,7 +47,7 @@
         },
         "recurrence_type": {
           "name": "Recurrence type",
-          "description": "floating (measured from completion), fixed (anchored schedule), or one-off (do-once, uses a due date)."
+          "description": "floating (measured from completion), fixed (anchored schedule), or one-off (do-once, uses a due date). Omit it and the type is inferred from the schedule fields you passed. A name on its own makes a one-off due today."
         },
         "interval": {
           "name": "Interval",
@@ -700,7 +700,7 @@
         },
         "shopping_list_entity": {
           "name": "Shopping list",
-          "description": "An existing to-do list to mirror auto-buy reminders onto. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the mirror off."
+          "description": "An existing to-do list to sync auto-buy reminders onto. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the sync off."
         },
         "dismissed_companions": {
           "name": "Dismissed companions",

@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.19.0b3]
+## [0.21.0b1]
 
 ### Added
 
@@ -15,6 +15,291 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   back in April rather than falling due in the snow. Add as many windows as the task
   needs (spring and fall on the same task) from the task form or the
   `home_keeper.add_task` action. (Fixes #242)
+
+## [0.20.0] - 2026-09-04
+
+### Added
+
+- **Duplicate a task from its detail page.** The create form opens already filled in
+  with a copy, so a row of near-identical tasks costs one edit each. A task another
+  integration owns keeps a greyed Duplicate that explains why, as does a buy task.
+  (Fixes #279)
+
+- **Give a notification its own channel and urgency.** A Medication notification can
+  then make a sound during Do Not Disturb while a Batteries notification stays silent.
+  Each notification also gets a **Test** button that sends it to the phone at once.
+  (Fixes #255)
+
+- **A Profile can filter tasks by the companion that created them.** One card or
+  notification then covers a single source. A task you make yourself is never selected
+  this way.
+
+- **The shopping-list line shows the amount to buy.** A part measured in a unit reads
+  "Buy fabric softener (500 ml)". The task keeps its own name in the panel and the
+  calendar and the notifications. (Fixes #220)
+
+- **A Profile can exclude the shopping tasks.** The new **Exclude shopping** switch
+  removes the auto-created buy tasks from the tasks that a Profile selects. It is off
+  by default, and an existing Profile is not changed.
+
+- **The Notifications page shows 3 worked automations.** One resends a notification
+  every 2 hours until the task is complete. Another sends a notification only when a
+  person is at home.
+
+### Changed
+
+- **Each Settings card shows its save status next to its name, in place of a pop-up
+  message.** The status reads *Saving…* and then *Saved*. A save that fails shows *Not
+  saved* on the card and also keeps the pop-up, which gives the reason.
+
+### Fixed
+
+- **Sending a task to a CalDAV to-do list (Nextcloud, Baikal, Radicale) no longer
+  creates a duplicate.** The duplicate was permanent: an edit afterward reached only
+  one copy, and a delete left the other behind on the server. The same timing could
+  also complete a recurring task twice and skip its next occurrence.
+
+- **A buy task is no longer shown as overdue work.** A task with no due date is due
+  immediately, so a buy task was shown in the Overdue section with the overdue
+  maintenance tasks. It now has a Shopping section of its own and reads **Low stock**
+  on every page.
+
+- **The Overdue filter no longer counts the shopping tasks.** In the panel and on the
+  dashboard card, Overdue now means late work only. Use the Shopping filter beside it
+  to see the buy tasks, which a Profile still selects as before.
+
+- **A copy of a task asks for the same details as the task it came from.** A task set
+  to require a note and a photo made a copy that asked only for a note.
+
+- **Settings no longer loses an edit when you go to the next row too soon.** Each row
+  in *Settings → Notifications* and *Settings → Profiles* saves a moment after you stop
+  typing. The first row showed Saved and then lost its value. (Fixes #255)
+
+- **The Shopping filter is kept after a page reload.** The task list changed back to
+  **All** each time the page was refreshed.
+
+## [0.20.0b6]
+
+### Added
+
+- **The shopping-list line shows the amount to buy.** A part measured in a unit reads
+  "Buy fabric softener (500 ml)", and a part that restocks more than 1 at a time reads
+  "Buy air filter (×2)". A part that restocks 1 whole spare is not changed, and the
+  task keeps its own name in the panel and the calendar and the notifications.
+  (Fixes #220)
+
+- **A Profile can exclude the shopping tasks.** The new **Exclude shopping** switch
+  removes the auto-created buy tasks from the tasks that a Profile selects. It is off
+  by default. An existing Profile is not changed.
+
+### Fixed
+
+- **A buy task is no longer shown as overdue work.** A task with no due date is due
+  immediately, so a buy task was shown in the Overdue section with the overdue
+  maintenance tasks. It now has a Shopping section of its own, in the panel and on the
+  dashboard card, and its status reads **Low stock**.
+
+- **The Shopping filter is kept after a page reload.** The task list changed back to
+  **All** each time the page was refreshed.
+
+## [0.20.0b5]
+
+### Changed
+
+- **Each Settings card now shows its save status next to its name, in place of a pop-up
+  message.** The status reads *Saving…* and then *Saved*. A save that fails shows *Not
+  saved* on the card and also keeps the pop-up, which gives the reason.
+
+### Fixed
+
+- **Settings no longer loses an edit when you go to the next row too soon.** Each row in
+  *Settings → Notifications* and *Settings → Profiles* saves a moment after you stop
+  typing. The first row showed Saved and then lost its value. (Fixes #255)
+
+- **The Test button now shows the correct result.** In *Settings → Notifications* it
+  said that no task was due after it sent the notification to the phone. (Fixes #255)
+
+## [0.20.0b4]
+
+### Added
+
+- **Profiles can filter by companion.** A profile now selects or rejects tasks by the
+  integration that created them. One card or notification can then cover a single
+  source, and a task you create yourself is never selected.
+
+## [0.20.0b3]
+
+### Added
+
+- **Give a notification its own channel and urgency.** In *Settings → Notifications* a
+  notification can use its own channel name and an urgency from *Quiet* to *Critical*.
+  A Medication notification can then make a sound during Do Not Disturb while a
+  Batteries notification stays silent. (Fixes #255)
+
+- **Send a notification now with Test.** Each notification in *Settings →
+  Notifications* has a **Test** button that delivers it to the phone at once. Use it to
+  check a channel or an urgency without a wait for a task to come due.
+
+- **The Notifications page shows 3 worked automations.** One resends a notification
+  every 2 hours until the task is complete. Another sends a notification only when a
+  person is at home.
+
+## [0.20.0b2]
+
+### Added
+
+- **Duplicate a task from its page.** The create form opens already filled in with a
+  copy, so a row of near-identical tasks costs one edit each rather than a full
+  re-entry. A task another integration owns keeps a greyed Duplicate that explains
+  why. (Fixes #279)
+
+## [0.20.0b1]
+
+### Fixed
+
+- **Sending a task to a CalDAV to-do list (Nextcloud, Baikal, Radicale) no longer
+  creates a duplicate.** The duplicate was permanent: editing the task afterward
+  updated only one copy and deleting it left the other behind on the server. The same
+  timing could also complete a recurring task twice and skip its next occurrence.
+
+## [0.19.0] - 2026-09-01
+
+### Added
+
+- **Home Keeper has a new look.** 0.19 is primarily a UI refresh.
+
+### Fixed
+
+- **Ready for Home Assistant 2026.9.** That release reshapes the device registry and
+  adds child devices, so Home Keeper reads both shapes and a task or appliance you
+  attached to a device still finds it after the upgrade. (Fixes #253)
+
+## [0.19.0b8]
+
+### Fixed
+
+- **The admin panel's dropdown menus (Profile, Group by, and similar filters) are
+  themed when open, not just when closed.** Their popup list previously fell back to
+  the browser's default grey-on-white, unreadable against a dark Home Assistant
+  theme.
+
+## [0.19.0b7]
+
+### Changed
+
+- **Websocket completion-editing errors now report the code `invalid_task` instead
+  of `not_allowed`.** Only the machine-readable code changes; the message shown to
+  the user is the same as before.
+
+### Fixed
+
+- **Completing a task from the panel now settles buy reminders.** The panel's own
+  completion path only refreshed, so a completed auto-buy task left its reminder
+  sitting there until the next reload. The service, button and to-do paths already
+  settled correctly.
+
+- **The `export_inventory` service now writes the CSV in your language.** The
+  service wrote English column headers while the panel's own export was already
+  localized.
+
+- **Deleting an appliance over the websocket now runs the same cleanup as the
+  service.** The websocket handler carried its own copy of the cleanup code and
+  could drift from the service's.
+
+## [0.19.0b6]
+
+### Changed
+
+- **The fields a recurrence choice reveals now sit under "Schedule details".** The
+  heading used to read "Because of the kind you picked", which described the form's
+  behaviour rather than naming the fields below it.
+
+### Fixed
+
+- **`home_keeper.add_task` works with just a name.** It needed a unit it never
+  defaulted, so the simplest call failed. A name on its own now creates a one-off due
+  today, and a call that passes a schedule still gets that schedule.
+
+- **Closing the edit drawer puts the keyboard back where it was.** Escape, Cancel and
+  the close button all left focus at the top of the page, so a keyboard reader who
+  opened a form and changed their mind had to tab back to where they were.
+
+- **Escape closes the drawer again after a delete you thought better of.** Opening the
+  delete confirmation took the drawer's Escape away and cancelling never gave it back,
+  which left the form with no keyboard way out for the rest of that edit.
+
+- **The task list's scope pills no longer answer to "Group by".** A screen reader
+  announced them with the same name as the Group by dropdown beside them, so the two
+  controls were impossible to tell apart. They are now "Show".
+
+- **Settings says what Profiles, Notifications and Companions hold when they hold
+  nothing.** All three rows went blank on a fresh install, which is the one moment the
+  answer matters most.
+
+- **A task kept in step with an appliance part or a synced sensor explains itself.**
+  Its page offered no Edit and no Delete and said nothing about why, so it read as a
+  surface that had failed to finish rendering.
+
+- **The phone tab bar no longer sits live under an open edit sheet.** Tapping through
+  the sheet's overlay switched tab and discarded the form without asking.
+
+## [0.19.0b5]
+
+### Changed
+
+- **One word for keeping Home Keeper in step with something outside it: sync.** The
+  panel, the options flow and the service descriptions said "mirror" in some places and
+  "sync" in others for the same feature. Every surface now says sync, in all sixteen
+  languages.
+
+- **The to-do list sync reports itself as `home_keeper_todo_sync`.** An automation
+  matching on the old `origin: home_keeper_todo_mirror` needs that one string updated.
+  Nothing else changes: the sync re-adopts the lines already on your list on its first
+  pass.
+
+## [0.19.0b4]
+
+### Fixed
+
+- **Dialogs have their titles back.** Completing a task or moving a completion date
+  opened a panel with nothing but a close button above it, so there was no way to tell
+  which task you were about to log. (Fixes #262)
+
+- **Buttons say how important they are again.** Done, Edit, Delete and Cancel had all
+  drifted into the same solid blue. Each action is drawn at its own weight now, and a
+  red fill appears only where you are asked to confirm a deletion.
+
+- **A device Home Assistant no longer knows shows nothing instead of its internal id.**
+  A task that outlived its device used to display a long string of letters and numbers
+  where the device name belongs.
+
+- **The "Managed by …" and "Connected" chips are readable again.** Both were drawn as
+  pale text on a mid-tone fill, below the contrast a label needs.
+
+- **The integration chips in a task row are quieter.** They were the loudest thing on
+  the line, which put the integration's name ahead of the task's own.
+
+- **A finished one-off looks finished however the list is grouped.** Only Group by
+  Status used to set it aside. Grouping by area left it mid-list, looking like work
+  still to do.
+
+- **Dates read like dates.** The panel showed "7/1/2026, 1:00:00 PM" for the date a
+  task was completed, and used a different format on each screen.
+
+## [0.19.0b3]
+
+### Changed
+
+- **Edit opens beside the page you pressed it on.** A task's or appliance's page now
+  stays on screen while its form is open, instead of being replaced by the list it came
+  from. On an appliance the list pane steps aside so the form is a second column rather
+  than a third.
+
+### Fixed
+
+- **Picking a Settings section no longer jumps to the top of the page first.** The rail
+  now moves its mark on the page already drawn, so the scroll to that section starts
+  from where you were reading.
 
 ## [0.19.0b2]
 

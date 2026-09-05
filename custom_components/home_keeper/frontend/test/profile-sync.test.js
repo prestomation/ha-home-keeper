@@ -108,6 +108,8 @@ describe('Settings tab — the profile sync group', () => {
     // competing place to configure the same thing.
     const { hass } = makeHass({ profiles: [SYNCED] });
     const panel = await mountSettings(hass);
+    // Historical ids from the standalone mirror card this feature replaced; the
+    // assertions guard against it coming back, so the old spellings stay.
     expect(panel.shadowRoot.querySelector('#hk-task-mirrors')).toBeNull();
     expect(panel.shadowRoot.querySelector('#hk-mirror-add')).toBeNull();
     const ids = [...panel.shadowRoot.querySelectorAll('ha-card')].map((c) => c.id);
@@ -122,7 +124,11 @@ describe('Settings tab — the profile sync group', () => {
     const panel = await mountSettings(hass);
     const body = rows(panel)[0].querySelector('.hk-item-body');
     const kinds = [...body.children].map((el) => el.className || el.tagName.toLowerCase());
-    expect(kinds).toEqual(['ha-form', 'hk-sync-group', 'hk-notify-delete']);
+    expect(kinds).toEqual(['ha-form', 'hk-sync-group', 'hk-item-actions']);
+    // Delete lives in that last footer row, and a profile has nothing beside it —
+    // Test is a notification action, so a profile row must not grow one.
+    const actions = body.querySelector('.hk-item-actions');
+    expect([...actions.children].map((el) => el.className)).toEqual(['hk-notify-delete']);
   });
 
   it('gives every profile its own group, and no Delete inside it', async () => {
@@ -148,7 +154,7 @@ describe('Settings tab — the profile sync group', () => {
       two_way: true,
       vanish_as_completed: true,
     });
-    // Mirroring Home Keeper's own list onto itself is a loop.
+    // Syncing Home Keeper's own list onto itself is a loop.
     const entityField = form.schema.find((f) => f.name === 'entity_id');
     expect(entityField.selector.entity.exclude_entities).toEqual(['todo.home_keeper_tasks']);
     // No profile picker: the group is already inside the profile it belongs to.

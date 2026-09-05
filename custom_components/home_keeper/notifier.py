@@ -85,9 +85,9 @@ def effective_filter_tasks(
     area labelled ``dog``). ``device_id`` is unchanged — a device filter matches the
     task's own device, like the frontend.
 
-    Public because the task mirror is the second consumer: ``task_mirror_sync``
+    Public because the to-do list sync is the second consumer: ``todo_list_sync``
     enriches through this same helper before planning, so a profile selects exactly
-    the same tasks for a mirrored to-do list as it does for a notification.
+    the same tasks for a synced to-do list as it does for a notification.
     """
     dev_reg = dr.async_get(hass)
     area_reg = ar.async_get(hass)
@@ -216,12 +216,19 @@ async def _send(
         hass, notification, queue, now=now, lang=lang
     )
     await _send_payload(hass, notification["targets"], payload)
+    # The payload itself, not only a summary of it: the ``data`` block is where the
+    # channel and the urgency live, and it is the only place a report of "the channel
+    # did nothing on my phone" can be settled. Home Keeper builds that block, the
+    # companion app reads it, and nothing in between is visible from here — so the log
+    # says exactly what left Home Assistant.
     _LOGGER.debug(
-        "Home Keeper sent %s notification %r (%d due, reason=%s)",
+        "Home Keeper sent %s notification %r to %s (%d due, reason=%s): %s",
         notification["style"],
         notification["name"],
+        notification["targets"],
         len(queue),
         reason,
+        payload,
     )
     return len(queue), sent_id
 

@@ -1,6 +1,6 @@
 import { t } from './i18n';
 import type { HassArea, HassDevice, RecurrenceType, Task } from './types';
-import { areaName, deviceName } from './utils';
+import { areaName, deviceName, groupableDeviceId, isBuyTask } from './utils';
 
 /**
  * Pure (DOM-free) filtering / sorting / grouping for the dashboard card. Kept
@@ -11,7 +11,15 @@ import { areaName, deviceName } from './utils';
 export type CardFilter = 'all' | 'overdue' | 'soon' | 'today' | 'no_due' | 'shopping';
 export type CardSort = 'due' | 'name' | 'recent' | 'area';
 export type CardGroupBy = 'none' | 'status' | 'area' | 'device';
-export type StatusBucket = 'overdue' | 'soon' | 'today' | 'later' | 'monitored' | 'none';
+export type StatusBucket =
+  | 'overdue'
+  | 'shopping'
+  | 'soon'
+  | 'today'
+  | 'later'
+  | 'monitored'
+  | 'completed'
+  | 'none';
 
 /** Lovelace config for `custom:home-keeper-card`. */
 export interface HomeKeeperCardConfig {
@@ -65,6 +73,15 @@ export interface HomeKeeperCardConfig {
   hide_when_empty?: boolean;
 }
 
+/**
+ * Whether *task* is one of Home Keeper's auto-created "Buy {part}" reminders.
+ *
+ * Defined in `utils.ts`, beside `isOverdue` and the `statusChipHtml` that reads both,
+ * and re-exported here so the pure list-shaping code keeps importing it from one
+ * place. See that definition for why both ids are required.
+ */
+export { isBuyTask };
+
 /** Tasks due within this many days (and not overdue) count as "due soon". */
 export const SOON_DAYS = 7;
 
@@ -75,7 +92,9 @@ export const SOON_DAYS = 7;
  * notification using that Profile does server-side. Keep the two in lockstep.
  */
 export const DUE_SOON_DAYS = 3;
-const DAY_MS = 86_400_000;
+
+/** One day in milliseconds — the unit every "due in N days" window is counted in. */
+export const DAY_MS = 86_400_000;
 
 /** End of the local calendar day containing `now` (23:59:59.999). */
 function endOfToday(now: number): number {
@@ -85,22 +104,50 @@ function endOfToday(now: number): number {
 }
 
 /**
- * Which status section a task belongs to. Extends the panel's bucketing
- * (overdue/soon/later/monitored/none) with an extra `today` section between
- * overdue and soon, and adds a NaN guard for malformed due dates.
+ * The two sections the card and the panel disagree about. Everything else —
+ * overdue / soon / later / monitored / none, and the NaN guard for a malformed due
+ * date — is common to both surfaces; these two are the per-surface product decision,
+ * and the defaults are the card's.
  */
-export function statusBucket(task: Task, now = Date.now()): StatusBucket {
-  // A dormant triggered/sensor task is "monitored" — armed-but-not-due.
+export interface StatusBucketOptions {
+  /** Give a task due before midnight its own `today` section, between overdue and
+   *  soon. The card does; the panel folds it into `soon`. Default true. */
+  today?: boolean;
+  /** Give a completed one-off (do-once, now dormant) its own `completed` section
+   *  rather than the generic `none`. The panel does; the card doesn't. Default false. */
+  completed?: boolean;
+}
+
+/** Which status section a task belongs to. See `StatusBucketOptions` for the two
+ *  sections that are a per-surface choice. */
+export function statusBucket(
+  task: Task,
+  now = Date.now(),
+  opts: StatusBucketOptions = {},
+): StatusBucket {
+  const { today = true, completed = false } = opts;
+  // A dormant triggered/sensor task is "monitored" — armed-but-not-due. An armed one
+  // (next_due set) flows through the normal overdue/soon/later logic below.
   if (
     (task.recurrence_type === 'triggered' || task.recurrence_type === 'sensor') &&
     !task.next_due
   )
     return 'monitored';
+  if (completed && task.recurrence_type === 'one-off' && !task.next_due && task.last_completed)
+    return 'completed';
   if (!task.next_due) return 'none';
   const due = new Date(task.next_due).getTime();
   if (Number.isNaN(due)) return 'none';
+  // An auto-created buy reminder gets its own section rather than joining the
+  // overdue pile. It is minted as a one-off with no due date, and a dateless
+  // one-off is due *now*, so it reads as overdue from the moment a part goes low
+  // — sitting beside genuinely late maintenance while nothing is actually late.
+  // Only the sections move: it still counts as overdue for the filter pills, the
+  // per-task binary sensors and any Profile, so no surface contradicts another.
+  // Below the `completed` check so a reminder that was bought still lands there.
+  if (isBuyTask(task)) return 'shopping';
   if (due <= now) return 'overdue';
-  if (due <= endOfToday(now)) return 'today';
+  if (today && due <= endOfToday(now)) return 'today';
   if (due - now <= SOON_DAYS * DAY_MS) return 'soon';
   return 'later';
 }
@@ -142,11 +189,19 @@ export interface ProfileFilter {
   labels: string[];
   areas: string[];
   devices: string[];
+  /** Integration domains from a task's `managed_by.integration` — the companion that
+   *  owns it. Scopes a profile to one source ("just the battery tasks") without every
+   *  companion having to learn to apply a label. */
+  companions?: string[];
   /** Ids that disqualify a task even when it cleared every include list above.
    *  Empty (or absent, on a profile saved before these existed) excludes nothing. */
   exclude_labels?: string[];
   exclude_areas?: string[];
   exclude_devices?: string[];
+  exclude_companions?: string[];
+  /** Drop the auto-created "Buy {part}" reminders. Excludes by *kind*, not by id:
+   *  a buy reminder has no label or area of its own to name. Absent means off. */
+  exclude_shopping?: boolean;
 }
 
 /**
@@ -176,6 +231,12 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  * "everything except the jobs that need a tradesperson" is one profile rather than a
  * label on every task that isn't one. They read the same effective ids, so excluding a
  * label also drops a task that only inherits it from its device or area.
+ * `exclude_shopping` subtracts beside them but by *kind*, dropping the auto-created
+ * buy reminders — they carry no id of their own, only the appliance's.
+ *
+ * `companions` scopes by the integration that owns a task (`managed_by.integration`),
+ * which is how "a card of just the battery tasks" stays one saved profile instead of a
+ * setting each companion has to grow.
  *
  * A `problem`-sensor-synced task is an ordinary member of the set. It carries a
  * `next_due` of the moment its sensor went bad while the problem stands, so it reads as
@@ -207,10 +268,19 @@ export function profileMatches(
   if (wantAreas.length && !listHas(wantAreas, areaId)) return false;
   const wantDevices = filter.devices ?? [];
   if (wantDevices.length && !listHas(wantDevices, task.device_id)) return false;
+  // The owning integration, from the `managed_by` block a companion sets on
+  // `add_task`. A task nobody claims has none, so `listHas` rejects it from a
+  // non-empty include list and spares it from every exclude list.
+  const companion = task.managed_by?.integration;
+  const wantCompanions = filter.companions ?? [];
+  if (wantCompanions.length && !listHas(wantCompanions, companion)) return false;
   // Exclusions subtract, and win over the include lists above.
   if (filter.exclude_labels?.some((id) => taskLabels.has(id))) return false;
   if (listHas(filter.exclude_areas, areaId)) return false;
-  return !listHas(filter.exclude_devices, task.device_id);
+  if (listHas(filter.exclude_devices, task.device_id)) return false;
+  // By kind rather than by id — a buy reminder has none of its own to name.
+  if (filter.exclude_shopping && isBuyTask(task)) return false;
+  return !listHas(filter.exclude_companions, companion);
 }
 
 function matchesLabels(
@@ -231,7 +301,12 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
   const dated = !Number.isNaN(due);
   switch (filter) {
     case 'overdue':
-      return dated && due <= now;
+      // Late work only. A buy reminder is overdue by the clock — dateless one-off,
+      // therefore due now — but `filter: shopping` is how a card asks for those, and a
+      // card set to `overdue` with `group_by: status` otherwise drew a Shopping section
+      // under an Overdue filter. Matches the panel's own Overdue pill: the two describe
+      // one idea and must not disagree about which tasks it holds.
+      return dated && due <= now && !isBuyTask(task);
     case 'soon':
       return statusBucket(task, now) === 'soon';
     case 'today':
@@ -240,7 +315,7 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
     case 'no_due':
       return !dated;
     case 'shopping':
-      return Boolean(task.source?.buy);
+      return isBuyTask(task);
     case 'all':
     default:
       return true;
@@ -325,16 +400,19 @@ export function sortTasks(
   return copy;
 }
 
-export interface Group {
+/** One bucket of rows rendered under a collapsible section header. Defaults to a
+ *  group of tasks — the panel groups appliances with the same primitive. */
+export interface Group<T = Task> {
   /** Stable key for remembering collapse state, e.g. "status:overdue". */
   key: string;
-  /** Section header text. */
+  /** Section header text; empty string renders the rows ungrouped. */
   label: string;
-  items: Task[];
+  items: T[];
 }
 
 const STATUS_ORDER: { bucket: StatusBucket; labelKey: string }[] = [
   { bucket: 'overdue', labelKey: 'chip.overdue' },
+  { bucket: 'shopping', labelKey: 'filter.shopping' },
   { bucket: 'today', labelKey: 'due.today' },
   { bucket: 'soon', labelKey: 'filter.soon' },
   { bucket: 'later', labelKey: 'section.later' },
@@ -372,7 +450,10 @@ export function groupTasks(
   if (groupBy === 'device') {
     return bucketByKey(
       tasks,
-      (task) => task.device_id ?? undefined,
+      // A device with no name to head a section with — gone from the registry, or
+      // present but nameless — sends its tasks to "No device" rather than under a bare
+      // id or an empty heading.
+      (task) => groupableDeviceId(devices, task.device_id),
       (id) => deviceName(devices, id),
       t('section.noDevice'),
       'device',
@@ -385,14 +466,20 @@ function capitalize(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
-function bucketByKey(
-  items: Task[],
-  keyOf: (task: Task) => string | undefined,
+/**
+ * Bucket items by a key, label each section, sort sections alphabetically and sink
+ * the "no key" fallback bucket to the bottom. Keys are namespaced by *prefix* so
+ * collapse state never collides between grouping modes. Generic over the item type:
+ * the card groups tasks, the panel also groups appliances.
+ */
+export function bucketByKey<T>(
+  items: T[],
+  keyOf: (item: T) => string | undefined,
   labelOf: (key: string) => string,
   fallbackLabel: string,
   prefix: string,
-): Group[] {
-  const buckets = new Map<string, Task[]>();
+): Group<T>[] {
+  const buckets = new Map<string, T[]>();
   for (const item of items) {
     const k = keyOf(item) || '';
     const arr = buckets.get(k);
@@ -400,7 +487,7 @@ function bucketByKey(
     else buckets.set(k, [item]);
   }
   const fallbackKey = `${prefix}:none`;
-  const groups: Group[] = [];
+  const groups: Group<T>[] = [];
   for (const [k, arr] of buckets) {
     groups.push({
       key: k ? `${prefix}:${k}` : fallbackKey,

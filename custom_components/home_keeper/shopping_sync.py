@@ -6,39 +6,22 @@ in ``shopping.py`` what to do about it, applies the answer with
 shopper's side of the loop — an item ticked off at the shop — back into the
 store as a completion. Same split as ``problem_tasks.py`` / ``problem_sync.py``.
 
-Three properties this module is responsible for:
-
-* **It never breaks its caller.** A pass runs off the back of a completion or a
-  stock adjustment; a shopping list that is unavailable, unloaded, or refuses
-  new items must cost nothing more than a log line. Every outbound call is
-  best-effort (the ``notifier`` precedent) and ``async_sync`` swallows whatever
-  reaches it.
-* **A failed call is retried, never compensated.** The planner hands back the
-  bookkeeping as it will read once every operation has succeeded; anything that
-  raised puts its entry back, so the next pass tries again. Dropping an entry
-  for a remove that never happened would orphan that line on the list forever.
-* **It reads a to-do list only when there is a reason to.** ``needs_pass``
-  answers "has Home Keeper drifted from what it mirrored" from memory alone, so
-  the many settles that change nothing cost no service calls. The surfaces that
-  watch for the shopper's side — the list's own state changes, and a periodic
-  sweep — ask for a full pass regardless, since that side is invisible from
-  here.
+The parts of that both to-do syncs do identically — the re-entrancy guard and
+pass budget in ``async_sync``, snapshotting lists, making a ``todo`` call that
+may not be supported, warning once — live in ``TodoSyncDriver``
+(``todo_sync_driver.py``), which also carries the three properties this module
+owes its callers. What stays here is what is particular to mirroring buy
+reminders: one configured target, a plan of add/tick-off/rename/remove, and a
+line ticked off at the shop meaning "bought".
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any, ClassVar
 
 from homeassistant.components.todo import TodoListEntityFeature
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import (
-    Event,
-    EventStateChangedData,
-    HomeAssistant,
-    callback,
-)
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -47,19 +30,9 @@ from .const import DOMAIN, OPTION_SHOPPING_LIST_ENTITY, ORIGIN_SHOPPING_LIST
 from .models import TaskValidationError
 from .options import current_options
 from .shopping import TODO_DOMAIN
-
-if TYPE_CHECKING:
-    from .coordinator import HomeKeeperCoordinator
+from .todo_sync_driver import TodoSyncDriver
 
 _LOGGER = logging.getLogger(__name__)
-
-_TODO_SERVICE_DOMAIN = "todo"
-
-# One pass can beget another: completing a reminder makes the reconciler retire
-# it, which the list then has to be told about. Two passes cover that; the extra
-# headroom absorbs our own writes echoing back through the list's state. The cap
-# is what guarantees the loop ends whatever the lists do.
-_MAX_PASSES = 4
 
 
 def own_todo_entity_ids(hass: HomeAssistant) -> list[str]:
@@ -78,35 +51,28 @@ def own_todo_entity_ids(hass: HomeAssistant) -> list[str]:
     )
 
 
-class ShoppingListSync:
+class ShoppingListSync(TodoSyncDriver):
     """Keeps an external to-do list in step with Home Keeper's buy reminders."""
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        entry: ConfigEntry,
-        coordinator: HomeKeeperCoordinator,
-    ) -> None:
-        self._hass = hass
-        self._entry = entry
-        self._coordinator = coordinator
-        self._running = False
-        self._pending = False
-        self._stopped = False
-        # Reasons already logged at warning level, so a permanently misconfigured
-        # target says its piece once instead of on every list edit.
-        self._warned: set[str] = set()
+    _logger: ClassVar[logging.Logger] = _LOGGER
+    _unsettled_warning: ClassVar[str] = (
+        "Home Keeper's shopping-list sync did not settle in %d passes; the list "
+        "may be out of step until the next change"
+    )
+    _failed_pass_message: ClassVar[str] = (
+        "Home Keeper shopping-list sync failed; it will retry on the next change"
+    )
+    _missing_list_warning: ClassVar[str] = (
+        "Home Keeper's shopping list %s does not exist; buy reminders are not "
+        "being mirrored"
+    )
+    _unavailable_list_debug: ClassVar[str] = "Shopping list %s is not available yet"
+    _unsupported_feature_warning: ClassVar[str] = (
+        "To-do list %s does not support %s, so Home Keeper cannot keep it fully "
+        "in step with its buy reminders"
+    )
 
     # ── lifecycle ────────────────────────────────────────────────────────────
-    async def async_initial_sync(self) -> None:
-        """Bring the mirror in step once Home Assistant has finished starting.
-
-        Deferred to the started event rather than run during setup: the list we
-        mirror onto belongs to another integration, which may not have set up
-        yet, and a target that reads as missing would have us do nothing.
-        """
-        await self.async_sync(force=True)
-
     @callback
     def async_start_listeners(self) -> None:
         """Watch the configured list so a tick-off at the shop reaches the store.
@@ -125,17 +91,6 @@ class ShoppingListSync:
             )
 
     @callback
-    def _async_stop(self) -> None:
-        self._stopped = True
-
-    @callback
-    def _handle_state_change(self, event: Event[EventStateChangedData]) -> None:
-        # A to-do entity's state is its outstanding-item count, so a tick-off
-        # always lands here. Our own writes echo back too; a settled pass emits
-        # nothing, and the re-entrancy guard folds the burst into one run.
-        self._hass.async_create_task(self.async_sync(force=True))
-
-    @callback
     def async_schedule_sweep(self) -> None:
         """Ask for a full pass off the coordinator's periodic tick.
 
@@ -149,52 +104,13 @@ class ShoppingListSync:
         self._hass.async_create_task(self.async_sync(force=True))
 
     # ── the pass ─────────────────────────────────────────────────────────────
-    async def async_sync(self, *, force: bool = False) -> None:
-        """Bring the mirror in step. Never raises.
-
-        *force* reads the lists even when Home Keeper's own state looks settled,
-        which is the only way to notice the shopper's side of the loop.
-        """
-        if self._running:
-            # Poked mid-pass — our own writes echoing back, or the reconciler
-            # settling. Fold it into the run already in flight instead of nesting.
-            self._pending = True
-            return
-        self._running = True
-        self._pending = False
-        try:
-            for attempt in range(_MAX_PASSES):
-                again = await self._sync_once(force=force or attempt > 0)
-                if not (again or self._pending):
-                    break
-                self._pending = False
-            else:
-                # The budget exists so the loop always ends, not because ending
-                # this way is fine: a converging mirror settles in two passes.
-                # Burning the whole budget means something is failing and
-                # retrying — say so, rather than exiting quietly and leaving the
-                # list stale with no trace of why.
-                _LOGGER.warning(
-                    "Home Keeper's shopping-list sync did not settle in %d passes; "
-                    "the list may be out of step until the next change",
-                    _MAX_PASSES,
-                )
-        except Exception:  # a broken list must never break a completion
-            _LOGGER.exception(
-                "Home Keeper shopping-list sync failed; it will retry on the next "
-                "change"
-            )
-        finally:
-            self._running = False
-            self._pending = False
-
     async def _sync_once(self, *, force: bool) -> bool:
         """One plan-and-apply pass. Returns True when another pass is warranted."""
         if self._stopped:
             return False
         store = self._coordinator.store
         tracked = store.get_shopping_items()
-        desired = shopping.buy_tasks_by_part(store.get_tasks())
+        desired = shopping.buy_tasks_by_part(store.get_tasks(), store.get_assets())
         target = self._resolve_target()
         if not force and not shopping.needs_pass(
             tracked=tracked, desired=desired, target=target
@@ -202,7 +118,8 @@ class ShoppingListSync:
             return False
 
         items_by_entity = await self._read_lists(
-            shopping.lists_to_read(tracked, target=target), target=target
+            shopping.lists_to_read(tracked, target=target),
+            targets={target} if target else set(),
         )
         if self._stopped:
             return False
@@ -269,61 +186,6 @@ class ShoppingListSync:
             return ""
         return target
 
-    async def _read_lists(
-        self, entity_ids: list[str], *, target: str
-    ) -> dict[str, list[dict[str, Any]]]:
-        """Snapshot each list we care about, skipping any we cannot see.
-
-        A list left out of the result is *unknown* to the planner, which then
-        plans nothing for it. That is what stops an unavailable shopping list
-        from reading as "the user emptied it".
-        """
-        snapshots: dict[str, list[dict[str, Any]]] = {}
-        for entity_id in entity_ids:
-            state = self._hass.states.get(entity_id)
-            # The two ways a list can be unreadable are not the same, and are
-            # deliberately logged differently. A target that does not exist is a
-            # misconfiguration the user has to fix, so it says so once, by name.
-            # A target that merely reads unavailable belongs to an integration
-            # that is temporarily down: Home Assistant already logs that, the
-            # next pass picks it up by itself, and warning here would fire on
-            # every restart where a cloud-backed list comes up after we do.
-            if state is None:
-                if entity_id == target:
-                    self._warn_once(
-                        f"missing:{entity_id}",
-                        "Home Keeper's shopping list %s does not exist; buy "
-                        "reminders are not being mirrored",
-                        entity_id,
-                    )
-                continue
-            if state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
-                _LOGGER.debug("Shopping list %s is not available yet", entity_id)
-                continue
-            try:
-                response = await self._hass.services.async_call(
-                    _TODO_SERVICE_DOMAIN,
-                    "get_items",
-                    {
-                        "entity_id": entity_id,
-                        "status": [
-                            shopping.STATUS_NEEDS_ACTION,
-                            shopping.STATUS_COMPLETED,
-                        ],
-                    },
-                    blocking=True,
-                    return_response=True,
-                )
-            except Exception as err:  # someone else's integration, someone else's bugs
-                _LOGGER.debug("Could not read to-do list %s: %s", entity_id, err)
-                continue
-            items = shopping.normalize_items(response, entity_id)
-            if items is None:
-                _LOGGER.debug("To-do list %s returned nothing readable", entity_id)
-                continue
-            snapshots[entity_id] = items
-        return snapshots
-
     # ── writing ──────────────────────────────────────────────────────────────
     async def _apply(
         self, plan: shopping.SyncPlan, *, before: dict[str, dict[str, Any]]
@@ -370,41 +232,3 @@ class ShoppingListSync:
             if not ok:
                 settled.pop(add.key, None)
         return settled
-
-    async def _call(
-        self,
-        entity_id: str,
-        feature: TodoListEntityFeature,
-        service: str,
-        data: dict[str, Any],
-    ) -> bool:
-        """Make one ``todo`` service call. Returns whether it landed."""
-        if not self._supports(entity_id, feature):
-            self._warn_once(
-                f"feature:{entity_id}:{service}",
-                "To-do list %s does not support %s, so Home Keeper cannot keep it "
-                "fully in step with its buy reminders",
-                entity_id,
-                service,
-            )
-            return False
-        try:
-            await self._hass.services.async_call(
-                _TODO_SERVICE_DOMAIN, service, data, blocking=True
-            )
-        except Exception as err:  # never break the completion that triggered us
-            _LOGGER.debug("todo.%s on %s failed: %s", service, entity_id, err)
-            return False
-        return True
-
-    def _supports(self, entity_id: str, feature: TodoListEntityFeature) -> bool:
-        state = self._hass.states.get(entity_id)
-        if state is None:
-            return False
-        return bool(int(state.attributes.get("supported_features") or 0) & feature)
-
-    def _warn_once(self, reason: str, message: str, *args: Any) -> None:
-        if reason in self._warned:
-            return
-        self._warned.add(reason)
-        _LOGGER.warning(message, *args)

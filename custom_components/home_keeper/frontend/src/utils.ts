@@ -54,6 +54,90 @@ export function safeFileHref(url: unknown): string {
   return isSafeImageUrl(url) ? escapeHTML(url) : '';
 }
 
+// ── Button weights ──────────────────────────────────────────────────────────
+/**
+ * The panel's four button weights, expressed in Home Assistant's own vocabulary.
+ *
+ * `ha-button` extends Web Awesome's `Button`, whose reactive attributes are
+ * `appearance` (`accent`/`filled`/`outlined`/`plain`) and `variant`
+ * (`brand`/`neutral`/`success`/`warning`/`danger`). **`raised` and `destructive` are
+ * not among them** — they are Material leftovers the element never reads, so a button
+ * carrying either renders at the default accent fill, exactly as a bare one does.
+ * That is why Done, Edit, Cancel and Delete all arrived at the same weight (#262):
+ * three quarters of the panel was asking for a weight in a language the button had
+ * stopped speaking. Ask in this one instead, and never re-introduce those two.
+ *
+ * Measured against the rendered pixels in the e2e container, on the default light
+ * theme's white card:
+ *
+ * | weight           | attributes                              | label vs its fill |
+ * | ---------------- | --------------------------------------- | ----------------- |
+ * | `primary`        | *(none — HA's default)*                 | 3.26:1 †          |
+ * | `secondary`      | `appearance=filled`                     | 6.02:1 ‡          |
+ * | `tertiary`       | `appearance=plain variant=neutral`      | 6.49:1            |
+ * | `danger`         | `appearance=plain variant=danger`       | 7.04:1            |
+ * | `danger-primary` | `variant=danger`                        | 4.59:1            |
+ *
+ * † Home Assistant's own filled-button pairing, used unchanged across HA itself.
+ * ‡ Only with the `[data-hk-weight="secondary"]::part(base)` ink override in `STYLES`
+ *   — HA's tonal label on its own tonal fill measures 2.85:1, which is what the
+ *   `.done-btn` rule was already working around one button at a time.
+ *
+ * `tertiary` is deliberately `neutral` rather than brand: `appearance="plain"` alone
+ * paints the label in the accent colour, which is 3.26:1 on a card and makes Cancel
+ * compete with the action beside it.
+ */
+export type BtnWeight = 'primary' | 'secondary' | 'tertiary' | 'danger' | 'danger-primary';
+
+/** Attribute set per weight. `primary` is the element's own default, so it adds none. */
+const BTN_ATTRS: Record<BtnWeight, Record<string, string>> = {
+  primary: {},
+  secondary: { appearance: 'filled' },
+  tertiary: { appearance: 'plain', variant: 'neutral' },
+  danger: { appearance: 'plain', variant: 'danger' },
+  'danger-primary': { variant: 'danger' },
+};
+
+/**
+ * Every attribute any weight can set, so re-weighting clears the previous one.
+ *
+ * Derived from the table rather than restated beside it: a hand-written list silently
+ * stops clearing an attribute the moment a weight adds one the list does not name, and
+ * the symptom is a button that keeps a colour from the weight it used to have.
+ */
+const BTN_ATTR_NAMES: readonly string[] = [
+  ...new Set(Object.values(BTN_ATTRS).flatMap((attrs) => Object.keys(attrs))),
+];
+
+/**
+ * The attributes for *weight*, as markup — `btnAttrs('tertiary')` →
+ * `appearance="plain" variant="neutral" data-hk-weight="tertiary"`.
+ *
+ * `data-hk-weight` is not decoration. It is what the tonal ink rule and the
+ * `button-weights` e2e guard select on, and it is the difference between "this button
+ * was given the primary weight" and "nobody thought about this button" — which, with
+ * `primary` spelled as the absence of attributes, are otherwise the same markup.
+ */
+export function btnAttrs(weight: BtnWeight): string {
+  const attrs = Object.entries(BTN_ATTRS[weight]).map(([k, v]) => `${k}="${v}"`);
+  attrs.push(`data-hk-weight="${weight}"`);
+  return attrs.join(' ');
+}
+
+/**
+ * Apply *weight* to an already-created `ha-button`, for the call sites that build
+ * their buttons with `createElement` rather than a template string. Idempotent:
+ * clears the attributes the new weight does not set, so a button can be re-weighted.
+ */
+export function setBtnWeight(el: Element, weight: BtnWeight): void {
+  const attrs = BTN_ATTRS[weight];
+  for (const name of BTN_ATTR_NAMES) {
+    if (name in attrs) el.setAttribute(name, attrs[name]);
+    else el.removeAttribute(name);
+  }
+  el.setAttribute('data-hk-weight', weight);
+}
+
 /**
  * A random UUID-v4 string for client-minted ids (document ids, working-copy entries).
  *
@@ -111,6 +195,44 @@ export async function copyText(value: string): Promise<boolean> {
   } finally {
     area.remove();
   }
+}
+
+/**
+ * Surface a transient message through Home Assistant's own toast.
+ *
+ * `composed` so the event escapes the shadow root it is fired in, `bubbles` so HA's
+ * listener further up the tree receives it. The panel and the card both need this and
+ * had a byte-identical copy each.
+ */
+export function toast(el: EventTarget, message: string): void {
+  el.dispatchEvent(
+    new CustomEvent('hass-notification', {
+      detail: { message },
+      bubbles: true,
+      composed: true,
+    }),
+  );
+}
+
+/**
+ * Send Home Assistant's SPA router to *path* — a device page, an integration page, the
+ * Home Keeper panel — without a full page load.
+ *
+ * Always a push (Back returns to where the user pressed) and always fired on `window`,
+ * because these are the navigations that *leave* the element behind: it may be
+ * unmounted by the time HA re-renders. The panel's own in-panel `_navigate` is a
+ * different thing — it fires from the panel element and can replace instead of push —
+ * so it stays there.
+ */
+export function navigateTo(path: string): void {
+  history.pushState(null, '', path);
+  window.dispatchEvent(
+    new CustomEvent('location-changed', {
+      detail: { replace: false },
+      bubbles: true,
+      composed: true,
+    }),
+  );
 }
 
 /** True when a triggered task is currently armed (due-now) vs dormant. */
@@ -180,8 +302,98 @@ export function readingUnit(
   return (state?.attributes?.unit_of_measurement as string | undefined) || '';
 }
 
-/** Human-readable summary of a task's recurrence rule. */
+// ── Dates and times, as a person would write them ───────────────────────────
+/**
+ * A date, in the viewer's language — "1 Jul 2026", not "7/1/2026".
+ *
+ * Absolute dates used to be formatted at each call site with a bare
+ * `toLocaleDateString()`/`toLocaleString()`, which gave the panel three different
+ * shapes on three surfaces, and none of them passed the language Home Assistant
+ * already knows, so a German user reading a German panel got US formatting.
+ */
+export function formatDate(value: string | Date | null | undefined, lang?: string): string {
+  const d = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(lang || undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
+ * A date and time, to the minute — "1 Jul 2026, 13:00".
+ *
+ * Deliberately no seconds. `toLocaleString()` renders "7/1/2026, 1:00:00 PM", and a
+ * completion is a thing a person did on an afternoon, not an event log line: the
+ * ":00" at the end is precision the panel does not have and nobody asked for.
+ */
+export function formatDateTime(value: string | Date | null | undefined, lang?: string): string {
+  const d = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(lang || undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/** "today" / "yesterday" / "N days ago" for a past date, counted in whole days. */
+export function relativeDay(d: Date, now: Date = new Date()): string {
+  const days = Math.round((now.getTime() - d.getTime()) / 86_400_000);
+  if (days <= 0) return t('due.today');
+  if (days === 1) return t('due.yesterday');
+  return tn('due.days_ago', days);
+}
+
+/**
+ * Format a cost in the instance's configured currency, falling back to the bare
+ * number when Home Assistant has no currency set — or names one `Intl` refuses.
+ */
+export function formatCost(hass: Hass | undefined, amount: number): string {
+  const currency = hass?.config?.currency;
+  const lang = hass?.language;
+  // Stryker disable next-line ConditionalExpression: equivalent — with no currency
+  // configured, `Intl.NumberFormat` with `style: 'currency'` throws, and the catch
+  // below returns the very bare number this guard skips ahead to.
+  if (currency) {
+    try {
+      return new Intl.NumberFormat(lang, { style: 'currency', currency }).format(amount);
+    } catch {
+      /* an unknown currency code — fall through to a bare number */
+    }
+  }
+  return String(amount);
+}
+
+/**
+ * Sentence-case *text*, leaving everything after the first character alone.
+ *
+ * Scripts without letter case (Chinese) are unaffected: `toUpperCase` is a no-op on
+ * a character that has no upper-case mapping.
+ */
+function sentenceCase(text: string): string {
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
+
+/**
+ * Human-readable summary of a task's recurrence rule, in sentence case.
+ *
+ * The strings underneath it are inconsistent by history rather than by design: the
+ * clock ones were written as embeddable fragments ("every 12 months after
+ * completion") and the sensor and status ones as standalone labels ("Every 300 h of
+ * use", "Monitored"). Every caller renders the result as the first words of a line —
+ * a task row's meta, the detail page's Recurrence row, the form's live preview — so
+ * the case is fixed here rather than in sixteen locale files, where it would have to
+ * be re-decided per language and could not be enforced.
+ */
 export function recurrenceSummary(task: Task): string {
+  return sentenceCase(recurrenceText(task));
+}
+
+function recurrenceText(task: Task): string {
   // A triggered task has no schedule — it is "monitored" and only due when its
   // owning integration arms it (e.g. Battery Notes when a battery goes low).
   if (task.recurrence_type === 'triggered') return t('recurrence.triggered');
@@ -246,6 +458,33 @@ export function recurrenceSummary(task: Task): string {
 export function isOverdue(task: Task, now: Date = new Date()): boolean {
   if (!task.next_due) return false;
   return new Date(task.next_due).getTime() <= now.getTime();
+}
+
+/**
+ * Whether *task* is one of Home Keeper's auto-created "Buy {part}" reminders.
+ *
+ * Both ids are required, mirroring the backend's `reconcile.buy_source`: the pair is
+ * what identifies the part being bought, and half of it identifies nothing. The two
+ * have to agree, because a Profile carrying `exclude_shopping` is matched in the
+ * browser for the panel and the card, and in Python for a notification — and
+ * `tests/fixtures/profile_filter_cases.json` holds them to it.
+ *
+ * The agreement is on a *missing* id, which is what the fixture pins and what the
+ * reconciler can actually produce. On an id present but **empty** the two part
+ * company: this asks for truthy, `buy_source` only for the key. Left alone rather
+ * than papered over, because nothing can reach it — the reconciler mints real uuids,
+ * and `models.build_task` is the only other way in. Worth knowing if that ever stops
+ * being true, since the divergence would show as a task one surface excludes and
+ * another does not.
+ *
+ * Lives here beside `isOverdue` because the two are read together: a buy reminder is
+ * *also* overdue, and every surface that draws a status has to know which of the two
+ * to say. `statusChipHtml` is that answer, and `card-filter.ts` re-exports this for
+ * the pure list-shaping code.
+ */
+export function isBuyTask(task: Task): boolean {
+  const buy = task.source?.buy;
+  return Boolean(buy && buy.asset_id && buy.part_id);
 }
 
 /**
@@ -318,15 +557,92 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
   return ago === 1 ? t('due.yesterday') : tn('due.days_ago', ago);
 }
 
-/** Resolve a device id to its display name using hass.devices. */
+/**
+ * The right-hand status pill for *task*, as it reads on every surface that draws one:
+ * the panel's list row and its detail page, an appliance's related-tasks list, and the
+ * dashboard card's row.
+ *
+ * One function on purpose. An auto-created buy reminder is minted as a one-off with no
+ * due date, and a dateless one-off is due *now* — so it is technically overdue from the
+ * moment a part goes low, and reading it as late work is what put "Overdue" beside
+ * genuinely late maintenance. Saying "Low stock" instead was written into two of the
+ * four renderers and missed in the other two, which left one task showing two different
+ * statuses depending on where you looked at it. A copy per surface is free to disagree,
+ * so there is no longer a copy per surface.
+ *
+ * Only the wording and the colour move. A buy reminder is still overdue to every filter
+ * pill, count, binary sensor and Profile, so no number changes.
+ *
+ * *elapsed* appends how overdue the task is ("3 days overdue") instead of a bare
+ * "Overdue". The panel's list row asks for it, where urgency has to read at a glance
+ * down a long list; the detail page and the card do not, having the date in view
+ * already. Whole elapsed days only, and only past a full day — a task overdue by hours
+ * reading "1 day overdue" would overstate it.
+ */
+export function statusChipHtml(
+  task: Task,
+  hass?: Hass,
+  opts: { elapsed?: boolean; now?: Date } = {},
+): string {
+  const now = opts.now ?? new Date();
+  const chip = (label: string, cls = '') =>
+    `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
+  // "Low stock" answers an *open* reminder. A reminder that was bought while the part
+  // stayed under its reorder point keeps its row — the reconciler only retires it once
+  // the stock is back up — and that row belongs to the Completed section, which is
+  // where `statusBucket` puts it by running its `completed` check ahead of its buy
+  // check. The pill runs them in the same order for the same reason: a row filed under
+  // Completed must not carry a chip arguing it is still outstanding.
+  const boughtAlready =
+    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  if (isBuyTask(task) && !boughtAlready) return chip(t('chip.lowStock'), 'hk-shopping');
+  if (!isOverdue(task, now)) return chip(dueLabel(task, now, hass));
+  const days = task.next_due
+    ? Math.floor((now.getTime() - new Date(task.next_due).getTime()) / 86_400_000)
+    : 0;
+  const label = opts.elapsed && days >= 1 ? tn('due.overdue_by', days) : t('chip.overdue');
+  return chip(label, 'hk-overdue');
+}
+
+/**
+ * Resolve a device id to its display name using `hass.devices`, or `''` when there is
+ * no name to show.
+ *
+ * It used to fall back to the id itself, which meant a task pointing at a device that
+ * had left the registry — a removed integration, a deleted device — rendered
+ * `5ff1f1bb41a19a763aa4ab750cd37c97` as its chip, cut mid-string by the chip's own
+ * border. The id is not a name in any language, and it made things worse than a blank:
+ * the four callers that read `asset.name || deviceName(…) || t('appliance.fallbackName')`
+ * could never reach the friendly fallback, because a raw id is truthy.
+ *
+ * Returning `''` puts the decision where the context is. Every caller either already
+ * guards on an empty string or now does.
+ */
 export function deviceName(
   devices: Record<string, { name?: string; name_by_user?: string | null }> | undefined,
   deviceId: string | null | undefined,
 ): string {
+  // Stryker disable next-line ConditionalExpression: equivalent — a falsy id looks up
+  // `undefined` in the map, which the `!dev` guard below turns into the same ''. The
+  // early return is for readers, not for behaviour.
   if (!deviceId) return '';
   const dev = devices?.[deviceId];
-  if (!dev) return deviceId;
-  return dev.name_by_user || dev.name || deviceId;
+  if (!dev) return '';
+  return dev.name_by_user || dev.name || '';
+}
+
+/**
+ * The device id to group *task* under, or `undefined` for the "No device" bucket.
+ *
+ * The test is whether the device can be **named**, not whether it is in the registry:
+ * a bucket is headed by its label, and a device that is present but nameless resolves
+ * to `''`, which would head a section with nothing at all.
+ */
+export function groupableDeviceId(
+  devices: Record<string, { name?: string; name_by_user?: string | null }> | undefined,
+  deviceId: string | null | undefined,
+): string | undefined {
+  return deviceId && deviceName(devices, deviceId) ? deviceId : undefined;
 }
 
 /** Resolve a device to its integration domain via the config-entry → domain map. */
@@ -376,6 +692,16 @@ export function tagName(
 ): string {
   if (!tagId) return '';
   return tags?.find((tag) => tag.value === tagId)?.label || tagId;
+}
+
+/**
+ * Resolve a `person` entity id to its friendly name, falling back to the id itself.
+ * Unlike `deviceName`, the fallback is deliberate: a completion's "who" is a name the
+ * history line is built around, so `person.sam` still says more there than a blank.
+ */
+export function personName(hass: Hass | undefined, entityId: string): string {
+  const friendly = hass?.states?.[entityId]?.attributes?.friendly_name;
+  return typeof friendly === 'string' && friendly ? friendly : entityId;
 }
 
 /**

@@ -26,7 +26,9 @@ add_task:
         (condition-driven, no schedule; an owning integration arms it via trigger_task
         and clears it via complete_task), or sensor (due-state derived from a bound
         entity, uses "sensor"). interval/unit/freq/anchor are N/A for one-off,
-        triggered, and sensor.
+        triggered, and sensor. Optional: omit it and the type is inferred from the
+        schedule fields you passed - interval/unit means floating, freq/anchor means
+        fixed, and neither means a one-off due today.
       selector:
         select:
           options:
@@ -1164,11 +1166,11 @@ set_options:
     Settings tab and the options flow). Only the fields you pass change. Controls
     whether device_class "problem" binary sensors are synced as tasks (with
     entity / device / area / label exclusions), how long completed one-off tasks
-    are kept, and which to-do list auto-buy reminders are mirrored onto.
+    are kept, and which to-do list auto-buy reminders are synced onto.
   fields:
     sync_problem_sensors:
       name: Sync problem sensors as tasks
-      description: Mirror every device_class "problem" binary sensor as a task.
+      description: Sync every device_class "problem" binary sensor as a task.
       selector:
         boolean:
     one_off_retention_days:
@@ -1185,9 +1187,9 @@ set_options:
     shopping_list_entity:
       name: Shopping list
       description: >-
-        An existing to-do list to mirror auto-buy reminders onto. Ticking an item
+        An existing to-do list to sync auto-buy reminders onto. Ticking an item
         off there completes the Home Keeper reminder and restocks the part. Leave
-        empty to turn the mirror off.
+        empty to turn the sync off.
       selector:
         entity:
           filter:

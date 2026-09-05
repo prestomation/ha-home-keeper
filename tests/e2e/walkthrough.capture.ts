@@ -36,7 +36,7 @@
 import { test, expect, Browser, Locator, Page } from '@playwright/test';
 import { resolve } from 'path';
 import { gotoTab, openPanel, openDashboard, openSettingsSection } from './tests/helpers';
-import { ASSET, TASK } from './fixture-ids';
+import { ASSET, PART, TASK } from './fixture-ids';
 import { DESKTOP, PHONE, Viewport } from './viewports';
 
 const OUT = process.env.VIDEO_DIR || '/tmp/home-keeper-video';
@@ -53,6 +53,59 @@ type Tour = {
   file: string;
   run: (page: Page, panel: Locator) => Promise<void>;
 };
+
+/**
+ * Turn on auto-buy for the water heater's anode rod, so the tour has a buy
+ * reminder to walk through. The seeded store has none.
+ *
+ * Mirrors `screenshots.capture.ts`: a part's attached file is upload-only, so the
+ * `update_asset` payload has to echo back only the fields the schema accepts. And
+ * enabling auto-buy on a part *already* at its reorder point crosses no threshold,
+ * so the stock is nudged up and back to make the crossing actually happen — the
+ * part ends on its seeded quantity either way.
+ */
+async function seedBuyReminder(page: Page): Promise<void> {
+  await page.evaluate(
+    async ({ ASSET: assetIds, PART: partIds }) => {
+      const hass = (document.querySelector('home-assistant') as unknown as {
+        hass: {
+          callWS: (msg: Record<string, unknown>) => Promise<Record<string, unknown>>;
+          callService: (d: string, s: string, data: Record<string, unknown>) => Promise<unknown>;
+        };
+      }).hass;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { assets } = (await hass.callWS({ type: 'home_keeper/get_assets' })) as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const heater = assets.find((a: any) => a.id === assetIds.waterHeater);
+      const WRITABLE = [
+        'id', 'name', 'part_number', 'type', 'vendor', 'cost', 'url', 'notes',
+        'replace_interval', 'replace_unit', 'last_replaced', 'stock', 'reorder_at',
+        'stock_unit', 'consume_quantity', 'create_buy_task', 'restock_quantity',
+      ];
+      await hass.callService('home_keeper', 'update_asset', {
+        asset_id: heater.id,
+        parts: heater.parts.map((p: Record<string, unknown>) => {
+          const out: Record<string, unknown> = {};
+          for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
+          if (p.id === partIds.anode) {
+            out.create_buy_task = true;
+            out.restock_quantity = 4;
+          }
+          return out;
+        }),
+      });
+      for (const delta of [1, -1]) {
+        await hass.callService('home_keeper', 'adjust_part_stock', {
+          asset_id: heater.id,
+          part_id: partIds.anode,
+          delta,
+        });
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    },
+    { ASSET, PART },
+  );
+}
 
 /**
  * Record one tour into a context of its own, and save it under a stable name.
@@ -82,19 +135,43 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // 1. Land on the admin panel — the task list with overdue / due-soon tasks and
   //    the first-run orientation banner.
   await openPanel(page);
-  await expect(panel.locator('.hk-intro')).toBeVisible();
-  await page.waitForTimeout(BEAT * 2);
-  await panel.locator('ha-button.hk-intro-dismiss').click();
-  await expect(panel.locator('.hk-intro')).toHaveCount(0);
+  // Show the banner and dismiss it *if it is there*, rather than requiring it.
+  //
+  // Dismissal persists in HA's per-user frontend store, so the first attempt spends
+  // it for the whole container — and a `toBeVisible()` here meant every Playwright
+  // retry died on step 1 before reaching whatever had actually gone wrong. One flaky
+  // beat later in the tour therefore read as three identical failures and burned the
+  // retries that exist to absorb it. The run that matters (a fresh container, which
+  // is what CI gives it) still lands on the banner and still lingers on it.
+  const intro = panel.locator('.hk-intro');
+  if (await intro.isVisible().catch(() => false)) {
+    await page.waitForTimeout(BEAT * 2);
+    await panel.locator('ha-button.hk-intro-dismiss').click();
+    await expect(intro).toHaveCount(0);
+  }
   // Let the list re-render/settle after the banner collapses before clicking into it.
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(BEAT);
 
-  // 1b. Shopping filter — show the filter bar's new Shopping pill, which isolates
-  //     auto-created buy tasks from the main task list.
+  // 1b. Put a part below its reorder point so there is a buy reminder to show. The
+  //     seed has none, and a Shopping pill filtering to "No tasks match this filter"
+  //     is a beat that shows nothing.
+  await seedBuyReminder(page);
+  await gotoTab(page, 'tasks');
+
+  // 1c. The Shopping section — a buy reminder has no due date of its own, so it
+  //     reads as due immediately. Rather than joining the overdue pile it gets its
+  //     own section, and a "Low stock" pill in place of the overdue one.
+  const shoppingSection = panel.locator('details.hk-group[data-bucket="shopping"]');
+  await expect(shoppingSection).toBeVisible();
+  await shoppingSection.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+
+  // 1d. Shopping filter — the same reminders on their own, for a shopping trip.
   const shoppingBtn = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="shopping"]');
   await shoppingBtn.scrollIntoViewIfNeeded();
   await shoppingBtn.click();
+  await expect(panel.locator('ha-card.hk-card')).not.toHaveCount(0);
   await page.waitForTimeout(BEAT * 2);
   const allBtn = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]');
   await allBtn.click();
@@ -136,6 +213,50 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // Cancel — the tour must leave the seeded note as it found it.
   await panel.locator('.d-note-cancel').click();
   await expect(panel.locator('.d-note-edit')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+
+  // 2a3. Edit opens beside the page rather than replacing it: the form slides in as a
+  //      column and the schedule, notes and history stay where they were. Cancel, so
+  //      the tour changes nothing here either.
+  await panel.locator('.d-edit').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+
+  // 2a4. Duplicate. Ten near-identical tasks — one per moisture sensor — used to mean
+  //      ten full trips through the form. Press Duplicate on a sensor task and the
+  //      create form opens already filled in, everything but the history, the tag and
+  //      the meter's starting reading, so the copy is a field or two from done. The
+  //      pause after the click is the point: the form fills itself in. Cancel, so the
+  //      tour leaves the seeded data as every later frame expects it.
+  //
+  //      A dormant usage task has no due date to sort by, so it lives in the collapsed
+  //      Monitored group. Open that first — the row exists either way, which is why a
+  //      plain click times out rather than failing on a missing locator.
+  const monitored = panel.locator('details.hk-group[data-group-key="status:monitored"]');
+  if (!(await monitored.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await monitored.locator('summary').click();
+    await page.waitForTimeout(BEAT);
+  }
+  await panel.locator(`.detail-open[data-detail-id="${TASK.nozzleUsage}"]`).click();
+  await expect(panel.locator('.d-dup')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  await panel.locator('.d-dup').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await panel
+    .locator('#hk-task-form ha-selector-text input')
+    .first()
+    .fill('Water the ferns');
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
   await panel.locator('#back-btn').click();
@@ -554,7 +675,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT * 2);
 
   // 6b. Settings → Profiles — a saved filter, and inside it the to-do list the
-  //     household already checks. A mirror *is* a profile: the same filter that
+  //     household already checks. A sync *is* a profile: the same filter that
   //     chooses the chores also says where they go, so the tour opens the profile
   //     and then its **Sync to a to-do list** group.
   //
@@ -580,6 +701,23 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
             two_way: true,
             vanish_as_completed: true,
           },
+        },
+      ],
+      // Seeded alongside the profile so step 7 has a notification to open. It
+      // carries a channel and a raised urgency, because an empty box beside a
+      // default choice shows the controls without showing what they are for.
+      notifications: [
+        {
+          id: 'walkthrough_chores_notify',
+          name: 'Walk my chores',
+          profile_id: 'walkthrough_family_chores',
+          targets: [],
+          actions: ['complete', 'snooze', 'open'],
+          style: 'walk',
+          channel: 'Chores',
+          urgency: 'high',
+          snooze_hours: 24,
+          auto: { overdue: true, due_soon: false },
         },
       ],
     });
@@ -627,8 +765,30 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     await page.waitForTimeout(BEAT * 2);
   }
 
+  // 7b. Notifications, opened rather than passed. How a notification lands on the
+  //     phone is set here — the channel it arrives on and how loudly — and Test
+  //     sends it now, so the answer comes back on the phone instead of at the next
+  //     due date. Guarded the same way as the profile row above: Home Assistant can
+  //     replace the panel element under the tour, and a fresh one folds every row.
+  await panel.locator('.hk-rail-link[data-section="notifications"]').click();
+  const notifyCard = panel.locator('#hk-notifications');
+  await expect(notifyCard).toBeVisible();
+  const notifyRow = notifyCard.locator('.hk-item-card').first();
+  const openNotifyRow = async (): Promise<void> => {
+    const header = notifyRow.locator('> .hk-item-header');
+    if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+    await expect(notifyRow.locator('.hk-item-body ha-form')).toBeVisible();
+  };
+  await openNotifyRow();
+  await page.waitForTimeout(BEAT * 2);
+  // The two delivery fields are below the fold of a long form, so frame them the way
+  // the sync group is framed rather than trusting the row's own top.
+  await openNotifyRow();
+  await notifyRow.locator('.hk-item-actions').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 3);
+
   // 8. The usage surfaces — the native to-do list and calendar, and beside them the
-  //    family's own list, now carrying the mirrored chores with their due dates.
+  //    family's own list, now carrying the synced chores with their due dates.
   await openDashboard(page);
   await page.waitForTimeout(BEAT * 2);
   const familyCard = page
@@ -640,7 +800,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   ).toBeVisible({ timeout: 40_000 });
   await expect(familyCard).toContainText('Family chores');
   // Framed on purpose rather than left to the masonry layout: the column order
-  // reflows with the cards' heights, and the mirrored chores change those, so which
+  // reflows with the cards' heights, and the synced chores change those, so which
   // cards the closing shot happens to hold is otherwise luck. `scroll-margin-top`
   // does the framing, because a plain scroll-to-top tucks the card's own "Family
   // chores" heading under Home Assistant's sticky bar — and that heading is what

@@ -43,6 +43,11 @@ _PURE_MODULES = (
     "events",
     "transitions",
     "reconcile",
+    # ``todo_items`` holds the item-matching helpers both to-do syncs share, so it
+    # comes before the two planners that import it (``shopping``/``todo_list``): a
+    # module first pulled in by a sibling and then re-executed here would leave two
+    # copies of it loaded, one of them nobody's tests can reach.
+    "todo_items",
     "shopping",
     "problem_tasks",
     "sensor_tasks",
@@ -56,11 +61,11 @@ _PURE_MODULES = (
     # ``device_compat`` imports Home Assistant only under ``TYPE_CHECKING``, so the
     # two device-registry shapes it reconciles are testable here with plain fakes.
     "device_compat",
-    # Keep ``task_mirror`` after the siblings it imports (shopping/profiles/
+    # Keep ``todo_list`` after the siblings it imports (shopping/profiles/
     # reconcile/transitions) and before ``options``, which imports *it*: a module
     # first pulled in by a sibling and then re-executed here would leave two
     # copies of it loaded, one of them nobody's tests can reach.
-    "task_mirror",
+    "todo_list",
     # ``options`` imports Home Assistant only under ``TYPE_CHECKING``, so the merge
     # and normalization rules every write path shares are testable here. Keep it
     # after the siblings it does ``from . import`` (notifications/profiles/shopping).

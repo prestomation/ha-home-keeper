@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
@@ -67,6 +68,13 @@ _STOCK_EVENT = {
 }
 
 _LOGGER = logging.getLogger(__name__)
+
+# One edit to an already-loaded asset, as ``_mutate_asset`` runs it. Returning
+# ``_UNCHANGED`` means the operation decided there was nothing to do, so the asset is
+# neither saved nor announced — distinct from ``None``, which several of the ``assets``
+# helpers use to mean "no such sub-record", an error rather than a no-op.
+_AssetOp = Callable[[dict[str, Any]], Awaitable[Any]]
+_UNCHANGED: Final = object()
 
 
 def _task_owns_entities(task: dict[str, Any]) -> bool:
@@ -149,21 +157,22 @@ class HomeKeeperStore:
         # being deleted — the moment the mirror most needs it, since that is when
         # the item has to come off the list. See ``get_shopping_items``.
         self._shopping_items: dict[str, dict[str, Any]] = {}
-        # Which item on which external to-do list mirrors which task, for which
-        # mirror (``task_mirror.mirror_key(mirror_id, task_id) -> {entity_id, uid,
-        # summary, due, last_completed}``). Keyed per *mirror* rather than per task
-        # because two mirrors can hold the same task on two different lists, and one
-        # entry could not describe both. Bookkeeping for ``task_mirror_sync.py``,
+        # Which item on which external to-do list stands for which task, for which
+        # profile (``todo_list.sync_key(profile_id, task_id) -> {entity_id, uid,
+        # summary, due, last_completed, added_at}``). Keyed per *profile* rather than
+        # per task
+        # because two syncs can hold the same task on two different lists, and one
+        # entry could not describe both. Bookkeeping for ``todo_list_sync.py``,
         # kept out of the task for the same reason as the shopping map: the moment
-        # it matters most is after the task — or the mirror — is deleted, since that
-        # is when the item has to come off the list. See ``get_task_mirror_items``.
-        self._task_mirror_items: dict[str, dict[str, Any]] = {}
+        # it matters most is after the task — or the sync — is deleted, since that
+        # is when the item has to come off the list. See ``get_todo_list_items``.
+        self._todo_list_items: dict[str, dict[str, Any]] = {}
 
     async def load(self) -> None:
         """Load tasks and assets from disk (no-op safe on first run).
 
         The ``assets``, ``problem_notes``, ``shopping_items`` and
-        ``task_mirror_items`` keys are additive — documents written before they
+        ``todo_list_items`` keys are additive — documents written before they
         existed simply lack them, so we default to empty without a storage
         migration.
         """
@@ -184,10 +193,10 @@ class HomeKeeperStore:
             self._shopping_items = data["shopping_items"]
         else:
             self._shopping_items = {}
-        if data and isinstance(data.get("task_mirror_items"), dict):
-            self._task_mirror_items = data["task_mirror_items"]
+        if data and isinstance(data.get("todo_list_items"), dict):
+            self._todo_list_items = data["todo_list_items"]
         else:
-            self._task_mirror_items = {}
+            self._todo_list_items = {}
         # Additive migrations (no storage-version bump): fold a legacy
         # ``part_numbers`` string into structured ``parts`` and drop links to
         # assets that no longer exist.
@@ -209,7 +218,7 @@ class HomeKeeperStore:
                 "assets": self._assets,
                 "problem_notes": self._problem_notes,
                 "shopping_items": self._shopping_items,
-                "task_mirror_items": self._task_mirror_items,
+                "todo_list_items": self._todo_list_items,
             }
         )
 
@@ -229,7 +238,7 @@ class HomeKeeperStore:
         self._assets = {}
         self._problem_notes = {}
         self._shopping_items = {}
-        self._task_mirror_items = {}
+        self._todo_list_items = {}
 
     # ── reads ────────────────────────────────────────────────────────────────
     def get_tasks(self) -> dict[str, dict[str, Any]]:
@@ -259,27 +268,25 @@ class HomeKeeperStore:
         await self._save()
         return True
 
-    def get_task_mirror_items(self) -> dict[str, dict[str, Any]]:
-        """The task mirrors' bookkeeping (see ``task_mirror_sync.py``)."""
-        return self._task_mirror_items
+    def get_todo_list_items(self) -> dict[str, dict[str, Any]]:
+        """The to-do list syncs' bookkeeping (see ``todo_list_sync.py``)."""
+        return self._todo_list_items
 
-    async def async_set_task_mirror_items(
-        self, items: dict[str, dict[str, Any]]
-    ) -> bool:
-        """Replace the task-mirror bookkeeping; persists only on a real change.
+    async def async_set_todo_list_items(self, items: dict[str, dict[str, Any]]) -> bool:
+        """Replace the todo-list-sync bookkeeping; persists only on a real change.
 
         Fires no event, for the same reason as ``async_set_shopping_items``: this
         records which line on somebody else's to-do list stands for which task on
-        which mirror, not a Home Keeper state change anyone can act on — the task's
+        which profile, not a Home Keeper state change anyone can act on — the task's
         own created/completed/deleted events already say everything observable.
 
         The unchanged check is not an optimization detail: a pass runs on every task
-        mutation and every edit to a mirrored list, and most of them settle to
+        mutation and every edit to a synced list, and most of them settle to
         exactly what was already stored.
         """
-        if items == self._task_mirror_items:
+        if items == self._todo_list_items:
             return False
-        self._task_mirror_items = items
+        self._todo_list_items = items
         await self._save()
         return True
 
@@ -395,7 +402,7 @@ class HomeKeeperStore:
             asset = self._assets.get(asset_id)
             if asset is None:
                 raise models.TaskValidationError(f"unknown asset: {asset_id!r}")
-            if not any(p.get("id") == part_id for p in asset.get("parts", [])):
+            if assets.find_part(asset, part_id) is None:
                 raise models.TaskValidationError(
                     f"asset {asset_id!r} has no part {part_id!r}"
                 )
@@ -690,6 +697,31 @@ class HomeKeeperStore:
             )
         return merged
 
+    async def _mutate_asset(
+        self, asset_id: str, op: _AssetOp, *, changed_field: str
+    ) -> Any:
+        """Run *op* against an asset, then persist and announce the change.
+
+        The documents/part-file editors all share one shape: find the asset (or
+        ``KeyError`` on its id), hand it to an ``assets`` helper, save, and fire
+        ``home_keeper_asset_updated`` naming the field that changed. *op* owns the
+        middle — raising ``KeyError`` itself for a sub-record it can't find, and
+        returning what its own caller returns (an entry, or the asset). Returning
+        :data:`_UNCHANGED` hands the asset back with no save and no event.
+        """
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise KeyError(asset_id)
+        result = await op(asset)
+        if result is _UNCHANGED:
+            return asset
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_ASSET_UPDATED,
+            events.asset_event_data(asset, extra={"changed_fields": [changed_field]}),
+        )
+        return result
+
     async def add_asset_document(
         self, asset_id: str, document: dict[str, Any]
     ) -> dict[str, Any]:
@@ -700,18 +732,13 @@ class HomeKeeperStore:
         Raises ``KeyError`` for an unknown asset and ``AssetValidationError`` for an
         invalid document.
         """
-        asset = self._assets.get(asset_id)
-        if asset is None:
-            raise KeyError(asset_id)
-        entry = assets.append_document(
-            asset, document, created=dt_util.now().isoformat()
-        )
-        await self._save()
-        self._hass.bus.async_fire(
-            EVENT_ASSET_UPDATED,
-            events.asset_event_data(asset, extra={"changed_fields": ["documents"]}),
-        )
-        return entry
+
+        async def append(asset: dict[str, Any]) -> dict[str, Any]:
+            return assets.append_document(
+                asset, document, created=dt_util.now().isoformat()
+            )
+
+        return await self._mutate_asset(asset_id, append, changed_field="documents")
 
     async def remove_asset_document(
         self, asset_id: str, document_id: str
@@ -721,24 +748,20 @@ class HomeKeeperStore:
         Returns the updated asset. Raises ``KeyError`` for an unknown asset or
         document. Fires ``home_keeper_asset_updated`` with documents in changed_fields.
         """
-        from . import manuals  # lazy: manuals -> devices imports would cycle at load
 
-        asset = self._assets.get(asset_id)
-        if asset is None:
-            raise KeyError(asset_id)
-        removed = assets.remove_document(asset, document_id)
-        if removed is None:
-            raise KeyError(document_id)
-        if removed.get("kind") == "file" and removed.get("filename"):
-            await manuals.async_delete_document(
-                self._hass, asset_id, document_id, removed["filename"]
-            )
-        await self._save()
-        self._hass.bus.async_fire(
-            EVENT_ASSET_UPDATED,
-            events.asset_event_data(asset, extra={"changed_fields": ["documents"]}),
-        )
-        return asset
+        async def remove(asset: dict[str, Any]) -> dict[str, Any]:
+            from . import manuals  # lazy: manuals -> devices would cycle at load
+
+            removed = assets.remove_document(asset, document_id)
+            if removed is None:
+                raise KeyError(document_id)
+            if removed.get("kind") == "file" and removed.get("filename"):
+                await manuals.async_delete_document(
+                    self._hass, asset_id, document_id, removed["filename"]
+                )
+            return asset
+
+        return await self._mutate_asset(asset_id, remove, changed_field="documents")
 
     async def update_asset_document(
         self, asset_id: str, document_id: str, changes: dict[str, Any]
@@ -749,18 +772,14 @@ class HomeKeeperStore:
         ``AssetValidationError`` for invalid changes. Fires
         ``home_keeper_asset_updated`` (changed_fields: ``["documents"]``).
         """
-        asset = self._assets.get(asset_id)
-        if asset is None:
-            raise KeyError(asset_id)
-        entry = assets.update_document(asset, document_id, changes)
-        if entry is None:
-            raise KeyError(document_id)
-        await self._save()
-        self._hass.bus.async_fire(
-            EVENT_ASSET_UPDATED,
-            events.asset_event_data(asset, extra={"changed_fields": ["documents"]}),
-        )
-        return entry
+
+        async def update(asset: dict[str, Any]) -> dict[str, Any]:
+            entry = assets.update_document(asset, document_id, changes)
+            if entry is None:
+                raise KeyError(document_id)
+            return entry
+
+        return await self._mutate_asset(asset_id, update, changed_field="documents")
 
     async def set_part_file(
         self, asset_id: str, part_id: str, file_meta: dict[str, Any]
@@ -772,18 +791,14 @@ class HomeKeeperStore:
         for an unknown asset or part. Fires ``home_keeper_asset_updated`` with
         ``changed_fields=["parts"]``.
         """
-        asset = self._assets.get(asset_id)
-        if asset is None:
-            raise KeyError(asset_id)
-        updated = assets.set_part_file(asset, part_id, file_meta)
-        if updated is None:
-            raise KeyError(part_id)
-        await self._save()
-        self._hass.bus.async_fire(
-            EVENT_ASSET_UPDATED,
-            events.asset_event_data(asset, extra={"changed_fields": ["parts"]}),
-        )
-        return updated
+
+        async def attach(asset: dict[str, Any]) -> dict[str, Any]:
+            updated = assets.set_part_file(asset, part_id, file_meta)
+            if updated is None:
+                raise KeyError(part_id)
+            return updated
+
+        return await self._mutate_asset(asset_id, attach, changed_field="parts")
 
     async def remove_part_file(self, asset_id: str, part_id: str) -> dict[str, Any]:
         """Detach a part's file; delete its on-disk blob if it had one.
@@ -793,26 +808,22 @@ class HomeKeeperStore:
         Otherwise fires ``home_keeper_asset_updated`` with
         ``changed_fields=["parts"]``.
         """
-        from . import manuals  # lazy: manuals -> devices imports would cycle at load
 
-        asset = self._assets.get(asset_id)
-        if asset is None:
-            raise KeyError(asset_id)
-        if not any(p.get("id") == part_id for p in asset.get("parts", [])):
-            raise KeyError(part_id)
-        removed = assets.clear_part_file(asset, part_id)
-        if removed is None:
+        async def detach(asset: dict[str, Any]) -> Any:
+            from . import manuals  # lazy: manuals -> devices would cycle at load
+
+            if assets.find_part(asset, part_id) is None:
+                raise KeyError(part_id)
+            removed = assets.clear_part_file(asset, part_id)
+            if removed is None:
+                return _UNCHANGED  # already fileless — idempotent, nothing to announce
+            if removed.get("filename"):
+                await manuals.async_delete_part_file(
+                    self._hass, asset_id, part_id, removed["filename"]
+                )
             return asset
-        if removed.get("filename"):
-            await manuals.async_delete_part_file(
-                self._hass, asset_id, part_id, removed["filename"]
-            )
-        await self._save()
-        self._hass.bus.async_fire(
-            EVENT_ASSET_UPDATED,
-            events.asset_event_data(asset, extra={"changed_fields": ["parts"]}),
-        )
-        return asset
+
+        return await self._mutate_asset(asset_id, detach, changed_field="parts")
 
     def _validate_parent(
         self, asset_id: str | None, parent_asset_id: str | None
@@ -1587,14 +1598,14 @@ class HomeKeeperStore:
             if hasattr(when, "date")
             else str(when)[:10]
         )
-        for part in asset.get("parts", []):
-            if part.get("id") == src.get("part_id"):
-                part["last_replaced"] = when_date
-                # Completing a wear-part replacement consumes the part's per-use
-                # amount (one whole spare unless it says otherwise); signal a
-                # low/out-of-stock crossing so users can automate a reorder.
-                self._emit_stock_event(assets.consume_part_stock(part), asset, part)
-                break
+        part_id = src.get("part_id")
+        part = assets.find_part(asset, part_id) if part_id is not None else None
+        if part is not None:
+            part["last_replaced"] = when_date
+            # Completing a wear-part replacement consumes the part's per-use amount
+            # (one whole spare unless it says otherwise); signal a low/out-of-stock
+            # crossing so users can automate a reorder.
+            self._emit_stock_event(assets.consume_part_stock(part), asset, part)
 
     def _stamp_buy_restock(self, task: dict[str, Any]) -> None:
         """On completing an auto-created buy task, restock its part.
@@ -1612,11 +1623,11 @@ class HomeKeeperStore:
         asset = self._assets.get(src["asset_id"])
         if not asset:
             return
-        for part in asset.get("parts", []):
-            if part.get("id") == src.get("part_id"):
-                qty = assets.part_restock_quantity(part)
-                self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
-                break
+        part_id = src.get("part_id")
+        part = assets.find_part(asset, part_id) if part_id is not None else None
+        if part is not None:
+            qty = assets.part_restock_quantity(part)
+            self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
 
     def _emit_stock_event(
         self, transition: str, asset: dict[str, Any], part: dict[str, Any]
@@ -1650,10 +1661,10 @@ class HomeKeeperStore:
         asset = self._assets.get(asset_id)
         if asset is None:
             raise KeyError(asset_id)
-        for part in asset.get("parts", []):
-            if part.get("id") == part_id:
-                transition = assets.adjust_part_stock(part, delta)
-                await self._save()
-                self._emit_stock_event(transition, asset, part)
-                return asset
-        raise KeyError(part_id)
+        part = assets.find_part(asset, part_id)
+        if part is None:
+            raise KeyError(part_id)
+        transition = assets.adjust_part_stock(part, delta)
+        await self._save()
+        self._emit_stock_event(transition, asset, part)
+        return asset

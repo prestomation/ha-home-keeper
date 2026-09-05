@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Opzioni di Home Keeper",
-        "description": "Rispecchia i sensori binari con classe dispositivo «problema» come attività. Un'attività sincronizzata resta attiva finché il sensore segnala un problema e si azzera automaticamente quando l'integrazione di origine lo risolve; non può essere completata in Home Keeper. Escludi sotto sensori, aree o etichette specifici.",
+        "description": "Sincronizza i sensori binari con classe dispositivo «problema» come attività. Un'attività sincronizzata resta attiva finché il sensore segnala un problema e si azzera automaticamente quando l'integrazione di origine lo risolve; non può essere completata in Home Keeper. Escludi sotto sensori, aree o etichette specifici.",
         "data": {
           "sync_problem_sensors": "Sincronizza i sensori di problema come attività",
           "problem_sensor_exclude_entities": "Sensori esclusi",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "Un'attività sincronizzata si chiude solo quando l'integrazione di origine risolve il problema, non toccando Fatto. I suoi promemoria offrono Posticipa invece di Fatto.",
           "one_off_retention_days": "Elimina automaticamente un'attività singola completata dopo questo numero di giorni dal suo completamento. 0 conserva le attività singole completate per sempre.",
-          "shopping_list_entity": "Rispecchia i promemoria di acquisto automatico su questa lista attività. Spuntare una voce lì completa il promemoria di Home Keeper e ripristina la scorta del ricambio. Lascia vuoto per disattivare."
+          "shopping_list_entity": "Sincronizza i promemoria di acquisto automatico con questa lista attività. Spuntare una voce lì completa il promemoria di Home Keeper e ripristina la scorta del ricambio. Lascia vuoto per disattivare."
         }
       }
     }
@@ -612,7 +612,7 @@
         },
         "shopping_list_entity": {
           "name": "Lista della spesa",
-          "description": "Una lista attività esistente su cui rispecchiare i promemoria di acquisto automatico. Spuntare una voce lì completa il promemoria e ripristina la scorta. Un campo vuoto disattiva la funzione."
+          "description": "Una lista attività esistente con cui sincronizzare i promemoria di acquisto automatico. Spuntare una voce lì completa il promemoria e ripristina la scorta. Un campo vuoto disattiva la funzione."
         },
         "dismissed_companions": {
           "name": "Companion ignorati",

@@ -3,9 +3,9 @@
 The to-do entity is a thin projection over the task store, but it imports Home
 Assistant (``TodoItem``/``CoordinatorEntity``/``dt_util``). Like ``test_calendar.py``
 we load ``todo.py`` under the synthetic ``hk`` package used by the other pure unit
-tests (see ``tests/conftest.py``), stubbing only the HA symbols it references, and
-drive it against an in-memory coordinator/store. The real store/entity wiring is
-exercised by the integration suite.
+tests (see ``tests/conftest.py``), over the shared HA stub tree in ``ha_stubs.py``,
+and drive it against an in-memory coordinator/store. The real store/entity wiring
+is exercised by the integration suite.
 
 What's pinned here is the dormancy rule (#221): a task with no ``next_due`` whose
 kind goes dormant — a completed do-once task, an unarmed triggered/sensor task — is
@@ -16,15 +16,14 @@ an undated one can never be cleared.
 from __future__ import annotations
 
 import asyncio
-import enum
 import importlib.util
 import sys
 import types
-import typing
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from ha_stubs import install_ha_stubs
 
 _COMPONENT_DIR = (
     Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
@@ -34,161 +33,11 @@ TZ = timezone(timedelta(hours=-4))
 DUE = datetime(2026, 7, 15, 9, 0, tzinfo=TZ)
 
 
-def _real_ha_present() -> bool:
-    """True only when the *real* Home Assistant package is installed.
-
-    A hand-built stub ``homeassistant`` module (e.g. from ``test_calendar.py``) has
-    no ``__file__``; the real package does. This distinguishes them so we fill gaps
-    over a stub tree but never shadow real submodules.
-    """
-    mod = sys.modules.get("homeassistant")
-    if mod is None:
-        try:  # pragma: no cover - depends on environment
-            import homeassistant as mod  # type: ignore[no-redef]
-        except ImportError:
-            return False
-    return getattr(mod, "__file__", None) is not None
-
-
-def _install_ha_stubs() -> None:
-    """Additively register the HA symbols ``todo.py`` imports.
-
-    Idempotent and non-clobbering, like ``test_coordinator_purge.py``: the other
-    pure-unit suites install their own partial ``homeassistant`` stub trees, so we
-    only *fill gaps* rather than early-return or overwrite — otherwise load order
-    between the suites would matter.
-    """
-    if _real_ha_present():  # pragma: no cover - real HA env
-        return
-
-    def _mod(name: str) -> types.ModuleType:
-        existing = sys.modules.get(name)
-        if existing is not None:
-            return existing
-        m = types.ModuleType(name)
-        sys.modules[name] = m
-        return m
-
-    ha = _mod("homeassistant")
-    components = _mod("homeassistant.components")
-    ha.components = components
-
-    comp_todo = _mod("homeassistant.components.todo")
-    if not hasattr(comp_todo, "TodoItem"):
-
-        class TodoItem:
-            def __init__(
-                self,
-                *,
-                uid=None,
-                summary=None,
-                status=None,
-                due=None,
-                description=None,
-            ) -> None:
-                self.uid = uid
-                self.summary = summary
-                self.status = status
-                self.due = due
-                self.description = description
-
-        class TodoItemStatus(enum.Enum):
-            NEEDS_ACTION = "needs_action"
-            COMPLETED = "completed"
-
-        class TodoListEntity:
-            pass
-
-        class TodoListEntityFeature(enum.IntFlag):
-            CREATE_TODO_ITEM = 1
-            DELETE_TODO_ITEM = 2
-            UPDATE_TODO_ITEM = 4
-
-        comp_todo.TodoItem = TodoItem
-        comp_todo.TodoItemStatus = TodoItemStatus
-        comp_todo.TodoListEntity = TodoListEntity
-        comp_todo.TodoListEntityFeature = TodoListEntityFeature
-    components.todo = comp_todo
-
-    config_entries = _mod("homeassistant.config_entries")
-    if not hasattr(config_entries, "ConfigEntry"):
-        config_entries.ConfigEntry = type("ConfigEntry", (), {})
-
-    core = _mod("homeassistant.core")
-    if not hasattr(core, "HomeAssistant"):
-        core.HomeAssistant = type("HomeAssistant", (), {})
-
-    exceptions = _mod("homeassistant.exceptions")
-    if not hasattr(exceptions, "HomeAssistantError"):
-
-        class HomeAssistantError(Exception):
-            def __init__(
-                self,
-                *args,
-                translation_domain=None,
-                translation_key=None,
-                translation_placeholders=None,
-            ) -> None:
-                super().__init__(*args)
-                self.translation_domain = translation_domain
-                self.translation_key = translation_key
-                self.translation_placeholders = translation_placeholders
-
-        exceptions.HomeAssistantError = HomeAssistantError
-
-    helpers = _mod("homeassistant.helpers")
-    entity_platform = _mod("homeassistant.helpers.entity_platform")
-    if not hasattr(entity_platform, "AddEntitiesCallback"):
-        entity_platform.AddEntitiesCallback = object
-    helpers.entity_platform = entity_platform
-
-    update_coordinator = _mod("homeassistant.helpers.update_coordinator")
-    if not hasattr(update_coordinator, "CoordinatorEntity"):
-        _T = typing.TypeVar("_T")
-
-        class CoordinatorEntity(typing.Generic[_T]):
-            def __init__(self, coordinator) -> None:
-                self.coordinator = coordinator
-
-        update_coordinator.CoordinatorEntity = CoordinatorEntity
-
-    util = _mod("homeassistant.util")
-    dt_mod = _mod("homeassistant.util.dt")
-    if not hasattr(dt_mod, "parse_datetime"):
-
-        def parse_datetime(value):
-            if not value:
-                return None
-            try:
-                return datetime.fromisoformat(value)
-            except (TypeError, ValueError):
-                return None
-
-        dt_mod.parse_datetime = parse_datetime
-    # Guarded separately from ``parse_datetime``: ``test_calendar.py`` installs its own
-    # ``homeassistant.util.dt`` carrying only ``parse_datetime``/``now``, so folding
-    # these into that branch would make load order between the suites matter.
-    if not hasattr(dt_mod, "DEFAULT_TIME_ZONE"):
-        dt_mod.DEFAULT_TIME_ZONE = UTC
-    if not hasattr(dt_mod, "as_local"):
-
-        def as_local(value):
-            # Reads the module global at call time, like HA's own implementation.
-            # Nothing here patches it — a test that needs a different "local" swaps
-            # `todo.dt_util` wholesale via `_local_tz`, for the reason spelled out
-            # there — so this only ever resolves to UTC. It exists so the tests that
-            # don't care about the zone can still call `todo_items` under the stubs.
-            return value.astimezone(dt_mod.DEFAULT_TIME_ZONE)
-
-        dt_mod.as_local = as_local
-    util.dt = dt_mod
-
-
 def _load_todo() -> types.ModuleType:
     """Load ``todo.py`` as ``hk.todo`` so its relative imports resolve."""
     if "hk.todo" in sys.modules:
         return sys.modules["hk.todo"]
-    _install_ha_stubs()
+    install_ha_stubs()
     # ``from .coordinator import HomeKeeperCoordinator`` — the real module pulls in
     # HA/store; the entity only needs the name for typing, so stub it if no other
     # suite has already registered one (test_coordinator_purge.py loads the real one).
@@ -213,7 +62,12 @@ HomeAssistantError = sys.modules["homeassistant.exceptions"].HomeAssistantError
 
 
 class FakeStore:
-    """The slice of ``store.py`` the entity touches, recording what it was asked."""
+    """The slice of ``store.py`` the entity touches, recording what it was asked.
+
+    Private to this suite: the entity reads one task at a time, completes without
+    an origin, and renames — it shares no method signature with the store double
+    the to-do sync drivers run against.
+    """
 
     def __init__(self, tasks: dict) -> None:
         self._tasks = tasks

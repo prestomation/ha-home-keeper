@@ -113,11 +113,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   await page.screenshot({ path: `${OUT}/1-panel-task-list.png`, fullPage: true });
 
-  // 1a1. Shopping filter — click the Shopping segment to show only buy-task tasks.
-  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'Shopping' }).click();
-  await page.screenshot({ path: `${OUT}/44-panel-shopping-filter.png`, fullPage: true });
-  // Switch back to All so the remaining shots see the full list.
-  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
+  // (The Shopping-filter shot lives further down, after the step that actually puts a
+  // buy reminder in the store — taken here it only ever captured "No tasks match this
+  // filter", which is a picture of nothing.)
 
   // 1a2. Completion-details dialog — a task whose capture mode is "optional" or
   // "required" opens this dialog on Done so you can record a note, cost, who and a
@@ -150,6 +148,33 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-detail-inner ha-markdown ol li').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/7-panel-task-detail.png`, fullPage: true });
+
+  // 1a1. Editing beside the page. Edit opens the form in the drawer next to the task's
+  // own page rather than throwing it away for the list, so the schedule, the notes and
+  // the completion history stay readable while the values that produced them are being
+  // changed.
+  await panel.locator('.d-edit').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  await page.waitForTimeout(400);
+  await shotWithDrawer(page, `${OUT}/54-panel-task-detail-edit.png`);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  await expect(panel.locator('.d-edit')).toBeVisible();
+
+  // 56. Duplicate. The button opens the *create* form already filled in with a copy of
+  // this task — the answer to a row of near-identical tasks that differ by a sensor and
+  // a name (#279). Nothing is saved until Create, so cancelling below leaves the seeded
+  // fixture exactly as every later shot expects it.
+  await panel.locator('.d-dup').click();
+  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  await expect(panel.locator('#f-save')).toHaveText(/Create/);
+  await expect(panel.locator('#hk-task-form ha-selector-text input').first()).toHaveValue(
+    /\(copy\)$/,
+  );
+  await page.waitForTimeout(400);
+  await shotWithDrawer(page, `${OUT}/56-panel-task-duplicate-drawer.png`);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
 
   // 1b1. The inline notes editor, open, with its live Markdown preview. Every task
   // gets this now (it used to be problem-sensor tasks only) — notes are prose, so
@@ -189,6 +214,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator(`.detail-open[data-detail-id="${TASK.buddyMedicine}"]`).click();
   await expect(panel.locator('ha-assist-chip.hk-managed').first()).toBeVisible();
   await expect(panel.locator('.hk-managed-prompt')).toBeVisible();
+  // A managed task is editable but not copyable, so it keeps a greyed Duplicate beside
+  // its live Edit — this shot documents that pairing, so assert it rather than trust it.
+  await expect(panel.locator('.d-dup-blocked')).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/9-panel-managed-detail.png`, fullPage: true });
 
@@ -198,10 +226,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-task-form')).toBeVisible();
   await page.waitForTimeout(300);
   await shotWithDrawer(page, `${OUT}/10-panel-managed-edit-locked.png`);
-  // Opening the edit form from a detail page already navigates to the list with the
-  // form floating on top (see _openEdit's "leave any open detail page"), so Cancel
-  // lands directly on the list — there's no detail page's #back-btn to click here.
+  // The form opens beside the page it was pressed on, so Cancel lands back on that
+  // page (see `_openEdit`) — the way to the list is the page's own Back.
   await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 1e. Tasks grouped by managing integration — managed tasks bucket under their
@@ -436,8 +465,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/42-panel-task-area-detail.png`, fullPage: true });
 
-  // The Area picker in the task's edit form, holding the saved room. Editing from a
-  // detail page returns to the list and re-opens the form there.
+  // The Area picker in the task's edit form, holding the saved room. The form opens
+  // in the drawer beside the task's own page.
   await panel.locator('.d-edit').click();
   await expect(panel.locator('#hk-task-form')).toBeVisible();
   await expect(panel.locator('#hk-task-form ha-selector-area')).toBeVisible({ timeout: 10_000 });
@@ -447,9 +476,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await shotWithDrawer(page, `${OUT}/42b-panel-task-area-form.png`);
   // The task form is an inline card, not an `ha-dialog` — Escape leaves it open and
-  // it would then sit on top of the grouped-list shot below. Close it properly.
+  // it would then sit on top of the grouped-list shot below. Close it properly, then
+  // leave the task's page: the grouping control below belongs to the list.
   await panel.locator('#f-cancel').click();
   await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 42c. Grouped by Area — what the picker buys you: the task now sorts into its room
   // instead of the "Unassigned" bucket it was stuck in.
@@ -716,6 +748,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await shotWithDrawer(page, `${OUT}/36-panel-task-card-links.png`);
   await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 5. Appliances tab — the asset list with the seeded virtual device.
@@ -744,6 +778,18 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/8-panel-appliance-detail.png`, fullPage: true });
 
+  // 8a0. Editing beside the appliance. The form is a second column, not a third: the
+  // list the appliance was opened from steps aside for as long as the form is up, so
+  // the parts and documents being edited stay next to the fields editing them.
+  await panel.locator('.d-edit').click();
+  await expect(panel.locator('#hk-asset-form')).toBeVisible();
+  await expect(panel.locator('.hk-master')).toBeHidden();
+  await page.waitForTimeout(400);
+  await shotWithDrawer(page, `${OUT}/55-panel-appliance-detail-edit.png`);
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await expect(panel.locator('.hk-master')).toBeVisible();
+
   // 8a. The other sub-tabs. Each is a URL of its own, so these are pages, not
   // panels — the appliance's own notes and identity live under Details, and the
   // retained history of a task deleted while still assigned to it under History.
@@ -756,10 +802,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/8e-panel-appliance-history-tab.png`, fullPage: true });
 
-  // 8b. Delete now asks for confirmation and is styled as a destructive action
+  // 8b. Delete now asks for confirmation, and the confirm carries the one solid red
+  // fill in the panel — `danger-primary`, the weight reserved for a surface whose
+  // whole purpose is the deletion. (The old `destructive` attribute selected here
+  // was never read by ha-button; see utils.ts BtnWeight.)
   // (issue #173) — no more one-click loss of an appliance's documents/parts/history.
   await panel.locator('.d-del').click();
-  await expect(page.locator('.hk-confirm-scrim ha-button[destructive]')).toBeAttached({
+  await expect(page.locator('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]')).toBeAttached({
     timeout: 5_000,
   });
   await page.waitForTimeout(400);
@@ -985,7 +1034,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await partsDetails.locator('.hk-part').first().locator('ha-icon-button.part-del').click();
   // Scrim is appended to document.body (not shadow root) so use page.locator.
   await expect(
-    page.locator('.hk-confirm-scrim ha-button[destructive]'),
+    page.locator('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]'),
   ).toBeAttached({ timeout: 5_000 });
   await page.waitForTimeout(500);
   // Viewport screenshot — position:fixed overlays render correctly here.
@@ -1106,6 +1155,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     }
   }, { ASSET, PART });
 
+  // 16b. The task list now that a part is low, which is the only moment these two
+  // shots say anything. A buy reminder has no due date of its own, so it reads as
+  // due immediately — it gets its own **Shopping** section rather than joining the
+  // overdue pile, and a "Low stock" pill in place of the overdue one.
+  await openPanel(page);
+  await panel.locator('#tab-tasks').click();
+  await expect(panel.locator('details.hk-group[data-bucket="shopping"]')).toBeVisible();
+  await page.screenshot({ path: `${OUT}/45-panel-shopping-section.png`, fullPage: true });
+
+  // 16c. …and the Shopping filter on its own, now that it has something to filter to.
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'Shopping' }).click();
+  await expect(panel.locator('ha-card.hk-card')).not.toHaveCount(0);
+  await page.screenshot({ path: `${OUT}/44-panel-shopping-filter.png`, fullPage: true });
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
+
   // 17. The Settings tab — friendly forms mirroring the options flow: a General
   // card (one-off retention), a Shopping list card (where auto-buy reminders are
   // mirrored) and a Problem sensor sync card (toggle + entity / device / area /
@@ -1133,11 +1197,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // empty pickers; "My chores" stays unfiltered because the Tasks-tab shot below
   // filters the admin list by it.
   //
-  // "My chores" also carries the `sync` block that mirrors its tasks onto "Family
+  // "My chores" also carries the `sync` block that syncs its tasks onto "Family
   // chores" — the seeded local_todo list standing in for a Todoist project. That is
   // where a to-do list sync lives now, so seeding it here is what gives the profile
-  // shots below (and the mirrored-list shot at 48) something real to show: an
-  // unconfigured Sync group is an empty picker, and an unmirrored list is a blank card.
+  // shots below (and the synced-list shot at 48) something real to show: an
+  // unconfigured Sync group is an empty picker, and an unsynced list is a blank card.
   await page.evaluate(async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const hass = (document.querySelector('home-assistant') as any)?.hass;
@@ -1188,6 +1252,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           actions: ['complete', 'snooze', 'open'],
           snooze_hours: 24,
           style: 'walk',
+          // Urgency is seeded so the shot shows the control holding a real value rather
+          // than the default choice. The channel is left empty on purpose and typed in
+          // below, which is what puts the card's autosave status in the shot.
+          channel: '',
+          urgency: 'high',
           auto: { overdue: true, due_soon: false },
         },
       ],
@@ -1208,15 +1277,39 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await panel.locator('#hk-profiles').screenshot({ path: `${OUT}/profiles-card.png` });
   // Settings → Notifications — delivery bindings that each reference a Profile.
+  // Scoped to the card rather than the page: Settings is long enough after the rail
+  // redesign that a full-page shot renders this editor's fields too small to read,
+  // and the card is what the README caption describes anyway.
   await expect(panel.locator('#hk-notifications')).toBeVisible();
   for (const h of await panel.locator('#hk-notifications .hk-item-header').all()) await h.click();
   await expect(panel.locator('#hk-notifications .hk-item-body ha-form').first()).toBeVisible();
+  // Type the channel rather than seeding it, so the shot carries the autosave status
+  // this card reports with. There is no Save button here, and the status beside the
+  // section name is the only thing that says a change was written — a capture with an
+  // empty header would document the card as it never actually looks in use.
+  await panel
+    .locator('#hk-notifications .hk-item-card')
+    .first()
+    .locator('ha-selector-text')
+    .nth(1)
+    .locator('input')
+    .fill('Chores');
+  await expect(panel.locator('#hk-notifications .hk-save-status')).toHaveText('Saved', {
+    timeout: 15_000,
+  });
   await page.waitForTimeout(300);
-  await page.screenshot({ path: `${OUT}/22-panel-notifications.png`, fullPage: true });
+  await panel.locator('#hk-notifications').screenshot({ path: `${OUT}/22-panel-notifications.png` });
 
   // 17a2. The Tasks tab Profile dropdown — pick a saved Profile to filter the admin list.
   await openPanel(page);
   await expect(panel.locator('select[data-profile-filter]')).toBeVisible();
+  // Open the native popup itself before selecting anything: its <option> list is
+  // rendered by the browser, not the page, so the closed-control screenshot below
+  // can't prove the popup is themed too.
+  await panel.locator('select[data-profile-filter]').click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/23b-panel-profile-dropdown-open.png` });
+  await page.keyboard.press('Escape');
   await panel.locator('select[data-profile-filter]').selectOption('demo_me');
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/23-panel-profile-filter.png`, fullPage: true });
@@ -1234,14 +1327,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
 
   // 17c. Settings → Profiles → "My chores" → its **Sync to a to-do list** group: the
-  // to-do list this profile's tasks are mirrored onto ("Family chores", the seeded
+  // to-do list this profile's tasks are synced onto ("Family chores", the seeded
   // local_todo list standing in for a Todoist project), plus what a change over there
   // means here. The sync block was seeded onto the profile at 17a, so the picker is
   // holding a real list rather than sitting empty.
   //
   // The profile row is shot on its own, not the whole card: the group is *inside* one
   // profile, and that containment is the thing the shot has to show — there is no
-  // separate mirror record and no Delete button, because clearing the picker is both
+  // separate sync record and no Delete button, because clearing the picker is both
   // the off switch and the delete.
   await openPanel(page);
   await panel.locator('#tab-settings').click();
@@ -1266,7 +1359,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await openSyncedProfile();
   await syncedProfile.screenshot({ path: `${OUT}/47-panel-profile-sync.png` });
 
-  // 48. The payoff: the mirrored chores sitting on the family's own to-do list, each
+  // 48. The payoff: the synced chores sitting on the family's own to-do list, each
   // with the due date that makes it actionable on somebody's phone.
   //
   // Taller viewport for this one shot: the card runs past the 720px default, and an
@@ -1284,7 +1377,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     familyCard.locator('ha-check-list-item, ha-md-list-item').first(),
   ).toBeVisible({ timeout: 40_000 });
   await page.waitForTimeout(600);
-  await familyCard.screenshot({ path: `${OUT}/48-todo-sync-mirrored-task.png` });
+  await familyCard.screenshot({ path: `${OUT}/48-todo-sync-synced-task.png` });
   await page.setViewportSize(DESKTOP);
 
   // 46. The payoff: the buy reminder sitting on the household's own shopping list,

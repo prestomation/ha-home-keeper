@@ -81,30 +81,30 @@ meter reset) stays **silent**, because it is internal state, not a user action. 
 by hand through the `set_task_meter` service does fire `home_keeper_task_updated` with
 `changed_fields: ["sensor"]`.
 
-**Buy reminders ticked off on a mirrored shopping list** ride these same events too.
+**Buy reminders ticked off on a synced shopping list** ride these same events too.
 When *Settings → Shopping list* points at a to-do list, each auto-created **"Buy
 {part}"** reminder is put on it. Ticking that line off there fires an ordinary
 `home_keeper_task_completed` carrying `origin: home_keeper_shopping_list` and
 `source: {"buy": {"asset_id": …, "part_id": …}}`. Match on that origin to tell "bought
 at the shop" from a press of Done. Like any buy-reminder completion it restocks the part
 by its restock quantity. A `home_keeper_part_restocked` normally follows. The reminder is
-then retired with a `home_keeper_task_deleted`. The mirror's own bookkeeping
+then retired with a `home_keeper_task_deleted`. The sync's own bookkeeping
 (which line on which list stands for which reminder) stays **silent**, the same
 reasoning as the sensor watcher's baselines above.
 
-**Tasks ticked off on a mirrored to-do list** ride these same events. When a Profile in
+**Tasks ticked off on a synced to-do list** ride these same events. When a Profile in
 *Settings → Profiles* names an external to-do list, the tasks it selects are put on that
 list while they qualify. Ticking an item off fires an ordinary
-`home_keeper_task_completed` carrying `origin: home_keeper_todo_mirror` (so does an item
-that disappears from a list whose provider drops completed items, while the mirror's
+`home_keeper_task_completed` carrying `origin: home_keeper_todo_sync` (so does an item
+that disappears from a list whose provider drops completed items, while the sync's
 *treat removed items as completed* toggle is on). Match on that origin to tell "checked
 off on the list" from a press of Done. Completing the task in Home Keeper instead ticks
-the mirrored item off and leaves it there as the record; when a recurring task next
-falls due, a fresh item is added beside it. The mirror's bookkeeping (which item on
+the synced item off and leaves it there as the record; when a recurring task next
+falls due, a fresh item is added beside it. The sync's bookkeeping (which item on
 which list stands for which task) stays **silent**, like the shopping list's.
 
 **Synced `problem` binary sensors** (when *Sync problem sensors* is on) ride these same
-events: a mirror task is `created` for each `device_class: problem` sensor, `triggered`
+events: a synced task is `created` for each `device_class: problem` sensor, `triggered`
 when the sensor reports a problem, and `completed` when it clears. The completion event
 carries `origin: home_keeper_problem_sensor_sync` and `source:
 {"problem_sensor": {"entity_id": …}}` so an automation can tell a self-clearing problem

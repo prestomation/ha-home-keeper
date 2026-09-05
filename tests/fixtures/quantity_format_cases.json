@@ -1,0 +1,143 @@
+{
+  "_comment": "Cross-language conformance cases for rendering a spare quantity. Home Keeper formats these numbers twice: in Python (assets.format_quantity) for the line it puts on a household's shopping list, and in TypeScript (utils.formatQuantity) for the panel and the dashboard card. A household reading '500 ml' in the panel must not find '500.0 ml' on their list, so both implementations run these cases and must agree on every one. The halfway values are the interesting ones: Python's round() breaks a tie to the even digit while JavaScript's toFixed breaks it away from zero, which is a real divergence the Python side quantizes around. The cases stay inside the range a quantity can hold (MAX_INTERVAL bounds stock on the way in): past about 1e21 JavaScript switches to exponential notation and Python does not, and neither side can be reached with a value that far out. Non-numbers are likewise out of scope here - the Python formatter's totality for those is pinned in tests/unit/test_assets.py, since the two languages spell them differently. value is the number, unit is the label beside it ('' for a part that counts whole spares), expected is the rendered string.",
+  "cases": [
+    {
+      "name": "a whole count keeps no decimal point",
+      "value": 3,
+      "unit": "",
+      "expected": "3"
+    },
+    {
+      "name": "a whole float is still a whole count",
+      "value": 3.0,
+      "unit": "",
+      "expected": "3"
+    },
+    {
+      "name": "a measured part names its unit",
+      "value": 500,
+      "unit": "ml",
+      "expected": "500 ml"
+    },
+    {
+      "name": "a half reads as a half",
+      "value": 0.5,
+      "unit": "bottles",
+      "expected": "0.5 bottles"
+    },
+    {
+      "name": "a third of a bottle",
+      "value": 0.33,
+      "unit": "bottles",
+      "expected": "0.33 bottles"
+    },
+    {
+      "name": "trailing zeros go",
+      "value": 2.5,
+      "unit": "m",
+      "expected": "2.5 m"
+    },
+    {
+      "name": "float noise never reaches the shopper",
+      "value": 0.30000000000000004,
+      "unit": "l",
+      "expected": "0.3 l"
+    },
+    {
+      "name": "three places are kept",
+      "value": 0.001,
+      "unit": "ml",
+      "expected": "0.001 ml"
+    },
+    {
+      "name": "past three places rounds",
+      "value": 12.3456,
+      "unit": "",
+      "expected": "12.346"
+    },
+    {
+      "name": "below three places rounds to nothing",
+      "value": 0.0004,
+      "unit": "ml",
+      "expected": "0 ml"
+    },
+    {
+      "name": "a unit is stripped",
+      "value": 2,
+      "unit": "  ml  ",
+      "expected": "2 ml"
+    },
+    {
+      "name": "a blank unit is no unit",
+      "value": 2,
+      "unit": "   ",
+      "expected": "2"
+    },
+    {
+      "name": "an exact halfway rounds away from zero, not to even",
+      "value": 0.0625,
+      "unit": "",
+      "expected": "0.063"
+    },
+    {
+      "name": "a halfway that the double lands just above",
+      "value": 2.0005,
+      "unit": "ml",
+      "expected": "2.001 ml"
+    },
+    {
+      "name": "a halfway that the double lands just below",
+      "value": 1.0005,
+      "unit": "",
+      "expected": "1"
+    },
+    {
+      "name": "a halfway carrying into a new digit",
+      "value": 0.3335,
+      "unit": "",
+      "expected": "0.334"
+    },
+    {
+      "name": "a halfway carrying all the way up",
+      "value": 99999.9995,
+      "unit": "ml",
+      "expected": "100000 ml"
+    },
+    {
+      "name": "a double that only looks like a halfway",
+      "value": 2.675,
+      "unit": "",
+      "expected": "2.675"
+    },
+    {
+      "name": "zero is zero",
+      "value": 0,
+      "unit": "ml",
+      "expected": "0 ml"
+    },
+    {
+      "name": "a negative amount keeps its sign",
+      "value": -2.5,
+      "unit": "",
+      "expected": "-2.5"
+    },
+    {
+      "name": "a whole negative loses the decimal point",
+      "value": -3.0,
+      "unit": "ml",
+      "expected": "-3 ml"
+    },
+    {
+      "name": "a negative halfway rounds away from zero too",
+      "value": -0.0625,
+      "unit": "",
+      "expected": "-0.063"
+    },
+    {
+      "name": "the largest stock a part can hold",
+      "value": 10000,
+      "unit": "ml",
+      "expected": "10000 ml"
+    }
+  ]
+}

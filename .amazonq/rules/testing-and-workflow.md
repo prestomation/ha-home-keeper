@@ -1,9 +1,17 @@
 # Home Keeper — testing & workflow conventions
 
 ## Git & PR workflow
+- **All English text follows ASD-STE100.** See `writing-style.md` in this directory
+  for the rules and the glossary. It covers docs, strings, comments, and PR text.
 - Never push directly to `main`. Work on a feature branch and open a PR; squash
   merge.
 - Update `CHANGELOG.md` for every user-facing change before a release.
+- **User-facing text is drafted by a Sonnet 4.5 subagent** (`model: sonnet`), not written
+  inline: `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
+  `services.yaml` descriptions, the frontend locale. Hand it the diff, the surrounding
+  section for voice, and the house rules it must satisfy; review and edit the draft before
+  committing. Commit messages, PR bodies and code comments stay inline — they are not
+  user-facing.
 - **Keep every CHANGELOG bullet to three sentences at most.** A bold lead naming the
   change, then what a user notices, then a caveat or `(Fixes #N)` if one is needed.
   Cut the worked example, the before-and-after story, the list of every surface the
@@ -11,6 +19,15 @@
   `docs/`, or the PR; the changelog says what changed and stops. One bullet per change,
   never a second paragraph. Three sentences is the budget for the **whole bullet**,
   counting the bold lead as the first, not three per paragraph.
+- **Credit an outside contributor in the bullet for their change.** End the bullet
+  with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
+  not count against the three-sentence budget. An outside contributor is anyone
+  without write access to the repository when the PR opens. Their change gets a
+  credit in the same PR that writes the bullet. If a maintainer and a contributor
+  share the work, the contributor gets the credit. `summarize()` in
+  `ci/release-issues.py` quotes only the bold lead. The credit stays in the
+  CHANGELOG. It does not reach the issue comment, and it does not notify the
+  contributor on each release.
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).
@@ -246,6 +263,14 @@
   already dismissed. Reset with `git clean -fdX tests/integration/ha_config/` (plus
   `git clean -fd` and `git checkout --`) before each capture, and check
   `git status tests/integration/` afterwards.
+- **Bring the container *down* before that clean, not after.** `ha_config/custom_components/`
+  is a gitignored directory Docker creates to hold the integration bind mount, so the
+  `-fdX` above deletes it — and deleting a mountpoint under a running container
+  detaches the mount from inside. HA keeps answering on 8123 while
+  `/home_keeper_panel/home-keeper-panel.js` starts 404ing, so the panel never upgrades
+  and *every* browser test fails identically at `openPanel`'s 45s attach timeout. It
+  reads exactly like a bundle that failed to build. `docker compose down` first (or
+  restart afterwards) and the mountpoint is recreated.
 - **The walkthrough records one context per width.** `recordVideo.size` is fixed when a
   context is created, so resizing mid-recording leaves the phone viewport in a corner
   of a desktop-sized frame — which is why an earlier attempt concluded the phone layout
@@ -267,7 +292,7 @@ the branch touched.
   (`utils`, `forms`, `card-filter`, `documents`, `markdown`, `i18n`, `limits`).
   Out: everything importing Home Assistant (Docker-tier only), `const.py` /
   `companions_catalog.py` (data), `backend_i18n.py` (no unit entry point),
-  `testing.py`, and `panel.ts` / `card.ts` / `api.ts` (indirectly covered only).
+  `testing.py`, and `panel.ts` + its `panel-*.ts` region modules / `card.ts` / `api.ts` (indirectly covered only).
 - **Diff scoping:** `ci/mutation_scope.py` turns the diff into mutmut mutant-name
   filters (changed line → enclosing function, decorators included, via `ast`) and
   Stryker `--mutate` line ranges. Scoping to whole files would fail a PR for

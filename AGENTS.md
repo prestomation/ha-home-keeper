@@ -2,6 +2,11 @@
 
 ## Workflow
 
+- **All English text follows ASD-STE100 Simplified Technical English.** This
+  includes documentation, user-facing strings, code comments, PR text, and replies to
+  the maintainer. Keep text brief. Use short sentences, the active voice, one approved
+  name per thing, and no idiom. The full rules and the project glossary are in
+  `.amazonq/rules/writing-style.md`. Read that file before you write any prose.
 - **Never push directly to main.** Always use a feature branch and open a PR.
 - Wait for CI (tests, HACS validation, code review) and approval before merging.
 - **Always squash merge PRs.**
@@ -37,6 +42,15 @@
   because `(#N)` is also the squash-merge PR number and the two can't be told apart.
   The job posts a CI warning naming any issue a shipped commit referenced that the
   section forgot.
+- **Credit an outside contributor in the bullet for their change.** End the bullet
+  with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
+  not count against the three-sentence budget. An outside contributor is anyone
+  without write access to the repository when the PR opens. Their change gets a
+  credit in the same PR that writes the bullet. If a maintainer and a contributor
+  share the work, the contributor gets the credit. `summarize()` in
+  `ci/release-issues.py` quotes only the bold lead. The credit stays in the
+  CHANGELOG. It does not reach the issue comment, and it does not notify the
+  contributor on each release.
 - **Keep linking issues from a PR with `Fixes #N`.** Closing-on-merge is turned off
   for this repository, so the keyword links the PR to the issue — that's what fills in
   the issue's **Development** panel and its linked-pull-request relationship — without
@@ -63,6 +77,16 @@
   try the feature via HACS *before* merge. The build is ephemeral and auto-deletes
   when the PR closes (see RELEASE.md → "Preview releases"). Bug-fix-only /
   developer-only PRs don't need it.
+- **Always have a Sonnet 4.5 subagent write user-facing text.** Any prose a *user* reads —
+  `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
+  `services.yaml` descriptions, the frontend locale — is drafted by a subagent spawned
+  with `model: sonnet`, not written inline. Give it the diff, the surrounding section for
+  voice, and the house rules it has to satisfy (the STE100 rules in
+  `.amazonq/rules/writing-style.md`, the three-sentence CHANGELOG budget, the
+  `(Fixes #N)` placement, the vale AI-tells style), then review what comes back and edit
+  it yourself before committing — the subagent drafts, you are still responsible for what
+  ships. Commit messages, PR bodies and code comments are *not* user-facing text and stay
+  inline.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only `pip install pytest PyYAML`: `pytest tests/unit -v`.
     (`PyYAML` is for the API-surface gate below, which reads `services.yaml`; without
@@ -277,7 +301,11 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   the User Guide (`website/docs/guide/`, gitignored) and copies `docs/INTEGRATING.md` /
   `docs/GLUE_INTEGRATIONS.md` / `docs/EVENTS.md` / `docs/DESIGN.md` into the Developer
   Guide (`website/developer/`, gitignored), rewriting links/images. **Edit the canonical sources (`README.md`,
-  `docs/*.md`), never the generated trees.** `README.md` therefore stays the
+  `docs/*.md`), never the generated trees.** Every README `## ` section must be in
+  `USER_SECTIONS` or `UNPUBLISHED_SECTIONS` in `website/scripts/doc-map.mjs`.
+  `sync-docs.mjs` fails the site build on an unlisted section, and
+  `tests/frontend/doc-anchors.test.js` fails first, so a new section cannot stay off
+  the site by accident. `README.md` therefore stays the
   comprehensive user doc (it's the source) — don't "slim" it. Screenshots are likewise
   not duplicated: `website/scripts/sync-assets.mjs` mirrors `docs/images/` into the
   static tree, so `docs/images/` stays the single home for screenshots and the
@@ -371,7 +399,7 @@ bash ci/test-mutation-frontend.sh --all
 - **The mutable surface is an allowlist**, in exactly one place per language:
   `only_mutate` in `[tool.mutmut]` (pyproject.toml) and `mutate` in
   `stryker.conf.json`. It holds the pure Python core (`recurrence`, `models`,
-  `assets`, `reconcile`, `shopping`, `notifications`, `sensor_tasks`,
+  `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
   `problem_tasks`, `inventory`, `profiles`, `documents`, `events`, `transitions`,
   `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
   `card-filter`, `documents`, `markdown`, `i18n`, `limits`). `options.py` counts as
@@ -380,9 +408,10 @@ bash ci/test-mutation-frontend.sh --all
   (only the Docker tiers cover it — far too slow to run once per mutant),
   `const.py` / `companions_catalog.py` (data, not logic), `backend_i18n.py` (pure
   but with no unit-test entry point), `testing.py` (already coverage-omitted), and
-  `panel.ts` / `card.ts` / `api.ts` (only indirectly covered; ~7k lines that would
-  score near zero). Widen the allowlist when you add unit tests that would make
-  the score mean something.
+  `panel.ts` + its flat `panel-*.ts` region modules / `card.ts` / `api.ts` (only
+  indirectly covered, through the element's own tests; they would score near
+  zero). Widen the allowlist when you add unit tests that would make the score
+  mean something.
 - **The gate is a mutation score of 80%**, set in `[tool.mutation-gate] break` and
   mirrored in `thresholds.break` (stryker.conf.json). The two runners compare them
   and fail on a mismatch, so they cannot drift.

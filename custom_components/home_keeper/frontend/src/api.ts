@@ -6,6 +6,7 @@ import type {
   HassLabel,
   HomeKeeperOptions,
   Inventory,
+  NotifyRun,
   Part,
   Profile,
   Task,
@@ -91,6 +92,30 @@ export async function setOptions(
     options,
   });
   return res.options;
+}
+
+/**
+ * Send a saved notification now, through the `home_keeper.notify` service.
+ *
+ * This is the one panel action that goes through a service rather than a Home Keeper
+ * websocket command. `notify` already declares this operation for automations, and a
+ * websocket twin would be a second delivery path to keep in step with it for no gain:
+ * the panel wants exactly what an automation gets. `return_response` carries back
+ * `{matched, sent}` so the caller can tell "delivered" from "nothing was due" — read
+ * `matched` for that, since `sent` is a task id (see `NotifyRun`).
+ */
+export async function runNotification(
+  hass: Hass,
+  notificationId: string,
+): Promise<NotifyRun> {
+  const res = await hass.callWS<{ response?: NotifyRun }>({
+    type: 'call_service',
+    domain: 'home_keeper',
+    service: 'notify',
+    service_data: { notification: notificationId },
+    return_response: true,
+  });
+  return { matched: res?.response?.matched ?? 0, sent: res?.response?.sent ?? null };
 }
 
 const INTRO_DISMISSED_KEY = 'home_keeper_intro_dismissed';

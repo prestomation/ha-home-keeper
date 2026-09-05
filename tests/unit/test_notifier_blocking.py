@@ -12,173 +12,23 @@ comment. This drives ``_send`` on a real running event loop and asserts the
 blocking lookups actually run off that thread (via
 ``hass.async_add_executor_job``), not on it.
 
-The coordinator's own blocking-call test (``test_coordinator_purge.py``) stubs a
-handful of HA symbols and loads the real module under a synthetic ``hk`` package;
-this follows the same pattern for ``notifier.py``.
+The coordinator's own blocking-call test (``test_coordinator_purge.py``) loads the
+real module under a synthetic ``hk`` package over the shared HA stub tree in
+``ha_stubs.py``; this follows the same pattern for ``notifier.py``. The loader and the
+fakes live in ``notifier_harness.py``, shared with ``test_notifier_service.py``.
 """
 
 from __future__ import annotations
 
 import asyncio
-import importlib.util
 import sys
 import threading
-import types
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-_COMPONENT_DIR = (
-    Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
-)
+from notifier_harness import FakeCoord, FakeHass, load_notifier, overdue_task
 
-TZ = timezone(timedelta(hours=-4))
-NOW = datetime(2026, 6, 1, tzinfo=TZ)
-
-
-def _real_ha_present() -> bool:
-    mod = sys.modules.get("homeassistant")
-    if mod is None:
-        try:  # pragma: no cover - depends on environment
-            import homeassistant as mod  # type: ignore[no-redef]
-        except ImportError:
-            return False
-    return getattr(mod, "__file__", None) is not None
-
-
-def _install_ha_stubs() -> None:
-    """Additively register the HA symbols ``notifier.py`` imports (see coordinator's
-    equivalent helper in ``test_coordinator_purge.py`` for the general pattern)."""
-    if _real_ha_present():  # pragma: no cover - real HA env
-        return
-
-    def _mod(name: str) -> types.ModuleType:
-        existing = sys.modules.get(name)
-        if existing is not None:
-            return existing
-        m = types.ModuleType(name)
-        sys.modules[name] = m
-        return m
-
-    _mod("homeassistant")
-    core = _mod("homeassistant.core")
-    if not hasattr(core, "HomeAssistant"):
-
-        class HomeAssistant:
-            pass
-
-        core.HomeAssistant = HomeAssistant
-    if not hasattr(core, "CALLBACK_TYPE"):
-        core.CALLBACK_TYPE = object
-    if not hasattr(core, "Event"):
-
-        class Event:
-            pass
-
-        core.Event = Event
-    if not hasattr(core, "callback"):
-        core.callback = lambda func: func
-
-    helpers = _mod("homeassistant.helpers")
-    device_registry = _mod("homeassistant.helpers.device_registry")
-    if not hasattr(device_registry, "async_get"):
-        device_registry.async_get = lambda hass: None
-    helpers.device_registry = device_registry
-
-    area_registry = _mod("homeassistant.helpers.area_registry")
-    if not hasattr(area_registry, "async_get"):
-        area_registry.async_get = lambda hass: None
-    helpers.area_registry = area_registry
-
-    util = _mod("homeassistant.util")
-    dt_mod = _mod("homeassistant.util.dt")
-    if not hasattr(dt_mod, "now"):
-        dt_mod.now = lambda: NOW
-    util.dt = dt_mod
-
-
-def _load_notifier():
-    """Load ``notifier.py`` under ``hk`` with fake HA-aware sibling modules."""
-    existing = sys.modules.get("hk.notifier")
-    if existing is not None and hasattr(existing, "async_send_for_notification"):
-        return existing
-    sys.modules.pop("hk.notifier", None)
-    _install_ha_stubs()
-
-    # ``options.py`` itself imports HA (ConfigEntry/HomeAssistant) only to type its
-    # own params — fake it rather than dragging that in, like coordinator's test does.
-    options = types.ModuleType("hk.options")
-    options.current_options = lambda entry: entry.options
-    sys.modules["hk.options"] = options
-
-    spec = importlib.util.spec_from_file_location(
-        "hk.notifier", str(_COMPONENT_DIR / "notifier.py")
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["hk.notifier"] = module
-    spec.loader.exec_module(module)
-    module.dt_util = types.SimpleNamespace(now=lambda: NOW)
-    # Our fake tasks carry no device_id/area_id, so the registries themselves are
-    # never consulted — but when *real* HA is installed (as in CI, via
-    # pytest-homeassistant-custom-component), the real ``device_registry``/
-    # ``area_registry`` ``async_get`` are HA's ``@singleton``-decorated helpers,
-    # which need a real ``hass.data`` dict our minimal ``_FakeHass`` doesn't have.
-    # Overriding the names notifier.py bound (``dr``/``ar``) sidesteps that
-    # regardless of whether real HA is present, the same way ``dt_util`` is pinned
-    # above.
-    module.dr = types.SimpleNamespace(async_get=lambda hass: None)
-    module.ar = types.SimpleNamespace(async_get=lambda hass: None)
-    return module
-
-
-notifier = _load_notifier()
+notifier = load_notifier()
 notifications = sys.modules["hk.notifications"]
 profiles = sys.modules["hk.profiles"]
-
-
-# ── fakes ────────────────────────────────────────────────────────────────────
-
-
-class _FakeServices:
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, str, dict]] = []
-
-    async def async_call(self, domain, service, data, blocking=False):
-        self.calls.append((domain, service, data))
-
-
-class _FakeHass:
-    def __init__(self) -> None:
-        self.config = types.SimpleNamespace(language="en")
-        self.services = _FakeServices()
-
-    async def async_add_executor_job(self, func, *args):
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, func, *args)
-
-
-class _FakeStore:
-    def __init__(self, tasks: dict) -> None:
-        self._tasks = tasks
-
-    def get_tasks(self) -> dict:
-        return dict(self._tasks)
-
-
-class _FakeCoord:
-    def __init__(self, tasks: dict) -> None:
-        self.store = _FakeStore(tasks)
-
-
-def _overdue_task(tid: str, *, days: int) -> dict:
-    return {
-        "id": tid,
-        "name": f"Task {tid}",
-        "next_due": (NOW - timedelta(days=days)).isoformat(),
-        "labels": [],
-        "area_id": None,
-        "device_id": None,
-    }
 
 
 # ── the test ─────────────────────────────────────────────────────────────────
@@ -209,9 +59,9 @@ def test_send_does_not_block_the_event_loop(monkeypatch):
     monkeypatch.setattr(notifications, "_notification_strings", spy_strings)
     monkeypatch.setattr(notifications, "_babel_locale", spy_babel)
 
-    task = _overdue_task("t1", days=3)  # multi-day overdue -> exercises _tn/plural_form
-    coord = _FakeCoord({"t1": task})
-    hass = _FakeHass()
+    task = overdue_task("t1", days=3)  # multi-day overdue -> exercises _tn/plural_form
+    coord = FakeCoord({"t1": task})
+    hass = FakeHass()
     notification = notifications.normalize_notification(
         {
             # A real companion-app target: `normalize_notification` drops anything

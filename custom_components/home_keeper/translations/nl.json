@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Home Keeper-opties",
-        "description": "Binaire sensoren met de apparaatklasse 'probleem' als taken spiegelen. Een gesynchroniseerde taak blijft actief zolang de sensor een probleem meldt en wordt automatisch gewist wanneer de bronintegratie het oplost; hij kan niet in Home Keeper worden voltooid. Sluit hieronder specifieke sensoren, gebieden of labels uit.",
+        "description": "Binaire sensoren met de apparaatklasse 'probleem' als taken synchroniseren. Een gesynchroniseerde taak blijft actief zolang de sensor een probleem meldt en wordt automatisch gewist wanneer de bronintegratie het oplost; hij kan niet in Home Keeper worden voltooid. Sluit hieronder specifieke sensoren, gebieden of labels uit.",
         "data": {
           "sync_problem_sensors": "Probleemsensoren als taken synchroniseren",
           "problem_sensor_exclude_entities": "Uitgesloten sensoren",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "Een gesynchroniseerde taak sluit pas wanneer de bronintegratie het probleem oplost, niet wanneer je op Klaar tikt. Herinneringen ervoor bieden Uitstellen in plaats van Klaar.",
           "one_off_retention_days": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden voltooide one-offs voor altijd bewaard.",
-          "shopping_list_entity": "Spiegelt automatische koopherinneringen naar deze takenlijst. Een item daar afvinken voltooit de herinnering in Home Keeper en vult de voorraad van het onderdeel aan. Laat leeg om het spiegelen uit te schakelen."
+          "shopping_list_entity": "Synchroniseert automatische koopherinneringen met deze takenlijst. Een item daar afvinken voltooit de herinnering in Home Keeper en vult de voorraad van het onderdeel aan. Laat leeg om de synchronisatie uit te schakelen."
         }
       }
     }
@@ -612,7 +612,7 @@
         },
         "shopping_list_entity": {
           "name": "Boodschappenlijst",
-          "description": "Een bestaande takenlijst om automatische koopherinneringen naartoe te spiegelen. Een item daar afvinken voltooit de herinnering en vult de voorraad aan. Een leeg veld schakelt dit uit."
+          "description": "Een bestaande takenlijst om automatische koopherinneringen mee te synchroniseren. Een item daar afvinken voltooit de herinnering en vult de voorraad aan. Een leeg veld schakelt dit uit."
         },
         "dismissed_companions": {
           "name": "Genegeerde companions",

@@ -14,7 +14,7 @@
     "step": {
       "init": {
         "title": "Možnosti Home Keeper",
-        "description": "Zrcadlí binární senzory s třídou zařízení „problém“ jako úkoly. Synchronizovaný úkol zůstává aktivní, dokud senzor hlásí problém, a automaticky se vymaže, jakmile jej zdrojová integrace vyřeší; v Home Keeper jej nelze dokončit. Níže vylučte konkrétní senzory, oblasti nebo štítky.",
+        "description": "Synchronizuje binární senzory s třídou zařízení „problém“ jako úkoly. Synchronizovaný úkol zůstává aktivní, dokud senzor hlásí problém, a automaticky se vymaže, jakmile jej zdrojová integrace vyřeší; v Home Keeper jej nelze dokončit. Níže vylučte konkrétní senzory, oblasti nebo štítky.",
         "data": {
           "sync_problem_sensors": "Synchronizovat senzory problémů jako úkoly",
           "problem_sensor_exclude_entities": "Vyloučené senzory",
@@ -27,7 +27,7 @@
         "data_description": {
           "sync_problem_sensors": "Synchronizovaný úkol se uzavře, až když zdrojová integrace problém vyřeší, ne když klepnete na Hotovo. Připomenutí u něj nabízejí Odložit místo Hotovo.",
           "one_off_retention_days": "Automaticky smazat dokončený jednorázový úkol tolik dní po jeho dokončení. Hodnota 0 ponechá dokončené jednorázové úkoly navždy.",
-          "shopping_list_entity": "Zrcadlí automatické nákupní připomínky do tohoto seznamu úkolů. Odškrtnutí položky tam dokončí připomínku v Home Keeperu a doplní zásobu dílu. Ponechte prázdné pro vypnutí."
+          "shopping_list_entity": "Synchronizuje automatické nákupní připomínky do tohoto seznamu úkolů. Odškrtnutí položky tam dokončí připomínku v Home Keeperu a doplní zásobu dílu. Ponechte prázdné pro vypnutí."
         }
       }
     }
@@ -612,7 +612,7 @@
         },
         "shopping_list_entity": {
           "name": "Nákupní seznam",
-          "description": "Existující seznam úkolů, do kterého se zrcadlí automatické nákupní připomínky. Odškrtnutí položky tam připomínku dokončí a doplní zásobu. Prázdné pole funkci vypne."
+          "description": "Existující seznam úkolů, do kterého se synchronizují automatické nákupní připomínky. Odškrtnutí položky tam připomínku dokončí a doplní zásobu. Prázdné pole funkci vypne."
         },
         "dismissed_companions": {
           "name": "Zamítnutí společníci",
