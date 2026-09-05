@@ -36,6 +36,7 @@ import {
   deviceName,
   dueLabel,
   escapeHTML,
+  isBuyTask,
   isHttpUrl,
   isOverdue,
   labelName,
@@ -43,6 +44,7 @@ import {
   recurrenceSummary,
   safeFileHref,
   scanRequired,
+  statusChipHtml,
   toast,
 } from './utils';
 
@@ -201,6 +203,15 @@ const STYLES = `
     --ha-assist-chip-container-color: var(--error-color);
     --md-assist-chip-label-text-color: var(--text-primary-color, #fff);
     --ha-assist-chip-label-text-color: var(--text-primary-color, #fff);
+    --md-assist-chip-outline-color: transparent;
+  }
+  /* A buy reminder is a nudge, not a fault, so it reads in the warning colour
+     rather than the overdue red — telling the two apart at a glance is the point.
+     Dark text on amber, because white on this hue is unreadable. */
+  ha-assist-chip.hk-shopping {
+    --ha-assist-chip-container-color: var(--warning-color, #ffa600);
+    --md-assist-chip-label-text-color: #1b2429;
+    --ha-assist-chip-label-text-color: #1b2429;
     --md-assist-chip-outline-color: transparent;
   }
   /* Managed-by: a compact circular icon badge (the integration's own icon),
@@ -781,10 +792,11 @@ export class HomeKeeperCard extends HTMLElement {
   }
 
   private _row(task: Task): string {
-    const overdue = isOverdue(task);
-    const statusChip = overdue
-      ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-      : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, this._hass))}"></ha-assist-chip>`;
+    // The danger rail follows the status pill: a buy reminder reads "Low stock" rather
+    // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge
+    // that says this work is late.
+    const overdue = isOverdue(task) && !isBuyTask(task);
+    const statusChip = statusChipHtml(task, this._hass);
     // Managed-by reads as a compact icon-only chip (the integration's own icon,
     // else a generic one) with the full "Managed by X" as a hover/long-press
     // tooltip — keeps the row tight instead of a full-width pill.

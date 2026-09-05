@@ -1,28 +1,14 @@
 # Home Keeper — testing & workflow conventions
 
 ## Git & PR workflow
+- **All English text follows ASD-STE100.** See `writing-style.md` in this directory
+  for the rules and the glossary. It covers docs, strings, comments, and PR text.
 - Never push directly to `main`. Work on a feature branch and open a PR; squash
   merge.
 - Update `CHANGELOG.md` for every user-facing change before a release.
-- **All user-facing text is written in Simplified Technical English (ASD-STE100):**
-  `README.md`, the canonical `docs/*.md`, `CHANGELOG.md` bullets, `strings.json`,
-  `services.yaml` descriptions, the frontend locale. One idea per sentence, 20 words
-  maximum for an instruction and 25 for a description, 6 sentences maximum per
-  paragraph. Active voice, present tense, imperative for instructions. No `-ing` word as
-  a subject or noun. One word for one meaning, repeated rather than varied. No idiom and
-  no metaphor. Keep articles, drop contractions, keep noun clusters to three words. Use
-  a list for steps and conditions. Technical names are exempt.
-- **STE and the `ai-tells` vale style conflict; satisfy both.** `ai-tells` matches per
-  paragraph, so STE's short parallel sentences trip it. `ParallelStaccato` fires on a
-  following sentence that starts with a short subject plus "does not"/"do not";
-  `VerbTricolon` fires on three comma-separated segments and spans sentence boundaries,
-  so keep a paragraph at two commas or fewer; `CataphoricForecasting` fires on a
-  sentence-initial count ("Both automations", not "The two automations").
-- **User-facing text is drafted by a Sonnet 4.5 subagent** (`model: sonnet`), not written
-  inline. Hand it the diff, the surrounding section for voice, and the house rules it
-  must satisfy (the STE rules and the vale shapes above); review and edit the draft
-  before committing — a first draft rarely lands STE on its own. Commit messages, PR
-  bodies and code comments stay inline — they are not user-facing.
+- **A Sonnet 4.5 subagent drafts user-facing text** (`model: sonnet`). Hand it the
+  diff, the section around it for voice, and the rules in `writing-style.md`. Read the
+  draft and edit it before you commit. A first draft rarely meets STE on its own.
 - **Keep every CHANGELOG bullet to three sentences at most.** A bold lead naming the
   change, then what a user notices, then a caveat or `(Fixes #N)` if one is needed.
   Cut the worked example, the before-and-after story, the list of every surface the
@@ -30,6 +16,15 @@
   `docs/`, or the PR; the changelog says what changed and stops. One bullet per change,
   never a second paragraph. Three sentences is the budget for the **whole bullet**,
   counting the bold lead as the first, not three per paragraph.
+- **Credit an outside contributor in the bullet for their change.** End the bullet
+  with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
+  not count against the three-sentence budget. An outside contributor is anyone
+  without write access to the repository when the PR opens. Their change gets a
+  credit in the same PR that writes the bullet. If a maintainer and a contributor
+  share the work, the contributor gets the credit. `summarize()` in
+  `ci/release-issues.py` quotes only the bold lead. The credit stays in the
+  CHANGELOG. It does not reach the issue comment, and it does not notify the
+  contributor on each release.
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).

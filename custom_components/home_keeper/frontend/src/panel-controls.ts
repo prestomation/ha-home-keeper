@@ -14,7 +14,7 @@
  * (`_view`, `_groupBy`, `_filter`, the saved Profiles) through the declared seam.
  */
 
-import { bucketByKey, statusBucket, taskAreaId, type Group } from './card-filter';
+import { bucketByKey, isBuyTask, statusBucket, taskAreaId, type Group } from './card-filter';
 import { t } from './i18n';
 import type { PanelHost } from './panel-host';
 import {
@@ -234,9 +234,21 @@ function seg(
  * than no count at all. Takes no `PanelHost`: it is a pure function of the task.
  */
 export function scopeMatches(task: Task, scope: TaskFilter, now = Date.now()): boolean {
-  if (scope === 'overdue') return isOverdue(task);
+  // A buy reminder is overdue by the clock — it is minted with no due date, and a
+  // dateless one-off is due now — but it is not *late work*, and this pill is the
+  // panel's word for late work. Counting it here put "Overdue 13" above a list whose
+  // own section headings read Overdue 10 and Shopping 3, and clicking the pill drew a
+  // Shopping section under a heading that says Overdue. Shopping already has the pill
+  // beside this one, so nothing is hidden by leaving it out of this one.
+  //
+  // Scoped to the pill deliberately. A Profile's `status: overdue` still selects buy
+  // reminders, because `exclude_shopping` is the opt-out b6 shipped for that and a
+  // household may be relying on those notifications; the per-task `_overdue` binary
+  // sensor likewise stays on, since an automation may key off it. This is a view
+  // control, and it is the only one of the three that had a Shopping twin to defer to.
+  if (scope === 'overdue') return isOverdue(task) && !isBuyTask(task);
   if (scope === 'soon') return statusBucket(task, now, PANEL_BUCKETS) === 'soon';
-  if (scope === 'shopping') return Boolean(task.source?.buy);
+  if (scope === 'shopping') return isBuyTask(task);
   return true;
 }
 
@@ -255,10 +267,11 @@ export function groupTasks(p: PanelHost, tasks: Task[], now = Date.now()): Group
   const group = effectiveGroup(p);
   if (group === 'status') {
     const order: {
-      bucket: 'overdue' | 'soon' | 'later' | 'monitored' | 'completed' | 'none';
+      bucket: 'overdue' | 'shopping' | 'soon' | 'later' | 'monitored' | 'completed' | 'none';
       label: string;
     }[] = [
       { bucket: 'overdue', label: t('chip.overdue') },
+      { bucket: 'shopping', label: t('filter.shopping') },
       { bucket: 'soon', label: t('filter.soon') },
       { bucket: 'later', label: t('section.later') },
       { bucket: 'monitored', label: t('section.monitored') },

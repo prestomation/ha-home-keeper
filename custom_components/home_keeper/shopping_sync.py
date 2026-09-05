@@ -110,7 +110,7 @@ class ShoppingListSync(TodoSyncDriver):
             return False
         store = self._coordinator.store
         tracked = store.get_shopping_items()
-        desired = shopping.buy_tasks_by_part(store.get_tasks())
+        desired = shopping.buy_tasks_by_part(store.get_tasks(), store.get_assets())
         target = self._resolve_target()
         if not force and not shopping.needs_pass(
             tracked=tracked, desired=desired, target=target

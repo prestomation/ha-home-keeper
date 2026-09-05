@@ -5,11 +5,8 @@
 The project's workflow, conventions, and **hard gates** live in `AGENTS.md`
 (imported above) and `.amazonq/rules/`. Read them before pushing.
 
-**All user-facing prose is Simplified Technical English (ASD-STE100)** — `README.md`,
-`docs/*.md`, `CHANGELOG.md`, `strings.json`, `services.yaml`, the frontend locale. One
-idea per sentence, active voice, imperative for instructions, one word for one meaning,
-no idiom, no `-ing` word as a subject. See AGENTS.md "Workflow" for the full rule and
-for the three `ai-tells` vale patterns that STE's short sentences tend to trip.
+**All English text follows ASD-STE100 Simplified Technical English.** Docs, strings,
+comments, PR text, and chat replies. Rules and glossary: `.amazonq/rules/writing-style.md`.
 
 Three gates worth repeating because they are easy to miss:
 

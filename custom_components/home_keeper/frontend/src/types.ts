@@ -360,16 +360,40 @@ export interface PanelInfo {
 export type NotifyStatus = 'all' | 'overdue' | 'due_soon';
 export type NotifyAction = 'complete' | 'snooze' | 'skip' | 'open';
 export type NotifyStyle = 'walk' | 'digest';
+/** How loudly a notification lands. Platform-neutral on purpose: the backend
+ *  (`notifications.payload_data`) expands it into Android's channel `importance` and
+ *  iOS's `push.interruption-level`, so the panel never asks which phone you carry. */
+export type NotifyUrgency = 'quiet' | 'normal' | 'high' | 'critical';
+
+/** What `home_keeper.notify` reports back. */
+export interface NotifyRun {
+  /** How many tasks the filter matched. The service rejects a run with no target
+   *  before it gets this far, so a non-zero count means a notification went out.
+   *  `matched: 0` is a success — the filter found nothing due — not a failure. */
+  matched: number;
+  /** The **task id** a walk surfaced, or `null` for a digest and for an empty queue.
+   *  Not a count: reading it as one made every real delivery report "no task is due"
+   *  (#255). Whether anything went out is `matched`. */
+  sent: string | null;
+}
 
 /** Which tasks a profile surfaces (a saved filter). */
 export interface NotifyFilter {
   labels: string[];
   areas: string[];
   devices: string[];
+  /** Integration domains from a task's `managed_by.integration` — the companion that
+   *  owns it. A task no integration claims has none, so it is never selected here and
+   *  never dropped by `exclude_companions`. */
+  companions: string[];
   /** Ids that disqualify a task even when it cleared the include lists above. */
   exclude_labels: string[];
   exclude_areas: string[];
   exclude_devices: string[];
+  exclude_companions: string[];
+  /** Drop the auto-created "Buy {part}" reminders — by kind, since they carry no
+   *  id of their own to exclude. */
+  exclude_shopping: boolean;
   status: NotifyStatus;
 }
 
@@ -406,6 +430,10 @@ export interface Notification {
   actions: NotifyAction[];
   snooze_hours: number;
   style: NotifyStyle;
+  /** The Android notification channel to deliver on (and the iOS thread to group
+   *  under). Empty means the companion app's own General channel. */
+  channel: string;
+  urgency: NotifyUrgency;
   auto: { overdue: boolean; due_soon: boolean };
 }
 

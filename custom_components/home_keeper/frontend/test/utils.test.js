@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   escapeHTML,
@@ -38,6 +39,8 @@ import {
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
   SETTINGS_SECTIONS,
+  isBuyTask,
+  statusChipHtml,
 } from '../src/utils.ts';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -149,6 +152,28 @@ describe('formatQuantity', () => {
     expect(formatQuantity(0.1 + 0.2)).toBe('0.3');
     expect(formatQuantity(1.23456)).toBe('1.235');
   });
+
+  // The shared cross-language cases. The same fixture drives the Python formatter
+  // (assets.format_quantity, see tests/unit/test_assets.py): a quantity is rendered
+  // here for the panel and there for the line Home Keeper puts on a household's
+  // shopping list, and "500 ml" in one place must not be "500.0 ml" in the other.
+  // Halfway values are the ones that matter — Python's round() breaks a tie to the
+  // even digit where toFixed breaks it away from zero.
+  describe('conformance fixture', () => {
+    const cases = JSON.parse(
+      readFileSync('tests/fixtures/quantity_format_cases.json', 'utf8'),
+    ).cases;
+
+    it('has cases to run', () => {
+      expect(cases.length).toBeGreaterThan(0);
+    });
+
+    for (const c of cases) {
+      it(c.name, () => {
+        expect(formatQuantity(c.value, c.unit)).toBe(c.expected);
+      });
+    }
+  });
 });
 
 describe('recurrenceSummary', () => {
@@ -203,6 +228,140 @@ describe('isOverdue', () => {
   });
   it('is false when next_due missing', () => {
     expect(isOverdue({}, now)).toBe(false);
+  });
+});
+
+describe('isBuyTask', () => {
+  it('needs both ids, because half a pair identifies no part', () => {
+    expect(isBuyTask({ source: { buy: { asset_id: 'a1', part_id: 'p1' } } })).toBe(true);
+    expect(isBuyTask({ source: { buy: { asset_id: 'a1' } } })).toBe(false);
+    expect(isBuyTask({ source: { buy: { part_id: 'p1' } } })).toBe(false);
+    expect(isBuyTask({ source: { part: { asset_id: 'a1' } } })).toBe(false);
+    expect(isBuyTask({ source: null })).toBe(false);
+    expect(isBuyTask({})).toBe(false);
+  });
+});
+
+describe('statusChipHtml', () => {
+  const now = new Date('2026-06-13T12:00:00Z');
+  const buy = {
+    // Exactly how the reconciler mints one: a one-off whose due date is the moment
+    // the part went low, so it is already overdue when it first appears.
+    recurrence_type: 'one-off',
+    next_due: '2026-06-10T12:00:00Z',
+    source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+  };
+
+  it('says Low stock on a buy reminder, never Overdue', () => {
+    const html = statusChipHtml(buy, undefined, { now });
+    expect(html).toContain('label="Low stock"');
+    expect(html).toContain('class="hk-shopping"');
+    expect(html).not.toContain('Overdue');
+    expect(html).not.toContain('hk-overdue');
+  });
+
+  it('says Low stock even where the row asks for elapsed days', () => {
+    // The list row passes `elapsed`. "3 days overdue" on a buy reminder would read as
+    // work three days late, when it means the part has been low for three days.
+    const html = statusChipHtml(buy, undefined, { now, elapsed: true });
+    expect(html).toContain('label="Low stock"');
+    expect(html).not.toContain('3 days overdue');
+  });
+
+  it('says Completed once the reminder is bought, matching its section', () => {
+    // Buying 2 of a part that wants 5 leaves it low, so the reconciler keeps the row
+    // and `statusBucket` files it under Completed. A "Low stock" chip on a row sitting
+    // under Completed is the panel arguing with itself.
+    const bought = {
+      recurrence_type: 'one-off',
+      next_due: null,
+      last_completed: '2026-06-12T12:00:00Z',
+      source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+    };
+    const html = statusChipHtml(bought, undefined, { now });
+    expect(html).toContain('label="Completed"');
+    expect(html).not.toContain('Low stock');
+  });
+
+  it('needs all three marks of a bought reminder before it stops saying Low stock', () => {
+    // "Bought" is the one shape `statusBucket` calls completed: a one-off, with its
+    // due date spent, that has a completion on it. Each part is load-bearing — drop
+    // any one and the row is an open reminder that must still read Low stock, so each
+    // is pinned separately rather than by the happy path alone.
+    const bought = {
+      recurrence_type: 'one-off',
+      next_due: null,
+      last_completed: '2026-06-12T12:00:00Z',
+      source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+    };
+    const lowStock = 'label="Low stock"';
+    // Not a one-off — a repeating task's completion does not end it.
+    expect(statusChipHtml({ ...bought, recurrence_type: 'floating' }, undefined, { now })).toContain(
+      lowStock,
+    );
+    // Still due: bought once before, low again now.
+    expect(
+      statusChipHtml({ ...bought, next_due: '2026-06-10T12:00:00Z' }, undefined, { now }),
+    ).toContain(lowStock);
+    // Never completed — a fresh reminder that simply has no due date yet.
+    expect(statusChipHtml({ ...bought, last_completed: null }, undefined, { now })).toContain(
+      lowStock,
+    );
+  });
+
+  it('still says Overdue for real maintenance', () => {
+    const late = { next_due: '2026-06-10T12:00:00Z' };
+    expect(statusChipHtml(late, undefined, { now })).toContain('label="Overdue"');
+    expect(statusChipHtml(late, undefined, { now })).toContain('class="hk-overdue"');
+  });
+
+  it('counts elapsed whole days only when asked, and only past a full day', () => {
+    const days3 = { next_due: '2026-06-10T12:00:00Z' };
+    const hours4 = { next_due: '2026-06-13T08:00:00Z' };
+    expect(statusChipHtml(days3, undefined, { now, elapsed: true })).toContain(
+      'label="3 days overdue"',
+    );
+    // One full day is the floor for the count, and it is *included*: exactly one day
+    // late reads "1 day overdue", where anything under a day stays the bare "Overdue"
+    // rather than rounding up to a day it has not reached.
+    const day1 = { next_due: '2026-06-12T12:00:00Z' };
+    expect(statusChipHtml(day1, undefined, { now, elapsed: true })).toContain(
+      'label="1 day overdue"',
+    );
+    expect(statusChipHtml(hours4, undefined, { now, elapsed: true })).toContain(
+      'label="Overdue"',
+    );
+    // Without `elapsed` the count never appears, however late the task is.
+    expect(statusChipHtml(days3, undefined, { now })).toContain('label="Overdue"');
+  });
+
+  it('falls back to the due label when nothing is late', () => {
+    const soon = { next_due: '2026-06-14T12:00:00Z' };
+    const html = statusChipHtml(soon, undefined, { now });
+    // A plain chip carries no class at all — the colour is what separates it from an
+    // overdue or low-stock one, so an empty `class=""` would still be wrong.
+    expect(html).toBe('<ha-assist-chip label="tomorrow"></ha-assist-chip>');
+  });
+
+  it('escapes the label it renders', () => {
+    // The label goes into an HTML attribute, and `dueLabel` can carry a meter's own
+    // unit ("in 7000 miles") — which is stored text, not a fixed string.
+    const html = statusChipHtml(
+      {
+        recurrence_type: 'sensor',
+        sensor: {
+          mode: 'usage',
+          target: 100,
+          baseline: 0,
+          entity_id: 'sensor.odo',
+          unit: '" onload="x',
+        },
+      },
+      { states: { 'sensor.odo': { state: '10' } } },
+      { now },
+    );
+    expect(html).toContain('&quot; onload=&quot;x');
+    expect(html).not.toContain('" onload="x');
   });
 });
 

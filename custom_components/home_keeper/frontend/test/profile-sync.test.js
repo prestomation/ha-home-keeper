@@ -124,7 +124,11 @@ describe('Settings tab — the profile sync group', () => {
     const panel = await mountSettings(hass);
     const body = rows(panel)[0].querySelector('.hk-item-body');
     const kinds = [...body.children].map((el) => el.className || el.tagName.toLowerCase());
-    expect(kinds).toEqual(['ha-form', 'hk-sync-group', 'hk-notify-delete']);
+    expect(kinds).toEqual(['ha-form', 'hk-sync-group', 'hk-item-actions']);
+    // Delete lives in that last footer row, and a profile has nothing beside it —
+    // Test is a notification action, so a profile row must not grow one.
+    const actions = body.querySelector('.hk-item-actions');
+    expect([...actions.children].map((el) => el.className)).toEqual(['hk-notify-delete']);
   });
 
   it('gives every profile its own group, and no Delete inside it', async () => {

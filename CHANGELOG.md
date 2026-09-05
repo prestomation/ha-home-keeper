@@ -6,6 +6,134 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.20.0] - 2026-09-04
+
+### Added
+
+- **Duplicate a task from its detail page.** The create form opens already filled in
+  with a copy, so a row of near-identical tasks costs one edit each. A task another
+  integration owns keeps a greyed Duplicate that explains why, as does a buy task.
+  (Fixes #279)
+
+- **Give a notification its own channel and urgency.** A Medication notification can
+  then make a sound during Do Not Disturb while a Batteries notification stays silent.
+  Each notification also gets a **Test** button that sends it to the phone at once.
+  (Fixes #255)
+
+- **A Profile can filter tasks by the companion that created them.** One card or
+  notification then covers a single source. A task you make yourself is never selected
+  this way.
+
+- **The shopping-list line shows the amount to buy.** A part measured in a unit reads
+  "Buy fabric softener (500 ml)". The task keeps its own name in the panel and the
+  calendar and the notifications. (Fixes #220)
+
+- **A Profile can exclude the shopping tasks.** The new **Exclude shopping** switch
+  removes the auto-created buy tasks from the tasks that a Profile selects. It is off
+  by default, and an existing Profile is not changed.
+
+- **The Notifications page shows 3 worked automations.** One resends a notification
+  every 2 hours until the task is complete. Another sends a notification only when a
+  person is at home.
+
+### Changed
+
+- **Each Settings card shows its save status next to its name, in place of a pop-up
+  message.** The status reads *Saving…* and then *Saved*. A save that fails shows *Not
+  saved* on the card and also keeps the pop-up, which gives the reason.
+
+### Fixed
+
+- **Sending a task to a CalDAV to-do list (Nextcloud, Baikal, Radicale) no longer
+  creates a duplicate.** The duplicate was permanent: an edit afterward reached only
+  one copy, and a delete left the other behind on the server. The same timing could
+  also complete a recurring task twice and skip its next occurrence.
+
+- **A buy task is no longer shown as overdue work.** A task with no due date is due
+  immediately, so a buy task was shown in the Overdue section with the overdue
+  maintenance tasks. It now has a Shopping section of its own and reads **Low stock**
+  on every page.
+
+- **The Overdue filter no longer counts the shopping tasks.** In the panel and on the
+  dashboard card, Overdue now means late work only. Use the Shopping filter beside it
+  to see the buy tasks, which a Profile still selects as before.
+
+- **A copy of a task asks for the same details as the task it came from.** A task set
+  to require a note and a photo made a copy that asked only for a note.
+
+- **Settings no longer loses an edit when you go to the next row too soon.** Each row
+  in *Settings → Notifications* and *Settings → Profiles* saves a moment after you stop
+  typing. The first row showed Saved and then lost its value. (Fixes #255)
+
+- **The Shopping filter is kept after a page reload.** The task list changed back to
+  **All** each time the page was refreshed.
+
+## [0.20.0b6]
+
+### Added
+
+- **The shopping-list line shows the amount to buy.** A part measured in a unit reads
+  "Buy fabric softener (500 ml)", and a part that restocks more than 1 at a time reads
+  "Buy air filter (×2)". A part that restocks 1 whole spare is not changed, and the
+  task keeps its own name in the panel and the calendar and the notifications.
+  (Fixes #220)
+
+- **A Profile can exclude the shopping tasks.** The new **Exclude shopping** switch
+  removes the auto-created buy tasks from the tasks that a Profile selects. It is off
+  by default. An existing Profile is not changed.
+
+### Fixed
+
+- **A buy task is no longer shown as overdue work.** A task with no due date is due
+  immediately, so a buy task was shown in the Overdue section with the overdue
+  maintenance tasks. It now has a Shopping section of its own, in the panel and on the
+  dashboard card, and its status reads **Low stock**.
+
+- **The Shopping filter is kept after a page reload.** The task list changed back to
+  **All** each time the page was refreshed.
+
+## [0.20.0b5]
+
+### Changed
+
+- **Each Settings card now shows its save status next to its name, in place of a pop-up
+  message.** The status reads *Saving…* and then *Saved*. A save that fails shows *Not
+  saved* on the card and also keeps the pop-up, which gives the reason.
+
+### Fixed
+
+- **Settings no longer loses an edit when you go to the next row too soon.** Each row in
+  *Settings → Notifications* and *Settings → Profiles* saves a moment after you stop
+  typing. The first row showed Saved and then lost its value. (Fixes #255)
+
+- **The Test button now shows the correct result.** In *Settings → Notifications* it
+  said that no task was due after it sent the notification to the phone. (Fixes #255)
+
+## [0.20.0b4]
+
+### Added
+
+- **Profiles can filter by companion.** A profile now selects or rejects tasks by the
+  integration that created them. One card or notification can then cover a single
+  source, and a task you create yourself is never selected.
+
+## [0.20.0b3]
+
+### Added
+
+- **Give a notification its own channel and urgency.** In *Settings → Notifications* a
+  notification can use its own channel name and an urgency from *Quiet* to *Critical*.
+  A Medication notification can then make a sound during Do Not Disturb while a
+  Batteries notification stays silent. (Fixes #255)
+
+- **Send a notification now with Test.** Each notification in *Settings →
+  Notifications* has a **Test** button that delivers it to the phone at once. Use it to
+  check a channel or an urgency without a wait for a task to come due.
+
+- **The Notifications page shows 3 worked automations.** One resends a notification
+  every 2 hours until the task is complete. Another sends a notification only when a
+  person is at home.
+
 ## [0.20.0b2]
 
 ### Added

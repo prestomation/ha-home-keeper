@@ -13,383 +13,407 @@
 [![HA Version][ha-version-shield]][ha-version]
 [![Docs][docs-shield]][docs]
 
-Track home **maintenance** and **chores** in Home Assistant (fridge/furnace filter
-changes, water filters, taking medicine, and anything else that recurs).
+Home Keeper tracks home maintenance and chores in Home Assistant. This includes
+fridge and furnace filter changes, water filters, taking medicine, and anything
+else that recurs.
 
 > 📖 **Full documentation** (a browsable User Guide and Developer Guide) lives at
 > **<https://prestomation.github.io/ha-home-keeper/>**. The site is generated from this
 > README and `docs/`, so they never drift.
 
 ![Home Keeper task list](docs/images/1-panel-task-list.png)
-
 ## Features at a glance
 
-- **Tasks, five ways:** **floating** (every N units after last done), **fixed**
-  (anchored calendar schedule), **one-off** (do-once, on a chosen due date),
-  **triggered** (condition-driven, no schedule, armed/cleared by another integration),
-  and **sensor-based** (driven by an entity: a usage meter, a threshold, or a state such
-  as a binary sensor flipping on).
-- **Used through native HA entities**: a `todo` list, an upcoming-tasks `calendar`,
-  and per-device **button / next-due sensor / overdue binary_sensor** on a task's
-  device page.
-- **Sync tasks onto other to-do lists**: profile-filtered chores are synced onto
-  a Todoist project (or any `todo` entity) as they come due, and checking one off
-  there completes it here.
-- **Dashboard task card**: a bundled, auto-registered `custom:home-keeper-card` with
-  one-tap **Done**, inline add/edit, and rich filtering/grouping.
-- **Markdown notes**: every notes field (task, appliance, part, completion) renders
-  as Markdown, authored with a live preview.
-- **NFC/RFID tags**: link a task to a Home Assistant tag so a scan completes it,
-  optionally *requiring* the scan so nobody checks off a chore from the couch.
-- **Appliances & virtual devices**: give "dumb" appliances a real device page,
-  structured metadata (with optional tracked-date sensors), **parts & wear items**,
-  **spare-part inventory**, **offline manuals & documents** (link or upload a PDF), and a
-  CSV **home-inventory export** for insurance.
-- **Events & automation triggers**: a bus event for every state change, plus
-  visual-editor **device triggers** like *"Task became overdue."*
-- **Services for everything**: every data action is a `home_keeper.*` service for
-  automations, scripts, and voice.
-- **Localized in 16 languages**, following your Home Assistant language.
-- **Open to other integrations**: they can contribute their own recurring tasks and
-  stay in sync with completions.
+- Tasks support 5 recurrence types. These are floating, fixed, one-off, triggered,
+  and sensor-based. See [Concepts](#concepts).
+- Home Keeper provides native Home Assistant entities. A `todo` list and an
+  upcoming-tasks `calendar` and per-device entities on a task's device page.
+- Home Keeper syncs the tasks of a profile to any `todo` entity as they become
+  due. A completion on that list completes the task in Home Keeper.
+- The bundled dashboard card `custom:home-keeper-card` has a Done button and
+  inline add and edit. It supports filtering and grouping.
+- Every notes field on a task or appliance or part or completion is Markdown
+  with a live preview.
+- A task can link to a Home Assistant tag so that a scan completes it. The task
+  can require the scan.
+- An appliance has a device page with structured metadata and optional
+  tracked-date sensors. It has parts and wear items and spare-part inventory and
+  documents. A CSV home-inventory export is available for insurance.
+- Home Keeper fires a bus event for every state change and provides device
+  triggers such as "Task became overdue" for the visual automation editor.
+- Every data action is a `home_keeper.*` service for automations and scripts and
+  voice.
+- Home Keeper is localized in 16 languages and follows the Home Assistant
+  language setting.
+- Other integrations can contribute their own recurring tasks and stay in sync
+  with completions.
+
+
+
+
+
+
+
+
+
 
 ## Installation
 
-Home Keeper is a custom integration installed via [HACS](https://hacs.xyz/):
+Home Keeper is a custom integration installed with [HACS](https://hacs.xyz/):
 
-1. In HACS, add this repository as a **custom repository** (category *Integration*):
-   `https://github.com/prestomation/ha-home-keeper`.
-2. Install **Home Keeper**, then restart Home Assistant.
+1. In HACS, add this repository as a custom repository, category
+   Integration: `https://github.com/prestomation/ha-home-keeper`.
+2. Install Home Keeper and restart Home Assistant.
 3. Add the integration from **Settings → Devices & Services → Add Integration →
    Home Keeper**.
 
-A **Home Keeper** panel then appears in the sidebar. Tasks and appliances are stored
-locally in a single JSON document (`.storage/home_keeper`).
+A Home Keeper panel then appears in the sidebar. Tasks and appliances are
+stored locally in a single JSON document, `.storage/home_keeper`.
+
+
+
+
+
+
+
+
+
 
 ## Concepts
 
-A **task** has a name, notes, an optional device it's attached to, and a recurrence:
+A task has a name, notes, an optional attached device, and a recurrence:
 
-- **Floating** (form: *Repeats after each completion*), measured from the last
-  completion: *"replace the fridge filter every 1 month after I last did it."*
-  Completing the task resets the clock; a missed task stays overdue rather than
-  silently rolling forward.
-- **Fixed** (form: *Repeats on a fixed schedule*), an anchored calendar schedule:
-  *"take medicine every day at 8am"*, independent of when you actually complete it.
-- **One-off** (form: *Just once*), *do-once* (see
-  [One-off tasks](#one-off-do-once-tasks) below).
-- **Triggered** (*monitored, condition-driven, no schedule*, see below).
-- **Sensor-based** (form: *Based on a sensor*), driven by an entity instead of
-  the clock: *"service the generator every 500 running hours"*, *"replace the filter
-  when airflow drops below 60%"*, or *"fill the tank when the vacuum says it's empty"* (see
-  [Sensor-based tasks](#sensor-based-tasks-usage-meters-thresholds--states) below).
+- Floating, shown as **Repeats after each completion** in the form, measures from the last
+  completion. An example is a fridge filter every 1 month after the last
+  completion. Each completion resets the interval. A missed task stays overdue and
+  does not roll forward.
+- Fixed, shown as **Repeats on a fixed schedule** in the form, is an anchored calendar schedule
+  that is independent of completions. An example is medicine every day at 8am.
+- One-off, shown as **Just once** in the form, runs one time. See
+  [One-off tasks](#one-off-do-once-tasks) below.
+- Triggered is monitored and condition-driven, with no schedule. See below.
+- Sensor-based, shown as **Based on a sensor** in the form, is driven by an entity instead of the
+  clock. An example is a generator service every 500 running hours. See
+  [Sensor-based tasks](#sensor-based-tasks-usage-meters-thresholds--states) below.
 
-An **appliance** (asset) is the physical thing a task is about: a fridge, furnace,
-water heater (see [Appliances & virtual devices](#appliances--virtual-devices)).
+An appliance, also called an asset, is the physical thing a task is about,
+such as a fridge, furnace, or water heater. See
+[Appliances & virtual devices](#appliances--virtual-devices).
 
-**Who can do what.** Managing your home is an admin job. Using the list is not. The
-sidebar panel and everything behind it (creating and editing appliances, settings,
-profiles, notification delivery, the inventory export) is for Home Assistant
-**administrators**, the same line HA draws around its own Settings. Everyone else in
-the household keeps the to-do list, the calendar, the device-page buttons and the
-dashboard card, so they can see what's due and mark it done. Full details, including
-what appliance data a non-admin can read, are in
-[the security model](docs/SECURITY.md).
+The panel is admin-only. This includes appliances and settings and profiles and
+notifications and the inventory export. The to-do list, the calendar, the
+device-page buttons, and the dashboard card are available to every user. See
+[the security model](docs/SECURITY.md) for what a non-admin user can read.
 
 ### Put a task in a room
 
-Every task can sit in a Home Assistant **area**, so your upkeep sorts by room. Pick one
-in the task form's **Area** field.
+A task can have a Home Assistant area. Select the area in the **Area** field of the
+task form.
 
-A task attached to a device already takes that device's area, so this field is really
-for the tasks that have no device: *water the plants* in the Living room, *clean the
-windows* in the Bedroom, *descale the kettle* in the Kitchen. Choosing an area
-overrides whatever the device would have supplied. Clearing it hands the task back to
-its device's area.
+A task attached to a device takes that device's area. The field is for tasks with
+no device, such as the plants in the living room. A selected area overrides the
+device's area. Clear the field to return the task to its device's area.
 
-Once a task has an area you can **Group by → Area** on the Tasks tab, filter a
-[dashboard card](#dashboard-task-card) to one or more areas, or scope a
-[Profile](#profiles-saved-filters-you-reuse-everywhere) (and the notifications built on
-it) to a room. Areas are also settable from `home_keeper.add_task` /
-`home_keeper.update_task`.
+A task with an area can be grouped by Area on the Tasks tab. A
+[dashboard card](#dashboard-task-card) or a
+[Profile](#profiles-saved-filters-you-reuse-everywhere) can filter by area. The
+`home_keeper.add_task` and `home_keeper.update_task` services also set the area.
 
 ![The task form's Area field, holding the room a device-less task was placed in](docs/images/42b-panel-task-area-form.png)
 
 ![The Tasks tab grouped by Area, with the task under its room instead of Unassigned](docs/images/42c-panel-tasks-grouped-by-area.png)
 
+
+
+
+
+
+
+
+
+
+## Getting around the panel
+
+The panel has the tabs **Tasks**, **Appliances**, and **Settings**.
+
+![The Tasks tab: scope pills with counts, a task row per line with its status at the end](docs/images/1-panel-task-list.png)
+
+On the **Tasks** tab:
+
+- Select a scope pill to filter the list by status.
+- Select a saved Profile in the **Profile** picker or a grouping in **Group by**.
+- Press **Add task** to create a task.
+- Press **Edit** on a task to open its form. The form has the groups Basics,
+  Schedule, Placement, and Completion. Press **Save** in the header or **Delete** in
+  the footer.
+
+![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
+
+On the **Appliances** tab, select an appliance to open it. An appliance has the
+sub-tabs **Parts**, **Tasks**, **Documents**, **Details**, **Related**, and
+**History**. Each sub-tab has its own URL, such as
+`/home-keeper/appliances/<id>/documents`. Press **Edit** to open the appliance form.
+
+![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
+
+### Duplicate a task
+
+To create a task from a copy of another task, press **Duplicate** on the task's page.
+The create form opens with the values of the original. Change the values and press
+**Create**. Nothing is saved before **Create**.
+
+The copy does not include:
+
+- the completion history
+- the starting reading of a meter task
+- the NFC tag and the require-scan setting
+- the required completion fields
+- integration-provided chips and the integration source
+
+A task that another owner manages cannot be duplicated. **Duplicate** is disabled for
+these tasks and shows the owner when pressed. This applies to:
+
+- a wear item from an appliance part
+- a synced problem sensor
+- a condition-driven task
+- a task that another integration manages
+
+![A task's page with Duplicate beside Edit, and the create form open in the drawer prefilled with a copy](docs/images/56-panel-task-duplicate-drawer.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## One-off (do-once) tasks
 
-Not everything repeats. **One-off** tasks are for things you do exactly once:
-*renew the passport*, *register the car*, *replace a single broken blind*. Pick
-**Just once** on the task form and choose a **due date** (it defaults to today, so a
-quick "remind me to do this" needs only a name).
+Home Keeper supports a one-off task for something a user does 1 time. This is
+useful for a task with no recurrence, such as renewal of a passport or
+registration of a car.
 
-A one-off behaves like any other task until it's done. It appears on the to-do
-list, the upcoming-tasks calendar, and the overdue/next-due sensors, and you can log
-the usual completion details (note, cost, who, photo). The difference is what happens
-**after**: instead of rescheduling, it goes dormant and drops out of every active
-surface, landing in a collapsed **Completed** section in the panel that keeps its
-completion record. Undoing the completion brings it right back to its due date.
+Select **Just once** on the task form and select a due date. The due date
+defaults to today.
+
+A one-off task behaves like any other task until it is complete. It appears
+on:
+
+- the to-do list
+- the upcoming-tasks calendar
+- the overdue and next-due sensors
+
+A user can log the usual completion details:
+
+- a note
+- a cost
+- who completed it
+- a photo
+
+A completed one-off task does not reschedule. It is removed from the active
+surfaces and listed in the **Completed** section of the panel with its completion
+record. Undo the completion to return the task to its due date.
 
 ![Creating a one-off task (no cadence, just a due date)](docs/images/20-panel-create-one-off.png)
 
 ![Completed one-off tasks collect in their own collapsed section](docs/images/19-panel-completed-section.png)
 
-**Tidy up automatically.** If you'd rather not let finished one-offs pile up, set
-**One-off retention (days)** in the panel's **Settings** tab (or via the
-`home_keeper.set_options` service): a completed one-off is deleted that many days
-after it's done. The default (`0`) keeps them forever.
+Set **One-off retention (days)** in the panel's **Settings** tab, or with the
+`home_keeper.set_options` service, to delete a completed one-off task
+automatically. A completed one-off task is deleted that many days after
+completion. The default, `0`, keeps a completed one-off task forever.
+
+
+
 
 ## Notes are Markdown
 
-Every **Notes** field in Home Keeper renders as **Markdown**, on a task, on an
-appliance, on a part, and on each logged completion. Notes are where the real
-knowledge lives, and a wall of unformatted text is the wrong shape for it.
+Home Keeper supports **Markdown** in every **Notes** field:
 
-**Use cases.** The three-step procedure you always half-remember, as a numbered list.
-The part number in `code` so it stands out from the prose. The link to the manual page
-you actually need. A little table of settings (thermostat temperature, filter size,
-torque spec). A `> ` callout for the thing that bit you last time.
+- a task
+- an appliance
+- a part
+- a logged completion
 
-**How you use it.** Write Markdown in any notes field: headings, **bold**, *italic*,
-lists, links, tables, quotes, and code all work (GitHub-flavoured Markdown). Two ways
-in:
+This is useful for structured content, such as a numbered procedure or a
+table of settings.
 
-- **Inline on the detail page.** A task's or appliance's Notes card has an **Edit
-  note** button that opens a full-width editor with a **live preview** underneath, so
-  you see the formatting as you type. The preview appears only once the text actually
-  contains Markdown. Plain prose isn't worth previewing.
-- **In the edit form.** The task, appliance, part, and completion editors all have a
-  notes field with the same live preview.
+A notes field supports GitHub-flavored Markdown:
+
+- headings
+- **bold** and *italic* text
+- lists
+- links
+- tables
+- quotes
+- code
+
+A user writes Markdown in 2 places:
+
+- **Inline on the detail page.** The Notes card has an **Edit note** button
+  that opens an editor with a **live preview**. The preview appears only when
+  the text contains Markdown.
+- **In the edit form.** The task, appliance, part, and completion editors have
+  a notes field with the same live preview.
 
 <img src="docs/images/41-panel-note-editor-preview.png" alt="The inline note editor on a task detail page: a textarea containing Markdown, with a live preview below it rendering the heading and bullet list" width="820">
 
-Notes are stored as **Markdown source**, not HTML, so the raw text is what other
-surfaces receive: the `todo` item description, the `calendar` event description, and
-anything reading a task through the services or events. Home Assistant renders those
-descriptions with its own Markdown support where it has it.
+Home Keeper stores notes as **Markdown source**, not HTML. The raw text is
+sent to:
 
-**Appliance and part notes.** Appliances now have a first-class **Notes** field of
-their own (`home_keeper.add_asset` / `update_asset`), separate from the custom
-metadata fields, use it for prose about the appliance ("*the shut-off is the red
-lever above the tank*"), and leave the custom fields for label/value facts. Each
-**part** has notes too, shown under it in the appliance's Parts list.
+- the `todo` item description
+- the `calendar` event description
+- anything that reads a task through the services or events
 
-Rendering and sanitizing are done by Home Assistant's own `ha-markdown` component, so
-notes are sanitized before display and match your theme.
+Home Assistant renders those descriptions with its own Markdown support.
+
+The `home_keeper.add_asset` and `update_asset` services set the appliance **Notes**
+field. Each **part** also has a notes field.
+
+Home Assistant's `ha-markdown` component renders and sanitizes the notes, so a
+note matches the current theme.
+
+
+
 
 ## Logging completions (note, cost, photo, who)
 
-By default marking a task **Done** is one tap. But for the chores you want a record
-of (*"what did this service cost, who did it, what did I notice?"*), a task can
-capture **per-completion detail**: a free-form **note**, a **cost**, a **photo**, and
-**who** did it (a Home Assistant person).
+Home Keeper supports **per-completion detail** on a task. The default is a 1-tap
+**Done**. This is useful for a maintenance log
+of a task's cost and notes.
 
-**Use case.** Treat the completion history as a real maintenance log. Track what you
-spend on filters over the years, attach a photo of the part you fitted, or note which
-family member last walked the dog, all queryable later from the task's history.
+A completion can record:
 
-**How it's used.** Each task chooses its capture mode when you create or edit it
-(*On completion*):
+- a free-form note
+- a cost
+- a photo
+- who completed it, a Home Assistant `person` entity
 
-- **One-tap done** (the default); no dialog, nothing changes.
-- **Ask for details (optional)**, where Done opens a dialog with note / cost / photo / who,
-  all optional (a *Skip details* button still completes instantly).
-- **Require details**: the dialog appears and the required field(s) must be filled
-  before the task can be marked done.
+A task sets its capture mode in the **On completion** field:
 
-The dialog uploads photos through Home Assistant's native image store and picks *who*
-from your `person` entities. Every recorded completion shows its note, cost, photo
-thumbnail and who in the task's history, where you can **edit** a past entry (fix a
-note, add a forgotten receipt) without disturbing the schedule. The most recent
-completion's details are also exposed on the task's *next due* sensor attributes, and
-the `home_keeper.complete_task` / `home_keeper.update_completion` services carry the
-same fields for automations.
+- **One-tap done** is the default, with no dialog.
+- **Ask for details (optional)** opens a dialog with the completion fields,
+  all optional. A **Skip details** button completes the task without them.
+- **Require details** opens the dialog and blocks **Done** until a user fills
+  the required fields.
 
-**Back-dating a completion, or correcting one after the fact.** The dialog's
-**Completed at** field (defaults to now) lets you log a completion for when the work
-actually happened, not when you got around to opening the app. This matters most for
-a **floating** task, whose next-due date measures from the completion: log a 30-day
-task 5 days late and floating math would otherwise push the next occurrence 5 days
-too far out. If you already logged a completion at the wrong time, each history row's
-**move date** button (next to edit and delete) re-timestamps that one entry, unlike
-the pencil (edit) button, which only touches note/cost/photo/who and never the date.
-Backed by the `home_keeper.move_completion` service for automations.
+The dialog uploads a photo through Home Assistant's image store. The **who**
+field lists the `person` entities.
+
+The task's history shows each completion's:
+
+- note
+- cost
+- photo
+- who
+
+A past entry can be edited there without a change to the schedule. The details of
+the most recent completion are also attributes of the task's **next due** sensor.
+The `home_keeper.complete_task` and `home_keeper.update_completion` services
+accept the same fields.
+
+The dialog's **Completed at** field defaults to now. A user can set it to log
+a completion for the time the work happened.
+
+The next due date of a **floating** task is measured from the completion date, so
+the completion date moves the schedule.
+
+The **move date** button on a history row changes the date of that entry. The
+**edit** button changes the recorded details and not the date. The
+`home_keeper.move_completion` service performs the same move.
 
 ![The move-date dialog on a history row, re-timestamping one completion without touching its note, cost, photo, or who](docs/images/40-panel-history-move-date.png)
 
-> The set of *required* fields is stored per task, so a future release can let you
-> require specific fields (e.g. always a cost) without any migration.
-
-> **Where "require details" applies.** The capture dialog and the *required*
-> gate live in the **panel**. Completing a task from a surface that has no dialog
-> (the native **to-do** checkbox, the mobile app, the device **mark-done** button, or
-> a bare `home_keeper.complete_task` service call) just records the completion
-> immediately, with whatever metadata was passed (none from a checkbox). This is
-> deliberate: those surfaces can't prompt, and hard-blocking them would make a
-> *required* task impossible to complete from the to-do list or an automation. So
-> *required* is a capture prompt scoped to the panel. The dashboard
-> card honours it by sending you to the panel instead of quick-completing. Automations
-> that want to record detail can pass `note` / `cost` / `photo` / `who` to the service.
+> The capture dialog and the **required** gate apply only in the **panel**. A
+> task completed from another surface completes immediately, with whatever
+> metadata is passed:
+>
+> - the native **to-do** checkbox, which passes no metadata
+> - the mobile app
+> - the device **mark-done** button
+> - a bare `home_keeper.complete_task` service call
+>
+> The dashboard card sends a user to the panel to complete a required task,
+> instead of completing it directly. An automation can pass `note`, `cost`,
+> `photo`, and `who` to the `home_keeper.complete_task` service.
 
 ![The completion-details dialog (note, cost, who and photo captured when a task is marked done)](docs/images/11-panel-completion-dialog.png)
 
-Every completion's note and cost (and who/photo) then show in the task's history,
-where each entry can be edited or removed:
-
 ![Task history annotated with per-completion cost and notes, each row editable](docs/images/7-panel-task-detail.png)
 
-Administration and usage are intentionally **separated**: you **manage** tasks and
-appliances from the **Home Keeper** sidebar panel, and **use** them through native HA
-entities and the dashboard card. The panel list view can group/filter tasks, and
-tapping any row opens a detail page with the full schedule, notes, and completion
-history.
 
-## Getting around the panel
 
-<!-- vale ai-tells.ColonUsage = NO -->
-Everything lives behind three tabs: **Tasks**, **Appliances** and **Settings**.
-
-![The Tasks tab: scope pills with counts, a task row per line with its status at the end](docs/images/1-panel-task-list.png)
-
-A task row shows what it is, when it is due, and one action. How overdue it is rides
-a pill at the end of the line, and the row's left edge is coloured to match, so a
-list can be skimmed for the red ones. The filter row above sits on one line: scope
-pills carrying a count each, then the saved **Profile** and **Group by** pickers,
-then **Add task**.
-
-**Editing opens in a drawer beside what you were reading.** Press **Edit** on a task
-or an appliance and the form opens as a column next to that page. The page stays
-readable while its values are being changed. Adding from a list opens the same drawer
-beside the list with the row being edited lit and the rest of the list receding.
-**Save** sits in a header that does not scroll away and **Delete** in a footer at the
-other end. The form is grouped into Basics, Schedule, Placement and Completion. Fields
-that a recurrence choice reveals are indented behind a rule so it is clear what they
-depend on.
-
-![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
-
-![Adding a task in the drawer, with the row being edited marked in the list behind it](docs/images/2-panel-create-floating.png)
-
-**An appliance is read next to the list it came from.** Its list stays as a pane on
-the left with the appliance you are looking at marked in it, and the appliance's own
-sections are sub-tabs: **Parts**, **Tasks**, **Documents**, **Details**, **Related**
-and **History**, each carrying how much it holds. Each sub-tab has an address of its
-own (`/home-keeper/appliances/<id>/documents`), so browser Back leaves a sub-tab like
-any other page and you can link straight to one.
-Editing an appliance opens beside it too, and the list pane steps aside to make room.
-
-![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
-
-![An appliance's page with its edit form open beside it, the appliance list stepped aside to make room](docs/images/55-panel-appliance-detail-edit.png)
-
-**On a phone** the tabs move to the bottom of the screen. **Add task** turns into a
-floating button. The edit drawer becomes a full-height sheet. The scope pills come
-apart into separate chips that wrap onto a second row, so no filter ends up off the
-edge of the screen. The appliance list steps aside while you read an appliance. The
-back arrow brings it back.
-
-<p>
-  <img src="docs/images/52-panel-mobile-tasks.png" alt="The Tasks tab on a phone, with the scope pills wrapped onto two rows above the list" width="300">
-  <img src="docs/images/53-panel-mobile-appliances.png" alt="The Appliances tab on a phone" width="300">
-</p>
-<!-- vale ai-tells.ColonUsage = YES -->
-
-### Duplicate a task
-
-Ten soil-moisture sensors, one per plant, need ten near-identical "water the flowers"
-tasks. Only the name, the sensor and the device change from one to the next. The rest
-is the same rule typed out ten times. Press **Duplicate** on the task's page and the
-create form opens already filled in with a copy.
-
-Nothing is saved until you press **Create**. Rename the copy and point it at the
-other sensor.
-
-![A task's page with Duplicate beside Edit, and the create form open in the drawer prefilled with a copy](docs/images/56-panel-task-duplicate-drawer.png)
-
-The copy leaves three things behind on purpose. Its completion history starts empty,
-because none of that work happened to this task. A meter task's **starting reading**
-resets too, so the copy anchors against whatever its own sensor reads now rather than
-inheriting an anchor from another machine. The NFC tag stays with the original, since
-one sticker completes one task.
-
-Some tasks are not Home Keeper's to copy: a wear item derived from an appliance part, a
-synced problem sensor, a condition-driven task, or one another integration manages.
-Those keep a greyed-out **Duplicate**. Press it and Home Keeper says which owner drives
-the task, rather than offering a button that does nothing.
 
 ## Complete tasks with NFC/RFID tags
 
-Stick a cheap NFC sticker on the thing itself (the dog food bin, the furnace
-filter, the litter box) and a tap of your phone logs the chore. A task can be
-linked to a [Home Assistant tag](https://www.home-assistant.io/integrations/tag/),
-and whenever that tag is scanned, Home Keeper completes the task.
+Home Keeper supports linking a task to a [Home Assistant
+tag](https://www.home-assistant.io/integrations/tag/). When a user scans the
+tag, Home Keeper completes the task. This is useful for completing a task by
+scanning a tag placed on the item, without opening the dashboard.
 
-**Use cases.**
+No `tag_scanned` automation is needed. The **Done** button continues to work.
 
-- **Quick-log:** tap the tag as you finish and move on, without opening the
-  dashboard at all. The Done button keeps working too.
-- **Proof of presence:** for households where tasks get checked off from the couch,
-  the **Require tag scan to complete** toggle blocks Done on every surface (panel,
-  card, to-do list, device button, notifications). Marking the task done then
-  means walking over to its tag.
+The **Require tag scan to complete** toggle blocks **Done** on every surface:
 
-**How it's used.** Write the tag once from HA's **Settings → Tags** (or let the
-companion app register it on first scan). Then pick it in the task form's
-**NFC/RFID tag** field. The picker lists your existing tags, or you can type a tag
-ID directly. Tagged tasks wear an NFC chip in the panel and on the dashboard card;
-a scan-required task shows a lock instead, and tapping its Done button explains
-what to do. This replaces the classic pile of one-off `tag_scanned` YAML
-automations.
+- panel
+- card
+- to-do list
+- device button
+- notifications
+
+With the toggle on, a user completes the task only by scanning its tag.
+
+Write the tag once in Home Assistant **Settings → Tags**, or let the companion app
+register it on the first scan. Then select the tag in the **NFC/RFID tag** field
+of the task form, or type the tag ID.
 
 ![The task form's NFC/RFID tag picker and the require-scan toggle](docs/images/44-panel-task-tag-form.png)
 
 ![A task row wearing the NFC chip, and a scan-required task with its Done button blocked](docs/images/44b-panel-task-nfc-chip.png)
 
-Scan completions fire the ordinary `home_keeper_task_completed` event with
-`origin: home_keeper_tag_scan`, so automations can tell a physical scan from a
-press of Done. An automation can also pass that same origin to
-`home_keeper.complete_task` when it legitimately needs to complete a scan-locked
-task. See [docs/EVENTS.md](docs/EVENTS.md).
+A scan completion fires the `home_keeper_task_completed` event with
+`origin: home_keeper_tag_scan`. Automations can pass the same origin to
+`home_keeper.complete_task` to complete a scan-locked task. See
+[docs/EVENTS.md](docs/EVENTS.md).
+
+
+
 
 ## Condition-driven (triggered) tasks
 
-Some upkeep isn't periodic. It's a **reaction to a condition**, like a battery dropping
-low, a water sensor going wet, or a filter past its pressure threshold. A **triggered**
-task models exactly that. It has no schedule; an owning integration (for batteries,
-the companion [Battery Notes glue](https://github.com/prestomation/ha-home-keeper-battery-notes))
-**arms** it when the condition becomes true and **clears** it when resolved.
+Home Keeper supports triggered tasks. A triggered task has no schedule. The owning
+integration arms it when a condition becomes true and clears it when the condition
+resolves. This is useful for maintenance that reacts to a condition, such as a low
+battery or a wet water sensor. For batteries, the
+[Battery Notes glue integration](https://github.com/prestomation/ha-home-keeper-battery-notes)
+does this.
 
-- While **armed**, it reads as **due now** everywhere: the to-do list, the device's
-  overdue sensor, the panel, with a *"Managed by …"* chip showing who owns it.
-- When you replace/fix the thing (from either side), the task records the event and
-  goes **dormant**: it leaves the to-do list and calendar and tucks into a collapsed
-  **"Monitored"** section until it's next needed.
-- Because the task persists across cycles, its **completion history accumulates**, so
-  you learn the real cadence ("you replace this smoke-detector battery every ~13
-  months") instead of losing it on every replacement.
+- An armed triggered task is due now on the to-do list and the device's overdue
+  sensor and the panel. A **Managed by** chip names the owning integration.
+- A completion in Home Keeper or in the owning integration records the event. The
+  task then leaves the to-do list and the calendar and is listed in the
+  **Monitored** section until it is armed again.
+- The task persists across cycles and its completion history accumulates.
 
 ![Battery task detail: monitored, managed by Battery Notes, with replacement history](docs/images/14-panel-battery-detail.png)
 
 ### Integration-provided metadata chips (`task_chips`)
 
-Integrations that push tasks into Home Keeper can attach **metadata chips**
-(compact labels with an optional icon and link) to communicate task-specific
-context at a glance. A battery integration attaches a chip like
-**"2× AAA"** to each replace-battery task so you know exactly what to buy
-before you open a drawer.
+Home Keeper supports metadata chips that an integration attaches to a task. This is
+useful for an integration-owned fact on the task row, such as a battery type or a
+part number or a reorder link.
 
-- **What it solves:** surface structured, integration-owned facts (battery
-  type, filter model, part number, reorder link) directly on the task row and
-  detail page, without cluttering the task notes or requiring the user to look
-  elsewhere.
-- **How it works:** the owning integration sets `task_chips` when calling
-  `home_keeper.add_task` or `home_keeper.update_task`. Chips are shown in both
-  the sidebar panel task list and the dashboard card. Users can't edit them.
-  The integration owns them.
-- **Schema:** each chip is `{label, icon?, url?}`. The icon must be an
-  `mdi:` name; the URL must be `http(s)://`. An empty label is silently
-  dropped.
+The owning integration sets `task_chips` in `home_keeper.add_task` or
+`home_keeper.update_task`. The panel task list and the dashboard card show the
+chips. A chip cannot be edited by a user.
+
+Each chip is `{label, icon?, url?}`. The icon must be an `mdi:` name. The URL must
+be `http(s)://`. A chip with an empty label is dropped.
 
 ![Panel task list row showing a battery task with a "2× AAA" chip alongside the "Overdue" status and "Managed by Battery Notes" chips](docs/images/37-panel-battery-chip-row.png)
 
@@ -397,175 +421,122 @@ before you open a drawer.
 
 ### Sync `problem` binary sensors as tasks
 
-Lots of integrations already expose a `binary_sensor` with the **`problem`** device
-class, such as a leak detector, an appliance fault, a UPS on battery, a printer error. Turn on
-**Sync problem sensors** (*Settings → Devices & services → Home Keeper → Configure*) and
-Home Keeper automatically syncs every one of them as a triggered task, so a real-world
-problem becomes a visible, trackable to-do without writing an automation.
+Home Keeper supports syncing every `binary_sensor` with the `problem` device class
+as a triggered task. This is useful for a leak detector or an appliance fault or a
+printer error without an automation. Turn on **Sync problem sensors** in
+*Settings → Devices & services → Home Keeper → Configure*.
 
-- **What it solves:** one place that surfaces *"something is wrong"* across every
-  integration (on the to-do list, the calendar, and the offending device's own page)
-  instead of a problem sensor quietly flipping `on` where nobody looks.
-- **How it works:** the task is **armed** while the sensor reports a problem and
-  **clears itself** the moment the originating integration resolves it (the sensor goes
-  back to OK). Because of that, these tasks **can't be completed in Home Keeper** (the
-  problem has to be fixed for real), so the *Done* button is shown **disabled**, and
-  tapping it pops up the reason (the detail page also explains how it clears). Each
-  task inherits the sensor's **device and area**.
-- **Where it shows up:** an armed synced task is ordinary overdue work, so it appears
-  in the task list, on the card, under a
+- Home Keeper arms the task while the sensor reports a problem and clears the task
+  when the sensor reports OK.
+- A synced task cannot be completed in Home Keeper. The problem must be resolved at
+  its source.
+- Each synced task inherits the sensor's device and area.
+- An armed synced task is listed as overdue on the task list and the card and in a
   [Profile](#profiles-saved-filters-you-reuse-everywhere) and in notifications. A
-  reminder for one offers **Snooze** in place of *Mark done*. Deferring a reminder is
-  honest about a problem you can't fix this minute; marking it done would not be, and
-  the task clears itself the moment the sensor reports OK.
-- **Scope it:** syncing is **off by default**; once on, exclude specific **entities,
-  devices, areas, or labels**, from the panel's **Settings** tab (below) or the options
-  flow. Excluding a device leaves out every problem sensor that belongs to it.
-- **Leave yourself a note for next time.** These tasks don't map to a device you model,
-  so there's a dedicated place to jot the fix: open the task and use **Add a note** to
-  record what you want to remember the *next* time this problem fires: the steps that
-  cleared it last time, a part number, where the shut-off valve is. The note **sticks
-  with the sensor**: it survives the task clearing and re-arming, and even survives the
-  task being removed and recreated (toggling problem-sensor sync off and on, or
-  temporarily excluding the sensor), so it's waiting for you the next time the same
-  problem goes off.
+  notification for a synced task offers **Snooze** instead of **Mark done**.
+- The sync is off by default. With the sync on, entities or devices or areas or
+  labels can be excluded in the panel **Settings** tab or in the options flow. An
+  excluded device excludes every problem sensor that belongs to it.
+- Open the task and use **Add a note** to record the fix. The note is tied to the
+  sensor and is kept when the task clears and re-arms or is removed and recreated.
 
 ![Synced problem-sensor task detail: armed and due-now, with a disabled Done button and the prompt explaining it clears when the source resolves it](docs/images/16-panel-problem-sensor-detail.png)
 
-Tapping the disabled **Done** explains why it can't be completed here:
-
 ![Tapping the disabled Done pops up a toast: the problem clears automatically when the originating integration resolves it](docs/images/16b-panel-problem-sensor-blocked-toast.png)
-
-Add a durable note that reappears the next time the problem fires:
 
 ![Editing the note on a synced problem-sensor task, showing a textarea seeded with the previous note and Save/Cancel buttons](docs/images/18-panel-problem-sensor-note.png)
 
+
 ## Sensor-based tasks (usage meters, thresholds & states)
 
-Some maintenance isn't measured in *time* but in *use*: oil every **15,000 km**, a
-service every **500 running hours**, descale after **50 cycles**, or it's a reaction
-to a **reading crossing a limit**: replace the filter when airflow drops **below 60 %**,
-check coolant when temperature climbs **above 90 °C**. Sometimes the device just tells
-you outright, with a **binary sensor** that flips on: *water tank empty*, *battery
-almost empty*, *leak detected*. A **sensor-based** task binds a task to an existing
-Home Assistant entity and lets Home Keeper arm it for you. No automation to wire up.
+Home Keeper supports sensor-based tasks. A sensor-based task is bound to a Home
+Assistant entity and Home Keeper arms it from the entity's state. This is useful
+for a service that is due after an amount of use, such as an oil change every
+15000 km. It is also useful for a reading that crosses a limit, such as a filter
+change when airflow drops below 60%, and for a binary sensor that reports the
+condition, such as a water tank empty sensor. No automation is needed.
 
-Pick **Based on a sensor** on the task form, choose the **sensor**, and pick a **mode**:
+On the task form, select **Based on a sensor** and select the sensor and a mode:
 
-- **Usage / meter**: set a **target**. Home Keeper records the reading when you create
-  the task (its *baseline*, again each time you complete it), and the task becomes
-  **due** once the meter has advanced by *target* units since then. The target counts
-  **usage from the current reading, not from zero**, so it doesn't matter that your
-  sensor is already partway up. Example: your printer's run-hours sensor reads **660 h**
-  and you set a target of **100**; Home Keeper anchors at 660, so the task first becomes
-  due at **760 h**, and the detail reads *"0 of 100 used"* until then. Completing it
-  "resets the counter" (re-anchors at whatever the sensor reads at that moment) just
-  like a floating task resets its clock, so the next one is due 100 h later again. If
-  the meter is reset or the part is replaced (the reading drops below the baseline),
-  Home Keeper re-anchors automatically so it never gets stuck. Great for odometers,
-  runtime-hours, and cycle counters.
+- **Usage or meter**: set a target. Home Keeper records the sensor reading at task
+  creation and at each completion as the baseline. The task becomes due when the
+  meter advances by the target from the baseline. A completion re-anchors the
+  baseline at the current reading. Home Keeper re-anchors automatically if the
+  reading drops below the baseline after a meter reset. This mode suits
+  odometers and runtime-hour sensors and cycle counters.
 
-  > **Already partway through?** Anchoring at "now" is wrong for a machine you've
-  > already serviced. It starts the task a whole interval late. Fill in **Starting
-  > reading** and Home Keeper counts from there instead. Your odometer reads
-  > **48,000**, you change the oil every **10,000 miles**, and the last change was at
-  > **45,000**: set the starting reading to 45,000 and the task reads *"3,000 of 10,000
-  > used"* straight away and comes due at 55,000. Leave it blank for the anchor-at-now
-  > behaviour. **Last completed** does the same job for the calendar half of the rule
-  > (see [below](#hours-or-months-whichever-comes-first)), so a machine serviced in
-  > March is three months into its 12-month backstop rather than starting today.
+  > **Starting reading.** The baseline at task creation is the current reading. If
+  > the equipment was serviced before, set **Starting reading** to the reading at
+  > that service. An odometer reads 48000 and the last oil change was at 45000.
+  > With a starting reading of 45000 and a target of 10000 the task is due at
+  > 55000. Leave the field empty to anchor at the current reading.
+  >
+  > **Last completed** sets the same anchor for the time half of a combined rule.
+  > See [below](#hours-or-months-whichever-comes-first).
+- **Threshold**: set a comparison (`≥ ≤ > < = ≠`) and a value. The optional hold
+  requires the reading to stay past the limit for a number of seconds before the
+  task arms. An optional attribute reads an entity attribute instead of the state.
+  One example is `current_temperature` of a climate entity. The task arms on the crossing
+  and stays due until it is completed. A short recovery does not clear it. The
+  task re-arms on the next crossing.
+- **State**: select the state that the entity must reach, with the same optional
+  hold. For a `binary_sensor` the choices are **On** and **Off**. For any other
+  entity the state is matched as text. An example is `vacuum.rosie` = `docked`. See
+  [below](#when-a-device-just-tells-you).
 
-  > **Where the numbers show up.** As you fill in the form, a live hint reads your
-  > chosen sensor and spells this out (*"This sensor reads 660 h now. The task becomes
-  > due at 760 h, then every 100 h after each completion."*), and a **?** by the form
-  > title links here. So you can see exactly when the task will first come due before
-  > you save it.
-- **Threshold**: set a **comparison** (`≥ ≤ > < = ≠`) and a **value**, with an optional
-  **hold** (the reading must stay across the line that many seconds, to debounce noise)
-  and an optional **attribute** (read e.g. a climate entity's `current_temperature`
-  instead of its state). The task arms on the crossing and stays due until you complete
-  it. A filter you need to replace doesn't un-need replacing if airflow briefly
-  recovers, then re-arms only on a fresh crossing.
-- **State**: pick the **state** the entity has to enter, with the same optional **hold**.
-  This is the mode for **binary sensors**, which report `on`/`off` and have no number to
-  compare, so pick an entity like `binary_sensor.robot_water_tank_low` and Home Keeper
-  offers **On** and **Off** directly. It isn't limited to binary sensors: the state is
-  matched as text, so `vacuum.rosie` = `docked` or `sensor.washer_status` = `finished`
-  work the same way. See [below](#when-a-device-just-tells-you) for what it's for.
-
-A sensor task behaves like any other once **armed**: it shows on the to-do list and
-calendar, lights the device's overdue sensor, and fires the `home_keeper_task_overdue`
-event. While waiting, a **usage/meter** task reads as its live countdown in the task
-list (*"in 7,000 miles"*, the meter version of the *"in 3 days"* a time-based task
-shows), while a threshold or state task (no interval to count down) reads as
-**Monitored**. The task detail shows fuller live progress (*"12,300 of 15,000 used"*
-for a meter, or the current reading vs. the limit). You can also create one from
-automations/scripts with the `home_keeper.add_task` service by passing a `sensor`
-mapping.
+An armed sensor task behaves like any other task. It is on the to-do list and the
+calendar. It sets the device's overdue sensor and fires the
+`home_keeper_task_overdue` event. Before it is armed, a usage task shows the
+remaining usage in the task list, such as "in 7000 miles". A threshold or state
+task is listed as **Monitored**. The `home_keeper.add_task` service creates a sensor
+task with a `sensor` mapping.
 
 ### Hours or months, whichever comes first
 
-Most real service intervals have two halves. The manual says every **300 print hours or
-6 months**, every **8,000 km or 12 months**, every **500 run-hours or 3 months**,
-because wear happens whether the machine runs or not, and something left unused all
-winter still needs its annual service.
+Home Keeper supports a usage target combined with a time cadence on a usage task.
+This is useful for a service interval that has a use amount and a time period, such
+as:
 
-A usage task takes both. Switch on **Also come due on a schedule** and you get an **Or
-every** cadence, its unit, and a **Combine with** choice:
+- 300 print hours or 6 months
+- 8000 km or 12 months
+- 500 run-hours or 3 months
 
-- **Whichever comes first** (the default) is the everyday service interval. The task
-  becomes due when the meter reaches its target, or when the cadence elapses.
-- **Both must be met** is a floor rather than a ceiling. Use it when neither half alone
-  should trigger the work: a standby generator you want run at least monthly, and also
-  serviced after 100 engine hours.
+Turn on **Also come due on a schedule** and set the **Or every** cadence and unit
+and a **Combine with** choice:
 
-Leave the switch off for a pure meter, which is what a task starts as. Switching it on
-fills in a sensible cadence for you, so the fields it reveals describe a working rule
-straight away.
+- **Whichever comes first** is the default. The task becomes due when the meter
+  reaches its target or when the cadence elapses.
+- **Both must be met** makes the task due only when both halves are met. An example
+  is a generator that is run at least monthly and serviced after 100 engine hours.
 
-The target, the unit, the cadence and the Combine-with choice add up to one rule, and
-that is easy to get wrong. So the form says the rule back to you under **When it comes
-due**, directly above the save button, and rewrites it as you type, with the live
-arithmetic underneath it ("reads 660 h, so first due at 760 h"). It's the same sentence
-the task list will show afterwards, so there's no gap between what you set up and what
-you get.
+The form shows the resulting rule under **When it comes due** and updates it as the
+fields change.
 
 ![The task form with a metered rule and a time backstop, summarised as "Every 100 of use, or every 6 months" above the Create button](docs/images/30b-panel-sensor-backstop.png)
 
-The clock runs from the **last completion** (or, before the first one, from when you
-created the task), so checking the task off resets both halves together: the counter and
-the calendar. The time half also keeps counting while the bound sensor is **offline or
-unavailable**. A printer that's been unplugged for a year is precisely the one whose
-annual service you'd otherwise never hear about.
+The time half runs from the last completion, or from task creation before the
+first completion. A completion resets the meter and the time half together. The
+time half continues while the sensor is unavailable.
 
-**Seeing where you are.** A usage task's page draws a progress bar with a *"180 h to
-go"* line under it. The **unit label** beside the target is what turns a bare "300" into
-"300 h"; Home Keeper prefills it from the sensor you pick, and you can change or clear
-it. The same figures ride as attributes on the task's next-due sensor entity
-(`usage_consumed`, `usage_remaining`, `usage_percent`, `usage_target`, `usage_unit`,
-`usage_baseline`, `backstop_due`, and `last_completion_reading`), so a template card or
-automation can read them without any parsing.
-As with every per-task entity, that sensor exists for tasks **attached to a device**.
+**Progress.** The task detail page shows the remaining usage, such as "180 h to
+go". The unit label is prefilled from the sensor and can be changed. The same
+figures are attributes of the task's next-due sensor entity: `usage_consumed`,
+`usage_remaining`, `usage_percent`, `usage_target`, `usage_unit`,
+`usage_baseline`, `backstop_due`, and `last_completion_reading`. The entity exists
+only for a task attached to a device.
 
-**Where the meter was, in the history.** Completing a sensor task records the bound
-sensor's reading alongside the note, cost and photo, so the log answers the question a
-mileage- or hours-based service actually turns on: *"what did the odometer say when I
-last changed the oil?"* Each history row shows it, and the pencil on that row edits it
-like any other detail. Correcting the reading on the **most recent** completion also
-moves the meter's anchor, because that reading is the anchor. Otherwise the history
-would say 45,000 while the progress bar counted from 48,000. Older rows are just log
-entries and leave the meter alone.
+**History.** A completion of a sensor task records the sensor reading with the
+note and cost and photo. Each history row shows the reading and the reading can be
+edited. The reading on the most recent completion is the meter anchor, so an edit
+to it moves the anchor. An older row is a log entry only.
 
-The completion dialog pre-fills the reading from the live sensor, which is right for
-work you're logging as you finish it. It's a plain field, so **back-dating** works too:
-set **Completed at** to when you actually did the job and type the reading it had then,
-rather than the one the meter has drifted to since.
+The completion dialog prefills the reading from the sensor. To back-date a
+completion, set **Completed at** and type the reading from that date.
 
-**Already done it?** `home_keeper.set_task_meter` re-anchors a usage task's baseline
-without recording a completion, for work you did before Home Keeper was watching, or
-when the meter itself was swapped or zeroed. Omit `baseline` and it anchors to whatever
-the sensor reads right now. (To set the anchor while *creating* a task, use the
-**Starting reading** field instead. This service is for changing it afterwards.)
+**Re-anchor without a completion.** The `home_keeper.set_task_meter` service
+re-anchors the baseline of a usage task without a completion record. This is
+useful for work done before the task existed or after a meter swap. Omit
+`baseline` to anchor at the current reading.
 
 ![Creating a usage/meter sensor task: pick the sensor and a target; no clock cadence](docs/images/30-panel-create-sensor-task.png)
 
@@ -573,504 +544,159 @@ the sensor reads right now. (To set the anchor while *creating* a task, use the
 
 ### When a device just tells you
 
-Plenty of hardware doesn't expose a number at all. It exposes a **binary sensor** that
-flips on when something needs doing: a robot vacuum's *water tank empty*, a sensor whose
-battery reports `battery_almost_empty` instead of a percentage, a leak detector, a
-*filter needs replacing* flag. There is nothing to meter and no threshold to cross. The
-device has already made the judgement.
+Home Keeper supports a sensor task that is bound to an entity that reports the
+condition directly. This is useful for hardware with no number to meter, such as:
 
-**State** mode is for exactly that. Pick the entity, pick the state that means *"this
-needs attention"* (Home Keeper offers **On** and **Off** when you choose a
-`binary_sensor`), and the task arms the moment the sensor gets there.
+- a robot vacuum water tank empty state
+- a battery sensor that reports `battery_almost_empty`
+- a leak detector
+- a filter-needs-replacing flag
 
-- **What it solves:** the maintenance signal your device already publishes, turned into a
-  task you can see, complete and keep history for, instead of a binary sensor quietly
-  flipping `on` where nobody looks.
-- **Once per event, not once per tick.** The task arms on the **transition** into the
-  state, not on the state being true. It stays put while the sensor remains on, and after
-  you complete it, it re-arms only when the sensor goes back to normal and then trips
-  again. So *"fill the water tank"* appears once per empty tank, not every five minutes
-  until you get around to it.
-- **A restart doesn't fabricate work.** If the sensor is already on when Home Assistant
-  starts, that's not a fresh transition, so a task you already dealt with doesn't come
-  back.
-- **An optional hold** ignores the momentary trips: *"the door has been open for 10
-  minutes"*, not *"the door opened"*.
-- **Not just binary sensors.** The state is matched as text, so `vacuum.rosie` = `docked`
-  or `sensor.washer_status` = `finished` work identically. When the entity isn't a binary
-  sensor the field becomes free text.
+Use **State** mode. Select the entity and the state that arms the task.
 
-**Let it clear itself.** Some of these fix themselves: somebody else fills the tank, the
-leak dries up. Switch on **Clear when back to normal** and the task completes itself once
-the sensor recovers, recording a completion so the history still shows it happened. If
-the task is [linked to a consumable](#link-a-task-to-a-consumable-auto-reorder), the
-auto-completion draws down one spare, just like completing it by hand. Leave
-it off (the default) when you want the task to wait for you, which is usually right for
-anything you actually have to go and do.
+- The task arms on the transition into the state and stays armed while the sensor
+  remains in that state. After a completion the task arms again only after the
+  sensor returns to normal and reaches the state again.
+- If the sensor is already in the state when Home Assistant starts, the task does
+  not arm again.
+- An optional hold ignores short trips, such as a door that must stay open for 10
+  minutes before the task arms.
+- For an entity that is not a binary sensor the state field accepts free text.
 
-> **How this differs from [problem-sensor sync](#sync-problem-binary-sensors-as-tasks).**
-> That syncs `device_class: problem` sensors automatically, all of them at once, as
-> tasks you can't complete by hand. State mode is the opposite trade: you create one task
-> deliberately, for **any** entity and any device class (`battery_almost_empty` is
-> `device_class: battery`, so the sync never sees it), you choose which state arms it, and
-> you complete it yourself unless you opt into self-clearing.
+**Automatic clearing.** Turn on **Clear when back to normal** to complete the task
+when the sensor returns to normal. A completion is recorded. If the task is
+[linked to a consumable](#link-a-task-to-a-consumable-auto-reorder), the automatic
+completion draws down the part's per-use amount. The switch is off by default.
+
+> **Difference from [problem-sensor sync](#sync-problem-binary-sensors-as-tasks).**
+> The sync creates a task for every `device_class: problem` sensor, and these tasks
+> cannot be completed by hand. State mode creates 1 task for any entity and any
+> device class, and the task is completed by hand unless automatic clearing is on.
 
 ![Creating a state-mode sensor task bound to a binary sensor, with On selected and the rule summarised above the Create button](docs/images/43-panel-create-sensor-state.png)
 
 ### Link a task to a consumable (auto-reorder)
 
-A maintenance task often **uses up a spare you keep on hand**, such as a fridge water filter,
-an HVAC filter, a brita cartridge. Home Keeper lets you **link any task to an appliance
-consumable** so that marking the task done **draws down** that part's
-[stock](#parts--wear-items) by its per-use amount (one whole spare unless the part sets
-[its own](#stock-you-measure-rather-than-count)), and fires a
-`home_keeper_part_low_stock` event once stock crosses the **reorder-at** threshold, so
-an automation can add it to your shopping list. The link is independent of the
-auto-generated wear-part tasks, so the task stays a normal, fully-editable task.
+Home Keeper supports linking a task to a consumable part of an appliance. This is
+useful for a task that uses a part kept in stock, such as a water filter. A
+completion draws down the part's [stock](#parts--wear-items) by its per-use amount.
+The default is 1 whole part unless the part sets
+[its own amount](#stock-you-measure-rather-than-count). Home Keeper fires a
+`home_keeper_part_low_stock` event when the stock crosses the reorder-at threshold.
+The linked task is independent of the auto-generated wear-item tasks and stays
+editable.
 
-This is what makes the *"there's no schedule, my fridge tells me when the filter is
-spent"* case work end to end: create a **[sensor-based](#sensor-based-tasks-usage-meters-thresholds--states)**
-task bound to the fridge's filter-life (or water-usage) entity, then **link it to the
-filter consumable**. The fridge arms the task; when you swap the filter and mark it done,
-Home Keeper subtracts a spare and tells you to **buy more** once you're low.
+A [sensor-based](#sensor-based-tasks-usage-meters-thresholds--states) task can be
+linked to a consumable. An example is a task bound to a filter-life entity and
+linked to the filter part. The entity arms the task and a completion draws down
+the part.
 
-Pick the consumable from the **Linked consumable** dropdown on the task form. It's
-**scoped to the appliance the task is attached to** (via *Attach to device*), so you
-only see that appliance's spares, not every consumable in the house. (Attach the task to
-the appliance first; if the appliance has no consumables, the picker doesn't appear.) Or
-use the `home_keeper.set_task_consumable` service (omit the ids to unlink). The task
-detail then shows the linked part and its current stock.
+Select the part in the **Linked consumable** field on the task form. The field lists
+the parts of the appliance that the task is attached to with **Attach to device**.
+The field is hidden if the appliance has no consumable parts. The
+`home_keeper.set_task_consumable` service sets the same link. Omit the ids to
+unlink. The task detail shows the linked part and its current stock.
 
 ![The task form's Linked consumable picker: link a task to a stocked consumable](docs/images/34-panel-create-linked-consumable.png)
 
 ![A task detail showing its linked consumable and current spare stock](docs/images/33-panel-linked-consumable-detail.png)
 
-## Settings
-
-Home Keeper's integration options are editable right in the panel (a **Settings**
-tab alongside Tasks and Appliances) so you never have to dig through *Settings →
-Devices & services → Configure*. It's a plain form that matches the options flow and
-**saves as you change it**. The **General** card holds how long to keep completed
-one-offs. **Shopping list** picks the to-do list
-[buy reminders are synced onto](#send-buy-reminders-to-your-shopping-list).
-**Profiles** holds the saved filters, each carrying the to-do list
-[its tasks are synced onto](#send-tasks-to-your-to-do-lists).
-**Problem sensor sync** carries the toggle, with the entity / area / label exclusions
-indented behind it since they only bite while the sync is on. The same options remain
-available through the HA options flow and the `home_keeper.set_options` service (for
-automations).
-
-A rail beside the sections names each one and marks what it is set to. A green dot
-means the feature is on. An amber one means notifications are configured with no
-mobile app to deliver them. A section holding a list carries a count instead of a dot.
-Each card also states its current value in a line under its name, so the page can be
-read without opening anything.
-
-![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
-
-**On a phone, Settings opens on an index of its sections.** There is no room for a
-rail beside six expanded sections, so each one becomes a row naming it, what it is set
-to and its dot or count. Tapping a row opens that section by itself, with a back arrow
-to the index. Each section has an address of its own
-(`/home-keeper/settings/notifications`). Browser Back leaves a section the way it
-leaves any other page. A link can point straight at one.
-
-<p>
-  <img src="docs/images/50-panel-mobile-settings-index.png" alt="The Settings section index at phone width" width="300">
-  <img src="docs/images/51-panel-mobile-settings-section.png" alt="One Settings section open on a phone, with a back arrow" width="300">
-</p>
-
-### Companions
-
-A **companion** is any integration that works with Home Keeper, a pet-care tracker that
-schedules recurring chores, a bridge that turns low batteries into replacement tasks, and
-so on. You shouldn't have to *already know* a companion exists to benefit from it, so the
-**Companions** section at the bottom of the Settings tab surfaces them for you:
-
-- **Connected**: companions that are integrated with Home Keeper and have announced
-  themselves (e.g. [Pawsistant](https://github.com/prestomation/pawsistant), or the
-  [Battery Notes bridge](https://github.com/prestomation/ha-home-keeper-battery-notes)).
-  Each row has a **Configure** button that takes you to that companion's own page, so the
-  pet-care schedules or the battery-task options live where they belong, one click away.
-<!-- vale ai-tells.ColonUsage = NO -->
-- **Suggested**: Home Keeper also recognises a few *popular* integrations that aren't
-  companions yet. If you have one installed (e.g. **Battery Notes**) but not the small
-  "glue" that integrates it, Home Keeper points you at that companion with an **Install**
-  link. Not interested? **Dismiss** silences that suggestion.
-<!-- vale ai-tells.ColonUsage = YES -->
-
-Companions surface in two directions: one can *register itself* (so Home Keeper never has
-to hard-code it), while a popular upstream is *detected* from a curated catalog. Either
-way you find out (from inside Home Keeper) that the pieces fit together.
-
-**Know a companion that should be here?** The Companions section links out to this page so
-you can always find the current list. If you maintain, or just know of, a companion or a
-small [glue integration](docs/GLUE_INTEGRATIONS.md) that isn't listed, please
-[open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20)
-so we can add it to the suggested-companions catalog.
-
-![The Companions section on the Settings tab: connected integrations with Configure buttons](docs/images/21-panel-companions.png)
-
-## Profiles (saved filters you reuse everywhere)
-
-A **Profile** is a named, saved filter, a status plus optional **label / area /
-device** filters, that you define once and reuse across Home Keeper. Create and manage
-them in **Settings → Profiles**.
-
-**The status tiers nest.** **Include** offers *Overdue only*, *Overdue and due soon*
-and *Every scheduled task*, and each one covers the one before it. There is no need to
-pick two. *Overdue and due soon* already lists everything overdue, plus whatever falls
-due in the next three days.
-
-**Use cases.** *"'The dog', 'upstairs', 'my chores': define each chore-set once and
-point every list at it."* *"My partner and I each save a Profile filtered to our own
-label, and reuse it on our phones and our dashboards."*
-
-The same Profile drives filtering in four places:
-
-- **Notifications**: a notification points at a Profile to decide which tasks it pushes
-  (see below). Profiles with different labels make separate people's lists.
-- **To-do list sync**: a Profile carries the external to-do list its tasks are
-  synced onto, so one saved filter says both which chores are sent and when (next
-  section).
-- **The admin task list**: the **Profile** dropdown on the **Tasks** tab narrows the
-  panel list to a saved Profile's tasks.
-- **The dashboard card**: the card editor's **Filter by profile** picker points a card
-  at a Profile instead of re-specifying the same filter inline.
-
-**Leaving things out.** Under the label / area / device pickers sit **Exclude labels**,
-**Exclude areas** and **Exclude devices**. They subtract, and they win. A task that
-matched everything above is still left out when any of its labels, its area or its
-device turns up in an exclude picker. So "everything I can do myself" becomes one
-Profile: tag the jobs that need a tradesperson `professional`, then exclude that one
-label. You no longer have to tag every task that *isn't* a call-out. An empty exclude
-picker leaves everything in.
-
-Exclusions read labels and areas the same way the include pickers do, through whatever
-a task inherits. Excluding the `professional` label also leaves out a task that carries
-it only because its device or its area does.
-
-**Synced problem sensors count too.** A task synced from a
-[`problem` binary sensor](#sync-problem-binary-sensors-as-tasks) is overdue work while
-its sensor reports a problem, so a Profile lists it like anything else. A notification
-for one offers **Snooze** in place of *Mark done*, since only the originating
-integration can decide the problem is dealt with.
-
-![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
-
-![The Tasks tab filtered to a saved Profile via the Profile dropdown](docs/images/23-panel-profile-filter.png)
-
-## Send tasks to your to-do lists
-
-A chore that only exists in Home Keeper is easy to ignore, so a
-[Profile](#profiles-saved-filters-you-reuse-everywhere) syncs its tasks onto a to-do
-list the household already checks. Any `todo` entity works, whether that's a Todoist
-project, Google Tasks, or a `local_todo` list on the kitchen tablet.
-
-**How it's used.** Open **Settings → Profiles** and expand the profile whose tasks you
-want to send. Inside it is a **Sync to a to-do list** group holding a **To-do list**
-picker. Pick a list there and the profile's tasks start appearing on it. Clearing the
-picker switches the sync off again and takes the profile's own open items back off the
-list, so there is nothing else to delete.
-
-There is no separate Settings section for this and no second record to keep in step
-with the Profile. The Profile carries the sync itself. Its filters decide which tasks
-are sent, and its **Include** tier is the timing. *Overdue only* puts a task on the list the
-moment it falls due, *Overdue and due soon* three days ahead, *Every scheduled task*
-as soon as it is scheduled.
-
-One Profile syncs to one list. A household that wants two lists writes two Profiles,
-which is what it needed anyway to say what belongs on each.
-
-**Use cases.** *"House chores turn up in the same Todoist project as the rest of my
-life, and checking one off at work marks it done at home."* *"Each kid's chores go to
-a list of their own."* Make a Profile per person and give each one its own list.
-
-It works in both directions:
-
-- **Check the item off anywhere** and Home Keeper completes the task, logging it in
-  the completion history like any other Done. A recurring task then reschedules, and a
-  fresh item appears when it next falls due. The checked-off item stays put as your
-  record.
-- **Complete the task in Home Keeper** and the item is ticked off to match.
-- **A task that stops qualifying** (rescheduled, disabled, filtered out of the
-  Profile) has its open item removed, because there is nothing left to do.
-
-Items carry the task's due date and notes when the list supports them. Home Keeper
-only manages the items it added, and it never touches anything already checked off.
-
-Under the picker are two switches for the awkward cases, both on by default. Switch
-**Two-way sync** off for a display-only list that never completes tasks. **Treat
-removed items as completed** exists because some providers, Todoist included, hide
-checked-off items from Home Assistant, so an item that disappears is read as "done".
-If your list reports completions properly (a `local_todo` list does) you may turn that
-one off, and a deleted item is re-added on the next pass instead.
-
-A task that requires an NFC/RFID tag scan still syncs. Checking its item off
-remotely completes nothing and the item returns on the next pass. That refusal is
-the point of requiring the scan.
-
-**A to-do item you add on the list yourself never becomes a Home Keeper task.** The
-sync is a delivery surface. It puts Home Keeper's tasks onto the list. Anything else
-on that list stays yours. Home Keeper only ever touches the items it wrote itself.
-A Home Keeper task carries recurrence, a device and completion history that a plain
-to-do line cannot hold. The one thing that travels inward is a checkmark. Ticking
-off one of Home Keeper's own items completes the task behind it.
-
-- **CalDAV lists work too** (Nextcloud, Baikal, Radicale). Home Assistant polls a
-  CalDAV server every 15 minutes, so ticking an item off there can take that long to
-  reach Home Keeper.
-- **In Nextcloud, point the sync at a task list.** The default **Personal** calendar
-  holds only events, so it never appears as a to-do list in Home Assistant at all.
-
-**The Todoist recipe.** Install Home Assistant's own
-[Todoist integration](https://www.home-assistant.io/integrations/todoist/) and give it
-your Todoist API token. Every Todoist project then shows up as a `todo` entity. Point
-a Profile's **To-do list** picker at the project's entity and your chores follow you
-onto every device Todoist reaches.
-
-![A Profile's Sync to a to-do list group, with the list it syncs onto picked](docs/images/47-panel-profile-sync.png)
-
-![A synced task with its due date on a to-do list card](docs/images/48-todo-sync-synced-task.png)
-
-<!-- vale ai-tells.OverusedVocabulary = NO -->
-## Notifications (actionable reminders on your phone)
-<!-- vale ai-tells.OverusedVocabulary = YES -->
-
-Home Keeper can push a **mobile-app notification** for what's due, with tappable
-buttons (**Mark done**, **Snooze**, **Skip**, **Open**) that route straight back into
-Home Keeper. Because the action lands inside the integration, it **recalculates the
-schedule correctly**. Completing advances the recurrence. Snoozing defers the due date
-and re-arms a fresh reminder. Skipping moves it to the next occurrence. A generic
-reminder automation can't do any of that, because it doesn't know your intervals.
-
-**Use cases.** *"Nudge me the moment a chore goes overdue, and let me clear it from the
-lock screen."* *"Every evening my **Chores** calendar event fires an automation that asks
-Home Keeper what's on my list: it sends the first task, and as I tap **Done** the next
-one arrives."* *"My partner and I each get our **own** filtered chore list on our own
-phones."*
-
-**How it's used.** Configure **notifications** in **Settings → Notifications**. Each
-notification is a delivery config with:
-
-- **Profile**: the saved [Profile](#profiles-saved-filters-you-reuse-everywhere) whose
-  filter decides which tasks this notification covers (leave it unset to cover every due
-  task).
-- **Send to**: one or more `mobile_app_*` companion-app devices (picked from a live
-  list). Those and `persistent_notification` are the destinations Home Keeper will
-  send to; other notify services are refused (see
-  [the security model](docs/SECURITY.md)).
-- **Buttons**: which of *Mark done / Snooze / Skip / Open* appear, and the snooze
-  duration.
-- **Style**: a **walk** (sends the first due task, then the next each time you action
-  one) or a single **digest** summary.
-- **Auto-send**: fire automatically when a matching task becomes overdue / due-soon.
-
-The action buttons and notification text (overdue/due-soon phrasing, the digest
-summary, "All caught up") are localized to your **Home Assistant instance's
-configured language** (Settings → System → General). This is instance-wide, not
-per-user. If your household has members using HA in different languages, everyone
-gets notifications in the same language.
-
-Trigger a notification on demand from any automation with the **`home_keeper.notify`**
-service (`notification:` a saved notification, or `profile:` a saved Profile, optionally
-with a `target:` override). It returns how many tasks matched and which was sent. The
-button taps and the standalone
-`home_keeper.snooze_task` / `home_keeper.skip_task` services all emit events
-(`home_keeper_task_completed` / `_snoozed` / `_skipped`) carrying
-`origin: home_keeper_notification_action`, so other automations can react.
-
-![The Settings → Notifications card with a "My chores" profile: targets, filter, buttons, style, snooze and auto-send toggles](docs/images/22-panel-notifications.png)
-
-## Dashboard task card
-
-The bundled **Home Keeper Tasks** card (`custom:home-keeper-card`) is a resizable list
-of your tasks with a one-tap **Done** button on each row. It's a focused
-do-and-glance surface: mark tasks done, add a new one from the header **+**, and open
-any documentation links a task shows (see below), while **editing and deleting a task
-live in the sidebar panel**, so a stray tap on the dashboard can't open a form or
-accidentally delete a task. It's auto-registered (Home Keeper adds its own entry under
-**Settings > Dashboards > Resources**, so there's nothing for you to set up) and
-appears in the dashboard **"Add card"** picker. Its GUI editor lets you filter (by
-status, area, device, **label**, recurrence type, a "due within N days" horizon, or a
-saved [Profile](#profiles-saved-filters-you-reuse-everywhere)), sort, group, cap rows,
-and toggle what each row shows. It's built from HA's own components and theme and
-reflects completions made anywhere else in real time.
-
-**Hide card when empty** makes the card disappear from the dashboard entirely
-(header and all) instead of showing a "No tasks match this filter." message when its
-filter matches nothing, handy for a dashboard built from several per-subject cards
-(the dog, the car, each kid) where you only want to see the ones with something due.
-
-![Home Keeper task card grouped into status sections](docs/images/card-grouped.png)
-
-### Show a task's appliance documents on the card
-
-When a task is attached to an [appliance](#appliances--virtual-devices), you can pin any
-of that appliance's documents, its **document links**, **uploaded files** (a PDF
-manual, a photo), and free-form **metadata links** (a reorder page, a warranty page, a
-how-to video), to the task's row, so the manual or parts page is one tap away while
-you're actually doing the job. Nothing shows by default. You choose per task.
-
-How to use it:
-
-- **Pick the documents**: open the task in the panel's editor and use **Links to show on
-  card**, a multi-select that lists every document (link or uploaded file) and metadata
-  link on the task's appliance. (The picker only appears once the attached appliance has
-  at least one document.) You can also set them via the `home_keeper.add_task` /
-  `home_keeper.update_task` services (`card_links`).
-- **On the card**: each chosen document renders as a compact chip on the task's row and
-  opens in a new tab, an uploaded file via a short-lived signed URL. They resolve
-  **live**, rename or remove one on the appliance and the card follows; a deleted one
-  simply drops off.
-
-![Home Keeper task card showing a row with "Owner's manual", "Reorder filter" and an "Installation guide (PDF)" file chip](docs/images/card-task-links.png)
-
-### Filter by label: one card per subject
-
-Most homes have natural "buckets" of upkeep that don't map onto a room or a single
-device: **the dog, the car, home maintenance, each kid's chores**. Tag tasks with
-Home Assistant **labels** and point a card at one (or more) of them to get a focused
-list per subject, a card for the dog, one for the car, one per kid.
-
-A task matches a label filter if **the task itself** carries the label or its
-**attached device or area** does. So labelling a Home Keeper *virtual appliance*
-(which is a real device under *Settings → Devices*), or any device a task is attached
-to, automatically pulls its tasks into the matching card, and a subject never has to
-be modelled as an HA area or device.
-
-How to use it:
-
-- **Tag tasks**: open a task's form (in the panel or the card) and pick one or more
-  labels in the **Labels** field. You can also set labels via the
-  `home_keeper.add_task` / `home_keeper.update_task` services.
-- **Tag devices** (optional): apply the same labels to devices/appliances in
-  *Settings → Devices* to sweep all their tasks into a card without tagging each one.
-- **Point a card at a label**: in the card editor set **Limit to labels** (with an
-  **Any/All** match mode when you list several), and optionally enable **Show labels**
-  to render each task's label chips.
-
-![Home Keeper card filtered to the "dog" label, showing label chips on each row](docs/images/card-label-filter.png)
 
 ## Appliances & virtual devices
 
-Most appliances you actually maintain (a "dumb" fridge, furnace, or water heater)
-aren't Home Assistant devices, so there's nowhere to hang their maintenance tasks or
-record their warranty. Home Keeper fills that gap with **appliances**, managed from the
-**Appliances** tab in the panel. Add one as a new appliance or point at an existing device:
+Home Keeper supports **appliances** for maintenance tasks and warranty records on
+things that are not Home Assistant devices, such as a fridge, furnace, or water
+heater. This is useful for tasks and warranty data on a thing that has no device of
+its own. Manage appliances on the **Appliances** tab in the panel. Add a new
+appliance, or select an existing device.
 
 <!-- vale ai-tells.ColonUsage = NO -->
-- **New appliance**: Home Keeper registers a real **virtual device** for it, so
-  multiple tasks share *one* device page and other integrations can attach to it too.
+- **New appliance**: Home Keeper registers a **virtual device** for it. Multiple
+  tasks share one device page, and other integrations can attach to it too.
 <!-- vale ai-tells.ColonUsage = YES -->
-- **Existing device**: point Home Keeper at a device another integration already
-  provides and enrich it with the same metadata, without owning it. Picking a device
-  prefills manufacturer/model/serial number from its own registry entry when it has
-  them (handy since not every integration reports those), and you can fill in or
-  correct whatever it's missing.
+- **Existing device**: select a device that another integration provides and add
+  the same metadata to it. Home Keeper does not own the device. The manufacturer
+  and model and serial number are prefilled from the device registry when present.
 
-Either way you record **asset metadata**. A few structured fields wire into Home
-Assistant (manufacturer/model, an mdi icon, a manual link, replacement cost), plus a
-free-form **Notes** field for prose about the appliance, which renders as
-[Markdown](#notes-are-markdown). Beyond that you add **custom fields**, each a label
-with a value typed as
-**text**, **link**, or **date** (seeded with common ones like serial number, vendor,
-product link, warranty expiry, purchase/install dates). Tick **track** on a date and
-it becomes a real `date`
-**sensor** on the device page, so it's automatable natively (e.g. *"warranty expiring
-in 30 days → notify me"*). Untracked dates stay display-only.
+An appliance has structured fields that Home Assistant reads: manufacturer and model
+and serial number and an mdi icon and replacement cost. The **Notes** field renders
+as [Markdown](#notes-are-markdown). **Custom fields** are a label with a value of type
+**text** or **link** or **date**. Common fields such as serial number and warranty
+expiry are seeded. Enable **track** on a date field to create a `date` **sensor** on
+the device page for use in automations. An untracked date is display-only.
 
-Tapping an appliance opens a **detail page** gathering its metadata, parts, related
-tasks, subdevices, and full maintenance history (including retained history of tasks
-deleted while still assigned to it). The tab also has an **Export inventory** button
-that downloads a CSV **home inventory**: make/model, replacement cost, value of spares
-on hand (with a grand total), and a Details column flattening each appliance's custom
-fields. It's the grab-and-go record you want for an insurance claim.
+The appliance detail page has the metadata and parts and related tasks and
+subdevices and the full maintenance history. The history keeps the completions of
+tasks that were deleted while assigned to the appliance. Press **Export inventory**
+on the Appliances tab to download a CSV home inventory with make and model and
+replacement cost and the value of spares on hand and a total. A Details column
+lists each appliance's custom fields.
 
 ![Appliance detail page](docs/images/8-panel-appliance-detail.png)
 
 ### Archiving appliances
 
-Replaced an appliance but don't want to lose its history? **Archive** it instead of
-deleting it: its documents, parts, metadata and maintenance history all stay intact,
-and its device page and entities keep working (Home Keeper just tucks it out of the
-default appliance list). An **Active / Archived** toggle at the top of the Appliances
-tab switches between the two views, and an archived appliance can be **restored** any
-time, or permanently **deleted** from its own detail page.
+**Archive** an appliance to remove it from the active list and keep its history. The
+documents and parts and metadata and maintenance history are kept. The device page
+and the entities continue to work. Use the **Active / Archived** toggle on the
+Appliances tab to show archived appliances. An archived appliance can be
+**restored** at any time or **deleted** from its detail page.
 
 ![Archived appliance detail page](docs/images/8c-panel-appliance-archived-detail.png)
 
-**Delete** now asks for confirmation too, on both appliances and tasks, and is styled
-as a clearly destructive action, so a stray click can no longer wipe out an
-appliance's history
-([#173](https://github.com/prestomation/ha-home-keeper/issues/173)).
+**Delete** asks for confirmation for an appliance and for a task.
 
 ![Delete confirmation dialog](docs/images/8b-panel-appliance-delete-confirm.png)
 
 ### Tree view
 
-When appliances have parent/child relationships (a child is a **subdevice** of its
-parent), the Appliances tab can display them as a tree. A **View** toggle at the top
-of the list switches between a flat list and a tree view that nests children under
-their parents, indented with a left border. The Group-by control is hidden in tree
-mode (the hierarchy is the grouping) but its stored value is preserved for when you
-switch back to the flat list.
+Home Keeper supports parent and child relationships between appliances. A child is a
+**subdevice** of its parent. Use the **View** toggle on the Appliances tab to show
+the appliances as a tree with children under their parents.
 
 ![Tree view](docs/images/5c-panel-appliances-tree-view.png)
 
 ### Parts & wear items
 
-Each appliance has a structured **parts** list, name, part number, vendor, cost,
-free-form **notes** (rendered as [Markdown](#notes-are-markdown) under the part, for
-the torque spec or the socket size you always forget), and a
-type of *consumable* (a stocked spare) or *wear item*. Give a wear item a **replacement
-interval** and Home Keeper automatically creates a maintenance **task** for it, attached
-to the appliance's device, so it shows up in your to-do list and calendar, gets a
-mark-done button and next-due sensor, and stamps the part's *last replaced* date when
-completed. You can also backdate **when a wear item was last replaced** so the schedule
-starts from the real date.
+Each appliance has a **parts** list. A part has a name and part number and vendor
+and cost and **notes** in [Markdown](#notes-are-markdown). Each part is a *consumable*
+or a *wear item*. Set a **replacement interval** on a wear item and Home Keeper
+creates a maintenance **task** for it on the appliance's device. The task appears in
+the to-do list and the calendar with a mark-done button and a next-due sensor. A
+completion sets the part's *last replaced* date. The **last replaced** date can be
+set to a past date so that the schedule starts from the real date.
 
-A part can also carry a **product URL**: a link to where you buy it (e.g. an Amazon
-listing). When set, the part's name in the appliance detail page becomes a clickable
-link that opens the product page in a new tab, so reordering is one click away. A
-maintenance task linked to that part (whether an auto-generated wear-item task or a
-manually-linked consumable) shows the same clickable link (in the task's detail page
-and on the dashboard card) so you can jump straight from "time to replace this" to
-buying the replacement.
+A part can have a **product URL**. The part's name on the appliance detail page then
+opens the product page in a new tab. A task that is linked to the part shows the
+same link on its detail page and on the dashboard card.
 
-Each part can also carry a single **attached file** (a receipt, spec sheet, or photo),
-uploaded from the part's editor the same secure way appliance documents are (see
-below), and opened or removed from the same card.
+Each part can have 1 **attached file**, such as a receipt or a photo. Upload it from
+the part editor. Open or remove it from the same card.
 
-Any part can also track **spare inventory**, a *stock* count and a *reorder-at*
-threshold. Completing a wear-item replacement consumes one spare, and when stock drops
-to (or below) the threshold Home Keeper fires a `home_keeper_part_low_stock` event you
-can automate on (add to a shopping list, notify, reorder). A *consumable* part isn't
-limited to its own wear cadence: you can **[link any task to it](#link-a-task-to-a-consumable-auto-reorder)**
-(including a sensor-driven one), so completing that task draws down the same stock.
-Stock deduction applies to every completion path: manual, tag scan, and
-[auto-clearing sensor tasks](#sensor-based-tasks-usage-meters-thresholds--states) alike.
+A part can track **spare inventory** with a *stock* count and a *reorder-at*
+threshold. A wear-item replacement draws down the part's per-use amount. The default
+is 1 spare. When the stock drops to or below
+the threshold Home Keeper fires a `home_keeper_part_low_stock` event for use in an
+automation. Any task can be
+**[linked to a consumable part](#link-a-task-to-a-consumable-auto-reorder)** and a
+completion of that task then draws down the same stock. Stock deduction applies to
+every completion path. This includes manual completion and tag scans and
+[auto-clearing sensor tasks](#sensor-based-tasks-usage-meters-thresholds--states).
 
 #### Stock you measure rather than count
 
-Not everything on the shelf is a countable thing. Fabric softener comes in a bottle you
-top up a third at a time. Trimmer line comes on a spool you use by the metre. Two
-optional fields on a stock-tracked part cover that.
+Home Keeper supports stock that is measured in a unit instead of counted. This is
+useful for a liquid in a bottle or a line on a spool. 2 optional fields on a
+stock-tracked part set this up.
 
-- **Stock unit** is what the numbers mean: `ml`, `m`, `bottles`. Set it and the unit
-  appears everywhere the amount does, on the part's chips, on a linked task's detail
-  line, on the stock control on the appliance's device page, and in the `unit` field of
-  the [stock events](docs/EVENTS.md). Leave it empty and a part counts whole spares
-  exactly as it always did.
-- **Used per completion** is how much one completion takes off. Leave it empty and a
-  completion uses one whole spare. Set it to `0.33` and three refills empty one bottle,
-  rather than three bottles.
+- **Stock unit** sets the unit of the stock numbers, such as `ml` or `bottles`. The
+  unit is shown with the stock and in the `unit` field of the
+  [stock events](docs/EVENTS.md). An empty unit means whole spares.
+- **Used per completion** sets how much 1 completion draws down. An empty value
+  means 1 whole spare. A value of `0.33` means that 3 completions use 1 bottle.
 
-*Stock*, *reorder-at*, *used per completion* and *restock quantity* all accept decimals,
-as does the `delta` on `home_keeper.adjust_part_stock`, so a part measured in
-millilitres adjusts by `-250` and a bottle by `-0.33`. A part that never sets a unit or
-a per-use amount keeps stepping in whole spares, and its stock box still refuses "2.5
-filters".
+The stock fields and the `delta` field of `home_keeper.adjust_part_stock` accept
+decimals. A part with no unit and no per-use amount accepts whole spares only.
 
 ![The part editor for a descaling solution measured in millilitres, with a stock unit and a used-per-completion amount](docs/images/47-panel-part-measured-stock.png)
 
@@ -1078,46 +704,48 @@ filters".
 
 #### Auto-create a buy task when a part runs low
 
-If you'd rather have a **built-in shopping reminder** than wire up your own automation,
-turn on **Auto-create buy task** on a stock-tracked part (the option appears once the
-part has a reorder-at threshold). Whenever the part's stock drops to (or below) the
-threshold, Home Keeper adds a one-off **"Buy {part}"** task (on the appliance's device
-page, in your to-do list, and in the panel) so "go buy more" lands in the same place
-as the rest of your maintenance. The reminder is **system-managed**: it disappears on
-its own once the part is restocked above the threshold (or you switch the option off),
-and there's only ever one per low spell (completing it won't spawn another while you're
-still low).
+Turn on **Auto-create buy task** on a stock-tracked part. The option is shown when
+the part has a reorder-at threshold. When the stock drops to or below the threshold,
+Home Keeper adds a one-off **"Buy {part}"** task on the appliance's device and in
+the to-do list and in the panel. Only 1 buy task exists while the stock is low.
 
-Completing the buy task **restocks the part** by its **Restock quantity** (how many
-spares you buy each time, default 1). This normally lifts stock back above the
-threshold and clears the reminder in the same step. So the whole loop
-(*low → buy → restocked*) closes with a single tap and no automation to write. (Set the
-restock quantity high enough to clear the threshold; if it isn't, the completed reminder
-stays put until you actually restock.)
+A completion of the buy task **restocks the part** by its **Restock quantity**. The
+default is 1. Set the restock quantity high enough to lift the stock above the
+threshold. If the stock stays at or below the threshold, the reminder remains.
+
+A buy task has no due date, and a task with no due date is due immediately. Before
+version 0.20, the buy task was shown in the Overdue section with the overdue
+maintenance tasks. The buy task now has a **Shopping** section of its own, on the
+Tasks tab and on the [dashboard card](#dashboard-task-card). Its status reads
+**Low stock**. The scope pills, the overdue `binary_sensor` of the task, and a saved
+Profile all still count the buy task as overdue.
 
 ![A part editor with Auto-create buy task enabled and a Restock quantity field](docs/images/39-panel-part-auto-buy.png)
 
 #### Send buy reminders to your shopping list
 
-A reminder that only exists in Home Keeper is no help in the shop. Point **Settings →
-Shopping list** at a to-do list the household already uses. Every auto-created
-**"Buy {part}"** reminder is then put on it as an ordinary line, so it turns up wherever
-that list turns up. The built-in shopping list works. So does a `local_todo` list your
-voice assistant reads back.
+Select a to-do list in **Settings → Shopping list**. Every auto-created
+**"Buy {part}"** task is then added to that list as an item. The Home Assistant
+shopping list and a `local_todo` list are supported.
 
-It works in both directions:
+The line shows the amount to buy. A part that measures its stock in a
+[unit](#stock-you-measure-rather-than-count) shows the amount on the line, such as
+"Buy fabric softener (500 ml)". A part with a **Restock quantity** of more than 1
+shows "Buy air filter (×2)". A part that restocks 1 whole spare is not changed. The
+amount is shown only on the shopping-list line. In the panel and the calendar and the
+notifications, the task keeps its own name.
 
-- **Tick the line off at the shop** and Home Keeper completes the reminder. That
-  restocks the part by its Restock quantity and clears the reminder. The ticked-off line
-  stays put as your record.
-- **Complete the reminder in Home Keeper** and the line is ticked off to match.
-- **Restock the part some other way** and the line is removed, because nothing was
-  bought. Topping the stock up by hand counts. So does switching Auto-create buy task
-  off.
+The sync works in both directions:
 
-Anything already ticked off is never touched, and Home Keeper only ever manages the
-lines it added: the milk you put on the list yourself is none of its business. Leave the
-setting empty to turn the whole thing off.
+- If the item is marked complete on the list, Home Keeper completes the buy task
+  and restocks the part. The completed item remains on the list.
+- If the buy task is completed in Home Keeper, the item is marked complete.
+- If the part is restocked another way, the item is removed. A manual stock change
+  and switching Auto-create buy task off both count.
+
+Home Keeper manages the items it added and an open item with the same name that
+is already on the list. A completed item is not modified. Clear the setting to turn
+the feature off.
 
 ![The Settings tab's Shopping list card, with a to-do list picked](docs/images/45-panel-settings-shopping.png)
 
@@ -1125,38 +753,28 @@ setting empty to turn the whole thing off.
 
 ### Offline manuals & documents
 
-Every appliance keeps a list of **documents**: manuals, warranties, receipts. Each is
-either an external **link** (a URL) or an **uploaded file** (a PDF or image) stored
-**locally on your Home Assistant instance**, so the manual is still there when the
-manufacturer's website isn't (or has moved on to the next model). Open the appliance's
-**Manuals & documents** editor to paste a link or **Upload file**; uploaded files are
-written under your config directory and served back through an authenticated endpoint,
-opened via a short-lived signed URL. Removing a document (or deleting the appliance)
-deletes the stored file too.
+Every appliance has a list of **documents**, such as manuals and warranties and
+receipts. A document is an external **link** or an **uploaded file**. The uploaded
+file is a PDF or an image that is stored under the Home Assistant config directory
+and served through an authenticated endpoint with a short-lived signed URL. Open
+the appliance's **Manuals & documents** editor to add a link or to **Upload file**.
+A removed document and a deleted appliance delete the stored file.
 
-Each existing document shows as a card with its name and details (a link's URL, or an
-uploaded file's filename, size and type), and **Open**, **Edit** and **Remove** actions
-right there in the editor. **Open** previews the document in a new tab; **Edit** renames a
-document (and, for a link, changes its URL, uploaded files are rename-only, since the
-stored file itself is immutable). You can add link documents while first creating an
-appliance. Uploading a file waits until the appliance is saved (the file is keyed to it).
+**Open** shows the document in a new tab. **Edit** renames a document and changes
+the URL of a link. An uploaded file can be renamed only. A link can be added while
+the appliance is created. A file upload is available after the appliance is saved.
 
-Every data action is also a service: `home_keeper.add_asset_document`,
-`home_keeper.update_asset_document` and `home_keeper.remove_asset_document` (links; files
-upload from the panel), so automations can attach, rename or detach a receipt or manual
-link too.
+The services `home_keeper.add_asset_document` and
+`home_keeper.update_asset_document` and `home_keeper.remove_asset_document` manage
+link documents from an automation. File uploads are supported from the panel only.
 
 ![The appliance Manuals & documents editor: existing documents as cards with Open / Edit / Remove actions, plus an add-a-document area with add-link and upload-file controls](docs/images/32-panel-appliance-documents.png)
 
 #### Upload progress and failures
 
-An upload shows a **progress bar** with the percentage and byte count while it runs,
-plus a **Cancel upload** button; once the last byte is sent it switches to *"Saving…"*
-for the moment Home Assistant takes to store the file. The upload and **Save** buttons
-are disabled meanwhile, so a save can't race an upload in flight.
-
-If an upload fails, the reason appears **right under the button you pressed** and as a
-Home Assistant notification toast, so it's easy to find.
+Press **Cancel upload** to stop an upload. **Save** is disabled while an upload runs.
+If an upload fails, the reason is shown under the **Upload file** button and as a
+Home Assistant notification.
 
 ![An upload rejected for exceeding the 100 MB limit: the error appears directly under the Upload file button, and as a notification toast](docs/images/32b-panel-appliance-upload-error.png)
 
@@ -1164,20 +782,16 @@ Home Assistant notification toast, so it's easy to find.
 
 #### Large uploads (413)
 
-Home Keeper accepts uploads up to **100 MB**, and the panel checks the file's size
-*before* uploading, so an oversized file is refused immediately, naming the file, its
-size and the limit, rather than transferring in full only to be rejected at the end.
-Uploads are streamed straight to disk, so a large manual doesn't load into Home
-Assistant's memory.
+Home Keeper accepts uploads up to **100 MB**. The panel checks the file size before
+the upload and rejects a larger file. Uploads are streamed to disk.
 
-If an upload still fails with **HTTP 413**, or the panel says the upload was *cut off
-before it finished*, the file was rejected by a **reverse proxy in front of Home
-Assistant**, before it ever reached the integration. The usual cause is the proxy's
-request-body limit (nginx defaults
-`client_max_body_size` to just **1 MB**). Raise it above your largest manual:
+If an upload fails with **HTTP 413** or is cut off before it finishes, a **reverse
+proxy in front of Home Assistant** rejected the file. The usual cause is the proxy
+request-body limit. nginx defaults `client_max_body_size` to 1 MB. Raise the limit
+above the largest manual:
 
-- **nginx** (manual config): add `client_max_body_size 110M;` to the `server` (or
-  `location /`) block, then `nginx -t && nginx -s reload`.
+- **nginx manual config**: add `client_max_body_size 110M;` to the `server` or
+  `location /` block, then run `nginx -t && nginx -s reload`.
 <!-- vale ai-tells.ColonUsage = NO -->
 - **Nginx Proxy Manager**: Proxy Host → **Advanced** → *Custom Nginx Configuration* →
   add `client_max_body_size 110M;` → Save.
@@ -1185,58 +799,529 @@ request-body limit (nginx defaults
 - **"NGINX Home Assistant SSL proxy" add-on**: create `/share/nginx_proxy_default.conf`
   containing `client_max_body_size 110M;`, set `customize.active: true` in the add-on
   options, and restart the add-on.
-- **Caddy**: `request_body { max_size 110MB }`. **Traefik**: a `buffering` middleware with
-  `maxRequestBodyBytes`.
-- **Nabu Casa / HA Cloud Remote UI** has its own limit: if you hit it, upload from your
-  **local network** instead.
+- **Caddy**: `request_body { max_size 110MB }`.
+- **Traefik**: a `buffering` middleware with `maxRequestBodyBytes`.
+- **Nabu Casa / HA Cloud Remote UI** has its own limit. Upload from the local
+  network instead.
 
-A quick way to confirm it's the proxy: upload once via the direct LAN URL
-(`http://<ha-ip>:8123`), bypassing the proxy. It'll succeed there.
+To confirm that the proxy is the cause, upload through the direct LAN URL
+`http://<ha-ip>:8123`.
 
 ### Relationships: subdevices & related devices
 
-Real things nest. An appliance can be a **subdevice of** another appliance (wired
-through HA's native `via_device` hierarchy, so it nests under its parent on the device
-page). You can also tag arbitrary **related devices** (including ones from other
-integrations HA won't let us reparent), which show up alongside the appliance.
+An appliance can be a **subdevice of** another appliance through the Home Assistant
+`via_device` hierarchy. It is then nested under its parent on the device page. An
+appliance can also list **related devices** from any integration. These are shown
+with the appliance.
 
 > **Example.** Add the *Garage water heater* as a new appliance with its warranty
-> expiry and an *Anode rod* **wear item** set to "replace every 12 months." The water
-> heater now has its own device page with a warranty-expiry sensor, plus an automatic
-> *"Replace Anode rod"* to-do that's due 12 months after each completion.
+> expiry and an *Anode rod* **wear item** with a 12 month replacement interval. The
+> water heater then has a device page with a warranty-expiry sensor and a
+> *"Replace Anode rod"* task that is due 12 months after each completion.
+
+## Profiles (saved filters you reuse everywhere)
+
+Home Keeper supports saving a filter as a **Profile**. A Profile has a status tier and
+optional **label**, **area**, **device**, and **companion** filters. Create and edit
+Profiles in **Settings → Profiles**.
+
+A Profile is used in 4 places:
+
+- A notification selects a Profile to designate which tasks are sent.
+- A to-do list sync uses a Profile to designate which tasks are synchronized.
+- The **Profile** dropdown on the **Tasks** tab filters the task list in the panel.
+- The **Filter by profile** option in the card editor filters the dashboard card.
+
+### Status tiers
+
+The **Include** setting has 3 tiers. Each tier includes the tiers before it:
+
+- **Overdue only**: overdue tasks.
+- **Overdue and due soon**: overdue tasks and tasks that are due in the next 3 days.
+- **Every scheduled task**: all scheduled tasks.
+
+### How filters combine
+
+A filter can hold more than one value, and Home Keeper matches a task with any one of
+them. A **Labels** filter set to `urgent` and `safety` selects tasks with either label. A
+Profile with values in more than one filter shows only the tasks that match every one of
+them. Each filter you set makes the result smaller. It never makes the result larger.
+
+> **A Profile with values in both Labels and Companions does not show both groups
+> together.** It shows only the tasks that match both filters. To combine 2 groups of
+> tasks, put both values in one filter. An example is 2 labels in **Labels**.
+
+### Filter by companion
+
+A [companion](#companions) is an integration that creates tasks in Home Keeper. The
+Battery Notes glue is one example, and it raises a **Replace battery** task when a
+battery gets low. Every task a companion creates records which integration owns it, and
+the panel shows a **Managed by** chip on that task.
+
+The **Companions** filter selects tasks by their owner. This makes one card per source
+without any manual work:
+
+- A card of only the battery tasks. Select **Battery Notes** in **Companions**.
+- A card of only the printer tasks. Select the printer glue.
+- Everything except one source. Put that companion in **Exclude companions**.
+
+The picker lists each connected companion, and each integration that already owns a
+task. A companion that is only a suggestion is not listed, because it owns no tasks.
+
+> **A task you create in the panel has no companion.** No integration owns it. A
+> **Companions** filter does not select it and an **Exclude companions** filter does not
+> remove it. Use a label filter for tasks you make yourself.
+
+![A Profile filtered to the Battery Notes companion in Settings → Profiles](docs/images/profile-companion-filter.png)
+
+### Exclusions
+
+**Exclude labels**, **Exclude areas**, **Exclude devices**, and **Exclude companions**
+remove tasks from the Profile. An exclusion takes precedence over the include filters. Nothing is removed
+if the exclusion is empty. This is useful for a Profile of all tasks except the tasks with one
+label, such as `professional`.
+
+Exclusions apply to inherited labels and areas. A task that has the `professional`
+label through its device or its area is also excluded.
+
+**Exclude shopping** removes every auto-created
+["Buy {part}"](#auto-create-a-buy-task-when-a-part-runs-low) task from the Profile. It
+is a switch and not a picker. A buy task has only the label and the area of its
+appliance, so a picker cannot select it. The switch is off by default, so an existing
+Profile includes the buy tasks until you turn it on. Use it to limit a spoken
+notification digest to the maintenance tasks.
+
+### Synced problem sensors
+
+A task synced from a [`problem` binary sensor](#sync-problem-binary-sensors-as-tasks)
+is included in a Profile while its sensor reports a problem. A notification for this
+task shows **Snooze** instead of **Mark done** and **Skip**.
+
+![The Settings → Profiles card with saved filters](docs/images/profiles-card.png)
+
+![The Tasks tab filtered to a saved Profile via the Profile dropdown](docs/images/23-panel-profile-filter.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Send tasks to your to-do lists
+
+Home Keeper supports synchronizing the tasks from a
+[Profile](#profiles-saved-filters-you-reuse-everywhere) to any `todo` entity. This
+is useful for tracking these tasks in an external to-do system that is separately
+integrated into your Home Assistant setup, such as Google Tasks, Todoist, or CalDAV.
+
+### Configuration
+
+Open **Settings → Profiles** and expand the profile. In the **Sync to a to-do list**
+group, select a list in the **To-do list** picker. The profile's tasks are then added
+to that list. Clear the picker to stop the sync. Home Keeper then removes the
+profile's open items from the list.
+
+The profile designates which tasks are synchronized to the configured to-do list.
+The profile's filters select the tasks. The profile's **Include** tier sets when a
+task is added to the list:
+
+- **Overdue only**: when the task becomes due.
+- **Overdue and due soon**: 3 days before the task becomes due.
+- **Every scheduled task**: as soon as the task is scheduled.
+
+One profile synchronizes to one list. Configure a profile per list, such as a
+profile per child with a different list in each.
+
+### Two-way sync
+
+Synchronization works in both directions:
+
+- If an item is marked complete on the to-do list, Home Keeper completes the task
+  and records the completion in the task's history. A recurring task is rescheduled
+  and a new item is added when the task next becomes due. The completed item
+  remains on the list.
+- If a task is completed in Home Keeper, the item is marked complete on the list.
+- If a task no longer matches the profile or is rescheduled or disabled, Home
+  Keeper removes its open item from the list.
+
+Items include the task's due date and notes if the list supports these fields.
+Home Keeper modifies only the items it added and does not modify an item that is
+already complete.
+
+Items that a user adds to the list are not imported into Home Keeper. Only the
+completion state is read back from the list.
+
+Tasks that require an NFC or RFID tag scan are synchronized, but a completion on the
+to-do list does not complete the task. The item is re-added on the next sync.
+
+### Options
+
+2 switches are under the picker. Both are on by default.
+
+- **Two-way sync**: turn this off for a display-only list. Completions on the list
+  are then ignored.
+- **Treat removed items as completed**: some providers such as Todoist hide
+  completed items from Home Assistant. With this switch on a removed item is treated
+  as complete. Turn it off if the list reports completions correctly. A `local_todo`
+  list does. A removed item is then re-added on the next sync.
+
+### CalDAV and Nextcloud
+
+CalDAV lists such as Nextcloud, Baikal, and Radicale are supported. Home Assistant
+polls a CalDAV server every 15 minutes, so a completion on the server can take up to
+15 minutes to reach Home Keeper.
+
+In Nextcloud, select a task list. The default **Personal** calendar contains only
+events and is not exposed as a `todo` entity.
+
+![A Profile's Sync to a to-do list group, with the list it syncs onto picked](docs/images/47-panel-profile-sync.png)
+
+![A synced task with its due date on a to-do list card](docs/images/48-todo-sync-synced-task.png)
+
+<!-- vale ai-tells.OverusedVocabulary = NO -->
+
+
+
+
+
+
+
+
+
+
+
+
+## Notifications (actionable reminders on your phone)
+<!-- vale ai-tells.OverusedVocabulary = YES -->
+
+Home Keeper supports sending a mobile-app notification for due tasks, with the
+action buttons **Mark done**, **Snooze**, **Skip**, and **Open**. This is useful
+for completing a task from the phone lock screen and for sending each user the
+tasks from their own profile. The buttons act on the task in Home Keeper:
+
+- **Mark done** completes the task and advances the recurrence.
+- **Snooze** defers the due date by the configured snooze duration.
+- **Skip** moves the task to its next occurrence.
+- **Open** opens the task in Home Keeper.
+
+### Configuration
+
+Configure notifications in **Settings → Notifications**. Each notification has these
+fields:
+
+- **Profile**: the [Profile](#profiles-saved-filters-you-reuse-everywhere) that
+  selects the tasks. All due tasks are included if no profile is set.
+- **Send to**: one or more `mobile_app_*` companion-app devices selected from a
+  list. Only these devices and `persistent_notification` are supported as targets.
+  Other notify services are not supported.
+- **Buttons**: which of the 4 buttons are shown and the snooze duration.
+- **Style**: **walk** or **digest**. A walk sends the first due task. Each Mark done,
+  Snooze, or Skip then sends the next due task. When no task is due the walk sends
+  an "All caught up" notification. The digest style sends one summary of all due
+  tasks.
+- **Notification channel** and **Urgency**: the delivery settings that the phone
+  applies. See [Channels and urgency](#channels-and-urgency).
+- **Auto-send**: send the notification when a matching task becomes overdue or
+  due soon.
+
+Press **Test** on a notification to send it now. Home Keeper saves the notification
+first, then calls `home_keeper.notify` for it, so the phone receives the delivery the
+form shows. If no task is due, Home Keeper sends nothing and says so.
+
+### Channels and urgency
+
+Home Keeper supports a **Notification channel** and an **Urgency** on each
+notification. This is useful when a medication task and a battery task must not
+arrive in the same way.
+
+On Android the channel is a notification channel. The companion app creates the
+channel the first time a notification uses the name. The channel then appears in the
+phone settings for Home Assistant, where the user sets its sound and its Do Not
+Disturb override. A Medication channel can then make a sound during Do Not Disturb
+while a Batteries channel stays silent.
+
+An iPhone has no channels. Home Keeper sends the same name as a thread identifier, so
+these notifications group together. The urgency becomes the iOS interruption level.
+
+| Urgency | Android | iPhone |
+| --- | --- | --- |
+| Quiet | Low importance | Passive |
+| Normal | App default | Active |
+| High | High importance | Time-sensitive |
+| Critical | Max importance | Critical alert |
+
+At High and Critical urgency Home Keeper also asks Android to deliver the
+notification immediately. An idle phone otherwise holds it until the next batch.
+
+Critical urgency has a condition on each platform. The user must allow **Critical
+Alerts** for Home Assistant in the iPhone settings. On Android a channel keeps the
+settings it was created with. A change of urgency does not move a channel that
+already exists. Give the channel a new name or change the channel in the phone
+settings.
+
+If the channel is empty, the notification arrives on the General channel of the
+companion app.
+
+### Language
+
+The button labels and the notification text are localized to the language that is
+configured for the Home Assistant instance in **Settings → System → General**. The
+setting is instance-wide, so every user receives notifications in the same
+language.
+
+### Automations
+
+With **Auto-send** on, a notification is sent when a task in the profile becomes
+overdue or due soon. Use a Home Assistant automation for more control over when
+notifications are sent. Send only when a person is at home, or send during a "Chore
+time" calendar event.
+
+The `home_keeper.notify` service sends a notification from an automation. Set
+`notification:` to a saved notification or `profile:` to a saved Profile. Set
+`target:` to override the destinations. The button actions fire events that other
+automations can use. See [Events & automations](#events--automations).
+
+### Automation examples
+
+Home Keeper sends a notification once. Use a Home Assistant automation to send it
+again until the task is complete. The `home_keeper.notify` service sends nothing when
+no task matches, so a schedule that runs all day costs nothing on a day with no due
+task. Build these automations in **Settings → Automations & scenes**.
+
+**Repeat a notification every 2 hours.** This automation sends *Walk my chores*
+again every 2 hours between 08:00 and 21:00.
+
+```yaml
+automation:
+  - alias: "Home Keeper → chores every 2 hours"
+    trigger:
+      - platform: time_pattern
+        hours: "/2"
+    condition:
+      - condition: time
+        after: "08:00:00"
+        before: "21:00:00"
+    action:
+      - service: home_keeper.notify
+        data:
+          notification: Walk my chores
+```
+
+**Send only when a person is at home.** This automation looks every 30 minutes in the
+evening. It sends the notification only when the person entity is home.
+
+```yaml
+automation:
+  - alias: "Home Keeper → chores while I'm home"
+    trigger:
+      - platform: time_pattern
+        minutes: "/30"
+    condition:
+      - condition: state
+        entity_id: person.sam
+        state: home
+      - condition: time
+        after: "17:00:00"
+        before: "21:00:00"
+    action:
+      - service: home_keeper.notify
+        data:
+          notification: Walk my chores
+```
+
+**Repeat a critical notification every 15 minutes.** This automation looks every 15
+minutes between 08:00 and 10:00. Give the notification its own channel at Critical
+urgency.
+
+```yaml
+automation:
+  - alias: "Home Keeper → medication window"
+    trigger:
+      - platform: time_pattern
+        minutes: "/15"
+    condition:
+      - condition: time
+        after: "08:00:00"
+        before: "10:00:00"
+    action:
+      - service: home_keeper.notify
+        data:
+          notification: Medication
+```
+
+Each automation sends the same notification, so the phone replaces the previous one
+instead of adding a second. The next run of the automation finds no due task after
+the task is complete, and the notifications stop.
+
+![The Settings → Notifications card with a notification on the Chores channel at High urgency, and a Test button beside Delete](docs/images/22-panel-notifications.png)
+
+
+## Dashboard task card
+
+Home Keeper supports a dashboard card, **Home Keeper Tasks** (`custom:home-keeper-card`),
+that lists tasks and completes them with a **Done** button. This is useful for a task
+list on a dashboard or a wall tablet. The card resource is registered automatically.
+To add the card, select **Home Keeper Tasks** in the dashboard **Add card** picker.
+
+From the card, a user can:
+
+- complete a task with **Done**
+- add a task with the **+** button in the header
+- open the document links that a task shows
+
+Editing and deletion of a task are supported only in the panel.
+
+The card editor has these options:
+
+- Filter by status, area, device, label, recurrence type, a "due within N days"
+  window, or a saved [Profile](#profiles-saved-filters-you-reuse-everywhere).
+- Sort and group the tasks, and limit the number of rows.
+- Select what each row shows.
+- **Hide card when empty** removes the card from the dashboard when the filter matches
+  no task. Without it the card shows "No tasks match this filter."
+
+A completion made in the panel or on another surface is shown on the card immediately.
+
+![Home Keeper task card grouped into status sections](docs/images/card-grouped.png)
+
+### Show a task's appliance documents on the card
+
+A task that is attached to an [appliance](#appliances--virtual-devices) can show the
+appliance's documents on its row. This includes document links and uploaded files
+and metadata links. Nothing is shown by default.
+
+1. Open the task in the panel editor.
+2. In **Links to show on card**, select the documents. The field is shown only if the
+   appliance has at least 1 document.
+
+The `card_links` field of the `home_keeper.add_task` and `home_keeper.update_task`
+services sets the same list. Each selected document is shown as a chip on the task
+row and opens in a new tab. An uploaded file opens through a short-lived signed URL.
+If a document is renamed or removed on the appliance, the chip is updated or removed.
+
+![Home Keeper task card showing a row with "Owner's manual", "Reorder filter" and an "Installation guide (PDF)" file chip](docs/images/card-task-links.png)
+
+### Filter by label: one card per subject
+
+A card can be limited to tasks with a Home Assistant label. This is useful for one
+card per subject, such as the car or the dog. A task matches a label if the task has
+the label or if its attached device or area has the label.
+
+1. Open the task and select the labels in the **Labels** field. The
+   `home_keeper.add_task` and `home_keeper.update_task` services also set labels.
+2. Optional. Apply the same labels to devices or appliances in **Settings → Devices**
+   to include all their tasks.
+3. In the card editor, set **Limit to labels**. With more than 1 label, set the
+   **Any/All** match mode.
+4. Optional. Enable **Show labels** to show each task's labels on its row.
+
+![Home Keeper card filtered to the "dog" label, showing label chips on each row](docs/images/card-label-filter.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Settings
+
+The **Settings** tab in the panel edits the integration options. The form matches the
+Home Assistant options flow and saves each change immediately. The same options are
+available in the options flow under **Settings → Devices & services → Configure** and
+through the `home_keeper.set_options` service.
+
+The tab has 6 sections:
+
+- **General** sets how long completed one-off tasks are kept.
+- **Shopping list** selects the to-do list that
+  [buy reminders are synced to](#send-buy-reminders-to-your-shopping-list).
+- **Profiles** holds the saved filters. See
+  [Profiles](#profiles-saved-filters-you-reuse-everywhere).
+- **Notifications** holds the notification configurations. See
+  [Notifications](#notifications-actionable-reminders-on-your-phone).
+- **Problem sensor sync** has the sync switch and the exclusions for entities and
+  devices and areas and labels. The exclusions apply only when the sync is on.
+- **Companions** lists the integrations that work with Home Keeper.
+
+![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
+
+### Companions
+
+A companion is an integration that works with Home Keeper. Examples are a pet-care
+tracker that creates recurring tasks and a glue integration that turns a low battery
+into a replacement task. The **Companions** section at the end of the Settings tab
+lists them in 2 groups:
+
+- **Connected** lists the companions that registered themselves with Home Keeper.
+  Examples are [Pawsistant](https://github.com/prestomation/pawsistant) and the
+  [Battery Notes glue integration](https://github.com/prestomation/ha-home-keeper-battery-notes).
+  Each row has a **Configure** button that opens the companion's own page.
+- **Suggested** lists popular integrations that Home Keeper detects from a catalog
+  and that have no glue integration installed. An example is **Battery Notes**. Each
+  row has an **Install** link and a **Dismiss** button.
+
+To add a companion or a [glue integration](docs/GLUE_INTEGRATIONS.md) to the catalog,
+[open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20).
+
+![The Companions section on the Settings tab: connected integrations with Configure buttons](docs/images/21-panel-companions.png)
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Services
 
-Every data action is a Home Assistant service, so it's usable from automations,
-scripts, and voice. The highlights are below. The
+Home Keeper exposes every data action as a Home Assistant service. This is useful
+for automations, scripts, and voice control. The
 [API reference](https://prestomation.github.io/ha-home-keeper/developer/api#actions)
 lists all of them with their fields.
 
-- **Tasks**: `home_keeper.add_task`, `update_task`, `delete_task`, `complete_task`
-  (with optional `completed_at` to back-date it, plus `note`/`cost`/`photo`/`who`),
-  `update_completion` (amend a recorded completion's metadata), `move_completion`
-  (re-timestamp a recorded completion, back-date or correct it, identified by its
-  current `old_ts`; unlike `update_completion` this changes the date, not the
-  metadata), `trigger_task` (arm a condition-driven task), `snooze_task`
-  (defer the due date by `hours` without completing), `skip_task` (advance to the next
-  occurrence without completing), `set_task_consumable` (link a task to an appliance
-  consumable so completing it draws down stock, omit the ids to unlink), and
-  `list_tasks` (returns a response).
+- **Tasks**: `home_keeper.add_task`, `update_task`, `delete_task`, and
+  `complete_task` cover the basic actions. `complete_task` takes an optional
+  `completed_at` to back-date it, plus `note`, `cost`, `photo`, and `who`.
+  `update_completion` changes a recorded completion's metadata. `move_completion`
+  changes a recorded completion's timestamp, identified by its current `old_ts`.
+  `trigger_task` arms a condition-driven task. `snooze_task` defers the due date
+  by `hours` without completing the task. `skip_task` advances the task to its
+  next occurrence without completing it. `set_task_consumable` links a task to an
+  appliance consumable, so a completion draws down its stock. Omit the ids to
+  unlink. `list_tasks` returns a response.
 <!-- vale ai-tells.OverusedVocabulary = NO -->
-- **Notifications**: `home_keeper.notify` sends an actionable notification for what's
-  due from a saved notification or profile (returns `{matched, sent}`). See
+- **Notifications**: `home_keeper.notify` sends an actionable notification for the
+  tasks that are due, from a saved notification or profile. It returns
+  `{matched, sent}`. See
   [Notifications](#notifications-actionable-reminders-on-your-phone).
 <!-- vale ai-tells.OverusedVocabulary = YES -->
-- **Appliances**: `home_keeper.add_asset`, `update_asset`, `delete_asset`,
-  `adjust_part_stock`, `add_asset_document` / `update_asset_document` /
-  `remove_asset_document` (attach, rename or detach a manual/warranty/receipt, links
-  here, files upload from the panel), `list_assets`, and `export_inventory` (the last two
-  return a response).
+- **Appliances**: `home_keeper.add_asset`, `update_asset`, and `delete_asset`
+  manage an appliance. `adjust_part_stock` adjusts a part's stock.
+  `add_asset_document`, `update_asset_document`, and `remove_asset_document`
+  attach, rename, or detach a manual, a warranty, or a receipt. A file uploads
+  from the panel. `list_assets` and `export_inventory` return a response.
 
-### Name a task, don't hunt for its ID
+### Use a name instead of an id
 
-Every `task_id`, `asset_id`, `part_id` and `document_id` field takes the object's
-**name** as readily as its id, so an automation can say what it means:
+Every `task_id`, `asset_id`, `part_id`, and `document_id` field takes the object's
+**name** or its id.
 
 ```yaml
 action: home_keeper.complete_task
@@ -1244,15 +1329,12 @@ data:
   task_id: Replace furnace filter
 ```
 
-The id is still the exact form, and it now has somewhere to come from. The panel
-shows it at the foot of every task and appliance page, and beside each part and
-document, with a button that copies it. Reach for the id when two things share a
-name. Home Keeper refuses an ambiguous name rather than guessing, and the error
-lists the ids it could have meant.
+The panel shows the id on every task and appliance page and beside each part and
+document, with a copy button. Use the id when 2 objects share a name. An ambiguous
+name returns an error that lists the matching ids.
 
-There is also a route that needs neither. Checking a task off the
-`todo.home_keeper_tasks` list completes it, and `todo.update_item` addresses that
-list by item name:
+A task can also be completed through the `todo.home_keeper_tasks` list with
+`todo.update_item`, which addresses the item by name:
 
 ```yaml
 action: todo.update_item
@@ -1263,22 +1345,34 @@ data:
   status: completed
 ```
 
+
+
+
+
+
 ## Events & automations
 
-Home Keeper fires a Home Assistant **bus event** for every state change so you can
-automate on it: tasks (created, updated, completed, uncompleted, completion-edited,
-deleted, armed, and the time-based **overdue** / **due-soon** transitions), spare parts (**low stock**,
-**out of stock**, **restocked**), and appliances (created, updated, deleted).
+Home Keeper fires a Home Assistant bus event for every state change. Use these
+events to build automations. The events are:
 
-You can trigger on these two ways: pick a **device trigger** in the visual automation
-editor on a Home Keeper appliance (e.g. *"Task became overdue"*, *"Spare part out of
-stock"*, no event names to memorise), or use a plain `platform: event` trigger. For a
-task attached to a device another integration owns, automate on the task's own
-entities or the event, since Home Assistant only offers device triggers for the one
-integration a device belongs to. *Spare part out of stock → add it to the shopping
-list*. Useful for parts that don't use
-[Auto-create buy task](#auto-create-a-buy-task-when-a-part-runs-low), or when you want
-the line worded your own way:
+| Object | Events |
+| --- | --- |
+| Task | created, updated, completed, uncompleted, completion edited, deleted, armed, snoozed, skipped, overdue, due soon |
+| Part | low stock, out of stock, restocked |
+| Appliance | created, updated, deleted, archived, restored |
+| Companion | connected, suggested |
+
+There are 2 ways to trigger on an event. Select a device trigger in the visual
+automation editor on a Home Keeper appliance, such as "Task became overdue" or
+"Spare part out of stock". Or use a plain `platform: event` trigger.
+
+For a task attached to a device that another integration owns, automate on the
+task's own entities or on the event. Home Assistant offers device triggers only
+for the one integration a device belongs to.
+
+An automation can add a part to the shopping list when the part goes out of stock.
+This is useful for a part without
+[Auto-create buy task](#auto-create-a-buy-task-when-a-part-runs-low):
 
 ```yaml
 automation:
@@ -1293,37 +1387,48 @@ automation:
           item: "{{ trigger.event.data.part_name }} ({{ trigger.event.data.vendor }})"
 ```
 
-(For a part already on auto-buy, the built-in
-[shopping-list sync](#send-buy-reminders-to-your-shopping-list) does this for you, and
-takes the line off again when the part is restocked.)
+The built-in [shopping-list sync](#send-buy-reminders-to-your-shopping-list) does
+this for a part already on auto-buy, and removes the line again when the part is
+restocked.
 
-Events are **edge-triggered** (one event per crossing, never repeated each cycle) and
-silently baselined on restart (no "overdue" storm after a reboot). The full catalog
-(every event, its payload, and more examples) is in [docs/EVENTS.md](docs/EVENTS.md).
+Events are edge-triggered. Home Keeper fires 1 event per transition and does not
+repeat it each cycle. Events are baselined on restart, so no overdue events are
+fired after a reboot. The full catalog with every event and payload is in
+[docs/EVENTS.md](docs/EVENTS.md).
+
+
+
+
+
 
 ### Deadlines and follow-ups
 
-Some recurring tasks have a deadline. The weekly trash task is one example. The bin
-must go out before the truck comes. Home Assistant automations can cancel the
-occurrence for a bin that is late. They can also remind you to bring the bin back the
-next evening. The automations use the Home Keeper services.
+Some recurring tasks have a deadline. The weekly trash task is an example. The bin
+must go out before the truck comes. Home Assistant automations can skip the
+occurrence for a bin that is late. The automations can also make a follow-up task due
+the next evening. Both automations use the Home Keeper services.
 
-The example uses two tasks. Make a fixed weekly task with the name "Take out trash".
-Make a triggered task with the name "Bring the bin back in". The service
-`home_keeper.list_tasks` returns all the tasks. An automation reads `next_due` and
-`last_completed` from the result with `response_variable`.
+The example uses 2 tasks:
 
-The first automation runs after the deadline. It calls `home_keeper.skip_task` for a
-task that is still due. This service moves the fixed task forward one occurrence.
-Home Keeper records no completion for that week.
+- A fixed weekly task with the name "Take out trash".
+- A triggered task with the name "Bring the bin back in". This task is the follow-up
+  task.
 
-The second automation runs in the evening. It calls `home_keeper.trigger_task` for a
-task that you completed in time. This service arms the follow-up task. The follow-up
-task becomes due. Complete the follow-up task to make it dormant again.
+The service `home_keeper.list_tasks` returns all the tasks. An automation reads
+`next_due` and `last_completed` from the result with `response_variable`.
 
-Make the follow-up task one time only. A new triggered task is armed. Complete this
-task one time immediately. The task then becomes dormant. Home Keeper uses the same
-task every week.
+The first automation runs after the deadline. If the task is still due, the
+automation calls `home_keeper.skip_task`. This service moves the fixed task forward 1
+occurrence. Home Keeper records no completion for that week.
+
+The second automation runs in the evening. If you completed the task in time, the
+automation calls `home_keeper.trigger_task`. This service arms the follow-up task,
+and the follow-up task becomes due. Complete the follow-up task to make it dormant
+again.
+
+Make the follow-up task at setup, and not every week. A new triggered task is armed.
+Complete the follow-up task immediately, and the task becomes dormant. Home Keeper
+uses the same task every week.
 
 Both automations read `next_due` from the task. The clock is not part of the
 condition. A completion or a skip moves `next_due` to the next Wednesday. The value
@@ -1335,14 +1440,13 @@ Change the example before you use it:
 
 - The value `timedelta(days=7)` is correct for a weekly task only. Change the value
   to your interval.
-- Use the same task name in the template and in the task. The automation stops with
-  an error if no task has this name. This behavior prevents an operation on a
-  different task.
-- Stop the automations if you rename or delete the task.
+- Use the same task name in the template and in the task. If no task has this name,
+  the automation stops with an error.
+- If you rename or delete the task, stop the automations.
 
 ```yaml
 automation:
-  - alias: "Trash: cancel the occurrence if the bin never went out"
+  - alias: "Trash: skip the occurrence if the bin did not go out"
     mode: single
     triggers:
       - trigger: time
@@ -1397,8 +1501,8 @@ the cause of the skip.
 #### Variant: a dated one-off task
 
 You can use a one-off task in place of the triggered task. This automation makes a
-new one-off task after each completion of the trash task. One completed one-off task
-stays in the list each week. The triggered task is used again each week.
+new one-off task after each completion of the trash task. Home Keeper keeps 1
+completed one-off task each week. The triggered task is the same task every week.
 
 ```yaml
   - alias: "Trash: create a dated one-off follow-up"
@@ -1421,113 +1525,140 @@ stays in the list each week. The triggered task is used again each week.
 
 ## Integrations
 
-Home Keeper is **open to other integrations**: they can contribute their own recurring
-tasks and stay in sync with completions, without Home Keeper knowing anything about them.
-Installing a compatible integration can populate and maintain your task list
-automatically, such as a battery integration that schedules *"replace battery"* or a
-pet tracker that schedules *"give medicine"*.
+Home Keeper supports contributions from other integrations. An integration can
+add its own recurring tasks and stay in sync with completions. Installing a
+compatible integration can populate and maintain the task list automatically. A
+battery integration can schedule a "replace battery" task. A pet tracker can
+schedule a "give medicine" task.
 
 ### Known integrations
 
 | Integration | Description | How it integrates |
 |---|---|---|
-| [Home Keeper - Battery Notes](https://github.com/prestomation/ha-home-keeper-battery-notes) | Glue between [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes) and Home Keeper | Uses Home Keeper's **triggered** task type, arming a *"Replace battery"* task when a battery goes low and clearing it when replaced, keeping both sides in sync so completion from either side is recorded in both. |
-| [Pawsistant](https://github.com/prestomation/pawsistant) | Pet-care logger for tracking recurring pet activities | Attaches Home Keeper floating-recurrence tasks to pet care schedules (e.g. *"medicine every 2 weeks"*). Completing the task in Home Keeper logs the event in Pawsistant, and completing it in Pawsistant marks the Home Keeper task done, with neither side looping back to the other. |
-| [Home Keeper - Bambu Lab](https://github.com/prestomation/ha-home-keeper-bambu-lab) | Glue between [Bambu Lab](https://github.com/greghesp/ha-bambulab) 3D printers and Home Keeper | Uses Home Keeper's **triggered** task type to track a printer's firmware-update status as a read-only *"Update firmware: …"* task, armed when an update is available and cleared once it's installed. Optionally also creates a per-printer maintenance-task catalog (lead-screw greasing, filter replacement, and more, following Bambu Lab's own published schedule), gated on each printer's detected model. |
+| [Home Keeper - Battery Notes](https://github.com/prestomation/ha-home-keeper-battery-notes) | Glue between [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes) and Home Keeper | Uses the **triggered** task type. A *"Replace battery"* task is armed when a battery goes low and cleared when the battery is replaced. A completion on either side is recorded on both. |
+| [Pawsistant](https://github.com/prestomation/pawsistant) | Pet-care logger for tracking recurring pet activities | Attaches floating tasks to pet care schedules such as *"medicine every 2 weeks"*. A completion in Home Keeper is logged in Pawsistant. A completion in Pawsistant completes the Home Keeper task. |
+| [Home Keeper - Bambu Lab](https://github.com/prestomation/ha-home-keeper-bambu-lab) | Glue between [Bambu Lab](https://github.com/greghesp/ha-bambulab) 3D printers and Home Keeper | Uses Home Keeper's **triggered** task type to track a printer's firmware-update status as a read-only *"Update firmware: …"* task, armed when an update is available and cleared once it is installed. Optionally also creates a per-printer maintenance-task catalog (lead-screw greasing, filter replacement, and more, following Bambu Lab's own published schedule), gated on each printer's detected model. |
 
-Installed companions show up automatically in the panel's **[Companions](#companions)**
-section (Settings tab), where you can jump to each one's settings, and Home Keeper will
-*suggest* the Battery Notes bridge if it sees you have Battery Notes but not the glue.
+The panel's **[Companions](#companions)** section, under the Settings tab, lists
+installed companions and links to each one's settings. Home Keeper suggests the
+Battery Notes bridge when Battery Notes is installed without the glue
+integration.
 
-> **Author an integration?** If you build a Home Assistant integration and want it to push
-> tasks into Home Keeper, see the developer guide,
-> [docs/INTEGRATING.md](docs/INTEGRATING.md), for the contract (the `source` field, the
-> `home_keeper_task_completed` event, two-way completion sync, and announcing yourself via
-> `home_keeper.register_companion` so you appear under **Companions**), and
-> [docs/GLUE_INTEGRATIONS.md](docs/GLUE_INTEGRATIONS.md) for the thin "glue" pattern that
-> bridges an existing integration (like Battery Notes) to Home Keeper.
+> **Author an integration?** To push tasks into Home Keeper from a Home
+> Assistant integration, see the developer guide,
+> [docs/INTEGRATING.md](docs/INTEGRATING.md). It documents the contract, the
+> `source` field, the `home_keeper_task_completed` event, two-way completion
+> sync, and `home_keeper.register_companion` to register under **Companions**.
+> See [docs/GLUE_INTEGRATIONS.md](docs/GLUE_INTEGRATIONS.md) for the glue
+> integration pattern that connects an existing integration, such as Battery
+> Notes, to Home Keeper.
 
 > The [API reference](https://prestomation.github.io/ha-home-keeper/developer/api)
-> is the generated, complete list of what you can call and subscribe to.
+> is the generated list of every service, event, and payload.
+
+
+
+
+
 
 ## Localization
 
-The integration and the sidebar panel are localized into **16 languages** and follow
-your Home Assistant language, falling back to English for anything untranslated.
-Translations live in `custom_components/home_keeper/translations/`.
+The integration and the panel are localized into 16 languages. Home Keeper
+follows the Home Assistant language and falls back to English for text that has
+no translation. Translations are in
+`custom_components/home_keeper/translations/`.
+
+
+
+
+
 
 ## Upgrading to Home Assistant 2026.8
 
-Home Assistant 2026.8 changed how devices work: a device now belongs to **one**
-integration instead of being shared. Home Keeper used the old shared behaviour to put a
-task's button and sensors on the page of the device the task is about (your dishwasher,
-your printer), so this needed a fix.
+Home Assistant 2026.8 changed how a device works. A device now belongs to 1
+integration instead of being shared. Home Keeper used the shared behavior to
+place a task's button and sensors on the page of the device the task is about,
+such as a dishwasher or a printer.
 
-Home Keeper **0.13.0** has that fix, and repairs installs that already upgraded. There
-is nothing you need to do.
+Home Keeper 0.13.0 includes the fix and repairs an install that already
+upgraded. No action is needed.
 
 ### If you already upgraded Home Assistant
 
-Home Assistant had already split your devices by the time the fix arrived. What you'll
-have seen:
+Home Assistant already split the devices by the time the fix arrived. Symptoms
+include:
 
-- a second device for something you already had, sometimes labelled with a long
-  identifier rather than a name;
-- tasks that shared a device page now split across two entries when you group by device;
-- with a companion integration such as Battery Notes or Bambu Lab, a duplicate task
-  sitting next to the original.
+- a second device for an existing item, sometimes labelled with a long
+  identifier instead of a name
+- tasks that shared a device page split across 2 entries when grouped by device
+- for a companion integration such as Battery Notes or Bambu Lab, a duplicate
+  task next to the original
 
-Updating to 0.13.0 repairs all of it on the next restart. Your tasks go back to the real
-device and the leftover devices disappear. A duplicated companion task becomes one
-again. Nothing carrying a recorded completion is ever removed, and your history, notes
-and schedules are untouched.
+Updating to 0.13.0 repairs all of it on the next restart. Tasks return to the
+real device, and the leftover devices are removed. Duplicated companion tasks
+become 1 task again. An item that has a recorded completion is never removed. History, notes, and schedules stay unchanged.
 
-### If you haven't upgraded Home Assistant yet
+### If you have not upgraded Home Assistant yet
 
-Update Home Keeper first. Then there is nothing to repair, because 0.13.0 unhooks
-itself from devices it doesn't own before Home Assistant ever splits them. Either order
-ends up correct. This one simply never breaks in the first place.
+Update Home Keeper first. 0.13.0 detaches from a device it does not own before
+Home Assistant splits devices. Nothing then needs repair. Either order results
+in a correct state.
 
-### One thing that did go away
+### Device triggers on devices of other integrations
 
-For a task attached to a device **another integration owns**, that device's page no
-longer lists Home Keeper's triggers under *Add automation*. Home Assistant only offers a
-device's triggers for the single integration it now belongs to.
+For a task attached to a device that another integration owns, the device page
+no longer lists Home Keeper triggers under Add automation. Home Assistant
+offers a device's triggers only for the single integration the device belongs
+to.
 
-Existing automations built that way need rebuilding on the task's own entities
-(`binary_sensor.<task>_overdue`, `sensor.<task>_next_due`) or on the matching
-`home_keeper_*` event, which react to exactly the same things. Home Keeper
-**appliances** are unaffected and keep their device triggers.
+An automation built that way must be rebuilt on the task's own entities,
+`binary_sensor.<task>_overdue` and `sensor.<task>_next_due`, or on the matching
+`home_keeper_*` event. These react to the same transitions. Home Keeper
+appliances are not affected and keep their device triggers.
+
+
+
+
+
 
 ## Quality scale
 
 Home Keeper targets Home Assistant's
 [**Platinum** integration quality scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/).
-The per-rule self-assessment lives in
+The per-rule self-assessment is in
 [`custom_components/home_keeper/quality_scale.yaml`](custom_components/home_keeper/quality_scale.yaml).
-As a local, deviceless service integration (no network, no external dependency),
-the networking/discovery/authentication rules are *exempt*; the rest are met,
-including **strict typing** (the integration includes `py.typed` and CI runs `mypy`
-against it with Home Assistant installed) and an **async, single-coordinator**
-core.
+Home Keeper is a local, deviceless service integration with no network and no
+external dependency, so the networking, discovery, and authentication rules are
+exempt. The remaining rules are met. Strict typing is met: the integration
+includes `py.typed`, and CI runs `mypy` against it with Home Assistant
+installed. An async, single-coordinator core is met.
 
-> **One known caveat, localized exceptions:** error messages raised by services
-> and entities now use Home Assistant translation keys (`strings.json` →
-> `exceptions`), but their text is currently **English-first in every locale** and
-> is being translated incrementally. A unit drift-guard
-> (`tests/unit/test_exception_translations.py`) ensures every new raise stays
-> localizable.
+> Error messages raised by services and entities use Home Assistant translation
+> keys, `strings.json` under `exceptions`. Most exception messages are
+> translated in every locale, and 11 messages are still English in every
+> locale. A drift-guard unit test, `tests/unit/test_exception_translations.py`,
+> checks that every new raise stays localizable.
+
+
+
+
+
 
 ## Development
 
-- Backend: `custom_components/home_keeper/` (recurrence engine in `recurrence.py`).
-- Panel frontend: `custom_components/home_keeper/frontend/` (TypeScript + Rollup).
-- Tests: `pytest` unit (`tests/unit`), Docker integration (`tests/integration`),
-  Playwright e2e (`tests/e2e`), and vitest frontend tests.
-- Typing: `mypy custom_components/home_keeper` (config in `pyproject.toml`,
-  enforced by `lint.yml`). Requires Home Assistant installed so its types resolve.
+- Backend: `custom_components/home_keeper/`. The recurrence engine is in
+  `recurrence.py`.
+- Panel frontend: `custom_components/home_keeper/frontend/`, built with
+  TypeScript and Rollup.
+- Tests: `pytest` unit tests in `tests/unit`, Docker integration tests in
+  `tests/integration`, Playwright end-to-end tests in `tests/e2e`, and vitest
+  frontend tests.
+- Typing: `mypy custom_components/home_keeper`, configured in `pyproject.toml`
+  and enforced by `lint.yml`. Home Assistant must be installed for its types to
+  resolve.
 
-See [AGENTS.md](AGENTS.md) for workflow and [RELEASE.md](RELEASE.md) for releases.
+See [AGENTS.md](AGENTS.md) for workflow and [RELEASE.md](RELEASE.md) for
+releases.
 
 [usage-shield]: https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=integration%20usage&suffix=%20installs&cacheSeconds=15600&url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.home_keeper.total&style=for-the-badge
 [usage]: https://analytics.home-assistant.io/

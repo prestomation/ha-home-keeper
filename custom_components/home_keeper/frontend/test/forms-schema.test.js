@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   assetIdentitySchema,
+  companionOptions,
+  profileSchema,
   buildTaskPayload,
   duplicateTaskSeed,
   formRecurrenceSummary,
@@ -547,6 +549,8 @@ describe('notification form round-trip', () => {
     targets: ['mobile_app_phone'],
     actions: ['complete', 'snooze'],
     style: 'walk',
+    channel: 'Chores',
+    urgency: 'high',
     snooze_hours: 12,
     auto: { overdue: true, due_soon: false },
   };
@@ -558,6 +562,8 @@ describe('notification form round-trip', () => {
       targets: ['mobile_app_phone'],
       actions: ['complete', 'snooze'],
       style: 'walk',
+      channel: 'Chores',
+      urgency: 'high',
       snooze_hours: 12,
       auto_overdue: true,
       auto_due_soon: false,
@@ -613,6 +619,28 @@ describe('notification form round-trip', () => {
     expect(rebuilt.targets).toEqual([]);
     expect(rebuilt.actions).toEqual(['1']);
   });
+
+  it('leaves a new notification on no channel at normal urgency', () => {
+    // The pair of defaults that make an unconfigured notification send the payload it
+    // sent before these fields existed. A blank channel must be '' and not undefined:
+    // the backend echoes what it stores, and `undefined` drops out of the saved JSON.
+    const rebuilt = notifyFormToNotification('n1', { name: 'x' });
+    expect(rebuilt.channel).toBe('');
+    expect(rebuilt.urgency).toBe('normal');
+  });
+
+  it('trims the channel name', () => {
+    // Android creates one channel per distinct string, so "Meds " and "Meds" would
+    // otherwise become two channels the user has to configure separately.
+    expect(notifyFormToNotification('n1', { name: 'x', channel: '  Meds  ' }).channel).toBe('Meds');
+    expect(notifyFormToNotification('n1', { name: 'x', channel: null }).channel).toBe('');
+  });
+
+  it('keeps every urgency the ladder offers', () => {
+    for (const urgency of ['quiet', 'normal', 'high', 'critical']) {
+      expect(notifyFormToNotification('n1', { name: 'x', urgency }).urgency).toBe(urgency);
+    }
+  });
 });
 
 describe('notificationSchema', () => {
@@ -625,6 +653,8 @@ describe('notificationSchema', () => {
       'targets',
       'actions',
       'style',
+      'channel',
+      'urgency',
       'snooze_hours',
       'auto_overdue',
       'auto_due_soon',
@@ -657,6 +687,28 @@ describe('notificationSchema', () => {
   it('keeps snooze hours at a minimum of one', () => {
     const field = notificationSchema([], []).find((f) => f.name === 'snooze_hours');
     expect(field.selector.number.min).toBe(1);
+  });
+
+  it('offers the urgency ladder quietest first, single-select', () => {
+    // The order is the whole point: a shuffled list reads as unrelated choices rather
+    // than a ladder, and a multi-select would let someone pick two at once.
+    const field = notificationSchema([], []).find((f) => f.name === 'urgency');
+    expect(field.selector.select.options).toEqual([
+      { value: 'quiet', label: 'Quiet' },
+      { value: 'normal', label: 'Normal' },
+      { value: 'high', label: 'High' },
+      { value: 'critical', label: 'Critical' },
+    ]);
+    expect(field.selector.select.multiple).toBe(false);
+    expect(field.selector.select.sort).toBe(false);
+  });
+
+  it('takes any channel name as free text', () => {
+    // Android creates a channel on first use, so the names worth offering are the
+    // ones the household invents. A dropdown would have nothing to list.
+    const field = notificationSchema([], []).find((f) => f.name === 'channel');
+    expect(field.selector).toEqual({ text: {} });
+    expect(field.required).toBeUndefined();
   });
 });
 
@@ -1349,5 +1401,95 @@ describe('duplicateTaskSeed — a copy of the rule, not of the record (#279)', (
     expect(duplicateTaskSeed(bare).area_id).toBeNull();
     expect(duplicateTaskSeed(bare).labels).toEqual([]);
     expect(duplicateTaskSeed(bare).card_links).toEqual([]);
+  });
+});
+
+describe('companionOptions', () => {
+  const connected = { domain: 'battery_notes', name: 'Battery Notes', status: 'connected' };
+  const suggested = { domain: 'dog_glue', name: 'Dog Glue', status: 'suggested' };
+  const owned = (integration, display_name) => ({
+    id: integration,
+    managed_by: { integration, display_name },
+  });
+
+  it('lists connected companions', () => {
+    expect(companionOptions([connected], [])).toEqual([
+      { value: 'battery_notes', label: 'Battery Notes' },
+    ]);
+  });
+
+  it('leaves out a suggested companion, which owns no tasks', () => {
+    // Offering one would be a filter that can only ever select nothing.
+    expect(companionOptions([suggested], [])).toEqual([]);
+  });
+
+  it('includes an integration that owns tasks without registering', () => {
+    // managed_by is the ownership contract; registering is only how a companion shows
+    // up under Settings. Its tasks are filterable either way, so it must be pickable.
+    expect(companionOptions([], [owned('printer_glue', 'Printer Glue')])).toEqual([
+      { value: 'printer_glue', label: 'Printer Glue' },
+    ]);
+  });
+
+  it('keeps a companion whose tasks are orphaned', () => {
+    // Uninstalling a glue orphans its tasks rather than deleting them, so a saved
+    // profile naming it must still render its name instead of a bare domain.
+    expect(companionOptions([connected], [])).toHaveLength(1);
+  });
+
+  it('does not duplicate an integration that is both connected and owns tasks', () => {
+    const out = companionOptions([connected], [owned('battery_notes', 'Batteries')]);
+    expect(out).toHaveLength(1);
+    // The registered name wins: it is the one shown under Settings → Companions,
+    // while display_name is free text an owner sets per task.
+    expect(out[0].label).toBe('Battery Notes');
+  });
+
+  it('falls back to the domain when a task carries no display name', () => {
+    expect(companionOptions([], [owned('printer_glue', '')])).toEqual([
+      { value: 'printer_glue', label: 'printer_glue' },
+    ]);
+  });
+
+  it('ignores tasks nobody owns', () => {
+    expect(companionOptions([], [{ id: 'x' }, { id: 'y', managed_by: null }])).toEqual([]);
+  });
+
+  it('sorts by label so the picker is stable', () => {
+    const out = companionOptions(
+      [
+        { domain: 'zebra', name: 'Zebra', status: 'connected' },
+        { domain: 'apple', name: 'Apple', status: 'connected' },
+      ],
+      [],
+    );
+    expect(out.map((o) => o.label)).toEqual(['Apple', 'Zebra']);
+  });
+});
+
+describe('profileSchema companions fields', () => {
+  const options = [{ value: 'battery_notes', label: 'Battery Notes' }];
+
+  it('omits both fields when nothing can be filtered by', () => {
+    // An install with no companions would otherwise show two empty pickers.
+    const names = profileSchema([]).map((f) => f.name);
+    expect(names).not.toContain('companions');
+    expect(names).not.toContain('exclude_companions');
+  });
+
+  it('places each field beside its own kind', () => {
+    const names = profileSchema(options).map((f) => f.name);
+    expect(names.indexOf('companions')).toBe(names.indexOf('devices') + 1);
+    expect(names.indexOf('exclude_companions')).toBe(names.indexOf('exclude_devices') + 1);
+  });
+
+  it('offers the given companions as a multi-select on both fields', () => {
+    // Both have to be multi-select. A single-value exclude field would silently cap a
+    // profile at excluding one integration.
+    for (const name of ['companions', 'exclude_companions']) {
+      const field = profileSchema(options).find((f) => f.name === name);
+      expect(field.selector.select.multiple).toBe(true);
+      expect(field.selector.select.options).toEqual(options);
+    }
   });
 });

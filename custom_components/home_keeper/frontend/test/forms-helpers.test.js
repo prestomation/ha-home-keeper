@@ -262,9 +262,12 @@ describe('profile form round-trip', () => {
       labels: ['l1'],
       areas: ['a1'],
       devices: ['d1'],
+      companions: ['battery_notes'],
       exclude_labels: ['l2'],
       exclude_areas: ['a2'],
       exclude_devices: ['d2'],
+      exclude_companions: ['dog_glue'],
+      exclude_shopping: true,
     },
   };
 
@@ -275,10 +278,21 @@ describe('profile form round-trip', () => {
       labels: ['l1'],
       areas: ['a1'],
       devices: ['d1'],
+      companions: ['battery_notes'],
       exclude_labels: ['l2'],
       exclude_areas: ['a2'],
       exclude_devices: ['d2'],
+      exclude_companions: ['dog_glue'],
+      exclude_shopping: true,
     });
+  });
+
+  it('shows the shopping switch off for a profile saved before it existed', () => {
+    // The form is seeded from this, so a default of `true` here would turn the
+    // exclusion on for every old profile the moment someone opened it to rename.
+    const older = { ...profile, filter: { ...profile.filter } };
+    delete older.filter.exclude_shopping;
+    expect(profileFormData(older).exclude_shopping).toBe(false);
   });
 
   it('leaves the sync block out of the filter form', () => {
@@ -325,10 +339,38 @@ describe('profile form round-trip', () => {
       labels: [],
       areas: [],
       devices: [],
+      companions: [],
       exclude_labels: [],
       exclude_areas: [],
       exclude_devices: [],
+      exclude_companions: [],
+      exclude_shopping: false,
     });
+  });
+
+  it('reads exclude_shopping as off unless the switch is on', () => {
+    // Off is the default a profile saved before the switch existed must read back
+    // as: an inverted or truthy-coerced read here would quietly empty a digest of
+    // its buy reminders for every household that never asked.
+    for (const value of [undefined, null, false, '', 0]) {
+      expect(
+        profileFormToProfile('p1', { name: 'x', exclude_shopping: value }).filter
+          .exclude_shopping,
+      ).toBe(false);
+    }
+    expect(
+      profileFormToProfile('p1', { name: 'x', exclude_shopping: true }).filter
+        .exclude_shopping,
+    ).toBe(true);
+  });
+
+  it('offers the shopping exclusion as a switch, after the id pickers', () => {
+    // It excludes by kind, not by id, so it cannot be a picker like its siblings.
+    const names = profileSchema().map((f) => f.name);
+    expect(names.indexOf('exclude_shopping')).toBe(names.length - 1);
+    expect(names.indexOf('exclude_shopping')).toBeGreaterThan(names.indexOf('exclude_devices'));
+    const field = profileSchema().find((f) => f.name === 'exclude_shopping');
+    expect(field.selector).toEqual({ boolean: {} });
   });
 
   it('stringifies list members that arrive as non-strings', () => {
@@ -357,6 +399,7 @@ describe('profile form round-trip', () => {
       'exclude_labels',
       'exclude_areas',
       'exclude_devices',
+      'exclude_shopping',
     ]);
     expect(profileSchema()[0].required).toBe(true);
   });

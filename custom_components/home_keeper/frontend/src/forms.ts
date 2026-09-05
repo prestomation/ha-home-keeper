@@ -2,12 +2,14 @@ import { t } from './i18n';
 import { recurrenceSummary, round1 } from './utils';
 import type {
   Asset,
+  Companion,
   Hass,
   MetadataEntry,
   Notification,
   NotifyAction,
   NotifyStatus,
   NotifyStyle,
+  NotifyUrgency,
   Part,
   Profile,
   ProfileSync,
@@ -651,9 +653,9 @@ export function consumableLinkToken(task: Partial<Task>): string {
  * A copy of *task*, seeded into the **create** drawer.
  *
  * Duplication answers "ten near-identical tasks" (#279): the copy keeps the *rule* —
- * recurrence, cadence, sensor binding, placement, labels, card links, capture mode —
- * and drops this task's identity, its record of what happened, and any binding to one
- * physical object.
+ * recurrence, cadence, sensor binding, placement, labels, card links, capture mode and
+ * the fields that mode makes mandatory — and drops this task's identity, its record of
+ * what happened, and any binding to one physical object.
  *
  * Built as an **allowlist**, the same discipline `buildTaskPayload` follows, so a
  * field added to `Task` later cannot leak into a copy by simply existing.
@@ -697,6 +699,12 @@ export function duplicateTaskSeed(task: Task): Partial<Task> {
     labels: [...(task.labels ?? [])],
     card_links: cardLinkTokens(task),
     completion_detail: task.completion_detail ?? 'none',
+    // Capture mode is two fields, not one: `completion_detail` says whether anything
+    // is mandatory, this says which. Carrying only the first made a copy of a task
+    // requiring a note and a photo come out requiring the default note alone — a copy
+    // that behaves differently from its original, which is the one thing duplication
+    // must not do. The form renders no control for it, so it rides along untouched.
+    completion_required_fields: [...(task.completion_required_fields ?? [])],
     consumable_link: consumableLinkToken(task),
   };
   if (sensor) seed.sensor = sensor;
@@ -851,6 +859,22 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   // Card links likewise apply to every kind and always round-trip — an empty array
   // clears the selection on update. Convert the form's tokens back to references.
   payload.card_links = cardLinksFromTokens(cardLinkTokens(task));
+  // Which fields a `required` task makes mandatory. The form has a capture-*mode*
+  // picker and no control for this list, so it is carried rather than edited — but it
+  // still has to be *sent*, because a creation has no stored task to fall back on.
+  // `merge_update` keeps the existing list when an update omits it, which is why the
+  // edit path never needed this; a duplicate goes through `add_task` instead, and
+  // silently came out demanding only the default note.
+  //
+  // Skipping an empty array loses nothing: `normalize_completion_required_fields`
+  // ends `return result or ["note"]`, so an empty list is not a state a `required`
+  // task can be in, and a `none`/`optional` task is forced empty there regardless of
+  // what we send. The guard is therefore about keeping an ordinary edit's payload
+  // byte-identical, not about suppressing a meaningful value.
+  const requiredFields = task.completion_required_fields;
+  if (Array.isArray(requiredFields) && requiredFields.length) {
+    payload.completion_required_fields = [...requiredFields];
+  }
   if (!task.id) {
     const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
     if (lastCompleted) payload.last_completed = lastCompleted;
@@ -1305,6 +1329,8 @@ export function partSchema(part: Part): FormField[] {
 const NOTIFY_STATUSES: NotifyStatus[] = ['all', 'overdue', 'due_soon'];
 const NOTIFY_ACTIONS: NotifyAction[] = ['complete', 'snooze', 'skip', 'open'];
 const NOTIFY_STYLES: NotifyStyle[] = ['walk', 'digest'];
+// Quietest first, so the dropdown reads as a ladder rather than an unordered set.
+const NOTIFY_URGENCIES: NotifyUrgency[] = ['quiet', 'normal', 'high', 'critical'];
 
 /** Localized `{value,label}` options for a notify enum (status/action/style). */
 const notifyOptions = (values: string[]): { value: string; label: string }[] =>
@@ -1365,16 +1391,70 @@ export function profileSyncSchema(exclude: string[] = []): FormField[] {
  * The include lists come first, then the `exclude_*` lists that subtract from them —
  * so a profile can say "everything overdue except the jobs that need a tradesperson".
  */
-export function profileSchema(): FormField[] {
+/** One entry in the profile form's companion picker: an integration domain + its label. */
+export interface CompanionOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * The integrations a profile can filter by: every **connected** companion, plus every
+ * integration that already owns a task (`managed_by.integration`).
+ *
+ * The union matters in both directions. A companion can own tasks without ever
+ * registering — `managed_by` is the ownership contract, registering is only how a
+ * companion appears under Settings, so the registry alone would leave real, filterable
+ * tasks unpickable. And a task's owner can go away — uninstall the glue and its tasks
+ * are orphaned, not deleted — so the tasks alone would drop a companion out of the
+ * picker while a saved profile still names it. A domain a task claims but no companion
+ * registers has no display name to borrow, so it labels itself.
+ *
+ * Suggested-but-not-installed companions are deliberately absent: they own no tasks, so
+ * filtering by one selects nothing.
+ */
+export function companionOptions(companions: Companion[], tasks: Task[]): CompanionOption[] {
+  const names = new Map<string, string>();
+  for (const c of companions) {
+    if (c.status === 'connected') names.set(c.domain, c.name);
+  }
+  for (const task of tasks) {
+    const owner = task.managed_by;
+    const domain = owner?.integration;
+    if (!domain) continue;
+    // A registered companion's own name wins: it is the one the user sees under
+    // Settings → Companions, and `display_name` is free text the owner sets per task.
+    if (!names.has(domain)) names.set(domain, owner.display_name || domain);
+  }
+  return [...names.entries()]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function profileSchema(companions: CompanionOption[] = []): FormField[] {
+  // Home Assistant has no companion selector, so the include/exclude pair is a
+  // multi-select over *companionOptions* — the integrations this install can actually
+  // filter by. Both fields drop out when there are none, rather than showing a picker
+  // with nothing in it on an install that runs no companions.
+  const companionFields: FormField[] = companions.length
+    ? [
+        { name: 'companions', selector: selSelect(companions, true) },
+        { name: 'exclude_companions', selector: selSelect(companions, true) },
+      ]
+    : [];
   return [
     { name: 'name', required: true, selector: selText() },
     { name: 'status', selector: selSelect(notifyOptions(NOTIFY_STATUSES)) },
     { name: 'labels', selector: selLabel(true) },
     { name: 'areas', selector: selArea(true) },
     { name: 'devices', selector: selDevice(true) },
+    ...(companionFields.length ? [companionFields[0]] : []),
     { name: 'exclude_labels', selector: selLabel(true) },
     { name: 'exclude_areas', selector: selArea(true) },
     { name: 'exclude_devices', selector: selDevice(true) },
+    ...(companionFields.length ? [companionFields[1]] : []),
+    // Excludes by kind rather than by id, so it is a switch and not a picker: an
+    // auto-created buy reminder has no label or area of its own to name.
+    { name: 'exclude_shopping', selector: selBool() },
   ];
 }
 
@@ -1386,9 +1466,12 @@ export function profileFormData(p: Profile): Record<string, unknown> {
     labels: p.filter.labels,
     areas: p.filter.areas,
     devices: p.filter.devices,
+    companions: p.filter.companions,
     exclude_labels: p.filter.exclude_labels,
     exclude_areas: p.filter.exclude_areas,
     exclude_devices: p.filter.exclude_devices,
+    exclude_companions: p.filter.exclude_companions,
+    exclude_shopping: p.filter.exclude_shopping ?? false,
   };
 }
 
@@ -1413,9 +1496,12 @@ export function profileFormToProfile(
       labels: strList(data.labels),
       areas: strList(data.areas),
       devices: strList(data.devices),
+      companions: strList(data.companions),
       exclude_labels: strList(data.exclude_labels),
       exclude_areas: strList(data.exclude_areas),
       exclude_devices: strList(data.exclude_devices),
+      exclude_companions: strList(data.exclude_companions),
+      exclude_shopping: Boolean(data.exclude_shopping),
     },
   };
 }
@@ -1441,6 +1527,9 @@ export function notificationSchema(targets: string[], profiles: Profile[]): Form
     },
     { name: 'actions', selector: selSelect(notifyOptions(NOTIFY_ACTIONS), true) },
     { name: 'style', selector: selSelect(notifyOptions(NOTIFY_STYLES)) },
+    // How it lands on the phone, kept together and after the delivery basics.
+    { name: 'channel', selector: selText() },
+    { name: 'urgency', selector: selSelect(notifyOptions(NOTIFY_URGENCIES)) },
     { name: 'snooze_hours', selector: selNumber(1) },
     { name: 'auto_overdue', selector: selBool() },
     { name: 'auto_due_soon', selector: selBool() },
@@ -1455,6 +1544,8 @@ export function notifyFormData(n: Notification): Record<string, unknown> {
     targets: n.targets,
     actions: n.actions,
     style: n.style,
+    channel: n.channel,
+    urgency: n.urgency,
     snooze_hours: n.snooze_hours,
     auto_overdue: n.auto.overdue,
     auto_due_soon: n.auto.due_soon,
@@ -1473,6 +1564,8 @@ export function notifyFormToNotification(
     targets: strList(data.targets),
     actions: strList(data.actions) as NotifyAction[],
     style: (data.style as NotifyStyle) ?? 'walk',
+    channel: String(data.channel ?? '').trim(),
+    urgency: (data.urgency as NotifyUrgency) ?? 'normal',
     snooze_hours: Number(data.snooze_hours ?? 24) || 24,
     auto: { overdue: !!data.auto_overdue, due_soon: !!data.auto_due_soon },
   };

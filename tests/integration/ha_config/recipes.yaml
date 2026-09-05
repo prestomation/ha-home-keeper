@@ -1,9 +1,9 @@
 # The "Deadlines and follow-ups" automations from README.md, verbatim.
 #
-# `tests/integration/test_automation_recipes.py` drives these against the real
-# Home Assistant container and asserts they still parse identically to the README
-# blocks, so a documented recipe can never quietly stop working.
-- alias: "Trash: cancel the occurrence if the bin never went out"
+# `tests/integration/test_automation_recipes.py` drives these automations against the
+# real Home Assistant container. It also asserts that they parse to the same data as
+# the README blocks. A documented automation therefore cannot stop working unnoticed.
+- alias: "Trash: skip the occurrence if the bin did not go out"
   mode: single
   triggers:
     - trigger: time

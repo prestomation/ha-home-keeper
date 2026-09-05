@@ -42,18 +42,17 @@ import {
   btnAttrs,
   copyText,
   deviceName,
-  dueLabel,
   escapeHTML,
   formatDate,
   formatDateTime,
   formatQuantity,
-  isOverdue,
   navigateTo,
   recurrenceSummary,
   round1,
   safeFileHref,
   safeHref,
   scanRequired,
+  statusChipHtml,
   tasksForAsset,
   toast,
   type AssetTab,
@@ -212,10 +211,7 @@ function historySection(p: PanelHost, kind: 'task' | 'asset', id: string): strin
 }
 
 function taskDetail(p: PanelHost, task: Task): string {
-  const overdue = isOverdue(task);
-  const statusChip = overdue
-    ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-    : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, p._hass))}"></ha-assist-chip>`;
+  const statusChip = statusChipHtml(task, p._hass);
   const dev = task.device_id ? deviceChip(p, task.device_id) : '';
   // The task's *effective* area — its own, else its device's — so the page explains
   // which "Group by → Area" section the task lands in. When it's inherited, the
@@ -633,10 +629,7 @@ function relatedTasksSection(p: PanelHost, asset: Asset): string {
   if (!tasks.length) return '';
   const rows = tasks
     .map((task) => {
-      const overdue = isOverdue(task);
-      const chip = overdue
-        ? `<ha-assist-chip class="hk-overdue" label="${escapeHTML(t('chip.overdue'))}"></ha-assist-chip>`
-        : `<ha-assist-chip label="${escapeHTML(dueLabel(task, undefined, p._hass))}"></ha-assist-chip>`;
+      const chip = statusChipHtml(task, p._hass);
       return `
           <div class="hk-rel detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(
             task.id,

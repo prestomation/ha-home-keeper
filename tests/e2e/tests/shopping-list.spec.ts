@@ -13,7 +13,12 @@ import { callService, openDashboard, openPanel, shoppingListCard } from './helpe
 
 const SHOPPING_LIST = 'todo.shopping_list';
 const APPLIANCE = 'E2E mirror appliance';
-const REMINDER = 'Buy E2E cartridge';
+/**
+ * The line as the shopper sees it. The part restocks four at a time and is not
+ * measured in anything, so the mirror appends the multiplier — the task itself is
+ * still plain "Buy E2E cartridge" in the panel.
+ */
+const REMINDER = 'Buy E2E cartridge (×4)';
 
 type Ids = { assetId: string; partId: string };
 

@@ -160,6 +160,38 @@ describe('Duplicate a task from its page (#279)', () => {
     expect(sent.sensor).not.toHaveProperty('baseline');
   });
 
+  it('copies both halves of the capture mode, not just the mode', async () => {
+    // `completion_detail` says whether anything is mandatory on completion;
+    // `completion_required_fields` says which. Carrying only the first made a copy of
+    // a task requiring a note and a photo come out requiring the default note alone.
+    // The edit path never showed it because `merge_update` keeps the stored list when
+    // an update omits it — a duplicate creates instead, so there is nothing to keep.
+    const { panel, calls } = await openTask({
+      ...PLAIN,
+      completion_detail: 'required',
+      completion_required_fields: ['note', 'photo'],
+    });
+    panel.shadowRoot.querySelector('.d-dup').click();
+    await waitFor(() => panel.shadowRoot?.querySelector('#hk-form'));
+    expect(panel._edit.task.completion_required_fields).toEqual(['note', 'photo']);
+
+    panel.shadowRoot.querySelector('#f-save').click();
+    await waitFor(() => calls['home_keeper/add_task']);
+    expect(calls.last.task.completion_detail).toBe('required');
+    expect(calls.last.task.completion_required_fields).toEqual(['note', 'photo']);
+  });
+
+  it('leaves an ordinary task’s payload without the field list', async () => {
+    // Sent only when non-empty, so a task that never set one keeps sending exactly
+    // what it sent before — the backend fills the default for a `required` task.
+    const { panel, calls } = await openTask(PLAIN);
+    panel.shadowRoot.querySelector('.d-dup').click();
+    await waitFor(() => panel.shadowRoot?.querySelector('#hk-form'));
+    panel.shadowRoot.querySelector('#f-save').click();
+    await waitFor(() => calls['home_keeper/add_task']);
+    expect(calls.last.task).not.toHaveProperty('completion_required_fields');
+  });
+
   it('does not strip the original task while copying it', async () => {
     const { panel } = await openTask(PLAIN);
     panel.shadowRoot.querySelector('.d-dup').click();
@@ -193,6 +225,21 @@ describe('A task Home Keeper does not own keeps a greyed Duplicate', () => {
       // carries no schedule, so a copy would be inferred as a one-off due today.
       'a condition-driven task with no declared owner',
       { id: 't1', name: 'Water flowers', recurrence_type: 'triggered' },
+      "This can't be duplicated in Home Keeper. It's kept in step by the integration or wear item that created it.",
+    ],
+    [
+      // The copy would be worse than an unowned lookalike. `reconcile_buy_tasks`
+      // retires the real reminder the moment the part is restocked; the copy carries
+      // no `source.buy`, so nothing retires it, the shopping-list mirror never sees
+      // it, and a Profile set to exclude shopping cannot drop it.
+      'an auto-created buy reminder',
+      {
+        id: 't1',
+        name: 'Buy Anode rod',
+        recurrence_type: 'one-off',
+        next_due: '2026-08-01T10:00:00+00:00',
+        source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+      },
       "This can't be duplicated in Home Keeper. It's kept in step by the integration or wear item that created it.",
     ],
   ];

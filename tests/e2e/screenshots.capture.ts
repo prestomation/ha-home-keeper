@@ -113,11 +113,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   await page.screenshot({ path: `${OUT}/1-panel-task-list.png`, fullPage: true });
 
-  // 1a1. Shopping filter — click the Shopping segment to show only buy-task tasks.
-  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'Shopping' }).click();
-  await page.screenshot({ path: `${OUT}/44-panel-shopping-filter.png`, fullPage: true });
-  // Switch back to All so the remaining shots see the full list.
-  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
+  // (The Shopping-filter shot lives further down, after the step that actually puts a
+  // buy reminder in the store — taken here it only ever captured "No tasks match this
+  // filter", which is a picture of nothing.)
 
   // 1a2. Completion-details dialog — a task whose capture mode is "optional" or
   // "required" opens this dialog on Done so you can record a note, cost, who and a
@@ -1124,6 +1122,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     }
   }, { ASSET, PART });
 
+  // 16b. The task list now that a part is low, which is the only moment these two
+  // shots say anything. A buy reminder has no due date of its own, so it reads as
+  // due immediately — it gets its own **Shopping** section rather than joining the
+  // overdue pile, and a "Low stock" pill in place of the overdue one.
+  await openPanel(page);
+  await panel.locator('#tab-tasks').click();
+  await expect(panel.locator('details.hk-group[data-bucket="shopping"]')).toBeVisible();
+  await page.screenshot({ path: `${OUT}/45-panel-shopping-section.png`, fullPage: true });
+
+  // 16c. …and the Shopping filter on its own, now that it has something to filter to.
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'Shopping' }).click();
+  await expect(panel.locator('ha-card.hk-card')).not.toHaveCount(0);
+  await page.screenshot({ path: `${OUT}/44-panel-shopping-filter.png`, fullPage: true });
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn', { hasText: 'All' }).click();
+
   // 17. The Settings tab — friendly forms mirroring the options flow: a General
   // card (one-off retention), a Shopping list card (where auto-buy reminders are
   // mirrored) and a Problem sensor sync card (toggle + entity / device / area /
@@ -1206,6 +1219,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           actions: ['complete', 'snooze', 'open'],
           snooze_hours: 24,
           style: 'walk',
+          // Urgency is seeded so the shot shows the control holding a real value rather
+          // than the default choice. The channel is left empty on purpose and typed in
+          // below, which is what puts the card's autosave status in the shot.
+          channel: '',
+          urgency: 'high',
           auto: { overdue: true, due_soon: false },
         },
       ],
@@ -1226,11 +1244,28 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await panel.locator('#hk-profiles').screenshot({ path: `${OUT}/profiles-card.png` });
   // Settings → Notifications — delivery bindings that each reference a Profile.
+  // Scoped to the card rather than the page: Settings is long enough after the rail
+  // redesign that a full-page shot renders this editor's fields too small to read,
+  // and the card is what the README caption describes anyway.
   await expect(panel.locator('#hk-notifications')).toBeVisible();
   for (const h of await panel.locator('#hk-notifications .hk-item-header').all()) await h.click();
   await expect(panel.locator('#hk-notifications .hk-item-body ha-form').first()).toBeVisible();
+  // Type the channel rather than seeding it, so the shot carries the autosave status
+  // this card reports with. There is no Save button here, and the status beside the
+  // section name is the only thing that says a change was written — a capture with an
+  // empty header would document the card as it never actually looks in use.
+  await panel
+    .locator('#hk-notifications .hk-item-card')
+    .first()
+    .locator('ha-selector-text')
+    .nth(1)
+    .locator('input')
+    .fill('Chores');
+  await expect(panel.locator('#hk-notifications .hk-save-status')).toHaveText('Saved', {
+    timeout: 15_000,
+  });
   await page.waitForTimeout(300);
-  await page.screenshot({ path: `${OUT}/22-panel-notifications.png`, fullPage: true });
+  await panel.locator('#hk-notifications').screenshot({ path: `${OUT}/22-panel-notifications.png` });
 
   // 17a2. The Tasks tab Profile dropdown — pick a saved Profile to filter the admin list.
   await openPanel(page);

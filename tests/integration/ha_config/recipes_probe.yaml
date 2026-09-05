@@ -1,11 +1,11 @@
 # Test-only companion to `recipes.yaml`.
 #
-# The README recipe fires on a fixed wall-clock time ("09:00:00" on a Thursday),
-# which a test cannot wait for. This is the same automation with its trigger moment
-# supplied by an `input_datetime` the test sets a few seconds ahead, so the suite
-# proves a real `trigger: time` firing drives the documented action sequence — not
-# just that `automation.trigger` runs it.
-- alias: "TEST: time-triggered cancel probe"
+# The documented automation runs at a fixed time, 09:00:00 on a Thursday. A test
+# cannot wait for that time. This automation is the same, but an `input_datetime`
+# supplies the trigger time, and the test sets that value a few seconds in the future.
+# The suite therefore shows that a real `trigger: time` event drives the documented
+# action sequence, and not only that `automation.trigger` runs it.
+- alias: "TEST: time-triggered skip probe"
   mode: single
   triggers:
     - trigger: time

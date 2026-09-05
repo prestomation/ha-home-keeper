@@ -14,119 +14,21 @@ blocking lookups actually run off that thread (via
 
 The coordinator's own blocking-call test (``test_coordinator_purge.py``) loads the
 real module under a synthetic ``hk`` package over the shared HA stub tree in
-``ha_stubs.py``; this follows the same pattern for ``notifier.py``.
+``ha_stubs.py``; this follows the same pattern for ``notifier.py``. The loader and the
+fakes live in ``notifier_harness.py``, shared with ``test_notifier_service.py``.
 """
 
 from __future__ import annotations
 
 import asyncio
-import importlib.util
 import sys
 import threading
-import types
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-from fakes import FakeTaskSnapshotStore
-from ha_stubs import install_ha_stubs
+from notifier_harness import FakeCoord, FakeHass, load_notifier, overdue_task
 
-_COMPONENT_DIR = (
-    Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
-)
-
-TZ = timezone(timedelta(hours=-4))
-NOW = datetime(2026, 6, 1, tzinfo=TZ)
-
-
-def _load_notifier():
-    """Load ``notifier.py`` under ``hk`` with fake HA-aware sibling modules."""
-    existing = sys.modules.get("hk.notifier")
-    if existing is not None and hasattr(existing, "async_send_for_notification"):
-        return existing
-    sys.modules.pop("hk.notifier", None)
-    install_ha_stubs()
-
-    # ``options.py`` itself imports HA (ConfigEntry/HomeAssistant) only to type its
-    # own params — fake it rather than dragging that in, like coordinator's test does.
-    options = types.ModuleType("hk.options")
-    options.current_options = lambda entry: entry.options
-    sys.modules["hk.options"] = options
-
-    spec = importlib.util.spec_from_file_location(
-        "hk.notifier", str(_COMPONENT_DIR / "notifier.py")
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["hk.notifier"] = module
-    spec.loader.exec_module(module)
-    module.dt_util = types.SimpleNamespace(now=lambda: NOW)
-    # Our fake tasks carry no device_id/area_id, so the registries themselves are
-    # never consulted — but when *real* HA is installed (as in CI, via
-    # pytest-homeassistant-custom-component), the real ``device_registry``/
-    # ``area_registry`` ``async_get`` are HA's ``@singleton``-decorated helpers,
-    # which need a real ``hass.data`` dict our minimal ``_FakeHass`` doesn't have.
-    # Overriding the names notifier.py bound (``dr``/``ar``) sidesteps that
-    # regardless of whether real HA is present, the same way ``dt_util`` is pinned
-    # above.
-    module.dr = types.SimpleNamespace(async_get=lambda hass: None)
-    module.ar = types.SimpleNamespace(async_get=lambda hass: None)
-    return module
-
-
-notifier = _load_notifier()
+notifier = load_notifier()
 notifications = sys.modules["hk.notifications"]
 profiles = sys.modules["hk.profiles"]
-
-
-# ── fakes ────────────────────────────────────────────────────────────────────
-
-
-class _FakeServices:
-    """Private: records every domain, not just ``todo``, and never answers a read.
-
-    What ``_send`` needs from ``hass.services`` is that a ``notify.mobile_app_*``
-    call was made and with what — nothing the to-do drivers' services double does.
-    """
-
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, str, dict]] = []
-
-    async def async_call(self, domain, service, data, blocking=False):
-        self.calls.append((domain, service, data))
-
-
-class _FakeHass:
-    """Private: ``async_add_executor_job`` is the whole point of this suite.
-
-    It has to be a *real* thread hand-off, since the assertion is about which
-    thread the string-table and CLDR reads happen on.
-    """
-
-    def __init__(self) -> None:
-        self.config = types.SimpleNamespace(language="en")
-        self.services = _FakeServices()
-
-    async def async_add_executor_job(self, func, *args):
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, func, *args)
-
-
-class _FakeCoord:
-    """Private: takes tasks rather than a store, and settles nothing."""
-
-    def __init__(self, tasks: dict) -> None:
-        self.store = FakeTaskSnapshotStore(tasks)
-
-
-def _overdue_task(tid: str, *, days: int) -> dict:
-    return {
-        "id": tid,
-        "name": f"Task {tid}",
-        "next_due": (NOW - timedelta(days=days)).isoformat(),
-        "labels": [],
-        "area_id": None,
-        "device_id": None,
-    }
 
 
 # ── the test ─────────────────────────────────────────────────────────────────
@@ -157,9 +59,9 @@ def test_send_does_not_block_the_event_loop(monkeypatch):
     monkeypatch.setattr(notifications, "_notification_strings", spy_strings)
     monkeypatch.setattr(notifications, "_babel_locale", spy_babel)
 
-    task = _overdue_task("t1", days=3)  # multi-day overdue -> exercises _tn/plural_form
-    coord = _FakeCoord({"t1": task})
-    hass = _FakeHass()
+    task = overdue_task("t1", days=3)  # multi-day overdue -> exercises _tn/plural_form
+    coord = FakeCoord({"t1": task})
+    hass = FakeHass()
     notification = notifications.normalize_notification(
         {
             # A real companion-app target: `normalize_notification` drops anything
