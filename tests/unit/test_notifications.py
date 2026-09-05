@@ -391,6 +391,68 @@ def test_overdue_phrase_singular_and_due_now():
     assert same["message"] == "Due now."
 
 
+def test_due_soon_holds_to_the_window_boundary():
+    # The exact edge, because it is the one that decides which of two phrasings a
+    # phone shows. "Due soon" must mean the same span here as it does to the filter
+    # that queued the task (`profiles.matches_filter` / `recurrence.is_due_soon`):
+    # inclusive at the window, and not one second past it.
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+
+    def phrase(next_due):
+        t = task("t", "X", next_due)
+        return n.build_notification(t, notification=notif, now=now)["message"]
+
+    assert phrase(now + n.DUE_SOON_WINDOW) == "Due soon."
+    assert phrase(now + n.DUE_SOON_WINDOW - timedelta(hours=1)) == "Due soon."
+    assert phrase(now + n.DUE_SOON_WINDOW + timedelta(seconds=1)) == "Due in 3 days."
+
+
+def test_a_task_past_the_window_says_how_far_off_it_is():
+    # Before `status: all` existed a notification only ever carried something due, so
+    # everything not overdue read "Due soon." — including a task months away. The count
+    # is floored, matching the overdue branch: 10.5 days reads as 10, the same way 10.5
+    # days late reads as "overdue by 10 days".
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+
+    def phrase(days, hours=0):
+        t = task("t", "X", now + timedelta(days=days, hours=hours))
+        return n.build_notification(t, notification=notif, now=now)["message"]
+
+    assert phrase(10) == "Due in 10 days."
+    assert phrase(10, 12) == "Due in 10 days."
+    assert phrase(180) == "Due in 180 days."
+
+
+def test_due_in_translates_and_pluralizes():
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+    t = task("t", "X", now + timedelta(days=10))
+    assert (
+        n.build_notification(t, notification=notif, now=now, lang="es")["message"]
+        != n.build_notification(t, notification=notif, now=now, lang="en")["message"]
+    )
+    # Polish splits 2-4 from 5+, which is the reason the CLDR categories exist. A
+    # `.other`-only table would answer both with the same string.
+    few = n.build_notification(
+        task("t", "X", now + timedelta(days=4)), notification=notif, now=now, lang="pl"
+    )["message"]
+    many = n.build_notification(
+        task("t", "X", now + timedelta(days=9)), notification=notif, now=now, lang="pl"
+    )["message"]
+    assert few != many
+
+
+def test_sends_when_empty_only_for_the_all_clear_value():
+    # The one branch that decides whether an empty queue still delivers.
+    assert n.sends_when_empty(n.WHEN_EMPTY_ALL_CLEAR) is True
+    assert n.sends_when_empty(n.WHEN_EMPTY_SKIP) is False
+    assert n.sends_when_empty(None) is False
+    assert n.sends_when_empty("") is False
+    assert n.sends_when_empty("ALL_CLEAR") is False
+
+
 def test_build_digest_lists_and_truncates():
     now = dt(2026, 6, 13, 12)
     notif = n.normalize_notification({"id": "p", "style": "digest"})

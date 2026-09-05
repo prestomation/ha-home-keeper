@@ -156,7 +156,19 @@ async def _build_payload(
     (``notifications.py`` stays HA-free on purpose — see its module docstring — so it
     can't call ``hass.async_add_executor_job`` itself). Running that inline here trips
     Home Assistant's blocking-call detector (#150).
+
+    An empty *queue* reaches here only when the caller asked for ``when_empty:
+    all_clear`` — ``_send`` returns before this otherwise. The all-clear is built here
+    rather than at the call site so this stays the single executor hand-off for payload
+    text, which is what ``tests/unit/test_notifier_blocking.py`` asserts on. It suits
+    both styles unchanged: it carries no actions, exactly as a digest does, and it is
+    already the card a walk closes with.
     """
+    if not queue:
+        payload = await hass.async_add_executor_job(
+            functools.partial(notifications.build_all_clear, notification, lang=lang)
+        )
+        return payload, None
     if notification["style"] == notifications.STYLE_DIGEST:
         payload = await hass.async_add_executor_job(
             functools.partial(
@@ -188,28 +200,41 @@ async def _send(
     profile: dict[str, Any],
     *,
     reason: str,
+    when_empty: str = notifications.WHEN_EMPTY_SKIP,
 ) -> tuple[int, str | None]:
     """Send *notification* for what's due under *profile*'s filter.
 
     Returns ``(matched, sent_task_id)`` — how many tasks matched and the id of the task
     surfaced in a *walk* (``None`` for an empty queue or a digest).
+
+    *when_empty* decides what an empty queue means. The default keeps the long-standing
+    contract that a send costs nothing on a quiet day, so the automatic triggers and
+    every existing automation are unaffected. ``all_clear`` is what the panel's Test
+    button asks for: it delivers the "All caught up" card instead of nothing, so the
+    target, channel and urgency can be checked before any task is due.
     """
     now = dt_util.now()
     tasks = effective_filter_tasks(hass, list(coord.store.get_tasks().values()))
     queue = profiles.due_queue(tasks, profile["filter"], now=now)
-    if not queue:
+    if not queue and not notifications.sends_when_empty(when_empty):
         return 0, None
     if not notification["targets"]:
         # Matched tasks but nowhere to send them — a profile is only a filter; the
         # delivery target lives on a Notification. Warn rather than silently no-op so a
         # misconfigured auto/walk notification is diagnosable. (The notify *service*
         # rejects this loudly before reaching here — see async_run_notify.)
-        _LOGGER.warning(
-            "Home Keeper notification %r matched %d task(s) but has no notify target, "
-            "so nothing was sent. Add a 'Send to' device in Settings → Notifications.",
-            notification["name"],
-            len(queue),
-        )
+        #
+        # Only for a queue that actually matched: an empty one under ``all_clear`` has
+        # no misconfiguration to report beyond the missing target itself, and warning
+        # about "0 task(s)" would read as a bug.
+        if queue:
+            _LOGGER.warning(
+                "Home Keeper notification %r matched %d task(s) but has no notify "
+                "target, so nothing was sent. Add a 'Send to' device in "
+                "Settings → Notifications.",
+                notification["name"],
+                len(queue),
+            )
         return len(queue), None
     lang = hass.config.language
     payload, sent_id = await _build_payload(
@@ -239,6 +264,7 @@ async def async_send_for_notification(
     notification: dict[str, Any],
     *,
     reason: str = "manual",
+    when_empty: str = notifications.WHEN_EMPTY_SKIP,
 ) -> tuple[int, str | None]:
     """Resolve *notification*'s profile and send what's due.
 
@@ -254,7 +280,9 @@ async def async_send_for_notification(
         )
         return 0, None
     assert profile is not None  # not misconfigured => resolved or the all-due profile
-    return await _send(hass, coord, notification, profile, reason=reason)
+    return await _send(
+        hass, coord, notification, profile, reason=reason, when_empty=when_empty
+    )
 
 
 async def async_send_auto(
@@ -282,7 +310,15 @@ async def async_run_notify(
 
     Accepts a saved ``notification`` (id/name → its profile + delivery), or a saved
     ``profile`` (id/name) to send with default delivery, either optionally with a
-    ``target`` override. A bare/target-only call covers every due task. Returns
+    ``target`` override. A bare/target-only call covers every due task.
+
+    Two further overrides shape one call without editing anything saved. ``status``
+    replaces the profile's due-state filter, so "everything this profile covers" needs
+    no second profile; its ``none`` value selects nothing and exists only here, never in
+    a stored profile (see ``profiles.STATUS_NONE``). ``when_empty`` says what a queue
+    that matched nothing does — skip, as it always has, or deliver the "All caught up"
+    card. Together they are what lets the panel's Test button always land something.
+    Returns
     ``(response, error)`` — on success ``response`` is ``{"matched", "sent"}``; when a
     named notification/profile can't be found ``error`` is a ``{"key", "placeholders"}``
     mapping the handler turns into a localized ``ServiceValidationError`` (keeping this
@@ -317,8 +353,17 @@ async def async_run_notify(
                 "placeholders": {"profile": str(data["profile"])},
             }
 
-    # Filter = the saved profile, or the all-due default for a bare/target-only call.
+    # Filter = the saved profile, or the all-due default for a bare/target-only call,
+    # then any per-call ``status`` the caller asked for. The override lands *after*
+    # normalization on purpose: ``normalize_filter`` coerces anything outside STATUSES
+    # to "overdue", so applying it first would silently turn ``none`` into ``overdue``.
+    # Rebuilding the dict rather than mutating matters too — ``resolve_profile`` hands
+    # back the live options entry, and a per-call override must not leak into it.
     profile = profiles.normalize_profile({"name": "ad-hoc", **(base_profile or {})})
+    profile = {
+        **profile,
+        "filter": profiles.with_status(profile["filter"], data.get("status")),
+    }
 
     # Delivery = the saved notification's, with an optional per-call target override.
     notif_raw: dict[str, Any] = {"name": "ad-hoc", **(base_notif or {})}
@@ -345,7 +390,14 @@ async def async_run_notify(
         # nowhere, which reads as "the service did nothing". Fail loudly instead.
         return {}, {"key": "notify_no_targets", "placeholders": {}}
 
-    matched, sent = await _send(hass, coord, notification, profile, reason="service")
+    matched, sent = await _send(
+        hass,
+        coord,
+        notification,
+        profile,
+        reason="service",
+        when_empty=data.get("when_empty", notifications.WHEN_EMPTY_SKIP),
+    )
     return {"matched": matched, "sent": sent}, None
 
 

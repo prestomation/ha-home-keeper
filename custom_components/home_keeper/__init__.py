@@ -40,9 +40,11 @@ from . import (
     devices,
     inventory,
     manuals,
+    notifications,
     notifier,
     options,
     panel,
+    profiles,
     sensor_tasks,
     tag_listener,
     websocket_api,
@@ -455,6 +457,13 @@ NOTIFY_SCHEMA = vol.Schema(
         vol.Optional("notification"): cv.string,
         vol.Optional("profile"): cv.string,
         vol.Optional("target"): vol.All(cv.ensure_list, [cv.string]),
+        # Two per-call overrides. Both are fixed vocabularies rather than free text, so
+        # they are validated here and never clamped later: a typo in an automation
+        # should fail loudly, not send something subtly different. ``status`` widens (or
+        # empties) the profile's due-state filter for this call only; ``when_empty``
+        # says whether a queue that matched nothing still delivers the all-clear.
+        vol.Optional("status"): vol.In(profiles.SERVICE_STATUSES),
+        vol.Optional("when_empty"): vol.In(notifications.WHEN_EMPTY),
     }
 )
 

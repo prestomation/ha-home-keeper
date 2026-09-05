@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DUE_SOON_DAYS, profileMatches } from '../src/card-filter.ts';
+import { DUE_SOON_DAYS, profileHasAnyTask, profileMatches } from '../src/card-filter.ts';
 
 // `profileMatches` decides which tasks a notification profile sends. It has to
 // agree with the backend's windows exactly, or a digest reports a different set
@@ -291,5 +291,39 @@ describe('profileMatches companions', () => {
   it('treats an empty or absent companions list as every owner', () => {
     expect(profileMatches(owned('battery_notes'), { companions: [] }, {}, {}, NOW)).toBe(true);
     expect(profileMatches(owned('battery_notes'), {}, {}, {}, NOW)).toBe(true);
+  });
+});
+
+describe('profileHasAnyTask', () => {
+  // The Settings → Notifications footer asks "is there anything here to send a real
+  // card about?". That is not the same question as "what does this profile deliver
+  // today", and the difference is the whole reason the helper exists.
+
+  it('ignores the profile status, so an overdue profile still has a task', () => {
+    const later = task({ next_due: at(30) });
+    // The profile itself would send nothing today...
+    expect(profileMatches(later, { status: 'overdue' }, {}, {}, NOW)).toBe(false);
+    // ...but Test sends `status: all`, so there is a card to reach.
+    expect(profileHasAnyTask([later], { status: 'overdue' }, {}, {}, NOW)).toBe(true);
+  });
+
+  it('is true when any one task clears the filter', () => {
+    const mine = task({ id: 'mine', labels: ['dog'] });
+    const other = task({ id: 'other', labels: ['car'] });
+    expect(profileHasAnyTask([other, mine], { labels: ['dog'] }, {}, {}, NOW)).toBe(true);
+  });
+
+  it('keeps the rest of the filter, so a label nobody carries matches nothing', () => {
+    expect(profileHasAnyTask([task()], { labels: ['dog'] }, {}, {}, NOW)).toBe(false);
+  });
+
+  it('is false for no tasks at all', () => {
+    expect(profileHasAnyTask([], {}, {}, {}, NOW)).toBe(false);
+  });
+
+  it('still drops a task the filter disqualifies outright', () => {
+    // Disabled and undated tasks are out under every status, `all` included.
+    expect(profileHasAnyTask([task({ enabled: false })], {}, {}, {}, NOW)).toBe(false);
+    expect(profileHasAnyTask([task({ next_due: null })], {}, {}, {}, NOW)).toBe(false);
   });
 });

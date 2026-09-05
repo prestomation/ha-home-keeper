@@ -7,6 +7,7 @@ import type {
   HomeKeeperOptions,
   Inventory,
   NotifyRun,
+  NotifyRunOptions,
   Part,
   Profile,
   Task,
@@ -101,18 +102,23 @@ export async function setOptions(
  * websocket command. `notify` already declares this operation for automations, and a
  * websocket twin would be a second delivery path to keep in step with it for no gain:
  * the panel wants exactly what an automation gets. `return_response` carries back
- * `{matched, sent}` so the caller can tell "delivered" from "nothing was due" — read
- * `matched` for that, since `sent` is a task id (see `NotifyRun`).
+ * `{matched, sent}` so the caller can tell which card went out — read `matched` for
+ * that, since `sent` is a task id (see `NotifyRun`).
+ *
+ * *run* carries the per-call overrides. The Test button sends `status: 'all'` with
+ * `when_empty: 'all_clear'`, which is what makes it deliver in every profile state;
+ * the button beside it sends `status: 'none'` for the "All caught up" card.
  */
 export async function runNotification(
   hass: Hass,
   notificationId: string,
+  run: NotifyRunOptions = {},
 ): Promise<NotifyRun> {
   const res = await hass.callWS<{ response?: NotifyRun }>({
     type: 'call_service',
     domain: 'home_keeper',
     service: 'notify',
-    service_data: { notification: notificationId },
+    service_data: { notification: notificationId, ...run },
     return_response: true,
   });
   return { matched: res?.response?.matched ?? 0, sent: res?.response?.sent ?? null };

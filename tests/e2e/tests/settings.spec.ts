@@ -114,9 +114,11 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
         .toContain('Medication');
 
       // Test sits beside Delete, so the delivery just configured can be checked on the
-      // phone rather than waited for.
+      // phone rather than waited for. Its pair sits between them and offers whichever
+      // card the live state is not about to send.
       const actions = card.locator('.hk-item-actions').first();
       await expect(actions.locator('.hk-notify-test')).toHaveText('Test');
+      await expect(actions.locator('.hk-notify-test-alt')).toBeVisible();
       await expect(actions.locator('.hk-notify-delete')).toBeVisible();
 
       // Pressing it reaches `home_keeper.notify`. This notification has no target, so
@@ -220,6 +222,16 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       const toast = page.locator('.message');
       await expect(toast).toContainText('Notification sent.');
       await expect(toast).not.toContainText('sent nothing');
+
+      // The other half of the pair. This profile has a task, so the offer beside Test
+      // is the all-clear — and pressing it delivers that card instead. Together the
+      // two buttons cover both outcomes without editing the data to reach either.
+      await settleToasts(page);
+      await openRow();
+      const alt = card.locator('.hk-notify-test-alt').first();
+      await expect(alt).toHaveText('Test all clear');
+      await alt.click();
+      await expect(toast).toContainText('All-clear notification sent.');
 
       expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
     } finally {

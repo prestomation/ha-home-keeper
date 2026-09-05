@@ -1239,6 +1239,22 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
             exclude_devices: [],
           },
         },
+        {
+          // A Profile no task can satisfy, so the notification below renders the
+          // *other* state of the button beside Test. Without it the shot would only
+          // ever document the enabled half of a control that has two.
+          id: 'demo_empty',
+          name: 'The boat',
+          filter: {
+            status: 'overdue',
+            labels: [],
+            areas: [],
+            devices: ['demo_no_such_device'],
+            exclude_labels: [],
+            exclude_areas: [],
+            exclude_devices: [],
+          },
+        },
       ],
       notifications: [
         {
@@ -1255,6 +1271,20 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           channel: '',
           urgency: 'high',
           auto: { overdue: true, due_soon: false },
+        },
+        {
+          // Bound to the Profile that matches nothing, so its footer shows the greyed
+          // "Test a task" beside a Test that can still deliver the all-clear.
+          id: 'demo_boat',
+          name: 'Boat jobs',
+          profile_id: 'demo_empty',
+          targets: [],
+          actions: ['complete', 'open'],
+          snooze_hours: 24,
+          style: 'digest',
+          channel: 'Boat',
+          urgency: 'normal',
+          auto: { overdue: false, due_soon: false },
         },
       ],
     });

@@ -283,6 +283,30 @@ export function profileMatches(
   return !listHas(filter.exclude_companions, companion);
 }
 
+/**
+ * Whether *filter* selects at least one of *tasks* right now, **ignoring its status**.
+ *
+ * A different question from `profileMatches`, and deliberately so. The Settings →
+ * Notifications footer asks "is there anything here to send a real card about?", which
+ * a profile set to Overdue answers `true` on a quiet day: it still owns tasks, none of
+ * them is late yet. That is why the Test button sends `status: 'all'` — the status the
+ * profile *saves* decides what it delivers on a schedule, not what a test can reach.
+ *
+ * Answered from the panel's own task list rather than by asking the backend, so the
+ * button can repaint on every profile change in the form without a round trip.
+ */
+export function profileHasAnyTask(
+  tasks: Task[],
+  filter: ProfileFilter,
+  devices?: Record<string, HassDevice>,
+  areas?: Record<string, HassArea>,
+  now = Date.now(),
+): boolean {
+  return tasks.some((task) =>
+    profileMatches(task, { ...filter, status: 'all' }, devices, areas, now),
+  );
+}
+
 function matchesLabels(
   taskLabels: Set<string>,
   wanted: Set<string>,
