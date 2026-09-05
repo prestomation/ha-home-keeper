@@ -388,6 +388,14 @@
         "target": {
           "name": "Cel",
           "description": "Usługi powiadomień, do których wysłać, zastępujące profil (np. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Zastępuje własny status profilu na potrzeby tego wywołania: overdue (tylko zadania po terminie), due_soon (zadania po terminie i wkrótce po terminie), all (wszystkie zaplanowane zadania) lub none (nie pasuje do żadnego zadania, aby wysłać powiadomienie Wszystko zrobione na żądanie)."
+        },
+        "when_empty": {
+          "name": "Gdy nic nie pasuje",
+          "description": "Co wysyła wywołanie, jeśli filtr nie pasuje do żadnego zadania. Domyślnie jest to skip: nic nie zostaje wysłane. Ustaw je na all_clear, aby zamiast tego wysłać powiadomienie Wszystko zrobione."
         }
       }
     },

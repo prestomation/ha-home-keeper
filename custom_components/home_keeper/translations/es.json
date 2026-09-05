@@ -388,6 +388,14 @@
         "target": {
           "name": "Destino",
           "description": "Servicios de notificación a los que enviar, sustituyendo el perfil (p. ej. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Estado",
+          "description": "Sustituye el estado propio del perfil para esta llamada: overdue (solo tareas vencidas), due_soon (tareas vencidas y próximas a vencer), all (todas las tareas programadas) o none (no coincide con ninguna tarea, para enviar la notificación Todo al día bajo demanda)."
+        },
+        "when_empty": {
+          "name": "Cuando nada coincide",
+          "description": "Lo que envía una llamada si el filtro no coincide con ninguna tarea. Por defecto es skip: no se envía nada. Establécelo en all_clear para enviar la notificación Todo al día."
         }
       }
     },

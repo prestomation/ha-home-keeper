@@ -388,6 +388,14 @@
         "target": {
           "name": "Destinació",
           "description": "Serveis de notificació on enviar, substituint el perfil (p. ex. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Estat",
+          "description": "Substitueix l’estat propi del perfil per a aquesta crida: overdue (només tasques endarrerides), due_soon (tasques endarrerides i properes a vèncer), all (totes les tasques programades) o none (no coincideix cap tasca, per enviar la notificació de tot al dia a petició)."
+        },
+        "when_empty": {
+          "name": "Quan res no coincideix",
+          "description": "Què envia una crida quan el filtre no coincideix amb cap tasca. Per defecte és skip: no s’envia res. Estableix-lo a all_clear per enviar la notificació de tot al dia."
         }
       }
     },

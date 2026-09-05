@@ -388,6 +388,14 @@
         "target": {
           "name": "目标",
           "description": "要发送到的通知服务，覆盖配置文件（例如 mobile_app_phone）。"
+        },
+        "status": {
+          "name": "状态",
+          "description": "覆盖配置文件自身的状态，仅限本次调用：overdue（仅逾期任务）、due_soon（逾期和即将到期的任务）、all（所有已计划的任务）或 none（不匹配任何任务，用于按需发送“全部完成”通知）。"
+        },
+        "when_empty": {
+          "name": "没有匹配时",
+          "description": "当筛选条件不匹配任何任务时，调用发送的内容。默认是 skip：不发送任何内容。将其设为 all_clear，改为发送“全部完成”通知。"
         }
       }
     },

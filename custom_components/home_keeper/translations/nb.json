@@ -388,6 +388,14 @@
         "target": {
           "name": "Mål",
           "description": "Varslingstjenester å sende til, som overstyrer profilen (f.eks. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Overstyrer profilens egen status for dette kallet: overdue (bare forfalte oppgaver), due_soon (forfalte og snart forfalte oppgaver), all (alle planlagte oppgaver) eller none (samsvarer med ingen oppgave, for å sende varselet Alt er unnagjort ved behov)."
+        },
+        "when_empty": {
+          "name": "Når ingenting samsvarer",
+          "description": "Hva et kall sender hvis filteret ikke samsvarer med noen oppgave. Som standard er det skip: ingenting sendes. Sett det til all_clear for å sende varselet Alt er unnagjort i stedet."
         }
       }
     },

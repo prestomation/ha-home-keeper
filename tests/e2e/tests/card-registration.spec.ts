@@ -46,19 +46,15 @@ test.use({
 });
 
 const CARD_BUNDLE = 'home-keeper-card.js';
-// `index.html.template` renders each entry in `extra_modules` as an inline import.
-// Home Assistant 2026.9 wrapped that import in a rejection handler:
-//
-//   import("{{ extra_module }}").catch(function (err) {
-//     console.error("Failed to load extra module {{ extra_module }}", err);
-//   });
-//
-// The handler repeats the URL in its message, so stripping the `import(...)` call
-// alone leaves the bundle named in the shell and the strip's own guard below fails.
-// The optional group therefore takes the chained `.catch(...)` with it. It stays
-// optional so the bare `import("<url>");` older releases render is still stripped.
+// `index.html.template` renders each entry in `extra_modules` as an inline
+// `import("/home_keeper_panel/home-keeper-card.js?v=<hash>")`, and now chains a
+// `.catch` onto it that logs the failure. The optional group has to swallow that
+// handler too: its message repeats the filename, so matching the bare `import(…)`
+// alone leaves a reference behind — and leaves a `.catch` with nothing to its left,
+// which is a syntax error in the shell we hand back rather than a shell missing one
+// import. Both halves have to go for this to simulate what it claims to.
 const CARD_IMPORT =
-  /import\(\s*(["'])[^"']*home-keeper-card\.js[^"']*\1\s*\)(?:\s*\.catch\(\s*function\s*\([^)]*\)\s*\{[^{}]*\}\s*\))?\s*;?/g;
+  /import\(\s*(["'])[^"']*home-keeper-card\.js[^"']*\1\s*\)(?:\s*\.catch\(\s*function\s*\([^)]*\)\s*\{[\s\S]*?\}\s*\))?\s*;?/g;
 
 test.describe('Home Keeper card — delivery (#228)', () => {
   test('renders from an app shell that never imported its bundle', async ({ page }) => {

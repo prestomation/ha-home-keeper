@@ -19,6 +19,16 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   entity reports unavailable or unknown, after an optional hold. A user can also
   bind one task to one entity by hand in the ordinary task form.
 
+- **The Test button now always sends a notification.** The notification shows a task
+  when the Profile holds one, and says "All caught up" when the Profile holds none. A
+  second button beside Test sends whichever notification Test does not.
+
+### Changed
+
+- **A notification for a task that is not due soon now says how far off it is.** The
+  text read "Due soon." for every task ahead of its due date, including one months
+  away.
+
 ### Fixed
 
 - **A task with a hold now falls due the moment the hold ends.** The hold used to

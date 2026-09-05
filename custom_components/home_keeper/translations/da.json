@@ -388,6 +388,14 @@
         "target": {
           "name": "Mål",
           "description": "Notifikationstjenester at sende til, der tilsidesætter profilen (f.eks. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Tilsidesætter profilens egen status for dette kald: overdue (kun forfaldne opgaver), due_soon (forfaldne og snart forfaldne opgaver), all (alle planlagte opgaver) eller none (matcher ingen opgave, til at sende notifikationen Alt er klaret efter behov)."
+        },
+        "when_empty": {
+          "name": "Når intet matcher",
+          "description": "Hvad et kald sender, hvis filteret ikke matcher nogen opgave. Som standard er det skip: der sendes ingenting. Sæt det til all_clear for at sende notifikationen Alt er klaret i stedet."
         }
       }
     },

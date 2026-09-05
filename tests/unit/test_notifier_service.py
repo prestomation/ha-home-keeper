@@ -22,7 +22,13 @@ import asyncio
 import sys
 from typing import Any
 
-from notifier_harness import FakeCoord, FakeHass, load_notifier, overdue_task
+from notifier_harness import (
+    FakeCoord,
+    FakeHass,
+    future_task,
+    load_notifier,
+    overdue_task,
+)
 
 notifier = load_notifier()
 # Loading the notifier is what puts its pure siblings on ``hk`` — read them from there
@@ -92,7 +98,12 @@ def test_a_digest_that_delivered_reports_no_task():
 
 
 def test_an_empty_queue_reports_nothing_and_sends_nothing():
-    """No task due is a success with ``matched: 0``, not an error."""
+    """No task due is a success with ``matched: 0``, not an error.
+
+    The **default** contract, and it must not move: an automation on a time pattern
+    calls this all day, and README promises it costs nothing on a quiet day. Only a
+    caller that asks for ``when_empty: all_clear`` gets a delivery — see below.
+    """
     hass = FakeHass()
     coord = FakeCoord({}, _options())
 
@@ -100,6 +111,123 @@ def test_an_empty_queue_reports_nothing_and_sends_nothing():
 
     assert error is None
     assert response == {"matched": 0, "sent": None}
+    assert hass.services.calls == []
+
+
+# ── the per-call overrides that make the Test button useful ─────────────────
+
+
+def test_when_empty_all_clear_delivers_instead_of_sending_nothing():
+    """An empty queue still lands something, so delivery can be checked on demand.
+
+    ``matched: 0`` keeps its value and gains a second meaning: with this override it
+    says *which* card went out, not whether one did. The panel reads it exactly so.
+    """
+    hass = FakeHass()
+    coord = FakeCoord({}, _options())
+
+    response, error = _run(
+        hass, coord, {"notification": "n1", "when_empty": "all_clear"}
+    )
+
+    assert error is None
+    assert response == {"matched": 0, "sent": None}
+    assert len(hass.services.calls) == 1
+    payload = hass.services.calls[0][2]
+    assert payload["title"] == "All caught up"
+    # No buttons on it: there is no task for them to act on.
+    assert "actions" not in payload["data"]
+
+
+def test_when_empty_all_clear_suits_a_digest_too():
+    """A digest with nothing in it is the all-clear, not "0 tasks due"."""
+    hass = FakeHass()
+    coord = FakeCoord({}, _options(style="digest"))
+
+    _, error = _run(hass, coord, {"notification": "n1", "when_empty": "all_clear"})
+
+    assert error is None
+    assert hass.services.calls[0][2]["title"] == "All caught up"
+
+
+def test_status_all_reaches_a_task_an_overdue_profile_would_skip():
+    """The case the Test button exists for: something to send, none of it late.
+
+    The saved profile is ``overdue``, so it queues nothing today. The override widens
+    it for this one call, and the message says how far off the task is rather than
+    calling a task two weeks out "due soon".
+    """
+    hass = FakeHass()
+    options = _options()
+    options["profiles"][0]["filter"]["status"] = "overdue"
+    coord = FakeCoord({"t1": future_task("t1", days=14)}, options)
+
+    bare, _ = _run(hass, coord, {"notification": "n1"})
+    assert bare == {"matched": 0, "sent": None}
+    assert hass.services.calls == []
+
+    response, error = _run(hass, coord, {"notification": "n1", "status": "all"})
+
+    assert error is None
+    assert response == {"matched": 1, "sent": "t1"}
+    assert hass.services.calls[0][2]["message"] == "Due in 14 days."
+
+
+def test_status_none_forces_the_all_clear_even_with_a_task_due():
+    """How the panel offers the other card while the profile has work in it."""
+    hass = FakeHass()
+    coord = FakeCoord({"t1": overdue_task("t1", days=3)}, _options())
+
+    response, error = _run(
+        hass, coord, {"notification": "n1", "status": "none", "when_empty": "all_clear"}
+    )
+
+    assert error is None
+    assert response == {"matched": 0, "sent": None}
+    assert hass.services.calls[0][2]["title"] == "All caught up"
+
+
+def test_a_status_override_does_not_reach_the_stored_profile():
+    """One call must not rewrite the filter every other consumer reads.
+
+    ``resolve_profile`` hands back the live options entry, so an override applied in
+    place would leak "everything" into a profile saved as "overdue" — and into the
+    card, the admin list and the to-do sync with it.
+    """
+    hass = FakeHass()
+    options = _options()
+    options["profiles"][0]["filter"]["status"] = "overdue"
+    coord = FakeCoord({"t1": future_task("t1", days=14)}, options)
+
+    _run(hass, coord, {"notification": "n1", "status": "all"})
+
+    assert coord.entry.options["profiles"][0]["filter"]["status"] == "overdue"
+
+
+def test_an_empty_queue_with_no_target_still_reports_rather_than_sends():
+    """``all_clear`` does not invent a destination.
+
+    The service rejects a target-less notification before it reaches the send, so this
+    is the auto/internal path: nothing to send to means nothing sent, and no warning
+    about "0 task(s)" either.
+    """
+    hass = FakeHass()
+    coord = FakeCoord({}, _options(targets=[]))
+    notification = coord.entry.options["notifications"][0]
+    profile = profiles.normalize_profile(coord.entry.options["profiles"][0])
+
+    matched, sent = asyncio.run(
+        notifier._send(
+            hass,
+            coord,
+            notification,
+            profile,
+            reason="test",
+            when_empty=notifications.WHEN_EMPTY_ALL_CLEAR,
+        )
+    )
+
+    assert (matched, sent) == (0, None)
     assert hass.services.calls == []
 
 

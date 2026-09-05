@@ -34,6 +34,19 @@ STATUS_OVERDUE = "overdue"  # only overdue
 STATUS_DUE_SOON = "due_soon"  # overdue or within the due-soon window
 STATUSES = (STATUS_ALL, STATUS_OVERDUE, STATUS_DUE_SOON)
 
+# A fourth status that selects nothing. It is deliberately **absent** from STATUSES,
+# so ``normalize_filter`` rejects it and no saved profile can be set to match nothing —
+# a profile that selects nothing is a broken profile, not a useful one. It exists for
+# one caller: ``home_keeper.notify``, where "match nothing" plus
+# ``when_empty: all_clear`` is how the panel asks for the "All caught up" card on
+# demand. See SERVICE_STATUSES.
+STATUS_NONE = "none"
+
+# The status vocabulary the ``home_keeper.notify`` service accepts on a single call.
+# Wider than STATUSES by exactly STATUS_NONE, which is what keeps the service able to
+# ask for something a stored profile is not allowed to be.
+SERVICE_STATUSES = (*STATUSES, STATUS_NONE)
+
 
 def _str_list(value: Any) -> list[str]:
     if not isinstance(value, (list, tuple)):
@@ -48,6 +61,12 @@ def normalize_filter(raw: Any) -> dict[str, Any]:
     the allowlist: a key absent here never survives a save. The ``exclude_*`` keys are
     additive and default to off, which is why a profile stored before they existed
     needs no migration — ``options.current_options`` re-normalizes on every read.
+
+    The status clamp is checked against :data:`STATUSES`, which leaves
+    :data:`STATUS_NONE` out. That is the boundary that keeps "match nothing" a
+    per-call option on ``home_keeper.notify`` and never a saved profile: a stored
+    ``none`` reads back as ``overdue`` here rather than as a profile that selects
+    nothing.
     """
     raw = raw if isinstance(raw, dict) else {}
     status = raw.get("status")
@@ -132,6 +151,27 @@ def resolve_profile(
     return None
 
 
+def with_status(filt: dict[str, Any], status: str | None) -> dict[str, Any]:
+    """Return *filt* with its ``status`` replaced by *status*, for one call only.
+
+    This is how ``home_keeper.notify`` widens (or empties) a saved profile's filter
+    without editing the profile: the caller says "send me everything this profile
+    covers, not only what is overdue" and the stored profile is untouched. It returns
+    a copy for that reason — the profile dict it is handed comes straight out of
+    ``current_options``, and mutating it in place would leak a per-call override into
+    every later reader.
+
+    *status* is clamped against :data:`SERVICE_STATUSES` rather than :data:`STATUSES`,
+    so :data:`STATUS_NONE` is accepted here and nowhere else. Anything unknown — and
+    ``None``, the ordinary case of a call that did not ask for an override — leaves the
+    filter as it was, matching how every other unrecognized value in this module falls
+    back rather than raising.
+    """
+    if status not in SERVICE_STATUSES:
+        return filt
+    return {**filt, "status": status}
+
+
 # ── filtering & queueing ────────────────────────────────────────────────────────
 
 
@@ -187,6 +227,10 @@ def matches_filter(
         return False
 
     status = filt.get("status", STATUS_OVERDUE)
+    # A per-call override from ``home_keeper.notify`` (never a saved profile — see
+    # STATUS_NONE). Answered before the date work below because no task can satisfy it.
+    if status == STATUS_NONE:
+        return False
     overdue = recurrence.is_overdue(task, now=now)
     if status == STATUS_OVERDUE and not overdue:
         return False

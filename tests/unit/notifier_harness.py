@@ -116,10 +116,22 @@ class FakeCoord:
 
 def overdue_task(tid: str, *, days: int) -> dict[str, Any]:
     """A task overdue by *days*, with the fields the filter and the builders read."""
+    return _task(tid, -days)
+
+
+def future_task(tid: str, *, days: int) -> dict[str, Any]:
+    """A task not due for *days* yet — nothing an ``overdue`` filter would queue.
+
+    The state a notification is configured in: something to send, none of it late.
+    """
+    return _task(tid, days)
+
+
+def _task(tid: str, offset_days: int) -> dict[str, Any]:
     return {
         "id": tid,
         "name": f"Task {tid}",
-        "next_due": (NOW - timedelta(days=days)).isoformat(),
+        "next_due": (NOW + timedelta(days=offset_days)).isoformat(),
         "labels": [],
         "area_id": None,
         "device_id": None,

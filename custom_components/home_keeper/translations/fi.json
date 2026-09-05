@@ -388,6 +388,14 @@
         "target": {
           "name": "Kohde",
           "description": "Ilmoituspalvelut, joihin lähetetään, ohittaen profiilin (esim. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Tila",
+          "description": "Ohittaa profiilin oman tilan tässä kutsussa: overdue (vain myöhässä olevat tehtävät), due_soon (myöhässä olevat ja pian erääntyvät tehtävät), all (kaikki ajastetut tehtävät) tai none (ei vastaa mitään tehtävää, jolloin Kaikki tehty -ilmoitus lähetetään tarvittaessa)."
+        },
+        "when_empty": {
+          "name": "Kun mikään ei vastaa",
+          "description": "Mitä kutsu lähettää, jos suodatin ei vastaa mitään tehtävää. Oletuksena on skip: mitään ei lähetetä. Aseta se arvoon all_clear lähettääksesi Kaikki tehty -ilmoituksen sen sijaan."
         }
       }
     },

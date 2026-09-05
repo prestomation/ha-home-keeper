@@ -21,12 +21,14 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from babel import Locale
 from babel.core import UnknownLocaleError
+
+from .transitions import DUE_SOON_WINDOW
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,6 +56,16 @@ STYLE_DIGEST = "digest"  # a single informational summary of everything due
 STYLES = (STYLE_WALK, STYLE_DIGEST)
 
 DEFAULT_SNOOZE_HOURS = 24
+
+# What a send does when its profile matches nothing. The default keeps the long-
+# standing promise that ``home_keeper.notify`` costs nothing on a quiet day, so an
+# automation that runs every 30 minutes stays silent. ``all_clear`` is what the panel's
+# Test button asks for: a delivery that always lands, so the target, the channel and
+# the urgency can be checked before any task is due.
+WHEN_EMPTY_SKIP = "skip"
+WHEN_EMPTY_ALL_CLEAR = "all_clear"
+WHEN_EMPTY = (WHEN_EMPTY_SKIP, WHEN_EMPTY_ALL_CLEAR)
+DEFAULT_WHEN_EMPTY = WHEN_EMPTY_SKIP
 
 # How loudly a notification lands. Home Keeper stores one platform-neutral value and
 # expands it into *both* vocabularies at payload-build time (see :func:`payload_data`),
@@ -255,6 +267,19 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
     }
 
 
+def sends_when_empty(when_empty: Any) -> bool:
+    """Whether a queue that matched nothing should still deliver the all-clear.
+
+    A predicate rather than a clamp because the service schema validates the field
+    against :data:`WHEN_EMPTY` before it reaches here, so there is nothing left to
+    coerce. It lives in this module rather than inline in ``notifier`` so the decision
+    sits on the mutation-scored surface: the same comparison written in ``notifier.py``
+    would never be mutated, and "an empty queue still sends" is exactly the branch worth
+    proving a test would catch.
+    """
+    return when_empty == WHEN_EMPTY_ALL_CLEAR
+
+
 def normalize_notifications(raw: Any) -> list[dict[str, Any]]:
     """Coerce the stored notification list, dropping non-dict entries."""
     if not isinstance(raw, (list, tuple)):
@@ -451,15 +476,40 @@ def payload_data(
 
 
 def _overdue_phrase(
-    task: dict[str, Any], *, now: datetime, lang: str = _DEFAULT_LANG
+    task: dict[str, Any],
+    *,
+    now: datetime,
+    lang: str = _DEFAULT_LANG,
+    window: timedelta = DUE_SOON_WINDOW,
 ) -> str:
+    """The one-line body of a walk notification: how late, or how far off, *task* is.
+
+    Three cases, in the order a reader meets them: already due, due inside the
+    due-soon *window*, or further out than that.
+
+    The third case is the reason *window* is a parameter. Until a notification could
+    carry a task that is not due yet, "not overdue" and "due soon" were the same
+    thing and everything else read "Due soon." — including a task due in six months.
+    ``home_keeper.notify`` can now be asked for every task a profile covers
+    (``status: all``), which makes that the common case rather than a corner, so
+    anything past the window says how far off it is instead. The window is threaded
+    through rather than read from the module so this agrees with
+    ``profiles.matches_filter``, which takes it the same way and decides what
+    "due soon" means for the queue this phrase describes.
+    """
     next_due = datetime.fromisoformat(task["next_due"])
     if now >= next_due:
         days = (now - next_due).days
         if days <= 0:
             return _t(lang, "due_now")
         return _tn(lang, "overdue", days, days=days)
-    return _t(lang, "due_soon")
+    remaining = next_due - now
+    if remaining <= window:
+        return _t(lang, "due_soon")
+    # Floored, matching the overdue side above: a task 3.5 days out reads "3 days",
+    # the same way one 3.5 days late reads "overdue by 3 days".
+    days = remaining.days
+    return _tn(lang, "due_in", days, days=days)
 
 
 def _open_uri(task: dict[str, Any]) -> str:
@@ -496,6 +546,7 @@ def build_notification(
     notification: dict[str, Any],
     now: datetime,
     lang: str = _DEFAULT_LANG,
+    window: timedelta = DUE_SOON_WINDOW,
 ) -> dict[str, Any]:
     """Build the ``notify`` service data for a single task in a *walk* notification."""
     actions = [
@@ -504,7 +555,7 @@ def build_notification(
     ]
     return {
         "title": str(task.get("name") or "Home Keeper"),
-        "message": _overdue_phrase(task, now=now, lang=lang),
+        "message": _overdue_phrase(task, now=now, lang=lang, window=window),
         "data": payload_data(notification, actions=actions),
     }
 

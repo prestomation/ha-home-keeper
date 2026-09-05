@@ -388,6 +388,14 @@
         "target": {
           "name": "Doel",
           "description": "Meldingsdiensten om naar te sturen, ter overschrijving van het profiel (bijv. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Overschrijft de eigen status van het profiel voor deze aanroep: overdue (alleen te late taken), due_soon (te late en binnenkort te late taken), all (alle geplande taken) of none (komt met geen enkele taak overeen, om de melding Helemaal bij op aanvraag te versturen)."
+        },
+        "when_empty": {
+          "name": "Wanneer niets overeenkomt",
+          "description": "Wat een aanroep verstuurt als het filter met geen enkele taak overeenkomt. Standaard is het skip: er wordt niets verzonden. Zet het op all_clear om in plaats daarvan de melding Helemaal bij te versturen."
         }
       }
     },
