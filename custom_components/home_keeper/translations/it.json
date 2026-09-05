@@ -799,6 +799,34 @@
           "description": "L'id del ricambio il cui file allegato va firmato. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Aggiungi companion dichiarativo",
+      "description": "Registra un companion dichiarativo — una ricetta che materializza un'attività di sensore gestita per ogni entità che corrisponde ai filtri (integrazione di destinazione + filtri di entità), con nome dell'attività e note tramite modelli Jinja. Solo amministratori."
+    },
+    "update_declarative_companion": {
+      "name": "Aggiorna companion dichiarativo",
+      "description": "Aggiorna i campi di una specifica di companion dichiarativo memorizzata tramite id. Solo amministratori.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "L'uuid stabile della specifica, da list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Elimina companion dichiarativo",
+      "description": "Rimuove una specifica di companion dichiarativo e ogni attività gestita che ha materializzato. Solo amministratori.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "L'uuid stabile della specifica, da list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Elenca companion dichiarativi",
+      "description": "Restituisce ogni specifica di companion dichiarativo memorizzata come risposta."
     }
   },
   "entity": {
@@ -906,6 +934,12 @@
     },
     "failed_to_store_file": {
       "message": "Impossibile salvare il file."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Companion dichiarativo non trovato: {spec_id}"
     },
     "asset_ambiguous": {
       "message": "Several appliances are named {name}. Use an id instead: {ids}"

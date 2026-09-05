@@ -372,3 +372,50 @@ def evaluate_state(
         crossed_at=crossed_at,
         now=now,
     )
+
+
+# Availability statuses computed by ``sensor_watcher._availability_status`` and fed
+# to :func:`evaluate_availability`. Kept as string constants (not a bool) because a
+# missing entity (``"missing"``) is neither available nor unavailable — it's the
+# "not yet loaded" indeterminate state that must not trigger a transition.
+AVAILABILITY_AVAILABLE = "available"
+AVAILABILITY_UNAVAILABLE = "unavailable"
+AVAILABILITY_MISSING = "missing"
+
+
+def evaluate_availability(
+    task: dict[str, Any],
+    *,
+    status: str,
+    condition_met_prev: bool,
+    crossed_at: datetime | None,
+    now: datetime,
+) -> dict[str, Any]:
+    """Decide the action for an ``availability`` task and return the next edge state.
+
+    The condition is "the entity is unavailable" (``status == "unavailable"``). This
+    is the mirror of :func:`evaluate_state` — same edge/hold machinery, opposite
+    interpretation of "no reading": unavailability is the *signal*, not something to
+    ignore. See :func:`_evaluate_edge` for the returned shape.
+
+    ``status == "missing"`` is indeterminate (the entity is not yet loaded — e.g.
+    early in HA startup) and holds the carried edge state exactly as it was, so a
+    boot-time gap can never fabricate a spurious arm or clear. Mirrors the
+    ``problem_sync`` "indeterminate does not fabricate" invariant.
+    """
+    cfg = sensor_config(task)
+    assert cfg is not None
+    if status == AVAILABILITY_MISSING:
+        return {
+            "action": None,
+            "condition_met": condition_met_prev,
+            "crossed_at": crossed_at,
+        }
+    return _evaluate_edge(
+        task,
+        cfg,
+        met=status == AVAILABILITY_UNAVAILABLE,
+        condition_met_prev=condition_met_prev,
+        crossed_at=crossed_at,
+        now=now,
+    )

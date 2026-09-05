@@ -30,13 +30,22 @@ import type {
   AssetFilter,
   AssetView,
   CompletionDialogState,
+  DeclarativeDialogState,
   EditState,
   GroupBy,
   MoveCompletionDialogState,
   NoteTarget,
   TaskFilter,
 } from './panel-types';
-import type { Asset, Companion, Hass, HomeKeeperOptions, Task } from './types';
+import type {
+  Asset,
+  Companion,
+  DeclarativeCompanion,
+  DeclarativeCompanionPreset,
+  Hass,
+  HomeKeeperOptions,
+  Task,
+} from './types';
 import type { AssetTab, BtnWeight, PanelLocation, SettingsSection } from './utils';
 
 export interface PanelHost extends HTMLElement {
@@ -100,6 +109,15 @@ export interface PanelHost extends HTMLElement {
   /** Run *fn* once the key has been quiet for *ms*, so a per-keystroke save doesn't
    *  fire a config-entry reload on every character. */
   _debounce(key: string, fn: () => void, ms?: number): void;
+  /** The declarative-companion dialogs' state: the preset picker, or the add/edit
+   *  form with the recipe it is editing. */
+  _declDialog: DeclarativeDialogState;
+  /** Declarative-companion recipes stored on the config entry, listed under
+   *  Settings → Companions. */
+  _declarativeCompanions: DeclarativeCompanion[];
+  /** The bundled presets the "Add from preset" picker offers. Fetched on the first
+   *  open and kept; null until then. */
+  _declarativePresets: DeclarativeCompanionPreset[] | null;
   /** Delete a task outright (already confirmed). */
   _delete(task: Task): Promise<void>;
   /** Delete an appliance outright (already confirmed). */
@@ -120,6 +138,10 @@ export interface PanelHost extends HTMLElement {
   /** How the lists are grouped, as chosen (see `effectiveGroup` for the resolved one). */
   _groupBy: GroupBy;
   _hass?: Hass;
+  /** Integration domains that have a config entry, for the declarative-companion
+   *  form's integration picker and the preset picker's "requires" gate. Fetched on
+   *  the first dialog open; null until then. */
+  _installedIntegrations: string[] | null;
   /** Whether this user has dismissed the first-run intro banner. */
   _introDismissed: boolean;
   /** Profile / notification rows (and a profile's sync group) the user has expanded. */

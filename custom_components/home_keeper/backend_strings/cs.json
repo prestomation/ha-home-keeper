@@ -9,5 +9,11 @@
   "inventory.csv.cost": "Cena",
   "inventory.csv.spares_value": "Hodnota náhradních dílů",
   "inventory.csv.details": "Podrobnosti",
-  "inventory.csv.total": "CELKEM"
+  "inventory.csv.total": "CELKEM",
+  "declarative_preset.device_pulse.name": "Device Pulse",
+  "declarative_preset.device_pulse.description": "Sleduje ping senzory jednotlivých zařízení z vaší integrace Device Pulse a otevře úlohu pro každé zařízení, které selhává ping déle než hodinu. Vyžaduje integraci Device Pulse.",
+  "declarative_preset.low_battery.name": "Slabá baterie",
+  "declarative_preset.low_battery.description": "Sleduje každý binární senzor slabé baterie a otevře úlohu pro výměnu baterie. Funguje spolu s glue integrací Battery Notes, pokud ji máte nainstalovanou.",
+  "declarative_preset.firmware_update_available.name": "Aktualizace firmwaru k dispozici",
+  "declarative_preset.firmware_update_available.description": "Sleduje každou entitu aktualizace (UniFi, ESPHome, HACS, kamery, tiskárny atd.) a otevře úlohu pro instalaci nové verze."
 }

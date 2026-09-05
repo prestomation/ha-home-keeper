@@ -799,6 +799,34 @@
           "description": "El id de la pieza cuyo archivo adjunto se va a firmar. Su nombre también funciona. El panel muestra el id."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Añadir companion declarativo",
+      "description": "Registra un companion declarativo — una receta que materializa una tarea de sensor gestionada por cada entidad que coincide con los filtros (integración objetivo + filtros de entidad), con nombre de tarea y notas usando plantillas Jinja. Solo para administradores."
+    },
+    "update_declarative_companion": {
+      "name": "Actualizar companion declarativo",
+      "description": "Actualiza campos de una especificación de companion declarativo almacenada por id. Solo para administradores.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "El uuid estable de la especificación, desde list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Eliminar companion declarativo",
+      "description": "Elimina una especificación de companion declarativo y todas las tareas gestionadas que materializó. Solo para administradores.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "El uuid estable de la especificación, desde list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Listar companions declarativos",
+      "description": "Devuelve como respuesta cada especificación de companion declarativo almacenada."
     }
   },
   "entity": {
@@ -906,6 +934,12 @@
     },
     "failed_to_store_file": {
       "message": "No se pudo guardar el archivo."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Companion declarativo no encontrado: {spec_id}"
     },
     "asset_ambiguous": {
       "message": "Several appliances are named {name}. Use an id instead: {ids}"

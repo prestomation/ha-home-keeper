@@ -96,6 +96,11 @@ only_mutate = [
     # Imports Home Assistant only under ``TYPE_CHECKING``, so the fast unit tier runs
     # it directly (tests/unit/test_options.py) — see "Pure, HA-free core".
     "custom_components/home_keeper/options.py",
+    # Declarative-companion recipe logic: spec normalization, selection/expansion,
+    # and the reconcile diff. Pure and covered by tests/unit/test_declarative_companions.py.
+    # The HA-bound reconciler that wires it up (``declarative_companion_sync.py``) is
+    # not on this list — same rule as the other HA-importing modules.
+    "custom_components/home_keeper/declarative_companions.py",
     # Also TYPE_CHECKING-only, and driven by tests/unit/test_device_compat.py: the two
     # device-registry shapes it reconciles are only distinguishable by behaviour, so a
     # mutant that iterates the wrong one has to be caught by an assertion.

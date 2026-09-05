@@ -9,5 +9,11 @@
   "inventory.csv.cost": "Стоимость",
   "inventory.csv.spares_value": "Стоимость запчастей",
   "inventory.csv.details": "Подробности",
-  "inventory.csv.total": "ИТОГО"
+  "inventory.csv.total": "ИТОГО",
+  "declarative_preset.device_pulse.name": "Device Pulse",
+  "declarative_preset.device_pulse.description": "Наблюдает за индивидуальными пинг-датчиками устройств вашей интеграции Device Pulse и открывает задачу для каждого устройства, которое не отвечает на пинги более часа. Требует интеграции Device Pulse.",
+  "declarative_preset.low_battery.name": "Низкий заряд батареи",
+  "declarative_preset.low_battery.description": "Наблюдает за каждым бинарным датчиком низкого заряда батареи и открывает задачу на замену батареи. Работает вместе с glue-интеграцией Battery Notes, если она установлена.",
+  "declarative_preset.firmware_update_available.name": "Доступно обновление прошивки",
+  "declarative_preset.firmware_update_available.description": "Наблюдает за каждой сущностью обновления (UniFi, ESPHome, HACS, камеры, принтеры и т. д.) и открывает задачу для установки новой версии."
 }

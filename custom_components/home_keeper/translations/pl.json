@@ -799,6 +799,34 @@
           "description": "Identyfikator części, dla której załączonego pliku ma zostać podpisany URL. Nazwa również działa. Panel pokazuje identyfikator."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Dodaj deklaratywnego towarzysza",
+      "description": "Rejestruje deklaratywnego towarzysza — recepturę, która materializuje jedno zarządzane zadanie sensora na każdą encję pasującą do filtrów (docelowa integracja + filtry encji), z nazwą zadania i notatkami za pomocą szablonów Jinja. Tylko administrator."
+    },
+    "update_declarative_companion": {
+      "name": "Zaktualizuj deklaratywnego towarzysza",
+      "description": "Aktualizuje pola zapisanej specyfikacji deklaratywnego towarzysza według id. Tylko administrator.",
+      "fields": {
+        "id": {
+          "name": "Id towarzysza",
+          "description": "Stabilny uuid specyfikacji, z list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Usuń deklaratywnego towarzysza",
+      "description": "Usuwa specyfikację deklaratywnego towarzysza i każde zarządzane zadanie, które zmaterializowała. Tylko administrator.",
+      "fields": {
+        "id": {
+          "name": "Id towarzysza",
+          "description": "Stabilny uuid specyfikacji, z list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Wyświetl deklaratywnych towarzyszy",
+      "description": "Zwraca w odpowiedzi każdą zapisaną specyfikację deklaratywnego towarzysza."
     }
   },
   "entity": {
@@ -906,6 +934,12 @@
     },
     "failed_to_store_file": {
       "message": "Nie udało się zapisać pliku."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Nie znaleziono deklaratywnego towarzysza: {spec_id}"
     },
     "asset_ambiguous": {
       "message": "Several appliances are named {name}. Use an id instead: {ids}"

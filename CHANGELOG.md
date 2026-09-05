@@ -6,6 +6,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.21.0b2]
+
+### Added
+
+- **Declarative companions: task-per-entity recipes without a separate integration.**
+  A user configures a recipe in Settings → Companions, or starts from a bundled
+  preset such as Device Pulse, Low battery and Firmware update available, and Home
+  Keeper opens one task per matching entity after a live preview of the matches.
+  (Fixes #231) (Fixes #230)
+
 ## [0.21.0b1]
 
 ### Added

@@ -15,10 +15,20 @@ from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import assets, events, models, recurrence, sensor_tasks, sensor_watcher, tags
+from . import (
+    assets,
+    declarative_companions,
+    events,
+    models,
+    recurrence,
+    sensor_tasks,
+    sensor_watcher,
+    tags,
+)
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
     COMPLETION_ENTRY_FIELDS,
@@ -27,6 +37,9 @@ from .const import (
     EVENT_ASSET_DELETED,
     EVENT_ASSET_RESTORED,
     EVENT_ASSET_UPDATED,
+    EVENT_DECLARATIVE_COMPANION_ADDED,
+    EVENT_DECLARATIVE_COMPANION_REMOVED,
+    EVENT_DECLARATIVE_COMPANION_UPDATED,
     EVENT_PART_LOW_STOCK,
     EVENT_PART_OUT_OF_STOCK,
     EVENT_PART_RESTOCKED,
@@ -39,10 +52,12 @@ from .const import (
     EVENT_TASK_TRIGGERED,
     EVENT_TASK_UNCOMPLETED,
     EVENT_TASK_UPDATED,
+    MAX_DECLARATIVE_COMPANIONS,
     ORIGIN_PROBLEM_SENSOR_SYNC,
     REC_SENSOR,
     REC_TRIGGERED,
     SENSOR_MODE_USAGE,
+    SIGNAL_DECLARATIVE_SPECS_CHANGED,
     STORAGE_KEY,
     STORAGE_VERSION,
     TASK_SOURCE_BUY,
@@ -157,6 +172,15 @@ class HomeKeeperStore:
         # being deleted — the moment the mirror most needs it, since that is when
         # the item has to come off the list. See ``get_shopping_items``.
         self._shopping_items: dict[str, dict[str, Any]] = {}
+        # Declarative-companion specs, keyed by ``spec["id"]``. Loaded absent on a
+        # pre-declarative store as an empty dict (see ``load``). Each spec is a
+        # dict validated by ``declarative_companions.normalize_declarative_companion``
+        # — never taken from disk unvalidated. The reconciler
+        # (``declarative_companion_sync.py``) reads this map to materialize
+        # managed sensor tasks; store mutations dispatch
+        # ``SIGNAL_DECLARATIVE_SPECS_CHANGED`` so it re-reconciles without an
+        # entry reload.
+        self._declarative_companions: dict[str, dict[str, Any]] = {}
         # Which item on which external to-do list stands for which task, for which
         # profile (``todo_list.sync_key(profile_id, task_id) -> {entity_id, uid,
         # summary, due, last_completed, added_at}``). Keyed per *profile* rather than
@@ -172,6 +196,8 @@ class HomeKeeperStore:
         """Load tasks and assets from disk (no-op safe on first run).
 
         The ``assets``, ``problem_notes``, ``shopping_items`` and
+        ``declarative_companions`` keys are additive — documents written before
+        they existed simply lack them, so we default to empty without a storage
         ``todo_list_items`` keys are additive — documents written before they
         existed simply lack them, so we default to empty without a storage
         migration.
@@ -193,6 +219,26 @@ class HomeKeeperStore:
             self._shopping_items = data["shopping_items"]
         else:
             self._shopping_items = {}
+        if data and isinstance(data.get("declarative_companions"), dict):
+            # Re-validate on load so a hand-edited storage file that violates
+            # length/regex/mode invariants can't propagate corruption into the
+            # reconciler. Bad specs are dropped with a warning rather than failing
+            # HA startup — losing one spec is recoverable, refusing to load is not.
+            loaded: dict[str, dict[str, Any]] = {}
+            for spec_id, raw in data["declarative_companions"].items():
+                try:
+                    spec = declarative_companions.normalize_declarative_companion(raw)
+                except models.TaskValidationError as err:
+                    _LOGGER.warning(
+                        "Dropping malformed declarative-companion spec %s: %s",
+                        spec_id,
+                        err,
+                    )
+                    continue
+                loaded[spec["id"]] = spec
+            self._declarative_companions = loaded
+        else:
+            self._declarative_companions = {}
         if data and isinstance(data.get("todo_list_items"), dict):
             self._todo_list_items = data["todo_list_items"]
         else:
@@ -218,6 +264,7 @@ class HomeKeeperStore:
                 "assets": self._assets,
                 "problem_notes": self._problem_notes,
                 "shopping_items": self._shopping_items,
+                "declarative_companions": self._declarative_companions,
                 "todo_list_items": self._todo_list_items,
             }
         )
@@ -238,6 +285,7 @@ class HomeKeeperStore:
         self._assets = {}
         self._problem_notes = {}
         self._shopping_items = {}
+        self._declarative_companions = {}
         self._todo_list_items = {}
 
     # ── reads ────────────────────────────────────────────────────────────────
@@ -1221,6 +1269,165 @@ class HomeKeeperStore:
                     events.completion_event_data(
                         task, dt_util.now(), ORIGIN_PROBLEM_SENSOR_SYNC
                     ),
+                )
+        return entity_set_changed
+
+    # ── declarative companions ─────────────────────────────────────────────────
+    def get_declarative_companions(self) -> dict[str, dict[str, Any]]:
+        """Return the full declarative-companion spec map (id -> spec dict)."""
+        return self._declarative_companions
+
+    def get_declarative_companion(self, spec_id: str) -> dict[str, Any] | None:
+        return self._declarative_companions.get(spec_id)
+
+    async def async_add_declarative_companion(
+        self, data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Validate and persist a new declarative-companion spec.
+
+        Rejects a spec whose id already exists (an update goes through
+        :meth:`async_update_declarative_companion`) and enforces
+        ``MAX_DECLARATIVE_COMPANIONS`` — a misbehaving companion (or a runaway
+        panel loop) can't fill the store. Stamps ``created``/``updated``
+        timestamps here so the panel doesn't need to.
+
+        Persists, fires ``home_keeper_declarative_companion_added``, and
+        dispatches ``SIGNAL_DECLARATIVE_SPECS_CHANGED`` so the reconciler
+        re-materializes managed tasks without waiting for an entry reload.
+        """
+        spec = declarative_companions.normalize_declarative_companion(data)
+        if spec["id"] in self._declarative_companions:
+            raise models.TaskValidationError(
+                f"declarative companion with id {spec['id']!r} already exists"
+            )
+        if len(self._declarative_companions) >= MAX_DECLARATIVE_COMPANIONS:
+            raise models.TaskValidationError(
+                f"cannot register more than {MAX_DECLARATIVE_COMPANIONS} "
+                "declarative companions"
+            )
+        now_iso = dt_util.now().isoformat()
+        spec.setdefault("created", now_iso)
+        spec["updated"] = now_iso
+        self._declarative_companions[spec["id"]] = spec
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_DECLARATIVE_COMPANION_ADDED,
+            events.declarative_companion_event_data(spec),
+        )
+        async_dispatcher_send(self._hass, SIGNAL_DECLARATIVE_SPECS_CHANGED)
+        return spec
+
+    async def async_update_declarative_companion(
+        self, spec_id: str, updates: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Merge *updates* into the existing spec and persist.
+
+        The spec is re-normalized as a whole after merging, so a bad edit fails
+        the same way an add would (rather than silently persisting an invalid
+        field). Reset the ``created`` timestamp — updates must never rewrite
+        history; carry it through untouched.
+        """
+        existing = self._declarative_companions.get(spec_id)
+        if existing is None:
+            raise KeyError(spec_id)
+        merged = {**existing, **updates, "id": spec_id}
+        spec = declarative_companions.normalize_declarative_companion(merged)
+        spec["created"] = existing.get("created") or dt_util.now().isoformat()
+        spec["updated"] = dt_util.now().isoformat()
+        self._declarative_companions[spec_id] = spec
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_DECLARATIVE_COMPANION_UPDATED,
+            events.declarative_companion_event_data(spec),
+        )
+        async_dispatcher_send(self._hass, SIGNAL_DECLARATIVE_SPECS_CHANGED)
+        return spec
+
+    async def async_delete_declarative_companion(self, spec_id: str) -> bool:
+        """Remove a spec and every managed task it materialized.
+
+        Uses ``declarative_companions.collect_orphans_for_removed_spec`` to
+        compute the delete plan in the pure module (so the same logic tests
+        without HA). Fires ``home_keeper_task_deleted`` per orphaned task and
+        ``home_keeper_declarative_companion_removed`` once; returns whether the
+        entity set changed (any managed task removed with per-task entities
+        needs the caller to reload).
+        """
+        existing = self._declarative_companions.pop(spec_id, None)
+        if existing is None:
+            return False
+        new_tasks, ops = declarative_companions.collect_orphans_for_removed_spec(
+            spec_id, self._tasks
+        )
+        self._tasks = new_tasks
+        await self._save()
+        entity_set_changed = False
+        for kind, task in ops:
+            if kind == "deleted":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_DELETED, events.task_event_data(task)
+                )
+                if _task_owns_entities(task):
+                    entity_set_changed = True
+        self._hass.bus.async_fire(
+            EVENT_DECLARATIVE_COMPANION_REMOVED,
+            events.declarative_companion_event_data(existing),
+        )
+        async_dispatcher_send(self._hass, SIGNAL_DECLARATIVE_SPECS_CHANGED)
+        return entity_set_changed
+
+    async def reconcile_declarative_companion_tasks(
+        self,
+        spec: dict[str, Any],
+        matches: dict[tuple[str, str], dict[str, Any]],
+        rendered_by_key: dict[tuple[str, str], tuple[str, str]],
+        *,
+        config_entry_id: str,
+    ) -> bool:
+        """Materialize / update / orphan the managed tasks for *spec*.
+
+        Called from ``declarative_companion_sync.py`` after it has built the
+        registry snapshot, expanded the spec (:func:`expand_spec`) and rendered
+        each match's Jinja templates. Delegates the diff to the pure
+        :func:`declarative_companions.reconcile_declarative_tasks` and fires the
+        matching ``home_keeper_task_*`` events per op. Arm/clear transitions on
+        the materialized tasks are the sensor watcher's responsibility, not this
+        reconcile pass — the tasks look like ordinary sensor tasks to it.
+
+        Returns whether the per-task **entity set** changed (a task was created
+        or removed) so the caller can decide between a full entry reload and a
+        plain coordinator refresh.
+        """
+        new_tasks, ops, changed = declarative_companions.reconcile_declarative_tasks(
+            spec,
+            matches,
+            self._tasks,
+            rendered_by_key,
+            config_entry_id=config_entry_id,
+            now=dt_util.now(),
+        )
+        if not changed:
+            return False
+        self._tasks = new_tasks
+        await self._save()
+        entity_set_changed = False
+        for kind, task in ops:
+            if kind == "created":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_CREATED, events.task_event_data(task)
+                )
+                if _task_owns_entities(task):
+                    entity_set_changed = True
+            elif kind == "deleted":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_DELETED, events.task_event_data(task)
+                )
+                if _task_owns_entities(task):
+                    entity_set_changed = True
+            elif kind == "updated":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_UPDATED,
+                    events.task_event_data(task, extra={"changed_fields": []}),
                 )
         return entity_set_changed
 

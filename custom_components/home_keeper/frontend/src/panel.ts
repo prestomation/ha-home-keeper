@@ -21,6 +21,7 @@ import {
 import { renderAssetForm } from './panel-asset-form';
 import { sourceOwnedTask, wireDeviceChips } from './panel-chips';
 import { controls, wireControls } from './panel-controls';
+import { renderDeclarativeDialog } from './panel-declarative';
 import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
 import {
   openCompletionDialog,
@@ -52,6 +53,7 @@ import {
   type AssetFilter,
   type AssetView,
   type CompletionDialogState,
+  type DeclarativeDialogState,
   type EditState,
   type GroupBy,
   type MoveCompletionDialogState,
@@ -63,6 +65,8 @@ import type {
   Asset,
   AssetKind,
   Companion,
+  DeclarativeCompanion,
+  DeclarativeCompanionPreset,
   Hass,
   HomeKeeperOptions,
   ManagedBy,
@@ -152,6 +156,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _ownTodoEntities: string[] = [];
   // Companion integrations shown on the Settings tab (loaded with the rest).
   _companions: Companion[] = [];
+  // Declarative-companion recipes (loaded with the rest), the bundled presets and the
+  // installed-integration list their dialogs need (fetched on first open), and the
+  // dialogs' own state.
+  _declarativeCompanions: DeclarativeCompanion[] = [];
+  _declarativePresets: DeclarativeCompanionPreset[] | null = null;
+  _installedIntegrations: string[] | null = null;
+  _declDialog: DeclarativeDialogState = { open: false, kind: 'picker', draft: null };
   // HA tag-registry entries as picker options, for the task form's tag field and
   // the tag chip. Best-effort: an empty list still leaves a typable combo box.
   _tags: { value: string; label: string }[] = [];
@@ -602,6 +613,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         loadedEntryIds,
         options,
         companions,
+        declarativeCompanions,
         introDismissed,
         tags,
       ] = await Promise.all([
@@ -611,6 +623,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
         api.getOptions(this._hass).catch(() => null),
         api.getCompanions(this._hass).catch(() => [] as Companion[]),
+        api.listDeclarativeCompanions(this._hass).catch(() => [] as DeclarativeCompanion[]),
         api.getIntroDismissed(this._hass).catch(() => false),
         // Best-effort: the tag registry is a convenience for the picker and the
         // chip label, never a precondition for the panel loading.
@@ -624,6 +637,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._notifyTargets = options?.notifyTargets ?? [];
       this._ownTodoEntities = options?.ownTodoEntities ?? [];
       this._companions = companions ?? [];
+      this._declarativeCompanions = declarativeCompanions ?? [];
       this._introDismissed = introDismissed;
       this._tags = tags;
       // Drop a remembered Profile filter that no longer exists (deleted since), so the
@@ -1601,6 +1615,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const dialogHost = root.getElementById('hk-dialog-host');
     if (dialogHost && this._completion.open) renderCompletionDialog(this, dialogHost);
     if (dialogHost && this._moveCompletion.open) renderMoveCompletionDialog(this, dialogHost);
+    if (dialogHost && this._declDialog.open) renderDeclarativeDialog(this, dialogHost);
     // renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
     // The drawer is a sibling of the whole content column, so it belongs to every

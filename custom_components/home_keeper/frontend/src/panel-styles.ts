@@ -1390,4 +1390,52 @@ export const STYLES = `
       opacity: 1;
     }
   }
+  /* Declarative companions: the subsection at the foot of the Companions card, the
+     preset picker's cards, and the add/edit dialog's sections and live preview. */
+  .hk-companion-group-decl { margin-top: 20px; }
+  .hk-decl-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+  .hk-decl-empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; }
+  .hk-decl-matches { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
+  ha-assist-chip.hk-decl-preset-chip {
+    --ha-assist-chip-container-color: var(--secondary-background-color);
+    --ha-assist-chip-filled-container-color: var(--secondary-background-color);
+  }
+  .hk-decl-preset-list { display: grid; gap: 10px; min-width: min(420px, 80vw); }
+  .hk-decl-preset-card {
+    display: flex; align-items: center; gap: 12px; padding: 12px; text-align: left;
+    border: 1px solid var(--divider-color); border-radius: 12px; cursor: pointer;
+    background: var(--card-background-color); color: var(--primary-text-color);
+    font: inherit;
+  }
+  .hk-decl-preset-card:hover:not(:disabled) { background: var(--secondary-background-color); }
+  .hk-decl-preset-card:disabled { opacity: 0.55; cursor: not-allowed; }
+  .hk-decl-preset-card ha-icon { flex: 0 0 auto; }
+  .hk-decl-preset-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .hk-decl-preset-name { font-weight: 500; }
+  .hk-decl-preset-desc { color: var(--secondary-text-color); font-size: 0.9rem; }
+  .hk-decl-preset-req { color: var(--warning-color); font-size: 0.85rem; }
+  /* No min-width: an ha-dialog is a fixed width (580px at its default "medium"),
+     so a body wider than that dialog's content box does not widen the dialog — it
+     overruns it. A 560px floor put every row 28px past the right padding edge, and
+     the switches on the Enabled and Auto-clear rows were clipped by the dialog's
+     own border. Fill the box instead. */
+  .hk-decl-dialog-body { width: 100%; box-sizing: border-box; gap: 8px; }
+  .hk-decl-dialog-body ha-form { display: block; }
+  .hk-decl-section-title {
+    font-size: 0.75rem; font-weight: 600; color: var(--secondary-text-color);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-top: 8px;
+  }
+  .hk-decl-preview {
+    padding: 12px; border: 1px dashed var(--divider-color); border-radius: 12px;
+    background: var(--secondary-background-color); font-size: 0.85rem;
+    max-height: 260px; overflow-y: auto; margin-top: 8px;
+  }
+  .hk-decl-preview-header { font-weight: 500; margin-bottom: 6px; }
+  .hk-decl-preview-row { padding: 6px 0; border-bottom: 1px solid var(--divider-color); }
+  .hk-decl-preview-row:last-child { border-bottom: none; }
+  .hk-decl-preview-name { font-weight: 500; }
+  .hk-decl-preview-eid {
+    color: var(--secondary-text-color); font-family: monospace; font-size: 0.8rem;
+  }
+  .hk-decl-preview-empty { color: var(--secondary-text-color); font-style: italic; }
 `;

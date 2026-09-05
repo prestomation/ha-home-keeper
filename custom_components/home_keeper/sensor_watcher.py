@@ -38,6 +38,7 @@ from . import sensor_tasks
 from .const import (
     ORIGIN_SENSOR_RECOVER,
     REC_SENSOR,
+    SENSOR_MODE_AVAILABILITY,
     SENSOR_MODE_STATE,
     SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_USAGE,
@@ -88,6 +89,44 @@ def read_sensor_state(hass: HomeAssistant, cfg: dict[str, Any] | None) -> str | 
     """
     raw = _raw_reading(hass, cfg)
     return None if raw is None else str(raw)
+
+
+def read_availability_status(hass: HomeAssistant, cfg: dict[str, Any] | None) -> str:
+    """Classify a binding's *availability*: available / unavailable / missing.
+
+    The ``availability`` mode's counterpart to :func:`read_sensor_value` and
+    :func:`read_sensor_state`, and **inverts** the "no reading = do nothing" policy
+    those two share: this mode arms *because* the entity is unavailable/unknown,
+    so the caller needs to distinguish "entity is unreachable" (arm signal) from
+    "entity is not yet loaded" (indeterminate; hold edge state so a boot-time gap
+    can never fabricate a spurious arm or clear).
+
+    * ``"missing"`` — the binding has no entity_id, or the entity isn't in the
+      state machine yet (restored on boot / never seen). Indeterminate.
+    * ``"unavailable"`` — the entity is present but reporting ``unavailable`` /
+      ``unknown``; or an attribute binding whose target attribute is missing or
+      ``None``. The arm signal.
+    * ``"available"`` — the entity has a real state and (if an attribute is
+      bound) the attribute has a real value.
+
+    Mirrors ``problem_sync._is_problem``'s three-way discipline.
+    """
+    if not cfg:
+        return sensor_tasks.AVAILABILITY_MISSING
+    entity_id = cfg.get("entity_id")
+    if not entity_id:
+        return sensor_tasks.AVAILABILITY_MISSING
+    state = hass.states.get(entity_id)
+    if state is None:
+        return sensor_tasks.AVAILABILITY_MISSING
+    if state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN, "", None):
+        return sensor_tasks.AVAILABILITY_UNAVAILABLE
+    attribute = cfg.get("attribute")
+    if attribute:
+        value = state.attributes.get(attribute)
+        if value is None or value == "":
+            return sensor_tasks.AVAILABILITY_UNAVAILABLE
+    return sensor_tasks.AVAILABILITY_AVAILABLE
 
 
 class SensorTaskWatcher:
@@ -160,6 +199,17 @@ class SensorTaskWatcher:
                     == cfg.get("state"),
                     "crossed_at": None,
                 }
+            elif mode == SENSOR_MODE_AVAILABILITY:
+                # Record an already-unavailable entity as met-without-a-crossing:
+                # a device that was offline before HA restarted must not fabricate a
+                # fresh "gone offline" task the first time we look at it. A ``missing``
+                # (not-yet-loaded) entity is indeterminate — treat as not-met so a
+                # genuine transition later drives the arm.
+                status = read_availability_status(self._hass, cfg)
+                self._edge[tid] = {
+                    "condition_met": status == sensor_tasks.AVAILABILITY_UNAVAILABLE,
+                    "crossed_at": None,
+                }
             else:
                 reading = read_sensor_value(self._hass, cfg)
                 if reading is not None and cfg.get("baseline") is None:
@@ -221,6 +271,19 @@ class SensorTaskWatcher:
                 # numeric modes there's nothing to skip here.
                 if await self._evaluate_state(
                     tid, task, state=read_sensor_state(self._hass, cfg), now=now
+                ):
+                    changed_any = True
+                continue
+            if mode == SENSOR_MODE_AVAILABILITY:
+                # Availability inverts the "no reading" policy: an ``unavailable``
+                # entity is the arm signal here, not something to skip. The evaluator
+                # holds edge state on ``missing`` (not-yet-loaded), so boot doesn't
+                # fabricate transitions.
+                if await self._evaluate_availability(
+                    tid,
+                    task,
+                    status=read_availability_status(self._hass, cfg),
+                    now=now,
                 ):
                     changed_any = True
                 continue
@@ -289,6 +352,20 @@ class SensorTaskWatcher:
             sensor_tasks.evaluate_state(
                 task,
                 state=state,
+                condition_met_prev=bool(self._edge.get(tid, {}).get("condition_met")),
+                crossed_at=self._edge.get(tid, {}).get("crossed_at"),
+                now=now,
+            ),
+        )
+
+    async def _evaluate_availability(
+        self, tid: str, task: dict[str, Any], *, status: str, now: Any
+    ) -> bool:
+        return await self._apply_edge(
+            tid,
+            sensor_tasks.evaluate_availability(
+                task,
+                status=status,
                 condition_met_prev=bool(self._edge.get(tid, {}).get("condition_met")),
                 crossed_at=self._edge.get(tid, {}).get("crossed_at"),
                 now=now,

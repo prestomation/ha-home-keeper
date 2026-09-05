@@ -7,7 +7,20 @@
  * panel, so they stay here rather than widening the shared surface.
  */
 
-import type { Asset, Completion, Task } from './types';
+import type { Asset, Completion, DeclarativeCompanion, Task } from './types';
+
+/**
+ * The declarative-companion dialogs' state: the preset picker, or the add/edit form.
+ * `draft` is the recipe the form edits **in place** (each section's form writes into
+ * the same object), so a mode change can rebuild the dialog without losing what was
+ * typed; it is null while the picker is up.
+ */
+export interface DeclarativeDialogState {
+  open: boolean;
+  kind: 'picker' | 'form';
+  draft: DeclarativeCompanion | null;
+  error?: string;
+}
 
 /** What the inline notes editor on a detail page is currently editing. */
 export type NoteTarget = { kind: 'task' | 'asset'; id: string };

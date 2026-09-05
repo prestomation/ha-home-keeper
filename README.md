@@ -1293,6 +1293,34 @@ To add a companion or a [glue integration](docs/GLUE_INTEGRATIONS.md) to the cat
 
 ![The Companions section on the Settings tab: connected integrations with Configure buttons](docs/images/21-panel-companions.png)
 
+#### Declarative companions (config-driven, no separate integration)
+
+A **declarative companion** is a recipe. The recipe targets an integration, or it
+matches entities through an entity id filter. The recipe sets a trigger mode: usage,
+threshold, state, or availability. The recipe also sets a Jinja template for the task
+name and the task notes.
+
+Home Keeper opens one managed task for each entity that matches the recipe. The task
+clears when the condition recovers.
+
+The *Add from preset* picker offers 3 presets.
+
+- **Device Pulse** targets the per-device ping sensors from
+  [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse).
+  The Device Pulse integration must be installed.
+- **Low battery** matches every `binary_sensor` with `device_class: battery` that
+  reports `on`.
+- **Firmware update available** matches every `update.*` entity that reports `on`.
+  This covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab.
+
+The *Add companion* dialog shows a live preview of the matches before you save. A
+warning shows above 50 matches. A recipe cannot match more than 500 entities. See
+[INTEGRATING.md](docs/INTEGRATING.md) for the service reference.
+
+![The three-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](docs/images/21c-panel-declarative-preset-picker.png)
+
+![The Add dialog seeded from the Low Battery preset, with the live-preview panel on the right](docs/images/21d-panel-declarative-add-dialog.png)
+
 
 
 

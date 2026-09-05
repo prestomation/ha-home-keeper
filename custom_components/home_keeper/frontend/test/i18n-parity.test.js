@@ -36,6 +36,20 @@ const INTENTIONALLY_IDENTICAL = new Set([
 // "Normaal", "Normalne", "Normální", "Normaali"). `notify.test` is "Test" in Danish
 // and Norwegian, which take the English noun unchanged (the others inflect or
 // translate it: "Testen", "Tester", "Probar", "Testaa", "Otestovat").
+// The declarative.companions.* namespace adds several universal loanwords
+// ("Preset:" appears literally in several Romance languages; the German panel
+// keeps "Name"; French uses "Description" as a cognate; Dutch keeps "Trigger"
+// where the German UI convention has established the English loanword).
+const DECLARATIVE_COGNATES = {
+  ca: ['declarative.companions.preset_badge'],
+  de: ['declarative.companions.field_name'],
+  es: ['declarative.companions.preset_badge'],
+  fr: ['declarative.companions.field_description'],
+  it: ['declarative.companions.preset_badge'],
+  nl: ['declarative.companions.preset_badge', 'declarative.companions.section_trigger'],
+  'pt-BR': ['declarative.companions.preset_badge'],
+};
+
 const COGNATE_IDENTICAL = {
   ca: ['detail.id', 'field.cost', 'field.doc_url', 'field.model', 'field.notes', 'field.sensor_entity_id', 'meta.seed.notes', 'notify.opt.normal', 'opt.meta.text', 'section.notes', 'settings.exclusions', 'settings.general_heading', 'tab.documents'],
   cs: ['detail.id', 'field.doc_url', 'field.model', 'opt.meta.text'],
@@ -53,6 +67,12 @@ const COGNATE_IDENTICAL = {
   sv: ['chip.orphaned', 'detail.id', 'field.doc_url', 'field.sensor_entity_id', 'group.integration', 'group.status', 'notify.opt.normal', 'opt.meta.text', 'opt.month.11', 'opt.month.12', 'opt.month.4', 'opt.month.9'],
   'zh-Hans': ['detail.id', 'field.doc_url'],
 };
+
+// Fold the declarative cognates into the per-locale allowlist. They stay in their own
+// map above so each one carries its reason, instead of disappearing into these lists.
+for (const [lang, keys] of Object.entries(DECLARATIVE_COGNATES)) {
+  COGNATE_IDENTICAL[lang] = [...(COGNATE_IDENTICAL[lang] ?? []), ...keys];
+}
 
 // Concatenate all panel TypeScript sources once for static key analysis.
 const SRC = (() => {

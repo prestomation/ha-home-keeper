@@ -173,3 +173,55 @@ def test_low_stock_payload_carries_fractional_stock_and_its_unit():
     assert data["stock"] == 250.5
     assert data["reorder_at"] == 500
     assert data["unit"] == "ml"
+
+
+# ── declarative-companion spec events ───────────────────────────────────────
+def test_declarative_companion_event_carries_identity_and_preset():
+    data = ev.declarative_companion_event_data(
+        {
+            "id": "spec-1",
+            "name": "Device Pulse",
+            "enabled": True,
+            "preset_id": "device_pulse",
+        }
+    )
+    assert data == {
+        "spec_id": "spec-1",
+        "name": "Device Pulse",
+        "enabled": True,
+        "preset_id": "device_pulse",
+    }
+
+
+def test_declarative_companion_event_omits_match_count_by_default():
+    data = ev.declarative_companion_event_data(
+        {"id": "spec-1", "name": "x", "enabled": True, "preset_id": None}
+    )
+    assert "match_count" not in data
+
+
+def test_declarative_companion_event_carries_match_count_when_set():
+    data = ev.declarative_companion_event_data(
+        {"id": "spec-1", "name": "x", "enabled": True, "preset_id": None},
+        match_count=7,
+    )
+    assert data["match_count"] == 7
+
+
+def test_declarative_companion_event_tolerates_missing_enabled():
+    data = ev.declarative_companion_event_data(
+        {"id": "spec-1", "name": "x", "preset_id": None}
+    )
+    # Defaults to enabled=True so an automation never sees ``None`` for a bool.
+    assert data["enabled"] is True
+
+
+def test_declarative_companion_event_reads_enabled_from_the_spec():
+    # A stored ``enabled=False`` must survive to the event; the paired
+    # ``missing`` test above catches the mirror mutation that hard-codes True.
+    # Together they prove ``spec.get("enabled", True)`` reads the key rather
+    # than always taking the default.
+    data = ev.declarative_companion_event_data(
+        {"id": "spec-1", "name": "x", "preset_id": None, "enabled": False}
+    )
+    assert data["enabled"] is False

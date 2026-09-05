@@ -114,6 +114,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.store = store
         # The problem-sensor sync helper, attached during async_setup_entry.
         self.problem_sync: ProblemSensorSync | None = None
+        # The declarative-companion reconciler, attached during async_setup_entry.
+        # Kept as an ``Any`` on the coordinator to avoid a coordinator↔sync
+        # import cycle at type-check time (the sync imports the coordinator's type).
+        self.declarative_sync: Any | None = None
         # The sensor-based-task watcher, attached during async_setup_entry (after its
         # edge state / usage baselines are seeded, so the periodic tick below only ever
         # reacts to genuine transitions).

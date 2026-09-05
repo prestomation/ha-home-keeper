@@ -799,6 +799,34 @@
           "description": "ID-en til reservedelen hvis vedlagte fil det skal signeres en URL for. Navnet fungerer også. Panelet viser id-en."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Legg til deklarativ companion",
+      "description": "Registrerer en deklarativ companion — en oppskrift som materialiserer én administrert sensoroppgave per entitet som matcher filtrene (målintegrasjon + entitetsfiltre), med Jinja-templated oppgavenavn og notater. Kun administratorer."
+    },
+    "update_declarative_companion": {
+      "name": "Oppdater deklarativ companion",
+      "description": "Oppdaterer felter i en lagret deklarativ companion-spesifikasjon etter id. Kun administratorer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Spesifikasjonens stabile uuid, fra list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Slett deklarativ companion",
+      "description": "Fjerner en deklarativ companion-spesifikasjon og hver administrerte oppgave den materialiserte. Kun administratorer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Spesifikasjonens stabile uuid, fra list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Vis deklarative companions",
+      "description": "Returnerer hver lagret deklarativ companion-spesifikasjon som svar."
     }
   },
   "entity": {
@@ -906,6 +934,12 @@
     },
     "failed_to_store_file": {
       "message": "Kunne ikke lagre filen."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativ companion ikke funnet: {spec_id}"
     },
     "asset_ambiguous": {
       "message": "Several appliances are named {name}. Use an id instead: {ids}"

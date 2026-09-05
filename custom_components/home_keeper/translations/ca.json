@@ -799,6 +799,34 @@
           "description": "L'id de la peça el fitxer adjunt de la qual s'ha de signar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Afegeix un companion declaratiu",
+      "description": "Registra un companion declaratiu — una recepta que materialitza una tasca de sensor gestionada per cada entitat que coincideix amb els filtres (integració objectiu + filtres d'entitat), amb el nom i les notes de la tasca mitjançant plantilles Jinja. Només administradors."
+    },
+    "update_declarative_companion": {
+      "name": "Actualitza un companion declaratiu",
+      "description": "Actualitza camps d'una especificació de companion declaratiu emmagatzemada per id. Només administradors.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "L'uuid estable de l'especificació, des de list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Elimina un companion declaratiu",
+      "description": "Elimina una especificació de companion declaratiu i totes les tasques gestionades que ha materialitzat. Només administradors.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "L'uuid estable de l'especificació, des de list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Llista els companions declaratius",
+      "description": "Retorna com a resposta cada especificació de companion declaratiu emmagatzemada."
     }
   },
   "entity": {
@@ -906,6 +934,12 @@
     },
     "failed_to_store_file": {
       "message": "No s'ha pogut desar el fitxer."
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "No s'ha trobat cap companion declaratiu: {spec_id}"
     },
     "asset_ambiguous": {
       "message": "Several appliances are named {name}. Use an id instead: {ids}"
