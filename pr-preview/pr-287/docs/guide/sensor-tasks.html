@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Sensor-based tasks | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/docs/guide/sensor-tasks"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Sensor-based tasks | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports sensor-based tasks. A sensor-based task is bound to a Home"><meta data-rh="true" property="og:description" content="Home Keeper supports sensor-based tasks. A sensor-based task is bound to a Home"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-287/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/docs/guide/sensor-tasks"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/docs/guide/sensor-tasks" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/docs/guide/sensor-tasks" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Sensor-based tasks","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-287/docs/guide/sensor-tasks"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-287/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-287/assets/js/runtime~main.ca14b5ec.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-287/assets/js/runtime~main.a4b08b13.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-287/assets/js/main.180ceefe.js" defer="defer"></script>
 </head>
 <body>
@@ -50,13 +50,19 @@ hold. For a <code>binary_sensor</code> the choices are <strong>On</strong> and <
 entity the state is matched as text. An example is <code>vacuum.rosie</code> = <code>docked</code>. See
 <a href="#when-a-device-just-tells-you" class="">below</a>.</p>
 </li>
+<li class="">
+<p><strong>Availability</strong>: arms when the entity reports unavailable or unknown. The
+optional hold requires the entity to stay unavailable for a number of seconds
+before the task arms. An optional attribute is treated as unavailable when it
+is missing. This mode clears the task by default when the entity recovers.</p>
+</li>
 </ul>
 <p>An armed sensor task behaves like any other task. It is on the to-do list and the
 calendar. It sets the device&#x27;s overdue sensor and fires the
 <code>home_keeper_task_overdue</code> event. Before it is armed, a usage task shows the
-remaining usage in the task list, such as &quot;in 7000 miles&quot;. A threshold or state
-task is listed as <strong>Monitored</strong>. The <code>home_keeper.add_task</code> service creates a sensor
-task with a <code>sensor</code> mapping.</p>
+remaining usage in the task list, such as &quot;in 7000 miles&quot;. A task in any mode
+other than usage is listed as <strong>Monitored</strong>. The <code>home_keeper.add_task</code> service
+creates a sensor task with a <code>sensor</code> mapping.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="hours-or-months-whichever-comes-first">Hours or months, whichever comes first<a href="#hours-or-months-whichever-comes-first" class="hash-link" aria-label="Direct link to Hours or months, whichever comes first" title="Direct link to Hours or months, whichever comes first" translate="no">​</a></h3>
 <p>Home Keeper supports a usage target combined with a time cadence on a usage task.
 This is useful for a service interval that has a use amount and a time period, such
