@@ -33,11 +33,16 @@ Three modes:
 computed, so the edge machinery they share — rising-edge detection, the hold timer,
 consuming a crossing so a steady-true sensor never re-arms, and the optional
 ``clear_on_recover`` — lives once in :func:`_evaluate_edge` and both delegate to it.
+
+Every edge decision also reports **when its pending hold completes**
+(:func:`hold_due_at`). A hold ends in its own time, so the watcher books one
+re-evaluation for that moment. It does not wait for a state change, which a quiet — or
+absent — entity never sends.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from . import recurrence
@@ -280,6 +285,31 @@ def evaluate_usage(
     return {"action": None, "reset_candidate": reset_candidate}
 
 
+def hold_due_at(
+    task: dict[str, Any], *, crossed_at: datetime | None, now: datetime
+) -> datetime | None:
+    """When a pending ``for_seconds`` hold completes, or ``None`` if none is pending.
+
+    A hold is pending when the task carries an unconsumed crossing (*crossed_at*), is
+    still dormant, and that crossing is younger than ``for_seconds``. The caller books
+    one re-evaluation for the returned moment, because the hold ends in its own time.
+    A bound entity that has gone quiet — or gone away, which is the very thing the
+    ``availability`` mode watches for — sends no further state change, so without that
+    booking the task waits for whatever periodic pass comes next.
+
+    A hold that is already due returns ``None``. A timer cannot help there: the same
+    evaluation arms the task if it can, so only new information about the entity moves
+    a task that stayed dormant. This is what keeps an indeterminate reading (see
+    :func:`evaluate_state` and :func:`evaluate_availability`) from booking the same
+    past moment again and again.
+    """
+    cfg = sensor_config(task)
+    if cfg is None or crossed_at is None or task.get("next_due") is not None:
+        return None
+    due = crossed_at + timedelta(seconds=int(cfg.get("for_seconds") or 0))
+    return due if due > now else None
+
+
 def _evaluate_edge(
     task: dict[str, Any],
     cfg: dict[str, Any],
@@ -296,7 +326,9 @@ def _evaluate_edge(
     edge logic lives here once rather than in two copies that can drift.
 
     Returns ``{"action": "arm" | "clear" | None, "condition_met": bool,
-    "crossed_at": dt|None}``.
+    "crossed_at": dt|None, "hold_due_at": dt|None}``. ``hold_due_at`` is when the
+    caller must evaluate this task again for its hold to complete (see
+    :func:`hold_due_at`).
 
     ``crossed_at`` tracks an *unconsumed* rising edge: it is set when the condition
     goes ``false -> true`` and cleared the moment the task arms (or the condition
@@ -318,7 +350,12 @@ def _evaluate_edge(
         # Condition false: clear the hold so the next crossing starts fresh. An armed
         # task also clears itself if it opted in — the work stopped being needed.
         action = ACTION_CLEAR if armed and cfg.get("clear_on_recover") else None
-        return {"action": action, "condition_met": False, "crossed_at": None}
+        return {
+            "action": action,
+            "condition_met": False,
+            "crossed_at": None,
+            "hold_due_at": None,
+        }
 
     # Condition is true. A rising edge starts a fresh (unconsumed) hold timer; a
     # continuation keeps whatever timer we had (``None`` once consumed/baselined).
@@ -329,7 +366,12 @@ def _evaluate_edge(
         if held >= for_seconds:
             action = ACTION_ARM
             new_crossed_at = None  # consume this crossing so we don't re-arm on it
-    return {"action": action, "condition_met": True, "crossed_at": new_crossed_at}
+    return {
+        "action": action,
+        "condition_met": True,
+        "crossed_at": new_crossed_at,
+        "hold_due_at": hold_due_at(task, crossed_at=new_crossed_at, now=now),
+    }
 
 
 def evaluate_threshold(
@@ -384,6 +426,7 @@ def evaluate_state(
             "action": None,
             "condition_met": condition_met_prev,
             "crossed_at": crossed_at,
+            "hold_due_at": hold_due_at(task, crossed_at=crossed_at, now=now),
         }
     return _evaluate_edge(
         task,
@@ -431,6 +474,7 @@ def evaluate_availability(
             "action": None,
             "condition_met": condition_met_prev,
             "crossed_at": crossed_at,
+            "hold_due_at": hold_due_at(task, crossed_at=crossed_at, now=now),
         }
     return _evaluate_edge(
         task,

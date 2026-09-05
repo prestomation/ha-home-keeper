@@ -12,7 +12,14 @@ changes which tasks exist, only their armed/dormant state and meter baseline.
 Edge state for the threshold/state modes (was-the-condition-true, when-it-crossed)
 lives in this object's memory and is baselined on startup (``async_baseline``) so a
 restart never replays a spurious arm — mirroring how the coordinator baselines the
-overdue/due-soon transitions. Completion normally flows through the user surfaces; the
+overdue/due-soon transitions. A binding with a ``for_seconds`` hold also gets a timer.
+The hold ends in its own time, so the watcher books one re-evaluation per task for the
+moment the pure evaluator says the hold is due, and releases every pending timer on
+unload. Without that timer the hold ends nowhere: the only things that re-evaluate the
+task are the next state change of the bound entity — which an entity that has gone
+unavailable never sends — and the coordinator's five-minute tick.
+
+Completion normally flows through the user surfaces; the
 one exception is a binding with ``clear_on_recover``, where the watcher completes the
 task itself (tagged ``ORIGIN_SENSOR_RECOVER``) once the condition goes away.
 """
@@ -21,6 +28,8 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from datetime import datetime
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -32,7 +41,10 @@ from homeassistant.core import (
     HomeAssistant,
     callback,
 )
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_track_point_in_time,
+    async_track_state_change_event,
+)
 from homeassistant.util import dt as dt_util
 
 from . import sensor_tasks
@@ -184,6 +196,13 @@ class SensorTaskWatcher:
         # In-memory threshold edge state, keyed by task id:
         #   {"condition_met": bool, "crossed_at": datetime | None}
         self._edge: dict[str, dict[str, Any]] = {}
+        # One pending "the hold is up" timer per task id, keyed the same way. A
+        # ``for_seconds`` hold ends in its own time, and the bound entity sends no
+        # state change to mark the moment. An entity that has gone unavailable sends
+        # nothing ever again, so the watcher books the re-evaluation itself. Each
+        # entry is the timer's unsubscribe callback, released the same way as
+        # ``_unsub_state``.
+        self._hold_timers: dict[str, CALLBACK_TYPE] = {}
         # In-memory usage-meter reset-candidate state, keyed by task id: the reading
         # from a prior below-baseline tick, awaiting a second consecutive one before
         # we treat it as a genuine meter reset (debounces a transient dip/blip to 0).
@@ -271,6 +290,7 @@ class SensorTaskWatcher:
     def async_start_listeners(self) -> None:
         """Begin reacting to bound-entity state changes (torn down on unload)."""
         self._entry.async_on_unload(self._unsubscribe_state)
+        self._entry.async_on_unload(self._cancel_hold_timers)
         self._resubscribe_state()
 
     @callback
@@ -278,6 +298,52 @@ class SensorTaskWatcher:
         if self._unsub_state is not None:
             self._unsub_state()
             self._unsub_state = None
+
+    @callback
+    def _cancel_hold_timers(self) -> None:
+        """Drop every pending hold timer.
+
+        Registered with ``async_on_unload`` beside :meth:`_unsubscribe_state`, so a
+        reload cannot leave a callback behind that would fire into the watcher the
+        reload replaced.
+        """
+        for unsub in self._hold_timers.values():
+            unsub()
+        self._hold_timers.clear()
+
+    @callback
+    def _cancel_hold_timer(self, tid: str) -> None:
+        """Drop the pending hold timer of one task, if it has one."""
+        unsub = self._hold_timers.pop(tid, None)
+        if unsub is not None:
+            unsub()
+
+    @callback
+    def _schedule_hold(self, tid: str, due_at: datetime | None) -> None:
+        """Keep exactly one pending hold timer for *tid*.
+
+        *due_at* is what the pure evaluator decided (``None`` = nothing is pending).
+        The prior timer is always released first, so a task can never hold two: a
+        state change that re-evaluates the task replaces its timer, and a task that
+        armed, recovered or lost its hold simply has it cancelled.
+        """
+        self._cancel_hold_timer(tid)
+        if due_at is None:
+            return
+        self._hold_timers[tid] = async_track_point_in_time(
+            self._hass, partial(self._handle_hold_due, tid), due_at
+        )
+
+    @callback
+    def _handle_hold_due(self, tid: str, _now: datetime) -> None:
+        """A hold is up: run the same evaluation a state change would run.
+
+        The whole pass runs, not just this task, so the arm, the notes refresh and the
+        events are the ones every other path produces. A task deleted in the meantime
+        is simply not in the pass.
+        """
+        self._hold_timers.pop(tid, None)  # it has fired; there is nothing to cancel
+        self._hass.async_create_task(self.async_evaluate(refresh=True))
 
     @callback
     def _resubscribe_state(self) -> None:
@@ -354,12 +420,16 @@ class SensorTaskWatcher:
                     continue  # unavailable / non-numeric — never arm on bad data
                 if await self._evaluate_threshold(tid, task, reading=reading, now=now):
                     changed_any = True
-        # Drop edge state for tasks that no longer exist so it can't leak.
+        # Drop edge state for tasks that no longer exist so it can't leak. A task that
+        # went away (deleted, disabled, or no longer a sensor task) takes its pending
+        # hold timer with it.
         live = set(self._sensor_tasks())
         for stale in [tid for tid in self._edge if tid not in live]:
             del self._edge[stale]
         for stale in [tid for tid in self._usage_reset if tid not in live]:
             del self._usage_reset[stale]
+        for stale in [tid for tid in self._hold_timers if tid not in live]:
+            self._cancel_hold_timer(stale)
         if changed_any and refresh:
             await self._coordinator.async_request_refresh()
 
@@ -456,11 +526,17 @@ class SensorTaskWatcher:
         Returns whether the task's due-state changed. A ``clear_on_recover`` clear
         counts as much as an arming: the task drops off the overdue surfaces, and that
         should show up immediately rather than at the next periodic tick.
+
+        The decision also says when a pending ``for_seconds`` hold completes, which is
+        the moment this task must be evaluated again. While the bound entity stays
+        quiet, only the five-minute coordinator tick would do it, and it would arm the
+        task as much as five minutes late.
         """
         self._edge[tid] = {
             "condition_met": decision["condition_met"],
             "crossed_at": decision["crossed_at"],
         }
+        self._schedule_hold(tid, decision["hold_due_at"])
         action = decision["action"]
         if action == sensor_tasks.ACTION_ARM:
             await self._async_arm(tid)

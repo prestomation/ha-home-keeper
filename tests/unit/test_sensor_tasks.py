@@ -299,7 +299,12 @@ def test_threshold_clears_edge_when_recovers():
     out = s.evaluate_threshold(
         task, reading=70, condition_met_prev=True, crossed_at=now, now=now
     )
-    assert out == {"action": None, "condition_met": False, "crossed_at": None}
+    assert out == {
+        "action": None,
+        "condition_met": False,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
 
 
 def test_threshold_armed_stays_armed_no_action():
@@ -391,7 +396,12 @@ def test_state_non_matching_state_clears_the_edge():
     out = s.evaluate_state(
         task, state="off", condition_met_prev=True, crossed_at=now, now=now
     )
-    assert out == {"action": None, "condition_met": False, "crossed_at": None}
+    assert out == {
+        "action": None,
+        "condition_met": False,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
 
 
 def test_state_matches_any_state_string_not_just_on_off():
@@ -467,7 +477,13 @@ def test_state_none_holds_the_edge_and_decides_nothing():
         crossed_at=cross,
         now=cross + timedelta(minutes=2),
     )
-    assert out == {"action": None, "condition_met": True, "crossed_at": cross}
+    assert out == {
+        "action": None,
+        "condition_met": True,
+        "crossed_at": cross,
+        # The hold is still pending, so the booked re-evaluation survives the dropout.
+        "hold_due_at": cross + timedelta(minutes=10),
+    }
 
 
 def test_state_none_never_arms_a_dormant_task():
@@ -637,6 +653,29 @@ def test_availability_missing_status_is_indeterminate():
         "action": None,
         "condition_met": True,
         "crossed_at": prior_cross,
+        # The task is armed already, so no hold waits on a re-evaluation.
+        "hold_due_at": None,
+    }
+
+
+def test_availability_missing_keeps_a_pending_hold():
+    # The entity left the state machine part-way through the hold. That decides
+    # nothing, so the booked re-evaluation stands: the entity may come back, and the
+    # hold still ends when it ends.
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    task = _availability(for_seconds=600)
+    out = s.evaluate_availability(
+        task,
+        status=s.AVAILABILITY_MISSING,
+        condition_met_prev=True,
+        crossed_at=cross,
+        now=cross + timedelta(minutes=2),
+    )
+    assert out == {
+        "action": None,
+        "condition_met": True,
+        "crossed_at": cross,
+        "hold_due_at": cross + timedelta(minutes=10),
     }
 
 
@@ -650,7 +689,105 @@ def test_availability_dormant_missing_never_arms():
         crossed_at=None,
         now=now,
     )
-    assert out == {"action": None, "condition_met": False, "crossed_at": None}
+    assert out == {
+        "action": None,
+        "condition_met": False,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+
+
+# ── the hold's own timer (a hold ends while the entity is quiet) ─────────────
+
+
+def test_hold_due_at_reports_the_moment_a_pending_hold_completes():
+    # The watcher books a re-evaluation for this moment. Without it a hold only ran
+    # out when the entity happened to send another state change.
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    task = _threshold(">", 90, for_seconds=300)
+    assert s.hold_due_at(task, crossed_at=cross, now=cross) == cross + timedelta(
+        seconds=300
+    )
+    # Still pending one second before it is due.
+    late = cross + timedelta(seconds=299)
+    assert s.hold_due_at(task, crossed_at=cross, now=late) == cross + timedelta(
+        seconds=300
+    )
+
+
+def test_hold_due_at_is_none_for_a_hold_that_is_already_due():
+    # Exactly due counts as due: the same evaluation arms the task, so a timer for a
+    # moment that has arrived would only re-book itself.
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    task = _threshold(">", 90, for_seconds=300)
+    due = cross + timedelta(seconds=300)
+    assert s.hold_due_at(task, crossed_at=cross, now=due) is None
+    assert s.hold_due_at(task, crossed_at=cross, now=due + timedelta(hours=2)) is None
+
+
+def test_hold_due_at_is_none_without_a_hold_or_a_crossing():
+    now = dt(2026, 6, 1, 10, 0, 0)
+    # A mode with no hold: the crossing arms the task at once, so nothing waits.
+    assert s.hold_due_at(_state("on"), crossed_at=now, now=now) is None
+    assert s.hold_due_at(_threshold(">", 90), crossed_at=now, now=now) is None
+    # No crossing to hold, and no sensor binding at all.
+    task = _state("on", for_seconds=300)
+    assert s.hold_due_at(task, crossed_at=None, now=now) is None
+    assert (
+        s.hold_due_at({"recurrence_type": "floating"}, crossed_at=now, now=now) is None
+    )
+
+
+def test_hold_due_at_is_none_for_an_armed_task():
+    # An armed task cannot arm again on this crossing, so it needs no timer.
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    task = _state("on", for_seconds=300, armed=True)
+    assert s.hold_due_at(task, crossed_at=cross, now=cross) is None
+
+
+def test_a_pending_hold_rides_on_the_edge_decision():
+    # Each mode reports the hold on its own decision, which is what the watcher books.
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    due = cross + timedelta(seconds=300)
+    out = s.evaluate_threshold(
+        _threshold(">", 90, for_seconds=300),
+        reading=95,
+        condition_met_prev=False,
+        crossed_at=None,
+        now=cross,
+    )
+    assert out["action"] is None and out["hold_due_at"] == due
+    out = s.evaluate_state(
+        _state("on", for_seconds=300),
+        state="on",
+        condition_met_prev=False,
+        crossed_at=None,
+        now=cross,
+    )
+    assert out["action"] is None and out["hold_due_at"] == due
+    out = s.evaluate_availability(
+        _availability(for_seconds=300),
+        status=s.AVAILABILITY_UNAVAILABLE,
+        condition_met_prev=False,
+        crossed_at=None,
+        now=cross,
+    )
+    assert out["action"] is None and out["hold_due_at"] == due
+
+
+def test_arming_leaves_no_hold_to_wait_for():
+    # The arm consumes the crossing, so the booked re-evaluation is dropped with it.
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    out = s.evaluate_availability(
+        _availability(for_seconds=300),
+        status=s.AVAILABILITY_UNAVAILABLE,
+        condition_met_prev=True,
+        crossed_at=cross,
+        now=cross + timedelta(seconds=300),
+    )
+    assert out["action"] == "arm"
+    assert out["crossed_at"] is None
+    assert out["hold_due_at"] is None
 
 
 # ── baseline_after_delete (undoing a usage completion) ───────────────────────

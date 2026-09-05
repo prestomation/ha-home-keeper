@@ -16,6 +16,13 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   Keeper opens one task per matching entity after a live preview of the matches.
   (Fixes #231) (Fixes #230)
 
+### Fixed
+
+- **A task with a hold now falls due the moment the hold ends.** The hold used to
+  complete at the next reading from the watched entity or at the five-minute
+  refresh. An entity that goes offline sends no more readings, which is the case
+  an availability task waits for.
+
 ## [0.21.0b1]
 
 ### Added
