@@ -127,6 +127,7 @@
   "declarative.companions.preview_loading": "Vorschau wird geladen…",
   "declarative.companions.preview_many": "{count} Entitäten passen — das sind viele Aufgaben. Die Auswahl einschränken.",
   "declarative.companions.preview_over_cap": "Zu viele Treffer (über der Grenze von 500 Aufgaben). Die Auswahl vor dem Speichern einschränken.",
+  "declarative.companions.preview_overlap": "„{name}“ deckt bereits {count} dieser Entitäten ab, daher die Auswahl einschränken, um doppelte Aufgaben zu vermeiden.",
   "declarative.companions.preview_summary": "{shown} von {total} Treffern angezeigt",
   "declarative.companions.requires_integration": "Erfordert die Integration {integration}",
   "declarative.companions.section_identity": "Identität",

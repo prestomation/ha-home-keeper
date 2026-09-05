@@ -135,6 +135,7 @@
   "declarative.companions.preview_loading": "Загрузка предпросмотра…",
   "declarative.companions.preview_many": "{count} сущностей соответствуют — это много задач. Рассмотрите сужение выбора.",
   "declarative.companions.preview_over_cap": "Слишком много совпадений (свыше лимита в 500 задач). Сузьте выбор перед сохранением.",
+  "declarative.companions.preview_overlap": "«{name}» уже охватывает {count} из этих сущностей, поэтому сузьте выбор, чтобы избежать дублирующих задач.",
   "declarative.companions.preview_summary": "Показано {shown} из {total} совпадений",
   "declarative.companions.requires_integration": "Требуется интеграция {integration}",
   "declarative.companions.section_identity": "Идентификация",

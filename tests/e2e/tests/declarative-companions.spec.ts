@@ -17,6 +17,10 @@ import {
  * exactly one entity and the preview and the task count are both knowable. Device
  * Pulse is *not* installed there, so its preset card is the disabled case.
  *
+ * Two recipes can also select the same entity, and each one makes its own task for it.
+ * The overlap test seeds one recipe, then opens the Add dialog on the same entity. The
+ * preview must say which recipe already covers that entity.
+ *
  * The last test is the regression for issues #230 / #231: a trigger carries different
  * keys per mode and the backend **rejects** the ones that belong to another mode, so
  * switching the Trigger mode dropdown has to drop them. A recipe seeded from Device
@@ -26,6 +30,19 @@ import {
 
 /** The one entity the Low battery preset matches in the e2e container. */
 const DEMO_BATTERY = 'binary_sensor.hk_demo_remote_battery';
+
+/**
+ * The entity the overlap test points both of its recipes at.
+ *
+ * A moisture sensor, deliberately: the container is a working store that can hold
+ * recipes somebody added by hand, and those watch the usual maintenance entities
+ * (batteries, firmware updates, consumables). The warning names the recipe with the
+ * most overlap, so a second recipe over the same entity would make which name appears
+ * a question of order.
+ */
+const DEMO_MOISTURE = 'binary_sensor.hk_demo_water_tank_low';
+/** `entity_regex` is a fullmatch, so the escaped entity id selects that entity alone. */
+const MOISTURE_REGEX = DEMO_MOISTURE.replace('.', '\\.');
 
 /** Every stored spec, over the service API. */
 async function listSpecs(): Promise<Array<Record<string, any>>> {
@@ -243,6 +260,57 @@ test.describe('Home Keeper panel — declarative companions', () => {
         { timeout: 30_000 },
       )
       .toBe(0);
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('the preview warns when another recipe already covers the matches', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    // The recipe that gets there first, seeded over the service. Every entity it
+    // covers already has one of its tasks, so a second recipe over the same entity
+    // makes a second, identical task.
+    const created = await callService(
+      'home_keeper',
+      'add_declarative_companion',
+      {
+        name: 'E2E overlap probe',
+        selection: { domain: 'binary_sensor', entity_regex: MOISTURE_REGEX },
+        trigger: { mode: 'state', state: 'on', clear_on_recover: true },
+        task_template: { name_template: 'E2E overlap probe: {{ device_name or friendly_name }}' },
+      },
+      true,
+    );
+    const specId = created.companion.id as string;
+    const probeTasks = async (): Promise<number> =>
+      (await listTasks()).filter((t) => t.source?.declarative_companion?.spec_id === specId).length;
+    await expect.poll(probeTasks, { timeout: 30_000 }).toBe(1);
+
+    const panel = await openDeclarativeSection(page);
+    await panel.locator('.hk-decl-add').click();
+    const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+    await expectDialogOpen(dialog, '[data-decl-section="identity"]');
+    await fillSection(dialog, 'identity', 0, 'E2E overlap duplicate');
+    await fillSection(dialog, 'selection', 1, MOISTURE_REGEX);
+
+    // The warning is computed in the panel from the tasks and the recipes it already
+    // holds, so it lands with the preview rather than after a second round trip.
+    const overlap = dialog.locator('.hk-decl-preview-overlap');
+    await expect(overlap).toHaveCount(1, { timeout: 20_000 });
+    await expect(overlap).toHaveText(
+      '“E2E overlap probe” already covers 1 of these entities, so narrow the selection ' +
+        'to prevent duplicate tasks.',
+    );
+
+    // A recipe does not overlap itself: the tasks it already made are the tasks the
+    // save rebuilds. Editing the probe therefore previews without the warning.
+    await dialog.locator('.hk-decl-cancel').click();
+    await expect(dialog).toHaveCount(0);
+    await panel.locator(`.hk-decl-row[data-spec-id="${specId}"] .hk-decl-edit`).click();
+    await expectDialogOpen(dialog, '[data-decl-section="identity"]');
+    await expect(dialog.locator('.hk-decl-preview-header')).toHaveText('Showing 1 of 1 matches', {
+      timeout: 20_000,
+    });
+    await expect(dialog.locator('.hk-decl-preview-overlap')).toHaveCount(0);
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });

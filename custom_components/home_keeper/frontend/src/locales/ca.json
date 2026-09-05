@@ -131,6 +131,7 @@
   "declarative.companions.preview_loading": "Carregant vista prèvia…",
   "declarative.companions.preview_many": "{count} entitats coincideixen — són moltes tasques. Considera reduir la selecció.",
   "declarative.companions.preview_over_cap": "Massa coincidències (més de 500 tasques). Redueix la selecció abans de desar.",
+  "declarative.companions.preview_overlap": "«{name}» ja cobreix {count} d’aquestes entitats, així que redueix la selecció per evitar tasques duplicades.",
   "declarative.companions.preview_summary": "Mostrant {shown} de {total} coincidències",
   "declarative.companions.requires_integration": "Requereix la integració {integration}",
   "declarative.companions.section_identity": "Identitat",

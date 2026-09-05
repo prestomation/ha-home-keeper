@@ -135,6 +135,7 @@
   "declarative.companions.preview_loading": "Ładowanie podglądu…",
   "declarative.companions.preview_many": "{count} encji pasuje — to dużo zadań. Rozważ zawężenie wyboru.",
   "declarative.companions.preview_over_cap": "Zbyt wiele dopasowań (powyżej limitu 500 zadań). Zawęź wybór przed zapisaniem.",
+  "declarative.companions.preview_overlap": "„{name}” już obejmuje {count} z tych encji, więc zawęź wybór, aby uniknąć zduplikowanych zadań.",
   "declarative.companions.preview_summary": "Pokazano {shown} z {total} dopasowań",
   "declarative.companions.requires_integration": "Wymaga integracji {integration}",
   "declarative.companions.section_identity": "Tożsamość",

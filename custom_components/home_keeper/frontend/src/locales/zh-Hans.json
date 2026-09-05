@@ -127,6 +127,7 @@
   "declarative.companions.preview_loading": "正在加载预览…",
   "declarative.companions.preview_many": "{count} 个实体匹配 — 任务数量较多，请考虑缩小选择范围。",
   "declarative.companions.preview_over_cap": "匹配过多（超过 500 个任务的上限）。请在保存前缩小选择范围。",
+  "declarative.companions.preview_overlap": "“{name}”已覆盖其中 {count} 个实体，请缩小选择范围以避免重复任务。",
   "declarative.companions.preview_summary": "显示 {total} 个匹配中的 {shown} 个",
   "declarative.companions.requires_integration": "需要 {integration} 集成",
   "declarative.companions.section_identity": "身份",

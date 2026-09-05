@@ -127,6 +127,7 @@
   "declarative.companions.preview_loading": "Loading preview…",
   "declarative.companions.preview_many": "{count} entities match. That is a lot of tasks. Consider narrowing the selection.",
   "declarative.companions.preview_over_cap": "Too many matches (over the 500-task cap). Narrow the selection before saving.",
+  "declarative.companions.preview_overlap": "“{name}” already covers {count} of these entities, so narrow the selection to prevent duplicate tasks.",
   "declarative.companions.preview_summary": "Showing {shown} of {total} matches",
   "declarative.companions.requires_integration": "Requires the {integration} integration",
   "declarative.companions.section_identity": "Identity",

@@ -131,6 +131,7 @@
   "declarative.companions.preview_loading": "Cargando vista previa…",
   "declarative.companions.preview_many": "{count} entidades coinciden — son muchas tareas. Considera reducir la selección.",
   "declarative.companions.preview_over_cap": "Demasiadas coincidencias (más de 500 tareas). Reduce la selección antes de guardar.",
+  "declarative.companions.preview_overlap": "«{name}» ya cubre {count} de estas entidades, así que reduce la selección para evitar tareas duplicadas.",
   "declarative.companions.preview_summary": "Mostrando {shown} de {total} coincidencias",
   "declarative.companions.requires_integration": "Requiere la integración {integration}",
   "declarative.companions.section_identity": "Identidad",

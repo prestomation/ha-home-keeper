@@ -127,6 +127,7 @@
   "declarative.companions.preview_loading": "Voorbeeld laden…",
   "declarative.companions.preview_many": "{count} entiteiten passen — dat zijn veel taken. Beperk de selectie.",
   "declarative.companions.preview_over_cap": "Te veel treffers (meer dan 500 taken). Beperk de selectie voordat je opslaat.",
+  "declarative.companions.preview_overlap": "„{name}“ dekt al {count} van deze entiteiten, beperk dus de selectie om dubbele taken te voorkomen.",
   "declarative.companions.preview_summary": "Toont {shown} van {total} treffers",
   "declarative.companions.requires_integration": "Vereist de {integration}-integratie",
   "declarative.companions.section_identity": "Identiteit",

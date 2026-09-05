@@ -127,6 +127,7 @@
   "declarative.companions.preview_loading": "Laster forhåndsvisning…",
   "declarative.companions.preview_many": "{count} entiteter matcher — det er mange oppgaver. Vurder å snevre inn valget.",
   "declarative.companions.preview_over_cap": "For mange treff (over grensen på 500 oppgaver). Snevr inn valget før du lagrer.",
+  "declarative.companions.preview_overlap": "«{name}» dekker allerede {count} av disse entitetene, så snevr inn valget for å unngå doble oppgaver.",
   "declarative.companions.preview_summary": "Viser {shown} av {total} treff",
   "declarative.companions.requires_integration": "Krever integrasjonen {integration}",
   "declarative.companions.section_identity": "Identitet",

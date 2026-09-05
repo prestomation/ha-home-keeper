@@ -127,6 +127,7 @@
   "declarative.companions.preview_loading": "Indlæser forhåndsvisning…",
   "declarative.companions.preview_many": "{count} entiteter matcher — det er mange opgaver. Overvej at indsnævre valget.",
   "declarative.companions.preview_over_cap": "For mange matches (over grænsen på 500 opgaver). Indsnævr valget, før du gemmer.",
+  "declarative.companions.preview_overlap": "»{name}« dækker allerede {count} af disse entiteter, så indsnævr valget for at undgå dublerede opgaver.",
   "declarative.companions.preview_summary": "Viser {shown} af {total} matches",
   "declarative.companions.requires_integration": "Kræver integrationen {integration}",
   "declarative.companions.section_identity": "Identitet",

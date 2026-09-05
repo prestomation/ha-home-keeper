@@ -127,6 +127,7 @@
   "declarative.companions.preview_loading": "Ladataan esikatselua…",
   "declarative.companions.preview_many": "{count} entiteettiä vastaa — se on paljon tehtäviä. Harkitse valinnan kaventamista.",
   "declarative.companions.preview_over_cap": "Liikaa osumia (yli 500 tehtävän raja). Kaventa valintaa ennen tallennusta.",
+  "declarative.companions.preview_overlap": "”{name}” kattaa jo {count} näistä entiteeteistä, joten kavenna valintaa päällekkäisten tehtävien välttämiseksi.",
   "declarative.companions.preview_summary": "Näytetään {shown}/{total} osumaa",
   "declarative.companions.requires_integration": "Edellyttää integraatiota {integration}",
   "declarative.companions.section_identity": "Tiedot",

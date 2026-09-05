@@ -135,6 +135,7 @@
   "declarative.companions.preview_loading": "Načítání náhledu…",
   "declarative.companions.preview_many": "{count} entit odpovídá — to je hodně úloh. Zvažte zúžení výběru.",
   "declarative.companions.preview_over_cap": "Příliš mnoho shod (přes limit 500 úloh). Před uložením zúžte výběr.",
+  "declarative.companions.preview_overlap": "„{name}“ už pokrývá {count} z těchto entit, proto zužte výběr, abyste zabránili duplicitním úlohám.",
   "declarative.companions.preview_summary": "Zobrazeno {shown} z {total} shod",
   "declarative.companions.requires_integration": "Vyžaduje integraci {integration}",
   "declarative.companions.section_identity": "Identita",

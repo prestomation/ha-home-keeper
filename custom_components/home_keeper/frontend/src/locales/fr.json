@@ -131,6 +131,7 @@
   "declarative.companions.preview_loading": "Chargement de l'aperçu…",
   "declarative.companions.preview_many": "{count} entités correspondent — cela fait beaucoup de tâches. Envisagez de réduire la sélection.",
   "declarative.companions.preview_over_cap": "Trop de correspondances (plus de 500 tâches). Réduisez la sélection avant d'enregistrer.",
+  "declarative.companions.preview_overlap": "« {name} » couvre déjà {count} de ces entités, réduisez donc la sélection pour éviter des tâches en double.",
   "declarative.companions.preview_summary": "{shown} sur {total} correspondances affichées",
   "declarative.companions.requires_integration": "Nécessite l'intégration {integration}",
   "declarative.companions.section_identity": "Identité",

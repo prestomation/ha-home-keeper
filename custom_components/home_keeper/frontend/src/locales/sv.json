@@ -127,6 +127,7 @@
   "declarative.companions.preview_loading": "Laddar förhandsgranskning…",
   "declarative.companions.preview_many": "{count} entiteter matchar — det är många uppgifter. Överväg att smalna av urvalet.",
   "declarative.companions.preview_over_cap": "För många träffar (över gränsen på 500 uppgifter). Smalna av urvalet innan du sparar.",
+  "declarative.companions.preview_overlap": "”{name}” täcker redan {count} av dessa entiteter, så smalna av urvalet för att undvika dubbla uppgifter.",
   "declarative.companions.preview_summary": "Visar {shown} av {total} träffar",
   "declarative.companions.requires_integration": "Kräver integrationen {integration}",
   "declarative.companions.section_identity": "Identitet",

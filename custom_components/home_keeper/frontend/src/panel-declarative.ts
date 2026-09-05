@@ -9,7 +9,10 @@
  * - the preset picker: one card per bundled recipe, disabled when the integration it
  *   needs has no config entry;
  * - the add/edit dialog: four `ha-form`s (identity, selection, trigger, template) over
- *   one draft, and beneath them a live preview of what the recipe would match.
+ *   one draft, and beneath them a live preview of what the recipe would match. The
+ *   preview also warns when another stored recipe already covers those entities.
+ *   `declarativeOverlap` works that out from the tasks the panel already holds, so
+ *   the warning costs no extra backend call.
  *
  * Both dialogs are state-driven (`p._declDialog`) and built through `makeDialog`, so
  * they open, title and close the way the completion dialogs do and pick up the next
@@ -128,7 +131,15 @@ export function emptyDeclarativeCompanion(): DeclarativeCompanion {
     // The same rule that rewrites the trigger on a mode change builds the first one,
     // so a blank draft and a switched one can never carry different keys.
     trigger: triggerForMode({}, 'state') as unknown as DeclarativeCompanion['trigger'],
-    task_template: { name_template: '{{ friendly_name }}', notes_template: '', labels: [] },
+    // The same name template every bundled preset uses. `friendly_name` on its own
+    // repeats the device name Home Assistant already prefixes, so a hand-written
+    // recipe produced "Replace Roborock S7 Main brush time left" and the entity id
+    // `sensor.roborock_s7_replace_roborock_s7_main_brush_time_left_next_due`.
+    task_template: {
+      name_template: '{{ device_name or friendly_name }}',
+      notes_template: '',
+      labels: [],
+    },
     per_entity_overrides: {},
   };
 }
@@ -140,6 +151,57 @@ export function declarativeSpecId(task: Task): string | undefined {
     | null
     | undefined;
   return source?.declarative_companion?.spec_id;
+}
+
+/** What `declarativeOverlap` found: the recipe that already covers the most of the
+ *  draft's matches, and how many of those matches it covers. */
+export interface DeclarativeOverlap {
+  /** The other recipe's name, or its id when the recipe is no longer stored. */
+  name: string;
+  /** How many of the entities in *matched* that recipe already has a task for. */
+  count: number;
+}
+
+/**
+ * The recipe that already covers part of *matched*, or null when none does.
+ *
+ * Two recipes that select the same entity each materialize their own task for it, so
+ * the user gets two identical tasks and the task list says nothing about why. The
+ * check runs in the panel: a materialized task carries its recipe id in
+ * `source.declarative_companion.spec_id` and the entity it watches in
+ * `sensor.entity_id`, and the panel already holds every task and every stored recipe.
+ *
+ * *draftId* is the recipe under edit and is skipped. Its tasks are the tasks the draft
+ * rebuilds, not an overlap with another recipe.
+ *
+ * *matched* is the preview sample, so the count is a count of the matches on screen.
+ * The warning names one recipe, so only the recipe with the most overlap is returned.
+ * If two recipes cover the same number, the first one found in *tasks* wins.
+ */
+export function declarativeOverlap(
+  matched: readonly { entity_id: string }[],
+  tasks: readonly Task[],
+  specs: readonly DeclarativeCompanion[],
+  draftId: string,
+): DeclarativeOverlap | null {
+  const wanted = new Set(matched.map((m) => m.entity_id));
+  if (!wanted.size) return null;
+  const covered = new Map<string, Set<string>>();
+  for (const task of tasks) {
+    const specId = declarativeSpecId(task);
+    if (!specId || specId === draftId) continue;
+    const entityId = task.sensor?.entity_id;
+    if (!entityId || !wanted.has(entityId)) continue;
+    const seen = covered.get(specId) ?? new Set<string>();
+    seen.add(entityId);
+    covered.set(specId, seen);
+  }
+  let best: DeclarativeOverlap | null = null;
+  for (const [specId, seen] of covered) {
+    if (best && seen.size <= best.count) continue;
+    best = { name: specs.find((s) => s.id === specId)?.name || specId, count: seen.size };
+  }
+  return best;
 }
 
 function errorMessage(err: unknown): string {
@@ -608,18 +670,41 @@ async function refreshPreview(
   // and the new dialog schedules its own.
   if (!p._hass || !host.isConnected) return;
   try {
-    host.innerHTML = previewHtml(await api.previewDeclarativeCompanion(p._hass, draft));
+    const result = await api.previewDeclarativeCompanion(p._hass, draft);
+    // The overlap is computed from what the panel already holds, so the preview
+    // needs no second round trip to report it.
+    const overlap = declarativeOverlap(
+      result.matched,
+      p._tasks,
+      p._declarativeCompanions,
+      draft.id,
+    );
+    host.innerHTML = previewHtml(result, overlap);
   } catch (err) {
     host.innerHTML = `<ha-alert alert-type="error">${escapeHTML(errorMessage(err))}</ha-alert>`;
   }
 }
 
-/** The preview's HTML: the count line, a warning when it is a lot, and the sample. */
-function previewHtml(result: DeclarativeCompanionPreviewResult): string {
+/** The preview's HTML: the count line, the warnings, and the sample. */
+function previewHtml(
+  result: DeclarativeCompanionPreviewResult,
+  overlap: DeclarativeOverlap | null,
+): string {
   if (result.over_cap) {
     return `<ha-alert alert-type="error">${escapeHTML(t('declarative.companions.preview_over_cap'))}</ha-alert>`;
   }
   const count = result.count ?? 0;
+  // A `warning`, the same type as the count warning below it. A second recipe over
+  // the same entities makes a duplicate task for each one. That is a result to
+  // prevent, not a fact to read.
+  const duplicate = overlap
+    ? `<ha-alert alert-type="warning" class="hk-decl-preview-overlap">${escapeHTML(
+        t('declarative.companions.preview_overlap', {
+          name: overlap.name,
+          count: String(overlap.count),
+        }),
+      )}</ha-alert>`
+    : '';
   const warning =
     count > MATCH_WARN
       ? `<ha-alert alert-type="warning">${escapeHTML(
@@ -643,6 +728,7 @@ function previewHtml(result: DeclarativeCompanionPreviewResult): string {
   );
   return `
       <div class="hk-decl-preview-header">${summary}</div>
+      ${duplicate}
       ${warning}
       ${rows || `<div class="hk-decl-preview-empty">${escapeHTML(t('declarative.companions.preview_empty'))}</div>`}`;
 }

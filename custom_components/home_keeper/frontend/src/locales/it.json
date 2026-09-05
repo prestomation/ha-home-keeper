@@ -131,6 +131,7 @@
   "declarative.companions.preview_loading": "Caricamento anteprima…",
   "declarative.companions.preview_many": "{count} entità corrispondono — sono molte attività. Considera di restringere la selezione.",
   "declarative.companions.preview_over_cap": "Troppe corrispondenze (oltre il limite di 500 attività). Restringi la selezione prima di salvare.",
+  "declarative.companions.preview_overlap": "«{name}» copre già {count} di queste entità, quindi restringi la selezione per evitare attività duplicate.",
   "declarative.companions.preview_summary": "Mostrando {shown} di {total} corrispondenze",
   "declarative.companions.requires_integration": "Richiede l'integrazione {integration}",
   "declarative.companions.section_identity": "Identità",
