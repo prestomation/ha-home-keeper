@@ -12,6 +12,7 @@ import {
 } from './card-filter';
 import {
   buildTaskPayload,
+  seasonFieldLabelKey,
   selArea,
   selBool,
   selDevice,
@@ -20,6 +21,7 @@ import {
   selSelect,
   selText,
   taskFormData,
+  taskFormSchemaKey,
   taskSchema,
   type FormField,
   type HaFormElement,
@@ -927,17 +929,23 @@ export class HomeKeeperCard extends HTMLElement {
     form.hass = this._hass;
     form.schema = taskSchema(task) as unknown[];
     form.data = taskFormData(task);
-    form.computeLabel = (s: { name: string }): string => (s.name ? t('field.' + s.name) : '');
+    // Season windows repeat one control, so every window reads one set of labels.
+    form.computeLabel = (s: { name: string }): string =>
+      s.name ? t('field.' + seasonFieldLabelKey(s.name)) : '';
     form.addEventListener('value-changed', (e: Event) => {
       const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
-      const prevType = this._edit.task?.recurrence_type;
+      // Which fields the form shows, before this edit. The recurrence type is not the
+      // only answer that reveals fields — the time backstop and the active-season
+      // switch do too — so the whole visible-schema key decides whether to re-render,
+      // the same way the panel's form does it.
+      const prevSchemaKey = taskFormSchemaKey(this._edit.task ?? {});
       this._edit.task = {
         ...this._edit.task,
         ...value,
         interval: Number(value.interval) || 1,
       } as Partial<Task>;
       this._edit.error = undefined;
-      if (value.recurrence_type !== prevType) this._render();
+      if (taskFormSchemaKey(this._edit.task) !== prevSchemaKey) this._render();
     });
     this._liveHassEls.push(form);
     wrap.appendChild(form);

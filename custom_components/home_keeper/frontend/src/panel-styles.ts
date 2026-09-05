@@ -332,6 +332,28 @@ export const STYLES = `
   /* A heading between two runs of fields. ha-form renders its own rows and has no
      slot between them, so each section is its own form and these sit in the gaps. */
   .hk-form-section { margin: 20px 0 6px; }
+  /* One active-season window: its number on the left, Remove on the right, and
+     Add another season under the last one — a list the user edits, so the heading
+     row carries the controls that change its length. */
+  /* Each window is boxed so its Remove is visibly its own: with several windows in
+     a row, an unboxed Remove reads as "remove a season" rather than "remove this
+     one". */
+  .hk-season-window {
+    border: 1px solid var(--divider-color, #e0e0e0);
+    border-radius: var(--hk-r-md, 12px);
+    padding: 4px 12px 12px;
+    margin: 10px 0;
+  }
+  .hk-season-window .hk-form-section:first-child { margin-top: 8px; }
+  .hk-season-switch { display: block; margin-top: 14px; }
+  .hk-season-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .hk-season-head ha-button {
+    --ha-button-height: 28px;
+    --mdc-typography-button-font-size: 0.75rem;
+  }
+  .hk-season-add { margin-top: 6px; --mdc-typography-button-font-size: 0.8rem; }
   .hk-form-section:first-child { margin-top: 4px; }
   #hk-task-form .hk-indent { margin: 8px 0 4px; }
   #hk-task-form ha-form { display: block; }

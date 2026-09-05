@@ -505,6 +505,36 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   await shotWithDrawer(page, `${OUT}/3-panel-create-fixed.png`);
 
+  // 3b. Active season on the floating task form — the season holds a repeating task
+  // to the part of the year it belongs in. Switch back to floating, turn the season
+  // on, then add a second window so the shot shows the list a task can carry rather
+  // than a single date range.
+  await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /after each completion/i);
+  const seasonSwitch = panel
+    .locator('#hk-task-form-season ha-switch')
+    .first();
+  if (!(await seasonSwitch.evaluate((el: HTMLInputElement) => el.checked))) {
+    await seasonSwitch.click();
+  }
+  await expect(panel.locator('#hk-task-form-season-1')).toBeVisible();
+  await panel.locator('#hk-season-add').click();
+  await expect(panel.locator('#hk-task-form-season-2')).toBeVisible();
+  // The windows sit near the bottom of a drawer that scrolls inside a 100vh column,
+  // so scroll the first one to the top of the drawer: the shot then frames the season
+  // from its switch down to Add another season, which is what someone editing it sees.
+  await panel
+    .locator('#hk-task-form-season')
+    .evaluate((node: Element) => node.scrollIntoView({ block: 'start' }));
+  await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/3b-panel-create-season.png` });
+
+  // Turn season off for the next shot.
+  if (await seasonSwitch.evaluate((el: HTMLInputElement) => el.checked)) {
+    await seasonSwitch.click();
+  }
+  await expect(panel.locator('#hk-task-form-season-1')).toHaveCount(0);
+
   // 20. Create form switched to a one-off (do-once) task — no cadence, just a single
   // Due date picker. Completing it later sends it to the Completed section.
   await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /Just once/);

@@ -1486,6 +1486,217 @@ def test_a_seeded_fixed_task_derives_its_next_occurrence_from_now():
     assert next_due == datetime(2026, 6, 14, 7, tzinfo=TZ)
 
 
+# ---------------------------------------------------------------------------
+# active_season
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeActiveSeason:
+    def test_valid_non_wrapping(self):
+        result = m.normalize_active_season({"start": "04-01", "end": "09-30"})
+        assert result == [{"start": "04-01", "end": "09-30"}]
+
+    def test_valid_wrapping(self):
+        result = m.normalize_active_season({"start": "11-01", "end": "03-31"})
+        assert result == [{"start": "11-01", "end": "03-31"}]
+
+    def test_rejects_non_dict_non_list(self):
+        with pytest.raises(m.TaskValidationError, match="must be an object or a list"):
+            m.normalize_active_season("bad")
+
+    def test_rejects_missing_start(self):
+        with pytest.raises(m.TaskValidationError, match="requires start and end"):
+            m.normalize_active_season({"end": "09-30"})
+
+    def test_rejects_a_window_that_is_not_an_object(self):
+        # A list of strings is the shape a hand-written automation reaches for
+        # first; it has to be named as the problem rather than raising a TypeError
+        # somewhere further in.
+        with pytest.raises(
+            m.TaskValidationError, match=r"active_season\[0\] must be an object"
+        ):
+            m.normalize_active_season(["04-01"])
+
+    def test_rejects_a_date_that_is_not_mm_dd(self):
+        # A month name, a bare month, and a string of separators: none of them parse
+        # into a month and a day, and each has to say so about the field it is on.
+        for value in ("April", "4", "--"):
+            with pytest.raises(m.TaskValidationError, match="end must be MM-DD"):
+                m.normalize_active_season({"start": "04-01", "end": value})
+
+    def test_rejects_invalid_month(self):
+        with pytest.raises(m.TaskValidationError, match="month must be 1-12"):
+            m.normalize_active_season({"start": "13-01", "end": "09-30"})
+
+    def test_rejects_invalid_day(self):
+        with pytest.raises(m.TaskValidationError, match="day must be 1-29"):
+            m.normalize_active_season({"start": "02-30", "end": "09-30"})
+
+    def test_allows_feb_29_leap_year_basis(self):
+        result = m.normalize_active_season({"start": "02-29", "end": "09-30"})
+        assert result == [{"start": "02-29", "end": "09-30"}]
+
+    def test_list_of_windows(self):
+        result = m.normalize_active_season(
+            [
+                {"start": "04-01", "end": "05-31"},
+                {"start": "09-01", "end": "10-31"},
+            ]
+        )
+        assert result == [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+
+    def test_rejects_empty_list(self):
+        with pytest.raises(m.TaskValidationError, match="list must not be empty"):
+            m.normalize_active_season([])
+
+    def test_rejects_invalid_window_in_list(self):
+        with pytest.raises(m.TaskValidationError, match=r"active_season\[1\]"):
+            m.normalize_active_season(
+                [
+                    {"start": "04-01", "end": "05-31"},
+                    {"start": "13-01", "end": "10-31"},
+                ]
+            )
+
+
+class TestBuildTaskWithSeason:
+    def test_floating_with_season_persists(self):
+        task = m.build_task(
+            {
+                "name": "Fertilize",
+                "recurrence_type": "floating",
+                "interval": 2,
+                "unit": "months",
+                "active_season": {"start": "04-01", "end": "09-30"},
+            },
+            now=NOW,
+        )
+        assert task["active_season"] == [{"start": "04-01", "end": "09-30"}]
+
+    def test_floating_with_season_clamps_next_due(self):
+        task = m.build_task(
+            {
+                "name": "Fertilize",
+                "recurrence_type": "floating",
+                "interval": 2,
+                "unit": "months",
+                "last_completed": datetime(2026, 9, 15, 10, tzinfo=TZ).isoformat(),
+                "active_season": {"start": "04-01", "end": "09-30"},
+            },
+            now=datetime(2026, 9, 15, 10, tzinfo=TZ),
+        )
+        next_due = datetime.fromisoformat(task["next_due"])
+        assert next_due == datetime(2027, 4, 1, 0, 0, tzinfo=TZ)
+
+    def test_triggered_clears_season(self):
+        task = m.build_task(
+            {
+                "name": "Motion",
+                "recurrence_type": "triggered",
+                "active_season": {"start": "04-01", "end": "09-30"},
+            },
+            now=NOW,
+        )
+        assert task["active_season"] is None
+
+    def test_sensor_clears_season(self):
+        task = m.build_task(
+            {
+                "name": "Oil",
+                "recurrence_type": "sensor",
+                "sensor": {
+                    "entity_id": "sensor.oil_life",
+                    "mode": "state",
+                    "state": "on",
+                },
+                "active_season": {"start": "04-01", "end": "09-30"},
+            },
+            now=NOW,
+        )
+        assert task["active_season"] is None
+
+    def test_one_off_clears_season(self):
+        task = m.build_task(
+            {
+                "name": "Once",
+                "recurrence_type": "one-off",
+                "due": NOW.isoformat(),
+                "active_season": {"start": "04-01", "end": "09-30"},
+            },
+            now=NOW,
+        )
+        assert task["active_season"] is None
+
+    def test_multi_window_persists(self):
+        task = m.build_task(
+            {
+                "name": "Lawn care",
+                "recurrence_type": "floating",
+                "interval": 1,
+                "unit": "months",
+                "active_season": [
+                    {"start": "04-01", "end": "05-31"},
+                    {"start": "09-01", "end": "10-31"},
+                ],
+            },
+            now=NOW,
+        )
+        assert task["active_season"] == [
+            {"start": "04-01", "end": "05-31"},
+            {"start": "09-01", "end": "10-31"},
+        ]
+
+
+class TestMergeUpdateSeason:
+    def _floating_task(self):
+        return m.build_task(
+            {
+                "name": "Fertilize",
+                "recurrence_type": "floating",
+                "interval": 2,
+                "unit": "months",
+            },
+            now=NOW,
+        )
+
+    def test_adding_season_triggers_recompute(self):
+        task = self._floating_task()
+        old_due = task["next_due"]
+        merged = m.merge_update(
+            task,
+            {"active_season": {"start": "04-01", "end": "09-30"}},
+            now=NOW,
+        )
+        assert merged["active_season"] == [{"start": "04-01", "end": "09-30"}]
+        assert merged["next_due"] == old_due
+
+    def test_changing_season_triggers_recompute(self):
+        task = self._floating_task()
+        task["active_season"] = [{"start": "04-01", "end": "09-30"}]
+        task["last_completed"] = datetime(2026, 9, 15, 10, tzinfo=TZ).isoformat()
+        task["next_due"] = datetime(2027, 4, 1, 0, 0, tzinfo=TZ).isoformat()
+        now = datetime(2026, 9, 20, 10, tzinfo=TZ)
+        merged = m.merge_update(
+            task,
+            {"active_season": {"start": "05-01", "end": "10-31"}},
+            now=now,
+        )
+        assert merged["active_season"] == [{"start": "05-01", "end": "10-31"}]
+
+    def test_clearing_season(self):
+        task = self._floating_task()
+        task["active_season"] = [{"start": "04-01", "end": "09-30"}]
+        merged = m.merge_update(
+            task,
+            {"active_season": None},
+            now=NOW,
+        )
+        assert merged["active_season"] is None
+
+
 # ── inferring the recurrence type a creation call did not name ───────────────
 # `services.yaml` promises `name` is add_task's only required field, but the old
 # floating default needed a `unit` that has no default, so `{name: ...}` alone

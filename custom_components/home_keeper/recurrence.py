@@ -76,6 +76,94 @@ def add_interval(dt: datetime, interval: int, unit: str) -> datetime:
     raise ValueError(f"unknown unit: {unit!r}")
 
 
+def _parse_mmdd(mmdd: str) -> tuple[int, int]:
+    """Parse ``"MM-DD"`` to ``(month, day)``."""
+    parts = mmdd.split("-")
+    return int(parts[0]), int(parts[1])
+
+
+def _normalize_season(season: dict | list) -> list[dict]:
+    """Coerce *season* to a list of ``{"start": ..., "end": ...}`` windows."""
+    if isinstance(season, dict):
+        return [season]
+    return list(season)
+
+
+def in_season(dt_val: datetime, season: dict | list) -> bool:
+    """True when *dt_val*'s month-day falls inside any active-season window.
+
+    Non-wrapping (e.g. Apr-Sep): ``start <= md <= end``.
+    Wrapping (e.g. Nov-Mar): ``md >= start or md <= end``.
+    """
+    md = (dt_val.month, dt_val.day)
+    for window in _normalize_season(season):
+        s_m, s_d = _parse_mmdd(window["start"])
+        e_m, e_d = _parse_mmdd(window["end"])
+        start = (s_m, s_d)
+        end = (e_m, e_d)
+        if start <= end:
+            if start <= md <= end:
+                return True
+        elif md >= start or md <= end:
+            return True
+    return False
+
+
+def _next_season_start(dt_val: datetime, season: dict | list) -> datetime:
+    """Earliest datetime at any window's start on or after *dt_val*.
+
+    Clamps the day via ``calendar.monthrange`` so a season start like ``"01-31"``
+    landing in February becomes Feb 28/29.
+    """
+    candidates: list[datetime] = []
+    for window in _normalize_season(season):
+        s_m, s_d = _parse_mmdd(window["start"])
+        year = dt_val.year
+        last_day = _calendar.monthrange(year, s_m)[1]
+        day = min(s_d, last_day)
+        candidate = dt_val.replace(
+            month=s_m, day=day, hour=0, minute=0, second=0, microsecond=0
+        )
+        if candidate < dt_val:
+            year += 1
+            last_day = _calendar.monthrange(year, s_m)[1]
+            day = min(s_d, last_day)
+            candidate = dt_val.replace(
+                year=year,
+                month=s_m,
+                day=day,
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+        candidates.append(candidate)
+    return min(candidates)
+
+
+def _clamp_season(next_due: datetime, task: dict) -> datetime:
+    """Push *next_due* to the next season start if it falls outside the season.
+
+    For fixed tasks the result stays grid-aligned: the first fixed occurrence
+    on or after the season start is returned instead of the bare start date.
+    """
+    season = task.get("active_season")
+    if not season:
+        return next_due
+    if in_season(next_due, season):
+        return next_due
+    season_start = _next_season_start(next_due, season)
+    rec_type = task.get("recurrence_type", REC_FLOATING)
+    if rec_type == REC_FIXED:
+        anchor = _parse(task["anchor"])
+        assert anchor is not None
+        after = season_start - timedelta(seconds=1)
+        return next_fixed_occurrence(
+            anchor, task["freq"], int(task["interval"]), after=after
+        )
+    return season_start
+
+
 def compute_floating_next_due(
     last_completed: datetime | None,
     interval: int,
@@ -229,17 +317,23 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
     """Compute next_due for *task* from its current state (no mutation)."""
     rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FLOATING:
-        return compute_floating_next_due(
-            _parse(task.get("last_completed")),
-            int(task["interval"]),
-            task["unit"],
-            now=now,
+        return _clamp_season(
+            compute_floating_next_due(
+                _parse(task.get("last_completed")),
+                int(task["interval"]),
+                task["unit"],
+                now=now,
+            ),
+            task,
         )
     if rec_type == REC_FIXED:
         anchor = _parse(task["anchor"])
         assert anchor is not None
-        return next_fixed_occurrence(
-            anchor, task["freq"], int(task["interval"]), after=now
+        return _clamp_season(
+            next_fixed_occurrence(
+                anchor, task["freq"], int(task["interval"]), after=now
+            ),
+            task,
         )
     if rec_type in (REC_TRIGGERED, REC_SENSOR):
         # A condition/sensor-driven task has no schedule: computing a due date means
@@ -313,14 +407,20 @@ def apply_completion(
 
     rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FLOATING:
-        task["next_due"] = compute_floating_next_due(
-            completed_at, int(task["interval"]), task["unit"], now=now
+        task["next_due"] = _clamp_season(
+            compute_floating_next_due(
+                completed_at, int(task["interval"]), task["unit"], now=now
+            ),
+            task,
         ).isoformat()
     elif rec_type == REC_FIXED:
         anchor = _parse(task["anchor"])
         assert anchor is not None
-        task["next_due"] = next_fixed_occurrence(
-            anchor, task["freq"], int(task["interval"]), after=now
+        task["next_due"] = _clamp_season(
+            next_fixed_occurrence(
+                anchor, task["freq"], int(task["interval"]), after=now
+            ),
+            task,
         ).isoformat()
     elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR):
         # A one-off is permanently complete; a triggered task clears its condition; a
@@ -357,16 +457,19 @@ def skip_occurrence(task: dict, *, now: datetime) -> dict:
     """
     rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FLOATING:
-        task["next_due"] = add_interval(
-            now, int(task["interval"]), task["unit"]
+        task["next_due"] = _clamp_season(
+            add_interval(now, int(task["interval"]), task["unit"]), task
         ).isoformat()
     elif rec_type == REC_FIXED:
         anchor = _parse(task["anchor"])
         assert anchor is not None
         current = _parse(task.get("next_due"))
         after = max(now, current) if current is not None else now
-        task["next_due"] = next_fixed_occurrence(
-            anchor, task["freq"], int(task["interval"]), after=after
+        task["next_due"] = _clamp_season(
+            next_fixed_occurrence(
+                anchor, task["freq"], int(task["interval"]), after=after
+            ),
+            task,
         ).isoformat()
     elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR):
         task["next_due"] = None

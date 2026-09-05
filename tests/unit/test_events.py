@@ -38,6 +38,7 @@ def test_payload_has_contract_fields():
         "managed_by": None,
         "task_chips": [],
         "tag_id": None,
+        "active_season": None,
         "completed_at": WHEN.isoformat(),
         "origin": "pawsistant",
     }

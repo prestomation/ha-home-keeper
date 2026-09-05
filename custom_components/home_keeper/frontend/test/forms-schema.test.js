@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  MAX_SEASON_WINDOWS,
   assetIdentitySchema,
   companionOptions,
   profileSchema,
@@ -61,6 +62,23 @@ describe('taskSchemaSections is exactly taskSchema, grouped', () => {
     ['sensor / threshold', { recurrence_type: 'sensor', sensor_mode: 'threshold' }],
     ['sensor / state', { recurrence_type: 'sensor', sensor_mode: 'state' }],
     ['a saved task (no last_completed seed)', { id: 't1', recurrence_type: 'floating' }],
+    ['floating with one season window', {
+      recurrence_type: 'floating',
+      active_season: [{ start: '04-01', end: '09-30' }],
+    }],
+    ['fixed with three season windows', {
+      recurrence_type: 'fixed',
+      active_season: [
+        { start: '03-01', end: '05-31' },
+        { start: '09-01', end: '10-31' },
+        { start: '12-01', end: '12-24' },
+      ],
+    }],
+    ['season switched off on a task that has windows', {
+      recurrence_type: 'floating',
+      season_on: false,
+      active_season: [{ start: '04-01', end: '09-30' }],
+    }],
     ['a managed task with locked fields', {
       recurrence_type: 'floating',
       managed_by: { domain: 'x', locked_fields: ['name', 'interval', 'device_id'] },
@@ -88,6 +106,10 @@ describe('taskSchemaSections is exactly taskSchema, grouped', () => {
     expect(cadence).toBeGreaterThan(schedule);
     expect(names(sections[schedule].fields)).toEqual(['recurrence_type']);
     expect(names(sections[cadence].fields)).toEqual(['interval', 'unit', 'last_completed']);
+    // The season switch is its own section, directly above the windows it reveals.
+    const season = sections.findIndex((s) => s.key === 'season');
+    expect(season).toBe(cadence + 1);
+    expect(names(sections[season].fields)).toEqual(['season_on']);
     expect(sections[cadence].dependent).toBe(true);
     // Only the revealed run is dependent — the rest stand on their own.
     expect(sections.filter((s) => s.dependent).map((s) => s.key)).toEqual(['cadence']);
@@ -211,6 +233,7 @@ describe('taskSchema by recurrence type', () => {
       'interval',
       'unit',
       'last_completed',
+      'season_on',
       'device_id',
       'area_id',
       'tag_id',
@@ -229,6 +252,7 @@ describe('taskSchema by recurrence type', () => {
       'freq',
       'anchor',
       'last_completed',
+      'season_on',
       'device_id',
       'area_id',
       'tag_id',
@@ -868,6 +892,211 @@ describe('toProfileSync', () => {
   });
 });
 
+// An active season restricts a repeating task to part of the year. The panel edits
+// the windows as a list — add one, remove one — so what these tests guard is the
+// round trip: what the form shows for a stored task, and what saving it writes back.
+// Issue #242's reporter hit exactly the failure of that round trip: a second window
+// that came back switched on with no pickers under it, and a save that dropped it.
+describe('active season', () => {
+  const floating = { recurrence_type: 'floating', interval: 2, unit: 'months' };
+  const windowNames = (i) => [
+    `season_${i}_start_month`,
+    `season_${i}_start_day`,
+    `season_${i}_end_month`,
+    `season_${i}_end_day`,
+  ];
+  const sectionsOf = (task) => taskSchemaSections(task);
+  const seasonSections = (task) => sectionsOf(task).filter((s) => s.key.startsWith('season-'));
+
+  it('offers the season switch to the two kinds that compute a date from a calendar', () => {
+    expect(names(taskSchema({ recurrence_type: 'floating' }))).toContain('season_on');
+    expect(names(taskSchema({ recurrence_type: 'fixed' }))).toContain('season_on');
+    for (const kind of ['one-off', 'sensor', 'triggered']) {
+      expect(names(taskSchema({ recurrence_type: kind }))).not.toContain('season_on');
+    }
+  });
+
+  it('withholds the season switch from a task whose managing integration locks it', () => {
+    const managed = {
+      recurrence_type: 'floating',
+      managed_by: { domain: 'x', locked_fields: ['active_season'] },
+      active_season: [{ start: '04-01', end: '09-30' }],
+    };
+    expect(names(taskSchema(managed))).not.toContain('season_on');
+    expect(seasonSections(managed)).toEqual([]);
+  });
+
+  it('shows no window until the season is switched on', () => {
+    expect(seasonSections(floating)).toEqual([]);
+    expect(seasonSections({ ...floating, season_on: false })).toEqual([]);
+  });
+
+  it('gives every stored window a section of its own, with the same fields', () => {
+    const task = {
+      ...floating,
+      active_season: [
+        { start: '03-01', end: '05-31' },
+        { start: '09-01', end: '10-31' },
+        { start: '12-01', end: '12-24' },
+      ],
+    };
+    const sections = seasonSections(task);
+    expect(sections.map((s) => s.key)).toEqual(['season-1', 'season-2', 'season-3']);
+    sections.forEach((section, i) => expect(names(section.fields)).toEqual(windowNames(i + 1)));
+  });
+
+  it('reads a window switched on with no stored season as April through September', () => {
+    const data = taskFormData({ ...floating, season_on: true });
+    expect(data.season_count).toBe(1);
+    expect(data.season_1_start_month).toBe('4');
+    expect(data.season_1_start_day).toBe(1);
+    expect(data.season_1_end_month).toBe('9');
+    expect(data.season_1_end_day).toBe(30);
+  });
+
+  it('reads every stored window into the form, days included', () => {
+    const data = taskFormData({
+      ...floating,
+      active_season: [
+        { start: '11-15', end: '03-20' },
+        { start: '06-02', end: '06-28' },
+      ],
+    });
+    expect(data.season_on).toBe(true);
+    expect(data.season_count).toBe(2);
+    expect(data.season_1_start_month).toBe('11');
+    expect(data.season_1_start_day).toBe(15);
+    expect(data.season_1_end_month).toBe('3');
+    expect(data.season_1_end_day).toBe(20);
+    expect(data.season_2_start_month).toBe('6');
+    expect(data.season_2_start_day).toBe(2);
+    expect(data.season_2_end_month).toBe('6');
+    expect(data.season_2_end_day).toBe(28);
+  });
+
+  it('accepts the single-object shape a service call may still send', () => {
+    const data = taskFormData({ ...floating, active_season: { start: '04-01', end: '09-30' } });
+    expect(data.season_count).toBe(1);
+    expect(data.season_1_start_month).toBe('4');
+  });
+
+  it('round-trips three windows through the form without changing them', () => {
+    const active_season = [
+      { start: '03-01', end: '05-31' },
+      { start: '09-01', end: '10-31' },
+      { start: '12-01', end: '12-24' },
+    ];
+    const task = { ...floating, name: 'Fertilize', active_season };
+    const payload = buildTaskPayload({ ...task, ...taskFormData(task) });
+    expect(payload.active_season).toEqual(active_season);
+  });
+
+  it('saves every window the form is showing, not just the first', () => {
+    const payload = buildTaskPayload({
+      ...floating,
+      name: 'Fertilize',
+      season_on: true,
+      season_count: 2,
+      season_1_start_month: '4',
+      season_1_start_day: 1,
+      season_1_end_month: '5',
+      season_1_end_day: 31,
+      season_2_start_month: '9',
+      season_2_start_day: 1,
+      season_2_end_month: '10',
+      season_2_end_day: 31,
+    });
+    expect(payload.active_season).toEqual([
+      { start: '04-01', end: '05-31' },
+      { start: '09-01', end: '10-31' },
+    ]);
+  });
+
+  it('drops a removed window: the live count wins over what is stored', () => {
+    // What the panel leaves behind after Remove on window 1 of 2 — the survivor
+    // shifted down into slot 1, the count down to one, the stored list untouched.
+    const payload = buildTaskPayload({
+      ...floating,
+      name: 'Fertilize',
+      active_season: [
+        { start: '04-01', end: '05-31' },
+        { start: '09-01', end: '10-31' },
+      ],
+      season_on: true,
+      season_count: 1,
+      season_1_start_month: '9',
+      season_1_start_day: 1,
+      season_1_end_month: '10',
+      season_1_end_day: 31,
+    });
+    expect(payload.active_season).toEqual([{ start: '09-01', end: '10-31' }]);
+  });
+
+  it('clears the season when the switch is off, rather than leaving the stored one', () => {
+    const payload = buildTaskPayload({
+      ...floating,
+      name: 'Fertilize',
+      active_season: [{ start: '04-01', end: '09-30' }],
+      season_on: false,
+    });
+    expect(payload.active_season).toBeNull();
+  });
+
+  it('ignores a season on a one-off task, which has no recurring date to restrict', () => {
+    const payload = buildTaskPayload({
+      name: 'Paint',
+      recurrence_type: 'one-off',
+      due: '2026-06-15T10:00:00',
+      season_on: true,
+      season_count: 1,
+      season_1_start_month: '4',
+      season_1_end_month: '9',
+    });
+    expect(payload.active_season).toBeNull();
+  });
+
+  it('offers each day picker only the days its month has', () => {
+    const task = {
+      ...floating,
+      season_on: true,
+      season_1_start_month: '2',
+      season_1_end_month: '4',
+    };
+    const fields = seasonSections(task)[0].fields;
+    const dayField = (name) =>
+      fields.flatMap((f) => f.schema ?? [f]).find((f) => f.name === name);
+    expect(dayField('season_1_start_day').selector.number).toEqual({
+      min: 1,
+      max: 29,
+      mode: 'box',
+    });
+    expect(dayField('season_1_end_day').selector.number.max).toBe(30);
+  });
+
+  it('clamps a day the month cannot have, so February never saves the 31st', () => {
+    const payload = buildTaskPayload({
+      ...floating,
+      name: 'Fertilize',
+      season_on: true,
+      season_count: 1,
+      season_1_start_month: '2',
+      season_1_start_day: 31,
+      season_1_end_month: '4',
+      season_1_end_day: 31,
+    });
+    expect(payload.active_season).toEqual([{ start: '02-29', end: '04-30' }]);
+  });
+
+  it('stops offering another window at the panel cap', () => {
+    const many = Array.from({ length: MAX_SEASON_WINDOWS + 2 }, () => ({
+      start: '04-01',
+      end: '09-30',
+    }));
+    expect(seasonSections({ ...floating, active_season: many })).toHaveLength(
+      MAX_SEASON_WINDOWS,
+    );
+  });
+});
 // ── appliance form schemas ──────────────────────────────────────────────────
 // The appliance drawer's field sets. Same contract as the task form's above: a
 // missing field is a control the user cannot reach, and a selector with the wrong

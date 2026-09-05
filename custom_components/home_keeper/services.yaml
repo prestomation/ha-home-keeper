@@ -166,6 +166,17 @@ add_task:
         Needs a tag.
       selector:
         boolean:
+    active_season:
+      name: Active season
+      description: >-
+        Restrict this task to one or more date ranges each year. Outside
+        the active windows the next due date moves to the nearest upcoming
+        window start. Pass a list of objects with "start" and "end" as
+        MM-DD strings, or a single object for one window. Wrapping
+        seasons (e.g. Nov through Mar) are supported. Pass null to clear.
+      example: '[{"start": "04-01", "end": "05-31"}, {"start": "09-01", "end": "10-31"}]'
+      selector:
+        object:
     source:
       name: Source
       description: >-
@@ -332,6 +343,15 @@ update_task:
         Only let the linked tag complete this task. Needs a tag.
       selector:
         boolean:
+    active_season:
+      name: Active season
+      description: >-
+        Restrict this task to one or more date ranges each year. Pass a
+        list of objects with "start" and "end" as MM-DD strings, a single
+        object for one window, or null to clear. See add_task.
+      example: '[{"start": "04-01", "end": "05-31"}, {"start": "09-01", "end": "10-31"}]'
+      selector:
+        object:
     source:
       name: Source
       description: >-

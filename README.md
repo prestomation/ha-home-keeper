@@ -105,6 +105,22 @@ notifications and the inventory export. The to-do list, the calendar, the
 device-page buttons, and the dashboard card are available to every user. See
 [the security model](docs/SECURITY.md) for what a non-admin user can read.
 
+### Active season
+
+Floating and fixed tasks take an optional **active season**. That is the part of the
+year the task belongs in. Outside it the next due date moves forward to the start of
+the next window. Take *"fertilize the yard every 2 months, April 1 through
+September 30"*. A completion on September 15 makes the task due on April 1 of the
+following year instead of November 15.
+
+Turn **Active season** on in the task form and pick the start and end dates.
+**Add another season** puts a second window on the task, so spring and fall can share
+one. A window that wraps the new year (November through March) works the same way.
+The `home_keeper.add_task` and `update_task` actions take the same windows as a list
+of `{"start": "MM-DD", "end": "MM-DD"}` objects, so an automation can set a season.
+
+<img src="docs/images/3b-panel-create-season.png" alt="The task form with Active season on, showing two windows with month and day pickers" width="820">
+
 ### Put a task in a room
 
 A task can have a Home Assistant area. Select the area in the **Area** field of the

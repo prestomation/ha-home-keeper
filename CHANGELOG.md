@@ -6,6 +6,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.21.0b1]
+
+### Added
+
+- **Give a task a season.** A task that repeats on a clock can be held to the part of
+  the year it belongs in, so fertilising every two months stops in October and comes
+  back in April rather than falling due in the snow. Add as many windows as the task
+  needs (spring and fall on the same task) from the task form or the
+  `home_keeper.add_task` action. (Fixes #242)
+
 ## [0.20.0] - 2026-09-04
 
 ### Added

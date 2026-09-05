@@ -105,6 +105,10 @@
           "name": "Scan van de tag vereisen",
           "description": "Alleen de gekoppelde tag mag deze taak afronden. Elke andere manier om hem als gedaan te markeren wordt geweigerd. Vereist een tag."
         },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
         "source": {
           "name": "Bron",
           "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Home Keeper slaat deze letterlijk op en geeft deze letterlijk terug en inspecteert deze nooit. Zie docs/INTEGRATING.md."
@@ -190,6 +194,10 @@
         "require_tag_scan": {
           "name": "Scan van de tag vereisen",
           "description": "Alleen de gekoppelde tag mag deze taak afronden. Vereist een tag."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         },
         "source": {
           "name": "Bron",

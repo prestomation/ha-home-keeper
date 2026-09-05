@@ -148,6 +148,11 @@ ADD_TASK_SCHEMA = vol.Schema(
         # the link, which is why the value is nullable rather than a bare string.
         vol.Optional("tag_id"): vol.Any(None, cv.string),
         vol.Optional("require_tag_scan"): cv.boolean,
+        # Restrict a floating/fixed task to one or more date ranges each year. A list
+        # of ``{"start": "MM-DD", "end": "MM-DD"}`` windows; a single window may be
+        # passed as one object, and ``None`` clears the season. Validated by
+        # models.normalize_active_season.
+        vol.Optional("active_season"): vol.Any(None, dict, [dict]),
         vol.Optional("source"): dict,
         vol.Optional("managed_by"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
@@ -177,6 +182,8 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         # ``require_tag_scan`` stays on is rejected — see models.merge_update).
         vol.Optional("tag_id"): vol.Any(None, cv.string),
         vol.Optional("require_tag_scan"): cv.boolean,
+        # See ADD_TASK_SCHEMA: ``None`` clears the season, one object is one window.
+        vol.Optional("active_season"): vol.Any(None, dict, [dict]),
         vol.Optional("source"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
     }

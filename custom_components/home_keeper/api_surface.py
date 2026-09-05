@@ -251,6 +251,12 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
             "str | None",
             "the HA tag whose scan completes the task, or None when none is linked",
         ),
+        Field(
+            "active_season",
+            "list[dict] | None",
+            "the date ranges the task is scheduled in, each a "
+            '{"start": "MM-DD", "end": "MM-DD"} window, or None when it runs all year',
+        ),
     ),
     "stock": (
         Field("asset_id", "str"),

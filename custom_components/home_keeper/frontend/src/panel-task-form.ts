@@ -17,9 +17,12 @@
 
 import {
   DEFAULT_BACKSTOP_INTERVAL,
+  MAX_SEASON_WINDOWS,
   cardLinkTokens,
+  daysInMonth,
   formRecurrenceSummary,
   pickFormData,
+  seasonCount,
   sensorHintText,
   sensorLive,
   taskFormData,
@@ -34,6 +37,106 @@ import { MDI_CLOSE, SENSOR_DOCS_URL } from './panel-icons';
 import { isDisplayableDocument, documentLabel } from './documents';
 import type { Asset, Task } from './types';
 import { escapeHTML, formatQuantity, safeHref, setBtnWeight } from './utils';
+
+/**
+ * One active-season window: a numbered heading, Remove when there is more than one
+ * window, the window's own `ha-form`, and — under the last one — Add another season.
+ *
+ * The windows are a list the user grows and shrinks, and `ha-form` owns its rows and
+ * offers no slot between them, so the chrome that edits the list lives out here.
+ */
+function seasonWindow(
+  p: PanelHost,
+  index: number,
+  count: number,
+  form: HTMLElement,
+): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'hk-season-window';
+  const head = document.createElement('div');
+  head.className = 'hk-eyebrow hk-form-section hk-season-head';
+  const label = document.createElement('span');
+  label.textContent = t('season.window', { n: String(index) });
+  head.appendChild(label);
+  if (count > 1) {
+    const remove = document.createElement('ha-button');
+    remove.setAttribute('appearance', 'plain');
+    remove.className = 'hk-season-remove';
+    remove.id = `hk-season-remove-${index}`;
+    remove.textContent = t('season.remove');
+    // "Remove" alone is ambiguous once there are several windows, so the accessible
+    // name names the window it removes.
+    remove.setAttribute(
+      'aria-label',
+      `${t('season.remove')} — ${t('season.window', { n: String(index) })}`,
+    );
+    remove.addEventListener('click', () => removeSeasonWindow(p, index));
+    head.appendChild(remove);
+  }
+  wrap.append(head, form);
+  if (index === count && count < MAX_SEASON_WINDOWS) {
+    const add = document.createElement('ha-button');
+    add.setAttribute('appearance', 'plain');
+    add.className = 'hk-season-add';
+    add.id = 'hk-season-add';
+    add.textContent = t('season.add');
+    add.addEventListener('click', () => addSeasonWindow(p));
+    wrap.appendChild(add);
+  }
+  return wrap;
+}
+
+/** Add a window (April through September until edited) and show it. */
+function addSeasonWindow(p: PanelHost): void {
+  const count = seasonCount(p._edit.task ?? {});
+  if (count >= MAX_SEASON_WINDOWS) return;
+  (p._edit.task as Record<string, unknown>).season_count = count + 1;
+  p._render();
+}
+
+/**
+ * Drop window *index*, shifting the ones after it down so the form's flat fields
+ * stay a dense 1..n run. Renumbering rather than leaving a hole is what keeps a
+ * removed middle window from reappearing as the last one on the next render.
+ */
+function removeSeasonWindow(p: PanelHost, index: number): void {
+  const count = seasonCount(p._edit.task ?? {});
+  if (count <= 1) return;
+  const task = p._edit.task as Record<string, unknown>;
+  const parts = ['start_month', 'start_day', 'end_month', 'end_day'];
+  for (let i = index; i < count; i++) {
+    for (const part of parts) task[`season_${i}_${part}`] = task[`season_${i + 1}_${part}`];
+  }
+  for (const part of parts) delete task[`season_${count}_${part}`];
+  task.season_count = count - 1;
+  p._render();
+}
+
+/**
+ * A season end sitting on the last day of its month follows the month when the
+ * month changes: "through September" picked as December means the 31st, not the
+ * 30th it would keep if the day were left where it was. A day the user chose
+ * mid-month is theirs and is left alone.
+ */
+function seasonMonthEndFollow(
+  p: PanelHost,
+  value: Record<string, unknown>,
+): Record<string, number> {
+  const prev = (p._edit.task ?? {}) as Record<string, unknown>;
+  const follow: Record<string, number> = {};
+  for (const key of Object.keys(value)) {
+    const match = /^season_(\d+)_end_month$/.exec(key);
+    if (!match) continue;
+    const dayKey = `season_${match[1]}_end_day`;
+    const prevMonth = Number(prev[key]);
+    // Every event carries the whole section, so the month is in here even when the
+    // day is what changed — only an actual move of the month follows.
+    if (!prevMonth || Number(value[key]) === prevMonth) continue;
+    if (Number(prev[dayKey]) !== daysInMonth(prevMonth)) continue;
+    follow[dayKey] = daysInMonth(Number(value[key]));
+  }
+  return follow;
+}
 
 /** Appliances associated with a task's attached device (its own or related). */
 function assetsForDevice(p: PanelHost, deviceId?: string | null): Asset[] {
@@ -266,6 +369,7 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
         ...p._edit.task,
         ...value,
         ...(has('interval') ? { interval: Number(value.interval) || 1 } : {}),
+        ...seasonMonthEndFollow(p, value),
       } as Partial<Task>;
       p._edit.error = undefined;
       // Refresh the notes preview in place — a re-render here would drop focus from
@@ -377,7 +481,20 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       const h = t('help.' + s.name);
       return h === 'help.' + s.name ? '' : h;
     };
-    if (section.dependent) {
+    // An active-season window: its own heading, numbered, with Remove beside it and
+    // Add another season under the last one. The windows are a list the user grows
+    // and shrinks, so the chrome that edits the list can't live inside `ha-form`.
+    const seasonIndex = section.key.startsWith('season-')
+      ? Number(section.key.slice('season-'.length))
+      : 0;
+    if (seasonIndex) {
+      formWrap.appendChild(seasonWindow(p, seasonIndex, seasonCount(task), form));
+    } else if (section.key === 'season') {
+      // The switch that reveals the windows, sitting directly on top of them with no
+      // heading of its own — the field names itself.
+      form.classList.add('hk-season-switch');
+      formWrap.appendChild(form);
+    } else if (section.dependent) {
       // A run that only exists because of the answer above it, indented behind a
       // rule and captioned with what revealed it.
       const indent = document.createElement('div');

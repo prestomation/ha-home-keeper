@@ -361,6 +361,37 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
 
+  // 3b. The **active season**: hold a repeating task to the part of the year it
+  //     belongs in. Switch back to a floating cadence, turn the season on, then add a
+  //     second window — the reveal, and the list growing under it, is the motion a
+  //     still cannot carry. The summary strip above the button rewrites itself each
+  //     time, so linger on it.
+  await recurrence.click();
+  await page.getByRole('menuitem', { name: /after each completion/i }).first().click();
+  await page.waitForTimeout(BEAT);
+  const seasonSwitch = panel
+    .locator('#hk-task-form-season ha-switch')
+    .first();
+  await seasonSwitch.click();
+  await expect(panel.locator('#hk-task-form-season-1')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  // The windows open below the fold of a drawer that scrolls its own content, so
+  // follow them down — the reveal is the point of this beat. Scroll to the control
+  // itself rather than by a fixed distance, which lands differently in every
+  // viewport (CI's gif showed the switch and the first window, and stopped there).
+  const addSeason = panel.locator('#hk-season-add');
+  await addSeason.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+  await addSeason.click();
+  await expect(panel.locator('#hk-task-form-season-2')).toBeVisible();
+  await panel.locator('#hk-task-form-season-2').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 3);
+  // Put the form back the way the next beat expects it.
+  await seasonSwitch.click();
+  await expect(panel.locator('#hk-task-form-season-1')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   // 3a. Switch the same form to a **sensor** task and build the shape a real service
   //     interval has: a meter target plus a time backstop. Typing the target, then
   //     the "Or every" months, makes the live hint *and* the rule summary above the

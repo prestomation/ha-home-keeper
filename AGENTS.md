@@ -227,6 +227,16 @@
   feature isn't done until the README shows it. (The moving walkthrough is **not** in
   the README — it's the per-PR CI comment described above; the README stays on
   committed screenshots.)
+- **Plans and PRs must list one-way doors.** A one-way door is a design choice
+  that is hard to reverse once users depend on it: the name, shape, or format of
+  a field in a service call, an event payload, storage, an entity attribute, or
+  any other external contract. When a feature introduces or changes one, the plan
+  must call it out before implementation starts, and the PR body must include a
+  **One-way doors** section listing every committed surface — field name, format,
+  where it appears (service input, event, storage, attribute), and what users or
+  automations will rely on. This makes the review focus on what is expensive to
+  change later rather than what is easy to fix. Internal-only shapes (frontend
+  form data, private helpers) are not one-way doors.
 - **Always request an Amazon Q (Cue) review after every push and when opening a
   PR.** Immediately after pushing a commit (or opening a PR), post a PR comment
   of the form `/q review {request}`. Cue gives better results when explicitly

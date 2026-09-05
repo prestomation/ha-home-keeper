@@ -201,6 +201,46 @@ describe('recurrenceSummary', () => {
       recurrenceSummary({ recurrence_type: 'triggered', next_due: '2026-06-01T00:00:00Z' }),
     ).toBe('Monitored');
   });
+  it('appends season range for floating tasks with active_season', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 2, unit: 'months',
+        active_season: { start: '04-01', end: '09-30' },
+      }),
+    ).toBe('Every 2 months after completion, April 1–September 30');
+  });
+  it('appends season range for fixed tasks with active_season', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY',
+        active_season: { start: '11-01', end: '03-31' },
+      }),
+    ).toBe('Every month, November 1–March 31');
+  });
+  it('omits season range when active_season is null', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 1, unit: 'months',
+        active_season: null,
+      }),
+    ).toBe('Every month after completion');
+  });
+  it('shows multi-window season with ampersand', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 1, unit: 'months',
+        active_season: [
+          { start: '04-01', end: '05-31' },
+          { start: '09-01', end: '10-31' },
+        ],
+      }),
+    ).toBe('Every month after completion, April 1–May 31 & September 1–October 31');
+  });
+  it('defaults to daily when freq is missing for a fixed task', () => {
+    expect(
+      recurrenceSummary({ recurrence_type: 'fixed', interval: 1 }),
+    ).toBe('Every day');
+  });
 });
 
 describe('isArmedTriggered', () => {

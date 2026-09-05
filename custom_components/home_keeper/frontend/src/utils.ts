@@ -421,19 +421,37 @@ function recurrenceText(task: Task): string {
       : t('recurrence.sensorUsageAny', { summary, every });
   }
   const n = task.interval || 1;
+  let summary: string;
   if (task.recurrence_type === 'floating') {
     const base = (task.unit || 'days').replace(/s$/, ''); // day / week / month
     const unit = tn(`recurrence.unit.${base}`, n);
-    return tn('recurrence.floating', n, { unit });
+    summary = tn('recurrence.floating', n, { unit });
+  } else {
+    const freqBase: Record<string, string> = {
+      DAILY: 'day',
+      WEEKLY: 'week',
+      MONTHLY: 'month',
+    };
+    const base = freqBase[task.freq || 'DAILY'] || 'day';
+    const unit = tn(`recurrence.unit.${base}`, n);
+    summary = tn('recurrence.fixed', n, { unit });
   }
-  const freqBase: Record<string, string> = {
-    DAILY: 'day',
-    WEEKLY: 'week',
-    MONTHLY: 'month',
-  };
-  const base = freqBase[task.freq || 'DAILY'] || 'day';
-  const unit = tn(`recurrence.unit.${base}`, n);
-  return tn('recurrence.fixed', n, { unit });
+  if (task.active_season) {
+    const windows = Array.isArray(task.active_season)
+      ? task.active_season
+      : [task.active_season];
+    const range = windows
+      .map((w) => {
+        const s = t(`opt.month.${parseInt(w.start, 10)}`);
+        const sDay = parseInt(w.start.split('-')[1], 10);
+        const e = t(`opt.month.${parseInt(w.end, 10)}`);
+        const eDay = parseInt(w.end.split('-')[1], 10);
+        return `${s} ${sDay}–${e} ${eDay}`;
+      })
+      .join(' & ');
+    summary = t('recurrence.season', { summary, range });
+  }
+  return summary;
 }
 
 /** True when the task's next due date is at or before now. */

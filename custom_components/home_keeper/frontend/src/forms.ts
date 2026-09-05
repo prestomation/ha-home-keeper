@@ -116,6 +116,13 @@ export const selUnit = (): Selector =>
     { value: 'months', label: t('opt.unit.months') },
   ]);
 
+function monthOptions(): { value: string; label: string }[] {
+  return Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1),
+    label: t(`opt.month.${i + 1}`),
+  }));
+}
+
 // ── datetime <-> HA selector string helpers ────────────────────────────────
 // HA's datetime selector uses local "YYYY-MM-DD HH:mm:ss"; we persist ISO.
 export function isoToHaDateTime(iso?: string | null): string | undefined {
@@ -160,6 +167,89 @@ export function backstopEnabled(task: Partial<Task>): boolean {
 }
 
 /**
+ * How many season windows the *panel* will edit on one task.
+ *
+ * The stored list is uncapped — a service-API caller can write more — but a form
+ * has to stop somewhere, and a task needing more than six windows a year is really
+ * describing a different schedule. Raising this later breaks nothing.
+ */
+export const MAX_SEASON_WINDOWS = 6;
+
+/** The window a freshly-added season starts as: April 1 through September 30. */
+const DEFAULT_SEASON = { startMonth: '4', startDay: 1, endMonth: '9', endDay: 30 };
+
+/** Last day of *month* (1-12), leap year, so February is 29 and never 28. */
+export function daysInMonth(month: number): number {
+  return new Date(2000, month, 0).getDate();
+}
+
+/**
+ * A task's stored season windows, from either representation.
+ *
+ * The stored shape is a list; a single `{start, end}` object is accepted on input
+ * (services and older tasks), so both are normalized here rather than at each reader.
+ */
+export function seasonWindows(task: Partial<Task>): Array<{ start: string; end: string }> {
+  const s = task.active_season;
+  if (!s) return [];
+  if (Array.isArray(s)) return s;
+  if (typeof s === 'object' && 'start' in s) return [s];
+  return [];
+}
+
+/**
+ * Whether the task is restricted to a season, from either representation — the flat
+ * `season_on` switch the form holds, or the presence of stored windows. Same shape of
+ * predicate as {@link backstopEnabled}, for the same reason: schema, payload and hint
+ * must never disagree about whether the season fields count.
+ */
+export function seasonEnabled(task: Partial<Task>): boolean {
+  const flag = (task as Record<string, unknown>).season_on;
+  if (flag !== undefined && flag !== null) return Boolean(flag);
+  return seasonWindows(task).length > 0;
+}
+
+/**
+ * How many windows the form is editing: the live `season_count` (the user added or
+ * removed one) wins over the stored list's length, so a removal isn't undone by the
+ * task it was removed from. Always at least one — the season switch being on means
+ * there is a window to fill in.
+ */
+export function seasonCount(task: Partial<Task>): number {
+  const flat = (task as Record<string, unknown>).season_count;
+  const n = Number(flat ?? seasonWindows(task).length) || 1;
+  return Math.min(MAX_SEASON_WINDOWS, Math.max(1, Math.floor(n)));
+}
+
+/**
+ * `season_2_start_month` → `season_start_month`.
+ *
+ * Every window is the same control repeated, so every window reads from one set of
+ * translations. Windows that each named themselves ("Active season", "Second window")
+ * is exactly the inconsistency reported on #242.
+ */
+export function seasonFieldLabelKey(name: string): string {
+  return name.replace(/^season_\d+_/, 'season_');
+}
+
+/** The four flat form values for window *i*, read from live edit state then storage. */
+function seasonWindowData(task: Partial<Task>, i: number): Record<string, unknown> {
+  const sd = task as Record<string, unknown>;
+  const w = seasonWindows(task)[i - 1];
+  const month = (mmdd: string | undefined, fallback: string): string =>
+    mmdd ? String(parseInt(mmdd, 10)) : fallback;
+  const day = (mmdd: string | undefined, fallback: number): number =>
+    mmdd ? parseInt(mmdd.split('-')[1], 10) : fallback;
+  return {
+    [`season_${i}_start_month`]:
+      sd[`season_${i}_start_month`] ?? month(w?.start, DEFAULT_SEASON.startMonth),
+    [`season_${i}_start_day`]: sd[`season_${i}_start_day`] ?? day(w?.start, DEFAULT_SEASON.startDay),
+    [`season_${i}_end_month`]: sd[`season_${i}_end_month`] ?? month(w?.end, DEFAULT_SEASON.endMonth),
+    [`season_${i}_end_day`]: sd[`season_${i}_end_day`] ?? day(w?.end, DEFAULT_SEASON.endDay),
+  };
+}
+
+/**
  * Whether a state-mode binding points at a `binary_sensor`, from either representation.
  *
  * Binary sensors are the reason this mode exists and they only ever report `on`/`off`,
@@ -189,9 +279,43 @@ export function isBinarySensorBinding(task: Partial<Task>): boolean {
  * that only exists because of a choice made in the section above it.
  */
 export interface TaskSchemaSection {
-  key: 'basics' | 'schedule' | 'cadence' | 'placement' | 'completion';
+  /**
+   * `basics` | `schedule` | `cadence` | `placement` | `completion`, or `season-<n>`
+   * for the nth active-season window — one section per window, because a window
+   * needs a heading and a Remove button of its own.
+   */
+  key: string;
   fields: FormField[];
   dependent?: boolean;
+}
+
+/** The month/day pair fields for season window *i*, as two `ha-form` grid rows. */
+function seasonWindowFields(task: Partial<Task>, i: number): FormField[] {
+  const data = seasonWindowData(task, i);
+  // The day picker's ceiling follows the month beside it, so February can't offer a
+  // 31st that the payload would silently clamp back to the 29th.
+  const dayField = (name: string, month: unknown): FormField => ({
+    name,
+    selector: { number: { min: 1, max: daysInMonth(Number(month)), mode: 'box' } },
+  });
+  return [
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: `season_${i}_start_month`, selector: selSelect(monthOptions()) },
+        dayField(`season_${i}_start_day`, data[`season_${i}_start_month`]),
+      ],
+    },
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: `season_${i}_end_month`, selector: selSelect(monthOptions()) },
+        dayField(`season_${i}_end_day`, data[`season_${i}_end_month`]),
+      ],
+    },
+  ];
 }
 
 /**
@@ -264,12 +388,16 @@ export function taskSchemaSections(
     ];
   }
 
+  const isFloating = task.recurrence_type === 'floating';
   const isFixed = task.recurrence_type === 'fixed';
   // A one-off (do-once) task has no cadence at all — just a single due date.
   const isOneOff = task.recurrence_type === 'one-off';
   // A sensor-based task has no clock cadence — its due-state comes from a bound
   // numeric sensor. Show the binding fields instead of interval/unit/freq.
   const isSensor = task.recurrence_type === 'sensor';
+  // A season restricts a repeating date to part of the year, so only the two kinds
+  // that compute one from a calendar offer it.
+  const seasonOffered = (isFloating || isFixed) && !locked.has('active_season');
 
   const cadenceSubFields: FormField[] = isOneOff || isSensor
     ? []
@@ -496,10 +624,30 @@ export function taskSchemaSections(
       : []),
   ];
 
+  // One section per active-season window, each holding the same two rows. A window
+  // is a section rather than a run of fields so the panel can head it ("Season 1")
+  // and offer Remove beside it — `ha-form` has no slot between its own rows.
+  // The switch and the windows it reveals are one run, so the switch is its own
+  // section directly above them rather than a field lost at the end of the cadence:
+  // with `anchor` and "Last completed" in between, the control and what it controls
+  // sat on opposite sides of the form.
+  const seasons: TaskSchemaSection[] = seasonOffered
+    ? [
+        { key: 'season', fields: [{ name: 'season_on', selector: selBool() }] },
+        ...(seasonEnabled(task)
+          ? Array.from({ length: seasonCount(task) }, (_, i) => ({
+              key: `season-${i + 1}`,
+              fields: seasonWindowFields(task, i + 1),
+            }))
+          : []),
+      ]
+    : [];
+
   return [
     { key: 'basics', fields: basics },
     { key: 'schedule', fields: schedule },
     { key: 'cadence', fields: cadenceSection, dependent: true },
+    ...seasons,
     { key: 'placement', fields: placement },
     { key: 'completion', fields: completion },
   ];
@@ -596,6 +744,14 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // than pre-selecting a blank option.
     tag_id: task.tag_id ?? undefined,
     require_tag_scan: task.require_tag_scan ?? false,
+    season_on: seasonEnabled(task),
+    // How many windows the form shows. Every window's four values are flattened
+    // alongside it (`season_1_start_month`, …) and assembled back in buildTaskPayload.
+    season_count: seasonCount(task),
+    ...Object.assign(
+      {},
+      ...Array.from({ length: seasonCount(task) }, (_, i) => seasonWindowData(task, i + 1)),
+    ),
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
     // task's current part source.
@@ -633,6 +789,16 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
     d.recurrence_type,
     d.sensor_mode,
     d.sensor_backstop_on,
+    d.season_on,
+    // How many season windows are shown, and each one's two months — the months
+    // because a day picker's ceiling follows the month beside it (February offers 29
+    // days, not 31), so changing a month has to rebuild that row.
+    d.season_on
+      ? Array.from({ length: Number(d.season_count) }, (_, i) => [
+          d[`season_${i + 1}_start_month`],
+          d[`season_${i + 1}_end_month`],
+        ])
+      : null,
     // State mode's value control follows the bound entity: an on/off picker for a
     // binary sensor, free text for anything else. This predicate reads the flat and the
     // nested binding itself, so it needs no normalizing pass of its own.
@@ -838,9 +1004,25 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       payload.freq = task.freq || 'DAILY';
       payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
     }
-    // Capture mode applies to scheduled tasks; the backend derives which fields a
-    // `required` task makes mandatory (v1: the note).
     payload.completion_detail = task.completion_detail || 'none';
+    // Every window the form is showing, assembled from its flat fields — the whole
+    // list, so removing a window actually removes it. Season off sends an explicit
+    // null, which clears the season rather than leaving the stored one in place.
+    if (seasonEnabled(task) && task.recurrence_type !== 'one-off') {
+      const mmdd = (month: number, day: number): string =>
+        `${String(month).padStart(2, '0')}-${String(Math.min(day, daysInMonth(month))).padStart(2, '0')}`;
+      payload.active_season = Array.from({ length: seasonCount(task) }, (_, i) => {
+        const w = seasonWindowData(task, i + 1);
+        const sm = Number(w[`season_${i + 1}_start_month`]);
+        const em = Number(w[`season_${i + 1}_end_month`]);
+        return {
+          start: mmdd(sm, Number(w[`season_${i + 1}_start_day`])),
+          end: mmdd(em, Number(w[`season_${i + 1}_end_day`])),
+        };
+      });
+    } else {
+      payload.active_season = null;
+    }
   }
   // Area applies to every task kind (including triggered) and always round-trips, so
   // clearing the picker sends an explicit null and drops the task's own area rather
