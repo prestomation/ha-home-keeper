@@ -178,7 +178,7 @@
   "field.restock_quantity": "Aanvulhoeveelheid",
   "field.season_end_day": "Dag",
   "field.season_end_month": "Eindmaand",
-  "field.season_on": "Actief seizoen",
+  "field.season_on": "Seizoensgebonden",
   "field.season_start_day": "Dag",
   "field.season_start_month": "Startmaand",
   "field.sensor_also_every": "Of elke",

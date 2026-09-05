@@ -335,6 +335,17 @@ export const STYLES = `
   /* One active-season window: its number on the left, Remove on the right, and
      Add another season under the last one — a list the user edits, so the heading
      row carries the controls that change its length. */
+  /* Each window is boxed so its Remove is visibly its own: with several windows in
+     a row, an unboxed Remove reads as "remove a season" rather than "remove this
+     one". */
+  .hk-season-window {
+    border: 1px solid var(--divider-color, #e0e0e0);
+    border-radius: var(--hk-r-md, 12px);
+    padding: 4px 12px 12px;
+    margin: 10px 0;
+  }
+  .hk-season-window .hk-form-section:first-child { margin-top: 8px; }
+  .hk-season-switch { display: block; margin-top: 14px; }
   .hk-season-head {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
   }

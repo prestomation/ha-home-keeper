@@ -511,7 +511,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // than a single date range.
   await chooseHaSelect(panel.locator('#hk-task-form ha-select').first(), /after each completion/i);
   const seasonSwitch = panel
-    .locator('#hk-task-form-cadence ha-selector-boolean ha-switch')
+    .locator('#hk-task-form-season ha-switch')
     .first();
   if (!(await seasonSwitch.evaluate((el: HTMLInputElement) => el.checked))) {
     await seasonSwitch.click();
@@ -522,12 +522,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // The windows sit near the bottom of a drawer that scrolls inside a 100vh column,
   // so scroll the first one to the top of the drawer: the shot then frames the season
   // from its switch down to Add another season, which is what someone editing it sees.
-  await panel.locator('#hk-task-form-cadence').evaluate((node: Element) => {
-    node.scrollIntoView({ block: 'start' });
-    // Then a little further, so "Add another season" is in frame under the second
-    // window: the point of the shot is that a task can carry as many as it needs.
-    node.closest('.hk-drawer-sticky')?.scrollBy({ top: 150 });
-  });
+  await panel
+    .locator('#hk-task-form-season')
+    .evaluate((node: Element) => node.scrollIntoView({ block: 'start' }));
   await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/3b-panel-create-season.png` });

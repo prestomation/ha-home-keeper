@@ -105,12 +105,11 @@ describe('taskSchemaSections is exactly taskSchema, grouped', () => {
     expect(schedule).toBeGreaterThanOrEqual(0);
     expect(cadence).toBeGreaterThan(schedule);
     expect(names(sections[schedule].fields)).toEqual(['recurrence_type']);
-    expect(names(sections[cadence].fields)).toEqual([
-      'interval',
-      'unit',
-      'season_on',
-      'last_completed',
-    ]);
+    expect(names(sections[cadence].fields)).toEqual(['interval', 'unit', 'last_completed']);
+    // The season switch is its own section, directly above the windows it reveals.
+    const season = sections.findIndex((s) => s.key === 'season');
+    expect(season).toBe(cadence + 1);
+    expect(names(sections[season].fields)).toEqual(['season_on']);
     expect(sections[cadence].dependent).toBe(true);
     // Only the revealed run is dependent — the rest stand on their own.
     expect(sections.filter((s) => s.dependent).map((s) => s.key)).toEqual(['cadence']);
@@ -233,8 +232,8 @@ describe('taskSchema by recurrence type', () => {
       'recurrence_type',
       'interval',
       'unit',
-      'season_on',
       'last_completed',
+      'season_on',
       'device_id',
       'area_id',
       'tag_id',
@@ -251,9 +250,9 @@ describe('taskSchema by recurrence type', () => {
       'recurrence_type',
       'interval',
       'freq',
-      'season_on',
       'anchor',
       'last_completed',
+      'season_on',
       'device_id',
       'area_id',
       'tag_id',

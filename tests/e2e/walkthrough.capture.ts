@@ -370,7 +370,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.getByRole('menuitem', { name: /after each completion/i }).first().click();
   await page.waitForTimeout(BEAT);
   const seasonSwitch = panel
-    .locator('#hk-task-form-cadence ha-selector-boolean ha-switch')
+    .locator('#hk-task-form-season ha-switch')
     .first();
   await seasonSwitch.click();
   await expect(panel.locator('#hk-task-form-season-1')).toBeVisible();

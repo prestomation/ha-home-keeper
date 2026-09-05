@@ -178,7 +178,7 @@
   "field.restock_quantity": "Påfyllningsantal",
   "field.season_end_day": "Dag",
   "field.season_end_month": "Slutmånad",
-  "field.season_on": "Aktiv säsong",
+  "field.season_on": "Säsongsbetonad",
   "field.season_start_day": "Dag",
   "field.season_start_month": "Startmånad",
   "field.sensor_also_every": "Eller var",

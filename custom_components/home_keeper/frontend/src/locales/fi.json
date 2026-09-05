@@ -178,7 +178,7 @@
   "field.restock_quantity": "Täydennysmäärä",
   "field.season_end_day": "Päivä",
   "field.season_end_month": "Loppukuukausi",
-  "field.season_on": "Aktiivinen kausi",
+  "field.season_on": "Kausiluonteinen",
   "field.season_start_day": "Päivä",
   "field.season_start_month": "Alkukuukausi",
   "field.sensor_also_every": "Tai joka",

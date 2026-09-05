@@ -124,7 +124,7 @@ test.describe('Home Keeper panel — active season', () => {
     await panel.waitFor({ state: 'attached', timeout: 45_000 });
     await panel.locator('.d-edit').click();
     const seasonSwitch = panel
-      .locator('#hk-task-form-cadence ha-selector-boolean ha-switch')
+      .locator('#hk-task-form-season ha-switch')
       .first();
     await seasonSwitch.click();
     await expect(panel.locator('#hk-task-form-season-1')).toHaveCount(0);

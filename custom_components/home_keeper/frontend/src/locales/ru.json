@@ -192,7 +192,7 @@
   "field.restock_quantity": "Количество для пополнения",
   "field.season_end_day": "День",
   "field.season_end_month": "Конечный месяц",
-  "field.season_on": "Активный сезон",
+  "field.season_on": "Сезонная",
   "field.season_start_day": "День",
   "field.season_start_month": "Начальный месяц",
   "field.sensor_also_every": "Или каждые",

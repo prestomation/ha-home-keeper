@@ -558,10 +558,6 @@ export function taskSchemaSections(
   // "these exist because of the answer above" is visible rather than inferred.
   const cadenceSection: FormField[] = [
     ...(cadence ? [cadence] : []),
-    // Restrict the task to part of the year. The windows themselves are sections of
-    // their own (below), so each one can be headed and removed; only the switch that
-    // reveals them belongs with the cadence it qualifies.
-    ...(seasonOffered ? [{ name: 'season_on', selector: selBool() } as FormField] : []),
     ...sensorFields,
     ...(isFixed && !locked.has('anchor')
       ? [{ name: 'anchor', selector: selDateTime() } as FormField]
@@ -631,13 +627,21 @@ export function taskSchemaSections(
   // One section per active-season window, each holding the same two rows. A window
   // is a section rather than a run of fields so the panel can head it ("Season 1")
   // and offer Remove beside it — `ha-form` has no slot between its own rows.
-  const seasons: TaskSchemaSection[] =
-    seasonOffered && seasonEnabled(task)
-      ? Array.from({ length: seasonCount(task) }, (_, i) => ({
-          key: `season-${i + 1}`,
-          fields: seasonWindowFields(task, i + 1),
-        }))
-      : [];
+  // The switch and the windows it reveals are one run, so the switch is its own
+  // section directly above them rather than a field lost at the end of the cadence:
+  // with `anchor` and "Last completed" in between, the control and what it controls
+  // sat on opposite sides of the form.
+  const seasons: TaskSchemaSection[] = seasonOffered
+    ? [
+        { key: 'season', fields: [{ name: 'season_on', selector: selBool() }] },
+        ...(seasonEnabled(task)
+          ? Array.from({ length: seasonCount(task) }, (_, i) => ({
+              key: `season-${i + 1}`,
+              fields: seasonWindowFields(task, i + 1),
+            }))
+          : []),
+      ]
+    : [];
 
   return [
     { key: 'basics', fields: basics },

@@ -489,6 +489,11 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       : 0;
     if (seasonIndex) {
       formWrap.appendChild(seasonWindow(p, seasonIndex, seasonCount(task), form));
+    } else if (section.key === 'season') {
+      // The switch that reveals the windows, sitting directly on top of them with no
+      // heading of its own — the field names itself.
+      form.classList.add('hk-season-switch');
+      formWrap.appendChild(form);
     } else if (section.dependent) {
       // A run that only exists because of the answer above it, indented behind a
       // rule and captioned with what revealed it.
