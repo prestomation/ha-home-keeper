@@ -620,7 +620,11 @@ function revealInDrawer(p: PanelHost, el: HTMLElement): void {
     scroller.getBoundingClientRect().top -
     (head?.offsetHeight ?? 0) -
     8;
-  scroller.scrollBy({ top, behavior: p._scrollBehavior() });
+  if (Math.abs(top) < 2) return;
+  // A drawer that has just opened sits at its top: land on the row rather than
+  // animate the whole form past the reader. From anywhere else — Add part appending
+  // a row below the one being read — a smooth move says where the row went.
+  scroller.scrollBy({ top, behavior: scroller.scrollTop === 0 ? 'auto' : p._scrollBehavior() });
 }
 
 export function renderPartsEditor(p: PanelHost, inner: HTMLElement): void {
@@ -662,6 +666,12 @@ export function renderPartsEditor(p: PanelHost, inner: HTMLElement): void {
       if (!target?.isConnected) return;
       revealInDrawer(p, target);
       if (reveal === 'focus' && form) p._focus(form);
+      // The selectors inside an ha-form load lazily and grow the rows above the
+      // target after the first frame; one late correction puts the row back where
+      // the first pass aimed.
+      setTimeout(() => {
+        if (target.isConnected) revealInDrawer(p, target);
+      }, 300);
     });
   }
 }

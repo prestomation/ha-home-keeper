@@ -165,8 +165,8 @@ On the **Tasks** tab:
 
 ![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
 
-The task list is compact, so more tasks fit on the screen. On a phone, each row
-keeps the Done button next to the task.
+The task list and the appliance list are compact, so more rows fit on the screen.
+On a phone, each task row keeps the Done button next to the task.
 
 A task's page has the sub-tabs **Schedule**, **Notes**, and **History**. Each
 sub-tab has its own URL, such as `/home-keeper/tasks/<id>/notes`. The page opens on

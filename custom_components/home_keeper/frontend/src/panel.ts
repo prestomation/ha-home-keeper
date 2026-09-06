@@ -1378,6 +1378,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // Everything below is rebuilt from scratch, so every preview on screen is about to
     // be detached — cancel its pending debounce rather than leaking a timer.
     this._disposeAllPreviews();
+    // The drawer's scroller is rebuilt with everything else, at scrollTop 0. A render
+    // the drawer asked for itself — Add part, Remove part, an upload landing — used to
+    // throw the reader to the top of a form they were halfway down; the position is
+    // put back below, before anything paints.
+    const drawerScroll =
+      this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky')?.scrollTop ?? 0;
     const onTasks = this._view === 'tasks';
 
     let inner: string;
@@ -1481,6 +1487,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       <div id="hk-dialog-host"></div>
     `;
     this._hydrate();
+    if (drawerScroll) {
+      const scroller = this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky');
+      if (scroller) scroller.scrollTop = drawerScroll;
+    }
     this._restoreFocus(focused);
     this._syncDrawerModality();
   }

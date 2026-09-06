@@ -1406,6 +1406,20 @@ describe('Parts editor — folded rows, and the Parts tab as a way in (issue #29
     expect(rows(panel).map((d) => d.open)).toEqual([false, false, false]);
   });
 
+  it('keeps the drawer where it was scrolled when Add part re-renders it', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: [heater] }).hass, '/appliances/a1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'))).click();
+    await waitFor(() => rows(panel).length === 3);
+    const scroller = panel.shadowRoot.querySelector('.hk-drawer-sticky');
+    scroller.scrollTop = 240;
+    panel.shadowRoot.querySelector('#a-add-part').click();
+    await waitFor(() => rows(panel).length === 4);
+    // A new scroller, at the old position — not at the top of the form.
+    const rebuilt = panel.shadowRoot.querySelector('.hk-drawer-sticky');
+    expect(rebuilt).not.toBe(scroller);
+    expect(rebuilt.scrollTop).toBe(240);
+  });
+
   it('opens a lone part, and a part just added', async () => {
     const one = { ...heater, parts: [heater.parts[0]] };
     const panel = await mountPanel(makeHassWith({ assets: [one] }).hass, '/appliances/a1');

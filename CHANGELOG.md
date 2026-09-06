@@ -25,9 +25,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Changed
 
-- **The task list is now more compact.** Rows use less padding, and the chips
-  and the Done button are smaller. On a phone, a row uses 2 columns: task
-  details on the left and Done on the right.
+- **The task list and the appliance list are now more compact.** Rows use less
+  padding, and the chips and the Done button are smaller. On a phone, a task row
+  uses 2 columns: task details on the left and Done on the right.
 
 - **A task's page now has the sub-tabs Schedule, Notes, and History.** The page
   opens on Schedule, and each sub-tab has its own URL.

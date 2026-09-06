@@ -1187,6 +1187,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 47d. The Parts tab's own way into the editor: Edit on a row opens the drawer
   // on that part, expanded and scrolled to, with the rest still folded.
+  // The two stock toasts above would sit over the drawer; let them clear first.
+  await settleToasts(page);
   await measuredRow.locator('.hk-part-edit').click();
   const editedPart = panel.locator('#hk-asset-form details.hk-part[data-idx="2"]');
   await expect(editedPart).toHaveAttribute('open', '');

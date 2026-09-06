@@ -282,6 +282,10 @@ export const STYLES = `
     --md-assist-chip-outline-color: transparent;
   }
   .hk-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  /* A list row's chips sit a size under the page's: the appliance list reads as
+     compactly as the task list does. */
+  .hk-card-row .hk-chips { margin-top: 4px; }
+  .hk-card-row .hk-chips ha-assist-chip { --ha-assist-chip-container-height: 24px; }
   .hk-task-chip-link { display: contents; }
   ha-assist-chip.hk-device-chip { cursor: pointer; }
   .hk-managed-prompt {
@@ -1529,7 +1533,7 @@ export const STYLES = `
        its own columns for that. */
     .hk-row-spacer { display: none; }
     /* Appliance rows keep the wrapping flex layout: they have no status or action. */
-    .hk-card-row:not(.hk-row-task) { flex-wrap: wrap; row-gap: 10px; }
+    .hk-card-row:not(.hk-row-task) { flex-wrap: wrap; row-gap: 6px; }
   }
 
   /* ── Narrow: the drawer becomes a bottom sheet ─────────────────────────────
