@@ -13,8 +13,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Declarative companions.** Define a pattern over existing entities to create tasks
   automatically. Home Keeper previews the matches before it opens them. (Fixes #231)
 
-- **Declarative companion presets.** Home Keeper ships pre-built companions for common
-  integrations. Each preset also shows how to build one. (Fixes #230)
+- **Declarative companion presets.** Home Keeper includes pre-built companions for
+  common integrations. Each preset also shows how to build one. (Fixes #230)
 
 - **Availability sensor tasks.** A sensor task can arm when its entity goes
   unavailable or unknown.
