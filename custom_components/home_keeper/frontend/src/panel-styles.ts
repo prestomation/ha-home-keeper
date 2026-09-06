@@ -1658,6 +1658,23 @@ export const STYLES = `
        padding — the alignment the rails were bought for, at a width with no room for
        them. */
     .hk-master .hk-card-row.hk-row-asset { display: flex; }
+    /* The whole row still opens the appliance. Splitting the row into tracks left the
+       opener holding only the first one, so a click on the right two thirds of a row
+       — most of it — did nothing, where before the row was one clickable block. The
+       opener stretches back over the card instead.
+
+       The chip and count tracks let their empty space fall through to it and lift only
+       what is actually a target, so a device chip keeps its own destination while the
+       air around it opens the appliance. Raising the whole track would hand most of
+       the row back to a container with no handler on it. */
+    .hk-row-asset > .grow.detail-open::after {
+      content: ''; position: absolute; inset: 0;
+    }
+    .hk-row-asset .hk-chips, .hk-row-asset .hk-status { pointer-events: none; }
+    .hk-row-asset .hk-chips > *, .hk-row-asset .hk-status > *, .hk-chevron {
+      pointer-events: auto; position: relative; z-index: 1;
+    }
+    .hk-chevron { position: absolute; }
   }
 
   /* ── Narrow: the drawer becomes a bottom sheet ─────────────────────────────

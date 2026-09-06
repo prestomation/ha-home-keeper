@@ -175,6 +175,18 @@ test.describe('Home Keeper panel — the list tells the truth about what it show
     await expect(row.locator('.hk-status ha-assist-chip')).not.toHaveCount(0);
     await expect(row.locator('.hk-status')).toContainText('subdevice');
 
+    // The whole row still opens the appliance, not only the text at its left end.
+    // Splitting the row into tracks nearly left the opener holding one of them.
+    await row.click({ position: { x: 10, y: 10 } });
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/appliances/${ASSET.shades}`));
+    await page.goBack();
+    await expect(row).toBeVisible();
+    const box = (await row.boundingBox())!;
+    await row.click({ position: { x: box.width - 10, y: box.height / 2 } });
+    await expect(page, 'the right-hand end of an appliance row opens it too').toHaveURL(
+      new RegExp(`/home-keeper/appliances/${ASSET.shades}`),
+    );
+
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 });
