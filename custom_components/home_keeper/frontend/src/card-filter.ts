@@ -341,8 +341,14 @@ export function normalizeSearch(value: string | null | undefined): string {
  * would be a mutant no test could kill.
  */
 export function matchesQuery(fields: (string | null | undefined)[], query: string): boolean {
+  // Stryker disable next-line MethodExpression: equivalent — `normalizeSearch` has
+  // already trimmed and collapsed, so the split can only yield an empty segment for
+  // an empty query, and `includes('')` is true anyway. The filter states the intent.
   const terms = normalizeSearch(query).split(' ').filter(Boolean);
   // Joined with a space so a word can never match across two fields' contents.
+  // Stryker disable next-line MethodExpression: equivalent — dropping the filter only
+  // doubles a separator, and a term never holds a space, so nothing can match across
+  // one. The filter keeps the haystack readable when it is inspected.
   const haystack = fields.map(normalizeSearch).filter(Boolean).join(' ');
   return terms.every((term) => haystack.includes(term));
 }
@@ -370,6 +376,9 @@ export function taskMatchesQuery(
       // The effective area: a task with none of its own is placed by its device.
       areaName(areas, taskAreaId(task, devices)),
       task.managed_by?.display_name,
+      // Stryker disable next-line ArrayDeclaration: equivalent — any element the
+      // fallback could hold instead carries no `label`, which normalizes to '' and is
+      // dropped from the haystack, so the empty array cannot be told from a full one.
       ...(task.task_chips ?? []).map((chip) => chip.label),
     ],
     query,
