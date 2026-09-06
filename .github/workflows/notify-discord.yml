@@ -1,0 +1,25 @@
+# Notifies Discord of external interactions and releases on this repo.
+# The actual logic lives in prestomation/.github as a reusable workflow.
+# Set the DISCORD_WEBHOOK_URL repo secret to point to the right Discord channel.
+
+name: Discord Notify
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, edited, closed, reopened, review_requested]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created]
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    uses: prestomation/.github/.github/workflows/notify-discord.yml@main
+    secrets:
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}

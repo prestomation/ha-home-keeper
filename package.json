@@ -19,10 +19,10 @@
   },
   "homepage": "https://github.com/prestomation/ha-home-keeper#readme",
   "devDependencies": {
-    "@stryker-mutator/core": "^9.6.1",
-    "@stryker-mutator/vitest-runner": "^9.6.1",
-    "@vitest/ui": "^4.1.9",
-    "vitest": "^4.1.10"
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
+    "@vitest/ui": "^4.1.11",
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "jsdom": "^30.0.1"

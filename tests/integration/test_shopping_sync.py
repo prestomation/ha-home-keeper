@@ -19,6 +19,10 @@ from conftest import call_service
 
 SHOPPING_LIST = "todo.shopping_list"
 APPLIANCE = "Mirror test appliance"
+# The line as it reads on the shopper's list. The part below restocks four at a
+# time and is not measured in anything, so the mirror appends the multiplier; the
+# task itself keeps its own plain name.
+REMINDER = "Buy Mirror cartridge (×4)"
 
 
 def _list_tasks(ha):
@@ -152,11 +156,11 @@ def _adjust_stock(ha, asset_id, part_id, delta):
 def test_a_low_part_reaches_the_shopping_list(ha, mirrored):
     asset_id, part_id, buy_task = mirrored
     # Nothing is on the list while the part is stocked above its threshold.
-    assert "Buy Mirror cartridge" not in _summaries(ha)
+    assert REMINDER not in _summaries(ha)
 
     _adjust_stock(ha, asset_id, part_id, -1)
     assert _poll(buy_task), "expected a buy reminder once the part went low"
-    assert _poll(lambda: "Buy Mirror cartridge" in _summaries(ha, ["needs_action"])), (
+    assert _poll(lambda: REMINDER in _summaries(ha, ["needs_action"])), (
         "the reminder should have been mirrored onto the shopping list"
     )
 
@@ -168,11 +172,7 @@ def test_ticking_it_off_at_the_shop_restocks_the_part(ha, mirrored):
     assert _poll(buy_task), "expected a buy reminder once the part went low"
     item = _poll(
         lambda: next(
-            (
-                i
-                for i in _items(ha, ["needs_action"])
-                if i["summary"] == "Buy Mirror cartridge"
-            ),
+            (i for i in _items(ha, ["needs_action"]) if i["summary"] == REMINDER),
             None,
         )
     )
@@ -197,19 +197,19 @@ def test_ticking_it_off_at_the_shop_restocks_the_part(ha, mirrored):
     # The line they ticked off is theirs — it stays on the list as their record,
     # and no fresh copy is put back while Home Keeper catches up.
     completed = _summaries(ha, ["completed"])
-    assert "Buy Mirror cartridge" in completed
-    assert "Buy Mirror cartridge" not in _summaries(ha, ["needs_action"])
+    assert REMINDER in completed
+    assert REMINDER not in _summaries(ha, ["needs_action"])
 
 
 def test_a_part_restocked_in_home_keeper_takes_its_line_off_the_list(ha, mirrored):
     asset_id, part_id, buy_task = mirrored
     _adjust_stock(ha, asset_id, part_id, -1)
-    assert _poll(lambda: "Buy Mirror cartridge" in _summaries(ha, ["needs_action"]))
+    assert _poll(lambda: REMINDER in _summaries(ha, ["needs_action"]))
 
     # Topped up by hand: nothing was bought, so the line is not "done" — it goes.
     _adjust_stock(ha, asset_id, part_id, 5)
     assert _poll(lambda: buy_task() is None), "expected the reminder to retire"
-    assert _poll(lambda: "Buy Mirror cartridge" not in _summaries(ha)), (
+    assert _poll(lambda: REMINDER not in _summaries(ha)), (
         "an unbought reminder must take its shopping-list line with it"
     )
 
@@ -217,10 +217,10 @@ def test_a_part_restocked_in_home_keeper_takes_its_line_off_the_list(ha, mirrore
 def test_turning_the_mirror_off_clears_what_it_put_there(ha, mirrored):
     asset_id, part_id, _buy_task = mirrored
     _adjust_stock(ha, asset_id, part_id, -1)
-    assert _poll(lambda: "Buy Mirror cartridge" in _summaries(ha, ["needs_action"]))
+    assert _poll(lambda: REMINDER in _summaries(ha, ["needs_action"]))
 
     _set_target(ha, "")
-    assert _poll(lambda: "Buy Mirror cartridge" not in _summaries(ha)), (
+    assert _poll(lambda: REMINDER not in _summaries(ha)), (
         "switching the mirror off should clear the lines it added"
     )
 
@@ -234,4 +234,4 @@ def test_home_keepers_own_todo_list_is_refused_as_a_target(ha, mirrored):
     # It lives on Home Keeper's own list as an ordinary task, but the mirror added
     # nothing — and, crucially, setting up did not error the entry.
     time.sleep(3)
-    assert "Buy Mirror cartridge" not in _summaries(ha)
+    assert REMINDER not in _summaries(ha)

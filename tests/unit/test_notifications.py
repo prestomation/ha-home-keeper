@@ -142,6 +142,30 @@ def test_normalize_notification_bad_snooze_falls_back():
     assert n.normalize_notification({"snooze_hours": 6})["snooze_hours"] == 6
 
 
+def test_normalize_notification_defaults_channel_and_urgency():
+    notif = n.normalize_notification({"id": "x"})
+    assert notif["channel"] == ""
+    assert notif["urgency"] == "normal"
+    assert n.DEFAULT_URGENCY == "normal"
+
+
+def test_normalize_notification_strips_the_channel_name():
+    # The channel name is echoed straight into the payload and Android creates a
+    # channel per distinct string, so " Meds " and "Meds" must not become two.
+    assert n.normalize_notification({"channel": "  Meds  "})["channel"] == "Meds"
+    assert n.normalize_notification({"channel": None})["channel"] == ""
+    assert n.normalize_notification({"channel": 7})["channel"] == "7"
+
+
+def test_normalize_notification_clamps_an_unknown_urgency():
+    # Urgency drives which keys reach the phone, so an unrecognised value has to land
+    # on the quiet default rather than pass through and ask iOS for a critical alert.
+    for bad in ("URGENT", "max", "", None, 3):
+        assert n.normalize_notification({"urgency": bad})["urgency"] == "normal"
+    for good in n.URGENCIES:
+        assert n.normalize_notification({"urgency": good})["urgency"] == good
+
+
 def test_split_targets_partitions_by_prefix():
     accepted, rejected = n.split_targets(
         ["mobile_app_phone", "smtp_family", "mobile_app_tablet", "telegram"]
@@ -404,6 +428,113 @@ def test_overdue_phrase_singular_and_due_now():
     assert same["message"] == "Due now."
 
 
+def test_due_soon_holds_to_the_window_boundary():
+    # The exact edge, because it is the one that decides which of two phrasings a
+    # phone shows. "Due soon" must mean the same span here as it does to the filter
+    # that queued the task (`profiles.matches_filter` / `recurrence.is_due_soon`):
+    # inclusive at the window, and not one second past it.
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+
+    def phrase(next_due):
+        t = task("t", "X", next_due)
+        return n.build_notification(t, notification=notif, now=now)["message"]
+
+    assert phrase(now + n.DUE_SOON_WINDOW) == "Due soon."
+    assert phrase(now + n.DUE_SOON_WINDOW - timedelta(hours=1)) == "Due soon."
+    assert phrase(now + n.DUE_SOON_WINDOW + timedelta(seconds=1)) == "Due in 3 days."
+
+
+def test_a_task_past_the_window_says_how_far_off_it_is():
+    # Before `status: all` existed a notification only ever carried something due, so
+    # everything not overdue read "Due soon." — including a task months away. The count
+    # is floored, matching the overdue branch: 10.5 days reads as 10, the same way 10.5
+    # days late reads as "overdue by 10 days".
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+
+    def phrase(days, hours=0):
+        t = task("t", "X", now + timedelta(days=days, hours=hours))
+        return n.build_notification(t, notification=notif, now=now)["message"]
+
+    assert phrase(10) == "Due in 10 days."
+    assert phrase(10, 12) == "Due in 10 days."
+    assert phrase(180) == "Due in 180 days."
+
+
+def test_due_in_translates_and_pluralizes():
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+    t = task("t", "X", now + timedelta(days=10))
+    assert (
+        n.build_notification(t, notification=notif, now=now, lang="es")["message"]
+        != n.build_notification(t, notification=notif, now=now, lang="en")["message"]
+    )
+    # Polish splits 2-4 from 5+, which is the reason the CLDR categories exist. A
+    # `.other`-only table would answer both with the same string.
+    few = n.build_notification(
+        task("t", "X", now + timedelta(days=4)), notification=notif, now=now, lang="pl"
+    )["message"]
+    many = n.build_notification(
+        task("t", "X", now + timedelta(days=9)), notification=notif, now=now, lang="pl"
+    )["message"]
+    assert few != many
+
+
+def test_every_due_phrase_is_localized():
+    """All four phrasings honour *lang*, not only the two that count days.
+
+    ``_t`` falls back to English for an unknown language, so a phrase that quietly
+    stopped passing *lang* through would still return a real sentence and read as
+    working. Only a locale comparison catches it, and "due now" and "due soon" take
+    no placeholder, so nothing else in this file was pinning them.
+    """
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+
+    def phrase(next_due, lang):
+        t = task("t", "X", next_due)
+        return n.build_notification(t, notification=notif, now=now, lang=lang)[
+            "message"
+        ]
+
+    assert phrase(now, "es") == "Vence ahora."
+    assert phrase(now + timedelta(days=1), "es") == "Vence pronto."
+    assert phrase(now, "de") == "Jetzt fällig."
+    assert phrase(now + timedelta(days=1), "de") == "Bald fällig."
+
+
+def test_build_notification_threads_the_due_soon_window_through():
+    """The window reaches the phrase, rather than the phrase reading its own default.
+
+    Both are ``DUE_SOON_WINDOW`` in every real call, so a dropped argument changes
+    nothing until someone passes a different one — which is exactly when it would
+    matter, and exactly when nobody would be looking.
+    """
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification({"id": "p", "actions": ["complete"]})
+    t = task("t", "X", now + timedelta(days=5))
+
+    assert (
+        n.build_notification(t, notification=notif, now=now)["message"]
+        == "Due in 5 days."
+    )
+    # A window wide enough to swallow the same task calls it due soon instead.
+    wide = n.build_notification(
+        t, notification=notif, now=now, window=timedelta(days=30)
+    )
+    assert wide["message"] == "Due soon."
+
+
+def test_sends_when_empty_only_for_the_all_clear_value():
+    # The one branch that decides whether an empty queue still delivers.
+    assert n.sends_when_empty(n.WHEN_EMPTY_ALL_CLEAR) is True
+    assert n.sends_when_empty(n.WHEN_EMPTY_SKIP) is False
+    assert n.sends_when_empty(None) is False
+    assert n.sends_when_empty("") is False
+    assert n.sends_when_empty("ALL_CLEAR") is False
+
+
 def test_build_digest_lists_and_truncates():
     now = dt(2026, 6, 13, 12)
     notif = n.normalize_notification({"id": "p", "style": "digest"})
@@ -420,6 +551,150 @@ def test_build_all_clear_default_english():
     assert payload["title"] == "All caught up"
     assert payload["message"] == "No tasks due right now. 🎉"
     assert payload["data"]["tag"] == "home_keeper_p"
+
+
+# ── channel & urgency (#255) ────────────────────────────────────────────────
+#
+# One stored (channel, urgency) pair, two payload vocabularies. Every assertion here
+# compares the *whole* data dict rather than checking a key is present: a payload key
+# with the wrong value is a notification that lands silently, or one that overrides Do
+# Not Disturb when it should not, and "has an importance" cannot tell those apart.
+
+
+def test_payload_data_unconfigured_is_what_it_always_was():
+    # The regression that matters most. Every notification saved before these fields
+    # existed normalizes to no channel at `normal` urgency, and must keep sending the
+    # exact payload it sent then — nothing extra for the phone to interpret.
+    notif = n.normalize_notification({"id": "n1"})
+    assert n.payload_data(notif) == {"tag": "home_keeper_n1", "group": "home_keeper"}
+    assert n.payload_data(notif, actions=[]) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "actions": [],
+    }
+
+
+def test_payload_data_quiet_asks_both_platforms_to_stay_quiet():
+    notif = n.normalize_notification({"id": "n1", "urgency": "quiet"})
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "importance": "low",
+        "push": {"interruption-level": "passive"},
+    }
+
+
+def test_payload_data_high_wakes_the_phone():
+    # `ttl: 0` + `priority: high` is the companion app's documented way past Android's
+    # Doze batching. Without them a "high" reminder can arrive an hour late, which is
+    # indistinguishable to the user from the feature not working.
+    notif = n.normalize_notification({"id": "n1", "urgency": "high"})
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "importance": "high",
+        "ttl": 0,
+        "priority": "high",
+        "push": {"interruption-level": "time-sensitive"},
+    }
+
+
+def test_payload_data_critical_carries_the_ios_critical_sound():
+    notif = n.normalize_notification({"id": "n1", "urgency": "critical"})
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "importance": "max",
+        "ttl": 0,
+        "priority": "high",
+        "push": {
+            "interruption-level": "critical",
+            "sound": {"name": "default", "critical": 1, "volume": 1.0},
+        },
+    }
+
+
+def test_payload_data_critical_sound_is_a_copy_per_payload():
+    # The sound table is module state. Handing the same dict to two payloads would let
+    # anything downstream that edits one silently edit every future critical alert.
+    notif = n.normalize_notification({"id": "n1", "urgency": "critical"})
+    first = n.payload_data(notif)["push"]["sound"]
+    first["volume"] = 0.1
+    assert n.payload_data(notif)["push"]["sound"]["volume"] == 1.0
+
+
+def test_payload_data_channel_reaches_both_platforms():
+    # Android names a notification channel; iOS has none, so the same string threads
+    # the reminders instead. One field in the panel, two keys on the wire.
+    notif = n.normalize_notification({"id": "n1", "channel": "Medication"})
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "channel": "Medication",
+        "push": {"thread-id": "Medication"},
+    }
+
+
+def test_payload_data_combines_channel_and_urgency():
+    notif = n.normalize_notification(
+        {"id": "n1", "channel": "Medication", "urgency": "critical"}
+    )
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "channel": "Medication",
+        "importance": "max",
+        "ttl": 0,
+        "priority": "high",
+        "push": {
+            "thread-id": "Medication",
+            "interruption-level": "critical",
+            "sound": {"name": "default", "critical": 1, "volume": 1.0},
+        },
+    }
+
+
+def test_payload_data_keeps_one_group_across_channels():
+    # The channel decides how a reminder behaves; the group decides where it sits in
+    # the shade. Home Keeper's notifications stack together either way, so `group` is
+    # a fixed contract that a channel must not quietly redefine.
+    for channel in ("", "Medication", "Chores"):
+        notif = n.normalize_notification({"id": "n1", "channel": channel})
+        assert n.payload_data(notif)["group"] == "home_keeper"
+
+
+def test_every_urgency_is_reachable_and_distinct():
+    # A typo in either mapping table that collapsed two urgencies onto one payload
+    # would leave the panel offering a choice that does nothing.
+    notif = {"id": "n1", "channel": "C"}
+    seen = [
+        n.payload_data(n.normalize_notification({**notif, "urgency": u}))
+        for u in n.URGENCIES
+    ]
+    assert len(seen) == 4
+    for i, a in enumerate(seen):
+        for b in seen[i + 1 :]:
+            assert a != b
+
+
+def test_all_three_builders_carry_channel_and_urgency():
+    # `payload_data` is shared, but a builder that stopped calling it would still pass
+    # its own tag/group assertions above. Pin every send path to the real thing.
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification(
+        {"id": "n1", "channel": "Chores", "urgency": "high", "actions": ["open"]}
+    )
+    t = task("t1", "Furnace filter", dt(2026, 6, 10))
+    payloads = [
+        n.build_notification(t, notification=notif, now=now),
+        n.build_digest([t], notification=notif, now=now),
+        n.build_all_clear(notif),
+    ]
+    for payload in payloads:
+        assert payload["data"]["channel"] == "Chores"
+        assert payload["data"]["importance"] == "high"
+        assert payload["data"]["push"]["thread-id"] == "Chores"
+        assert payload["data"]["push"]["interruption-level"] == "time-sensitive"
 
 
 # ── translated payload text (#150) ──────────────────────────────────────────

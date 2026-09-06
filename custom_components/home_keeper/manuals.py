@@ -38,7 +38,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.http import KEY_HASS
 
 from . import documents
-from .assets import AssetValidationError
+from .assets import AssetValidationError, find_part
 from .backend_i18n import resolve_exception
 from .const import (
     DOCUMENT_URL_PREFIX,
@@ -286,13 +286,9 @@ async def async_delete_part_file(
 
 def _coordinator(hass: HomeAssistant) -> Any:
     """Locate the loaded Home Keeper coordinator (lazy import avoids a cycle)."""
-    from .coordinator import HomeKeeperCoordinator
+    from .coordinator import find_coordinator
 
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        coord = getattr(entry, "runtime_data", None)
-        if isinstance(coord, HomeKeeperCoordinator):
-            return coord
-    return None
+    return find_coordinator(hass)
 
 
 def _uploader_is_a_real_user(request: web.Request) -> bool:
@@ -322,10 +318,8 @@ def _file_document(asset: dict[str, Any] | None, document_id: str) -> dict | Non
 
 
 def _part_with_file(asset: dict[str, Any] | None, part_id: str) -> dict | None:
-    for part in (asset or {}).get("parts", []):
-        if part.get("id") == part_id and part.get("file_name"):
-            return part
-    return None
+    part = find_part(asset or {}, part_id)
+    return part if part and part.get("file_name") else None
 
 
 async def async_sign_document_url(
@@ -505,6 +499,67 @@ async def _stream_to_temp(
     return UploadedFile(path=tmp, size=size, header=header)
 
 
+async def _serve_signed_file(
+    hass: HomeAssistant, asset_id: str, document_id: str, filename: str | None
+) -> web.StreamResponse:
+    """Stream one stored blob back to the browser, or 404.
+
+    Shared by both views' ``get``. The caller looks the record up first and passes
+    its stored filename (``None`` when there is no such record) — that lookup is the
+    permission check: the document/file must belong to the addressed asset, and it
+    must stay ahead of any file response, alongside the view's ``requires_auth``.
+    (An asset document spells that field ``filename`` and a part's file spells it
+    ``file_name``; the two stored spellings are historical, and renaming either
+    would need a storage migration.)
+
+    *document_id* is the on-disk storage key — the document's own id for an asset
+    document, ``_part_document_id(part_id)`` for a part's single file.
+    """
+    if filename is None:
+        return web.Response(status=HTTPStatus.NOT_FOUND)
+    try:
+        path = _document_path(hass, asset_id, document_id, filename)
+    except AssetValidationError:
+        return web.Response(status=HTTPStatus.NOT_FOUND)
+    if not await hass.async_add_executor_job(path.is_file):
+        return web.Response(status=HTTPStatus.NOT_FOUND)
+    # Stream straight from disk (aiohttp handles range requests, content-type from
+    # the file extension, etc.) rather than buffering up to MAX_DOCUMENT_BYTES.
+    disposition = f'inline; filename="{filename}"'
+    return web.FileResponse(path, headers={hdrs.CONTENT_DISPOSITION: disposition})
+
+
+async def _begin_upload(
+    hass: HomeAssistant, view: HomeAssistantView, request: web.Request, asset_id: str
+) -> tuple[Any, dict[str, Any], str] | web.Response:
+    """Admit an upload request, or hand back the error response to return.
+
+    Shared by both views' ``post``: raise this request's body cap, then check the
+    three things an upload needs before a byte is read — a real user behind it, a
+    loaded integration, and an asset to hang the file off. Returns
+    ``(coordinator, asset, language)`` on success.
+    """
+    # Raise this request's body cap to our document ceiling. HA's global app limit
+    # (`MAX_CLIENT_SIZE`, 16 MB) is *smaller* than MAX_DOCUMENT_BYTES, so without
+    # this aiohttp rejects a larger upload with a bare 413 before our handler runs.
+    # Mirrors homeassistant.components.image_upload. We still enforce the real
+    # ceiling (with a clear message) while streaming below.
+    request._client_max_size = MAX_DOCUMENT_BYTES
+    lang = hass.config.language
+    if not _uploader_is_a_real_user(request):
+        message = resolve_exception(lang, "upload_requires_user")
+        return view.json_message(message, HTTPStatus.UNAUTHORIZED)
+    coord = _coordinator(hass)
+    if coord is None:
+        message = resolve_exception(lang, "integration_not_loaded")
+        return view.json_message(message, HTTPStatus.NOT_FOUND)
+    asset = coord.store.get_asset(asset_id)
+    if asset is None:
+        message = resolve_exception(lang, "asset_not_found", asset_id=asset_id)
+        return view.json_message(message, HTTPStatus.NOT_FOUND)
+    return coord, asset, lang
+
+
 class HomeKeeperDocumentView(HomeAssistantView):
     """Upload (POST) and serve (GET) uploaded asset documents.
 
@@ -521,46 +576,21 @@ class HomeKeeperDocumentView(HomeAssistantView):
     ) -> web.StreamResponse:
         hass = request.app[KEY_HASS]
         coord = _coordinator(hass)
-        # The metadata lookup (below) is the permission check: the document must belong
-        # to the addressed asset. Keep it — and the view's ``requires_auth`` — ahead of
-        # any file response.
         document = _file_document(
             coord.store.get_asset(asset_id) if coord else None, document_id
         )
-        if document is None:
-            return web.Response(status=HTTPStatus.NOT_FOUND)
-        try:
-            path = _document_path(hass, asset_id, document_id, document["filename"])
-        except AssetValidationError:
-            return web.Response(status=HTTPStatus.NOT_FOUND)
-        if not await hass.async_add_executor_job(path.is_file):
-            return web.Response(status=HTTPStatus.NOT_FOUND)
-        # Stream straight from disk (aiohttp handles range requests, content-type from
-        # the file extension, etc.) rather than buffering up to MAX_DOCUMENT_BYTES.
-        disposition = f'inline; filename="{document["filename"]}"'
-        return web.FileResponse(path, headers={hdrs.CONTENT_DISPOSITION: disposition})
+        return await _serve_signed_file(
+            hass, asset_id, document_id, document["filename"] if document else None
+        )
 
     async def post(
         self, request: web.Request, asset_id: str, document_id: str
     ) -> web.Response:
         hass = request.app[KEY_HASS]
-        # Raise this request's body cap to our document ceiling. HA's global app limit
-        # (`MAX_CLIENT_SIZE`, 16 MB) is *smaller* than MAX_DOCUMENT_BYTES, so without
-        # this aiohttp rejects a larger upload with a bare 413 before our handler runs.
-        # Mirrors homeassistant.components.image_upload. We still enforce the real
-        # ceiling (with a clear message) while streaming below.
-        request._client_max_size = MAX_DOCUMENT_BYTES
-        lang = hass.config.language
-        if not _uploader_is_a_real_user(request):
-            message = resolve_exception(lang, "upload_requires_user")
-            return self.json_message(message, HTTPStatus.UNAUTHORIZED)
-        coord = _coordinator(hass)
-        if coord is None:
-            message = resolve_exception(lang, "integration_not_loaded")
-            return self.json_message(message, HTTPStatus.NOT_FOUND)
-        if coord.store.get_asset(asset_id) is None:
-            message = resolve_exception(lang, "asset_not_found", asset_id=asset_id)
-            return self.json_message(message, HTTPStatus.NOT_FOUND)
+        admitted = await _begin_upload(hass, self, request, asset_id)
+        if isinstance(admitted, web.Response):
+            return admitted
+        coord, _asset, lang = admitted
 
         parsed = await _parse_upload(hass, self, request, want_name=True)
         if isinstance(parsed, web.Response):
@@ -656,45 +686,25 @@ class HomeKeeperPartFileView(HomeAssistantView):
     ) -> web.StreamResponse:
         hass = request.app[KEY_HASS]
         coord = _coordinator(hass)
-        # The metadata lookup (below) is the permission check: the file must belong
-        # to the addressed part. Keep it — and the view's ``requires_auth`` — ahead of
-        # any file response.
         part = _part_with_file(
             coord.store.get_asset(asset_id) if coord else None, part_id
         )
-        if part is None:
-            return web.Response(status=HTTPStatus.NOT_FOUND)
-        try:
-            path = _document_path(
-                hass, asset_id, _part_document_id(part_id), part["file_name"]
-            )
-        except AssetValidationError:
-            return web.Response(status=HTTPStatus.NOT_FOUND)
-        if not await hass.async_add_executor_job(path.is_file):
-            return web.Response(status=HTTPStatus.NOT_FOUND)
-        # Stream straight from disk (aiohttp handles range requests, content-type from
-        # the file extension, etc.) rather than buffering up to MAX_DOCUMENT_BYTES.
-        disposition = f'inline; filename="{part["file_name"]}"'
-        return web.FileResponse(path, headers={hdrs.CONTENT_DISPOSITION: disposition})
+        return await _serve_signed_file(
+            hass,
+            asset_id,
+            _part_document_id(part_id),
+            part["file_name"] if part else None,
+        )
 
     async def post(
         self, request: web.Request, asset_id: str, part_id: str
     ) -> web.Response:
         hass = request.app[KEY_HASS]
-        request._client_max_size = MAX_DOCUMENT_BYTES  # see HomeKeeperDocumentView.post
-        lang = hass.config.language
-        if not _uploader_is_a_real_user(request):
-            message = resolve_exception(lang, "upload_requires_user")
-            return self.json_message(message, HTTPStatus.UNAUTHORIZED)
-        coord = _coordinator(hass)
-        if coord is None:
-            message = resolve_exception(lang, "integration_not_loaded")
-            return self.json_message(message, HTTPStatus.NOT_FOUND)
-        asset = coord.store.get_asset(asset_id)
-        if asset is None:
-            message = resolve_exception(lang, "asset_not_found", asset_id=asset_id)
-            return self.json_message(message, HTTPStatus.NOT_FOUND)
-        if not any(p.get("id") == part_id for p in asset.get("parts", [])):
+        admitted = await _begin_upload(hass, self, request, asset_id)
+        if isinstance(admitted, web.Response):
+            return admitted
+        coord, asset, lang = admitted
+        if find_part(asset, part_id) is None:
             message = resolve_exception(
                 lang, "unknown_part", asset_id=asset_id, part_id=part_id
             )

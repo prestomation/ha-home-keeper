@@ -47,6 +47,17 @@ template:
         unique_id: hk_demo_water_tank_low
         device_class: moisture
         state: "{{ is_state('input_boolean.hk_demo_flag', 'on') }}"
+  # A low-battery flag, kept "on", so a declarative companion that selects
+  # device_class battery has one entity to match. The hand-built battery recipe in
+  # tests/integration/test_declarative_companion_sync.py and the
+  # declarative-companions e2e spec both read "1 match" off this sensor. It is
+  # always "on", so a recipe that watches it arms on a condition that is already
+  # true. Not device_class problem, so the problem-sensor sync leaves it alone.
+  - binary_sensor:
+      - name: "HK demo remote battery"
+        unique_id: hk_demo_remote_battery
+        device_class: battery
+        state: "{{ true }}"
   # A fixed cumulative run-hours counter, standing in for the kind of
   # ``total_usage_hours`` sensor an appliance integration exposes. Constant so the
   # seeded usage task's progress ("120 of 300 h used") renders identically on every
@@ -58,6 +69,17 @@ template:
         unit_of_measurement: "h"
         state_class: total_increasing
         state: "{{ 780 }}"
+  # An update that is always available, so the bundled **Firmware update available**
+  # declarative companion has one entity to match. The preset picker's preview and
+  # the declarative-companions e2e spec both read "1 match" off it. This is the only
+  # `update` entity in the fixture on purpose, so that count stays knowable. Both
+  # versions are constant, so the entity reports "on" on every run and a screenshot
+  # of it is deterministic.
+  - update:
+      - name: "HK demo router firmware"
+        unique_id: hk_demo_router_firmware
+        installed_version: "1.2.0"
+        latest_version: "1.3.1"
 
 # Dedicated YAML dashboard used by the Playwright e2e suite. The default
 # (storage-mode) dashboard from onboarding is left untouched. The Home Keeper

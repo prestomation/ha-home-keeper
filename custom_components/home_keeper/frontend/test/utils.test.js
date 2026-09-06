@@ -1,41 +1,49 @@
+import { readFileSync } from 'fs';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
-  escapeHTML,
-  formatQuantity,
-  isHttpUrl,
-  isSafeImageUrl,
-  safeFileHref,
-  safeHref,
-  randomId,
-  recurrenceSummary,
-  isArmedTriggered,
-  isOverdue,
-  dueLabel,
-  meterRemaining,
-  taskRecordsReading,
-  readingUnit,
-  btnAttrs,
-  deviceName,
-  formatDate,
-  formatDateTime,
-  setBtnWeight,
-  deviceDomain,
-  brandLogoUrl,
-  areaName,
-  assetSummary,
-  sortedCompletions,
-  completionStats,
-  DEFAULT_SNOOZE_PRESET,
-  resolveSnoozePreset,
-  SNOOZE_PRESETS,
-  taskRelatesToAsset,
-  tasksForAsset,
-  parseRoute,
-  buildPath,
-  buildAssetTree,
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
+  DEFAULT_SNOOZE_PRESET,
   SETTINGS_SECTIONS,
+  SNOOZE_PRESETS,
+  areaName,
+  assetSummary,
+  brandLogoUrl,
+  btnAttrs,
+  buildAssetTree,
+  buildPath,
+  completionStats,
+  deviceDomain,
+  deviceName,
+  dueLabel,
+  escapeHTML,
+  formatCost,
+  formatDate,
+  formatDateTime,
+  formatQuantity,
+  isArmedTriggered,
+  isBuyTask,
+  isHttpUrl,
+  isOverdue,
+  isSafeImageUrl,
+  meterRemaining,
+  navigateTo,
+  parseRoute,
+  personName,
+  randomId,
+  readingUnit,
+  recurrenceSummary,
+  relativeDay,
+  resolveSnoozePreset,
+  safeFileHref,
+  safeHref,
+  setBtnWeight,
+  sortedCompletions,
+  statusChipHtml,
+  taskRecordsReading,
+  taskRelatesToAsset,
+  tasksForAsset,
+  toast,
 } from '../src/utils.ts';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -147,6 +155,28 @@ describe('formatQuantity', () => {
     expect(formatQuantity(0.1 + 0.2)).toBe('0.3');
     expect(formatQuantity(1.23456)).toBe('1.235');
   });
+
+  // The shared cross-language cases. The same fixture drives the Python formatter
+  // (assets.format_quantity, see tests/unit/test_assets.py): a quantity is rendered
+  // here for the panel and there for the line Home Keeper puts on a household's
+  // shopping list, and "500 ml" in one place must not be "500.0 ml" in the other.
+  // Halfway values are the ones that matter — Python's round() breaks a tie to the
+  // even digit where toFixed breaks it away from zero.
+  describe('conformance fixture', () => {
+    const cases = JSON.parse(
+      readFileSync('tests/fixtures/quantity_format_cases.json', 'utf8'),
+    ).cases;
+
+    it('has cases to run', () => {
+      expect(cases.length).toBeGreaterThan(0);
+    });
+
+    for (const c of cases) {
+      it(c.name, () => {
+        expect(formatQuantity(c.value, c.unit)).toBe(c.expected);
+      });
+    }
+  });
 });
 
 describe('recurrenceSummary', () => {
@@ -173,6 +203,74 @@ describe('recurrenceSummary', () => {
     expect(
       recurrenceSummary({ recurrence_type: 'triggered', next_due: '2026-06-01T00:00:00Z' }),
     ).toBe('Monitored');
+  });
+  it('appends season range for floating tasks with active_season', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 2, unit: 'months',
+        active_season: { start: '04-01', end: '09-30' },
+      }),
+    ).toBe('Every 2 months after completion, April 1–September 30');
+  });
+  it('appends season range for fixed tasks with active_season', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY',
+        active_season: { start: '11-01', end: '03-31' },
+      }),
+    ).toBe('Every month, November 1–March 31');
+  });
+  it('omits season range when active_season is null', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 1, unit: 'months',
+        active_season: null,
+      }),
+    ).toBe('Every month after completion');
+  });
+  it('shows multi-window season with ampersand', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 1, unit: 'months',
+        active_season: [
+          { start: '04-01', end: '05-31' },
+          { start: '09-01', end: '10-31' },
+        ],
+      }),
+    ).toBe('Every month after completion, April 1–May 31 & September 1–October 31');
+  });
+  it('defaults to daily when freq is missing for a fixed task', () => {
+    expect(
+      recurrenceSummary({ recurrence_type: 'fixed', interval: 1 }),
+    ).toBe('Every day');
+  });
+
+  it('describes an availability task without borrowing the meter’s words', () => {
+    // The mode has no `target`, so before it had a case of its own it fell through to
+    // the usage branch and rendered "Every of use" — a sentence with a hole in it.
+    const summary = recurrenceSummary({
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.hallway_lux', mode: 'availability' },
+    });
+    expect(summary).not.toContain('of use');
+    expect(summary).toContain('unavailable');
+  });
+
+  it('still describes the other sensor modes in their own words', () => {
+    // The guard above sits between `threshold` and the meter, so it is exactly the
+    // kind of edit that can swallow a neighbour.
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'sensor',
+        sensor: { entity_id: 'sensor.h', mode: 'threshold', comparison: '>', value: 0 },
+      }),
+    ).toContain('> 0');
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'sensor',
+        sensor: { entity_id: 'sensor.h', mode: 'usage', target: 300 },
+      }),
+    ).toContain('of use');
   });
 });
 
@@ -201,6 +299,140 @@ describe('isOverdue', () => {
   });
   it('is false when next_due missing', () => {
     expect(isOverdue({}, now)).toBe(false);
+  });
+});
+
+describe('isBuyTask', () => {
+  it('needs both ids, because half a pair identifies no part', () => {
+    expect(isBuyTask({ source: { buy: { asset_id: 'a1', part_id: 'p1' } } })).toBe(true);
+    expect(isBuyTask({ source: { buy: { asset_id: 'a1' } } })).toBe(false);
+    expect(isBuyTask({ source: { buy: { part_id: 'p1' } } })).toBe(false);
+    expect(isBuyTask({ source: { part: { asset_id: 'a1' } } })).toBe(false);
+    expect(isBuyTask({ source: null })).toBe(false);
+    expect(isBuyTask({})).toBe(false);
+  });
+});
+
+describe('statusChipHtml', () => {
+  const now = new Date('2026-06-13T12:00:00Z');
+  const buy = {
+    // Exactly how the reconciler mints one: a one-off whose due date is the moment
+    // the part went low, so it is already overdue when it first appears.
+    recurrence_type: 'one-off',
+    next_due: '2026-06-10T12:00:00Z',
+    source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+  };
+
+  it('says Low stock on a buy reminder, never Overdue', () => {
+    const html = statusChipHtml(buy, undefined, { now });
+    expect(html).toContain('label="Low stock"');
+    expect(html).toContain('class="hk-shopping"');
+    expect(html).not.toContain('Overdue');
+    expect(html).not.toContain('hk-overdue');
+  });
+
+  it('says Low stock even where the row asks for elapsed days', () => {
+    // The list row passes `elapsed`. "3 days overdue" on a buy reminder would read as
+    // work three days late, when it means the part has been low for three days.
+    const html = statusChipHtml(buy, undefined, { now, elapsed: true });
+    expect(html).toContain('label="Low stock"');
+    expect(html).not.toContain('3 days overdue');
+  });
+
+  it('says Completed once the reminder is bought, matching its section', () => {
+    // Buying 2 of a part that wants 5 leaves it low, so the reconciler keeps the row
+    // and `statusBucket` files it under Completed. A "Low stock" chip on a row sitting
+    // under Completed is the panel arguing with itself.
+    const bought = {
+      recurrence_type: 'one-off',
+      next_due: null,
+      last_completed: '2026-06-12T12:00:00Z',
+      source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+    };
+    const html = statusChipHtml(bought, undefined, { now });
+    expect(html).toContain('label="Completed"');
+    expect(html).not.toContain('Low stock');
+  });
+
+  it('needs all three marks of a bought reminder before it stops saying Low stock', () => {
+    // "Bought" is the one shape `statusBucket` calls completed: a one-off, with its
+    // due date spent, that has a completion on it. Each part is load-bearing — drop
+    // any one and the row is an open reminder that must still read Low stock, so each
+    // is pinned separately rather than by the happy path alone.
+    const bought = {
+      recurrence_type: 'one-off',
+      next_due: null,
+      last_completed: '2026-06-12T12:00:00Z',
+      source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+    };
+    const lowStock = 'label="Low stock"';
+    // Not a one-off — a repeating task's completion does not end it.
+    expect(statusChipHtml({ ...bought, recurrence_type: 'floating' }, undefined, { now })).toContain(
+      lowStock,
+    );
+    // Still due: bought once before, low again now.
+    expect(
+      statusChipHtml({ ...bought, next_due: '2026-06-10T12:00:00Z' }, undefined, { now }),
+    ).toContain(lowStock);
+    // Never completed — a fresh reminder that simply has no due date yet.
+    expect(statusChipHtml({ ...bought, last_completed: null }, undefined, { now })).toContain(
+      lowStock,
+    );
+  });
+
+  it('still says Overdue for real maintenance', () => {
+    const late = { next_due: '2026-06-10T12:00:00Z' };
+    expect(statusChipHtml(late, undefined, { now })).toContain('label="Overdue"');
+    expect(statusChipHtml(late, undefined, { now })).toContain('class="hk-overdue"');
+  });
+
+  it('counts elapsed whole days only when asked, and only past a full day', () => {
+    const days3 = { next_due: '2026-06-10T12:00:00Z' };
+    const hours4 = { next_due: '2026-06-13T08:00:00Z' };
+    expect(statusChipHtml(days3, undefined, { now, elapsed: true })).toContain(
+      'label="3 days overdue"',
+    );
+    // One full day is the floor for the count, and it is *included*: exactly one day
+    // late reads "1 day overdue", where anything under a day stays the bare "Overdue"
+    // rather than rounding up to a day it has not reached.
+    const day1 = { next_due: '2026-06-12T12:00:00Z' };
+    expect(statusChipHtml(day1, undefined, { now, elapsed: true })).toContain(
+      'label="1 day overdue"',
+    );
+    expect(statusChipHtml(hours4, undefined, { now, elapsed: true })).toContain(
+      'label="Overdue"',
+    );
+    // Without `elapsed` the count never appears, however late the task is.
+    expect(statusChipHtml(days3, undefined, { now })).toContain('label="Overdue"');
+  });
+
+  it('falls back to the due label when nothing is late', () => {
+    const soon = { next_due: '2026-06-14T12:00:00Z' };
+    const html = statusChipHtml(soon, undefined, { now });
+    // A plain chip carries no class at all — the colour is what separates it from an
+    // overdue or low-stock one, so an empty `class=""` would still be wrong.
+    expect(html).toBe('<ha-assist-chip label="tomorrow"></ha-assist-chip>');
+  });
+
+  it('escapes the label it renders', () => {
+    // The label goes into an HTML attribute, and `dueLabel` can carry a meter's own
+    // unit ("in 7000 miles") — which is stored text, not a fixed string.
+    const html = statusChipHtml(
+      {
+        recurrence_type: 'sensor',
+        sensor: {
+          mode: 'usage',
+          target: 100,
+          baseline: 0,
+          entity_id: 'sensor.odo',
+          unit: '" onload="x',
+        },
+      },
+      { states: { 'sensor.odo': { state: '10' } } },
+      { now },
+    );
+    expect(html).toContain('&quot; onload=&quot;x');
+    expect(html).not.toContain('" onload="x');
   });
 });
 
@@ -1008,6 +1240,154 @@ describe('recurrenceSummary sentence case (#262)', () => {
     // Everything after the first character is exactly what the strings say — no
     // title-casing of "Weeks", no capital on "After".
     expect(out.slice(1)).toBe('very 3 weeks after completion');
+  });
+});
+
+describe('toast', () => {
+  it("emits HA's notification event from the element, escaping the shadow root", () => {
+    const el = document.createElement('div');
+    const seen = [];
+    el.addEventListener('hass-notification', (e) => seen.push(e));
+
+    toast(el, 'Saved');
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].type).toBe('hass-notification');
+    expect(seen[0].detail).toEqual({ message: 'Saved' });
+    // Both flags are load-bearing: HA listens above the panel/card, and the event is
+    // fired inside a shadow root. Either one false and the toast never shows.
+    expect(seen[0].bubbles).toBe(true);
+    expect(seen[0].composed).toBe(true);
+  });
+
+  it('carries whatever message it was given, including an empty one', () => {
+    const el = document.createElement('div');
+    let detail;
+    el.addEventListener('hass-notification', (e) => (detail = e.detail));
+    toast(el, '');
+    expect(detail).toEqual({ message: '' });
+  });
+});
+
+describe('navigateTo', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('pushes the path and tells HA’s router to re-route', () => {
+    const push = vi.spyOn(history, 'pushState').mockImplementation(() => {});
+    const seen = [];
+    const onNav = (e) => seen.push(e);
+    window.addEventListener('location-changed', onNav);
+
+    navigateTo('/config/devices/device/abc');
+
+    window.removeEventListener('location-changed', onNav);
+    // The title argument stays empty — HA's router reads the URL, and a title here
+    // would be the only thing that ever set the document title from a chip press.
+    expect(push).toHaveBeenCalledWith(null, '', '/config/devices/device/abc');
+    expect(seen).toHaveLength(1);
+    expect(seen[0].type).toBe('location-changed');
+    // Always a push, never a replace: Back returns to the page the user left.
+    expect(seen[0].detail).toEqual({ replace: false });
+    expect(seen[0].bubbles).toBe(true);
+    expect(seen[0].composed).toBe(true);
+  });
+
+  it('fires on window, not on the element that asked (which may be unmounted)', () => {
+    vi.spyOn(history, 'pushState').mockImplementation(() => {});
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const onEl = vi.fn();
+    el.addEventListener('location-changed', onEl);
+    const onWin = vi.fn();
+    window.addEventListener('location-changed', onWin);
+
+    navigateTo('/home-keeper/tasks/t1');
+
+    window.removeEventListener('location-changed', onWin);
+    el.remove();
+    expect(onWin).toHaveBeenCalledTimes(1);
+    expect(onEl).not.toHaveBeenCalled();
+  });
+});
+
+describe('relativeDay', () => {
+  const now = new Date('2026-06-13T12:00:00Z');
+
+  it('names the recent past in whole days', () => {
+    expect(relativeDay(new Date('2026-06-13T09:00:00Z'), now)).toBe('today');
+    expect(relativeDay(new Date('2026-06-12T12:00:00Z'), now)).toBe('yesterday');
+    expect(relativeDay(new Date('2026-06-10T12:00:00Z'), now)).toBe('3 days ago');
+    // Plural template, not "3 day ago" — and singular where singular is right.
+    expect(relativeDay(new Date('2026-06-12T12:00:00Z'), now)).not.toBe('1 days ago');
+  });
+
+  it('reads a future date as today rather than counting backwards', () => {
+    // A completion timestamped a few minutes ahead (clock skew) still happened now.
+    expect(relativeDay(new Date('2026-06-13T18:00:00Z'), now)).toBe('today');
+    expect(relativeDay(new Date('2026-06-20T12:00:00Z'), now)).toBe('today');
+  });
+
+  it('rounds to the nearest whole day at the half-day mark', () => {
+    // 1.4 days ago is still "yesterday"; 1.6 rounds up to two.
+    expect(relativeDay(new Date('2026-06-12T02:24:00Z'), now)).toBe('yesterday');
+    expect(relativeDay(new Date('2026-06-11T21:36:00Z'), now)).toBe('2 days ago');
+  });
+
+  it('defaults to the real clock when no now is given', () => {
+    expect(relativeDay(new Date())).toBe('today');
+    expect(relativeDay(new Date(Date.now() - 86_400_000))).toBe('yesterday');
+  });
+});
+
+describe('formatCost', () => {
+  it('formats in the instance currency, in the instance language', () => {
+    const hass = { config: { currency: 'USD' }, language: 'en-US' };
+    expect(formatCost(hass, 12.5)).toBe('$12.50');
+    const eu = { config: { currency: 'EUR' }, language: 'en-US' };
+    expect(formatCost(eu, 12.5)).toBe('€12.50');
+  });
+
+  it('falls back to the bare number when there is no currency to format in', () => {
+    expect(formatCost({ language: 'en-US' }, 12.5)).toBe('12.5');
+    expect(formatCost({ config: {} }, 12.5)).toBe('12.5');
+    expect(formatCost(undefined, 12.5)).toBe('12.5');
+  });
+
+  it('falls back to the bare number for a currency code Intl refuses', () => {
+    // A free-text currency in HA's config (or a code Intl has never heard of) used to
+    // throw out of the render; the number is worth more than an exception.
+    expect(formatCost({ config: { currency: 'not-a-currency' }, language: 'en-US' }, 12.5)).toBe(
+      '12.5',
+    );
+  });
+});
+
+describe('personName', () => {
+  const hass = {
+    states: {
+      'person.sam': { attributes: { friendly_name: 'Sam' } },
+      'person.blank': { attributes: { friendly_name: '' } },
+      'person.bare': { attributes: {} },
+      'person.stateless': {},
+      'person.odd': { attributes: { friendly_name: 42 } },
+    },
+  };
+
+  it('prefers the friendly name', () => {
+    expect(personName(hass, 'person.sam')).toBe('Sam');
+  });
+
+  it('falls back to the entity id whenever there is no name to show', () => {
+    // An empty friendly_name is not a name: it would render "Completed by " and stop.
+    expect(personName(hass, 'person.blank')).toBe('person.blank');
+    expect(personName(hass, 'person.bare')).toBe('person.bare');
+    // A state object with no attributes at all — HA hands those out for a moment
+    // during startup, and reaching through one used to throw out of the render.
+    expect(personName(hass, 'person.stateless')).toBe('person.stateless');
+    expect(personName(hass, 'person.odd')).toBe('person.odd');
+    expect(personName(hass, 'person.gone')).toBe('person.gone');
+    expect(personName({}, 'person.sam')).toBe('person.sam');
+    expect(personName(undefined, 'person.sam')).toBe('person.sam');
   });
 });
 

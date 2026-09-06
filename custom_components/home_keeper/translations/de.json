@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Erforderliche Erledigungsfelder",
           "description": "Welche Erledigungs-Metadatenfelder das Panel verpflichtend macht, wenn der Detailgrad required ist – eines von note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Erforderliche Erledigungsfelder",
           "description": "Welche Erledigungs-Metadatenfelder das Panel verpflichtend macht, wenn der Detailgrad required ist – eines von note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -396,6 +404,14 @@
         "target": {
           "name": "Ziel",
           "description": "Benachrichtigungsdienste, an die gesendet wird, überschreibt das Profil (z. B. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Überschreibt den eigenen Status des Profils für diesen Aufruf: overdue (nur überfällige Aufgaben), due_soon (überfällige und bald fällige Aufgaben), all (alle geplanten Aufgaben) oder none (passt auf keine Aufgabe, um die Benachrichtigung „Alles erledigt“ auf Abruf zu senden)."
+        },
+        "when_empty": {
+          "name": "Wenn nichts passt",
+          "description": "Was ein Aufruf sendet, wenn der Filter auf keine Aufgabe passt. Standardmäßig ist es skip: es wird nichts gesendet. Setze es auf all_clear, um stattdessen die Benachrichtigung „Alles erledigt“ zu senden."
         }
       }
     },
@@ -865,6 +881,34 @@
           "description": "Das neue Datum und die neue Uhrzeit, unter der das Überspringen eingetragen wird."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Deklarativen Companion hinzufügen",
+      "description": "Registriert einen deklarativen Companion — ein Rezept, das eine verwaltete Sensor-Aufgabe pro Entität erzeugt, die den Filtern (Ziel-Integration + Entitätsfilter) entspricht, mit Jinja-templated Aufgabennamen und Notizen. Nur für Administratoren."
+    },
+    "update_declarative_companion": {
+      "name": "Deklarativen Companion aktualisieren",
+      "description": "Aktualisiert Felder einer gespeicherten deklarativen Companion-Spezifikation anhand der ID. Nur für Administratoren.",
+      "fields": {
+        "id": {
+          "name": "Companion-ID",
+          "description": "Die stabile UUID der Spezifikation, aus list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Deklarativen Companion löschen",
+      "description": "Entfernt eine deklarative Companion-Spezifikation und alle daraus erzeugten verwalteten Aufgaben. Nur für Administratoren.",
+      "fields": {
+        "id": {
+          "name": "Companion-ID",
+          "description": "Die stabile UUID der Spezifikation, aus list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Deklarative Companions auflisten",
+      "description": "Gibt jede gespeicherte deklarative Companion-Spezifikation als Antwort zurück."
     }
   },
   "entity": {
@@ -984,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativer Companion nicht gefunden: {spec_id}"
     }
   }
 }

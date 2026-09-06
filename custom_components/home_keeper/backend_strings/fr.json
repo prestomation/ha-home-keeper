@@ -9,5 +9,9 @@
   "inventory.csv.cost": "Coût",
   "inventory.csv.spares_value": "Valeur des pièces de rechange",
   "inventory.csv.details": "Détails",
-  "inventory.csv.total": "TOTAL"
+  "inventory.csv.total": "TOTAL",
+  "declarative_preset.device_pulse.name": "Device Pulse",
+  "declarative_preset.device_pulse.description": "Surveille les capteurs de ping par appareil de votre intégration Device Pulse et ouvre une tâche pour chaque appareil qui échoue aux pings depuis plus d'une heure. Nécessite l'intégration Device Pulse.",
+  "declarative_preset.firmware_update_available.name": "Mise à jour du firmware disponible",
+  "declarative_preset.firmware_update_available.description": "Surveille chaque entité de mise à jour (UniFi, ESPHome, HACS, caméras, imprimantes, etc.) et ouvre une tâche pour appliquer la nouvelle version."
 }

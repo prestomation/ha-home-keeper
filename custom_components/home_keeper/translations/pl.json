@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Wymagane pola ukończenia",
           "description": "Które pola metadanych ukończenia panel czyni obowiązkowymi, gdy szczegóły ukończenia są ustawione na required — dowolne z note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Wymagane pola ukończenia",
           "description": "Które pola metadanych ukończenia panel czyni obowiązkowymi, gdy szczegóły ukończenia są ustawione na required — dowolne z note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -396,6 +404,14 @@
         "target": {
           "name": "Cel",
           "description": "Usługi powiadomień, do których wysłać, zastępujące profil (np. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Zastępuje własny status profilu na potrzeby tego wywołania: overdue (tylko zadania po terminie), due_soon (zadania po terminie i wkrótce po terminie), all (wszystkie zaplanowane zadania) lub none (nie pasuje do żadnego zadania, aby wysłać powiadomienie Wszystko zrobione na żądanie)."
+        },
+        "when_empty": {
+          "name": "Gdy nic nie pasuje",
+          "description": "Co wysyła wywołanie, jeśli filtr nie pasuje do żadnego zadania. Domyślnie jest to skip: nic nie zostaje wysłane. Ustaw je na all_clear, aby zamiast tego wysłać powiadomienie Wszystko zrobione."
         }
       }
     },
@@ -865,6 +881,34 @@
           "description": "Nowa data i godzina, pod którą zostanie zapisane pominięcie."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Dodaj deklaratywnego towarzysza",
+      "description": "Rejestruje deklaratywnego towarzysza — recepturę, która materializuje jedno zarządzane zadanie sensora na każdą encję pasującą do filtrów (docelowa integracja + filtry encji), z nazwą zadania i notatkami za pomocą szablonów Jinja. Tylko administrator."
+    },
+    "update_declarative_companion": {
+      "name": "Zaktualizuj deklaratywnego towarzysza",
+      "description": "Aktualizuje pola zapisanej specyfikacji deklaratywnego towarzysza według id. Tylko administrator.",
+      "fields": {
+        "id": {
+          "name": "Id towarzysza",
+          "description": "Stabilny uuid specyfikacji, z list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Usuń deklaratywnego towarzysza",
+      "description": "Usuwa specyfikację deklaratywnego towarzysza i każde zarządzane zadanie, które zmaterializowała. Tylko administrator.",
+      "fields": {
+        "id": {
+          "name": "Id towarzysza",
+          "description": "Stabilny uuid specyfikacji, z list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Wyświetl deklaratywnych towarzyszy",
+      "description": "Zwraca w odpowiedzi każdą zapisaną specyfikację deklaratywnego towarzysza."
     }
   },
   "entity": {
@@ -984,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Nie znaleziono deklaratywnego towarzysza: {spec_id}"
     }
   }
 }

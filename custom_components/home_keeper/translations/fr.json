@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Champs d'achèvement obligatoires",
           "description": "Quels champs de métadonnées d'achèvement le panneau rend obligatoires lorsque le niveau de détail est required — au choix note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Champs d'achèvement obligatoires",
           "description": "Quels champs de métadonnées d'achèvement le panneau rend obligatoires lorsque le niveau de détail est required — au choix note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -396,6 +404,14 @@
         "target": {
           "name": "Cible",
           "description": "Services de notification à utiliser, remplaçant le profil (par ex. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Statut",
+          "description": "Remplace le statut du profil pour cet appel : overdue (uniquement les tâches en retard), due_soon (tâches en retard et bientôt dues), all (toutes les tâches planifiées) ou none (ne correspond à aucune tâche, pour envoyer la notification Tout est à jour à la demande)."
+        },
+        "when_empty": {
+          "name": "Quand rien ne correspond",
+          "description": "Ce qu’un appel envoie si le filtre ne correspond à aucune tâche. Par défaut, c’est skip : rien n’est envoyé. Réglez-le sur all_clear pour envoyer la notification Tout est à jour à la place."
         }
       }
     },
@@ -865,6 +881,34 @@
           "description": "La nouvelle date et heure auxquelles consigner l'omission."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Ajouter un companion déclaratif",
+      "description": "Enregistre un companion déclaratif — une recette qui matérialise une tâche de capteur gérée par entité correspondant aux filtres (intégration cible + filtres d'entité), avec un nom de tâche et des notes utilisant des modèles Jinja. Réservé aux administrateurs."
+    },
+    "update_declarative_companion": {
+      "name": "Mettre à jour un companion déclaratif",
+      "description": "Met à jour les champs d'une spécification de companion déclaratif enregistrée par identifiant. Réservé aux administrateurs.",
+      "fields": {
+        "id": {
+          "name": "Identifiant du companion",
+          "description": "L'uuid stable de la spécification, depuis list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Supprimer un companion déclaratif",
+      "description": "Supprime une spécification de companion déclaratif et toutes les tâches gérées qu'elle a matérialisées. Réservé aux administrateurs.",
+      "fields": {
+        "id": {
+          "name": "Identifiant du companion",
+          "description": "L'uuid stable de la spécification, depuis list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Lister les companions déclaratifs",
+      "description": "Retourne chaque spécification de companion déclaratif enregistrée en réponse."
     }
   },
   "entity": {
@@ -984,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Companion déclaratif introuvable : {spec_id}"
     }
   }
 }

@@ -33,7 +33,9 @@ tests/integration/ha_config/.shopping_list.json
 
 # Vale style packages fetched by `vale sync` per .vale.ini. This is a synced
 # dependency, not source: errata-ai/vale-action fetches its own copy in CI.
-styles/
+styles/*
+# The house style is source, not a synced package.
+!styles/HomeKeeper/
 build/
 
 # Staged by ci/fetch-glues.sh for the upgrade suite (real glues at pinned SHAs +

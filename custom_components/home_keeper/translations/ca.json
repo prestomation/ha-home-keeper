@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Camps de realització obligatoris",
           "description": "Quins camps de metadades de realització fa obligatoris el panell quan el detall de la realització és required — qualsevol de note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Camps de realització obligatoris",
           "description": "Quins camps de metadades de realització fa obligatoris el panell quan el detall de la realització és required — qualsevol de note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -396,6 +404,14 @@
         "target": {
           "name": "Destinació",
           "description": "Serveis de notificació on enviar, substituint el perfil (p. ex. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Estat",
+          "description": "Substitueix l’estat propi del perfil per a aquesta crida: overdue (només tasques endarrerides), due_soon (tasques endarrerides i properes a vèncer), all (totes les tasques programades) o none (no coincideix cap tasca, per enviar la notificació de tot al dia a petició)."
+        },
+        "when_empty": {
+          "name": "Quan res no coincideix",
+          "description": "Què envia una crida quan el filtre no coincideix amb cap tasca. Per defecte és skip: no s’envia res. Estableix-lo a all_clear per enviar la notificació de tot al dia."
         }
       }
     },
@@ -865,6 +881,34 @@
           "description": "La nova data i hora en què registrar l'omissió."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Afegeix un companion declaratiu",
+      "description": "Registra un companion declaratiu — una recepta que materialitza una tasca de sensor gestionada per cada entitat que coincideix amb els filtres (integració objectiu + filtres d'entitat), amb el nom i les notes de la tasca mitjançant plantilles Jinja. Només administradors."
+    },
+    "update_declarative_companion": {
+      "name": "Actualitza un companion declaratiu",
+      "description": "Actualitza camps d'una especificació de companion declaratiu emmagatzemada per id. Només administradors.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "L'uuid estable de l'especificació, des de list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Elimina un companion declaratiu",
+      "description": "Elimina una especificació de companion declaratiu i totes les tasques gestionades que ha materialitzat. Només administradors.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "L'uuid estable de l'especificació, des de list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Llista els companions declaratius",
+      "description": "Retorna com a resposta cada especificació de companion declaratiu emmagatzemada."
     }
   },
   "entity": {
@@ -984,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "No s'ha trobat cap companion declaratiu: {spec_id}"
     }
   }
 }

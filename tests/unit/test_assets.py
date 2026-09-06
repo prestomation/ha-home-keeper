@@ -678,6 +678,29 @@ def test_merge_update_preserves_part_last_replaced():
     assert updated["parts"][0]["replace_interval"] == 12
 
 
+def test_find_part_picks_the_matching_part():
+    asset = a.build_asset(
+        {"name": "Furnace", "parts": [{"name": "Filter"}, {"name": "Igniter"}]},
+        now=NOW,
+    )
+    for index in (0, 1):
+        found = a.find_part(asset, asset["parts"][index]["id"])
+        # The stored dict itself, not a copy: callers mutate what they get back
+        # (``store._stamp_part_replacement`` stamps ``last_replaced`` through it).
+        assert found is asset["parts"][index]
+
+
+def test_find_part_returns_none_for_an_unknown_id():
+    asset = a.build_asset({"name": "Furnace", "parts": [{"name": "Filter"}]}, now=NOW)
+    assert a.find_part(asset, "bogus") is None
+
+
+@pytest.mark.parametrize("parts", [None, []])
+def test_find_part_handles_an_asset_without_parts(parts):
+    assert a.find_part({}, "any") is None
+    assert a.find_part({"parts": parts}, "any") is None
+
+
 def test_set_and_clear_part_file():
     asset = a.build_asset({"name": "Furnace", "parts": [{"name": "Filter"}]}, now=NOW)
     pid = asset["parts"][0]["id"]
@@ -1103,6 +1126,93 @@ def test_part_consume_quantity_defaults_to_one(part, expected):
 )
 def test_part_restock_quantity_defaults_to_one(part, expected):
     assert a.part_restock_quantity(part) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "unit", "expected"),
+    [
+        (3, "", "3"),
+        (3.0, "", "3"),
+        (500, "ml", "500 ml"),
+        (0.5, "bottles", "0.5 bottles"),
+        # Trailing zeros go, and float noise never reaches the shopper.
+        (2.500, "m", "2.5 m"),
+        (0.1 + 0.2, "l", "0.3 l"),
+        # A unit is a label, not prose: it is stripped, and blank means none.
+        (2, "  ml  ", "2 ml"),
+        (2, "   ", "2"),
+    ],
+)
+def test_format_quantity_matches_the_panels_rendering(value, unit, expected):
+    # The Python twin of frontend/src/utils.ts formatQuantity. The two must agree:
+    # "500 ml" in the panel and "500.0 ml" on the shopping list would read as a bug.
+    assert a.format_quantity(value, unit) == expected
+
+
+@pytest.mark.parametrize(
+    ("part", "expected"),
+    [
+        # A measured part names its unit...
+        ({"stock_unit": "ml", "restock_quantity": 500}, "500 ml"),
+        # ...even when it restocks a single one, because "1 bottle" is still
+        # telling the shopper something a bare name doesn't.
+        ({"stock_unit": "bottle", "restock_quantity": 1}, "1 bottle"),
+        ({"stock_unit": "ml"}, "1 ml"),
+        # An unmeasured part only speaks up when it wants more than one.
+        ({"restock_quantity": 2}, "×2"),
+        ({"restock_quantity": 2.5}, "×2.5"),
+        # The ordinary case says nothing at all — that silence is the point.
+        ({"restock_quantity": 1}, ""),
+        ({}, ""),
+        # A stored zero folds to the default one spare, so it stays silent too.
+        ({"restock_quantity": 0}, ""),
+    ],
+)
+def test_part_restock_label_speaks_only_when_it_has_something_to_say(part, expected):
+    assert a.part_restock_label(part) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        # Past ~1e25 the default decimal context has too few digits to quantize
+        # with, and a formatter that raised there would take a whole shopping-list
+        # sync pass down over one malformed part.
+        (1e25, "10000000000000000905969664"),
+        (1e30, "1000000000000000019884624838656"),
+        (float("inf"), "inf"),
+        (float("-inf"), "-inf"),
+        (float("nan"), "nan"),
+    ],
+)
+def test_format_quantity_never_raises(value, expected):
+    assert a.format_quantity(value) == expected
+    assert a.format_quantity(value, "ml") == f"{expected} ml"
+
+
+def test_conformance_fixture_format_quantity():
+    """Run the shared cross-language cases through the Python formatter.
+
+    The same fixture drives the TypeScript ``formatQuantity`` test (see
+    ``frontend/test/utils.test.js``). A quantity is rendered twice — here for the
+    line Home Keeper puts on a household's shopping list, and in the panel for the
+    same part — so the two must agree on every case. If you add one, both sides
+    must still pass it.
+    """
+    import json
+    from pathlib import Path
+
+    fixture = (
+        Path(__file__).resolve().parents[1] / "fixtures" / "quantity_format_cases.json"
+    )
+    cases = json.loads(fixture.read_text())["cases"]
+    assert cases, "the conformance fixture must not be empty"
+    for case in cases:
+        got = a.format_quantity(case["value"], case["unit"])
+        assert got == case["expected"], (
+            f"{case['name']}: format_quantity({case['value']!r}, {case['unit']!r}) "
+            f"== {got!r}, expected {case['expected']!r}"
+        )
 
 
 def test_consume_part_stock_draws_the_parts_own_amount():

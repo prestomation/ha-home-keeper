@@ -4,9 +4,13 @@ The calendar entity is a thin projection over the pure ``recurrence`` engine, bu
 it imports Home Assistant (``CalendarEntity``/``CoordinatorEntity``/``dt_util``).
 Rather than pull in the full HA test harness, we load ``calendar.py`` under the
 same synthetic ``hk`` package used by the other pure unit tests (see
-``tests/conftest.py``), stubbing only the handful of HA symbols it references.
-This keeps the high-value window-overlap logic (N6) under fast, deterministic
-unit coverage; the store/entity wiring is exercised by the integration suite.
+``tests/conftest.py``), over the shared stub tree in ``ha_stubs.py``. This keeps
+the high-value window-overlap logic (N6) under fast, deterministic unit
+coverage; the store/entity wiring is exercised by the integration suite.
+
+The clock comes from that tree's ``dt_util.now``, which raises until a test
+patches it — so an occurrence test that forgot to say *when* it is fails loudly
+rather than drifting with today's date.
 """
 
 from __future__ import annotations
@@ -14,9 +18,10 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
-import typing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from ha_stubs import install_ha_stubs
 
 TZ = timezone(timedelta(hours=-4))
 
@@ -25,117 +30,11 @@ def _dt(y, mo, d, h=0, mi=0) -> datetime:
     return datetime(y, mo, d, h, mi, tzinfo=TZ)
 
 
-def _real_ha_present() -> bool:
-    """True only when the *real* Home Assistant package is installed.
-
-    A hand-built stub ``homeassistant`` module (e.g. from ``test_todo.py``) has no
-    ``__file__``; the real package does. This distinguishes them so we fill gaps
-    over a stub tree but never shadow real submodules.
-    """
-    mod = sys.modules.get("homeassistant")
-    if mod is None:
-        try:  # pragma: no cover - depends on environment
-            import homeassistant as mod  # type: ignore[no-redef]
-        except ImportError:
-            return False
-    return getattr(mod, "__file__", None) is not None
-
-
-def _install_ha_stubs() -> None:
-    """Additively register the HA symbols ``calendar.py`` imports.
-
-    Idempotent and non-clobbering, on the same contract as
-    ``test_coordinator_purge.py``, ``test_device_heal.py`` and ``test_todo.py``:
-    each installs its own partial ``homeassistant`` stub tree, so we only *fill
-    gaps* rather than early-return or overwrite, and load order between the suites
-    stays irrelevant. (Early-returning on "some ``homeassistant`` module exists"
-    would leave ``homeassistant.components.calendar`` unregistered whenever another
-    suite's stubs landed first.)
-    """
-    if _real_ha_present():  # pragma: no cover - real HA env
-        return
-
-    def _mod(name: str) -> types.ModuleType:
-        existing = sys.modules.get(name)
-        if existing is not None:
-            return existing
-        m = types.ModuleType(name)
-        sys.modules[name] = m
-        return m
-
-    ha = _mod("homeassistant")
-    components = _mod("homeassistant.components")
-    ha.components = components
-
-    comp_cal = _mod("homeassistant.components.calendar")
-    if not hasattr(comp_cal, "CalendarEntity"):
-
-        class CalendarEntity:
-            pass
-
-        class CalendarEvent:
-            def __init__(self, summary, start, end, uid, description=None):
-                self.summary = summary
-                self.start = start
-                self.end = end
-                self.uid = uid
-                self.description = description
-
-        comp_cal.CalendarEntity = CalendarEntity
-        comp_cal.CalendarEvent = CalendarEvent
-    components.calendar = comp_cal
-
-    config_entries = _mod("homeassistant.config_entries")
-    if not hasattr(config_entries, "ConfigEntry"):
-        config_entries.ConfigEntry = type("ConfigEntry", (), {})
-
-    core = _mod("homeassistant.core")
-    if not hasattr(core, "HomeAssistant"):
-        core.HomeAssistant = type("HomeAssistant", (), {})
-
-    helpers = _mod("homeassistant.helpers")
-    entity_platform = _mod("homeassistant.helpers.entity_platform")
-    if not hasattr(entity_platform, "AddEntitiesCallback"):
-        entity_platform.AddEntitiesCallback = object
-    helpers.entity_platform = entity_platform
-
-    update_coordinator = _mod("homeassistant.helpers.update_coordinator")
-    if not hasattr(update_coordinator, "CoordinatorEntity"):
-        _T = typing.TypeVar("_T")
-
-        class CoordinatorEntity(typing.Generic[_T]):
-            def __init__(self, coordinator):
-                self.coordinator = coordinator
-
-        update_coordinator.CoordinatorEntity = CoordinatorEntity
-
-    util = _mod("homeassistant.util")
-    dt = _mod("homeassistant.util.dt")
-    if not hasattr(dt, "parse_datetime"):
-
-        def parse_datetime(value):
-            if not value:
-                return None
-            try:
-                return datetime.fromisoformat(value)
-            except (TypeError, ValueError):
-                return None
-
-        dt.parse_datetime = parse_datetime
-    if not hasattr(dt, "now"):
-
-        def now():  # overridden per-test via monkeypatch
-            raise AssertionError("dt_util.now() must be patched in tests")
-
-        dt.now = now
-    util.dt = dt
-
-
 def _load_calendar() -> types.ModuleType:
     """Load ``calendar.py`` as ``hk.calendar`` so its relative imports resolve."""
     if "hk.calendar" in sys.modules:
         return sys.modules["hk.calendar"]
-    _install_ha_stubs()
+    install_ha_stubs()
     # ``from .coordinator import HomeKeeperCoordinator`` — the real module pulls in
     # HA/store; the entity only needs the name for typing, so stub it.
     if "hk.coordinator" not in sys.modules:
@@ -295,3 +194,115 @@ def test_collect_events_normal_window_returns_each_occurrence_once():
         _dt(2026, 6, 16, 9),
         _dt(2026, 6, 17, 9),
     ]
+
+
+# --- (c) active season: the calendar shows only in-season occurrences --------
+
+
+def test_event_skips_ahead_to_the_first_in_season_occurrence(monkeypatch):
+    """A daily task in December, restricted to a single day in April."""
+    anchor = _dt(2026, 6, 1, 9)
+    now = _dt(2026, 12, 15, 8)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+
+    task = _fixed_task(anchor, active_season=[{"start": "04-10", "end": "04-10"}])
+    event = _entity({"t_fixed": task}).event
+
+    assert event is not None
+    assert event.start == _dt(2027, 4, 10, 9)
+
+
+def test_event_is_none_when_the_grid_never_lands_in_the_season(monkeypatch):
+    """A grid that cannot intersect its season leaves the task off the calendar.
+
+    Every 12 months from a January anchor, in a March-only season: the grid only
+    ever lands in January, so the search exhausts its iteration bound. Nothing is
+    shown rather than a date outside the season being invented — the task is still
+    in the panel and on the to-do list, which is where it is acted on.
+    """
+    anchor = _dt(2026, 1, 15, 9)
+    now = _dt(2026, 6, 15, 8)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+
+    task = _fixed_task(
+        anchor,
+        freq="MONTHLY",
+        interval=12,
+        active_season=[{"start": "03-01", "end": "03-31"}],
+    )
+
+    assert _entity({"t_fixed": task}).event is None
+
+
+def test_collect_events_drops_occurrences_outside_every_season_window():
+    """Two windows, and a stretch of the year covered by neither."""
+    anchor = _dt(2026, 1, 1, 9)  # daily at 09:00
+    task = _fixed_task(
+        anchor,
+        active_season=[
+            {"start": "04-01", "end": "04-03"},
+            {"start": "04-06", "end": "04-07"},
+        ],
+    )
+    entity = _entity({"t_fixed": task})
+
+    starts = [e.start for e in entity._collect_events(_dt(2026, 4, 1), _dt(2026, 4, 9))]
+
+    assert starts == [
+        _dt(2026, 4, 1, 9),
+        _dt(2026, 4, 2, 9),
+        _dt(2026, 4, 3, 9),
+        _dt(2026, 4, 6, 9),
+        _dt(2026, 4, 7, 9),
+    ]
+
+
+def test_collect_events_keeps_a_wrapping_season_across_the_new_year():
+    """November through March includes both sides of the year boundary."""
+    anchor = _dt(2026, 1, 1, 9)
+    task = _fixed_task(anchor, active_season=[{"start": "11-01", "end": "03-31"}])
+    entity = _entity({"t_fixed": task})
+
+    starts = [
+        e.start for e in entity._collect_events(_dt(2026, 12, 30), _dt(2027, 1, 3))
+    ]
+
+    assert starts == [
+        _dt(2026, 12, 30, 9),
+        _dt(2026, 12, 31, 9),
+        _dt(2027, 1, 1, 9),
+        _dt(2027, 1, 2, 9),
+    ]
+
+
+def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
+    """The walk toward an in-season occurrence is bounded, not open-ended.
+
+    The pathological case above proves `None` comes back; this proves *why*. A grid
+    that never lands in its season would otherwise walk forever, and a calendar read
+    that never returns is worse than a task that isn't on the calendar. Shrinking the
+    bound makes the count observable: the walk takes exactly that many steps and
+    stops.
+    """
+    steps = 0
+    real_next = cal.recurrence.next_fixed_occurrence
+
+    def counted(*args, **kwargs):
+        nonlocal steps
+        steps += 1
+        return real_next(*args, **kwargs)
+
+    monkeypatch.setattr(cal.recurrence, "next_fixed_occurrence", counted)
+    monkeypatch.setattr(cal.recurrence, "MAX_EXPAND_ITERATIONS", 5)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 6, 15, 8))
+
+    task = _fixed_task(
+        _dt(2026, 1, 15, 9),
+        freq="MONTHLY",
+        interval=12,
+        active_season=[{"start": "03-01", "end": "03-31"}],
+    )
+
+    assert _entity({"t_fixed": task}).event is None
+    # One call to find the first occurrence, then one per bounded step.
+    assert steps == 6

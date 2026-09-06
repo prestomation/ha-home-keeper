@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Campos de finalización obligatorios",
           "description": "Qué campos de metadatos de finalización hace obligatorios el panel cuando el detalle de finalización es required: cualquiera de note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Campos de finalización obligatorios",
           "description": "Qué campos de metadatos de finalización hace obligatorios el panel cuando el detalle de finalización es required: cualquiera de note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -396,6 +404,14 @@
         "target": {
           "name": "Destino",
           "description": "Servicios de notificación a los que enviar, sustituyendo el perfil (p. ej. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Estado",
+          "description": "Sustituye el estado propio del perfil para esta llamada: overdue (solo tareas vencidas), due_soon (tareas vencidas y próximas a vencer), all (todas las tareas programadas) o none (no coincide con ninguna tarea, para enviar la notificación Todo al día bajo demanda)."
+        },
+        "when_empty": {
+          "name": "Cuando nada coincide",
+          "description": "Lo que envía una llamada si el filtro no coincide con ninguna tarea. Por defecto es skip: no se envía nada. Establécelo en all_clear para enviar la notificación Todo al día."
         }
       }
     },
@@ -865,6 +881,34 @@
           "description": "La nueva fecha y hora en la que registrar la omisión."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Añadir companion declarativo",
+      "description": "Registra un companion declarativo — una receta que materializa una tarea de sensor gestionada por cada entidad que coincide con los filtros (integración objetivo + filtros de entidad), con nombre de tarea y notas usando plantillas Jinja. Solo para administradores."
+    },
+    "update_declarative_companion": {
+      "name": "Actualizar companion declarativo",
+      "description": "Actualiza campos de una especificación de companion declarativo almacenada por id. Solo para administradores.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "El uuid estable de la especificación, desde list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Eliminar companion declarativo",
+      "description": "Elimina una especificación de companion declarativo y todas las tareas gestionadas que materializó. Solo para administradores.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "El uuid estable de la especificación, desde list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Listar companions declarativos",
+      "description": "Devuelve como respuesta cada especificación de companion declarativo almacenada."
     }
   },
   "entity": {
@@ -984,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Companion declarativo no encontrado: {spec_id}"
     }
   }
 }

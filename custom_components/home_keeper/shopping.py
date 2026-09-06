@@ -31,15 +31,39 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from .assets import find_part, part_restock_label
 from .reconcile import buy_source
 from .recurrence import one_off_completed
+from .todo_items import (
+    STATUS_COMPLETED,
+    STATUS_NEEDS_ACTION,
+    find_open,
+    item_identity,
+    item_is_open,
+    resolve_tracked,
+)
+
+__all__ = [
+    "STATUS_COMPLETED",
+    "STATUS_NEEDS_ACTION",
+    "TODO_DOMAIN",
+    "AddOp",
+    "CompleteOp",
+    "RemoveOp",
+    "SyncPlan",
+    "UpdateOp",
+    "buy_tasks_by_part",
+    "lists_to_read",
+    "needs_pass",
+    "normalize_items",
+    "normalize_target",
+    "part_key",
+    "plan_sync",
+    "source_key",
+]
 
 # The only entity domain a mirror target may live in.
 TODO_DOMAIN = "todo"
-
-# ``TodoItemStatus`` values, as the ``todo.get_items`` response spells them.
-STATUS_NEEDS_ACTION = "needs_action"
-STATUS_COMPLETED = "completed"
 
 # Separator for the ``asset_id``/``part_id`` pair that keys a mirrored item. The
 # part — not the buy task — is the identity: a reminder is deleted and minted
@@ -72,12 +96,29 @@ def normalize_target(value: Any) -> str:
     return entity_id
 
 
-def buy_tasks_by_part(tasks: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def buy_tasks_by_part(
+    tasks: dict[str, dict[str, Any]],
+    assets: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, dict[str, Any]]:
     """Index the auto-buy reminders in *tasks* by their part key.
 
     Each value is ``{"task_id", "name", "completed"}`` — everything the planner
     needs, so it never has to know the task schema. A reminder with no name is
     skipped: an empty summary is not something a to-do list can hold.
+
+    ``name`` is **the line as it will read on the shopping list**, not the task's
+    own name: when *assets* is given and the part says how much to buy, the amount
+    is appended — "Buy fabric softener (500 ml)", "Buy air filter (×2)". A part
+    that restocks one plain spare adds nothing, so the common line is unchanged.
+    The task keeps its own name everywhere else (the panel, the calendar, a
+    notification): the amount answers "how much do I put in the trolley", which is
+    a question only the shopping list is asking.
+
+    Keeping this on the existing ``name`` key rather than adding a second one is
+    deliberate. :func:`plan_sync` and :func:`needs_pass` both compare it against
+    what was last mirrored, so a value that meant "the task's name" in one and "the
+    line's text" in the other would leave the mirror permanently dirty — renaming
+    the same item, and re-reading the list, on every single pass.
     """
     indexed: dict[str, dict[str, Any]] = {}
     for task_id, task in tasks.items():
@@ -87,9 +128,10 @@ def buy_tasks_by_part(tasks: dict[str, dict[str, Any]]) -> dict[str, dict[str, A
         name = str(task.get("name") or "").strip()
         if not name:
             continue
+        amount = _restock_label(assets, source)
         entry = {
             "task_id": str(task.get("id") or task_id),
-            "name": name,
+            "name": f"{name} ({amount})" if amount else name,
             "completed": one_off_completed(task),
         }
         key = source_key(source)
@@ -104,6 +146,26 @@ def buy_tasks_by_part(tasks: dict[str, dict[str, Any]]) -> dict[str, dict[str, A
 def source_key(source: dict[str, Any]) -> str:
     """The tracking key for a ``buy_source`` mapping."""
     return part_key(str(source["asset_id"]), str(source["part_id"]))
+
+
+def _restock_label(
+    assets: dict[str, dict[str, Any]] | None, source: dict[str, Any]
+) -> str:
+    """The amount suffix for one reminder's part, or ``""`` when there isn't one.
+
+    Total by design: an asset or part the reminder points at may be gone by the time
+    a pass runs (the reconciler retires the task moments later), and a line that
+    briefly loses its amount is far better than a mirror pass that raises.
+    """
+    if not assets:
+        return ""
+    asset = assets.get(str(source["asset_id"]))
+    if asset is None:
+        return ""
+    part = find_part(asset, str(source["part_id"]))
+    if part is None:
+        return ""
+    return part_restock_label(part)
 
 
 def normalize_items(response: Any, entity_id: str) -> list[dict[str, Any]] | None:
@@ -181,73 +243,6 @@ class SyncPlan:
     tracked: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
-def _identity(item: dict[str, Any]) -> str:
-    """How a to-do item is addressed in a service call.
-
-    ``todo.update_item`` / ``todo.remove_item`` accept either the item's uid or
-    its summary, so a list that does not hand out uids is still addressable.
-    """
-    uid = item.get("uid")
-    if isinstance(uid, str) and uid:
-        return uid
-    return str(item.get("summary") or "")
-
-
-def _is_open(item: dict[str, Any]) -> bool:
-    """True unless the item has been ticked off."""
-    return item.get("status") != STATUS_COMPLETED
-
-
-def _resolve(
-    items: list[dict[str, Any]],
-    *,
-    entity_id: str,
-    uid: Any,
-    summary: str,
-    claimed: set[tuple[str, str]],
-) -> dict[str, Any] | None:
-    """Find the live item a tracked entry points at.
-
-    The uid is authoritative when we captured one. Otherwise we fall back to the
-    summary — that is how a freshly added item is picked up on the next pass
-    (``todo.add_item`` returns nothing, so there is no uid to record at the
-    time), and how the mirror re-attaches to its own items if the bookkeeping is
-    ever lost. An open item wins over a ticked-off one with the same text.
-    """
-    if isinstance(uid, str) and uid:
-        for item in items:
-            if item.get("uid") == uid and (entity_id, _identity(item)) not in claimed:
-                return item
-    by_summary = [
-        item
-        for item in items
-        if item.get("summary") == summary
-        and (entity_id, _identity(item)) not in claimed
-    ]
-    for item in by_summary:
-        if _is_open(item):
-            return item
-    return by_summary[0] if by_summary else None
-
-
-def _find_open(
-    items: list[dict[str, Any]],
-    *,
-    entity_id: str,
-    summary: str,
-    claimed: set[tuple[str, str]],
-) -> dict[str, Any] | None:
-    """An un-ticked item already reading *summary*, if the list has one."""
-    for item in items:
-        if (
-            _is_open(item)
-            and item.get("summary") == summary
-            and (entity_id, _identity(item)) not in claimed
-        ):
-            return item
-    return None
-
-
 def plan_sync(
     *,
     tracked: dict[str, dict[str, Any]],
@@ -290,7 +285,7 @@ def plan_sync(
             plan.tracked[key] = dict(entry)
             continue
 
-        item = _resolve(
+        item = resolve_tracked(
             items,
             entity_id=entity_id,
             uid=entry.get("uid"),
@@ -307,10 +302,10 @@ def plan_sync(
                 plan.tracked[key] = dict(entry)
             continue
 
-        identity = _identity(item)
+        identity = item_identity(item)
         claimed.add((entity_id, identity))
 
-        if not _is_open(item):
+        if not item_is_open(item):
             # Ticked off. If the reminder is still open, that tick is the user
             # telling Home Keeper they bought it.
             if want is not None and not want["completed"]:
@@ -359,12 +354,12 @@ def plan_sync(
             # Never open a shopping entry for something already bought.
             continue
         name = str(want["name"])
-        existing = _find_open(items, entity_id=target, summary=name, claimed=claimed)
+        existing = find_open(items, entity_id=target, summary=name, claimed=claimed)
         if existing is not None:
             # Adopt a matching entry rather than stacking a duplicate on top of
             # it — the shopper may have written it themselves, or our own
             # bookkeeping may have been lost.
-            claimed.add((target, _identity(existing)))
+            claimed.add((target, item_identity(existing)))
             plan.tracked[key] = {
                 "entity_id": target,
                 "summary": name,
@@ -373,8 +368,8 @@ def plan_sync(
             continue
         plan.add.append(AddOp(key, target, name))
         # No uid: ``todo.add_item`` answers with nothing. The next pass binds one
-        # by summary (see :func:`_resolve`), and until then the summary is a
-        # perfectly good handle for ``update_item``/``remove_item``.
+        # by summary (see ``todo_items.resolve_tracked``), and until then the
+        # summary is a perfectly good handle for ``update_item``/``remove_item``.
         plan.tracked[key] = {"entity_id": target, "summary": name, "uid": None}
     return plan
 

@@ -3,8 +3,10 @@
 A *notification* is a delivery binding: it references a **profile** (the saved filter
 in ``profiles.py`` that decides *which* tasks) by ``profile_id`` and adds *how* to
 deliver them — mobile targets, the button set, snooze duration, style (walk/digest),
-and automatic triggers. This module owns only that delivery concern: notification
-normalization, the mobile-app **payload builders**, and the **action-string**
+automatic triggers, and how loudly it lands (channel + urgency, expanded into both the
+Android and iOS payload vocabularies by :func:`payload_data`). This module owns only
+that delivery concern: notification normalization, the mobile-app **payload builders**,
+and the **action-string**
 encode/decode that routes a notification tap back to the right task and notification
 (and tells a fresh tap from a stale one — see :func:`is_current_action`).
 The filter/queue live in ``profiles.py``; HA-aware sending in ``notifier.py``.
@@ -19,12 +21,14 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from babel import Locale
 from babel.core import UnknownLocaleError
+
+from .transitions import DUE_SOON_WINDOW
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,6 +56,52 @@ STYLE_DIGEST = "digest"  # a single informational summary of everything due
 STYLES = (STYLE_WALK, STYLE_DIGEST)
 
 DEFAULT_SNOOZE_HOURS = 24
+
+# What a send does when its profile matches nothing. The default keeps the long-
+# standing promise that ``home_keeper.notify`` costs nothing on a quiet day, so an
+# automation that runs every 30 minutes stays silent. ``all_clear`` is what the panel's
+# Test button asks for: a delivery that always lands, so the target, the channel and
+# the urgency can be checked before any task is due.
+WHEN_EMPTY_SKIP = "skip"
+WHEN_EMPTY_ALL_CLEAR = "all_clear"
+WHEN_EMPTY = (WHEN_EMPTY_SKIP, WHEN_EMPTY_ALL_CLEAR)
+DEFAULT_WHEN_EMPTY = WHEN_EMPTY_SKIP
+
+# How loudly a notification lands. Home Keeper stores one platform-neutral value and
+# expands it into *both* vocabularies at payload-build time (see :func:`payload_data`),
+# because the two platforms model this differently and neither name belongs in the
+# panel: Android has notification *channels* carrying an ``importance``, and iOS has no
+# channels at all, only a per-notification ``interruption-level``.
+URGENCY_QUIET = "quiet"
+URGENCY_NORMAL = "normal"
+URGENCY_HIGH = "high"
+URGENCY_CRITICAL = "critical"
+URGENCIES = (URGENCY_QUIET, URGENCY_NORMAL, URGENCY_HIGH, URGENCY_CRITICAL)
+DEFAULT_URGENCY = URGENCY_NORMAL
+
+# Android channel importance, and iOS interruption level, per urgency. ``normal`` is
+# absent from both tables on purpose: it is each platform's own default, so a
+# notification nobody has configured sends exactly the payload it sent before these
+# fields existed.
+_ANDROID_IMPORTANCE = {
+    URGENCY_QUIET: "low",
+    URGENCY_HIGH: "high",
+    URGENCY_CRITICAL: "max",
+}
+_IOS_INTERRUPTION = {
+    URGENCY_QUIET: "passive",
+    URGENCY_HIGH: "time-sensitive",
+    URGENCY_CRITICAL: "critical",
+}
+# Urgencies that must not wait for the next maintenance window. Android batches a
+# normal-priority FCM message on an idle phone, which is the opposite of what these two
+# mean; ``ttl: 0`` plus ``priority: high`` is the companion app's documented way to say
+# "deliver this now or not at all".
+_WAKE_URGENCIES = (URGENCY_HIGH, URGENCY_CRITICAL)
+# iOS demotes a critical alert to a normal one unless the user has granted Critical
+# Alerts to the Home Assistant app, so this is a request rather than a guarantee. Full
+# volume because an alert worth overriding the mute switch is worth hearing.
+_IOS_CRITICAL_SOUND = {"name": "default", "critical": 1, "volume": 1.0}
 
 # Action-string scheme:
 # ``home_keeper::<verb>::<task_id>::<notification_id>::<due_token>``. The action string
@@ -174,7 +224,9 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
     A notification references a profile (``profile_id``) and carries delivery: an id
     (stable, referenced by action strings), a name, mobile ``targets``, the ordered
     ``actions`` button set (clamped to known verbs, de-duplicated), ``snooze_hours``,
-    ``style`` (walk/digest), and ``auto`` triggers.
+    ``style`` (walk/digest), ``auto`` triggers, and how it lands on the phone —
+    ``channel`` (the Android notification channel, threading reminders on iOS) and
+    ``urgency`` (clamped to :data:`URGENCIES`).
     """
     raw = raw if isinstance(raw, dict) else {}
     actions: list[str] = []
@@ -189,6 +241,7 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
     if snooze_hours < 1:
         snooze_hours = DEFAULT_SNOOZE_HOURS
     style = raw.get("style")
+    urgency = raw.get("urgency")
     targets, rejected = split_targets(raw.get("targets"))
     if rejected:
         _LOGGER.warning(
@@ -205,11 +258,26 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
         "actions": actions or list(DEFAULT_ACTIONS),
         "snooze_hours": snooze_hours,
         "style": style if style in STYLES else STYLE_WALK,
+        "channel": str(raw.get("channel") or "").strip(),
+        "urgency": urgency if urgency in URGENCIES else DEFAULT_URGENCY,
         "auto": {
             "overdue": bool(auto.get("overdue", False)),
             "due_soon": bool(auto.get("due_soon", False)),
         },
     }
+
+
+def sends_when_empty(when_empty: Any) -> bool:
+    """Whether a queue that matched nothing should still deliver the all-clear.
+
+    A predicate rather than a clamp because the service schema validates the field
+    against :data:`WHEN_EMPTY` before it reaches here, so there is nothing left to
+    coerce. It lives in this module rather than inline in ``notifier`` so the decision
+    sits on the mutation-scored surface: the same comparison written in ``notifier.py``
+    would never be mutated, and "an empty queue still sends" is exactly the branch worth
+    proving a test would catch.
+    """
+    return when_empty == WHEN_EMPTY_ALL_CLEAR
 
 
 def normalize_notifications(raw: Any) -> list[dict[str, Any]]:
@@ -382,16 +450,90 @@ def notification_tag(notification_id: str) -> str:
     return f"home_keeper_{notification_id}"
 
 
+def payload_data(
+    notification: dict[str, Any], *, actions: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    """The shared mobile-app ``data`` block every payload in this module carries.
+
+    Home Keeper stores one platform-neutral ``(channel, urgency)`` pair and emits *both*
+    vocabularies here: Android reads ``channel`` and ``importance``, iOS reads
+    ``push.thread-id`` and ``push.interruption-level``, and each app ignores the keys it
+    does not know. That is what lets the panel ask "how urgent is this?" once instead of
+    asking which phone the household carries.
+
+    An unconfigured notification (no channel, ``normal`` urgency) adds nothing, so it
+    sends byte-for-byte what it sent before these fields existed — the tables above
+    leave ``normal`` out precisely so this stays true.
+
+    One caveat worth knowing when reading this: on Android a channel's importance is
+    fixed when the channel is *created*. Raising the urgency later re-sends the key, but
+    the phone keeps the setting the channel already has (only the user can change it, in
+    the phone's own settings). Renaming the channel is what starts one over.
+    """
+    data: dict[str, Any] = {
+        "tag": notification_tag(notification["id"]),
+        # Every Home Keeper notification stacks together in the shade regardless of
+        # channel: the channel decides how a reminder *behaves*, the group decides where
+        # it *sits*, and splitting the pile per channel was not what was asked for.
+        "group": "home_keeper",
+    }
+    if actions is not None:
+        data["actions"] = actions
+    push: dict[str, Any] = {}
+    channel = str(notification.get("channel") or "")
+    if channel:
+        data["channel"] = channel  # Android: the notification channel, created on use
+        push["thread-id"] = channel  # iOS: no channels, so thread by the same name
+    urgency = notification.get("urgency") or DEFAULT_URGENCY
+    if importance := _ANDROID_IMPORTANCE.get(urgency):
+        data["importance"] = importance
+    if level := _IOS_INTERRUPTION.get(urgency):
+        push["interruption-level"] = level
+    if urgency in _WAKE_URGENCIES:
+        data["ttl"] = 0
+        data["priority"] = "high"
+    if urgency == URGENCY_CRITICAL:
+        push["sound"] = dict(_IOS_CRITICAL_SOUND)
+    if push:
+        data["push"] = push
+    return data
+
+
 def _overdue_phrase(
-    task: dict[str, Any], *, now: datetime, lang: str = _DEFAULT_LANG
+    task: dict[str, Any],
+    *,
+    now: datetime,
+    lang: str = _DEFAULT_LANG,
+    window: timedelta = DUE_SOON_WINDOW,
 ) -> str:
+    """The one-line body of a walk notification: how late, or how far off, *task* is.
+
+    Three cases, in the order a reader meets them: already due, due inside the
+    due-soon *window*, or further out than that.
+
+    The third case is the reason *window* is a parameter. Until a notification could
+    carry a task that is not due yet, "not overdue" and "due soon" were the same
+    thing and everything else read "Due soon." — including a task due in six months.
+    ``home_keeper.notify`` can now be asked for every task a profile covers
+    (``status: all``), which makes that the common case rather than a corner, so
+    anything past the window says how far off it is instead. The window is threaded
+    through rather than read from the module so this agrees with
+    ``profiles.matches_filter``, which takes it the same way and decides what
+    "due soon" means for the queue this phrase describes.
+    """
     next_due = datetime.fromisoformat(task["next_due"])
     if now >= next_due:
         days = (now - next_due).days
         if days <= 0:
             return _t(lang, "due_now")
         return _tn(lang, "overdue", days, days=days)
-    return _t(lang, "due_soon")
+    remaining = next_due - now
+    if remaining <= window:
+        return _t(lang, "due_soon")
+    # Floored, matching the overdue side above: a task 3.5 days out reads "3 days",
+    # the same way one 3.5 days late reads "overdue by 3 days".
+    days = remaining.days
+    return _tn(lang, "due_in", days, days=days)
 
 
 def _open_uri(task: dict[str, Any]) -> str:
@@ -430,6 +572,7 @@ def build_notification(
     lang: str = _DEFAULT_LANG,
     allow_snooze: bool = True,
     allow_skip: bool = True,
+    window: timedelta = DUE_SOON_WINDOW,
 ) -> dict[str, Any]:
     """Build the ``notify`` service data for a single task in a *walk* notification.
 
@@ -448,12 +591,8 @@ def build_notification(
     ]
     return {
         "title": str(task.get("name") or "Home Keeper"),
-        "message": _overdue_phrase(task, now=now, lang=lang),
-        "data": {
-            "tag": notification_tag(notification["id"]),
-            "group": "home_keeper",
-            "actions": actions,
-        },
+        "message": _overdue_phrase(task, now=now, lang=lang, window=window),
+        "data": payload_data(notification, actions=actions),
     }
 
 
@@ -475,10 +614,7 @@ def build_digest(
     return {
         "title": _tn(lang, "digest_title", count, count=count),
         "message": body,
-        "data": {
-            "tag": notification_tag(notification["id"]),
-            "group": "home_keeper",
-        },
+        "data": payload_data(notification),
     }
 
 
@@ -489,8 +625,5 @@ def build_all_clear(
     return {
         "title": _t(lang, "all_clear_title"),
         "message": _t(lang, "all_clear_message"),
-        "data": {
-            "tag": notification_tag(notification["id"]),
-            "group": "home_keeper",
-        },
+        "data": payload_data(notification),
     }

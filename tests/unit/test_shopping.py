@@ -9,6 +9,7 @@ applies the plan) has its own suite.
 """
 
 import hk_shopping as sh
+import pytest
 
 TARGET = "todo.shopping_list"
 OTHER = "todo.groceries"
@@ -34,6 +35,17 @@ def _buy_task(tid="t1", name="Buy Anode rod", asset="asset1", part="part1", **ex
 def _completed(task):
     """The same reminder after it was completed (a one-off goes dormant)."""
     return {**task, "next_due": None, "last_completed": "2026-06-14T09:00:00-04:00"}
+
+
+def _assets(asset="asset1", part="part1", **part_fields):
+    """The asset map holding the part a reminder points at."""
+    return {
+        asset: {
+            "id": asset,
+            "name": "Water heater",
+            "parts": [{"id": part, "name": "Anode rod", **part_fields}],
+        }
+    }
 
 
 def _item(summary="Buy Anode rod", uid="i1", status=sh.STATUS_NEEDS_ACTION):
@@ -111,6 +123,46 @@ def test_buy_tasks_by_part_skips_a_nameless_reminder():
 def test_buy_tasks_by_part_tidies_the_summary_it_will_put_on_the_list():
     indexed = sh.buy_tasks_by_part({"t1": _buy_task(name="  Buy Anode rod  ")})
     assert indexed[KEY]["name"] == "Buy Anode rod"
+
+
+def test_the_line_carries_the_amount_a_measured_part_wants():
+    # The reported case: a part kept in millilitres should say how many to buy,
+    # not just name itself.
+    indexed = sh.buy_tasks_by_part(
+        {"t1": _buy_task()}, _assets(stock_unit="ml", restock_quantity=500)
+    )
+    assert indexed[KEY]["name"] == "Buy Anode rod (500 ml)"
+
+
+def test_the_line_carries_a_multiplier_when_a_part_restocks_several():
+    indexed = sh.buy_tasks_by_part({"t1": _buy_task()}, _assets(restock_quantity=3))
+    assert indexed[KEY]["name"] == "Buy Anode rod (×3)"
+
+
+@pytest.mark.parametrize(
+    "assets",
+    [
+        # One plain spare says nothing — the common line is unchanged.
+        _assets(restock_quantity=1),
+        _assets(),
+        # Neither does a part the reminder can no longer reach: the reconciler is
+        # about to retire it, and a line briefly missing its amount beats a raise.
+        _assets(asset="somewhere-else"),
+        _assets(part="some-other-part"),
+        {},
+        None,
+    ],
+)
+def test_the_line_stays_a_plain_name_when_there_is_no_amount_to_add(assets):
+    indexed = sh.buy_tasks_by_part({"t1": _buy_task()}, assets)
+    assert indexed[KEY]["name"] == "Buy Anode rod"
+
+
+def test_the_amount_lands_inside_the_tidied_name():
+    indexed = sh.buy_tasks_by_part(
+        {"t1": _buy_task(name="  Buy Anode rod  ")}, _assets(stock_unit="ml")
+    )
+    assert indexed[KEY]["name"] == "Buy Anode rod (1 ml)"
 
 
 def test_buy_tasks_by_part_falls_back_to_the_map_key_for_a_task_without_an_id():
@@ -253,6 +305,58 @@ def test_a_renamed_reminder_renames_its_item():
         KEY: {"entity_id": TARGET, "summary": "Anodenstab kaufen", "uid": "i1"}
     }
     assert plan.remove == [] and plan.add == []
+
+
+@pytest.mark.parametrize("uid", ["i1", None])
+def test_a_line_already_on_the_list_gains_its_amount_in_place(uid):
+    # The upgrade path, and why the amount needs no migration: an entry mirrored
+    # before amounts existed still resolves, because resolve_tracked matches on the
+    # summary we *stored*, not the one we now want. It is then renamed in place —
+    # not left orphaned beside a duplicate. A uid-less entry (todo.add_item answers
+    # with nothing, so a freshly added line has none) takes the same path, with the
+    # old summary as its handle.
+    plan = _plan(
+        tracked=_tracked(uid=uid),
+        desired=sh.buy_tasks_by_part(
+            {"t1": _buy_task()}, _assets(stock_unit="ml", restock_quantity=500)
+        ),
+        items=[_item(uid=uid)],
+    )
+    assert plan.update == [
+        sh.UpdateOp(
+            KEY, TARGET, uid or "Buy Anode rod", rename="Buy Anode rod (500 ml)"
+        )
+    ]
+    assert plan.add == [] and plan.remove == []
+    assert plan.tracked == {
+        KEY: {"entity_id": TARGET, "summary": "Buy Anode rod (500 ml)", "uid": uid}
+    }
+
+
+def test_a_line_already_carrying_its_amount_is_left_alone():
+    # The other half of the upgrade: once renamed, the mirror must go quiet. A
+    # summary that never matches what we want would rename the same line on every
+    # pass, forever.
+    desired = sh.buy_tasks_by_part(
+        {"t1": _buy_task()}, _assets(stock_unit="ml", restock_quantity=500)
+    )
+    tracked = _tracked(summary="Buy Anode rod (500 ml)")
+    plan = _plan(
+        tracked=tracked,
+        desired=desired,
+        items=[_item(summary="Buy Anode rod (500 ml)")],
+    )
+    assert plan.add == [] and plan.update == [] and plan.remove == []
+    assert not sh.needs_pass(tracked=tracked, desired=desired, target=TARGET)
+
+
+def test_needs_pass_notices_an_amount_that_changed():
+    # Editing the part's restock quantity has to reach the list.
+    assert sh.needs_pass(
+        tracked=_tracked(),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}, _assets(restock_quantity=2)),
+        target=TARGET,
+    )
 
 
 def test_completing_the_reminder_in_home_keeper_ticks_the_item_off():

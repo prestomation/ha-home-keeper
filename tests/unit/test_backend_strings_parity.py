@@ -30,19 +30,31 @@ _TOKEN_RE = re.compile(r"\{(\w+)\}")
 # Per-locale cognates/loanwords genuinely identical to English (reviewed
 # individually — same reasoning as strings.json's own translations, which already
 # use these exact words for the same fields, e.g. add_asset.fields.model.name).
+#
+# ``declarative_preset.device_pulse.name`` is the product name of an upstream
+# HA integration (studiobts/home-assistant-device-pulse) — brand names are not
+# translated. Applies to every locale.
+_BRAND_IDENTICAL: frozenset[str] = frozenset({"declarative_preset.device_pulse.name"})
 _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     "ca": frozenset(
         {"inventory.csv.cost", "inventory.csv.model", "inventory.csv.total"}
-    ),
-    "cs": frozenset({"inventory.csv.model"}),
-    "da": frozenset({"inventory.csv.model"}),
-    "de": frozenset({"inventory.csv.details", "inventory.csv.name"}),
-    "es": frozenset({"inventory.csv.total"}),
-    "fr": frozenset({"inventory.csv.total"}),
-    "it": frozenset({"inventory.csv.area"}),
-    "nl": frozenset({"inventory.csv.details", "inventory.csv.model"}),
-    "pl": frozenset({"inventory.csv.model"}),
-    "pt-BR": frozenset({"inventory.csv.total"}),
+    )
+    | _BRAND_IDENTICAL,
+    "cs": frozenset({"inventory.csv.model"}) | _BRAND_IDENTICAL,
+    "da": frozenset({"inventory.csv.model"}) | _BRAND_IDENTICAL,
+    "de": frozenset({"inventory.csv.details", "inventory.csv.name"}) | _BRAND_IDENTICAL,
+    "es": frozenset({"inventory.csv.total"}) | _BRAND_IDENTICAL,
+    "fr": frozenset({"inventory.csv.total"}) | _BRAND_IDENTICAL,
+    "it": frozenset({"inventory.csv.area"}) | _BRAND_IDENTICAL,
+    "nl": frozenset({"inventory.csv.details", "inventory.csv.model"})
+    | _BRAND_IDENTICAL,
+    "pl": frozenset({"inventory.csv.model"}) | _BRAND_IDENTICAL,
+    "pt-BR": frozenset({"inventory.csv.total"}) | _BRAND_IDENTICAL,
+    "fi": _BRAND_IDENTICAL,
+    "nb": _BRAND_IDENTICAL,
+    "ru": _BRAND_IDENTICAL,
+    "sv": _BRAND_IDENTICAL,
+    "zh-Hans": _BRAND_IDENTICAL,
 }
 
 

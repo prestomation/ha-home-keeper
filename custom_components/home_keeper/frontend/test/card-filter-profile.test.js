@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DUE_SOON_DAYS, profileMatches } from '../src/card-filter.ts';
+import { DUE_SOON_DAYS, profileHasAnyTask, profileMatches } from '../src/card-filter.ts';
 
 // `profileMatches` decides which tasks a notification profile sends. It has to
 // agree with the backend's windows exactly, or a digest reports a different set
@@ -229,5 +229,101 @@ describe('profileMatches exclusions', () => {
     const bare = task();
     expect(profileMatches(bare, { exclude_areas: ['garage'] }, {}, {}, NOW)).toBe(true);
     expect(profileMatches(bare, { exclude_devices: ['d1'] }, {}, {}, NOW)).toBe(true);
+  });
+});
+
+describe('profileMatches companions', () => {
+  const owned = (integration) =>
+    task({ managed_by: { integration, display_name: 'Battery Notes' } });
+
+  it('selects only tasks owned by a named integration', () => {
+    const filter = { companions: ['battery_notes'] };
+    expect(profileMatches(owned('battery_notes'), filter, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(owned('printer_glue'), filter, {}, {}, NOW)).toBe(false);
+  });
+
+  it('matches any of several named integrations', () => {
+    const filter = { companions: ['battery_notes', 'dog_glue'] };
+    expect(profileMatches(owned('dog_glue'), filter, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(owned('printer_glue'), filter, {}, {}, NOW)).toBe(false);
+  });
+
+  it('never selects a task no integration owns', () => {
+    // A task made in the panel has no managed_by, so "just the battery tasks" must
+    // not quietly include the user's own chores.
+    expect(profileMatches(task(), { companions: ['battery_notes'] }, {}, {}, NOW)).toBe(false);
+    const nameless = task({ managed_by: { display_name: 'Nameless' } });
+    expect(profileMatches(nameless, { companions: ['battery_notes'] }, {}, {}, NOW)).toBe(false);
+  });
+
+  it('treats an explicitly null managed_by like an absent one', () => {
+    const nulled = task({ managed_by: null });
+    expect(profileMatches(nulled, { companions: ['battery_notes'] }, {}, {}, NOW)).toBe(false);
+    expect(
+      profileMatches(nulled, { exclude_companions: ['battery_notes'] }, {}, {}, NOW),
+    ).toBe(true);
+  });
+
+  it('drops a task owned by an excluded integration', () => {
+    const filter = { exclude_companions: ['battery_notes'] };
+    expect(profileMatches(owned('battery_notes'), filter, {}, {}, NOW)).toBe(false);
+    expect(profileMatches(owned('dog_glue'), filter, {}, {}, NOW)).toBe(true);
+  });
+
+  it('does not sweep up an unowned task with a non-empty exclude list', () => {
+    expect(
+      profileMatches(task(), { exclude_companions: ['battery_notes'] }, {}, {}, NOW),
+    ).toBe(true);
+  });
+
+  it('lets the exclude list win over a matching include', () => {
+    expect(
+      profileMatches(
+        owned('battery_notes'),
+        { companions: ['battery_notes'], exclude_companions: ['battery_notes'] },
+        {},
+        {},
+        NOW,
+      ),
+    ).toBe(false);
+  });
+
+  it('treats an empty or absent companions list as every owner', () => {
+    expect(profileMatches(owned('battery_notes'), { companions: [] }, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(owned('battery_notes'), {}, {}, {}, NOW)).toBe(true);
+  });
+});
+
+describe('profileHasAnyTask', () => {
+  // The Settings → Notifications footer asks "is there anything here to send a real
+  // card about?". That is not the same question as "what does this profile deliver
+  // today", and the difference is the whole reason the helper exists.
+
+  it('ignores the profile status, so an overdue profile still has a task', () => {
+    const later = task({ next_due: at(30) });
+    // The profile itself would send nothing today...
+    expect(profileMatches(later, { status: 'overdue' }, {}, {}, NOW)).toBe(false);
+    // ...but Test sends `status: all`, so there is a card to reach.
+    expect(profileHasAnyTask([later], { status: 'overdue' }, {}, {}, NOW)).toBe(true);
+  });
+
+  it('is true when any one task clears the filter', () => {
+    const mine = task({ id: 'mine', labels: ['dog'] });
+    const other = task({ id: 'other', labels: ['car'] });
+    expect(profileHasAnyTask([other, mine], { labels: ['dog'] }, {}, {}, NOW)).toBe(true);
+  });
+
+  it('keeps the rest of the filter, so a label nobody carries matches nothing', () => {
+    expect(profileHasAnyTask([task()], { labels: ['dog'] }, {}, {}, NOW)).toBe(false);
+  });
+
+  it('is false for no tasks at all', () => {
+    expect(profileHasAnyTask([], {}, {}, {}, NOW)).toBe(false);
+  });
+
+  it('still drops a task the filter disqualifies outright', () => {
+    // Disabled and undated tasks are out under every status, `all` included.
+    expect(profileHasAnyTask([task({ enabled: false })], {}, {}, {}, NOW)).toBe(false);
+    expect(profileHasAnyTask([task({ next_due: null })], {}, {}, {}, NOW)).toBe(false);
   });
 });

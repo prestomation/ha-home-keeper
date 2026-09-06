@@ -1,11 +1,16 @@
 import { t } from './i18n';
 import { recurrenceSummary, round1 } from './utils';
 import type {
+  Asset,
+  Companion,
   Hass,
+  MetadataEntry,
   Notification,
   NotifyAction,
   NotifyStatus,
   NotifyStyle,
+  NotifyUrgency,
+  Part,
   Profile,
   ProfileSync,
   SensorBinding,
@@ -96,6 +101,27 @@ export const selSelect = (
 export const selSelectCustom = (options: { value: string; label: string }[]): Selector => ({
   select: { mode: 'dropdown', options, custom_value: true },
 });
+/**
+ * The interval-unit dropdown. One list, because two forms ask the same question: a
+ * floating task's cadence ("every 3 months") and a wear part's replacement schedule
+ * in the panel, which carried its own copy of these three options.
+ *
+ * Built per call rather than hoisted to a constant: the labels are translated at build
+ * time, and the panel rebuilds its schemas when the language changes.
+ */
+export const selUnit = (): Selector =>
+  selSelect([
+    { value: 'days', label: t('opt.unit.days') },
+    { value: 'weeks', label: t('opt.unit.weeks') },
+    { value: 'months', label: t('opt.unit.months') },
+  ]);
+
+function monthOptions(): { value: string; label: string }[] {
+  return Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1),
+    label: t(`opt.month.${i + 1}`),
+  }));
+}
 
 // ── datetime <-> HA selector string helpers ────────────────────────────────
 // HA's datetime selector uses local "YYYY-MM-DD HH:mm:ss"; we persist ISO.
@@ -141,6 +167,89 @@ export function backstopEnabled(task: Partial<Task>): boolean {
 }
 
 /**
+ * How many season windows the *panel* will edit on one task.
+ *
+ * The stored list is uncapped — a service-API caller can write more — but a form
+ * has to stop somewhere, and a task needing more than six windows a year is really
+ * describing a different schedule. Raising this later breaks nothing.
+ */
+export const MAX_SEASON_WINDOWS = 6;
+
+/** The window a freshly-added season starts as: April 1 through September 30. */
+const DEFAULT_SEASON = { startMonth: '4', startDay: 1, endMonth: '9', endDay: 30 };
+
+/** Last day of *month* (1-12), leap year, so February is 29 and never 28. */
+export function daysInMonth(month: number): number {
+  return new Date(2000, month, 0).getDate();
+}
+
+/**
+ * A task's stored season windows, from either representation.
+ *
+ * The stored shape is a list; a single `{start, end}` object is accepted on input
+ * (services and older tasks), so both are normalized here rather than at each reader.
+ */
+export function seasonWindows(task: Partial<Task>): Array<{ start: string; end: string }> {
+  const s = task.active_season;
+  if (!s) return [];
+  if (Array.isArray(s)) return s;
+  if (typeof s === 'object' && 'start' in s) return [s];
+  return [];
+}
+
+/**
+ * Whether the task is restricted to a season, from either representation — the flat
+ * `season_on` switch the form holds, or the presence of stored windows. Same shape of
+ * predicate as {@link backstopEnabled}, for the same reason: schema, payload and hint
+ * must never disagree about whether the season fields count.
+ */
+export function seasonEnabled(task: Partial<Task>): boolean {
+  const flag = (task as Record<string, unknown>).season_on;
+  if (flag !== undefined && flag !== null) return Boolean(flag);
+  return seasonWindows(task).length > 0;
+}
+
+/**
+ * How many windows the form is editing: the live `season_count` (the user added or
+ * removed one) wins over the stored list's length, so a removal isn't undone by the
+ * task it was removed from. Always at least one — the season switch being on means
+ * there is a window to fill in.
+ */
+export function seasonCount(task: Partial<Task>): number {
+  const flat = (task as Record<string, unknown>).season_count;
+  const n = Number(flat ?? seasonWindows(task).length) || 1;
+  return Math.min(MAX_SEASON_WINDOWS, Math.max(1, Math.floor(n)));
+}
+
+/**
+ * `season_2_start_month` → `season_start_month`.
+ *
+ * Every window is the same control repeated, so every window reads from one set of
+ * translations. Windows that each named themselves ("Active season", "Second window")
+ * is exactly the inconsistency reported on #242.
+ */
+export function seasonFieldLabelKey(name: string): string {
+  return name.replace(/^season_\d+_/, 'season_');
+}
+
+/** The four flat form values for window *i*, read from live edit state then storage. */
+function seasonWindowData(task: Partial<Task>, i: number): Record<string, unknown> {
+  const sd = task as Record<string, unknown>;
+  const w = seasonWindows(task)[i - 1];
+  const month = (mmdd: string | undefined, fallback: string): string =>
+    mmdd ? String(parseInt(mmdd, 10)) : fallback;
+  const day = (mmdd: string | undefined, fallback: number): number =>
+    mmdd ? parseInt(mmdd.split('-')[1], 10) : fallback;
+  return {
+    [`season_${i}_start_month`]:
+      sd[`season_${i}_start_month`] ?? month(w?.start, DEFAULT_SEASON.startMonth),
+    [`season_${i}_start_day`]: sd[`season_${i}_start_day`] ?? day(w?.start, DEFAULT_SEASON.startDay),
+    [`season_${i}_end_month`]: sd[`season_${i}_end_month`] ?? month(w?.end, DEFAULT_SEASON.endMonth),
+    [`season_${i}_end_day`]: sd[`season_${i}_end_day`] ?? day(w?.end, DEFAULT_SEASON.endDay),
+  };
+}
+
+/**
  * Whether a state-mode binding points at a `binary_sensor`, from either representation.
  *
  * Binary sensors are the reason this mode exists and they only ever report `on`/`off`,
@@ -170,9 +279,43 @@ export function isBinarySensorBinding(task: Partial<Task>): boolean {
  * that only exists because of a choice made in the section above it.
  */
 export interface TaskSchemaSection {
-  key: 'basics' | 'schedule' | 'cadence' | 'placement' | 'completion';
+  /**
+   * `basics` | `schedule` | `cadence` | `placement` | `completion`, or `season-<n>`
+   * for the nth active-season window — one section per window, because a window
+   * needs a heading and a Remove button of its own.
+   */
+  key: string;
   fields: FormField[];
   dependent?: boolean;
+}
+
+/** The month/day pair fields for season window *i*, as two `ha-form` grid rows. */
+function seasonWindowFields(task: Partial<Task>, i: number): FormField[] {
+  const data = seasonWindowData(task, i);
+  // The day picker's ceiling follows the month beside it, so February can't offer a
+  // 31st that the payload would silently clamp back to the 29th.
+  const dayField = (name: string, month: unknown): FormField => ({
+    name,
+    selector: { number: { min: 1, max: daysInMonth(Number(month)), mode: 'box' } },
+  });
+  return [
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: `season_${i}_start_month`, selector: selSelect(monthOptions()) },
+        dayField(`season_${i}_start_day`, data[`season_${i}_start_month`]),
+      ],
+    },
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: `season_${i}_end_month`, selector: selSelect(monthOptions()) },
+        dayField(`season_${i}_end_day`, data[`season_${i}_end_month`]),
+      ],
+    },
+  ];
 }
 
 /**
@@ -245,12 +388,16 @@ export function taskSchemaSections(
     ];
   }
 
+  const isFloating = task.recurrence_type === 'floating';
   const isFixed = task.recurrence_type === 'fixed';
   // A one-off (do-once) task has no cadence at all — just a single due date.
   const isOneOff = task.recurrence_type === 'one-off';
   // A sensor-based task has no clock cadence — its due-state comes from a bound
   // numeric sensor. Show the binding fields instead of interval/unit/freq.
   const isSensor = task.recurrence_type === 'sensor';
+  // A season restricts a repeating date to part of the year, so only the two kinds
+  // that compute one from a calendar offer it.
+  const seasonOffered = (isFloating || isFixed) && !locked.has('active_season');
 
   const cadenceSubFields: FormField[] = isOneOff || isSensor
     ? []
@@ -272,18 +419,7 @@ export function taskSchemaSections(
       ]
     : [
         ...(!locked.has('interval') ? [{ name: 'interval', selector: selNumber(1) }] : []),
-        ...(!locked.has('unit')
-          ? [
-              {
-                name: 'unit',
-                selector: selSelect([
-                  { value: 'days', label: t('opt.unit.days') },
-                  { value: 'weeks', label: t('opt.unit.weeks') },
-                  { value: 'months', label: t('opt.unit.months') },
-                ]),
-              },
-            ]
-          : []),
+        ...(!locked.has('unit') ? [{ name: 'unit', selector: selUnit() }] : []),
       ];
   const cadence: FormField | null =
     cadenceSubFields.length > 0 ? { name: '', type: 'grid', schema: cadenceSubFields } : null;
@@ -308,9 +444,20 @@ export function taskSchemaSections(
             { value: 'usage', label: t('opt.sensor_mode.usage') },
             { value: 'threshold', label: t('opt.sensor_mode.threshold') },
             { value: 'state', label: t('opt.sensor_mode.state') },
+            { value: 'availability', label: t('opt.sensor_mode.availability') },
           ]),
         },
-        ...(sensorMode === 'state'
+        // Availability watches for the entity to go away, so it has no condition of
+        // its own — only the hold and the auto-clear the edge modes share. Listed
+        // before `state` because an availability task opened for editing must not
+        // fall through to another mode's fields: the save would stamp that mode's
+        // keys onto the binding and the backend rejects them.
+        ...(sensorMode === 'availability'
+          ? [
+              { name: 'sensor_for', selector: selNumber(0) } as FormField,
+              { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
+            ]
+          : sensorMode === 'state'
           ? [
               // A binary sensor only ever reports on/off, so offer those directly
               // rather than making the user type a magic word. Any other entity keeps
@@ -488,10 +635,30 @@ export function taskSchemaSections(
       : []),
   ];
 
+  // One section per active-season window, each holding the same two rows. A window
+  // is a section rather than a run of fields so the panel can head it ("Season 1")
+  // and offer Remove beside it — `ha-form` has no slot between its own rows.
+  // The switch and the windows it reveals are one run, so the switch is its own
+  // section directly above them rather than a field lost at the end of the cadence:
+  // with `anchor` and "Last completed" in between, the control and what it controls
+  // sat on opposite sides of the form.
+  const seasons: TaskSchemaSection[] = seasonOffered
+    ? [
+        { key: 'season', fields: [{ name: 'season_on', selector: selBool() }] },
+        ...(seasonEnabled(task)
+          ? Array.from({ length: seasonCount(task) }, (_, i) => ({
+              key: `season-${i + 1}`,
+              fields: seasonWindowFields(task, i + 1),
+            }))
+          : []),
+      ]
+    : [];
+
   return [
     { key: 'basics', fields: basics },
     { key: 'schedule', fields: schedule },
     { key: 'cadence', fields: cadenceSection, dependent: true },
+    ...seasons,
     { key: 'placement', fields: placement },
     { key: 'completion', fields: completion },
   ];
@@ -569,7 +736,14 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // state that means "something needs doing" for every device class that matters
     // here (water tank low, battery almost empty, leak detected).
     sensor_state: sd.sensor_state ?? task.sensor?.state ?? 'on',
-    sensor_clear_on_recover: sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover ?? false,
+    // Off by default, except in availability mode: `normalize_sensor` defaults *that*
+    // mode's flag to True (a device coming back is the recovery signal), so a box
+    // seeded unchecked would misreport what the backend would store, and — since the
+    // payload sends this mode's flag as a real boolean — saving would turn it off.
+    sensor_clear_on_recover:
+      sd.sensor_clear_on_recover ??
+      task.sensor?.clear_on_recover ??
+      (sd.sensor_mode ?? task.sensor?.mode) === 'availability',
     sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
     sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
     sensor_unit: sd.sensor_unit ?? task.sensor?.unit ?? '',
@@ -588,6 +762,14 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // than pre-selecting a blank option.
     tag_id: task.tag_id ?? undefined,
     require_tag_scan: task.require_tag_scan ?? false,
+    season_on: seasonEnabled(task),
+    // How many windows the form shows. Every window's four values are flattened
+    // alongside it (`season_1_start_month`, …) and assembled back in buildTaskPayload.
+    season_count: seasonCount(task),
+    ...Object.assign(
+      {},
+      ...Array.from({ length: seasonCount(task) }, (_, i) => seasonWindowData(task, i + 1)),
+    ),
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
     // task's current part source.
@@ -625,6 +807,16 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
     d.recurrence_type,
     d.sensor_mode,
     d.sensor_backstop_on,
+    d.season_on,
+    // How many season windows are shown, and each one's two months — the months
+    // because a day picker's ceiling follows the month beside it (February offers 29
+    // days, not 31), so changing a month has to rebuild that row.
+    d.season_on
+      ? Array.from({ length: Number(d.season_count) }, (_, i) => [
+          d[`season_${i + 1}_start_month`],
+          d[`season_${i + 1}_end_month`],
+        ])
+      : null,
     // State mode's value control follows the bound entity: an on/off picker for a
     // binary sensor, free text for anything else. This predicate reads the flat and the
     // nested binding itself, so it needs no normalizing pass of its own.
@@ -639,6 +831,68 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
 export function consumableLinkToken(task: Partial<Task>): string {
   const part = task.source?.part;
   return part ? `${part.asset_id}:${part.part_id}` : '';
+}
+
+/**
+ * A copy of *task*, seeded into the **create** drawer.
+ *
+ * Duplication answers "ten near-identical tasks" (#279): the copy keeps the *rule* —
+ * recurrence, cadence, sensor binding, placement, labels, card links, capture mode and
+ * the fields that mode makes mandatory — and drops this task's identity, its record of
+ * what happened, and any binding to one physical object.
+ *
+ * Built as an **allowlist**, the same discipline `buildTaskPayload` follows, so a
+ * field added to `Task` later cannot leak into a copy by simply existing.
+ *
+ * Three of the omissions are load-bearing rather than tidiness, because the copy has
+ * no `id` and the marshalling below treats an id-less task as a creation:
+ *
+ * - `last_completed` — `buildTaskPayload` emits it *only* when `!task.id`, which is
+ *   never true on the edit path and always true here. Carried over, every copy would
+ *   be born back-dated to the original's last completion, and the recurrence engine
+ *   would derive `next_due` from it.
+ * - `sensor.baseline` — the meter anchor. Carried over, the copy counts from the
+ *   original machine's reading instead of stamping the live one; leaving it unset is
+ *   the documented "anchor at the current reading" behaviour a new task gets.
+ * - `tag_id` / `require_tag_scan` — one sticker completes one task. A second task
+ *   claiming the same tag is not a copied setting, it is a collision.
+ *
+ * `source` is likewise omitted, and that is why `consumable_link` is passed as the
+ * flat token: `taskFormData` renders the picker from `source` but `_submitForm` reads
+ * only the flat key, so seeding `source` would show a link the save never applies.
+ */
+export function duplicateTaskSeed(task: Task): Partial<Task> {
+  // Shallow-copy the binding minus its anchor. Sharing the reference and deleting the
+  // key would reach through and mutate the source task still held in `_tasks`.
+  const sensor = task.sensor
+    ? (({ baseline: _baseline, ...rest }) => rest)(task.sensor)
+    : undefined;
+  const seed: Record<string, unknown> = {
+    name: t('duplicate.copyName', { name: task.name }),
+    notes: task.notes ?? '',
+    recurrence_type: task.recurrence_type,
+    interval: task.interval,
+    unit: task.unit,
+    freq: task.freq,
+    anchor: task.anchor,
+    // A one-off's `due` *is* its rule, so it rides along. `taskFormData` would
+    // otherwise default an id-less task to now and quietly move the deadline.
+    due: task.due,
+    device_id: task.device_id ?? null,
+    area_id: task.area_id ?? null,
+    labels: [...(task.labels ?? [])],
+    card_links: cardLinkTokens(task),
+    completion_detail: task.completion_detail ?? 'none',
+    // Capture mode is two fields, not one: `completion_detail` says whether anything
+    // is mandatory, this says which. Carrying only the first made a copy of a task
+    // requiring a note and a photo come out requiring the default note alone — a copy
+    // that behaves differently from its original, which is the one thing duplication
+    // must not do. The form renders no control for it, so it rides along untouched.
+    completion_required_fields: [...(task.completion_required_fields ?? [])],
+    consumable_link: consumableLinkToken(task),
+  };
+  if (sensor) seed.sensor = sensor;
+  return seed as Partial<Task>;
 }
 
 /**
@@ -726,11 +980,15 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
         ) || 'any') as SensorCombinator;
       }
     } else {
-      // The edge-driven modes (threshold / state) share the hold and the
-      // clear-on-recover flag; only the condition itself differs.
+      // The edge-driven modes (threshold / state / availability) share the hold and
+      // the clear-on-recover flag; only the condition itself differs. Availability
+      // has no condition at all — the entity going away *is* the condition — so it
+      // adds nothing here. It must still be matched explicitly: falling through to
+      // the threshold leg stamped `comparison` and `value` onto the binding, which
+      // the backend rejects as "not valid for an availability-mode sensor task".
       if (mode === 'state') {
         sensor.state = String(sd.sensor_state ?? task.sensor?.state ?? '').trim();
-      } else {
+      } else if (mode !== 'availability') {
         sensor.comparison = (sd.sensor_comparison as SensorComparison) ||
           task.sensor?.comparison ||
           '>=';
@@ -739,7 +997,15 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds) || 0;
       if (forSeconds > 0) sensor.for_seconds = forSeconds;
       const clearOnRecover = sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover;
-      if (clearOnRecover) sensor.clear_on_recover = true;
+      if (mode === 'availability') {
+        // Sent as a real boolean, unlike the two modes above. `normalize_sensor`
+        // defaults this mode's flag to **True** and only an explicit `False` turns
+        // auto-clear off, so omitting a cleared checkbox would silently turn it back
+        // on and the switch would do nothing.
+        sensor.clear_on_recover = clearOnRecover !== false;
+      } else if (clearOnRecover) {
+        sensor.clear_on_recover = true;
+      }
     }
     payload = {
       name: task.name,
@@ -768,9 +1034,25 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       payload.freq = task.freq || 'DAILY';
       payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
     }
-    // Capture mode applies to scheduled tasks; the backend derives which fields a
-    // `required` task makes mandatory (v1: the note).
     payload.completion_detail = task.completion_detail || 'none';
+    // Every window the form is showing, assembled from its flat fields — the whole
+    // list, so removing a window actually removes it. Season off sends an explicit
+    // null, which clears the season rather than leaving the stored one in place.
+    if (seasonEnabled(task) && task.recurrence_type !== 'one-off') {
+      const mmdd = (month: number, day: number): string =>
+        `${String(month).padStart(2, '0')}-${String(Math.min(day, daysInMonth(month))).padStart(2, '0')}`;
+      payload.active_season = Array.from({ length: seasonCount(task) }, (_, i) => {
+        const w = seasonWindowData(task, i + 1);
+        const sm = Number(w[`season_${i + 1}_start_month`]);
+        const em = Number(w[`season_${i + 1}_end_month`]);
+        return {
+          start: mmdd(sm, Number(w[`season_${i + 1}_start_day`])),
+          end: mmdd(em, Number(w[`season_${i + 1}_end_day`])),
+        };
+      });
+    } else {
+      payload.active_season = null;
+    }
   }
   // Area applies to every task kind (including triggered) and always round-trips, so
   // clearing the picker sends an explicit null and drops the task's own area rather
@@ -789,6 +1071,22 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   // Card links likewise apply to every kind and always round-trip — an empty array
   // clears the selection on update. Convert the form's tokens back to references.
   payload.card_links = cardLinksFromTokens(cardLinkTokens(task));
+  // Which fields a `required` task makes mandatory. The form has a capture-*mode*
+  // picker and no control for this list, so it is carried rather than edited — but it
+  // still has to be *sent*, because a creation has no stored task to fall back on.
+  // `merge_update` keeps the existing list when an update omits it, which is why the
+  // edit path never needed this; a duplicate goes through `add_task` instead, and
+  // silently came out demanding only the default note.
+  //
+  // Skipping an empty array loses nothing: `normalize_completion_required_fields`
+  // ends `return result or ["note"]`, so an empty list is not a state a `required`
+  // task can be in, and a `none`/`optional` task is forced empty there regardless of
+  // what we send. The guard is therefore about keeping an ordinary edit's payload
+  // byte-identical, not about suppressing a meaningful value.
+  const requiredFields = task.completion_required_fields;
+  if (Array.isArray(requiredFields) && requiredFields.length) {
+    payload.completion_required_fields = [...requiredFields];
+  }
   if (!task.id) {
     const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
     if (lastCompleted) payload.last_completed = lastCompleted;
@@ -945,6 +1243,17 @@ export function sensorHintText(
     );
   }
 
+  // Availability needs nothing entered to be describable — the entity picker above
+  // is the whole binding — so it never returns the empty string the other modes use
+  // for "not enough entered yet".
+  if (mode === 'availability') {
+    return withRecovery(
+      forSeconds > 0
+        ? t('hint.sensor.availabilityFor', { seconds: forSeconds })
+        : t('hint.sensor.availability'),
+    );
+  }
+
   if (mode === 'threshold') {
     const rawValue = sd.sensor_value ?? task.sensor?.value;
     if (rawValue == null || rawValue === '' || Number.isNaN(Number(rawValue))) return '';
@@ -974,6 +1283,37 @@ export function sensorHintText(
       ? t('hint.sensor.backstopAll', { every })
       : t('hint.sensor.backstopAny', { every })
   }`;
+}
+
+/**
+ * The bound sensor's live reading and unit, for the form hint above and for the
+ * completion dialog's pre-filled reading.
+ *
+ * Reads the flat `sensor_*` edit state (the entity/attribute being picked right now),
+ * falling back to a loaded task's nested binding — the same precedence
+ * `sensorHintText` uses, which is why the two live together. `reading` is undefined
+ * when the entity is unset, unknown to Home Assistant, or non-numeric.
+ */
+export function sensorLive(
+  hass: Hass | undefined,
+  task: Partial<Task>,
+): { reading?: number; unit?: string } {
+  const sd = task as Record<string, unknown>;
+  // Stryker disable next-line StringLiteral: equivalent — with no binding, any
+  // fallback string is a key `states` does not hold, so the lookup below misses and
+  // the result is {} either way.
+  const entityId = String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? '');
+  // Stryker disable next-line ConditionalExpression: equivalent for the same reason —
+  // skipping this early return still ends in {}. The guard is here to say so without
+  // reaching for `hass`.
+  if (!entityId) return {};
+  const state = hass?.states?.[entityId];
+  if (!state) return {};
+  const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '');
+  const raw = attribute ? (state.attributes?.[attribute] as unknown) : state.state;
+  const num = raw == null || raw === '' ? NaN : Number(raw);
+  const unit = state.attributes?.unit_of_measurement as string | undefined;
+  return { reading: Number.isNaN(num) ? undefined : num, unit };
 }
 
 /**
@@ -1060,11 +1400,190 @@ export function shoppingSchema(exclude: string[] = []): FormField[] {
   ];
 }
 
+// ── appliance form schemas ──────────────────────────────────────────────────
+// The appliance editor's field sets. Panel-only (the dashboard card has no
+// appliance editor), but they live here with the task form's for the same reason:
+// they are pure structure, and structure is what a test can hold them to.
+
+// The smallest a part quantity that must be *positive* can be. Stock itself may be
+// zero (you're out), but "how much a completion uses" and "how much a restock adds"
+// can't be — a zero there is a field that quietly does nothing. A number selector
+// has no exclusive minimum, so the floor is one step of the stored precision.
+const MIN_POSITIVE_QUANTITY = 0.001;
+
+/**
+ * Identity schema (kind + virtual/existing fields + area). The `kind` field is
+ * omitted once the asset exists (it's immutable after creation, and ha-form
+ * has no per-field disable), so editing can't put it in an inconsistent state.
+ *
+ * *parents* is the appliances this one may be nested under, resolved by the caller —
+ * the panel knows the tree, this only lays the field out.
+ */
+export function assetIdentitySchema(
+  x: Partial<Asset>,
+  editing: boolean,
+  parents: { value: string; label: string }[],
+): FormField[] {
+  const fields: FormField[] = [];
+  if (!editing) {
+    fields.push({
+      name: 'kind',
+      selector: selSelect([
+        { value: 'virtual', label: t('opt.kind.virtual') },
+        { value: 'existing', label: t('opt.kind.existing') },
+      ]),
+    });
+  }
+  const existing = x.kind === 'existing';
+  if (existing) fields.push({ name: 'device_id', required: true, selector: selDevice() });
+  // The device supplies its own name for an existing-device asset (normalize_fields
+  // falls back to it), so it's optional there; a virtual asset owns no other name
+  // source, so it's required.
+  fields.push({ name: 'name', required: !existing, selector: selText() });
+  fields.push({
+    name: '',
+    type: 'grid',
+    schema: [
+      { name: 'manufacturer', selector: selText() },
+      { name: 'model', selector: selText() },
+    ],
+  });
+  // serial_number is first-class (it syncs into the device page's info block), so
+  // it sits with make/model rather than in the free-form custom fields.
+  fields.push({ name: 'serial_number', selector: selText() });
+  if (existing) {
+    // Only a device we own can be a native subdevice of another via via_device
+    // (normalize_fields forces an existing-device asset's parent_asset_id to None),
+    // so there's no parent picker here — just the icon.
+    fields.push({ name: 'icon', selector: selIcon() });
+  } else {
+    fields.push({
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'icon', selector: selIcon() },
+        { name: 'parent_asset_id', selector: selSelect(parents) },
+      ],
+    });
+  }
+  fields.push({ name: 'area_id', selector: selArea() });
+  return fields;
+}
+
+/** Structured field that wires into HA: the asset's value (for the inventory). */
+export function structuredDetailsSchema(): FormField[] {
+  return [{ name: 'cost', selector: selNumber(0) }];
+}
+
+/** Schema for one free-form metadata entry. The value control swaps by type, and
+ *  a `date` entry adds a "track as sensor" toggle (opt-in automation). */
+export function metadataSchema(m: MetadataEntry): FormField[] {
+  const valueSelector = m.type === 'date' ? selDate() : selText();
+  const fields: FormField[] = [
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        {
+          name: 'type',
+          selector: selSelect([
+            { value: 'text', label: t('opt.meta.text') },
+            { value: 'link', label: t('opt.meta.link') },
+            { value: 'date', label: t('opt.meta.date') },
+          ]),
+        },
+        { name: 'label', selector: selText() },
+      ],
+    },
+    { name: 'value', selector: valueSelector },
+  ];
+  if (m.type === 'date') fields.push({ name: 'track', selector: selBool() });
+  return fields;
+}
+
+export function partSchema(part: Part): FormField[] {
+  const isWear = part.type === 'wear';
+  const base: FormField[] = [
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'part_name', selector: selText() },
+        { name: 'part_number', selector: selText() },
+        {
+          name: 'type',
+          selector: selSelect([
+            { value: 'consumable', label: t('opt.part.consumable') },
+            { value: 'wear', label: t('opt.part.wear') },
+          ]),
+        },
+      ],
+    },
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'vendor', selector: selText() },
+        { name: 'cost', selector: selNumber(0) },
+      ],
+    },
+    { name: 'part_url', selector: selText() },
+    // Free-form notes about this part (rendered as Markdown on the appliance's
+    // detail page) — the field has always existed in the stored model but had no
+    // editor until now.
+    { name: 'notes', selector: selText(true) },
+    // Spare quantities are decimal (`'any'`): a part measured in millilitres or
+    // topped up a third of a bottle at a time is as valid as one counted in whole
+    // filters. `stock_unit` is the label those numbers are shown with.
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'stock', selector: selNumber(0, 'any') },
+        { name: 'reorder_at', selector: selNumber(0, 'any') },
+        { name: 'stock_unit', selector: selText() },
+      ],
+    },
+  ];
+  // How much one completion draws down. Only meaningful once the part is tracking
+  // stock at all — with nothing to draw from, the field would promise nothing.
+  if (part.stock != null) {
+    base.push({ name: 'consume_quantity', selector: selNumber(MIN_POSITIVE_QUANTITY, 'any') });
+  }
+  // Auto-buy: only meaningful once a reorder threshold is set (that's what defines
+  // "low"). When enabled, offer the restock quantity added on completing the reminder.
+  if (part.reorder_at != null) {
+    base.push({ name: 'create_buy_task', selector: selBool() });
+    if (part.create_buy_task) {
+      base.push({
+        name: 'restock_quantity',
+        selector: selNumber(MIN_POSITIVE_QUANTITY, 'any'),
+      });
+    }
+  }
+  if (isWear) {
+    base.push({
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: 'replace_interval', selector: selNumber(1) },
+        { name: 'replace_unit', selector: selUnit() },
+      ],
+    });
+    // Let the user record when the part was last replaced so the derived
+    // maintenance task's clock starts from the real date instead of "now".
+    base.push({ name: 'last_replaced', selector: selDate() });
+  }
+  return base;
+}
+
 // ── profiles (saved filters) & notifications (delivery) ─────────────────────
 
 const NOTIFY_STATUSES: NotifyStatus[] = ['all', 'overdue', 'due_soon'];
 const NOTIFY_ACTIONS: NotifyAction[] = ['complete', 'snooze', 'skip', 'open'];
 const NOTIFY_STYLES: NotifyStyle[] = ['walk', 'digest'];
+// Quietest first, so the dropdown reads as a ladder rather than an unordered set.
+const NOTIFY_URGENCIES: NotifyUrgency[] = ['quiet', 'normal', 'high', 'critical'];
 
 /** Localized `{value,label}` options for a notify enum (status/action/style). */
 const notifyOptions = (values: string[]): { value: string; label: string }[] =>
@@ -1125,16 +1644,70 @@ export function profileSyncSchema(exclude: string[] = []): FormField[] {
  * The include lists come first, then the `exclude_*` lists that subtract from them —
  * so a profile can say "everything overdue except the jobs that need a tradesperson".
  */
-export function profileSchema(): FormField[] {
+/** One entry in the profile form's companion picker: an integration domain + its label. */
+export interface CompanionOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * The integrations a profile can filter by: every **connected** companion, plus every
+ * integration that already owns a task (`managed_by.integration`).
+ *
+ * The union matters in both directions. A companion can own tasks without ever
+ * registering — `managed_by` is the ownership contract, registering is only how a
+ * companion appears under Settings, so the registry alone would leave real, filterable
+ * tasks unpickable. And a task's owner can go away — uninstall the glue and its tasks
+ * are orphaned, not deleted — so the tasks alone would drop a companion out of the
+ * picker while a saved profile still names it. A domain a task claims but no companion
+ * registers has no display name to borrow, so it labels itself.
+ *
+ * Suggested-but-not-installed companions are deliberately absent: they own no tasks, so
+ * filtering by one selects nothing.
+ */
+export function companionOptions(companions: Companion[], tasks: Task[]): CompanionOption[] {
+  const names = new Map<string, string>();
+  for (const c of companions) {
+    if (c.status === 'connected') names.set(c.domain, c.name);
+  }
+  for (const task of tasks) {
+    const owner = task.managed_by;
+    const domain = owner?.integration;
+    if (!domain) continue;
+    // A registered companion's own name wins: it is the one the user sees under
+    // Settings → Companions, and `display_name` is free text the owner sets per task.
+    if (!names.has(domain)) names.set(domain, owner.display_name || domain);
+  }
+  return [...names.entries()]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export function profileSchema(companions: CompanionOption[] = []): FormField[] {
+  // Home Assistant has no companion selector, so the include/exclude pair is a
+  // multi-select over *companionOptions* — the integrations this install can actually
+  // filter by. Both fields drop out when there are none, rather than showing a picker
+  // with nothing in it on an install that runs no companions.
+  const companionFields: FormField[] = companions.length
+    ? [
+        { name: 'companions', selector: selSelect(companions, true) },
+        { name: 'exclude_companions', selector: selSelect(companions, true) },
+      ]
+    : [];
   return [
     { name: 'name', required: true, selector: selText() },
     { name: 'status', selector: selSelect(notifyOptions(NOTIFY_STATUSES)) },
     { name: 'labels', selector: selLabel(true) },
     { name: 'areas', selector: selArea(true) },
     { name: 'devices', selector: selDevice(true) },
+    ...(companionFields.length ? [companionFields[0]] : []),
     { name: 'exclude_labels', selector: selLabel(true) },
     { name: 'exclude_areas', selector: selArea(true) },
     { name: 'exclude_devices', selector: selDevice(true) },
+    ...(companionFields.length ? [companionFields[1]] : []),
+    // Excludes by kind rather than by id, so it is a switch and not a picker: an
+    // auto-created buy reminder has no label or area of its own to name.
+    { name: 'exclude_shopping', selector: selBool() },
   ];
 }
 
@@ -1146,9 +1719,12 @@ export function profileFormData(p: Profile): Record<string, unknown> {
     labels: p.filter.labels,
     areas: p.filter.areas,
     devices: p.filter.devices,
+    companions: p.filter.companions,
     exclude_labels: p.filter.exclude_labels,
     exclude_areas: p.filter.exclude_areas,
     exclude_devices: p.filter.exclude_devices,
+    exclude_companions: p.filter.exclude_companions,
+    exclude_shopping: p.filter.exclude_shopping ?? false,
   };
 }
 
@@ -1173,9 +1749,12 @@ export function profileFormToProfile(
       labels: strList(data.labels),
       areas: strList(data.areas),
       devices: strList(data.devices),
+      companions: strList(data.companions),
       exclude_labels: strList(data.exclude_labels),
       exclude_areas: strList(data.exclude_areas),
       exclude_devices: strList(data.exclude_devices),
+      exclude_companions: strList(data.exclude_companions),
+      exclude_shopping: Boolean(data.exclude_shopping),
     },
   };
 }
@@ -1201,6 +1780,9 @@ export function notificationSchema(targets: string[], profiles: Profile[]): Form
     },
     { name: 'actions', selector: selSelect(notifyOptions(NOTIFY_ACTIONS), true) },
     { name: 'style', selector: selSelect(notifyOptions(NOTIFY_STYLES)) },
+    // How it lands on the phone, kept together and after the delivery basics.
+    { name: 'channel', selector: selText() },
+    { name: 'urgency', selector: selSelect(notifyOptions(NOTIFY_URGENCIES)) },
     { name: 'snooze_hours', selector: selNumber(1) },
     { name: 'auto_overdue', selector: selBool() },
     { name: 'auto_due_soon', selector: selBool() },
@@ -1215,6 +1797,8 @@ export function notifyFormData(n: Notification): Record<string, unknown> {
     targets: n.targets,
     actions: n.actions,
     style: n.style,
+    channel: n.channel,
+    urgency: n.urgency,
     snooze_hours: n.snooze_hours,
     auto_overdue: n.auto.overdue,
     auto_due_soon: n.auto.due_soon,
@@ -1233,6 +1817,8 @@ export function notifyFormToNotification(
     targets: strList(data.targets),
     actions: strList(data.actions) as NotifyAction[],
     style: (data.style as NotifyStyle) ?? 'walk',
+    channel: String(data.channel ?? '').trim(),
+    urgency: (data.urgency as NotifyUrgency) ?? 'normal',
     snooze_hours: Number(data.snooze_hours ?? 24) || 24,
     auto: { overdue: !!data.auto_overdue, due_soon: !!data.auto_due_soon },
   };

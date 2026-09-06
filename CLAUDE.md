@@ -5,6 +5,9 @@
 The project's workflow, conventions, and **hard gates** live in `AGENTS.md`
 (imported above) and `.amazonq/rules/`. Read them before pushing.
 
+**All English text follows ASD-STE100 Simplified Technical English.** Docs, strings,
+comments, PR text, and chat replies. Rules and glossary: `.amazonq/rules/writing-style.md`.
+
 Three gates worth repeating because they are easy to miss:
 
 - **Every PR that touches the panel UI (`custom_components/home_keeper/frontend/src/`)

@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   DEFAULT_BACKSTOP_INTERVAL,
+  MAX_SEASON_WINDOWS,
   backstopEnabled,
   cardLinkTokens,
   cardLinksFromTokens,
   consumableLinkToken,
+  daysInMonth,
   haDateTimeToIso,
   isoToHaDateTime,
   profileFormData,
@@ -12,6 +14,9 @@ import {
   profileSchema,
   skipSnoozeFlags,
   skipSnoozeSchema,
+  seasonCount,
+  seasonEnabled,
+  seasonFieldLabelKey,
   selArea,
   selBool,
   selDate,
@@ -183,6 +188,94 @@ describe('backstopEnabled', () => {
   });
 });
 
+describe('seasonEnabled', () => {
+  it('reads the flat form switch when present', () => {
+    expect(seasonEnabled({ season_on: true })).toBe(true);
+    expect(seasonEnabled({ season_on: false })).toBe(false);
+  });
+
+  it('prefers the flat switch over stored windows', () => {
+    // Switching the season off has to win over the windows still on the task being
+    // edited, or a switched-off season keeps restricting the due date.
+    expect(
+      seasonEnabled({ season_on: false, active_season: [{ start: '04-01', end: '09-30' }] }),
+    ).toBe(false);
+    expect(seasonEnabled({ season_on: true, active_season: null })).toBe(true);
+  });
+
+  it('falls back to the stored windows when the switch is absent', () => {
+    expect(seasonEnabled({ active_season: [{ start: '04-01', end: '09-30' }] })).toBe(true);
+    expect(seasonEnabled({ active_season: { start: '04-01', end: '09-30' } })).toBe(true);
+    expect(seasonEnabled({ active_season: [] })).toBe(false);
+    expect(seasonEnabled({})).toBe(false);
+  });
+
+  it('treats an explicit null switch as absent, not as off', () => {
+    expect(seasonEnabled({ season_on: null, active_season: null })).toBe(false);
+    expect(
+      seasonEnabled({ season_on: null, active_season: [{ start: '04-01', end: '09-30' }] }),
+    ).toBe(true);
+  });
+});
+
+describe('seasonCount', () => {
+  it('counts the stored windows when the form has not said otherwise', () => {
+    expect(seasonCount({ active_season: [{ start: '04-01', end: '09-30' }] })).toBe(1);
+    expect(
+      seasonCount({
+        active_season: [
+          { start: '04-01', end: '05-31' },
+          { start: '09-01', end: '10-31' },
+        ],
+      }),
+    ).toBe(2);
+  });
+
+  it('prefers the live count, so a removed window stays removed', () => {
+    // The stored list still has two windows; the form says one. Reading the task
+    // would put the removed window straight back on screen.
+    expect(
+      seasonCount({
+        season_count: 1,
+        active_season: [
+          { start: '04-01', end: '05-31' },
+          { start: '09-01', end: '10-31' },
+        ],
+      }),
+    ).toBe(1);
+  });
+
+  it('is at least one window and never more than the panel cap', () => {
+    expect(seasonCount({})).toBe(1);
+    expect(seasonCount({ season_count: 0 })).toBe(1);
+    expect(seasonCount({ season_count: MAX_SEASON_WINDOWS + 3 })).toBe(MAX_SEASON_WINDOWS);
+  });
+});
+
+describe('seasonFieldLabelKey', () => {
+  it('points every window at one set of translations', () => {
+    // Windows that named themselves individually ("Active season" then "Second
+    // window") is the labelling inconsistency reported on #242.
+    expect(seasonFieldLabelKey('season_1_start_month')).toBe('season_start_month');
+    expect(seasonFieldLabelKey('season_3_end_day')).toBe('season_end_day');
+  });
+
+  it('leaves every other field name alone', () => {
+    for (const name of ['season_on', 'interval', 'sensor_also_every', 'name']) {
+      expect(seasonFieldLabelKey(name)).toBe(name);
+    }
+  });
+});
+
+describe('daysInMonth', () => {
+  it('knows the short months, and gives February its leap day', () => {
+    expect(daysInMonth(1)).toBe(31);
+    expect(daysInMonth(2)).toBe(29);
+    expect(daysInMonth(4)).toBe(30);
+    expect(daysInMonth(12)).toBe(31);
+  });
+});
+
 describe('consumableLinkToken', () => {
   it('joins the asset and part ids', () => {
     expect(consumableLinkToken({ source: { part: { asset_id: 'a1', part_id: 'p2' } } })).toBe(
@@ -264,9 +357,12 @@ describe('profile form round-trip', () => {
       labels: ['l1'],
       areas: ['a1'],
       devices: ['d1'],
+      companions: ['battery_notes'],
       exclude_labels: ['l2'],
       exclude_areas: ['a2'],
       exclude_devices: ['d2'],
+      exclude_companions: ['dog_glue'],
+      exclude_shopping: true,
     },
   };
 
@@ -277,10 +373,21 @@ describe('profile form round-trip', () => {
       labels: ['l1'],
       areas: ['a1'],
       devices: ['d1'],
+      companions: ['battery_notes'],
       exclude_labels: ['l2'],
       exclude_areas: ['a2'],
       exclude_devices: ['d2'],
+      exclude_companions: ['dog_glue'],
+      exclude_shopping: true,
     });
+  });
+
+  it('shows the shopping switch off for a profile saved before it existed', () => {
+    // The form is seeded from this, so a default of `true` here would turn the
+    // exclusion on for every old profile the moment someone opened it to rename.
+    const older = { ...profile, filter: { ...profile.filter } };
+    delete older.filter.exclude_shopping;
+    expect(profileFormData(older).exclude_shopping).toBe(false);
   });
 
   it('leaves the sync block out of the filter form', () => {
@@ -327,10 +434,38 @@ describe('profile form round-trip', () => {
       labels: [],
       areas: [],
       devices: [],
+      companions: [],
       exclude_labels: [],
       exclude_areas: [],
       exclude_devices: [],
+      exclude_companions: [],
+      exclude_shopping: false,
     });
+  });
+
+  it('reads exclude_shopping as off unless the switch is on', () => {
+    // Off is the default a profile saved before the switch existed must read back
+    // as: an inverted or truthy-coerced read here would quietly empty a digest of
+    // its buy reminders for every household that never asked.
+    for (const value of [undefined, null, false, '', 0]) {
+      expect(
+        profileFormToProfile('p1', { name: 'x', exclude_shopping: value }).filter
+          .exclude_shopping,
+      ).toBe(false);
+    }
+    expect(
+      profileFormToProfile('p1', { name: 'x', exclude_shopping: true }).filter
+        .exclude_shopping,
+    ).toBe(true);
+  });
+
+  it('offers the shopping exclusion as a switch, after the id pickers', () => {
+    // It excludes by kind, not by id, so it cannot be a picker like its siblings.
+    const names = profileSchema().map((f) => f.name);
+    expect(names.indexOf('exclude_shopping')).toBe(names.length - 1);
+    expect(names.indexOf('exclude_shopping')).toBeGreaterThan(names.indexOf('exclude_devices'));
+    const field = profileSchema().find((f) => f.name === 'exclude_shopping');
+    expect(field.selector).toEqual({ boolean: {} });
   });
 
   it('stringifies list members that arrive as non-strings', () => {
@@ -359,6 +494,7 @@ describe('profile form round-trip', () => {
       'exclude_labels',
       'exclude_areas',
       'exclude_devices',
+      'exclude_shopping',
     ]);
     expect(profileSchema()[0].required).toBe(true);
   });
@@ -432,6 +568,61 @@ describe('taskFormSchemaKey', () => {
         sensor: { entity_id: 'sensor.hours', mode: 'usage', also_every: { interval: 6, unit: 'months' } },
       }),
     ).not.toBe(off);
+  });
+
+  it('moves when the season is switched on, so its windows appear', () => {
+    const off = taskFormSchemaKey({ recurrence_type: 'floating', season_on: false });
+    expect(taskFormSchemaKey({ recurrence_type: 'floating', season_on: true })).not.toBe(off);
+    // A loaded task carries the season as stored windows rather than the flat switch;
+    // both representations have to read the same way.
+    expect(
+      taskFormSchemaKey({
+        recurrence_type: 'floating',
+        active_season: [{ start: '04-01', end: '09-30' }],
+      }),
+    ).not.toBe(off);
+  });
+
+  it('moves when a season window is added or removed', () => {
+    const one = taskFormSchemaKey({
+      recurrence_type: 'floating',
+      active_season: [{ start: '04-01', end: '09-30' }],
+    });
+    expect(
+      taskFormSchemaKey({
+        recurrence_type: 'floating',
+        active_season: [
+          { start: '04-01', end: '09-30' },
+          { start: '11-01', end: '12-31' },
+        ],
+      }),
+    ).not.toBe(one);
+  });
+
+  it("moves when a season month changes, because the day picker's ceiling follows it", () => {
+    // February offers 29 days and April 30, so the row has to be rebuilt — otherwise
+    // the picker keeps offering a day the month it now names does not have.
+    const january = taskFormSchemaKey({
+      recurrence_type: 'floating',
+      season_on: true,
+      season_1_start_month: '1',
+    });
+    expect(
+      taskFormSchemaKey({
+        recurrence_type: 'floating',
+        season_on: true,
+        season_1_start_month: '2',
+      }),
+    ).not.toBe(january);
+    // The day itself doesn't change which fields are on screen, so it must not move it.
+    expect(
+      taskFormSchemaKey({
+        recurrence_type: 'floating',
+        season_on: true,
+        season_1_start_month: '1',
+        season_1_start_day: 17,
+      }),
+    ).toBe(january);
   });
 
   it('moves when a state binding swaps between a binary sensor and anything else', () => {

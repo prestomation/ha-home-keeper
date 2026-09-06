@@ -170,6 +170,19 @@ def test_csv_has_header_rows_and_total():
     assert total[header.index("Spares value")] == "10.0"
 
 
+def test_csv_headers_and_total_are_localized():
+    # Both export surfaces (the ``export_inventory`` service and the panel's
+    # websocket command) pass ``hass.config.language`` through — the CSV a
+    # Spanish-speaking household saves should not carry English headers.
+    report = inv.build_inventory([_asset(id="1", name="Apple", cost=100.0, parts=[])])
+    rows = list(csv.reader(io.StringIO(inv.inventory_to_csv(report, lang="es"))))
+    assert rows[0][0] == "Nombre"
+    assert rows[-1][0] == "TOTAL"  # es.json spells the total row label the same way
+    # An unknown language falls back to English rather than failing the export.
+    rows = list(csv.reader(io.StringIO(inv.inventory_to_csv(report, lang="xx"))))
+    assert rows[0][0] == "Name"
+
+
 def test_csv_neutralizes_formula_injection():
     # A field a spreadsheet would treat as a formula is prefixed with ' so it renders
     # as literal text (CSV/formula injection guard).

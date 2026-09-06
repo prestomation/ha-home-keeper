@@ -1,9 +1,17 @@
 # Home Keeper — testing & workflow conventions
 
 ## Git & PR workflow
+- **All English text follows ASD-STE100.** See `writing-style.md` in this directory
+  for the rules and the glossary. It covers docs, strings, comments, and PR text.
 - Never push directly to `main`. Work on a feature branch and open a PR; squash
   merge.
 - Update `CHANGELOG.md` for every user-facing change before a release.
+- **User-facing text is drafted by a Sonnet 4.5 subagent** (`model: sonnet`), not written
+  inline: `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
+  `services.yaml` descriptions, the frontend locale. Hand it the diff, the surrounding
+  section for voice, and the house rules it must satisfy; review and edit the draft before
+  committing. Commit messages, PR bodies and code comments stay inline — they are not
+  user-facing.
 - **Keep every CHANGELOG bullet to three sentences at most.** A bold lead naming the
   change, then what a user notices, then a caveat or `(Fixes #N)` if one is needed.
   Cut the worked example, the before-and-after story, the list of every surface the
@@ -11,6 +19,15 @@
   `docs/`, or the PR; the changelog says what changed and stops. One bullet per change,
   never a second paragraph. Three sentences is the budget for the **whole bullet**,
   counting the bold lead as the first, not three per paragraph.
+- **Credit an outside contributor in the bullet for their change.** End the bullet
+  with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
+  not count against the three-sentence budget. An outside contributor is anyone
+  without write access to the repository when the PR opens. Their change gets a
+  credit in the same PR that writes the bullet. If a maintainer and a contributor
+  share the work, the contributor gets the credit. `summarize()` in
+  `ci/release-issues.py` quotes only the bold lead. The credit stays in the
+  CHANGELOG. It does not reach the issue comment, and it does not notify the
+  contributor on each release.
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).
@@ -36,6 +53,14 @@
   commit under `docs/images/`, embed in the README with a relative `docs/images/…`
   path). A new headline feature isn't "done" until the README shows it. (The moving
   walkthrough is **not** committed to the README — it's the per-PR CI comment above.)
+- **Plans and PRs must list one-way doors.** A one-way door is a design choice
+  that is hard to reverse once users depend on it: the name, shape, or format of
+  a field in a service call, an event payload, storage, an entity attribute, or
+  any other external contract. Plans call them out before implementation; PR
+  bodies include a **One-way doors** section listing every committed surface —
+  field name, format, where it appears, and what users or automations will rely
+  on. Internal-only shapes (frontend form data, private helpers) are two-way
+  doors and don't need listing.
 - **User-facing prose is linted for AI-tell phrasing.** `lint.yml`'s `vale` job runs
   the [vale-ai-tells](https://github.com/tbhb/vale-ai-tells) style (pinned version in
   `.vale.ini`) over `README.md`, `CHANGELOG.md`, the canonical `docs/*.md` (excludes
@@ -272,7 +297,7 @@ the branch touched.
   (`utils`, `forms`, `card-filter`, `documents`, `markdown`, `i18n`, `limits`).
   Out: everything importing Home Assistant (Docker-tier only), `const.py` /
   `companions_catalog.py` (data), `backend_i18n.py` (no unit entry point),
-  `testing.py`, and `panel.ts` / `card.ts` / `api.ts` (indirectly covered only).
+  `testing.py`, and `panel.ts` + its `panel-*.ts` region modules / `card.ts` / `api.ts` (indirectly covered only).
 - **Diff scoping:** `ci/mutation_scope.py` turns the diff into mutmut mutant-name
   filters (changed line → enclosing function, decorators included, via `ast`) and
   Stryker `--mutate` line ranges. Scoping to whole files would fail a PR for

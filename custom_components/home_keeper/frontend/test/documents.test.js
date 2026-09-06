@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SignedUrlCache, assetFileRefs, signedFileKey } from '../src/documents.ts';
+import {
+  SignedUrlCache,
+  assetFileRefs,
+  documentTypeLabel,
+  formatBytes,
+  signedFileKey,
+} from '../src/documents.ts';
 
 // A hass stub that mints a distinct URL per call so a re-sign is observable, and
 // records how many times each signing command was invoked.
@@ -162,5 +168,59 @@ describe('signedFileKey / assetFileRefs', () => {
       assetFileRefs({ documents: [{ id: 'd1', kind: 'file', filename: 'g.pdf' }] }),
     ).toEqual([]);
     expect(assetFileRefs({})).toEqual([]);
+  });
+});
+
+describe('formatBytes', () => {
+  it('names each unit at its own scale', () => {
+    expect(formatBytes(950)).toBe('950 B');
+    expect(formatBytes(1024)).toBe('1 KB');
+    expect(formatBytes(1024 * 1024)).toBe('1 MB');
+    expect(formatBytes(1024 * 1024 * 1024)).toBe('1 GB');
+  });
+
+  it('steps up only once a full 1024 is reached', () => {
+    // 1023 bytes is not "1 KB": the step is at 1024, and a size that rounds up a unit
+    // early would say a file fits a limit it does not.
+    expect(formatBytes(1023)).toBe('1023 B');
+    expect(formatBytes(1024 * 1023)).toBe('1023 KB');
+  });
+
+  it('stops at the largest unit it knows rather than running off the list', () => {
+    expect(formatBytes(1024 ** 4)).toBe('1024 GB');
+  });
+
+  it('keeps one decimal below ten, and drops it above', () => {
+    expect(formatBytes(1536)).toBe('1.5 KB');
+    expect(formatBytes(1024 * 1024 * 1.25)).toBe('1.3 MB');
+    // At ten and above the decimal is noise, so it rounds to a whole unit.
+    expect(formatBytes(1024 * 10)).toBe('10 KB');
+    expect(formatBytes(1024 * 12.4)).toBe('12 KB');
+  });
+
+  it('says nothing at all for a size worth nothing', () => {
+    // The caller joins the parts of a subtitle with " · ", so an empty string is how
+    // a missing size disappears instead of leaving a dangling separator.
+    expect(formatBytes(undefined)).toBe('');
+    expect(formatBytes(0)).toBe('');
+    expect(formatBytes(-5)).toBe('');
+  });
+});
+
+describe('documentTypeLabel', () => {
+  it('badges the subtype, upper-cased', () => {
+    expect(documentTypeLabel('application/pdf')).toBe('PDF');
+    expect(documentTypeLabel('image/jpeg')).toBe('JPEG');
+  });
+
+  it('drops MIME parameters and the whitespace around the subtype', () => {
+    expect(documentTypeLabel('text/plain; charset=utf-8')).toBe('PLAIN');
+    expect(documentTypeLabel('application/ pdf ')).toBe('PDF');
+  });
+
+  it('says nothing for a content type it cannot read a subtype from', () => {
+    expect(documentTypeLabel(undefined)).toBe('');
+    expect(documentTypeLabel('')).toBe('');
+    expect(documentTypeLabel('application')).toBe('');
   });
 });

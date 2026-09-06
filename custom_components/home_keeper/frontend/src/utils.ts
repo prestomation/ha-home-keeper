@@ -197,6 +197,44 @@ export async function copyText(value: string): Promise<boolean> {
   }
 }
 
+/**
+ * Surface a transient message through Home Assistant's own toast.
+ *
+ * `composed` so the event escapes the shadow root it is fired in, `bubbles` so HA's
+ * listener further up the tree receives it. The panel and the card both need this and
+ * had a byte-identical copy each.
+ */
+export function toast(el: EventTarget, message: string): void {
+  el.dispatchEvent(
+    new CustomEvent('hass-notification', {
+      detail: { message },
+      bubbles: true,
+      composed: true,
+    }),
+  );
+}
+
+/**
+ * Send Home Assistant's SPA router to *path* — a device page, an integration page, the
+ * Home Keeper panel — without a full page load.
+ *
+ * Always a push (Back returns to where the user pressed) and always fired on `window`,
+ * because these are the navigations that *leave* the element behind: it may be
+ * unmounted by the time HA re-renders. The panel's own in-panel `_navigate` is a
+ * different thing — it fires from the panel element and can replace instead of push —
+ * so it stays there.
+ */
+export function navigateTo(path: string): void {
+  history.pushState(null, '', path);
+  window.dispatchEvent(
+    new CustomEvent('location-changed', {
+      detail: { replace: false },
+      bubbles: true,
+      composed: true,
+    }),
+  );
+}
+
 /** True when a triggered task is currently armed (due-now) vs dormant. */
 export function isArmedTriggered(task: Task): boolean {
   return task.recurrence_type === 'triggered' && !!task.next_due;
@@ -302,6 +340,34 @@ export function formatDateTime(value: string | Date | null | undefined, lang?: s
   });
 }
 
+/** "today" / "yesterday" / "N days ago" for a past date, counted in whole days. */
+export function relativeDay(d: Date, now: Date = new Date()): string {
+  const days = Math.round((now.getTime() - d.getTime()) / 86_400_000);
+  if (days <= 0) return t('due.today');
+  if (days === 1) return t('due.yesterday');
+  return tn('due.days_ago', days);
+}
+
+/**
+ * Format a cost in the instance's configured currency, falling back to the bare
+ * number when Home Assistant has no currency set — or names one `Intl` refuses.
+ */
+export function formatCost(hass: Hass | undefined, amount: number): string {
+  const currency = hass?.config?.currency;
+  const lang = hass?.language;
+  // Stryker disable next-line ConditionalExpression: equivalent — with no currency
+  // configured, `Intl.NumberFormat` with `style: 'currency'` throws, and the catch
+  // below returns the very bare number this guard skips ahead to.
+  if (currency) {
+    try {
+      return new Intl.NumberFormat(lang, { style: 'currency', currency }).format(amount);
+    } catch {
+      /* an unknown currency code — fall through to a bare number */
+    }
+  }
+  return String(amount);
+}
+
 /**
  * Sentence-case *text*, leaving everything after the first character alone.
  *
@@ -346,6 +412,10 @@ function recurrenceText(task: Task): string {
         value: s.value ?? '',
       });
     }
+    // Availability has no reading to describe — the condition *is* the entity being
+    // gone. Without its own case it fell through to the meter below and read "Every
+    // of use", because a mode with no `target` renders the usage string empty.
+    if (s.mode === 'availability') return t('recurrence.sensorAvailability');
     const target = s.unit ? `${s.target ?? ''} ${s.unit}` : (s.target ?? '');
     const summary = t('recurrence.sensorUsage', { target });
     if (!s.also_every) return summary;
@@ -355,25 +425,70 @@ function recurrenceText(task: Task): string {
       : t('recurrence.sensorUsageAny', { summary, every });
   }
   const n = task.interval || 1;
+  let summary: string;
   if (task.recurrence_type === 'floating') {
     const base = (task.unit || 'days').replace(/s$/, ''); // day / week / month
     const unit = tn(`recurrence.unit.${base}`, n);
-    return tn('recurrence.floating', n, { unit });
+    summary = tn('recurrence.floating', n, { unit });
+  } else {
+    const freqBase: Record<string, string> = {
+      DAILY: 'day',
+      WEEKLY: 'week',
+      MONTHLY: 'month',
+    };
+    const base = freqBase[task.freq || 'DAILY'] || 'day';
+    const unit = tn(`recurrence.unit.${base}`, n);
+    summary = tn('recurrence.fixed', n, { unit });
   }
-  const freqBase: Record<string, string> = {
-    DAILY: 'day',
-    WEEKLY: 'week',
-    MONTHLY: 'month',
-  };
-  const base = freqBase[task.freq || 'DAILY'] || 'day';
-  const unit = tn(`recurrence.unit.${base}`, n);
-  return tn('recurrence.fixed', n, { unit });
+  if (task.active_season) {
+    const windows = Array.isArray(task.active_season)
+      ? task.active_season
+      : [task.active_season];
+    const range = windows
+      .map((w) => {
+        const s = t(`opt.month.${parseInt(w.start, 10)}`);
+        const sDay = parseInt(w.start.split('-')[1], 10);
+        const e = t(`opt.month.${parseInt(w.end, 10)}`);
+        const eDay = parseInt(w.end.split('-')[1], 10);
+        return `${s} ${sDay}–${e} ${eDay}`;
+      })
+      .join(' & ');
+    summary = t('recurrence.season', { summary, range });
+  }
+  return summary;
 }
 
 /** True when the task's next due date is at or before now. */
 export function isOverdue(task: Task, now: Date = new Date()): boolean {
   if (!task.next_due) return false;
   return new Date(task.next_due).getTime() <= now.getTime();
+}
+
+/**
+ * Whether *task* is one of Home Keeper's auto-created "Buy {part}" reminders.
+ *
+ * Both ids are required, mirroring the backend's `reconcile.buy_source`: the pair is
+ * what identifies the part being bought, and half of it identifies nothing. The two
+ * have to agree, because a Profile carrying `exclude_shopping` is matched in the
+ * browser for the panel and the card, and in Python for a notification — and
+ * `tests/fixtures/profile_filter_cases.json` holds them to it.
+ *
+ * The agreement is on a *missing* id, which is what the fixture pins and what the
+ * reconciler can actually produce. On an id present but **empty** the two part
+ * company: this asks for truthy, `buy_source` only for the key. Left alone rather
+ * than papered over, because nothing can reach it — the reconciler mints real uuids,
+ * and `models.build_task` is the only other way in. Worth knowing if that ever stops
+ * being true, since the divergence would show as a task one surface excludes and
+ * another does not.
+ *
+ * Lives here beside `isOverdue` because the two are read together: a buy reminder is
+ * *also* overdue, and every surface that draws a status has to know which of the two
+ * to say. `statusChipHtml` is that answer, and `card-filter.ts` re-exports this for
+ * the pure list-shaping code.
+ */
+export function isBuyTask(task: Task): boolean {
+  const buy = task.source?.buy;
+  return Boolean(buy && buy.asset_id && buy.part_id);
 }
 
 /**
@@ -444,6 +559,53 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
   if (days > 0) return days === 1 ? t('due.tomorrow') : tn('due.in_days', days);
   const ago = Math.abs(days);
   return ago === 1 ? t('due.yesterday') : tn('due.days_ago', ago);
+}
+
+/**
+ * The right-hand status pill for *task*, as it reads on every surface that draws one:
+ * the panel's list row and its detail page, an appliance's related-tasks list, and the
+ * dashboard card's row.
+ *
+ * One function on purpose. An auto-created buy reminder is minted as a one-off with no
+ * due date, and a dateless one-off is due *now* — so it is technically overdue from the
+ * moment a part goes low, and reading it as late work is what put "Overdue" beside
+ * genuinely late maintenance. Saying "Low stock" instead was written into two of the
+ * four renderers and missed in the other two, which left one task showing two different
+ * statuses depending on where you looked at it. A copy per surface is free to disagree,
+ * so there is no longer a copy per surface.
+ *
+ * Only the wording and the colour move. A buy reminder is still overdue to every filter
+ * pill, count, binary sensor and Profile, so no number changes.
+ *
+ * *elapsed* appends how overdue the task is ("3 days overdue") instead of a bare
+ * "Overdue". The panel's list row asks for it, where urgency has to read at a glance
+ * down a long list; the detail page and the card do not, having the date in view
+ * already. Whole elapsed days only, and only past a full day — a task overdue by hours
+ * reading "1 day overdue" would overstate it.
+ */
+export function statusChipHtml(
+  task: Task,
+  hass?: Hass,
+  opts: { elapsed?: boolean; now?: Date } = {},
+): string {
+  const now = opts.now ?? new Date();
+  const chip = (label: string, cls = '') =>
+    `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
+  // "Low stock" answers an *open* reminder. A reminder that was bought while the part
+  // stayed under its reorder point keeps its row — the reconciler only retires it once
+  // the stock is back up — and that row belongs to the Completed section, which is
+  // where `statusBucket` puts it by running its `completed` check ahead of its buy
+  // check. The pill runs them in the same order for the same reason: a row filed under
+  // Completed must not carry a chip arguing it is still outstanding.
+  const boughtAlready =
+    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  if (isBuyTask(task) && !boughtAlready) return chip(t('chip.lowStock'), 'hk-shopping');
+  if (!isOverdue(task, now)) return chip(dueLabel(task, now, hass));
+  const days = task.next_due
+    ? Math.floor((now.getTime() - new Date(task.next_due).getTime()) / 86_400_000)
+    : 0;
+  const label = opts.elapsed && days >= 1 ? tn('due.overdue_by', days) : t('chip.overdue');
+  return chip(label, 'hk-overdue');
 }
 
 /**
@@ -534,6 +696,16 @@ export function tagName(
 ): string {
   if (!tagId) return '';
   return tags?.find((tag) => tag.value === tagId)?.label || tagId;
+}
+
+/**
+ * Resolve a `person` entity id to its friendly name, falling back to the id itself.
+ * Unlike `deviceName`, the fallback is deliberate: a completion's "who" is a name the
+ * history line is built around, so `person.sam` still says more there than a blank.
+ */
+export function personName(hass: Hass | undefined, entityId: string): string {
+  const friendly = hass?.states?.[entityId]?.attributes?.friendly_name;
+  return typeof friendly === 'string' && friendly ? friendly : entityId;
 }
 
 /**

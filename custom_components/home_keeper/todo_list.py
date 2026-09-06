@@ -41,16 +41,30 @@ The rules that shape a plan:
   a tracked open item that disappeared as completed — required for providers like
   Todoist whose ``todo`` entity drops completed items instead of reporting them.
   The completion is **uid-gated**: an entry that never captured a uid has no proof
-  its add ever landed, so it is re-added, never completed. With the toggle off (or
-  two-way sync off) a vanished item is treated as deleted and recreated — the
-  strict self-healing reading.
+  its add ever landed, so it is held (see below) and eventually re-added, never
+  completed. With the toggle off (or two-way sync off) a vanished item is treated
+  as deleted and recreated — the strict self-healing reading.
+* **A write's own outcome outranks a later read of the list.** ``todo.add_item``
+  answers with nothing, so a fresh entry carries no uid and is matched by summary on
+  a later pass. Some lists do not make an added item readable straight away — Home
+  Assistant's CalDAV entity refreshes its cached items in a fire-and-forget task,
+  where ``local_todo`` and Todoist both await theirs — so "I cannot see it" is *not*
+  proof the add failed. Reading it that way added the item a second time, and the
+  duplicate was permanent: the bookkeeping points at one copy, so every later edit
+  moved only that one and deleting the task orphaned the other. An unconfirmed entry
+  is therefore **held** rather than re-added, for :data:`UNCONFIRMED_GRACE` — long
+  enough to clear the slowest provider's visibility lag, after which a genuinely lost
+  add is repaired rather than leaving the task with no item for good.
 * **Two-way is per profile.** With ``two_way`` off the inbound direction is inert:
   ticks and vanishes never complete tasks; a ticked item freezes its bookkeeping
   entry so the sync does not argue with the user by re-adding the task.
 
 Bookkeeping (persisted by the store, silently) is a flat map
 ``sync_key(profile_id, task_id) -> entry`` with entries shaped
-``{"entity_id", "uid", "summary", "due", "last_completed"}``. ``last_completed``
+``{"entity_id", "uid", "summary", "due", "last_completed", "added_at"}``.
+``added_at`` stamps when an item was added but not yet seen on the list, and is
+dropped the moment one is resolved; it is what bounds the hold described above.
+``last_completed``
 snapshots the task's own ``last_completed`` at bind time; a live value strictly
 newer means "completed inside Home Keeper since it was synced", while an undone
 completion moves the value backwards and therefore reads as plain content drift.
@@ -74,7 +88,14 @@ from typing import Any
 from . import profiles
 from .notifications import is_completion_blocked
 from .reconcile import buy_source
-from .shopping import STATUS_COMPLETED, STATUS_NEEDS_ACTION
+from .todo_items import (
+    STATUS_COMPLETED,
+    STATUS_NEEDS_ACTION,
+    find_open,
+    item_identity,
+    item_is_open,
+    resolve_tracked,
+)
 from .transitions import DUE_SOON_WINDOW
 
 __all__ = [
@@ -101,6 +122,23 @@ __all__ = [
 # writes or compares these fields for entities whose capability set includes them.
 CAP_DUE_DATE = "due"
 CAP_DESCRIPTION = "description"
+
+# How long an entry whose add we could not confirm is held before it is re-added.
+# It is a *staleness budget*, not a formula: it has to comfortably clear the slowest
+# provider's visibility lag, and the slowest known is Home Assistant's CalDAV entity,
+# which polls every 15 minutes. A grace below that could fire before the provider had
+# any chance to show the item, recreating the duplicate this exists to prevent.
+#
+# Wall clock rather than a count of passes, deliberately: ``TodoSyncDriver`` runs up
+# to four passes back to back with no delay between them, so "unseen for two passes"
+# can elapse in milliseconds — entirely inside the window we are waiting out.
+#
+# What comes back to look once it expires is the coordinator's periodic sweep
+# (``todo_list_sync.async_schedule_sweep``, every ``coordinator.SCAN_INTERVAL``),
+# because a grace running out is neither a store mutation nor a list state change
+# and so wakes nothing by itself. That sweep has to stay unconditional for this to
+# repair at all; its docstring says so.
+UNCONFIRMED_GRACE = timedelta(minutes=20)
 
 # Separator joining a profile id to a task id in a bookkeeping key. Profile ids are
 # uuid hex and task ids are opaque, so the first ``:`` is unambiguous.
@@ -263,87 +301,71 @@ def desired_by_sync(
     return wanted
 
 
-# The four resolution helpers below read like ``shopping.py``'s, and are kept
-# separate on purpose: the two planners ask a list different questions — the
-# shopping-list sync holds one line per part and leaves a deleted one deleted, a
-# to-do list sync holds one per task *per profile* and may read a vanished line as
-# done — so sharing them would tie one state machine to the other's.
-def _identity(item: dict[str, Any]) -> str:
-    """How a to-do item is addressed in a service call.
-
-    ``todo.update_item`` / ``todo.remove_item`` accept either the item's uid or
-    its summary, so a list that does not hand out uids is still addressable.
-    """
-    uid = item.get("uid")
-    if isinstance(uid, str) and uid:
-        return uid
-    return str(item.get("summary") or "")
-
-
-def _is_open(item: dict[str, Any]) -> bool:
-    """True unless the item has been ticked off."""
-    return item.get("status") != STATUS_COMPLETED
-
-
-def _resolve(
-    items: list[dict[str, Any]],
-    *,
+def _entry(
     entity_id: str,
-    uid: Any,
-    summary: str,
-    claimed: set[tuple[str, str]],
-) -> dict[str, Any] | None:
-    """Find the live item a tracked entry points at.
-
-    The uid is authoritative when we captured one. Otherwise we fall back to the
-    summary — that is how a freshly added item is picked up on the next pass
-    (``todo.add_item`` returns nothing, so there is no uid to record at the
-    time), and how a sync re-attaches to its own items if the bookkeeping is
-    ever lost. An open item wins over a ticked-off one with the same text.
-    """
-    if isinstance(uid, str) and uid:
-        for item in items:
-            if item.get("uid") == uid and (entity_id, _identity(item)) not in claimed:
-                return item
-    by_summary = [
-        item
-        for item in items
-        if item.get("summary") == summary
-        and (entity_id, _identity(item)) not in claimed
-    ]
-    for item in by_summary:
-        if _is_open(item):
-            return item
-    return by_summary[0] if by_summary else None
-
-
-def _find_open(
-    items: list[dict[str, Any]],
+    item_uid: Any,
+    want: dict[str, Any],
     *,
-    entity_id: str,
-    summary: str,
-    claimed: set[tuple[str, str]],
-) -> dict[str, Any] | None:
-    """An un-ticked item already reading *summary*, if the list has one."""
-    for item in items:
-        if (
-            _is_open(item)
-            and item.get("summary") == summary
-            and (entity_id, _identity(item)) not in claimed
-        ):
-            return item
-    return None
+    added_at: str | None = None,
+) -> dict[str, Any]:
+    """The bookkeeping entry binding *want* to the item now holding it.
 
-
-def _entry(entity_id: str, item_uid: Any, want: dict[str, Any]) -> dict[str, Any]:
-    """The bookkeeping entry binding *want* to the item now holding it."""
+    *added_at* is set only where we have added an item we have not seen back yet, so
+    resolving one against the live list clears it by simply not passing it on.
+    """
     return {
         "entity_id": entity_id,
         "uid": item_uid,
         "summary": str(want["name"]),
         "due": str(want["due"]),
         "last_completed": want["last_completed"],
+        "added_at": added_at,
     }
+
+
+def _added_stamp(entry: dict[str, Any], *, now: datetime) -> str:
+    """The stamp to hold *entry* under, replacing one that cannot be trusted.
+
+    Re-stamping rather than keeping whatever is there matters because the hold is
+    open-ended until the stamp ages out: a value that is unparsable, or in the
+    future because the clock jumped backwards before NTP corrected it, would never
+    age out at all. That turns "hold, never duplicate" into "hold, never deliver" —
+    a silent, permanent absence, which is the failure this whole path exists to
+    avoid, only pointing the other way.
+    """
+    stamped = entry.get("added_at")
+    try:
+        # ``str`` because the store holds these entries as opaque JSON and hands
+        # back whatever is in the document: a number, or a value some other write
+        # left behind, must read as "cannot be trusted" rather than raise.
+        if stamped and datetime.fromisoformat(str(stamped)) <= now:
+            return str(stamped)
+    except (TypeError, ValueError):
+        pass
+    return now.isoformat()
+
+
+def _add_unconfirmed(
+    entry: dict[str, Any],
+    *,
+    now: datetime,
+    grace: timedelta = UNCONFIRMED_GRACE,
+) -> bool:
+    """Whether a uid-less entry we cannot resolve should be added again.
+
+    "I cannot see it" is not proof the add failed — see the module docstring — so
+    the answer is normally no, and both unreadable cases answer no as well: a
+    missing stamp starts the clock this pass, and an unparsable one is not evidence
+    of anything. The safe direction is always the one that cannot duplicate, which
+    is the same call :func:`completed_since` makes about an unparsable timestamp.
+    """
+    stamped = entry.get("added_at")
+    if not stamped:
+        return False
+    try:
+        return now - datetime.fromisoformat(str(stamped)) > grace
+    except (TypeError, ValueError):
+        return False
 
 
 def plan_sync(
@@ -353,6 +375,7 @@ def plan_sync(
     desired: dict[str, dict[str, dict[str, Any]]],
     items_by_entity: dict[str, list[dict[str, Any]]],
     capabilities: dict[str, frozenset[str]],
+    now: datetime,
 ) -> TodoListPlan:
     """Decide what every sync wants done this pass.
 
@@ -400,7 +423,7 @@ def plan_sync(
             if items is None:
                 plan.tracked[key] = dict(entry)
                 continue
-            item = _resolve(
+            item = resolve_tracked(
                 items,
                 entity_id=entity_id,
                 uid=entry.get("uid"),
@@ -408,9 +431,9 @@ def plan_sync(
                 claimed=claimed,
             )
             if item is not None:
-                claimed.add((entity_id, _identity(item)))
-                if _is_open(item):
-                    plan.remove.append(RemoveOp(key, entity_id, _identity(item)))
+                claimed.add((entity_id, item_identity(item)))
+                if item_is_open(item):
+                    plan.remove.append(RemoveOp(key, entity_id, item_identity(item)))
             continue
 
         target = _target(profile)
@@ -421,7 +444,7 @@ def plan_sync(
             plan.tracked[key] = dict(entry)
             continue
 
-        item = _resolve(
+        item = resolve_tracked(
             items,
             entity_id=entity_id,
             uid=entry.get("uid"),
@@ -437,21 +460,48 @@ def plan_sync(
             # is the one mistake there is no undo for.
             if want is None:
                 continue
-            sync = profile["sync"]
-            if entry.get("uid") and sync["two_way"] and sync["vanish_as_completed"]:
-                plan.complete.append(CompleteOp(key, task_id))
-                settled.add(key)
+            if entry.get("uid"):
+                sync = profile["sync"]
+                if sync["two_way"] and sync["vanish_as_completed"]:
+                    plan.complete.append(CompleteOp(key, task_id))
+                    settled.add(key)
+                continue
+            if _add_unconfirmed(entry, now=now):
+                # The hold is up. Whatever happened to that add, waiting longer
+                # will not tell us, and a task with no item is worse than a
+                # second one — fall through so pass two puts a fresh line on.
+                continue
+            # Added, not seen back yet. The add call already answered whether it
+            # landed; a list that cannot show it yet does not overrule that.
+            # Holding the key here is the whole mechanism — pass two skips a key
+            # already in ``tracked`` — and the entry is carried over *verbatim*
+            # because for a uid-less entry the summary is the handle: it has to
+            # keep saying what we wrote, not what we now want, or a task renamed
+            # while its item was invisible would never match it again.
+            held = dict(entry)
+            held["added_at"] = _added_stamp(entry, now=now)
+            plan.tracked[key] = held
             continue
 
-        identity = _identity(item)
+        identity = item_identity(item)
         claimed.add((entity_id, identity))
 
-        if not _is_open(item):
+        if not item_is_open(item):
             # Ticked off on the list. If Home Keeper has not recorded that
             # completion itself, the tick is the household telling it so.
             if want is not None and not completed_since(
                 entry.get("last_completed"), want["last_completed"]
             ):
+                if entry.get("added_at") and not _add_unconfirmed(entry, now=now):
+                    # An add we have not confirmed, resolving to a *ticked-off*
+                    # line: on a list that keeps completed items this is the
+                    # predecessor we ticked off ourselves last cycle, matched by
+                    # summary because our new item is not readable yet. Reading it
+                    # as the household's tick completes the task a second time and
+                    # strands the new item for good. Wait for a list that can show
+                    # it — an open item wins over a ticked one the moment it can.
+                    plan.tracked[key] = dict(entry)
+                    continue
                 if profile["sync"]["two_way"]:
                     plan.complete.append(CompleteOp(key, task_id))
                     settled.add(key)
@@ -523,14 +573,12 @@ def plan_sync(
                 continue
             want = wants[task_id]
             name = str(want["name"])
-            existing = _find_open(
-                items, entity_id=target, summary=name, claimed=claimed
-            )
+            existing = find_open(items, entity_id=target, summary=name, claimed=claimed)
             if existing is not None:
                 # Adopt a matching line rather than stacking a duplicate on top
                 # of it — someone may have written it themselves, or our own
                 # bookkeeping may have been lost.
-                claimed.add((target, _identity(existing)))
+                claimed.add((target, item_identity(existing)))
                 plan.tracked[key] = _entry(target, existing.get("uid"), want)
                 continue
             notes = str(want["notes"])
@@ -544,9 +592,11 @@ def plan_sync(
                 )
             )
             # No uid: ``todo.add_item`` answers with nothing. The next pass binds
-            # one by summary (see :func:`_resolve`), and until then the summary is
-            # a perfectly good handle for ``update_item``/``remove_item``.
-            plan.tracked[key] = _entry(target, None, want)
+            # one by summary (see ``todo_items.resolve_tracked``), and until then
+            # the summary is a perfectly good handle for
+            # ``update_item``/``remove_item``. The stamp starts the hold that keeps
+            # a list too slow to show the new item from earning a second one.
+            plan.tracked[key] = _entry(target, None, want, added_at=now.isoformat())
     return plan
 
 

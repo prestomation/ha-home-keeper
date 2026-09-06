@@ -6,16 +6,15 @@ must leave the bookkeeping able to retry, an unreadable list must plan nothing
 at all, and none of it may ever raise into the completion or stock adjustment
 that triggered the pass.
 
-Like ``test_coordinator_purge.py`` this stubs the HA symbols the module imports,
-registers fakes for its HA-aware siblings, and loads the **real** file under the
-synthetic ``hk`` package so the shipped code is what runs. The real end-to-end
-wiring against ``todo.shopping_list`` lives in the integration suite.
+Like ``test_coordinator_purge.py`` this loads the **real** file under the
+synthetic ``hk`` package, over the shared HA stub tree in ``ha_stubs.py``, so the
+shipped code is what runs. The real end-to-end wiring against
+``todo.shopping_list`` lives in the integration suite.
 """
 
 from __future__ import annotations
 
 import asyncio
-import enum
 import importlib.util
 import sys
 import types
@@ -23,6 +22,8 @@ from pathlib import Path
 
 import hk_shopping as sh
 import pytest
+from fakes import FakeSyncCoordinator, FakeSyncStore, FakeTodoHass
+from ha_stubs import install_ha_stubs
 
 _COMPONENT_DIR = (
     Path(__file__).resolve().parent.parent.parent / "custom_components" / "home_keeper"
@@ -36,98 +37,12 @@ KEY = "asset1:part1"
 _ALL_FEATURES = 1 | 2 | 4 | 8
 
 
-def _real_ha_present() -> bool:
-    """True only when the *real* Home Assistant package is installed."""
-    mod = sys.modules.get("homeassistant")
-    if mod is None:
-        try:  # pragma: no cover - depends on environment
-            import homeassistant as mod  # type: ignore[no-redef]
-        except ImportError:
-            return False
-    return getattr(mod, "__file__", None) is not None
-
-
-def _install_ha_stubs() -> None:
-    """Additively register the HA symbols ``shopping_sync.py`` imports.
-
-    Idempotent and non-clobbering, like its siblings: the other pure-unit suites
-    install their own partial ``homeassistant`` trees, so this only fills gaps.
-    """
-    if _real_ha_present():  # pragma: no cover - real HA env
-        return
-
-    def _mod(name: str) -> types.ModuleType:
-        existing = sys.modules.get(name)
-        if existing is not None:
-            return existing
-        m = types.ModuleType(name)
-        sys.modules[name] = m
-        return m
-
-    ha = _mod("homeassistant")
-    components = _mod("homeassistant.components")
-    ha.components = components
-
-    comp_todo = _mod("homeassistant.components.todo")
-    if not hasattr(comp_todo, "TodoListEntityFeature"):
-
-        class TodoListEntityFeature(enum.IntFlag):
-            CREATE_TODO_ITEM = 1
-            DELETE_TODO_ITEM = 2
-            UPDATE_TODO_ITEM = 4
-            MOVE_TODO_ITEM = 8
-
-        comp_todo.TodoListEntityFeature = TodoListEntityFeature
-
-    config_entries = _mod("homeassistant.config_entries")
-    if not hasattr(config_entries, "ConfigEntry"):
-
-        class ConfigEntry:
-            pass
-
-        config_entries.ConfigEntry = ConfigEntry
-
-    const = _mod("homeassistant.const")
-    if not hasattr(const, "STATE_UNAVAILABLE"):
-        const.STATE_UNAVAILABLE = "unavailable"
-    if not hasattr(const, "STATE_UNKNOWN"):
-        const.STATE_UNKNOWN = "unknown"
-
-    core = _mod("homeassistant.core")
-    for name in ("HomeAssistant", "Event", "EventStateChangedData"):
-        if not hasattr(core, name):
-            setattr(
-                core,
-                name,
-                type(
-                    name, (), {"__class_getitem__": classmethod(lambda cls, item: cls)}
-                ),
-            )
-    if not hasattr(core, "callback"):
-        core.callback = lambda func: func
-
-    helpers = _mod("homeassistant.helpers")
-    # Only needs to *exist* so the import resolves. What the driver actually
-    # calls is injected per test by the ``registry`` fixture below — the shared
-    # stub tree is written by several suites (``test_device_heal.py`` registers
-    # an ``async_get`` that takes no arguments), so reaching for it here would
-    # make this suite depend on load order.
-    entity_registry = _mod("homeassistant.helpers.entity_registry")
-    if not hasattr(entity_registry, "async_get"):
-        entity_registry.async_get = lambda hass: types.SimpleNamespace(entities={})
-    helpers.entity_registry = entity_registry
-    event_mod = _mod("homeassistant.helpers.event")
-    if not hasattr(event_mod, "async_track_state_change_event"):
-        event_mod.async_track_state_change_event = lambda hass, ids, cb: lambda: None
-    helpers.event = event_mod
-
-
 def _load_module() -> types.ModuleType:
     """Load ``shopping_sync.py`` as ``hk.shopping_sync`` with fake siblings."""
     existing = sys.modules.get("hk.shopping_sync")
     if existing is not None:
         return existing
-    _install_ha_stubs()
+    install_ha_stubs()
     # ``hk.options`` is the real module (conftest loads it — it imports Home
     # Assistant only under ``TYPE_CHECKING``), so ``_resolve_target`` runs the real
     # ``current_options`` here rather than a fake that hands back raw entry options.
@@ -184,18 +99,26 @@ def _item(summary="Buy Anode rod", uid="i1", status=sh.STATUS_NEEDS_ACTION):
     return {"uid": uid, "summary": summary, "status": status}
 
 
-class _FakeStore:
-    """The slice of ``store.py`` the driver touches."""
+def _asset(unit="", restock=None):
+    """The appliance ``_buy_task``'s reminder points at, holding one part."""
+    part = {"id": "part1", "name": "Anode rod", "stock_unit": unit}
+    if restock is not None:
+        part["restock_quantity"] = restock
+    return {"asset1": {"id": "asset1", "name": "Water heater", "parts": [part]}}
 
-    def __init__(self, tasks=None, items=None):
-        self._tasks = tasks or {}
+
+class _FakeStore(FakeSyncStore):
+    """The shared driver store, plus this driver's own mirroring bookkeeping."""
+
+    def __init__(self, tasks=None, items=None, assets=None):
+        super().__init__(tasks)
         self._shopping = items or {}
-        self.completed: list[tuple[str, str | None]] = []
-        self.complete_error: Exception | None = None
-        self.writes = 0
+        # The mirror reads these to put the restock amount on the line; an empty
+        # map is the plain "buy one spare" case every other test here wants.
+        self._assets = assets if assets is not None else {}
 
-    def get_tasks(self):
-        return self._tasks
+    def get_assets(self):
+        return self._assets
 
     def get_shopping_items(self):
         return self._shopping
@@ -207,54 +130,13 @@ class _FakeStore:
         self.writes += 1
         return True
 
-    async def complete_task(self, task_id, *, origin=None):
-        if self.complete_error is not None:
-            raise self.complete_error
-        self.completed.append((task_id, origin))
-        self._tasks.pop(task_id, None)
-        return {}
 
+class _FakeHass(FakeTodoHass):
+    """The shared to-do hass, with every list advertising one feature set."""
 
-class _FakeCoordinator:
-    def __init__(self, store):
-        self.store = store
-        self.settles = 0
-
-    async def async_settle_buy_tasks(self):
-        self.settles += 1
-
-
-class _FakeServices:
-    """Records ``todo.*`` calls and answers ``get_items`` from canned lists."""
-
-    def __init__(self, lists):
-        self._lists = lists
-        self.calls: list[tuple[str, dict]] = []
-        # Reads are counted separately from writes: "did this pass touch a to-do
-        # list at all" is its own claim, and a test that only watched writes
-        # would pass whether or not the read gate worked.
-        self.reads: list[str] = []
-        self.fail: set[str] = set()
-        self.get_items_error: Exception | None = None
-
-    async def async_call(self, domain, service, data, blocking=False, **kwargs):
-        assert domain == "todo"
-        if service == "get_items":
-            self.reads.append(data["entity_id"])
-            if self.get_items_error is not None:
-                raise self.get_items_error
-            entity_id = data["entity_id"]
-            return {entity_id: {"items": list(self._lists.get(entity_id, []))}}
-        self.calls.append((service, data))
-        if service in self.fail:
-            raise RuntimeError(f"{service} refused")
-        return None
-
-
-class _FakeHass:
     def __init__(self, lists=None, features=_ALL_FEATURES, missing=()):
         lists = lists if lists is not None else {TARGET: []}
-        self.services = _FakeServices(lists)
+        super().__init__(lists)
         self._states = {
             entity_id: types.SimpleNamespace(
                 state="0", attributes={"supported_features": features}
@@ -262,15 +144,6 @@ class _FakeHass:
             for entity_id in lists
             if entity_id not in missing
         }
-        self.tasks: list = []
-
-    @property
-    def states(self):
-        return types.SimpleNamespace(get=self._states.get)
-
-    def async_create_task(self, coro):
-        self.tasks.append(coro)
-        coro.close()
 
 
 def _sync(hass, store, *, target=TARGET, force=True):
@@ -279,7 +152,7 @@ def _sync(hass, store, *, target=TARGET, force=True):
         options={"shopping_list_entity": target},
         async_on_unload=lambda _cb: None,
     )
-    coordinator = _FakeCoordinator(store)
+    coordinator = FakeSyncCoordinator(store)
     sync = shopping_sync.ShoppingListSync(hass, entry, coordinator)
     asyncio.run(sync.async_sync(force=force))
     return sync, coordinator
@@ -301,6 +174,20 @@ def test_a_low_part_puts_an_item_on_the_list_and_is_remembered():
     ]
     assert store.get_shopping_items() == {
         KEY: {"entity_id": TARGET, "summary": "Buy Anode rod", "uid": None}
+    }
+
+
+def test_a_measured_part_puts_its_amount_on_the_line():
+    # The whole point of threading the asset map through: the amount has to reach
+    # the service call, not just the planner.
+    hass = _FakeHass({TARGET: []})
+    store = _FakeStore(tasks={"t1": _buy_task()}, assets=_asset(unit="ml", restock=500))
+    _sync(hass, store)
+    assert _services(hass, "add_item") == [
+        {"entity_id": TARGET, "item": "Buy Anode rod (500 ml)"}
+    ]
+    assert store.get_shopping_items() == {
+        KEY: {"entity_id": TARGET, "summary": "Buy Anode rod (500 ml)", "uid": None}
     }
 
 
@@ -461,7 +348,7 @@ def test_a_pass_running_already_is_folded_in_rather_than_nested():
     entry = types.SimpleNamespace(
         options={"shopping_list_entity": TARGET}, async_on_unload=lambda _cb: None
     )
-    sync = shopping_sync.ShoppingListSync(hass, entry, _FakeCoordinator(store))
+    sync = shopping_sync.ShoppingListSync(hass, entry, FakeSyncCoordinator(store))
     sync._running = True
     asyncio.run(sync.async_sync(force=True))
     assert hass.services.calls == []
@@ -483,14 +370,16 @@ def test_the_periodic_sweep_costs_nothing_until_something_is_mirrored():
     entry = types.SimpleNamespace(
         options={"shopping_list_entity": TARGET}, async_on_unload=lambda _cb: None
     )
-    sync = shopping_sync.ShoppingListSync(hass, entry, _FakeCoordinator(_FakeStore()))
+    sync = shopping_sync.ShoppingListSync(
+        hass, entry, FakeSyncCoordinator(_FakeStore())
+    )
     sync.async_schedule_sweep()
     assert hass.tasks == []
 
     mirrored = _FakeStore(
         items={KEY: {"entity_id": TARGET, "summary": "Buy Anode rod", "uid": "i1"}}
     )
-    sync2 = shopping_sync.ShoppingListSync(hass, entry, _FakeCoordinator(mirrored))
+    sync2 = shopping_sync.ShoppingListSync(hass, entry, FakeSyncCoordinator(mirrored))
     sync2.async_schedule_sweep()
     assert len(hass.tasks) == 1
 
@@ -508,7 +397,9 @@ def test_a_mirror_that_cannot_settle_says_so(caplog):
     entry = types.SimpleNamespace(
         options={"shopping_list_entity": TARGET}, async_on_unload=lambda _cb: None
     )
-    sync = shopping_sync.ShoppingListSync(hass, entry, _FakeCoordinator(_FakeStore()))
+    sync = shopping_sync.ShoppingListSync(
+        hass, entry, FakeSyncCoordinator(_FakeStore())
+    )
     passes = []
 
     async def _never_settles(*, force):
@@ -518,7 +409,7 @@ def test_a_mirror_that_cannot_settle_says_so(caplog):
     sync._sync_once = _never_settles
     with caplog.at_level("WARNING"):
         asyncio.run(sync.async_sync(force=True))
-    assert len(passes) == shopping_sync._MAX_PASSES
+    assert len(passes) == sync._MAX_PASSES
     assert "did not settle" in caplog.text
     # The guard is released either way, so the next change is not locked out.
     assert sync._running is False and sync._pending is False

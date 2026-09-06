@@ -10,14 +10,25 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import assets, events, models, recurrence, sensor_tasks, sensor_watcher, tags
+from . import (
+    assets,
+    declarative_companions,
+    events,
+    models,
+    recurrence,
+    sensor_tasks,
+    sensor_watcher,
+    tags,
+)
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
     COMPLETION_ENTRY_FIELDS,
@@ -26,6 +37,9 @@ from .const import (
     EVENT_ASSET_DELETED,
     EVENT_ASSET_RESTORED,
     EVENT_ASSET_UPDATED,
+    EVENT_DECLARATIVE_COMPANION_ADDED,
+    EVENT_DECLARATIVE_COMPANION_REMOVED,
+    EVENT_DECLARATIVE_COMPANION_UPDATED,
     EVENT_PART_LOW_STOCK,
     EVENT_PART_OUT_OF_STOCK,
     EVENT_PART_RESTOCKED,
@@ -40,10 +54,12 @@ from .const import (
     EVENT_TASK_TRIGGERED,
     EVENT_TASK_UNCOMPLETED,
     EVENT_TASK_UPDATED,
+    MAX_DECLARATIVE_COMPANIONS,
     ORIGIN_PROBLEM_SENSOR_SYNC,
     REC_SENSOR,
     REC_TRIGGERED,
     SENSOR_MODE_USAGE,
+    SIGNAL_DECLARATIVE_SPECS_CHANGED,
     SKIP_ENTRY_FIELDS,
     STORAGE_KEY,
     STORAGE_VERSION,
@@ -70,6 +86,13 @@ _STOCK_EVENT = {
 }
 
 _LOGGER = logging.getLogger(__name__)
+
+# One edit to an already-loaded asset, as ``_mutate_asset`` runs it. Returning
+# ``_UNCHANGED`` means the operation decided there was nothing to do, so the asset is
+# neither saved nor announced — distinct from ``None``, which several of the ``assets``
+# helpers use to mean "no such sub-record", an error rather than a no-op.
+_AssetOp = Callable[[dict[str, Any]], Awaitable[Any]]
+_UNCHANGED: Final = object()
 
 
 def _task_owns_entities(task: dict[str, Any]) -> bool:
@@ -152,9 +175,19 @@ class HomeKeeperStore:
         # being deleted — the moment the mirror most needs it, since that is when
         # the item has to come off the list. See ``get_shopping_items``.
         self._shopping_items: dict[str, dict[str, Any]] = {}
+        # Declarative-companion specs, keyed by ``spec["id"]``. Loaded absent on a
+        # pre-declarative store as an empty dict (see ``load``). Each spec is a
+        # dict validated by ``declarative_companions.normalize_declarative_companion``
+        # — never taken from disk unvalidated. The reconciler
+        # (``declarative_companion_sync.py``) reads this map to materialize
+        # managed sensor tasks; store mutations dispatch
+        # ``SIGNAL_DECLARATIVE_SPECS_CHANGED`` so it re-reconciles without an
+        # entry reload.
+        self._declarative_companions: dict[str, dict[str, Any]] = {}
         # Which item on which external to-do list stands for which task, for which
         # profile (``todo_list.sync_key(profile_id, task_id) -> {entity_id, uid,
-        # summary, due, last_completed}``). Keyed per *profile* rather than per task
+        # summary, due, last_completed, added_at}``). Keyed per *profile* rather than
+        # per task
         # because two syncs can hold the same task on two different lists, and one
         # entry could not describe both. Bookkeeping for ``todo_list_sync.py``,
         # kept out of the task for the same reason as the shopping map: the moment
@@ -166,6 +199,8 @@ class HomeKeeperStore:
         """Load tasks and assets from disk (no-op safe on first run).
 
         The ``assets``, ``problem_notes``, ``shopping_items`` and
+        ``declarative_companions`` keys are additive — documents written before
+        they existed simply lack them, so we default to empty without a storage
         ``todo_list_items`` keys are additive — documents written before they
         existed simply lack them, so we default to empty without a storage
         migration.
@@ -187,6 +222,26 @@ class HomeKeeperStore:
             self._shopping_items = data["shopping_items"]
         else:
             self._shopping_items = {}
+        if data and isinstance(data.get("declarative_companions"), dict):
+            # Re-validate on load so a hand-edited storage file that violates
+            # length/regex/mode invariants can't propagate corruption into the
+            # reconciler. Bad specs are dropped with a warning rather than failing
+            # HA startup — losing one spec is recoverable, refusing to load is not.
+            loaded: dict[str, dict[str, Any]] = {}
+            for spec_id, raw in data["declarative_companions"].items():
+                try:
+                    spec = declarative_companions.normalize_declarative_companion(raw)
+                except models.TaskValidationError as err:
+                    _LOGGER.warning(
+                        "Dropping malformed declarative-companion spec %s: %s",
+                        spec_id,
+                        err,
+                    )
+                    continue
+                loaded[spec["id"]] = spec
+            self._declarative_companions = loaded
+        else:
+            self._declarative_companions = {}
         if data and isinstance(data.get("todo_list_items"), dict):
             self._todo_list_items = data["todo_list_items"]
         else:
@@ -212,6 +267,7 @@ class HomeKeeperStore:
                 "assets": self._assets,
                 "problem_notes": self._problem_notes,
                 "shopping_items": self._shopping_items,
+                "declarative_companions": self._declarative_companions,
                 "todo_list_items": self._todo_list_items,
             }
         )
@@ -232,6 +288,7 @@ class HomeKeeperStore:
         self._assets = {}
         self._problem_notes = {}
         self._shopping_items = {}
+        self._declarative_companions = {}
         self._todo_list_items = {}
 
     # ── reads ────────────────────────────────────────────────────────────────
@@ -396,7 +453,7 @@ class HomeKeeperStore:
             asset = self._assets.get(asset_id)
             if asset is None:
                 raise models.TaskValidationError(f"unknown asset: {asset_id!r}")
-            if not any(p.get("id") == part_id for p in asset.get("parts", [])):
+            if assets.find_part(asset, part_id) is None:
                 raise models.TaskValidationError(
                     f"asset {asset_id!r} has no part {part_id!r}"
                 )
@@ -732,6 +789,31 @@ class HomeKeeperStore:
             )
         return merged
 
+    async def _mutate_asset(
+        self, asset_id: str, op: _AssetOp, *, changed_field: str
+    ) -> Any:
+        """Run *op* against an asset, then persist and announce the change.
+
+        The documents/part-file editors all share one shape: find the asset (or
+        ``KeyError`` on its id), hand it to an ``assets`` helper, save, and fire
+        ``home_keeper_asset_updated`` naming the field that changed. *op* owns the
+        middle — raising ``KeyError`` itself for a sub-record it can't find, and
+        returning what its own caller returns (an entry, or the asset). Returning
+        :data:`_UNCHANGED` hands the asset back with no save and no event.
+        """
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise KeyError(asset_id)
+        result = await op(asset)
+        if result is _UNCHANGED:
+            return asset
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_ASSET_UPDATED,
+            events.asset_event_data(asset, extra={"changed_fields": [changed_field]}),
+        )
+        return result
+
     async def add_asset_document(
         self, asset_id: str, document: dict[str, Any]
     ) -> dict[str, Any]:
@@ -742,18 +824,13 @@ class HomeKeeperStore:
         Raises ``KeyError`` for an unknown asset and ``AssetValidationError`` for an
         invalid document.
         """
-        asset = self._assets.get(asset_id)
-        if asset is None:
-            raise KeyError(asset_id)
-        entry = assets.append_document(
-            asset, document, created=dt_util.now().isoformat()
-        )
-        await self._save()
-        self._hass.bus.async_fire(
-            EVENT_ASSET_UPDATED,
-            events.asset_event_data(asset, extra={"changed_fields": ["documents"]}),
-        )
-        return entry
+
+        async def append(asset: dict[str, Any]) -> dict[str, Any]:
+            return assets.append_document(
+                asset, document, created=dt_util.now().isoformat()
+            )
+
+        return await self._mutate_asset(asset_id, append, changed_field="documents")
 
     async def remove_asset_document(
         self, asset_id: str, document_id: str
@@ -763,24 +840,20 @@ class HomeKeeperStore:
         Returns the updated asset. Raises ``KeyError`` for an unknown asset or
         document. Fires ``home_keeper_asset_updated`` with documents in changed_fields.
         """
-        from . import manuals  # lazy: manuals -> devices imports would cycle at load
 
-        asset = self._assets.get(asset_id)
-        if asset is None:
-            raise KeyError(asset_id)
-        removed = assets.remove_document(asset, document_id)
-        if removed is None:
-            raise KeyError(document_id)
-        if removed.get("kind") == "file" and removed.get("filename"):
-            await manuals.async_delete_document(
-                self._hass, asset_id, document_id, removed["filename"]
-            )
-        await self._save()
-        self._hass.bus.async_fire(
-            EVENT_ASSET_UPDATED,
-            events.asset_event_data(asset, extra={"changed_fields": ["documents"]}),
-        )
-        return asset
+        async def remove(asset: dict[str, Any]) -> dict[str, Any]:
+            from . import manuals  # lazy: manuals -> devices would cycle at load
+
+            removed = assets.remove_document(asset, document_id)
+            if removed is None:
+                raise KeyError(document_id)
+            if removed.get("kind") == "file" and removed.get("filename"):
+                await manuals.async_delete_document(
+                    self._hass, asset_id, document_id, removed["filename"]
+                )
+            return asset
+
+        return await self._mutate_asset(asset_id, remove, changed_field="documents")
 
     async def update_asset_document(
         self, asset_id: str, document_id: str, changes: dict[str, Any]
@@ -791,18 +864,14 @@ class HomeKeeperStore:
         ``AssetValidationError`` for invalid changes. Fires
         ``home_keeper_asset_updated`` (changed_fields: ``["documents"]``).
         """
-        asset = self._assets.get(asset_id)
-        if asset is None:
-            raise KeyError(asset_id)
-        entry = assets.update_document(asset, document_id, changes)
-        if entry is None:
-            raise KeyError(document_id)
-        await self._save()
-        self._hass.bus.async_fire(
-            EVENT_ASSET_UPDATED,
-            events.asset_event_data(asset, extra={"changed_fields": ["documents"]}),
-        )
-        return entry
+
+        async def update(asset: dict[str, Any]) -> dict[str, Any]:
+            entry = assets.update_document(asset, document_id, changes)
+            if entry is None:
+                raise KeyError(document_id)
+            return entry
+
+        return await self._mutate_asset(asset_id, update, changed_field="documents")
 
     async def set_part_file(
         self, asset_id: str, part_id: str, file_meta: dict[str, Any]
@@ -814,18 +883,14 @@ class HomeKeeperStore:
         for an unknown asset or part. Fires ``home_keeper_asset_updated`` with
         ``changed_fields=["parts"]``.
         """
-        asset = self._assets.get(asset_id)
-        if asset is None:
-            raise KeyError(asset_id)
-        updated = assets.set_part_file(asset, part_id, file_meta)
-        if updated is None:
-            raise KeyError(part_id)
-        await self._save()
-        self._hass.bus.async_fire(
-            EVENT_ASSET_UPDATED,
-            events.asset_event_data(asset, extra={"changed_fields": ["parts"]}),
-        )
-        return updated
+
+        async def attach(asset: dict[str, Any]) -> dict[str, Any]:
+            updated = assets.set_part_file(asset, part_id, file_meta)
+            if updated is None:
+                raise KeyError(part_id)
+            return updated
+
+        return await self._mutate_asset(asset_id, attach, changed_field="parts")
 
     async def remove_part_file(self, asset_id: str, part_id: str) -> dict[str, Any]:
         """Detach a part's file; delete its on-disk blob if it had one.
@@ -835,26 +900,22 @@ class HomeKeeperStore:
         Otherwise fires ``home_keeper_asset_updated`` with
         ``changed_fields=["parts"]``.
         """
-        from . import manuals  # lazy: manuals -> devices imports would cycle at load
 
-        asset = self._assets.get(asset_id)
-        if asset is None:
-            raise KeyError(asset_id)
-        if not any(p.get("id") == part_id for p in asset.get("parts", [])):
-            raise KeyError(part_id)
-        removed = assets.clear_part_file(asset, part_id)
-        if removed is None:
+        async def detach(asset: dict[str, Any]) -> Any:
+            from . import manuals  # lazy: manuals -> devices would cycle at load
+
+            if assets.find_part(asset, part_id) is None:
+                raise KeyError(part_id)
+            removed = assets.clear_part_file(asset, part_id)
+            if removed is None:
+                return _UNCHANGED  # already fileless — idempotent, nothing to announce
+            if removed.get("filename"):
+                await manuals.async_delete_part_file(
+                    self._hass, asset_id, part_id, removed["filename"]
+                )
             return asset
-        if removed.get("filename"):
-            await manuals.async_delete_part_file(
-                self._hass, asset_id, part_id, removed["filename"]
-            )
-        await self._save()
-        self._hass.bus.async_fire(
-            EVENT_ASSET_UPDATED,
-            events.asset_event_data(asset, extra={"changed_fields": ["parts"]}),
-        )
-        return asset
+
+        return await self._mutate_asset(asset_id, detach, changed_field="parts")
 
     def _validate_parent(
         self, asset_id: str | None, parent_asset_id: str | None
@@ -1254,6 +1315,170 @@ class HomeKeeperStore:
                     ),
                 )
         return entity_set_changed
+
+    # ── declarative companions ─────────────────────────────────────────────────
+    def get_declarative_companions(self) -> dict[str, dict[str, Any]]:
+        """Return the full declarative-companion spec map (id -> spec dict)."""
+        return self._declarative_companions
+
+    def get_declarative_companion(self, spec_id: str) -> dict[str, Any] | None:
+        return self._declarative_companions.get(spec_id)
+
+    async def async_add_declarative_companion(
+        self, data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Validate and persist a new declarative-companion spec.
+
+        Rejects a spec whose id already exists (an update goes through
+        :meth:`async_update_declarative_companion`) and enforces
+        ``MAX_DECLARATIVE_COMPANIONS`` — a misbehaving companion (or a runaway
+        panel loop) can't fill the store. Stamps ``created``/``updated``
+        timestamps here so the panel doesn't need to.
+
+        Persists, fires ``home_keeper_declarative_companion_added``, and
+        dispatches ``SIGNAL_DECLARATIVE_SPECS_CHANGED`` so the reconciler
+        re-materializes managed tasks without waiting for an entry reload.
+        """
+        spec = declarative_companions.normalize_declarative_companion(data)
+        if spec["id"] in self._declarative_companions:
+            raise models.TaskValidationError(
+                f"declarative companion with id {spec['id']!r} already exists"
+            )
+        if len(self._declarative_companions) >= MAX_DECLARATIVE_COMPANIONS:
+            raise models.TaskValidationError(
+                f"cannot register more than {MAX_DECLARATIVE_COMPANIONS} "
+                "declarative companions"
+            )
+        now_iso = dt_util.now().isoformat()
+        spec.setdefault("created", now_iso)
+        spec["updated"] = now_iso
+        self._declarative_companions[spec["id"]] = spec
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_DECLARATIVE_COMPANION_ADDED,
+            events.declarative_companion_event_data(spec),
+        )
+        async_dispatcher_send(self._hass, SIGNAL_DECLARATIVE_SPECS_CHANGED)
+        return spec
+
+    async def async_update_declarative_companion(
+        self, spec_id: str, updates: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Merge *updates* into the existing spec and persist.
+
+        The spec is re-normalized as a whole after merging, so a bad edit fails
+        the same way an add would (rather than silently persisting an invalid
+        field). Reset the ``created`` timestamp — updates must never rewrite
+        history; carry it through untouched.
+        """
+        existing = self._declarative_companions.get(spec_id)
+        if existing is None:
+            raise KeyError(spec_id)
+        merged = {**existing, **updates, "id": spec_id}
+        spec = declarative_companions.normalize_declarative_companion(merged)
+        spec["created"] = existing.get("created") or dt_util.now().isoformat()
+        spec["updated"] = dt_util.now().isoformat()
+        self._declarative_companions[spec_id] = spec
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_DECLARATIVE_COMPANION_UPDATED,
+            events.declarative_companion_event_data(spec),
+        )
+        async_dispatcher_send(self._hass, SIGNAL_DECLARATIVE_SPECS_CHANGED)
+        return spec
+
+    async def async_delete_declarative_companion(self, spec_id: str) -> bool:
+        """Remove a spec and every managed task it materialized.
+
+        Uses ``declarative_companions.collect_orphans_for_removed_spec`` to
+        compute the delete plan in the pure module (so the same logic tests
+        without HA). Fires ``home_keeper_task_deleted`` per orphaned task and
+        ``home_keeper_declarative_companion_removed`` once; returns whether the
+        entity set changed (any managed task removed with per-task entities
+        needs the caller to reload).
+        """
+        existing = self._declarative_companions.pop(spec_id, None)
+        if existing is None:
+            return False
+        new_tasks, ops = declarative_companions.collect_orphans_for_removed_spec(
+            spec_id, self._tasks
+        )
+        self._tasks = new_tasks
+        await self._save()
+        entity_set_changed = False
+        for kind, task in ops:
+            if kind == "deleted":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_DELETED, events.task_event_data(task)
+                )
+                if _task_owns_entities(task):
+                    entity_set_changed = True
+        self._hass.bus.async_fire(
+            EVENT_DECLARATIVE_COMPANION_REMOVED,
+            events.declarative_companion_event_data(existing),
+        )
+        async_dispatcher_send(self._hass, SIGNAL_DECLARATIVE_SPECS_CHANGED)
+        return entity_set_changed
+
+    async def reconcile_declarative_companion_tasks(
+        self,
+        spec: dict[str, Any],
+        matches: dict[tuple[str, str], dict[str, Any]],
+        rendered_by_key: dict[tuple[str, str], tuple[str, str]],
+        *,
+        config_entry_id: str,
+    ) -> tuple[bool, list[str]]:
+        """Materialize / update / orphan the managed tasks for *spec*.
+
+        Called from ``declarative_companion_sync.py`` after it has built the
+        registry snapshot, expanded the spec (:func:`expand_spec`) and rendered
+        each match's Jinja templates. Delegates the diff to the pure
+        :func:`declarative_companions.reconcile_declarative_tasks` and fires the
+        matching ``home_keeper_task_*`` events per op. Arm/clear transitions on
+        the materialized tasks are the sensor watcher's responsibility, not this
+        reconcile pass — the tasks look like ordinary sensor tasks to it.
+
+        Returns ``(entity_set_changed, created_task_ids)``. The flag says whether
+        the per-task **entity set** changed (a task was created or removed) so the
+        caller can decide between a full entry reload and a plain coordinator
+        refresh. The ids name the tasks this pass created, which the caller hands to
+        the sensor watcher so its next baseline pass leaves their edge unset — a
+        task made a moment ago must arm on a condition that is already true.
+        """
+        new_tasks, ops, changed = declarative_companions.reconcile_declarative_tasks(
+            spec,
+            matches,
+            self._tasks,
+            rendered_by_key,
+            config_entry_id=config_entry_id,
+            now=dt_util.now(),
+        )
+        if not changed:
+            return False, []
+        self._tasks = new_tasks
+        await self._save()
+        entity_set_changed = False
+        created_ids: list[str] = []
+        for kind, task in ops:
+            if kind == "created":
+                created_ids.append(task["id"])
+                self._hass.bus.async_fire(
+                    EVENT_TASK_CREATED, events.task_event_data(task)
+                )
+                if _task_owns_entities(task):
+                    entity_set_changed = True
+            elif kind == "deleted":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_DELETED, events.task_event_data(task)
+                )
+                if _task_owns_entities(task):
+                    entity_set_changed = True
+            elif kind == "updated":
+                self._hass.bus.async_fire(
+                    EVENT_TASK_UPDATED,
+                    events.task_event_data(task, extra={"changed_fields": []}),
+                )
+        return entity_set_changed, created_ids
 
     async def complete_task(
         self,
@@ -1777,14 +2002,14 @@ class HomeKeeperStore:
             if hasattr(when, "date")
             else str(when)[:10]
         )
-        for part in asset.get("parts", []):
-            if part.get("id") == src.get("part_id"):
-                part["last_replaced"] = when_date
-                # Completing a wear-part replacement consumes the part's per-use
-                # amount (one whole spare unless it says otherwise); signal a
-                # low/out-of-stock crossing so users can automate a reorder.
-                self._emit_stock_event(assets.consume_part_stock(part), asset, part)
-                break
+        part_id = src.get("part_id")
+        part = assets.find_part(asset, part_id) if part_id is not None else None
+        if part is not None:
+            part["last_replaced"] = when_date
+            # Completing a wear-part replacement consumes the part's per-use amount
+            # (one whole spare unless it says otherwise); signal a low/out-of-stock
+            # crossing so users can automate a reorder.
+            self._emit_stock_event(assets.consume_part_stock(part), asset, part)
 
     def _stamp_buy_restock(self, task: dict[str, Any]) -> None:
         """On completing an auto-created buy task, restock its part.
@@ -1802,11 +2027,11 @@ class HomeKeeperStore:
         asset = self._assets.get(src["asset_id"])
         if not asset:
             return
-        for part in asset.get("parts", []):
-            if part.get("id") == src.get("part_id"):
-                qty = assets.part_restock_quantity(part)
-                self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
-                break
+        part_id = src.get("part_id")
+        part = assets.find_part(asset, part_id) if part_id is not None else None
+        if part is not None:
+            qty = assets.part_restock_quantity(part)
+            self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
 
     def _emit_stock_event(
         self, transition: str, asset: dict[str, Any], part: dict[str, Any]
@@ -1840,10 +2065,10 @@ class HomeKeeperStore:
         asset = self._assets.get(asset_id)
         if asset is None:
             raise KeyError(asset_id)
-        for part in asset.get("parts", []):
-            if part.get("id") == part_id:
-                transition = assets.adjust_part_stock(part, delta)
-                await self._save()
-                self._emit_stock_event(transition, asset, part)
-                return asset
-        raise KeyError(part_id)
+        part = assets.find_part(asset, part_id)
+        if part is None:
+            raise KeyError(part_id)
+        transition = assets.adjust_part_stock(part, delta)
+        await self._save()
+        self._emit_stock_event(transition, asset, part)
+        return asset

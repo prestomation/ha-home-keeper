@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "必填完成字段",
           "description": "当完成详情为 required 时，面板将哪些完成元数据字段设为必填 — 可为 note、cost、photo、who 中的任意项。"
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "必填完成字段",
           "description": "当完成详情为 required 时，面板将哪些完成元数据字段设为必填 — 可为 note、cost、photo、who 中的任意项。"
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -396,6 +404,14 @@
         "target": {
           "name": "目标",
           "description": "要发送到的通知服务，覆盖配置文件（例如 mobile_app_phone）。"
+        },
+        "status": {
+          "name": "状态",
+          "description": "覆盖配置文件自身的状态，仅限本次调用：overdue（仅逾期任务）、due_soon（逾期和即将到期的任务）、all（所有已计划的任务）或 none（不匹配任何任务，用于按需发送“全部完成”通知）。"
+        },
+        "when_empty": {
+          "name": "没有匹配时",
+          "description": "当筛选条件不匹配任何任务时，调用发送的内容。默认是 skip：不发送任何内容。将其设为 all_clear，改为发送“全部完成”通知。"
         }
       }
     },
@@ -865,6 +881,34 @@
           "description": "记录该跳过的新日期和时间。"
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "添加声明式搭档",
+      "description": "注册声明式搭档 — 一种配方，为与筛选器（目标集成 + 实体筛选器）匹配的每个实体生成一个受管理的传感器任务，任务名称和备注使用 Jinja 模板。仅限管理员。"
+    },
+    "update_declarative_companion": {
+      "name": "更新声明式搭档",
+      "description": "按 id 更新已存储的声明式搭档规范的字段。仅限管理员。",
+      "fields": {
+        "id": {
+          "name": "搭档 id",
+          "description": "规范的稳定 uuid，来自 list_declarative_companions。"
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "删除声明式搭档",
+      "description": "移除声明式搭档规范及其生成的所有受管理任务。仅限管理员。",
+      "fields": {
+        "id": {
+          "name": "搭档 id",
+          "description": "规范的稳定 uuid，来自 list_declarative_companions。"
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "列出声明式搭档",
+      "description": "以响应形式返回每个已存储的声明式搭档规范。"
     }
   },
   "entity": {
@@ -984,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "未找到声明式搭档：{spec_id}"
     }
   }
 }

@@ -81,6 +81,7 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     ),
     "da": frozenset(
         {
+            "services.notify.fields.status.name",  # "Status" — cognate
             "services.add_asset.fields.metadata.name",
             "services.add_asset.fields.model.name",
             "services.add_task.fields.interval.name",
@@ -95,6 +96,7 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     ),
     "de": frozenset(
         {
+            "services.notify.fields.status.name",  # "Status" — cognate
             "services.add_asset.fields.name.name",
             "services.add_task.fields.labels.name",  # "Labels" — DE loanword (HA UI)
             "services.add_task.fields.name.name",
@@ -138,12 +140,14 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     ),
     "nb": frozenset(
         {
+            "services.notify.fields.status.name",  # "Status" — cognate
             "services.add_asset.fields.metadata.name",
             "services.update_asset.fields.metadata.name",
         }
     ),
     "nl": frozenset(
         {
+            "services.notify.fields.status.name",  # "Status" — cognate
             "services.add_asset.fields.metadata.name",
             "services.add_asset.fields.model.name",
             "services.add_asset_document.fields.document.name",
@@ -157,14 +161,21 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     ),
     "pl": frozenset(
         {
+            "services.notify.fields.status.name",  # "Status" — cognate
             "services.add_asset.fields.model.name",
             "services.adjust_part_stock.fields.delta.name",
             "services.update_asset.fields.model.name",
         }
     ),
-    "pt-BR": frozenset({"services.adjust_part_stock.fields.delta.name"}),
+    "pt-BR": frozenset(
+        {
+            "services.adjust_part_stock.fields.delta.name",
+            "services.notify.fields.status.name",  # "Status" — cognate
+        }
+    ),
     "sv": frozenset(
         {
+            "services.notify.fields.status.name",  # "Status" — cognate
             "services.add_asset.fields.metadata.name",
             "services.update_asset.fields.metadata.name",
         }
@@ -177,7 +188,11 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
 # in, those values are intentionally identical to English, so the untranslated-leak
 # guard skips them. Key parity and placeholder parity still apply to them, and the
 # moment a locale's exception strings are translated they simply stop matching.
-_PENDING_TRANSLATION_PREFIXES = ("exceptions.",)
+_PENDING_TRANSLATION_PREFIXES = (
+    "exceptions.",
+    "services.add_task.fields.active_season.",
+    "services.update_task.fields.active_season.",
+)
 
 # Token of the form ``{name}`` used by HA/Python ``str.format`` placeholders.
 _TOKEN_RE = re.compile(r"\{(\w+)\}")

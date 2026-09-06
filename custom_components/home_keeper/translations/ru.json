@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Обязательные поля выполнения",
           "description": "Какие поля метаданных выполнения панель делает обязательными, когда для деталей выполнения задано required — любые из note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Обязательные поля выполнения",
           "description": "Какие поля метаданных выполнения панель делает обязательными, когда для деталей выполнения задано required — любые из note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -396,6 +404,14 @@
         "target": {
           "name": "Получатель",
           "description": "Службы уведомлений для отправки, переопределяющие профиль (напр. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Статус",
+          "description": "Переопределяет собственный статус профиля для этого вызова: overdue (только просроченные задачи), due_soon (просроченные и скоро просрочиваемые задачи), all (все запланированные задачи) или none (не совпадает ни с одной задачей, чтобы отправить уведомление «Всё выполнено» по запросу)."
+        },
+        "when_empty": {
+          "name": "Когда ничего не совпадает",
+          "description": "Что отправляет вызов, если фильтр не совпадает ни с одной задачей. По умолчанию — skip: ничего не отправляется. Установите значение all_clear, чтобы вместо этого отправить уведомление «Всё выполнено»."
         }
       }
     },
@@ -865,6 +881,34 @@
           "description": "Новые дата и время, на которые записывается пропуск."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Добавить декларативный компаньон",
+      "description": "Регистрирует декларативный компаньон — рецепт, который создаёт одну управляемую задачу датчика на каждый объект, соответствующий фильтрам (целевая интеграция + фильтры объектов), с именем задачи и заметками через Jinja-шаблоны. Только для администраторов."
+    },
+    "update_declarative_companion": {
+      "name": "Обновить декларативный компаньон",
+      "description": "Обновляет поля сохранённой спецификации декларативного компаньона по id. Только для администраторов.",
+      "fields": {
+        "id": {
+          "name": "Id компаньона",
+          "description": "Стабильный uuid спецификации, из list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Удалить декларативный компаньон",
+      "description": "Удаляет спецификацию декларативного компаньона и все управляемые задачи, которые она создала. Только для администраторов.",
+      "fields": {
+        "id": {
+          "name": "Id компаньона",
+          "description": "Стабильный uuid спецификации, из list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Список декларативных компаньонов",
+      "description": "Возвращает в ответе каждую сохранённую спецификацию декларативного компаньона."
     }
   },
   "entity": {
@@ -984,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Декларативный компаньон не найден: {spec_id}"
     }
   }
 }

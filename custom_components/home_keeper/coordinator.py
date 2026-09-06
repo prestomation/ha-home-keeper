@@ -114,6 +114,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.store = store
         # The problem-sensor sync helper, attached during async_setup_entry.
         self.problem_sync: ProblemSensorSync | None = None
+        # The declarative-companion reconciler, attached during async_setup_entry.
+        # Kept as an ``Any`` on the coordinator to avoid a coordinator↔sync
+        # import cycle at type-check time (the sync imports the coordinator's type).
+        self.declarative_sync: Any | None = None
         # The sensor-based-task watcher, attached during async_setup_entry (after its
         # edge state / usage baselines are seeded, so the periodic tick below only ever
         # reacts to genuine transitions).
@@ -408,3 +412,19 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             ),
             None,
         )
+
+
+def find_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
+    """The loaded Home Keeper coordinator, or None while no entry is loaded.
+
+    The coordinator hangs off the config entry's ``runtime_data``, so everything
+    outside the entry's own setup — websocket commands, services, device triggers,
+    the document views — starts by finding it here. Returning None rather than
+    raising is deliberate: an entry is momentarily unloaded during every reload, and
+    each caller has its own way of saying so.
+    """
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        coord = getattr(entry, "runtime_data", None)
+        if isinstance(coord, HomeKeeperCoordinator):
+            return coord
+    return None

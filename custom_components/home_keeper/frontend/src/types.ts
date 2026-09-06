@@ -11,8 +11,10 @@ export type Unit = 'days' | 'weeks' | 'months';
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 /** `state` compares the entity's state *string* rather than a number, which is what
  *  makes a binary sensor usable (`on`/`off` has no numeric reading). Not binary-only:
- *  any state-y entity works, e.g. `vacuum.x === 'docked'`. */
-export type SensorMode = 'usage' | 'threshold' | 'state';
+ *  any state-y entity works, e.g. `vacuum.x === 'docked'`. `availability` reads no
+ *  value at all — the entity reporting `unavailable`/`unknown`, or leaving the state
+ *  machine, is itself the condition. */
+export type SensorMode = 'usage' | 'threshold' | 'state' | 'availability';
 export type SensorComparison = '>=' | '<=' | '>' | '<' | '==' | '!=';
 
 /** How a usage task's meter target combines with its time backstop: `any` (the
@@ -26,9 +28,12 @@ export type SensorCombinator = 'any' | 'all';
  *  of the state. `also_every` is the usage task's optional **time backstop** — the
  *  "or every 6 months" half of a real service interval, measured from the last
  *  completion — and `unit` labels the meter ("300 h" rather than a bare "300").
- *  `for_seconds` (threshold/state) makes the condition hold before the task arms, and
- *  `clear_on_recover` (threshold/state) clears an armed task when the condition goes
- *  away instead of waiting for it to be completed by hand. */
+ *  `for_seconds` makes the condition hold before the task arms, and `clear_on_recover`
+ *  clears an armed task when the condition goes away instead of waiting for it to be
+ *  completed by hand; both belong to the edge-driven modes (threshold, state and
+ *  availability) and neither applies to a usage meter. An `availability` binding
+ *  carries no condition key of its own — `entity_id` (with an optional `attribute`)
+ *  is the whole binding. */
 export interface SensorBinding {
   entity_id: string;
   mode: SensorMode;
@@ -129,6 +134,7 @@ export interface Task {
   // When true (and a tag is bound), the task can *only* be completed by scanning
   // that tag — the UI's Done action is blocked and explains why.
   require_tag_scan?: boolean;
+  active_season?: Array<{ start: string; end: string }> | { start: string; end: string } | null;
   // Which metadata fields a `required` task makes mandatory. The panel gates a
   // required completion by reading this list (not a hard-coded field), so a future
   // per-field editor only needs to populate it.
@@ -377,18 +383,59 @@ export interface PanelInfo {
 }
 
 export type NotifyStatus = 'all' | 'overdue' | 'due_soon';
+/** The status vocabulary a single `home_keeper.notify` call may ask for. Wider than
+ *  `NotifyStatus` by `'none'`, which matches nothing on purpose and is how the panel
+ *  asks for the "All caught up" card on demand. It is service-only: `normalize_filter`
+ *  on the backend coerces a stored `'none'` back to `'overdue'`, so it must never
+ *  reach a saved profile — keep `NOTIFY_STATUSES` in `forms.ts` three-valued. */
+export type NotifyRunStatus = NotifyStatus | 'none';
+/** What a single `home_keeper.notify` call does when its filter matched no task. */
+export type NotifyWhenEmpty = 'skip' | 'all_clear';
+/** The per-call overrides `home_keeper.notify` accepts alongside a notification id. */
+export interface NotifyRunOptions {
+  status?: NotifyRunStatus;
+  when_empty?: NotifyWhenEmpty;
+}
 export type NotifyAction = 'complete' | 'snooze' | 'skip' | 'open';
 export type NotifyStyle = 'walk' | 'digest';
+/** How loudly a notification lands. Platform-neutral on purpose: the backend
+ *  (`notifications.payload_data`) expands it into Android's channel `importance` and
+ *  iOS's `push.interruption-level`, so the panel never asks which phone you carry. */
+export type NotifyUrgency = 'quiet' | 'normal' | 'high' | 'critical';
+
+/** What `home_keeper.notify` reports back. */
+export interface NotifyRun {
+  /** How many tasks the filter matched. The service rejects a run with no target
+   *  before it gets this far, so a non-zero count means a notification went out.
+   *  `matched: 0` is a success — the filter found nothing due — not a failure.
+   *
+   *  Under `when_empty: 'all_clear'` it says *which* card went out rather than
+   *  whether one did: `matched > 0` is a task card, `matched: 0` is the "All caught
+   *  up" card. Something is delivered either way. */
+  matched: number;
+  /** The **task id** a walk surfaced, or `null` for a digest and for an empty queue.
+   *  Not a count: reading it as one made every real delivery report "no task is due"
+   *  (#255). Whether anything went out is `matched`. */
+  sent: string | null;
+}
 
 /** Which tasks a profile surfaces (a saved filter). */
 export interface NotifyFilter {
   labels: string[];
   areas: string[];
   devices: string[];
+  /** Integration domains from a task's `managed_by.integration` — the companion that
+   *  owns it. A task no integration claims has none, so it is never selected here and
+   *  never dropped by `exclude_companions`. */
+  companions: string[];
   /** Ids that disqualify a task even when it cleared the include lists above. */
   exclude_labels: string[];
   exclude_areas: string[];
   exclude_devices: string[];
+  exclude_companions: string[];
+  /** Drop the auto-created "Buy {part}" reminders — by kind, since they carry no
+   *  id of their own to exclude. */
+  exclude_shopping: boolean;
   status: NotifyStatus;
 }
 
@@ -425,6 +472,10 @@ export interface Notification {
   actions: NotifyAction[];
   snooze_hours: number;
   style: NotifyStyle;
+  /** The Android notification channel to deliver on (and the iOS thread to group
+   *  under). Empty means the companion app's own General channel. */
+  channel: string;
+  urgency: NotifyUrgency;
   auto: { overdue: boolean; due_soon: boolean };
 }
 
@@ -472,4 +523,91 @@ export interface Companion {
   // Suggested rows: where to install the glue, and which upstream triggered it.
   install_url?: string;
   upstream_domain?: string;
+}
+
+/**
+ * A declarative-companion spec — Home-Keeper-owned recipe that materializes one
+ * managed sensor task per matching entity. Persisted in `.storage/home_keeper`
+ * under `declarative_companions`, keyed by `id`. See backend
+ * `declarative_companions.py`.
+ */
+export interface DeclarativeCompanionSelection {
+  target_integration?: string;
+  domain?: string;
+  device_class?: string;
+  entity_regex?: string;
+  area_ids: string[];
+  label_ids: string[];
+  exclude_entity_ids: string[];
+  exclude_device_ids: string[];
+  exclude_area_ids: string[];
+  exclude_label_ids: string[];
+}
+
+export interface DeclarativeCompanionTaskTemplate {
+  name_template: string;
+  notes_template: string;
+  category?: string;
+  priority?: number;
+  labels: string[];
+}
+
+/**
+ * The trigger block on a spec is identical in shape to a sensor task's
+ * `sensor` binding — same modes (`usage` / `threshold` / `state`) plus the new
+ * `availability` mode. The reconciler stamps `entity_id` per match, so the
+ * spec omits it.
+ */
+export type DeclarativeCompanionTrigger = Omit<SensorBinding, 'entity_id'>;
+
+export interface DeclarativeCompanion {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  // Non-null when instantiated from a shipped preset (see
+  // `declarative_presets.py`). Lets the panel badge the row "from Device Pulse".
+  preset_id: string | null;
+  selection: DeclarativeCompanionSelection;
+  trigger: DeclarativeCompanionTrigger;
+  task_template: DeclarativeCompanionTaskTemplate;
+  // Reserved slot for per-entity overrides; v1 UI deferred, always an empty
+  // dict on the wire.
+  per_entity_overrides: Record<string, unknown>;
+  created?: string;
+  updated?: string;
+}
+
+/**
+ * One shipped declarative-companion preset the panel offers under
+ * "Add from preset". `requires_integration` is the HA integration domain the
+ * panel checks for in the entity registry before enabling the preset card.
+ */
+export interface DeclarativeCompanionPreset {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  requires_integration: string | null;
+  default_spec: Omit<DeclarativeCompanion, 'id' | 'created' | 'updated'>;
+}
+
+/**
+ * One row rendered by the Add/Edit dialog's live-preview panel. `count` is the
+ * total number of matches even when the sample is truncated to 10.
+ */
+export interface DeclarativeCompanionPreviewMatch {
+  entity_id: string;
+  entity_registry_id: string;
+  rendered_name: string;
+  rendered_notes: string;
+  device_name: string | null;
+  area_name: string | null;
+}
+
+export interface DeclarativeCompanionPreviewResult {
+  matched: DeclarativeCompanionPreviewMatch[];
+  count: number | null;
+  warnings: string[];
+  over_cap: boolean;
 }

@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Obligatoriske fullføringsfelter",
           "description": "Hvilke fullførings-metadatafelter panelet gjør obligatoriske når fullføringsdetaljen er required – et hvilket som helst av note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Obligatoriske fullføringsfelter",
           "description": "Hvilke fullførings-metadatafelter panelet gjør obligatoriske når fullføringsdetaljen er required – et hvilket som helst av note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -396,6 +404,14 @@
         "target": {
           "name": "Mål",
           "description": "Varslingstjenester å sende til, som overstyrer profilen (f.eks. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Overstyrer profilens egen status for dette kallet: overdue (bare forfalte oppgaver), due_soon (forfalte og snart forfalte oppgaver), all (alle planlagte oppgaver) eller none (samsvarer med ingen oppgave, for å sende varselet Alt er unnagjort ved behov)."
+        },
+        "when_empty": {
+          "name": "Når ingenting samsvarer",
+          "description": "Hva et kall sender hvis filteret ikke samsvarer med noen oppgave. Som standard er det skip: ingenting sendes. Sett det til all_clear for å sende varselet Alt er unnagjort i stedet."
         }
       }
     },
@@ -865,6 +881,34 @@
           "description": "Den nye datoen og klokkeslettet overhoppingen skal registreres på."
         }
       }
+    },
+    "add_declarative_companion": {
+      "name": "Legg til deklarativ companion",
+      "description": "Registrerer en deklarativ companion — en oppskrift som materialiserer én administrert sensoroppgave per entitet som matcher filtrene (målintegrasjon + entitetsfiltre), med Jinja-templated oppgavenavn og notater. Kun administratorer."
+    },
+    "update_declarative_companion": {
+      "name": "Oppdater deklarativ companion",
+      "description": "Oppdaterer felter i en lagret deklarativ companion-spesifikasjon etter id. Kun administratorer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Spesifikasjonens stabile uuid, fra list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Slett deklarativ companion",
+      "description": "Fjerner en deklarativ companion-spesifikasjon og hver administrerte oppgave den materialiserte. Kun administratorer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Spesifikasjonens stabile uuid, fra list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Vis deklarative companions",
+      "description": "Returnerer hver lagret deklarativ companion-spesifikasjon som svar."
     }
   },
   "entity": {
@@ -984,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativ companion ikke funnet: {spec_id}"
     }
   }
 }
