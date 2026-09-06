@@ -33,6 +33,22 @@
   It also matters downstream: `summarize()` in `ci/release-issues.py` quotes **only the
   bold lead** into the comment an issue reporter gets, so the lead has to work as a
   standalone headline.
+  - **Write the lead as a heading, so drop the articles and prepositions.**
+    `**Seasonal tasks.**`, not `**Seasons on a task.**`. `**Declarative companion
+    presets.**`, not `**Presets for a declarative companion.**`. The "do not omit
+    articles" rule in `writing-style.md` governs *sentences*; a bold lead is a heading,
+    and headings are noun phrases. If a lead still has "a", "the", "of", "on", or "for"
+    in it, try again.
+- **The bullet says what a user gets, not how the feature works.** One bullet is a
+  headline plus at most 2 short sentences of what a user notices. Do not narrate the
+  mechanism: which buttons the feature hides or shows, what it rewrites internally,
+  which surfaces it touches, or which fields it added. `**Declarative companions.**
+  Define a pattern over existing entities to create tasks automatically.` is the whole
+  bullet — that the recipe's task shows Edit recipe rather than Edit and Duplicate,
+  and that Home Keeper rewrites the task on each run, are `README.md` facts. When a
+  feature is big enough that trimming it loses something real, **split it into 2
+  bullets** rather than growing one: declarative companions and their shipped presets
+  are 2 entries, not 1 entry with a clause.
 - **A stable release's `## [X.Y.Z]` notes describe what changed since the last
   _stable_ release — not since its betas.** When cutting `X.Y.Z` from an `X.Y.ZbN`
   line, write the section for someone upgrading from the previous stable version and
