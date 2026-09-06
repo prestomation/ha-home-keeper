@@ -167,10 +167,15 @@ On the **Tasks** tab:
   appliance's own page link straight to the Home Assistant device instead. A mark on
   the chip shows when it opens the device page.
 
-The **Search** box matches more than the name of a task. It also reads the notes, the
-attached device, the area and the companion that supplied the task. Every word you type
-must appear somewhere, in any order. Accents are ignored, so `cistic` finds `Čistič`.
-The scope pill counts follow the box, so a pill never promises more than the list shows.
+The **Search** box reads these parts of a task:
+
+- the name and the notes
+- the attached device and the area
+- the companion that supplied the task
+
+Every word you type must appear somewhere, in any order. Accents are ignored, so
+`cistic` finds `Čistič`. The scope pill counts follow the box, so a pill never
+promises more than the list shows.
 
 ![The Tasks tab with the word filter typed in the Search box, the list narrowed to the tasks that match and the scope pill counts down to match](docs/images/57-panel-task-search.png)
 

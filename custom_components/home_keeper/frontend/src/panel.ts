@@ -413,7 +413,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // bind a second time.
     wireLists(this, list);
     wireDetailOpeners(this, list);
-    wireDeviceChips(list);
+    wireDeviceChips(this, list);
     patchFilterCounts(this, root);
     // A query the panel set itself — the empty state's way out, Escape, the clear
     // button — has to reach the box too. Guarded, because assigning the same string
