@@ -1185,6 +1185,69 @@ describe('Task detail — snooze and skip behind the Done caret (issue #268)', (
     expect(menu.querySelector('.hk-defer-skip')).toBeTruthy();
   });
 
+  // Two lifecycle properties of the deferral menu that nothing asserted on until an
+  // automated review claimed both were broken. They were not — `disconnectedCallback`
+  // calls `_closeDeferMenu`, and `_render` replaces the whole shadow tree so a re-wire
+  // binds fresh nodes — but an invariant no test holds is one the next reader has to
+  // re-derive from the source, which is exactly how the claim arose.
+
+  it('takes its document handlers back off when the panel unmounts', async () => {
+    // The dismiss handlers go on `document`, so they outlive the element unless
+    // unmounting removes them. A leaked one keeps the whole detached shadow tree
+    // reachable and answers keystrokes aimed at whatever replaced the panel.
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const added = [];
+    const removed = [];
+    const realAdd = document.addEventListener.bind(document);
+    const realRemove = document.removeEventListener.bind(document);
+    document.addEventListener = (type, fn, opts) => {
+      added.push(type);
+      return realAdd(type, fn, opts);
+    };
+    document.removeEventListener = (type, fn, opts) => {
+      removed.push(type);
+      return realRemove(type, fn, opts);
+    };
+    try {
+      await openMenu(panel);
+      expect(added, 'opening the menu arms the document dismiss handlers').toEqual(
+        expect.arrayContaining(['keydown', 'click']),
+      );
+
+      panel.remove(); // disconnectedCallback
+
+      for (const type of new Set(added)) {
+        expect(
+          removed.filter((x) => x === type).length,
+          `every document '${type}' handler the menu added is taken back off`,
+        ).toBe(added.filter((x) => x === type).length);
+      }
+    } finally {
+      document.addEventListener = realAdd;
+      document.removeEventListener = realRemove;
+    }
+  });
+
+  it('still opens on one press after repeated re-renders', async () => {
+    // `_wireDeferMenus` runs on every render. If it stacked a second click handler on
+    // the same caret, one press would toggle twice and the menu would open and shut
+    // in the same tick — so this reads as a dead caret, not as a slow leak.
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-split-caret'));
+
+    panel._render();
+    panel._render();
+    panel._render();
+
+    const caret = panel.shadowRoot.querySelector('.hk-split-caret');
+    caret.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(panel.shadowRoot.querySelector('.hk-defer-menu').hidden).toBe(false);
+    expect(caret.getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('shows no caret when both switches are off', async () => {
     const { hass } = withOptions([dueTask], { allow_snooze: false, allow_skip: false });
     const panel = await mountPanel(hass, '/tasks/t1');
