@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Release Notes | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/docs/release-notes"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes | Home Keeper"><meta data-rh="true" name="description" content="All notable changes to Home Keeper are documented here. The format follows"><meta data-rh="true" property="og:description" content="All notable changes to Home Keeper are documented here. The format follows"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-272/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/docs/release-notes"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/docs/release-notes" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/docs/release-notes" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-272/docs/release-notes"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-272/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-272/assets/js/runtime~main.b6991002.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-272/assets/js/runtime~main.40f2ad0e.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-272/assets/js/main.eb713853.js" defer="defer"></script>
 </head>
 <body>
@@ -18,46 +18,48 @@ versioning, with PEP 440 pre-release suffixes (<code>bN</code>/<code>aN</code>/<
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="added">Added<a href="#added" class="hash-link" aria-label="Direct link to Added" title="Direct link to Added" translate="no">​</a></h3>
 <ul>
 <li class="">
-<p><strong>Snooze and Skip are reachable from the panel.</strong> Done has a caret that opens
-both, on the task page and on each row of the list. Each entry says what it does to
-the schedule, which is what was unclear about them. (Fixes #268)</p>
+<p><strong>The panel now supports snooze and skip on a task.</strong> The task page and each row
+of the task list show Snooze and Skip next to Done. Each option shows how it
+changes the due date. (Fixes #268)</p>
 </li>
 <li class="">
-<p><strong>The dashboard card offers both verbs too.</strong> They sit on each row ahead of Done and
-open the same dialogs the panel does. A row that cannot take one, such as a blocked or
-dormant task, leaves it out.</p>
+<p><strong>A dashboard card offers snooze and skip on each row.</strong> Both open the same
+dialogs as the panel. Home Keeper omits an option that does not apply to the
+task, such as skip on a blocked task.</p>
 </li>
 <li class="">
-<p><strong>A skipped occurrence is recorded.</strong> It shows in the task&#x27;s history with a note and
-whoever decided, and can be edited or undone like a completion. A skip never counts
-toward the completion tally or the average interval.</p>
+<p><strong>Home Keeper records a skip in the task history.</strong> Each entry stores a note and
+a person, and a user can edit or undo it like a completion. A skip is never
+counted as a completion, so the completion tally and the average interval do not
+include it.</p>
 </li>
 <li class="">
-<p><strong>Snooze asks how long.</strong> The dialog offers four durations plus a date of your own,
-and shows where the due date lands before you commit. A notification&#x27;s Snooze button
-keeps its own configured duration.</p>
+<p><strong>A snooze now offers a choice of duration.</strong> Select 1 of 4 durations, or set a
+date and time. The dialog shows the new due date first.</p>
 </li>
 <li class="">
-<p><strong>A Skip &amp; snooze section in Settings turns either verb off.</strong> Both start on, and
-turning one off removes it from the panel and from notification buttons. The
-<code>home_keeper.snooze_task</code> and <code>skip_task</code> services keep working either way.</p>
+<p><strong>Settings now has a Skip &amp; snooze section that turns off either one.</strong> Both
+start on. Home Keeper removes the one that is off from the panel, from the card,
+and from the notification buttons.</p>
 </li>
 <li class="">
-<p><strong>The skip log has services of its own.</strong> <code>update_skip</code>, <code>delete_skip</code> and
-<code>move_skip</code> edit it, and <code>skip_task</code> accepts a note and a person. <code>snooze_task</code>
-gains <code>until</code> for a moment that a whole number of hours cannot name.</p>
+<p><strong>3 services now edit the recorded skips.</strong> <code>update_skip</code> changes an entry,
+<code>delete_skip</code> removes one, and <code>move_skip</code> changes its date. <code>skip_task</code> accepts
+a note and a person, and <code>snooze_task</code> accepts <code>until</code> for an exact date and
+time.</p>
 </li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="fixed">Fixed<a href="#fixed" class="hash-link" aria-label="Direct link to Fixed" title="Direct link to Fixed" translate="no">​</a></h3>
 <ul>
 <li class="">
-<p><strong>Skipping a metered task now defers it.</strong> A task counted in miles or hours cleared
-its due date and then came straight back on the next sensor reading. Skipping moves
-the meter on, so the next one falls a full interval later.</p>
+<p><strong>A skip now defers a task that is measured by a meter.</strong> Such a task cleared its
+due date and then became due again at the next reading from the sensor. A skip
+now advances the meter, so the next due date is a full interval later.</p>
 </li>
 <li class="">
-<p><strong><code>origin</code> reaches the skip and snooze events.</strong> The service descriptions promised
-it was echoed back for loop prevention. It never was.</p>
+<p><strong>The skip and snooze events now include <code>origin</code>.</strong> The service descriptions
+stated that these events return <code>origin</code> to the caller, which prevents a loop.
+Home Keeper did not add it before this release.</p>
 </li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="0210b3">[0.21.0b3]<a href="#0210b3" class="hash-link" aria-label="Direct link to [0.21.0b3]" title="Direct link to [0.21.0b3]" translate="no">​</a></h2>
