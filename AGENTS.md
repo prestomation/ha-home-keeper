@@ -23,6 +23,16 @@
   bullet**, counting the bold lead as the first — not three per paragraph, and not three
   on top of the lead. `(Fixes #N)` must land in the bullet's **first**
   paragraph, because `ci/release-issues.py` quotes the bullet it first appears in.
+- **The bold lead is a label, not a sentence.** It names the thing that changed in a
+  short noun phrase and stops: `**Declarative companions.**`, `**Snooze and skip.**`,
+  `**Seasons on a task.**`. Aim for 2–5 words; 8 is the hard ceiling. A lead that opens
+  `Home Keeper can now…`, `A user can now…`, `The panel now…`, or `Give a task…` is
+  narrating, not labelling — cut it back to the noun and let the *second* sentence say
+  what a user notices. This is the single easiest bullet to get wrong, because a
+  narrative lead reads fine in isolation and only looks bloated next to its neighbours.
+  It also matters downstream: `summarize()` in `ci/release-issues.py` quotes **only the
+  bold lead** into the comment an issue reporter gets, so the lead has to work as a
+  standalone headline.
 - **A stable release's `## [X.Y.Z]` notes describe what changed since the last
   _stable_ release — not since its betas.** When cutting `X.Y.Z` from an `X.Y.ZbN`
   line, write the section for someone upgrading from the previous stable version and
