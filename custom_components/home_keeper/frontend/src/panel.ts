@@ -1364,19 +1364,19 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     );
   }
 
-  /** What the open drawer is editing, as one comparable key — or null when closed.
-   *  A new object (no id yet) is keyed by its draft, which is the same object for as
-   *  long as that form is up. */
-  private get _drawerSubject(): string | object | null {
-    if (this._view === 'tasks' && this._edit.open) return this._edit.task?.id ?? this._edit.task;
-    if (this._view === 'appliances' && this._assetEdit.open) {
-      return this._assetEdit.asset?.id ?? this._assetEdit.asset;
-    }
+  /** The open drawer's *session*, as one comparable key — or null when closed.
+   *  Keyed by the edit-state object itself: every open builds a new one, and nothing
+   *  replaces it while the form is up (the form's handlers write into it, or swap
+   *  the draft *inside* it — `mergeAsset` replaces `_assetEdit.asset` on every
+   *  keystroke, which is why the draft is not the key). */
+  private get _drawerSubject(): object | null {
+    if (this._view === 'tasks' && this._edit.open) return this._edit;
+    if (this._view === 'appliances' && this._assetEdit.open) return this._assetEdit;
     return null;
   }
-  // The subject the last render drew the drawer for, so the next one can tell "the
+  // The session the last render drew the drawer for, so the next one can tell "the
   // same form, rebuilt" from "a different form" when deciding to keep the scroll.
-  private _renderedDrawerSubject: string | object | null = null;
+  private _renderedDrawerSubject: object | null = null;
 
   // ── rendering ───────────────────────────────────────────────────────────────
   _render(): void {

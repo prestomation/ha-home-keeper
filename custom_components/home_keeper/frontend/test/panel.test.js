@@ -1420,6 +1420,18 @@ describe('Parts editor — folded rows, and the Parts tab as a way in (issue #29
     expect(rebuilt.scrollTop).toBe(240);
   });
 
+  it('keeps the scroll for a new appliance too, whose draft is replaced on every keystroke', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: [] }).hass, '/appliances');
+    (await waitFor(() => panel.shadowRoot?.querySelector('#add-btn'))).click();
+    await waitFor(() => panel.shadowRoot?.querySelector('#a-add-part'));
+    // Typing the name replaces `_assetEdit.asset` with a new object (mergeAsset).
+    panel._assetEdit.asset = { ...panel._assetEdit.asset, name: 'Dryer' };
+    panel.shadowRoot.querySelector('.hk-drawer-sticky').scrollTop = 180;
+    panel.shadowRoot.querySelector('#a-add-part').click();
+    await waitFor(() => rows(panel).length === 1);
+    expect(panel.shadowRoot.querySelector('.hk-drawer-sticky').scrollTop).toBe(180);
+  });
+
   it('starts at the top when the drawer swaps to another appliance', async () => {
     const other = { id: 'a2', kind: 'virtual', name: 'Dryer', parts: [] };
     const panel = await mountPanel(makeHassWith({ assets: [heater, other] }).hass, '/appliances');
