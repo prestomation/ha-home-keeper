@@ -38,10 +38,10 @@ test.describe('Home Keeper panel — editing beside a detail page', () => {
     // History in the drawer's footer is a way to this page, so it is not offered here.
     await expect(panel.locator('.hk-drawer-history')).toHaveCount(0);
 
-    // Closing leaves the page rather than a list.
+    // Closing leaves the page — on the tab it was on — rather than a list.
     await panel.locator('#f-cancel').click();
     await expect(panel.locator('#hk-form')).toHaveCount(0);
-    await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.fridgeFilter}$`));
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.fridgeFilter}/history$`));
     await expect(panel.locator('.d-edit')).toBeVisible();
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);

@@ -775,10 +775,10 @@ every completion path. This includes manual completion and tag scans and
 [auto-clearing sensor tasks](#sensor-based-tasks-usage-meters-thresholds--states).
 
 On the appliance page's **Parts** tab, the **In stock** chip is a stepper. Press
-**−** or **+** to move the stock by 1 spare, or by 1 completion's amount for a part
-measured in a unit. Type a value in the box and press **Enter**, or move focus
-away, to save it. Each change uses the same `home_keeper.adjust_part_stock` service
-path as a completion, so low-stock events and auto-created buy tasks still fire.
+**−** or **+** to move the stock by 1 spare. For a part measured in a unit, 1 press
+moves 1 completion's amount. To save a typed value, press **Enter** or move focus
+away. Each change uses the same `home_keeper.adjust_part_stock` service path as a
+completion, so low-stock events and auto-created buy tasks still fire.
 
 ![The Parts tab stock chip as a stepper, with minus and plus buttons around an editable number and its unit](docs/images/47c-panel-part-stepper.png)
 

@@ -1170,7 +1170,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await measuredRow.scrollIntoViewIfNeeded();
   // The amount is a stepper now (47c): its name carries the unit, the unit sits
   // beside it, and one tap of − is one completion's worth.
-  await expect(measuredRow.getByLabel('In stock: 750 ml')).toHaveValue('750');
+  await expect(measuredRow.getByRole('spinbutton', { name: 'In stock: 750 ml' })).toHaveValue('750');
   await expect(measuredRow.locator('.hk-stock-unit')).toHaveText('ml');
   await page.waitForTimeout(400);
   await measuredRow.screenshot({ path: `${OUT}/47b-panel-part-measured-chips.png` });

@@ -54,7 +54,7 @@ test.describe('a part measured in units, not whole spares', () => {
     await expect(row).toBeVisible();
     // Not "In stock: 750" — a bare count of somethings is exactly the problem. The
     // amount is a stepper now: its name carries the unit, and the unit sits beside it.
-    await expect(row.getByLabel('In stock: 750 ml')).toHaveValue('750');
+    await expect(row.getByRole('spinbutton', { name: 'In stock: 750 ml' })).toHaveValue('750');
     await expect(row.locator('.hk-stock-unit')).toHaveText('ml');
     await expect(row.getByText('Uses 250 ml per completion')).toBeVisible();
   });

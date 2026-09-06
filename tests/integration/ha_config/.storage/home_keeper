@@ -171,7 +171,10 @@
             "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
             "entry_id": "56656a41-c3a1-4db7-9adf-d1b0fb9e0c23"
           }
-        ]
+        ],
+        "active_season": null,
+        "tag_id": null,
+        "require_tag_scan": false
       },
       "a5d646cc-ab00-471f-b945-73dda6080ddb": {
         "id": "a5d646cc-ab00-471f-b945-73dda6080ddb",

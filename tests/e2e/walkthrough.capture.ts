@@ -598,7 +598,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     .locator('.hk-part-row')
     .filter({ hasText: 'Descaling solution' });
   await measuredRow.scrollIntoViewIfNeeded();
-  await expect(measuredRow.getByLabel('In stock: 750 ml')).toHaveValue('750');
+  await expect(measuredRow.getByRole('spinbutton', { name: 'In stock: 750 ml' })).toHaveValue('750');
   await page.waitForTimeout(BEAT * 2);
 
   // 4a5. The amount is a stepper: one tap of − is one completion's worth, through
