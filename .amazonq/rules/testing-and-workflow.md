@@ -19,6 +19,20 @@
   `docs/`, or the PR; the changelog says what changed and stops. One bullet per change,
   never a second paragraph. Three sentences is the budget for the **whole bullet**,
   counting the bold lead as the first, not three per paragraph.
+- **The bold lead is a label, not a sentence.** It names the thing that changed in a
+  short noun phrase and stops: `**Declarative companions.**`, `**Snooze and skip.**`,
+  `**Seasons on a task.**`. Aim for 2–5 words; 8 is the hard ceiling. A lead opening
+  `Home Keeper can now…`, `A user can now…`, `The panel now…` or `Give a task…` is
+  narrating — cut it back to the noun and let the second sentence say what a user
+  notices. `summarize()` in `ci/release-issues.py` quotes only the bold lead into the
+  issue reporter's comment, so it has to stand alone as a headline. Write the lead as a
+  heading and drop the articles and prepositions: `**Seasonal tasks.**`, not `**Seasons
+  on a task.**`. ("Do not omit articles" governs sentences; a lead is a heading.)
+- **The bullet says what a user gets, not how the feature works.** A headline plus at
+  most 2 short sentences of what a user notices. Do not narrate the mechanism — which
+  buttons the feature hides, what it rewrites internally, which surfaces it touches,
+  which fields it added. That is `README.md` material. When trimming a big feature
+  loses something real, split it into 2 bullets rather than growing 1.
 - **Credit an outside contributor in the bullet for their change.** End the bullet
   with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
   not count against the three-sentence budget. An outside contributor is anyone

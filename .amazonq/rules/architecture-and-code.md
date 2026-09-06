@@ -101,6 +101,21 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   wiring returns.** `_hydrate` returns early for a task detail ("a page of its own"),
   so `_mountDrawerForm` runs above that return — mounted after it, Edit on a task page
   opens an empty drawer.
+- **A link out of the panel is the exception, and it is marked.** `_navigate` moves
+  within the panel; `utils.navigateTo` leaves it (a device page, an integration page)
+  and fires on `window` instead. A chip or button that leaves carries a visible
+  leaves-the-panel mark (`.hk-chip-ext`), so a user reads the destination before the
+  click rather than after it.
+- **A device chip's destination follows the surface it sits on.** From a *task* the
+  chip means "the appliance this work is about" and opens that appliance's page inside
+  the panel; from an *appliance* it means "the Home Assistant device behind this" and
+  opens the device page. So the device is always one hop from a task, and the two
+  directions never disagree. `deviceChip(p, deviceId, assetId?)` decides by whether an
+  appliance id was passed; `assetForTask` in `utils.ts` is the single ranking that
+  answers "which appliance does this task belong to", and the task form's consumable
+  and document pickers read the same ranking so they cannot disagree with the chip.
+  A task whose device no appliance claims falls back to the device page, marked.
+
 - **A form beside a detail page must not dim it.** The dimming that marks the edited
   row on a list is keyed off `.hk-wrap:not([data-detail])`: on a detail page the page
   *is* the subject of the form, so it stays at full contrast. Where a third column
@@ -615,6 +630,28 @@ client check is a fast path, never the enforcement.
 - Two shared primitives carry the system: `.hk-eyebrow` (uppercase micro-label
   above a group) and `.hk-indent` (a rule down the left of fields that exist only
   because of a choice above them). Reuse them rather than restating the rules.
+
+### A list row is a grid of fixed rails, not a shrink-to-fit line
+- Both list rows — task and appliance — lay their parts on the **same tracks**:
+  the name takes the slack, then a fixed chip track (`--hk-chip-col`, or
+  `--hk-chip-col-wide` on an appliance row, which buys no action column), then a
+  fixed status track (`--hk-status-col`), then the row's action. A chip therefore
+  starts at the same x on every row and on either tab.
+- Shrink-to-fit is what this replaced, and the reason is scanning: with
+  `flex: 0 1 auto` the chip cluster began wherever the task name happened to end —
+  121px of drift down the seeded list — so the eye had to re-find the column on
+  every line. The two lists also used to be different objects, one a flex line with
+  a status pill and the other a three-line block.
+- The status pill is **left-aligned in its track** and set in `tabular-nums`. A pill
+  is read by where it starts, and "8 days overdue" beside "128 days overdue" agreed
+  only on where it ended.
+- The rails are a desktop grammar. Below 700px, and inside the 268px appliance
+  master pane, the row goes back to a stack — the chips still start at the card's
+  left padding there, which is the alignment the rails were bought for at a width
+  that has no room for them.
+- **A row's chip strip holds one element per chip.** `wireLists` recounts the "+n"
+  label from the child count of `.hk-chips-inline`, so a chip that needs decoration
+  takes a wrapper, never a sibling element.
 
 ### Responsive: viewport media queries, sticky over fixed
 - Breakpoints are **viewport `@media` queries**, so `_render()` stays

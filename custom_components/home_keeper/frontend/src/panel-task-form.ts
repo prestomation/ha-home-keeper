@@ -36,7 +36,7 @@ import type { PanelHost } from './panel-host';
 import { MDI_CLOSE, SENSOR_DOCS_URL } from './panel-icons';
 import { isDisplayableDocument, documentLabel } from './documents';
 import type { Asset, Task } from './types';
-import { escapeHTML, formatQuantity, safeHref, setBtnWeight } from './utils';
+import { assetsForTask, escapeHTML, formatQuantity, safeHref, setBtnWeight } from './utils';
 
 /**
  * One active-season window: a numbered heading, Remove when there is more than one
@@ -138,13 +138,10 @@ function seasonMonthEndFollow(
   return follow;
 }
 
-/** Appliances associated with a task's attached device (its own or related). */
+/** Appliances associated with a task's attached device (its own or related),
+ *  strongest claim first — `assetsForTask` without the consumable link. */
 function assetsForDevice(p: PanelHost, deviceId?: string | null): Asset[] {
-  if (!deviceId) return [];
-  return p._assets.filter(
-    (a) =>
-      a.device_id === deviceId || (a.related_device_ids ?? []).includes(deviceId),
-  );
+  return assetsForTask({ device_id: deviceId }, p._assets);
 }
 
 /**
@@ -170,17 +167,6 @@ function consumableOptions(p: PanelHost, task: Partial<Task>): { value: string; 
   return options.sort((a, b) => a.label.localeCompare(b.label));
 }
 
-/** Appliances reachable from a task: the one(s) it's attached to via its device,
- *  plus the appliance behind a manual consumable link (its part's asset). */
-function assetsForTask(p: PanelHost, task: Partial<Task>): Asset[] {
-  const byDevice = assetsForDevice(p, task.device_id);
-  const partAssetId = task.source?.part?.asset_id;
-  if (partAssetId && !byDevice.some((a) => a.id === partAssetId)) {
-    const a = p._assets.find((x) => x.id === partAssetId);
-    if (a) return [...byDevice, a];
-  }
-  return byDevice;
-}
 
 /**
  * `asset_id:entry_id` options for the task form's "Links to show on card" picker:
@@ -191,7 +177,7 @@ function assetsForTask(p: PanelHost, task: Partial<Task>): Asset[] {
  * then hides) when the task touches no appliance or none of them carry a document.
  */
 function documentOptions(p: PanelHost, task: Partial<Task>): { value: string; label: string }[] {
-  const assets = assetsForTask(p, task);
+  const assets = assetsForTask(task, p._assets);
   const multi = assets.length > 1; // disambiguate by appliance only when needed
   const options: { value: string; label: string }[] = [];
   for (const asset of assets) {

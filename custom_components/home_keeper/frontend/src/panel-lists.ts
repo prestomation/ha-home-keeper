@@ -37,6 +37,7 @@ import { LS_TREE_COLLAPSED } from './panel-types';
 import type { Asset, Task } from './types';
 import {
   areaName,
+  assetForTask,
   assetSummary,
   btnAttrs,
   buildAssetTree,
@@ -214,7 +215,12 @@ function taskCard(p: PanelHost, task: Task): string {
   // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge that
   // says this work is late.
   const overdue = isOverdue(task) && !isBuyTask(task);
-  const dev = task.device_id ? deviceChip(p, task.device_id) : '';
+  // The chip opens the appliance the task is about, not the Home Assistant device
+  // page behind it — see `deviceChip`. The appliance page's own chip is the one hop
+  // on to the device.
+  const dev = task.device_id
+    ? deviceChip(p, task.device_id, assetForTask(task, p._assets)?.id)
+    : '';
   const tag = tagChip(p, task);
   const managed = managedChip(p, task);
   // A completed one-off (do-once, now dormant) shows when it was done instead of a
@@ -302,15 +308,12 @@ function assetCard(p: PanelHost, x: Asset, depth = 0, isLast = false, toggleId =
         : '';
   const title =
     x.name || deviceName(p._hass?.devices, x.device_id) || t('appliance.fallbackName');
-  const subCount = p._assets.filter((a) => a.parent_asset_id === x.id).length;
-  const relCount = x.related_device_ids?.length ?? 0;
-  const extra = [
-    subCount
-      ? `<ha-assist-chip label="${escapeHTML(tn('asset.subdevices', subCount))}"></ha-assist-chip>`
-      : '',
-    relCount
-      ? `<ha-assist-chip label="${escapeHTML(tn('asset.related', relCount))}"></ha-assist-chip>`
-      : '',
+  // Split the way a task row splits. What the appliance *is* — its device, where it
+  // hangs, whether it is retired — reads beside the name; what it *holds* reads in the
+  // status rail, the same column a task's due pill lands in. One grammar for both
+  // lists, so a chip sits at the same x whichever tab you are on.
+  const qualifiers = [
+    kindChip,
     x.parent_asset_id
       ? `<ha-assist-chip label="${escapeHTML(
           '↳ ' + assetAncestry(p, x.parent_asset_id),
@@ -318,6 +321,16 @@ function assetCard(p: PanelHost, x: Asset, depth = 0, isLast = false, toggleId =
       : '',
     x.archived_at
       ? `<ha-assist-chip class="hk-archived" label="${escapeHTML(t('chip.archived'))}"></ha-assist-chip>`
+      : '',
+  ].join('');
+  const subCount = p._assets.filter((a) => a.parent_asset_id === x.id).length;
+  const relCount = x.related_device_ids?.length ?? 0;
+  const counts = [
+    subCount
+      ? `<ha-assist-chip label="${escapeHTML(tn('asset.subdevices', subCount))}"></ha-assist-chip>`
+      : '',
+    relCount
+      ? `<ha-assist-chip label="${escapeHTML(tn('asset.related', relCount))}"></ha-assist-chip>`
       : '',
   ].join('');
   const depthClass = depth > 0 ? ' hk-tree-child' : '';
@@ -332,12 +345,13 @@ function assetCard(p: PanelHost, x: Asset, depth = 0, isLast = false, toggleId =
   return `
       <ha-card class="hk-card${depthClass}${selected}" data-id="${escapeHTML(x.id)}"${depthStyle}>
         ${chevron}
-        <div class="hk-card-row">
+        <div class="hk-card-row hk-row-asset">
           <div class="grow clickable detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(x.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(title)}</div>
             <div class="hk-meta">${escapeHTML(assetSummary(x, p._hass?.areas))}</div>
-            <div class="hk-chips">${kindChip}${extra}</div>
           </div>
+          <div class="hk-chips">${qualifiers}</div>
+          <div class="hk-status">${counts}</div>
         </div>
       </ha-card>`;
 }

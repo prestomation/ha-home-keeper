@@ -57,6 +57,8 @@
   "chip.archived": "Archiviato",
   "chip.autoSynced": "Auto-sincronizzato",
   "chip.autoSynced.tip": "Creato automaticamente da un sensore. Si cancella da solo quando il sensore torna normale — non completabile qui.",
+  "chip.device.appliance.tip": "Apri la pagina Home Keeper di questo elettrodomestico.",
+  "chip.device.tip": "Apri la pagina Home Assistant di questo dispositivo.",
   "chip.lowStock": "Scorte basse",
   "chip.managed": "Gestita da {name}",
   "chip.nfc": "Tag NFC",

@@ -53,6 +53,8 @@
   "chip.archived": "Gearchiveerd",
   "chip.autoSynced": "Auto-gesynchroniseerd",
   "chip.autoSynced.tip": "Automatisch gemaakt vanuit een sensor. Verdwijnt vanzelf als de sensor weer normaal is — hier niet af te vinken.",
+  "chip.device.appliance.tip": "Open de Home Keeper-pagina van dit apparaat.",
+  "chip.device.tip": "Open de Home Assistant-pagina van dit apparaat.",
   "chip.lowStock": "Lage voorraad",
   "chip.managed": "Beheerd door {name}",
   "chip.nfc": "NFC-tag",

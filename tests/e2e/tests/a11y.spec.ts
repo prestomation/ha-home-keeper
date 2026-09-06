@@ -100,7 +100,11 @@ test.describe(
     // tabpanel, no roving tabindex, no arrow keys. Plain links are the honest shape.
     await page.goto('/home-keeper/appliances');
     const panel = panelOf(page);
-    await panel.locator('.hk-card[data-id]').first().click();
+    // The row's opener, not the card's centre. A centre click used to land on inert
+    // space; now that a row lays its chips across the middle it lands on the device
+    // chip, which has a destination of its own. That a row opens its appliance from
+    // either end is asserted in list-honesty.spec.ts, where it is the subject.
+    await panel.locator('.hk-card[data-id] .detail-open').first().click();
     await expect(panel.locator('.hk-subtab').first()).toBeVisible();
     // (HA's own ha-tab-group owns the three top-level tabs and uses role="tab"
     // legitimately — this is about the sub-tabs and the phone bar we added.)

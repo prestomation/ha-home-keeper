@@ -61,6 +61,8 @@
   "chip.archived": "Zarchiwizowane",
   "chip.autoSynced": "Auto-synchronizacja",
   "chip.autoSynced.tip": "Utworzone automatycznie z czujnika. Znika samo, gdy czujnik wróci do normy — nie można oznaczyć jako wykonane tutaj.",
+  "chip.device.appliance.tip": "Otwórz stronę Home Keeper tego urządzenia.",
+  "chip.device.tip": "Otwórz stronę Home Assistant tego urządzenia.",
   "chip.lowStock": "Niski zapas",
   "chip.managed": "Zarządzane przez {name}",
   "chip.nfc": "Tag NFC",

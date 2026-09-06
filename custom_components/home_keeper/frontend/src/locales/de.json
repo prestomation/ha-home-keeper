@@ -53,6 +53,8 @@
   "chip.archived": "Archiviert",
   "chip.autoSynced": "Auto-synchronisiert",
   "chip.autoSynced.tip": "Automatisch aus einem Sensor erstellt. Wird von selbst gelöscht, sobald der Sensor wieder normal ist – hier nicht abschließbar.",
+  "chip.device.appliance.tip": "Home-Keeper-Seite dieses Geräts öffnen.",
+  "chip.device.tip": "Home-Assistant-Seite dieses Geräts öffnen.",
   "chip.lowStock": "Niedriger Bestand",
   "chip.managed": "Verwaltet von {name}",
   "chip.nfc": "NFC-Tag",

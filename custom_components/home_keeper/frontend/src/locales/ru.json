@@ -61,6 +61,8 @@
   "chip.archived": "В архиве",
   "chip.autoSynced": "Авто-синхронизация",
   "chip.autoSynced.tip": "Создано автоматически из датчика. Исчезнет само, когда датчик вернётся в норму — отметить выполненным здесь нельзя.",
+  "chip.device.appliance.tip": "Открыть страницу Home Keeper этого устройства.",
+  "chip.device.tip": "Открыть страницу Home Assistant этого устройства.",
   "chip.lowStock": "Мало на складе",
   "chip.managed": "Управляется {name}",
   "chip.nfc": "NFC-метка",

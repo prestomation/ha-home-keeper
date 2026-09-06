@@ -156,6 +156,17 @@ can be a noun or a verb as listed, and it can appear in a heading.
 ## Special budgets that still apply
 
 - **CHANGELOG bullets** stay at 3 sentences or fewer. See `testing-and-workflow.md`.
+- **A CHANGELOG bullet's bold lead** is a label, not a sentence. Write a noun phrase
+  of 2 to 5 words. Do not write more than 8 words. Write "**Declarative
+  companions.**", not "**Home Keeper can now open a task for every entity that
+  matches a recipe.**". The sentence after the lead says what a user notices.
+- **A bold lead is a heading, so it does not take articles or prepositions.** Write
+  "**Seasonal tasks.**", not "**Seasons on a task.**". The rule "Do not omit
+  articles" applies to a sentence. It does not apply to a heading.
+- **A CHANGELOG bullet says what a user gets. It does not say how the feature
+  works.** Write the lead and 1 or 2 short sentences. Do not write which buttons the
+  feature hides, what it rewrites, or which fields it adds. Put that in `README.md`.
+  If a short bullet loses necessary information, write 2 bullets.
 - **`services.yaml` descriptions** stay at 1 or 2 sentences. The first sentence says
   what the service does. The second says a constraint, if there is one.
 - **UI labels** in `locales/en.json` and `strings.json` are 1 to 4 words. A tooltip

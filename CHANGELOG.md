@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.21.0b7]
+## [0.22.0b1]
 
 ### Added
 
@@ -14,6 +14,58 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   notification can use any Material Design icon and an accent color. A Medication
   reminder then shows a pill on the phone while a Batteries reminder shows a battery.
   (Fixes #293)
+
+### Changed
+
+- **Appliance-first device chips.** A task's device chip opens its appliance instead
+  of the Home Assistant device page. The appliance list and an appliance's own page
+  still link straight to the device.
+- **Aligned list rows.** Task rows and appliance rows now use fixed columns. A row's
+  chips and its overdue pill begin at the same place down the whole list.
+
+## [0.21.0] - 2026-09-06
+
+### Added
+
+- **Declarative companions.** Define a pattern over existing entities to create tasks
+  automatically. Home Keeper previews the matches before it opens them. (Fixes #231)
+
+- **Declarative companion presets.** Home Keeper includes pre-built companions for
+  common integrations. Each preset also shows how to build one. (Fixes #230)
+
+- **Availability sensor tasks.** A sensor task can arm when its entity goes
+  unavailable or unknown.
+
+- **Snooze and skip.** Snooze and Skip sit next to Done in the panel and on the card.
+  A skip records a note and a person in the task history. (Fixes #268)
+
+- **Skip and snooze settings.** Settings can turn off either option. 3 new services
+  edit a recorded skip.
+
+- **Seasonal tasks.** A task that repeats on a clock can run only in the months you
+  select. (Fixes #242)
+
+- **Inline part editing.** Edit and add parts directly in the Parts tab. The stock
+  chip is now a stepper.
+
+### Changed
+
+- **Test button notifications.** Test now always sends a notification. It shows a due
+  task, or says "All caught up".
+
+- **Distant task notifications.** A task that is not due soon now says how far off it
+  is. The text used to read "Due soon" for every such task.
+
+- **Compact lists and task sub-tabs.** Task and appliance rows use less space. A
+  task's page splits into 3 sub-tabs.
+
+### Fixed
+
+- **Stale panel data.** The panel kept the old view after Home Keeper reloaded. It now
+  waits and reads again.
+
+- **Stock and Reorder-at focus.** Typing the first digit into an empty box rebuilt the
+  form and closed the keyboard. (Fixes #296)
 
 ## [0.21.0b6]
 
