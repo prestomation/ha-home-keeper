@@ -18,6 +18,21 @@ import type {
 
 /** Thin wrappers around the Home Keeper websocket commands. */
 
+/**
+ * True for the websocket error every Home Keeper command sends while the config
+ * entry is not loaded (`_not_loaded` in `websocket_api.py`).
+ *
+ * The entry is unloaded for a moment on **every** reload, and Home Keeper reloads
+ * itself: adding a declarative companion that matches an entity materializes tasks
+ * and the reconciler reloads the entry to baseline the sensor watcher. A panel
+ * refresh that lands in that window gets this error from every command, so the
+ * caller has to wait and ask again rather than treat it as an answer. It is always
+ * temporary — the reload is already running when the error is sent.
+ */
+export function isNotLoaded(err: unknown): boolean {
+  return (err as { code?: string })?.code === 'not_loaded';
+}
+
 /** Read the companion integrations for the Settings → Companions section. */
 export async function getCompanions(hass: Hass): Promise<Companion[]> {
   const res = await hass.callWS<{ companions: Companion[] }>({

@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.21.0b2]
+## [0.21.0b3]
 
 ### Added
 
@@ -19,6 +19,21 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   entity reports unavailable or unknown, after an optional hold. A user can also
   bind one task to one entity by hand in the ordinary task form.
 
+### Fixed
+
+- **A task with a hold now falls due the moment the hold ends.** The hold used to
+  complete at the next reading from the watched entity or at the five-minute
+  refresh. An entity that goes offline sends no more readings, which is the case
+  an availability task waits for.
+
+- **The panel no longer shows old information right after some actions.** Adding a
+  companion or changing an option can reload Home Keeper for a moment, and a refresh
+  right then kept the old view. The panel now waits for Home Keeper and reads again.
+
+## [0.21.0b2]
+
+### Added
+
 - **The Test button now always sends a notification.** The notification shows a task
   when the Profile holds one, and says "All caught up" when the Profile holds none. A
   second button beside Test sends whichever notification Test does not.
@@ -28,13 +43,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **A notification for a task that is not due soon now says how far off it is.** The
   text read "Due soon." for every task ahead of its due date, including one months
   away.
-
-### Fixed
-
-- **A task with a hold now falls due the moment the hold ends.** The hold used to
-  complete at the next reading from the watched entity or at the five-minute
-  refresh. An entity that goes offline sends no more readings, which is the case
-  an availability task waits for.
 
 ## [0.21.0b1]
 

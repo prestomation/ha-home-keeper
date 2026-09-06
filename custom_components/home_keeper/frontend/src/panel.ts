@@ -91,6 +91,15 @@ import {
 } from './utils';
 
 /**
+ * How many times a load waits out an unloaded integration, and how long it waits
+ * between tries. A config-entry reload is a second or two, so five tries a second
+ * apart cover a slow one with room to spare, and a failure that is not a reload
+ * gives up on the first try (see `_reload`).
+ */
+const RELOAD_RETRIES = 5;
+const RELOAD_RETRY_MS = 1000;
+
+/**
  * The Home Keeper panel is built entirely from Home Assistant's own web
  * components (the HA design language): `ha-form` for every form (which also
  * lazy-loads its selector widgets — text, number, select, date/time, and the
@@ -602,8 +611,29 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (this._hass && !this._loaded) void this._refresh();
   }
 
-  /** Fetch tasks/assets/domains into state (no render). */
-  async _reload(): Promise<void> {
+  /**
+   * A best-effort fetch: fall back to *fallback* when it fails, **except** while the
+   * integration is unloaded.
+   *
+   * These fallbacks exist so one soft command can't stop the panel from loading. A
+   * `not_loaded` error is not that: the entry is mid-reload and every command is
+   * failing, so falling back would render "no companions, no options, no recipes" —
+   * a confident answer that is wrong. Rethrowing puts the whole batch on the retry
+   * path in `_reload`, which waits for the reload to finish and asks again.
+   */
+  private _soft<T, F>(p: Promise<T>, fallback: F): Promise<T | F> {
+    return p.catch((err) => {
+      if (api.isNotLoaded(err)) throw err;
+      return fallback;
+    });
+  }
+
+  /**
+   * Fetch tasks/assets/domains into state (no render).
+   *
+   * *retriesLeft* is spent only on a `not_loaded` failure — see the catch below.
+   */
+  async _reload(retriesLeft = RELOAD_RETRIES): Promise<void> {
     if (!this._hass) return;
     try {
       const [
@@ -619,15 +649,18 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       ] = await Promise.all([
         api.getTasks(this._hass),
         api.getAssets(this._hass),
-        api.getEntryDomains(this._hass).catch(() => ({})),
-        api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
-        api.getOptions(this._hass).catch(() => null),
-        api.getCompanions(this._hass).catch(() => [] as Companion[]),
-        api.listDeclarativeCompanions(this._hass).catch(() => [] as DeclarativeCompanion[]),
-        api.getIntroDismissed(this._hass).catch(() => false),
+        this._soft(api.getEntryDomains(this._hass), {}),
+        this._soft(api.getLoadedEntryIds(this._hass), new Set<string>()),
+        this._soft(api.getOptions(this._hass), null),
+        this._soft(api.getCompanions(this._hass), [] as Companion[]),
+        this._soft(
+          api.listDeclarativeCompanions(this._hass),
+          [] as DeclarativeCompanion[],
+        ),
+        this._soft(api.getIntroDismissed(this._hass), false),
         // Best-effort: the tag registry is a convenience for the picker and the
         // chip label, never a precondition for the panel loading.
-        api.getTags(this._hass).catch(() => [] as { value: string; label: string }[]),
+        this._soft(api.getTags(this._hass), [] as { value: string; label: string }[]),
       ]);
       this._tasks = tasks;
       this._assets = assets;
@@ -653,11 +686,27 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._loaded = true;
       this._loadError = false;
     } catch (err) {
+      // The integration is mid-reload. Wait for it and read again rather than keep
+      // what is on screen: every field above is left untouched by this catch, so a
+      // load that gives up here leaves the *whole* panel — task list, appliances,
+      // options, companions, recipes — showing what it held before, with nothing to
+      // say so and nothing to retry it. Home Keeper reloads itself (adding a
+      // declarative companion that matches an entity materializes tasks, and the
+      // reconciler reloads the entry to baseline the sensor watcher), so the refresh
+      // that follows such a save is the most likely one to land in the window.
+      if (api.isNotLoaded(err) && retriesLeft > 0) {
+        await new Promise((r) => setTimeout(r, RELOAD_RETRY_MS));
+        return this._reload(retriesLeft - 1);
+      }
       // eslint-disable-next-line no-console
       console.error('home-keeper: failed to load data', err);
       // Surface a retry instead of spinning forever (the only auto-retry was on the
       // first `set hass`, so a transient WS failure at startup bricked the panel).
       this._loadError = true;
+      // A panel that is already up shows no retry button — the load error only
+      // reaches the screen in place of the first-load spinner — so say it here. The
+      // alternative is a panel that quietly lies about what is stored.
+      if (this._loaded) toast(this, t('error.loadFailed'));
     }
   }
 

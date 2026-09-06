@@ -654,7 +654,15 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   save.classList.add('hk-decl-save');
   setBtnWeight(save, 'primary');
   save.textContent = t('btn.save');
-  save.addEventListener('click', () => void saveDeclarative(p, draft));
+  save.addEventListener('click', () => {
+    // The dialog stays on screen until the panel has re-read the store, and that
+    // read waits out the entry reload the save itself can trigger — a second or
+    // two. Say so on the button rather than leave it looking dead, and stop a
+    // second click from adding the recipe twice.
+    save.setAttribute('disabled', '');
+    save.textContent = t('settings.status_saving');
+    void saveDeclarative(p, draft);
+  });
   footer.appendChild(save);
   const cancel = document.createElement('ha-button');
   cancel.setAttribute('slot', 'secondaryAction');
