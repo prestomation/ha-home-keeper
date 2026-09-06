@@ -62,7 +62,7 @@ test.describe('Home Keeper card — snooze and skip', () => {
     await page.mouse.up();
 
     // The toast carries the same line the panel's menu shows under Snooze.
-    await expect(page.getByText('Push the due date out').first()).toBeVisible();
+    await expect(page.getByText('Move the due date later').first()).toBeVisible();
     // ...and the hold did not open the dialog it would have opened on a tap.
     await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
   });
