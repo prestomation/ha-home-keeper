@@ -10,38 +10,41 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **Snooze and Skip are reachable from the panel.** Done has a caret that opens
-  both, on the task page and on each row of the list. Each entry says what it does to
-  the schedule, which is what was unclear about them. (Fixes #268)
+- **The panel now supports snooze and skip on a task.** The task page and each row
+  of the task list show Snooze and Skip next to Done. Each option shows how it
+  changes the due date. (Fixes #268)
 
-- **The dashboard card offers both verbs too.** They sit on each row ahead of Done and
-  open the same dialogs the panel does. A row that cannot take one, such as a blocked or
-  dormant task, leaves it out.
+- **A dashboard card offers snooze and skip on each row.** Both open the same
+  dialogs as the panel. Home Keeper omits an option that does not apply to the
+  task, such as skip on a blocked task.
 
-- **A skipped occurrence is recorded.** It shows in the task's history with a note and
-  whoever decided, and can be edited or undone like a completion. A skip never counts
-  toward the completion tally or the average interval.
+- **Home Keeper records a skip in the task history.** Each entry stores a note and
+  a person, and a user can edit or undo it like a completion. A skip is never
+  counted as a completion, so the completion tally and the average interval do not
+  include it.
 
-- **Snooze asks how long.** The dialog offers four durations plus a date of your own,
-  and shows where the due date lands before you commit. A notification's Snooze button
-  keeps its own configured duration.
+- **A snooze now offers a choice of duration.** Select 1 of 4 durations, or set a
+  date and time. The dialog shows the new due date first.
 
-- **A Skip & snooze section in Settings turns either verb off.** Both start on, and
-  turning one off removes it from the panel and from notification buttons. The
-  `home_keeper.snooze_task` and `skip_task` services keep working either way.
+- **Settings now has a Skip & snooze section that turns off either one.** Both
+  start on. Home Keeper removes the one that is off from the panel, from the card,
+  and from the notification buttons.
 
-- **The skip log has services of its own.** `update_skip`, `delete_skip` and
-  `move_skip` edit it, and `skip_task` accepts a note and a person. `snooze_task`
-  gains `until` for a moment that a whole number of hours cannot name.
+- **3 services now edit the recorded skips.** `update_skip` changes an entry,
+  `delete_skip` removes one, and `move_skip` changes its date. `skip_task` accepts
+  a note and a person, and `snooze_task` accepts `until` for an exact date and
+  time.
 
 ### Fixed
 
-- **Skipping a metered task now defers it.** A task counted in miles or hours cleared
-  its due date and then came straight back on the next sensor reading. Skipping moves
-  the meter on, so the next one falls a full interval later.
+- **A skip now defers a task that is measured by a meter.** Such a task cleared its
+  due date and then became due again at the next reading from the sensor. A skip
+  now advances the meter, so the next due date is a full interval later.
 
-- **`origin` reaches the skip and snooze events.** The service descriptions promised
-  it was echoed back for loop prevention. It never was.
+- **The skip and snooze events now include `origin`.** The service descriptions
+  stated that these events return `origin` to the caller, which prevents a loop.
+  Home Keeper did not add it before this release.
+
 ## [0.21.0b3]
 
 ### Added

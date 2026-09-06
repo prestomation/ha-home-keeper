@@ -42,30 +42,40 @@ can't express.
 
 ### Task lifecycle
 
-Only `next_due` moves when a task is snoozed, leaving the recurrence alone. Skipping
-advances the schedule itself, by a step that depends on the kind of task:
+Only `next_due` moves when a task is snoozed. The recurrence stays the same.
 
-* **floating** jumps a fresh interval from now
-* **fixed** moves on one scheduled occurrence
+A skip advances the schedule itself. The step depends on the kind of task:
+
+* **floating** starts a new interval from now
+* **fixed** moves to the next scheduled occurrence
 * **one-off**, **triggered** and **sensor** tasks go dormant
 
-Both verbs re-arm the edge-triggered overdue and due-soon announcements for the new
-date.
+A snooze and a skip both re-arm the edge-triggered overdue and due-soon
+announcements for the new date.
 
-A skip is also **recorded**, in a `skips` list of its own beside `completions`. The
-two lists stay deliberately separate. A skip records an occurrence that was passed
-over on purpose, so it never sets `last_completed`, and nothing derived from the
-completion log counts it. `home_keeper_task_skipped` includes the new entry's `ts`.
-That timestamp is the entry's identity for the `update_skip` / `move_skip` /
-`delete_skip` services, and for the `_skip_updated` / `_skip_removed` events they
-fire.
+A skip is also recorded. It goes in a `skips` list, beside the `completions` list.
+A skip records an occurrence that was passed over. It never sets `last_completed`,
+and nothing derived from the completion log counts it.
 
-Skipping a **usage** task resets its meter exactly as completing it does, so the next
-interval is measured from the reading at the skip. Its time backstop (`also_every`)
-measures from the same point, since with the default `combinator: "any"` an elapsed
-backstop would otherwise re-arm the task however recently it was skipped. Editing the
-`reading` on whichever completion or skip currently anchors the meter re-anchors it,
-so `_completion_updated` and `_skip_updated` can then add a `meter_baseline`.
+`home_keeper_task_skipped` includes the new entry's `ts`. The `ts` value identifies
+that entry for these services:
+
+* `update_skip`
+* `move_skip`
+* `delete_skip`
+
+The `_skip_updated` and `_skip_removed` events use `ts` the same way.
+
+A skip on a **usage** task resets its meter, the same way a completion does. The
+next interval is then measured from the reading at the skip.
+
+The time backstop, `also_every`, measures from that same point. The default
+`combinator` is `"any"`, so the meter or the backstop can re-arm the task on its
+own. A backstop left at its old point can re-arm the task soon after a skip.
+
+When a user edits the `reading` on whichever completion or skip anchors the meter,
+Home Keeper re-anchors the meter. The `_completion_updated` and `_skip_updated`
+events can then add a `meter_baseline`.
 
 **NFC/RFID tag scans** ride these same events: completing a task by scanning its
 linked tag fires an ordinary `home_keeper_task_completed` carrying
