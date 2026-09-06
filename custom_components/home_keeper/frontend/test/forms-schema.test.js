@@ -1922,3 +1922,151 @@ describe('metadataBaseSchema / metadataDependentSchema', () => {
     expect(metadataSchema(m)).toEqual([...metadataBaseSchema(), ...metadataDependentSchema(m)]);
   });
 });
+
+// Absolute shapes, not only relative ones: a mutant that flips every comparison in
+// `partDependentKey` keeps two parts *different* while lying about both.
+describe('partDependentKey — the exact shape', () => {
+  it('spells out each gate in order', () => {
+    expect(partDependentKey({ name: 'x', type: 'consumable' })).toBe('false,false,false,false');
+    expect(
+      partDependentKey({ name: 'x', type: 'wear', stock: 0, reorder_at: 0, create_buy_task: true }),
+    ).toBe('true,true,true,true');
+    expect(partDependentKey({ name: 'x', type: 'consumable', stock: 2 })).toBe('false,true,false,false');
+  });
+  it('offers nothing dependent for a part that tracks nothing', () => {
+    expect(partDependentSchema({ name: 'x', type: 'consumable' })).toEqual([]);
+  });
+});
+
+describe('partFormData — zeros and blanks survive the seeding', () => {
+  it('keeps a zero quantity as zero, not as empty', () => {
+    const data = partFormData({
+      name: '',
+      type: 'consumable',
+      cost: 0,
+      stock: 0,
+      reorder_at: 0,
+      consume_quantity: 0,
+      restock_quantity: 0,
+      replace_interval: 0,
+    });
+    expect(data).toMatchObject({
+      part_name: '',
+      cost: 0,
+      stock: 0,
+      reorder_at: 0,
+      consume_quantity: 0,
+      restock_quantity: 0,
+      replace_interval: 0,
+    });
+  });
+  it('defaults a part with nothing set', () => {
+    expect(partFormData({})).toEqual({
+      part_name: '',
+      part_number: '',
+      type: 'consumable',
+      vendor: '',
+      cost: undefined,
+      part_url: '',
+      notes: '',
+      stock: undefined,
+      reorder_at: undefined,
+      stock_unit: '',
+      consume_quantity: undefined,
+      create_buy_task: false,
+      restock_quantity: undefined,
+      replace_interval: undefined,
+      replace_unit: 'months',
+      last_replaced: undefined,
+    });
+  });
+});
+
+describe('mergePartForm — every field is guarded by its own key', () => {
+  const full = {
+    id: 'p1',
+    name: 'Anode rod',
+    part_number: 'AR-1',
+    type: 'wear',
+    vendor: 'Home Depot',
+    cost: 35,
+    url: 'https://x.example',
+    notes: 'Torque to 40 Nm',
+    stock: 2,
+    reorder_at: 1,
+    stock_unit: 'pcs',
+    consume_quantity: 1,
+    create_buy_task: true,
+    restock_quantity: 2,
+    replace_interval: 12,
+    replace_unit: 'months',
+    last_replaced: '2025-05-01',
+    file_name: 'r.pdf',
+  };
+
+  it('changes nothing when the event carries nothing', () => {
+    expect(mergePartForm(full, {})).toEqual(full);
+  });
+
+  it('reads a present-but-null text field as empty, and a null number as unset', () => {
+    const next = mergePartForm(full, {
+      part_name: null,
+      part_number: null,
+      vendor: null,
+      part_url: null,
+      notes: null,
+      stock_unit: null,
+      cost: null,
+      type: null,
+      replace_unit: undefined,
+      last_replaced: '2026-01-02',
+    });
+    expect(next).toMatchObject({
+      name: '',
+      part_number: '',
+      vendor: '',
+      url: '',
+      notes: '',
+      stock_unit: '',
+      cost: null,
+      type: 'consumable',
+      last_replaced: '2026-01-02',
+    });
+    // A consumable has no schedule, whatever the unit event said.
+    expect(next.replace_interval).toBeNull();
+    expect(next.replace_unit).toBeNull();
+  });
+
+  it('carries each field it is given, one at a time', () => {
+    const cases = [
+      ['part_name', 'Rod', 'name', 'Rod'],
+      ['part_number', 'AR-2', 'part_number', 'AR-2'],
+      ['vendor', 'Amazon', 'vendor', 'Amazon'],
+      ['cost', '40', 'cost', 40],
+      ['part_url', ' https://y.example ', 'url', 'https://y.example'],
+      ['notes', 'n', 'notes', 'n'],
+      ['stock', '3', 'stock', 3],
+      ['reorder_at', '2', 'reorder_at', 2],
+      ['stock_unit', ' ml ', 'stock_unit', 'ml'],
+      ['consume_quantity', '0.5', 'consume_quantity', 0.5],
+      ['restock_quantity', '4', 'restock_quantity', 4],
+      ['replace_interval', '6', 'replace_interval', 6],
+      ['replace_unit', 'weeks', 'replace_unit', 'weeks'],
+      ['last_replaced', '2026-02-03', 'last_replaced', '2026-02-03'],
+    ];
+    for (const [key, given, field, expected] of cases) {
+      const next = mergePartForm(full, { [key]: given });
+      expect(next[field], key).toEqual(expected);
+      // …and only that field moved.
+      const rest = { ...next };
+      delete rest[field];
+      const before = { ...full };
+      delete before[field];
+      expect(rest, `${key} must touch nothing else`).toEqual(before);
+    }
+    expect(mergePartForm(full, { create_buy_task: false })).toMatchObject({
+      create_buy_task: false,
+      restock_quantity: null,
+    });
+  });
+});

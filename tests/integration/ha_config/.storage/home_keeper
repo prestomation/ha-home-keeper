@@ -15,8 +15,8 @@
         "area_id": null,
         "enabled": true,
         "created": "2026-05-01T09:00:00-04:00",
-        "last_completed": "2026-09-06T12:23:56.616082-04:00",
-        "next_due": "2026-10-06T12:23:56.616082-04:00",
+        "last_completed": "2026-08-28T21:33:26.584760-04:00",
+        "next_due": "2026-09-28T21:33:26.584760-04:00",
         "completions": [
           {
             "ts": "2026-03-01T09:00:00-04:00"
@@ -41,17 +41,14 @@
           {
             "ts": "2026-08-28T21:33:26.584760-04:00",
             "note": "E2E completion dialog regression check"
-          },
-          {
-            "ts": "2026-09-06T12:23:56.616082-04:00",
-            "note": "E2E completion dialog regression check"
           }
         ],
         "labels": [
           "home"
         ],
         "completion_detail": "optional",
-        "completion_required_fields": []
+        "completion_required_fields": [],
+        "skips": []
       },
       "25f086ad-91ce-4ca4-8f05-73b443565479": {
         "id": "25f086ad-91ce-4ca4-8f05-73b443565479",

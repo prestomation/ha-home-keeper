@@ -82,7 +82,8 @@ test.describe('typing a part quantity keeps the field and the drawer where they 
 
     const form = panel.locator('#hk-asset-form');
     await expect(form).toBeVisible();
-    const part = form.locator('.hk-part[data-idx="1"]');
+    // `details`: the custom-fields editor boxes share the class and index.
+    const part = form.locator('details.hk-part[data-idx="1"]');
     await expect(part).toHaveAttribute('open', '');
     await expect(part.getByText('Used per completion', { exact: false })).toHaveCount(0);
 
