@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.22.0b1]
+## [0.22.0b2]
 
 ### Added
 
@@ -14,6 +14,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   notification can use any Material Design icon and an accent color. A Medication
   reminder then shows a pill on the phone while a Batteries reminder shows a battery.
   (Fixes #293)
+
+## [0.22.0b1]
 
 ### Changed
 
