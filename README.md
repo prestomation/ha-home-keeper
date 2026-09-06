@@ -368,7 +368,7 @@ The **move date** button on a history row changes the date of that entry. The
 ## Snooze and skip
 
 Not every occurrence gets done on time, and not every one needs doing at all. **Done**
-carries a caret that opens the other two answers. **Snooze** pushes the due date out and
+has a caret that opens the other two answers. **Snooze** pushes the due date out and
 leaves the schedule alone. **Skip** advances the task to its next occurrence and records
 that this one went by.
 
@@ -386,7 +386,7 @@ Or the parts have not arrived and the reminder can wait a week: snooze it instea
   in miles or hours starts its next interval from the meter's current reading.
 
 A skip is recorded, but it never counts as a completion. It appears in the task's history
-with its own marker, carries a note and whoever decided, and can be edited, re-dated or
+with its own marker, records a note and whoever decided, and can be edited, re-dated or
 undone exactly like a completion row. What it never does is count: the completion tally
 and the average interval both describe work actually done, so a skipped occurrence
 leaves them alone.
@@ -411,7 +411,7 @@ open the same dialogs the panel does.
 
 <img src="docs/images/53-panel-skip-in-history.png" alt="A task's history with a skipped occurrence marked as skipped, sitting between two completions" width="820">
 
-<img src="docs/images/card-skip-snooze-row.png" alt="A dashboard card whose rows carry a snooze and a skip button ahead of the accent Done button" width="330">
+<img src="docs/images/card-skip-snooze-row.png" alt="A dashboard card whose rows show a snooze and a skip button ahead of the accent Done button" width="330">
 
 ## Complete tasks with NFC/RFID tags
 

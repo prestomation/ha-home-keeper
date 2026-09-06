@@ -55,7 +55,7 @@ date.
 A skip is also **recorded**, in a `skips` list of its own beside `completions`. The
 two lists stay deliberately separate. A skip records an occurrence that was passed
 over on purpose, so it never sets `last_completed`, and nothing derived from the
-completion log counts it. `home_keeper_task_skipped` carries the new entry's `ts`.
+completion log counts it. `home_keeper_task_skipped` includes the new entry's `ts`.
 That timestamp is the entry's identity for the `update_skip` / `move_skip` /
 `delete_skip` services, and for the `_skip_updated` / `_skip_removed` events they
 fire.

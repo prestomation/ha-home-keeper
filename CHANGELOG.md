@@ -10,7 +10,7 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **Snooze and Skip are reachable from the panel.** Done carries a caret that opens
+- **Snooze and Skip are reachable from the panel.** Done has a caret that opens
   both, on the task page and on each row of the list. Each entry says what it does to
   the schedule, which is what was unclear about them. (Fixes #268)
 
