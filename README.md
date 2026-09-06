@@ -157,11 +157,19 @@ The panel has the tabs **Tasks**, **Appliances**, and **Settings**.
 On the **Tasks** tab:
 
 - Select a scope pill to filter the list by status.
+- Type in the **Search** box to narrow the list to the tasks that match.
 - Select a saved Profile in the **Profile** picker or a grouping in **Group by**.
 - Press **Add task** to create a task.
 - Press **Edit** on a task to open its form. The form has the groups Basics,
   Schedule, Placement, and Completion. Press **Save** in the header or **Delete** in
   the footer.
+
+The **Search** box matches more than the name of a task. It also reads the notes, the
+attached device, the area and the companion that supplied the task. Every word you type
+must appear somewhere, in any order. Accents are ignored, so `cistic` finds `Čistič`.
+The scope pill counts follow the box, so a pill never promises more than the list shows.
+
+![The Tasks tab with the word filter typed in the Search box, the list narrowed to the tasks that match and the scope pill counts down to match](docs/images/57-panel-task-search.png)
 
 ![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
 
@@ -180,6 +188,11 @@ On the **Appliances** tab, select an appliance to open it. An appliance has the
 sub-tabs **Parts**, **Tasks**, **Documents**, **Details**, **Related**, and
 **History**. Each sub-tab has its own URL, such as
 `/home-keeper/appliances/<id>/documents`. Press **Edit** to open the appliance form.
+
+The same **Search** box narrows the appliance list. It matches the model and the serial
+number as well as the name.
+
+![The Appliances tab with the word water typed in the Search box and the list narrowed to the appliances that match](docs/images/57b-panel-appliance-search.png)
 
 ![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
 

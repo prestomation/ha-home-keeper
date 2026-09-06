@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.21.0b7]
+
+### Added
+
+- **The task list and the appliance list now have a search box.** It matches the name
+  plus other details, such as the model of an appliance or the companion that supplied
+  a task. Home Keeper does not store the text, so every panel load starts with the
+  whole list. (Fixes #297)
+
 ## [0.21.0b6]
 
 ### Fixed

@@ -113,6 +113,16 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   await page.screenshot({ path: `${OUT}/1-panel-task-list.png`, fullPage: true });
 
+  // 57. The text filter, beside the scope pills. Typing narrows the list and the
+  // pills' counts follow it, so what a pill promises stays what the list shows
+  // (#297). Cleared afterwards, since every later shot expects the full list.
+  await panel.locator('.hk-search-input').fill('filter');
+  await expect(panel.locator('#hk-list ha-card.hk-card')).not.toHaveCount(0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/57-panel-task-search.png`, fullPage: true });
+  await panel.locator('.hk-search-clear').click();
+  await expect(panel.locator('.hk-search-input')).toHaveValue('');
+
   // (The Shopping-filter shot lives further down, after the step that actually puts a
   // buy reminder in the store — taken here it only ever captured "No tasks match this
   // filter", which is a picture of nothing.)
@@ -820,6 +830,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#tab-appliances').click();
   await expect(panel.locator('.hk-name').first()).toBeVisible();
   await page.screenshot({ path: `${OUT}/5-panel-appliances-list.png`, fullPage: true });
+
+  // 57b. The same text filter on the Appliances tab. It is one box for both lists, so
+  // a word typed on Tasks is still in it here.
+  await panel.locator('.hk-search-input').fill('water');
+  await expect(panel.locator('#hk-list ha-card.hk-card')).not.toHaveCount(0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/57b-panel-appliance-search.png`, fullPage: true });
+  await panel.locator('.hk-search-clear').click();
+  await expect(panel.locator('.hk-search-input')).toHaveValue('');
 
   // 5c. Tree view — toggle the View control from List to Tree so parent/child
   // indentation is visible (the seed nests the radio shade under the shades).
@@ -1555,10 +1574,29 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
 
+  // 57c. The text filter on a phone. Below 700px the search chip takes a row of its
+  // own under the wrapped scope pills, and its field grows to the width instead of
+  // holding the 16ch it has beside them on a desktop (#297).
+  await panel.locator('.hk-search-input').fill('filter');
+  await expect(panel.locator('#hk-list ha-card.hk-card')).not.toHaveCount(0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/57c-panel-mobile-task-search.png` });
+  await panel.locator('.hk-search-clear').click();
+  await expect(panel.locator('.hk-search-input')).toHaveValue('');
+
   await panel.locator('#mtab-appliances').click();
   await expect(panel.locator('#hk-list')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/53-panel-mobile-appliances.png` });
+
+  // 57d. And on the appliance list, where the row above it holds two segments
+  // rather than one.
+  await panel.locator('.hk-search-input').fill('water');
+  await expect(panel.locator('#hk-list ha-card.hk-card')).not.toHaveCount(0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/57d-panel-mobile-appliance-search.png` });
+  await panel.locator('.hk-search-clear').click();
+  await expect(panel.locator('.hk-search-input')).toHaveValue('');
 
   await panel.locator('#mtab-settings').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();

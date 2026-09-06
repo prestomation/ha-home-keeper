@@ -177,7 +177,7 @@ export function virtualDeviceChip(p: PanelHost, asset: Asset): string {
 /** Wire navigation + brand-logo fallback for every device chip in the tree. Takes no
  *  `PanelHost`: every chip already carries its device id in `data-device-id`, so the
  *  wiring reads the DOM rather than the panel. */
-export function wireDeviceChips(root: ShadowRoot): void {
+export function wireDeviceChips(root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('.hk-device-chip').forEach((chip) => {
     const id = chip.dataset.deviceId;
     // Stop the event from bubbling to an enclosing `.detail-open` card row — without

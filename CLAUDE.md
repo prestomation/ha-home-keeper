@@ -13,7 +13,11 @@ Three gates worth repeating because they are easy to miss:
 - **Every PR that touches the panel UI (`custom_components/home_keeper/frontend/src/`)
   MUST include current screenshots** of the changed surface — captured with the
   Playwright harness, committed under `docs/images/`, and embedded in the PR body
-  (SHA-pinned `raw.githubusercontent.com` URL, HTML `<img>` tag).
+  (SHA-pinned `raw.githubusercontent.com` URL, HTML `<img>` tag). **Both a desktop
+  shot and a phone shot, for every changed surface.** The phone layout below 700px
+  is a different layout, not a narrower one, so a desktop-only shot leaves half the
+  change unreviewed. Add the phone step to the `setViewportSize(PHONE)` block at the
+  end of `screenshots.capture.ts` and name it with a `-mobile-` segment.
 - **Every PR that adds a _new user-facing UI feature_ MUST keep the video walkthrough
   current — but CI captures and posts it; you never commit a video.**
   `walkthrough-preview.yml` runs the `tests/e2e/walkthrough.capture.ts` harness on
