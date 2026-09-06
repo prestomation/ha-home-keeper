@@ -1029,6 +1029,9 @@ function assetRank(task: TaskAssociation, asset: Asset): number {
   if (!dev) return 0;
   if (asset.device_id && dev === asset.device_id) return 2;
   // A related device is a many-to-one link, so it is the weakest claim.
+  // Stryker disable next-line ArrayDeclaration: equivalent — the stand-in the mutator
+  // puts in the empty fallback is not a device id, so `includes` answers false either
+  // way. Only a task whose device_id were that literal string could tell them apart.
   if ((asset.related_device_ids || []).includes(dev)) return 3;
   return 0;
 }
@@ -1062,14 +1065,15 @@ export function tasksForAsset(asset: Asset, tasks: Task[]): Task[] {
  * a live appliance claims the same device.
  */
 export function assetsForTask(task: TaskAssociation, assets: Asset[]): Asset[] {
+  // No index tiebreak: `Array.prototype.sort` is stable, so appliances with an equal
+  // claim keep the order they were given.
   return assets
-    .map((asset, i) => ({ asset, i, rank: assetRank(task, asset) }))
+    .map((asset) => ({ asset, rank: assetRank(task, asset) }))
     .filter((x) => x.rank > 0)
     .sort(
       (a, b) =>
         Number(Boolean(a.asset.archived_at)) - Number(Boolean(b.asset.archived_at)) ||
-        a.rank - b.rank ||
-        a.i - b.i,
+        a.rank - b.rank,
     )
     .map((x) => x.asset);
 }

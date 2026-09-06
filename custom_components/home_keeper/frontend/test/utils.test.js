@@ -846,12 +846,21 @@ describe('assetsForTask / assetForTask', () => {
   });
 
   it('keeps the given order between appliances with the same claim', () => {
-    const first = { id: 'a-first', name: 'First', device_id: 'dev1' };
-    const second = { id: 'a-second', name: 'Second', device_id: 'dev1' };
-    expect(assetsForTask({ id: 't', name: 'x', device_id: 'dev1' }, [first, second]).map((a) => a.id))
-      .toEqual(['a-first', 'a-second']);
-    expect(assetsForTask({ id: 't', name: 'x', device_id: 'dev1' }, [second, first]).map((a) => a.id))
-      .toEqual(['a-second', 'a-first']);
+    // Three, not two: a two-element sort makes a single comparison, which a
+    // symmetric comparator gets right by accident.
+    const same = ['a-first', 'a-second', 'a-third'].map((id) => ({ id, name: id, device_id: 'dev1' }));
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    expect(assetsForTask(task, same).map((a) => a.id))
+      .toEqual(['a-first', 'a-second', 'a-third']);
+    expect(assetsForTask(task, [...same].reverse()).map((a) => a.id))
+      .toEqual(['a-third', 'a-second', 'a-first']);
+  });
+
+  it('belongs to no appliance when the task has no device, whatever the related list holds', () => {
+    // A related list with a hole in it. Without the no-device guard this reaches
+    // `[undefined].includes(undefined)` and claims the task.
+    const holey = { id: 'a-holey', name: 'Holey', related_device_ids: [undefined] };
+    expect(assetForTask({ id: 't', name: 'x' }, [holey])).toBeUndefined();
   });
 
   it('returns nothing for a task with no device and no part link', () => {
