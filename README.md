@@ -1130,6 +1130,8 @@ fields:
   tasks.
 - **Notification channel** and **Urgency**: the delivery settings that the phone
   applies. See [Channels and urgency](#channels-and-urgency).
+- **Notification icon** and **Accent color**: how the notification looks on the
+  phone. See [Icons and colors](#icons-and-colors).
 - **Auto-send**: send the notification when a matching task becomes overdue or
   due soon.
 
@@ -1175,6 +1177,20 @@ settings.
 
 If the channel is empty, the notification arrives on the General channel of the
 companion app.
+
+### Icons and colors
+
+Home Keeper supports a **Notification icon** and an **Accent color** on each
+notification. This is useful when 2 reminders must not look alike. A Medication
+notification can show a pill on the phone while a Batteries notification shows a
+battery.
+
+The icon is a Material Design icon such as `mdi:pill`. On Android it becomes the icon
+in the status bar. An empty field uses the icon of the companion app. Home Keeper
+stores a name that is not in the `mdi:<name>` form as empty. The companion app shows no
+icon for a name that it does not have.
+
+<img src="docs/images/52-panel-notification-icons.png" alt="The Notifications page with an icon and a color on each notification" width="820">
 
 ### Language
 

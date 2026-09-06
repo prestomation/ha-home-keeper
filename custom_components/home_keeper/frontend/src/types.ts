@@ -484,6 +484,14 @@ export interface Notification {
    *  under). Empty means the companion app's own General channel. */
   channel: string;
   urgency: NotifyUrgency;
+  /** An `mdi:<name>` icon for the notification: Android's status bar icon, and the
+   *  sender icon on an iPhone. Empty means the companion app's own icon — which is
+   *  what an unresolvable name gets you too, except silently, so the backend clamps
+   *  anything it cannot parse back to empty. */
+  icon: string;
+  /** An `#rrggbb` accent. Android tints the glyph with it; an iPhone fills the circle
+   *  behind the glyph instead. Empty means the app's own accent. */
+  color: string;
   auto: { overdue: boolean; due_soon: boolean };
 }
 

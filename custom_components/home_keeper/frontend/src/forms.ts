@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import { formatQuantity, recurrenceSummary, round1 } from './utils';
+import { formatQuantity, normalizeIcon, recurrenceSummary, round1 } from './utils';
 import type {
   Asset,
   Companion,
@@ -86,6 +86,7 @@ export const selEntity = (
   entity: { filter, multiple, ...(exclude.length ? { exclude_entities: exclude } : {}) },
 });
 export const selIcon = (): Selector => ({ icon: {} });
+export const selColorRgb = (): Selector => ({ color_rgb: {} });
 export const selSelect = (
   options: { value: string; label: string }[],
   multiple = false,
@@ -1903,6 +1904,31 @@ export function profileFormToProfile(
 }
 
 /**
+ * `#rrggbb` → the `[r, g, b]` triple `color_rgb` renders, or `undefined` for an empty
+ * field. The backend stores hex because that is what the companion app puts on the
+ * wire; the picker speaks RGB, so the two meet here.
+ */
+export function hexToRgb(hex: unknown): [number, number, number] | undefined {
+  const value = String(hex ?? '')
+    .trim()
+    .toLowerCase();
+  if (!/^#[0-9a-f]{6}$/.test(value)) return undefined;
+  return [
+    parseInt(value.slice(1, 3), 16),
+    parseInt(value.slice(3, 5), 16),
+    parseInt(value.slice(5, 7), 16),
+  ];
+}
+
+/** The `[r, g, b]` triple `color_rgb` gives back → `#rrggbb`. Anything else → `''`. */
+export function rgbToHex(value: unknown): string {
+  if (!Array.isArray(value) || value.length !== 3) return '';
+  const parts = value.map((c) => Number(c));
+  if (parts.some((c) => !Number.isInteger(c) || c < 0 || c > 255)) return '';
+  return `#${parts.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
  * The `ha-form` schema for one **notification** (delivery). *targets* is the live
  * `mobile_app_*` list; *profiles* populates the profile dropdown (what tasks to send).
  */
@@ -1926,6 +1952,10 @@ export function notificationSchema(targets: string[], profiles: Profile[]): Form
     // How it lands on the phone, kept together and after the delivery basics.
     { name: 'channel', selector: selText() },
     { name: 'urgency', selector: selSelect(notifyOptions(NOTIFY_URGENCIES)) },
+    // How it *looks*. After the loudness pair, because a channel is fixed on Android
+    // once it exists and these two are not — they are the cheap thing to change.
+    { name: 'icon', selector: selIcon() },
+    { name: 'color', selector: selColorRgb() },
     { name: 'snooze_hours', selector: selNumber(1) },
     { name: 'auto_overdue', selector: selBool() },
     { name: 'auto_due_soon', selector: selBool() },
@@ -1942,6 +1972,8 @@ export function notifyFormData(n: Notification): Record<string, unknown> {
     style: n.style,
     channel: n.channel,
     urgency: n.urgency,
+    icon: n.icon,
+    color: hexToRgb(n.color),
     snooze_hours: n.snooze_hours,
     auto_overdue: n.auto.overdue,
     auto_due_soon: n.auto.due_soon,
@@ -1962,6 +1994,8 @@ export function notifyFormToNotification(
     style: (data.style as NotifyStyle) ?? 'walk',
     channel: String(data.channel ?? '').trim(),
     urgency: (data.urgency as NotifyUrgency) ?? 'normal',
+    icon: normalizeIcon(data.icon),
+    color: rgbToHex(data.color),
     snooze_hours: Number(data.snooze_hours ?? 24) || 24,
     auto: { overdue: !!data.auto_overdue, due_soon: !!data.auto_due_soon },
   };

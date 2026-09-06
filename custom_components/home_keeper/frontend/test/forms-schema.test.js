@@ -7,6 +7,7 @@ import {
   buildTaskPayload,
   duplicateTaskSeed,
   formRecurrenceSummary,
+  hexToRgb,
   mergePartForm,
   metadataBaseSchema,
   metadataDependentSchema,
@@ -25,6 +26,7 @@ import {
   partSummaryLine,
   problemSyncToggleSchema,
   profileSyncSchema,
+  rgbToHex,
   schemaFieldNames,
   selUnit,
   sensorLive,
@@ -583,6 +585,8 @@ describe('notification form round-trip', () => {
     style: 'walk',
     channel: 'Chores',
     urgency: 'high',
+    icon: 'mdi:broom',
+    color: '#43a047',
     snooze_hours: 12,
     auto: { overdue: true, due_soon: false },
   };
@@ -596,6 +600,9 @@ describe('notification form round-trip', () => {
       style: 'walk',
       channel: 'Chores',
       urgency: 'high',
+      icon: 'mdi:broom',
+      // The picker speaks RGB; the store speaks hex. #43a047 is [67, 160, 71].
+      color: [67, 160, 71],
       snooze_hours: 12,
       auto_overdue: true,
       auto_due_soon: false,
@@ -673,6 +680,54 @@ describe('notification form round-trip', () => {
       expect(notifyFormToNotification('n1', { name: 'x', urgency }).urgency).toBe(urgency);
     }
   });
+
+  it('leaves a new notification on no icon and no color', () => {
+    // Same reasoning as the channel pair above: both must be '' and not undefined, or
+    // they drop out of the saved JSON and the backend never sees the field at all.
+    const rebuilt = notifyFormToNotification('n1', { name: 'x' });
+    expect(rebuilt.icon).toBe('');
+    expect(rebuilt.color).toBe('');
+  });
+
+  it('clamps an icon the companion app could not resolve', () => {
+    // A name the app cannot resolve draws nothing at all in the status bar, silently.
+    // Storing '' instead keeps the Home Assistant icon the user already had.
+    expect(notifyFormToNotification('n1', { name: 'x', icon: '  MDI:Pill ' }).icon).toBe('mdi:pill');
+    for (const bad of ['pill', 'mdi:', 'mdi:a b', 'hass:pill', null, 7]) {
+      expect(notifyFormToNotification('n1', { name: 'x', icon: bad }).icon).toBe('');
+    }
+  });
+
+  it('stores the picker color as hex', () => {
+    expect(notifyFormToNotification('n1', { name: 'x', color: [3, 169, 244] }).color).toBe(
+      '#03a9f4',
+    );
+    // Padded, so a dark channel never comes back as a 4-digit string.
+    expect(notifyFormToNotification('n1', { name: 'x', color: [0, 0, 15] }).color).toBe('#00000f');
+    for (const bad of [null, '#03a9f4', [1, 2], [1, 2, 3, 4], [1, 2, 300], [1, 2, -1], ['a', 1, 2]]) {
+      expect(notifyFormToNotification('n1', { name: 'x', color: bad }).color).toBe('');
+    }
+  });
+});
+
+describe('color round-trip', () => {
+  it('survives hex → rgb → hex', () => {
+    for (const hex of ['#000000', '#ffffff', '#03a9f4', '#f9a825', '#43a047']) {
+      expect(rgbToHex(hexToRgb(hex))).toBe(hex);
+    }
+  });
+
+  it('lower-cases and trims on the way in', () => {
+    expect(hexToRgb('  #F9A825 ')).toEqual([249, 168, 37]);
+  });
+
+  it('gives the picker undefined rather than a bad triple', () => {
+    // `color_rgb` renders whatever it is handed. An empty field must clear the swatch,
+    // not paint it black, or a notification with no color looks like one set to #000.
+    for (const bad of ['', null, undefined, '#fff', 'red', '#gggggg', 42]) {
+      expect(hexToRgb(bad)).toBeUndefined();
+    }
+  });
 });
 
 describe('notificationSchema', () => {
@@ -687,6 +742,8 @@ describe('notificationSchema', () => {
       'style',
       'channel',
       'urgency',
+      'icon',
+      'color',
       'snooze_hours',
       'auto_overdue',
       'auto_due_soon',

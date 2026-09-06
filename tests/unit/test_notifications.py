@@ -166,6 +166,44 @@ def test_normalize_notification_clamps_an_unknown_urgency():
         assert n.normalize_notification({"urgency": good})["urgency"] == good
 
 
+def test_normalize_notification_defaults_icon_and_color():
+    notif = n.normalize_notification({"id": "x"})
+    assert notif["icon"] == ""
+    assert notif["color"] == ""
+
+
+def test_normalize_icon_accepts_only_a_real_mdi_name():
+    # A name the companion app cannot resolve draws *nothing* in the status bar, and
+    # says nothing about it. Storing "" instead means the user keeps the Home Assistant
+    # icon they already had, which is a visible fallback rather than a silent blank.
+    assert n.normalize_icon("mdi:pill") == "mdi:pill"
+    assert n.normalize_icon("  MDI:Air-Filter  ") == "mdi:air-filter"
+    for bad in ("", None, 7, "pill", "mdi:", "mdi: ", "hass:pill", "mdi:pill icon"):
+        assert n.normalize_icon(bad) == ""
+
+
+def test_normalize_icon_refuses_a_name_that_could_break_out():
+    # The stored value reaches an `ha-icon` attribute in the panel, and a JSON payload
+    # on the wire. Restricting the character set means neither has to trust it.
+    for hostile in (
+        'mdi:pill" onload="x',
+        "mdi:pill'>",
+        "mdi:pill<script>",
+        "mdi:a b",
+        "mdi:a:b",
+    ):
+        assert n.normalize_icon(hostile) == ""
+
+
+def test_normalize_color_accepts_only_lowercase_six_digit_hex():
+    # One color, one stored spelling: the panel picks from a wheel, so two formats on
+    # the wire would only ever be a source of drift.
+    assert n.normalize_color("#F9A825") == "#f9a825"
+    assert n.normalize_color("  #03a9f4 ") == "#03a9f4"
+    for bad in ("", None, "#fff", "red", "f9a825", "#f9a82", "#f9a8255", "#gggggg"):
+        assert n.normalize_color(bad) == ""
+
+
 def test_split_targets_partitions_by_prefix():
     accepted, rejected = n.split_targets(
         ["mobile_app_phone", "smtp_family", "mobile_app_tablet", "telegram"]
@@ -695,6 +733,101 @@ def test_all_three_builders_carry_channel_and_urgency():
         assert payload["data"]["importance"] == "high"
         assert payload["data"]["push"]["thread-id"] == "Chores"
         assert payload["data"]["push"]["interruption-level"] == "time-sensitive"
+
+
+# ── icon & color (#293) ────────────────────────────────────────────────────
+#
+# Whole-dict assertions again, for the same reason: an icon key with the wrong value is
+# a blank status bar, which "has a notification_icon" cannot tell from a working one.
+
+
+def test_payload_data_icon_alone_adds_one_key():
+    # No color set, so no color keys. `notification_icon_color` means nothing with
+    # no circle to draw the glyph on, and an unasked-for key is one more to explain.
+    notif = n.normalize_notification({"id": "n1", "icon": "mdi:air-filter"})
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "notification_icon": "mdi:air-filter",
+    }
+
+
+def test_payload_data_color_alone_adds_no_glyph_color():
+    # A color with no icon is still meaningful to Android, which tints the app name
+    # with it. It is meaningless to iOS, which has no glyph to draw.
+    notif = n.normalize_notification({"id": "n1", "color": "#f9a825"})
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "color": "#f9a825",
+    }
+
+
+def test_payload_data_icon_and_color_carry_the_glyph_color():
+    notif = n.normalize_notification(
+        {"id": "n1", "icon": "mdi:pill", "color": "#E53935"}
+    )
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "notification_icon": "mdi:pill",
+        "color": "#e53935",
+        "notification_icon_color": "#ffffff",
+    }
+
+
+def test_payload_data_drops_an_unusable_icon_or_color():
+    # `payload_data` re-normalizes rather than trusting its argument, because the
+    # `home_keeper.notify` service spreads a caller's raw overrides over the saved
+    # notification. A typo must reach the phone as *no key*, never as a bad one.
+    notif = {"id": "n1", "icon": "pill", "color": "red"}
+    assert n.payload_data(notif) == {"tag": "home_keeper_n1", "group": "home_keeper"}
+
+
+def test_payload_data_look_and_urgency_do_not_collide():
+    notif = n.normalize_notification(
+        {
+            "id": "n1",
+            "channel": "Medication",
+            "urgency": "high",
+            "icon": "mdi:pill",
+            "color": "#e53935",
+        }
+    )
+    assert n.payload_data(notif) == {
+        "tag": "home_keeper_n1",
+        "group": "home_keeper",
+        "channel": "Medication",
+        "importance": "high",
+        "ttl": 0,
+        "priority": "high",
+        "notification_icon": "mdi:pill",
+        "color": "#e53935",
+        "notification_icon_color": "#ffffff",
+        "push": {
+            "thread-id": "Medication",
+            "interruption-level": "time-sensitive",
+        },
+    }
+
+
+def test_all_three_builders_carry_the_icon_and_color():
+    # Same reasoning as the channel/urgency twin above: a builder that stopped calling
+    # `payload_data` would still pass its own tag assertions.
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification(
+        {"id": "n1", "icon": "mdi:broom", "color": "#43a047", "actions": ["open"]}
+    )
+    t = task("t1", "Furnace filter", dt(2026, 6, 10))
+    payloads = [
+        n.build_notification(t, notification=notif, now=now),
+        n.build_digest([t], notification=notif, now=now),
+        n.build_all_clear(notif),
+    ]
+    for payload in payloads:
+        assert payload["data"]["notification_icon"] == "mdi:broom"
+        assert payload["data"]["color"] == "#43a047"
+        assert payload["data"]["notification_icon_color"] == "#ffffff"
 
 
 # ── translated payload text (#150) ──────────────────────────────────────────

@@ -582,10 +582,10 @@ fails instantly instead of after a long transfer) is mirrored in
 (`tests/unit/test_upload_limit_parity.py`). The backend stays the authority — the
 client check is a fast path, never the enforcement.
 
-### The panel's visual language is a token block, never literal colour
+### The panel's visual language is a token block, never literal color
 - `STYLES` opens with a `:host` block of `--hk-*` tokens (accent/danger/warn/ok,
   surface/page/line/ink, radii, `--hk-tap`). **Every rule reads a token; no rule
-  hard-codes a colour.** Each token resolves to a Home Assistant theme variable, or
+  hard-codes a color.** Each token resolves to a Home Assistant theme variable, or
   to a `color-mix()` off one for the tints HA does not publish (a 12% mix over the
   *surface* darkens with the surface, so it reads correctly in a dark theme too).
   A design comp is drawn in one palette; pasting its hexes breaks dark mode and
@@ -611,7 +611,7 @@ client check is a fast path, never the enforcement.
     other actions, `danger-primary` only on a surface whose whole job is the deletion
     (the confirm scrim, and nowhere else).
   - `tertiary` is `neutral` rather than brand on purpose — `appearance="plain"` alone
-    paints the label in the accent colour at 3.26:1 on a card.
+    paints the label in the accent color at 3.26:1 on a card.
 - Two shared primitives carry the system: `.hk-eyebrow` (uppercase micro-label
   above a group) and `.hk-indent` (a rule down the left of fields that exist only
   because of a choice above them). Reuse them rather than restating the rules.
@@ -649,25 +649,25 @@ client check is a fast path, never the enforcement.
   something `pointer-events` never did.
 
 ### Contrast and affordance are measured, not eyeballed
-- **Colour pairs are checked against rendered pixels, in both themes.** Sample the
-  computed colours through the shadow root and compute the ratio; the light and dark
+- **Color pairs are checked against rendered pixels, in both themes.** Sample the
+  computed colors through the shadow root and compute the ratio; the light and dark
   failures are rarely the same ones. `--hk-accent-fg` on `--hk-accent` is 3.26:1 —
   Home Assistant's own filled-button pairing, and not good enough for a 12px label,
   so selected states use the soft/ink pair plus an edge.
 - **The `*-ink` tokens mix ~58% hue into `--primary-text-color`, not 78%.** At 78%
   the mix barely moves off the hue in light mode, and stays red-on-red in dark. When
-  adding a semantic colour, pair a `*-soft` container with a `*-ink` label — never a
+  adding a semantic color, pair a `*-soft` container with a `*-ink` label — never a
   literal `#fff` over a mid-tone fill (that pairing measured 1.88–1.96:1).
 - **Enclosure means pressable.** A bordered status pill beside a borderless tonal
   button reads as the pill being the control. Status chips carry no outline; the
   row's action carries the ring.
-- **Reach into a Home Assistant component through its `part`, not its colour custom
-  properties.** `ha-button` reads only fill tokens, so the label colour is only
+- **Reach into a Home Assistant component through its `part`, not its color custom
+  properties.** `ha-button` reads only fill tokens, so the label color is only
   reachable as `::part(base)`. HA's tonal label on its own tonal fill measures
   2.85:1, so every tonal button restates it from `--hk-accent-ink` — keyed off
   `[data-hk-weight="secondary"]` rather than a class, so a button cannot opt out of
   the fix by being written somewhere new.
-- **When a semantic colour needs a label, add the `*-ink` to match the `*-soft`.**
+- **When a semantic color needs a label, add the `*-ink` to match the `*-soft`.**
   The `ok` family shipped with a container and no ink, which is why the "Connected"
   chip was still white-on-mid-tone at 3.30:1 after #261 fixed its neighbours.
 
@@ -680,7 +680,7 @@ client check is a fast path, never the enforcement.
   Its `focus()` dereferences a shadow root that may not exist yet immediately after an
   `innerHTML` assignment, and the throw propagates out of `_render()` and skips
   everything after it.
-- **State conveyed by colour needs a text equivalent.** The rail's dots carry
+- **State conveyed by color needs a text equivalent.** The rail's dots carry
   `role="img"` plus a label; the selected filter chip carries `aria-pressed`.
 - **Don't declare a widget role you have not implemented.** The appliance sub-tabs
   and the phone tab bar are navigation between URLs, so they are buttons with
@@ -1298,6 +1298,27 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   Not Disturb override become phone settings, and later payloads cannot change them.
   That is a property of the platform, not a bug to work around — surface it in the
   field's helper text and in the README instead of trying to force a channel update.
+- **When both platforms read a key but render it differently, send one value and let
+  each draw its own native shape.** `icon` and `color` (#293) are the exception to the
+  "each app ignores what it does not know" rule above: `notification_icon` is Android's
+  status bar icon and iOS's *sender* icon, and `color` is Android's accent (the glyph)
+  but iOS's circle *behind* the glyph. Do not try to make the two match. `color` is the
+  only accent Android reads, so pinning it to a neutral to pale the iOS circle costs
+  Android its color outright, and an iOS sender icon is always a filled circle anyway.
+  Per-target branching to send a key to only one platform is also out: it would drag the
+  device registry into a builder that deliberately has no HA imports.
+- **A platform difference that produces a native result on both sides is not
+  documented.** No helper text under the field, no README section comparing the two.
+  The panel *shows* the choice instead — the notification's row in Settings carries its
+  icon as a chip filled with its color (`utils.notifyRowChip`) — and a warning about a
+  difference nobody would notice only makes a non-problem look like one.
+- **An unusable value clamps to `""`, it never passes through.** `normalize_icon` and
+  `normalize_color` repair rather than raise, because `normalize_notification` repairs a
+  stored document. This is not tidiness: the companion app draws *nothing at all* for an
+  icon name it cannot resolve and reports nothing, so a typo that reached the phone would
+  silently cost the user the icon they had. `""` sends no key, which is a visible
+  fallback. Validate at the store, and keep the icon's character set tight enough that
+  the value is safe in an `ha-icon` attribute without escaping saving it.
 
 ## Eagerly-resolved backend text (backend_i18n.py, backend_strings/)
 - `translation_key` (above) is **lazy** — the frontend resolves it to text only when

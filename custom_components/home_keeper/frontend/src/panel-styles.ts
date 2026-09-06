@@ -18,10 +18,10 @@ export const STYLES = `
      rather than a pile of independently-styled sections.
 
      Every token resolves to a Home Assistant theme variable, or to a color-mix
-     off one. Nothing here is a literal colour: the design comp was drawn in HA's
+     off one. Nothing here is a literal color: the design comp was drawn in HA's
      default *light* palette, and hard-coding those hexes would break dark mode
      and every custom theme. The soft/line variants exist because HA publishes a
-     semantic colour but no tint of it, and a 12%-over-surface mix reads the same
+     semantic color but no tint of it, and a 12%-over-surface mix reads the same
      way in both themes (in dark, the surface it mixes into is dark, so the tint
      darkens with it instead of glowing).
 
@@ -494,6 +494,14 @@ export const STYLES = `
     color: inherit; font: inherit; text-align: left;
   }
   .hk-item-header:hover { background: var(--secondary-background-color); }
+  .hk-item-badge { display: flex; flex: 0 0 auto; }
+  /* The notification's icon, filled with its accent. Filled rather than a bare tinted
+     glyph so every color the picker offers stays legible on the card. */
+  .hk-notify-chip {
+    display: grid; place-items: center;
+    width: 26px; height: 26px; border-radius: 6px; color: #fff;
+  }
+  .hk-notify-chip ha-icon { --mdc-icon-size: 17px; display: block; }
   .hk-item-name { flex: 1; font-weight: 500; }
   .hk-item-body {
     padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px;
@@ -532,7 +540,7 @@ export const STYLES = `
     border-radius: 999px; padding: 1px 8px; flex: 0 0 auto;
   }
   /* Autosave status, beside the name of the card that saved. Quiet by default — it
-     reports something the user did not ask about — and only coloured when it needs
+     reports something the user did not ask about — and only colored when it needs
      acting on. It replaces a toast, so it must not take a line of its own or push the
      header around: no background, no border, and it never grows or shrinks. */
   .hk-save-status {
@@ -743,7 +751,7 @@ export const STYLES = `
 
      Qualified with .hk-meter so these beat the generic meter rules further down the
      sheet: on their own they tie on specificity and lose to whichever comes last,
-     which is how the spares bar was drawing in the accent colour instead of saying
+     which is how the spares bar was drawing in the accent color instead of saying
      anything about the stock level. */
   .hk-meter.hk-part-meter { margin: 0; width: 72px; height: 5px; flex: none; }
   .hk-meter.hk-part-meter > span { background: var(--hk-ok); }
@@ -760,7 +768,7 @@ export const STYLES = `
   }
   /* The stock cell as a control: − / amount / unit / +. One pill, sized like the
      chips beside it; the low state takes the same soft-container/ink pairing the
-     Low stock chip did, plus a word, so colour is never the only signal. */
+     Low stock chip did, plus a word, so color is never the only signal. */
   .hk-stock {
     display: inline-flex; align-items: center; height: 30px;
     border: 1px solid var(--hk-line); border-radius: var(--hk-r-pill);
@@ -890,8 +898,8 @@ export const STYLES = `
   /* No outline on a status pill. A tonal Done and an outlined "Monitored" sat side by
      side at the same height and radius, and the one with the border was the one you
      could not press — enclosure now means pressable, and status reads as text.
-     Scoped away from the overdue and shopping chips, which carry a colour of their
-     own, so removing the outline does not also remove what the colour was saying. */
+     Scoped away from the overdue and shopping chips, which carry a color of their
+     own, so removing the outline does not also remove what the color was saying. */
   .hk-status ha-assist-chip { --ha-assist-chip-container-height: 26px; --md-assist-chip-container-height: 26px; }
   .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-shopping) {
     --ha-assist-chip-outline-width: 0px;
@@ -905,7 +913,7 @@ export const STYLES = `
      fill — under the 4.5:1 for text and even the 3:1 for a control — so the label is
      restated from our own accent ink, which measures 6.02:1 on the same fill.
      ha-button exposes its inner button as part "base", and that is the only lever
-     that reaches the label: every colour custom property it reads is a fill token.
+     that reaches the label: every color custom property it reads is a fill token.
      Keyed off the weight rather than a class so a button cannot opt out of it by
      being written somewhere new. */
   [data-hk-weight="secondary"]::part(base) { color: var(--hk-accent-ink); }
@@ -1144,9 +1152,9 @@ export const STYLES = `
      never changes meaning or costs an extra tap.
 
      The caret is an ha-button carrying Done's own weight, so Home Assistant paints
-     both halves from the same rule. Naming a colour here was the earlier mistake: the
+     both halves from the same rule. Naming a color here was the earlier mistake: the
      task page's Done is solid accent while a list row's is a pale tonal, so a wrapper
-     painted with the primary colour matched the first and clashed badly on the second,
+     painted with the primary color matched the first and clashed badly on the second,
      and would clash again under anyone else's theme.
 
      Both halves square off and the pill wrapper rounds the pair by clipping, because
@@ -1155,7 +1163,7 @@ export const STYLES = `
      the overflow that rounds the corners would cut it off.
 
      The seam is drawn from currentColor, which inside a filled button is its label
-     colour — legible against the fill whichever weight the surface uses. */
+     color — legible against the fill whichever weight the surface uses. */
   .hk-split { position: relative; display: inline-flex; }
   .hk-split-pill {
     display: inline-flex; align-items: stretch;
@@ -1279,7 +1287,7 @@ export const STYLES = `
     --mdc-icon-size: 15px; flex: none; color: var(--secondary-text-color);
   }
   .hk-doc-file:hover .hk-doc-ext { color: var(--primary-color); }
-  /* The editor's "Open" action is an anchor (a native navigation), sized and coloured
+  /* The editor's "Open" action is an anchor (a native navigation), sized and colored
      to sit flush with the ha-icon-buttons — Edit, Remove — beside it. */
   .hk-doc-open {
     display: inline-flex; align-items: center; justify-content: center;

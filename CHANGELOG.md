@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.21.0b7]
+
+### Added
+
+- **Give a notification its own icon and color.** In *Settings → Notifications* a
+  notification can use any Material Design icon and an accent color. A Medication
+  reminder then shows a pill on the phone while a Batteries reminder shows a battery.
+  (Fixes #293)
+
 ## [0.21.0b6]
 
 ### Fixed

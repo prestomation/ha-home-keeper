@@ -103,6 +103,22 @@ _WAKE_URGENCIES = (URGENCY_HIGH, URGENCY_CRITICAL)
 # volume because an alert worth overriding the mute switch is worth hearing.
 _IOS_CRITICAL_SOUND = {"name": "default", "critical": 1, "volume": 1.0}
 
+# How a notification *looks*: one Material Design Icon name and one accent color, both
+# stored platform-neutrally the way the urgency ladder above is. Unlike every other key
+# here the two platforms do not merely ignore each other's vocabulary — they render the
+# same value differently, which is documented on :func:`payload_data`.
+#
+# An empty value is not "no icon", it is "the app's own default", so both normalizers
+# clamp anything unusable to ``""`` and ``payload_data`` then omits the key entirely.
+# That matters more than it looks: the companion app draws *nothing at all* for an icon
+# name it cannot resolve, and says nothing about it, so a typo that reached the phone
+# would silently cost the user the Home Assistant icon they had before.
+ICON_PREFIX = "mdi:"
+# iOS only: the glyph drawn on the ``color`` circle. Android never reads this.
+ICON_GLYPH_COLOR = "#ffffff"
+_ICON_NAME = re.compile(r"^[a-z0-9-]+$")
+_HEX_COLOR = re.compile(r"^#[0-9a-f]{6}$")
+
 # Action-string scheme:
 # ``home_keeper::<verb>::<task_id>::<notification_id>::<due_token>``. The action string
 # is the only field reliably echoed back in ``mobile_app_notification_action``, so the
@@ -218,15 +234,52 @@ def split_targets(value: Any) -> tuple[list[str], list[str]]:
     return accepted, rejected
 
 
+def normalize_icon(value: Any) -> str:
+    """Coerce *value* to a stored ``mdi:<name>`` icon, or to ``""``.
+
+    Clamps rather than raises, because :func:`normalize_notification` never rejects a
+    stored document — it repairs one. ``""`` means "the companion app's own icon", which
+    is the safe fallback: a name the app cannot resolve draws nothing at all.
+
+    The name is restricted to the character set Material Design Icons actually uses,
+    so a value that reaches an HTML attribute in the panel, or a JSON payload on the
+    wire, cannot carry a quote, a space, or a colon of its own.
+
+    A non-string is rejected outright rather than coerced: nothing but a string is ever
+    a valid icon, so ``str()`` on one only produces a name that fails the check below.
+    """
+    if not isinstance(value, str):
+        return ""
+    icon = value.strip().lower()
+    if not icon.startswith(ICON_PREFIX):
+        return ""
+    return icon if _ICON_NAME.match(icon[len(ICON_PREFIX) :]) else ""
+
+
+def normalize_color(value: Any) -> str:
+    """Coerce *value* to a stored ``#rrggbb`` accent color, or to ``""``.
+
+    Lower-cased so one color has one stored spelling. A named color such as ``red`` is
+    not accepted: the panel picks from a color wheel, and one format on the wire beats
+    two. ``""`` means the app's own accent. A non-string is rejected for the same reason
+    :func:`normalize_icon` rejects one.
+    """
+    if not isinstance(value, str):
+        return ""
+    color = value.strip().lower()
+    return color if _HEX_COLOR.match(color) else ""
+
+
 def normalize_notification(raw: Any) -> dict[str, Any]:
     """Coerce one raw notification to its stored, fully-defaulted shape.
 
     A notification references a profile (``profile_id``) and carries delivery: an id
     (stable, referenced by action strings), a name, mobile ``targets``, the ordered
     ``actions`` button set (clamped to known verbs, de-duplicated), ``snooze_hours``,
-    ``style`` (walk/digest), ``auto`` triggers, and how it lands on the phone —
+    ``style`` (walk/digest), ``auto`` triggers, how it lands on the phone —
     ``channel`` (the Android notification channel, threading reminders on iOS) and
-    ``urgency`` (clamped to :data:`URGENCIES`).
+    ``urgency`` (clamped to :data:`URGENCIES`) — and how it looks: ``icon`` and
+    ``color``, each clamped to ``""`` when unusable.
     """
     raw = raw if isinstance(raw, dict) else {}
     actions: list[str] = []
@@ -260,6 +313,8 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
         "style": style if style in STYLES else STYLE_WALK,
         "channel": str(raw.get("channel") or "").strip(),
         "urgency": urgency if urgency in URGENCIES else DEFAULT_URGENCY,
+        "icon": normalize_icon(raw.get("icon")),
+        "color": normalize_color(raw.get("color")),
         "auto": {
             "overdue": bool(auto.get("overdue", False)),
             "due_soon": bool(auto.get("due_soon", False)),
@@ -469,6 +524,21 @@ def payload_data(
     fixed when the channel is *created*. Raising the urgency later re-sends the key, but
     the phone keeps the setting the channel already has (only the user can change it, in
     the phone's own settings). Renaming the channel is what starts one over.
+
+    ``icon`` and ``color`` are the one place the "each app ignores what it does not
+    know" rule above does *not* hold. Both platforms read them, and render them
+    differently:
+
+    * ``notification_icon`` is Android's status bar icon. On iOS it is the *sender*
+      icon, which restyles the whole thing as a communication notification.
+    * ``color`` is Android's accent, painting the small icon and the app name in the
+      shade. It never reaches the status bar, which is always monochrome. On iOS it is
+      the circle drawn *behind* the glyph, and ``notification_icon_color`` is the glyph.
+
+    So the accent is the glyph on one platform and the ground on the other. Home Keeper
+    sends one value and lets each phone draw its own native shape rather than force a
+    match, because ``color`` is the only accent Android reads: pinning it to a neutral
+    to make the iOS circle pale would cost Android its color entirely.
     """
     data: dict[str, Any] = {
         "tag": notification_tag(notification["id"]),
@@ -494,6 +564,16 @@ def payload_data(
         data["priority"] = "high"
     if urgency == URGENCY_CRITICAL:
         push["sound"] = dict(_IOS_CRITICAL_SOUND)
+    icon = normalize_icon(notification.get("icon"))
+    color = normalize_color(notification.get("color"))
+    if icon:
+        data["notification_icon"] = icon
+    if color:
+        data["color"] = color
+    if icon and color:
+        # iOS draws the glyph on the ``color`` circle, so this only means something
+        # alongside an icon. Android never reads it.
+        data["notification_icon_color"] = ICON_GLYPH_COLOR
     if push:
         data["push"] = push
     return data

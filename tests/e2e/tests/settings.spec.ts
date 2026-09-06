@@ -71,6 +71,8 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
           snooze_hours: 24,
           channel: 'Medication',
           urgency: 'critical',
+          icon: 'mdi:pill',
+          color: '#e53935',
           auto: { overdue: false, due_soon: false },
         },
       ],
@@ -112,6 +114,28 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
           form.locator('input').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value)),
         )
         .toContain('Medication');
+
+      // The look pair renders too, from the same locale file.
+      await expect(form).toContainText('Notification icon');
+      await expect(form).toContainText('Accent color');
+      // The icon picker and the color swatch are Home Assistant's own selectors, so
+      // what this pins is that the schema reaches them — a mistyped selector name
+      // renders nothing at all and `ha-form` says nothing about it.
+      await expect(form.locator('ha-selector-icon')).toHaveCount(1);
+      // Underscore, not a dash: Home Assistant names the element after the raw
+      // selector key, so `color_rgb` renders as `ha-selector-color_rgb` while `icon`
+      // renders as `ha-selector-icon`.
+      await expect(form.locator('ha-selector-color_rgb')).toHaveCount(1);
+
+      // The row header carries the icon as a chip, filled with the saved color. This
+      // is what makes the collapsed list a legend, so it is asserted on rather than
+      // left to the screenshot: a capture cannot tell a chip from a missing one.
+      const chip = row.locator('> .hk-item-header .hk-notify-chip');
+      await expect(chip).toBeVisible();
+      await expect(chip.locator('ha-icon')).toHaveAttribute('icon', 'mdi:pill');
+      await expect
+        .poll(() => chip.evaluate((el) => getComputedStyle(el).backgroundColor))
+        .toBe('rgb(229, 57, 53)');
 
       // Test sits beside Delete, so the delivery just configured can be checked on the
       // phone rather than waited for. Its pair sits between them and offers whichever

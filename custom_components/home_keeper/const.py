@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.21.0b6"
+PANEL_VERSION = "0.21.0b7"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -191,7 +191,8 @@ OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
 # todo_list.py / todo_list_sync.py for what the sync block drives.
 OPTION_PROFILES = "profiles"
 # Notifications: delivery bindings that reference a profile by ``profile_id`` and add
-# how to deliver (targets, button set, snooze duration, style, automatic triggers).
+# how to deliver (targets, button set, snooze duration, style, automatic triggers), how
+# loudly it lands (channel, urgency) and how it looks (icon, color).
 # Edited from the panel's Settings → Notifications card and the set_options service;
 # consumed by the notify service, the action listener, and the coordinator's automatic
 # source. See notifications.py and docs/PROFILES_REFACTOR_PLAN.md.

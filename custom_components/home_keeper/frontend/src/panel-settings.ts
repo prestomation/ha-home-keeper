@@ -57,6 +57,7 @@ import {
   btnAttrs,
   escapeHTML,
   navigateTo,
+  notifyRowChip,
   setBtnWeight,
   toast,
   type SettingsSection,
@@ -93,7 +94,7 @@ export function settingsSectionList(p: PanelHost): {
   const opts = p._options;
   // The dot was the rail's only indicator and it said everything in hue: green for
   // on, amber for "configured but with nothing to deliver to". A screen reader got
-  // an empty span, and so did anyone who cannot separate the two colours.
+  // an empty span, and so did anyone who cannot separate the two colors.
   const dot = (state: 'on' | 'warn' | 'off'): string =>
     state === 'off'
       ? ''
@@ -660,6 +661,10 @@ function itemCard(o: {
   className: string;
   name: string;
   headerExtra?: HTMLElement;
+  /** Leading badge markup for the header, re-read on every repaint like
+   *  `secondary.state()`. Carried as a builder rather than an element so a row whose
+   *  badge depends on a field the form owns stays correct without a re-render. */
+  badge?: () => string;
   isOpen: () => boolean;
   setOpen: (open: boolean) => void;
   /** *repaint* re-reads `secondary.state()`. A form edit never re-renders the row
@@ -692,6 +697,19 @@ function itemCard(o: {
   const header = document.createElement('button');
   header.className = 'hk-item-header';
   header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+  const badgeSpan = document.createElement('span');
+  let repaintBadge = (): void => {};
+  if (o.badge) {
+    const badge = o.badge;
+    badgeSpan.className = 'hk-item-badge';
+    repaintBadge = (): void => {
+      // Built by `notifyRowChip`, which escapes the icon name and accepts only an
+      // `#rrggbb` color, so nothing stored reaches an attribute unchecked.
+      badgeSpan.innerHTML = badge();
+    };
+    repaintBadge();
+    header.appendChild(badgeSpan);
+  }
   const nameSpan = document.createElement('span');
   nameSpan.className = 'hk-item-name';
   nameSpan.textContent = o.name;
@@ -795,7 +813,10 @@ function itemCard(o: {
       actions.appendChild(del);
     }
   }
-  o.fill(body, nameSpan, repaintActions);
+  o.fill(body, nameSpan, () => {
+    repaintBadge();
+    repaintActions();
+  });
   if (actions.className) body.appendChild(actions);
   card.appendChild(body);
 
@@ -1236,6 +1257,9 @@ function notificationEditor(
   return itemCard({
     className: 'hk-item-card',
     name: notification.name,
+    // Reads `current`, not the argument, so the chip follows the icon picker while the
+    // row is open. Collapsed, it is what makes the list a legend of the whole house.
+    badge: () => notifyRowChip(current.icon, current.color),
     isOpen: () => p._itemExpanded.has(notification.id),
     setOpen: (open) => {
       if (open) p._itemExpanded.add(notification.id);
@@ -1371,6 +1395,8 @@ function addNotification(p: PanelHost): Promise<void> {
     style: 'walk',
     channel: '',
     urgency: 'normal',
+    icon: '',
+    color: '',
     auto: { overdue: false, due_soon: false },
   };
   return persistOptionList(
