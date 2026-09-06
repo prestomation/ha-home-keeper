@@ -1188,9 +1188,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 47d. The Parts tab's own way into the editor: Edit on a row opens the drawer
   // on that part, expanded and scrolled to, with the rest still folded.
   await measuredRow.locator('.hk-part-edit').click();
-  const editedPart = panel.locator('#hk-asset-form .hk-part[data-idx="2"]');
+  const editedPart = panel.locator('#hk-asset-form details.hk-part[data-idx="2"]');
   await expect(editedPart).toHaveAttribute('open', '');
-  await expect(panel.locator('#hk-asset-form .hk-part[open]')).toHaveCount(1);
+  await expect(panel.locator('#hk-asset-form details.hk-part[open]')).toHaveCount(1);
   await page.waitForTimeout(600);
   await shotWithDrawer(page, `${OUT}/47d-panel-part-edit-from-tab.png`);
   await panel.locator('#a-cancel').click();

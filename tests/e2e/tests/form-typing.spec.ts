@@ -87,8 +87,8 @@ test.describe('typing a part quantity keeps the field and the drawer where they 
     await expect(part).toHaveAttribute('open', '');
     await expect(part.getByText('Used per completion', { exact: false })).toHaveCount(0);
 
-    // The Stock box: the first number field in the part's own form.
-    const stock = part.locator('ha-selector-number input').first();
+    // The Stock box: the part's number fields run cost, stock, reorder at.
+    const stock = part.locator('ha-selector-number input').nth(1);
     await stock.click();
     await expect(stock).toBeFocused();
     const scroller = panel.locator('.hk-drawer-sticky');

@@ -613,7 +613,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // 4a6. Edit on a part row opens the drawer on that part alone, folded rows above
   //      and below it — then cancel, and open the editor the usual way for 4b.
   await measuredRow.locator('.hk-part-edit').click();
-  await expect(panel.locator('#hk-asset-form .hk-part[data-idx="2"]')).toHaveAttribute('open', '');
+  await expect(panel.locator('#hk-asset-form details.hk-part[data-idx="2"]')).toHaveAttribute('open', '');
   await page.waitForTimeout(BEAT * 3);
   await panel.locator('#a-cancel').click();
   await expect(panel.locator('#hk-asset-form')).toHaveCount(0);
