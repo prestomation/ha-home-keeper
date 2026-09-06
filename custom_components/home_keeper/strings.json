@@ -347,7 +347,7 @@
     },
     "skip_task": {
       "name": "Skip task",
-      "description": "Advance a task to its next occurrence without recording a completion. The skip is logged separately, so it never counts as a completion.",
+      "description": "Advance a task to its next occurrence without recording a completion. Home Keeper logs the skip separately from the completions, so it is never counted as a completion.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
@@ -355,7 +355,7 @@
         },
         "note": {
           "name": "Note",
-          "description": "Why this occurrence was passed over."
+          "description": "Why this occurrence was skipped."
         },
         "who": {
           "name": "Who",
@@ -826,7 +826,7 @@
     },
     "update_skip": {
       "name": "Update skip",
-      "description": "Amend a recorded skip's detail, identified by its timestamp. The skip keeps its date and the schedule is untouched.",
+      "description": "Amend a recorded skip's detail, identified by its timestamp. The skip keeps its date, and the schedule of the task does not change.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
@@ -838,7 +838,7 @@
         },
         "note": {
           "name": "Note",
-          "description": "Why this occurrence was passed over. An empty value clears it."
+          "description": "Why this occurrence was skipped. An empty value clears it."
         },
         "who": {
           "name": "Who",
@@ -852,7 +852,7 @@
     },
     "delete_skip": {
       "name": "Delete skip",
-      "description": "Remove a recorded skip, identified by its timestamp. Undoing the skip that last reset a usage meter restores that meter.",
+      "description": "Remove a recorded skip, identified by its timestamp. Removal of the skip that last reset a usage meter restores that meter.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
@@ -866,7 +866,7 @@
     },
     "move_skip": {
       "name": "Move skip",
-      "description": "Re-date a recorded skip, identified by its current timestamp. The task's schedule is untouched.",
+      "description": "Re-date a recorded skip, identified by its current timestamp. The date of the skip changes, and the schedule of the task does not.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",

@@ -671,9 +671,8 @@ snooze_task:
     until:
       name: Until
       description: >-
-        Defer the task to this exact date and time instead of a number of hours. Use
-        it for a target a whole number of hours cannot name, such as next Tuesday
-        morning. Setting this leaves Hours unused.
+        Defer the task to this exact date and time instead of a number of hours. If
+        this field is set, Home Keeper does not use Hours.
       selector:
         datetime:
     origin:
@@ -688,11 +687,9 @@ snooze_task:
 skip_task:
   name: Skip task
   description: >-
-    Advance a task to its next occurrence without recording a completion: "skip this
-    one". Floating tasks jump a fresh interval and fixed tasks advance one scheduled
-    occurrence. Other task types (one-off, triggered, or sensor) simply go dormant.
-    The skip is logged in its own history, separate from completions, so it never
-    counts toward the completion tally or the average interval.
+    Advance a task to its next occurrence without recording a completion. Home Keeper
+    logs the skip separately from the completions, so it is never counted as a
+    completion.
   fields:
     task_id:
       name: Task name or ID
@@ -702,7 +699,7 @@ skip_task:
         text:
     note:
       name: Note
-      description: Why this occurrence was passed over.
+      description: Why this occurrence was skipped.
       selector:
         text:
           multiline: true
@@ -714,8 +711,8 @@ skip_task:
     reading:
       name: Meter reading
       description: >-
-        The bound sensor's value at the moment of the skip, for a usage task. Left
-        out, Home Keeper reads the sensor itself.
+        The bound sensor's value at the moment of the skip, for a usage task. If
+        this field is empty, Home Keeper reads the sensor.
       selector:
         number:
           mode: box
@@ -733,8 +730,7 @@ update_skip:
   name: Update skip
   description: >-
     Amend a recorded skip's detail, identified by its timestamp. The skip keeps its
-    date and the task's schedule is untouched. Correcting the meter reading on the
-    most recent skip of a usage task re-anchors its meter.
+    date, and the schedule of the task does not change.
   fields:
     task_id:
       name: Task name or ID
@@ -750,7 +746,7 @@ update_skip:
         text:
     note:
       name: Note
-      description: Why this occurrence was passed over. An empty value clears it.
+      description: Why this occurrence was skipped. An empty value clears it.
       selector:
         text:
           multiline: true
@@ -761,7 +757,9 @@ update_skip:
         text:
     reading:
       name: Meter reading
-      description: The bound sensor's value at the moment of the skip, for a usage task.
+      description: >-
+        The bound sensor's value at the moment of the skip, for a usage task. A
+        correction to the most recent skip re-anchors the meter.
       selector:
         number:
           mode: box
@@ -770,9 +768,8 @@ update_skip:
 delete_skip:
   name: Delete skip
   description: >-
-    Remove a recorded skip, identified by its timestamp. The due date the skip set
-    stays where it is, because the task may have moved on since; undoing the skip
-    that most recently reset a usage meter does restore that meter.
+    Remove a recorded skip, identified by its timestamp. The due date does not
+    change, and removal of the skip that last reset a usage meter restores that meter.
   fields:
     task_id:
       name: Task name or ID
@@ -790,8 +787,8 @@ delete_skip:
 move_skip:
   name: Move skip
   description: >-
-    Re-date a recorded skip, identified by its current timestamp. Unlike Update skip,
-    this changes the skip's date. The task's schedule is untouched.
+    Re-date a recorded skip, identified by its current timestamp. The date of the
+    skip changes, and the schedule of the task does not.
   fields:
     task_id:
       name: Task name or ID
