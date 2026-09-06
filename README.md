@@ -567,10 +567,14 @@ On the task form, select **Based on a sensor** and select the sensor and a mode:
 
 An armed sensor task behaves like any other task. It is on the to-do list and the
 calendar. It sets the device's overdue sensor and fires the
-`home_keeper_task_overdue` event. Before it is armed, a usage task shows the
-remaining usage in the task list, such as "in 7000 miles". A task in any mode
-other than usage is listed as **Monitored**. The `home_keeper.add_task` service
-creates a sensor task with a `sensor` mapping.
+`home_keeper_task_overdue` event.
+
+Before it is armed, a usage task shows the remaining usage in the task list, such as
+"in 7000 miles". A task in any mode other than usage is listed as **Monitored**. Home
+Keeper does not show the Done button on a monitored task until it arms. A usage task
+keeps its Done button while it counts, because a user can complete it early and Home
+Keeper then moves the meter. The `home_keeper.add_task` service creates a sensor task
+with a `sensor` mapping.
 
 ### Hours or months, whichever comes first
 
@@ -1395,7 +1399,8 @@ threshold, state, or availability. The recipe also sets a Jinja template for the
 name and the task notes.
 
 Home Keeper opens one managed task for each entity that matches the recipe. The task
-clears when the condition recovers.
+clears when the condition recovers. A task that a recipe made has an **Edit recipe**
+button on its detail page. The button opens the recipe that made the task.
 
 The *Add from preset* picker offers 2 presets.
 
@@ -1417,6 +1422,8 @@ warning shows above 50 matches. A recipe cannot match more than 500 entities. Se
 ![The two-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](docs/images/21c-panel-declarative-preset-picker.png)
 
 ![The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right](docs/images/21d-panel-declarative-add-dialog.png)
+
+![The page of a task a recipe made, with an Edit recipe button and no Done button while the task is monitored](docs/images/21e-panel-declarative-task-detail.png)
 
 
 

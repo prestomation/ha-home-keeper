@@ -1,6 +1,11 @@
 import { t, tn } from './i18n';
 import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
 
+/** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
+ *  or materializes itself carries it in `managed_by.integration`, which is how the
+ *  panel tells "another integration owns this" from "we do". */
+export const HK_DOMAIN = 'home_keeper';
+
 /** Escape user-provided text before injecting into innerHTML. */
 export function escapeHTML(value: unknown): string {
   return String(value ?? '')
@@ -238,6 +243,40 @@ export function navigateTo(path: string): void {
 /** True when a triggered task is currently armed (due-now) vs dormant. */
 export function isArmedTriggered(task: Task): boolean {
   return task.recurrence_type === 'triggered' && !!task.next_due;
+}
+
+/** The sensor modes that watch a *condition* rather than count a meter — the panel's
+ *  twin of `sensor_tasks.holds_edge_state`. Listed rather than derived by excluding
+ *  `usage`, so a mode added later does not silently join them. */
+const EDGE_SENSOR_MODES: readonly string[] = ['state', 'threshold', 'availability'];
+
+/**
+ * True when a task is watching a condition that has **not** fired — the state every
+ * surface labels "Monitored".
+ *
+ * Two shapes reach it. A dormant `triggered` task, which its owning integration arms.
+ * And a dormant `sensor` task in an edge mode (state / threshold / availability),
+ * which the watcher arms on the next crossing. Neither has work waiting, so neither
+ * offers Done: pressing it wrote a completion and changed nothing else, because
+ * `next_due_after_completion` leaves a sensor task dormant. That is #231 — a Device
+ * Pulse task sat under the Monitored heading with a live Done button.
+ *
+ * A dormant **usage** meter is deliberately not monitored-dormant. It is counting up
+ * to its target, the panel shows that countdown ("in 7000 miles"), and completing it
+ * early is real work that re-anchors the meter (`store._reset_usage_baseline`) — so
+ * the oil change done at 4,500 miles keeps its button.
+ */
+export function isMonitoredDormant(task: Task): boolean {
+  if (task.next_due) return false;
+  if (task.recurrence_type === 'triggered') return true;
+  // The recurrence type decides, not the presence of a binding: a task edited away
+  // from `sensor` can keep a stale `sensor` block, and it is no longer condition-driven.
+  if (task.recurrence_type !== 'sensor') return false;
+  // An absent mode reads as `usage` everywhere else (`models.normalize_sensor`), so
+  // it reads as a meter here too.
+  // Stryker disable next-line StringLiteral: the fallback only has to be a mode that
+  // is not an edge mode, so every string this literal could become answers the same.
+  return EDGE_SENSOR_MODES.includes(task.sensor?.mode ?? 'usage');
 }
 
 /** Round to at most one decimal, dropping a trailing ".0".

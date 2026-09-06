@@ -26,6 +26,7 @@ import {
   isArmedTriggered,
   isBuyTask,
   isHttpUrl,
+  isMonitoredDormant,
   isOverdue,
   isSafeImageUrl,
   meterRemaining,
@@ -291,6 +292,69 @@ describe('isArmedTriggered', () => {
     expect(isArmedTriggered({ recurrence_type: 'floating', next_due: '2026-06-01T00:00:00Z' })).toBe(
       false,
     );
+  });
+});
+
+describe('isMonitoredDormant', () => {
+  const sensor = (mode, rest = {}) => ({
+    recurrence_type: 'sensor',
+    sensor: { entity_id: 'sensor.x', mode },
+    ...rest,
+  });
+
+  it('is true for a dormant triggered task', () => {
+    expect(isMonitoredDormant({ recurrence_type: 'triggered' })).toBe(true);
+    expect(isMonitoredDormant({ recurrence_type: 'triggered', next_due: null })).toBe(true);
+  });
+
+  // #231: a Device Pulse task sat under the Monitored heading with a live Done
+  // button. The three edge modes watch a condition, so a dormant one has no work.
+  it('is true for a dormant sensor task in an edge mode', () => {
+    expect(isMonitoredDormant(sensor('state'))).toBe(true);
+    expect(isMonitoredDormant(sensor('threshold'))).toBe(true);
+    expect(isMonitoredDormant(sensor('availability'))).toBe(true);
+  });
+
+  // A meter is counting up to its target; completing it early is real work that
+  // re-anchors the baseline, so it keeps its Done.
+  it('is false for a dormant usage meter, and for a binding with no mode', () => {
+    expect(isMonitoredDormant(sensor('usage'))).toBe(false);
+    expect(isMonitoredDormant({ recurrence_type: 'sensor', sensor: { entity_id: 'sensor.x' } })).toBe(
+      false,
+    );
+    expect(isMonitoredDormant({ recurrence_type: 'sensor' })).toBe(false);
+  });
+
+  it('is false once the task is armed, whatever its mode', () => {
+    const due = '2026-06-01T00:00:00Z';
+    expect(isMonitoredDormant({ recurrence_type: 'triggered', next_due: due })).toBe(false);
+    expect(isMonitoredDormant(sensor('state', { next_due: due }))).toBe(false);
+    expect(isMonitoredDormant(sensor('availability', { next_due: due }))).toBe(false);
+  });
+
+  it('is false for the clock and one-off shapes, dormant or not', () => {
+    expect(isMonitoredDormant({ recurrence_type: 'floating' })).toBe(false);
+    expect(isMonitoredDormant({ recurrence_type: 'fixed' })).toBe(false);
+    expect(
+      isMonitoredDormant({ recurrence_type: 'one-off', last_completed: '2026-05-01T00:00:00Z' }),
+    ).toBe(false);
+  });
+
+  // The recurrence type decides, not the presence of a binding. A task edited away
+  // from `sensor` can keep a stale block, and it is no longer condition-driven.
+  it('reads the recurrence type, not a leftover sensor block', () => {
+    expect(
+      isMonitoredDormant({
+        recurrence_type: 'floating',
+        sensor: { entity_id: 'sensor.x', mode: 'state' },
+      }),
+    ).toBe(false);
+    expect(
+      isMonitoredDormant({
+        recurrence_type: 'one-off',
+        sensor: { entity_id: 'sensor.x', mode: 'availability' },
+      }),
+    ).toBe(false);
   });
 });
 

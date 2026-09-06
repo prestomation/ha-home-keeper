@@ -29,6 +29,7 @@ import {
   virtualDeviceChip,
   wireDeviceChips,
 } from './panel-chips';
+import { declarativeRecipeFor, openDeclarativeForm } from './panel-declarative';
 import { openConfirmDialog } from './panel-dialogs';
 import { completionGroupsFor, historyBody, setIcon, wireHistory } from './panel-history';
 import { deferMenu, wireSkipHistoryRows } from './panel-defer';
@@ -46,6 +47,7 @@ import { consumableLinkLabel } from './panel-task-form';
 import type { Asset, Part, Task } from './types';
 import {
   ASSET_TABS,
+  HK_DOMAIN,
   areaName,
   assetSummary,
   btnAttrs,
@@ -55,6 +57,7 @@ import {
   formatDate,
   formatDateTime,
   formatQuantity,
+  isMonitoredDormant,
   navigateTo,
   partStockButtonStep,
   partStockStep,
@@ -291,18 +294,41 @@ function taskDetail(p: PanelHost, task: Task): string {
     // Deletion protection only holds while the owner is present. Once orphaned
     // (owner uninstalled/disabled), the Delete button returns so the user can
     // clean the task up — otherwise "delete it from X instead" points nowhere.
+    // A declarative-companion task is materialized by a *recipe* Home Keeper holds
+    // itself, so its `managed_by` names the recipe ("Device Pulse") over Home
+    // Keeper's own config entry. Both captions below read that as a foreign
+    // integration and sent the user nowhere: "Edit in Device Pulse" opened the Home
+    // Keeper integration page, and "Delete from Device Pulse instead" named a place
+    // that does not exist (#231). The recipe's own editor is the honest destination
+    // for both.
+    const recipe = declarativeRecipeFor(p, task);
     const deleteBtn =
       mb?.deletion_protected && !orphaned
-        ? `<span class="hk-managed-info">${escapeHTML(t('managed.deleteBlocked', { name: mb.display_name }))}</span>`
+        ? `<span class="hk-managed-info">${escapeHTML(
+            recipe
+              ? t('managed.deleteFromRecipe', { name: recipe.name })
+              : t('managed.deleteBlocked', { name: mb.display_name }),
+          )}</span>`
         : `<ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
-    // "Edit in X" deep link when config_entry_id resolves to a loaded domain.
-    const domain = mb?.config_entry_id ? p._entryDomains[mb.config_entry_id] : null;
-    const openInBtn = domain && !orphaned
-      ? `<ha-button ${btnAttrs('tertiary')} class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
+    // Edit recipe sits with Edit and Duplicate, at their weight: on this page Delete
+    // is a caption rather than a button, and a tertiary bare-text control alone past
+    // that caption reads as a footnote to it instead of an action of its own.
+    const recipeBtn = recipe
+      ? `<ha-button ${btnAttrs('secondary')} class="d-edit-recipe" data-spec-id="${escapeHTML(
+          recipe.id,
+        )}">${escapeHTML(t('btn.editRecipe'))}</ha-button>`
       : '';
+    // "Edit in X" deep link when config_entry_id resolves to a loaded domain. Home
+    // Keeper's own domain is never that link: the panel the button sits in *is* that
+    // integration's UI, so a task it owns offers its recipe above instead.
+    const domain = mb?.config_entry_id ? p._entryDomains[mb.config_entry_id] : null;
+    const openInBtn =
+      domain && domain !== HK_DOMAIN && !orphaned
+        ? `<ha-button ${btnAttrs('tertiary')} class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
+        : '';
     // Duplicate sits between Edit and Delete: it is a non-destructive sibling of Edit,
     // and putting a benign action past a destructive one reads badly.
-    manage = `${editBtn}${dupBtn}${deleteBtn}${openInBtn}`;
+    manage = `${editBtn}${dupBtn}${recipeBtn}${deleteBtn}${openInBtn}`;
   }
 
   // When orphaned, explain why deletion is now allowed; otherwise show the
@@ -314,24 +340,24 @@ function taskDetail(p: PanelHost, task: Task): string {
         ? `<div class="hk-managed-prompt">${escapeHTML(mb.completion_prompt)}</div>`
         : '';
 
-  const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
+  const monitored = isMonitoredDormant(task);
   const completedOneOff =
     task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-  const due = dormantTriggered
+  const due = monitored
     ? t('due.monitored')
     : completedOneOff
       ? t('form.task.completedOn', { date: formatDateTime(task.last_completed, p._lang()) })
       : task.next_due
         ? formatDateTime(task.next_due, p._lang())
         : t('due.none');
-  // Nothing to mark done while dormant — the integration arms it when the
-  // monitored condition fires (e.g. a battery goes low) — or once a one-off is
-  // already completed. A completion-blocked task (a synced problem sensor) keeps a
-  // *disabled* Done that, on click, explains its source clears it (the managed
-  // completion prompt also shows below).
+  // Nothing to mark done while the task is monitored — its owner or the sensor
+  // watcher arms it when the condition fires (a battery goes low, a device stops
+  // answering) — or once a one-off is already completed. A completion-blocked task
+  // (a synced problem sensor) keeps a *disabled* Done that, on click, explains its
+  // source clears it (the managed completion prompt also shows below).
   // A scan-locked task lands on the same disabled-Done treatment: the tap explains
   // that the tag is the way in.
-  const doneBtn = dormantTriggered || completedOneOff
+  const doneBtn = monitored || completedOneOff
     ? ''
     : mb?.completion_blocked || scanRequired(task)
       ? p._blockedDone('d-done-blocked-wrap', task, 'primary')
@@ -955,6 +981,15 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
       btn.addEventListener('click', () => {
         const domain = btn.dataset.domain;
         if (domain) navigateTo(`/config/integrations/integration/${domain}`);
+      });
+    });
+    // "Edit recipe": open the declarative companion that materialized this task, in
+    // the same dialog Settings → Companions uses. It overlays whatever view is on
+    // screen, so the user edits the recipe without losing the task they were reading.
+    root.querySelectorAll<HTMLElement>('.d-edit-recipe').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const spec = p._declarativeCompanions.find((s) => s.id === btn.dataset.specId);
+        if (spec) void openDeclarativeForm(p, spec);
       });
     });
     return;

@@ -6,6 +6,20 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.21.0b6]
+
+### Fixed
+
+- **A monitored task no longer offers Done.** Pressing Done recorded a completion but
+  did not change the task, because it still waits for its condition. The panel and the
+  card now hide Done while a task is monitored, and a task that counts a meter keeps
+  it. (Fixes #231)
+
+- **A task made by a recipe now opens that recipe.** The task page read the recipe's
+  name as an integration, so its button opened the wrong page and its caption named a
+  place that does not exist. The page now shows an Edit recipe button, and its caption
+  names the recipe to change.
+
 ## [0.21.0b5]
 
 ### Added

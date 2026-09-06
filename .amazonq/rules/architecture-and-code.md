@@ -689,6 +689,28 @@ client check is a fast path, never the enforcement.
 - `tests/e2e/tests/a11y.spec.ts` pins all of the above. The rest of the suite runs at
   desktop width with a mouse and noticed none of it.
 
+### A task's actions say what the task can actually do
+- **A monitored task offers no Done.** `utils.isMonitoredDormant` is the single rule
+  the task page, the task list and the dashboard card all read: a dormant `triggered`
+  task and a dormant `sensor` task in an *edge* mode (`state` / `threshold` /
+  `availability` — the panel's twin of `sensor_tasks.holds_edge_state`) are both
+  waiting on a condition, and completing one writes a history entry and moves nothing,
+  because `recurrence.next_due_after_completion` leaves it dormant. A dormant **usage**
+  meter is the exception and keeps its Done: it is counting towards a target, and an
+  early completion re-anchors the baseline through `store._reset_usage_baseline`. Each
+  of the three surfaces used to spell the rule out for itself, and all three tested only
+  `triggered` — so every declarative-companion task shipped with a Done that did nothing
+  (#231). One predicate, in `utils.ts`, or they drift again.
+- **Home Keeper is never the target of an "Edit in X" deep link.** A task Home Keeper
+  owns carries Home Keeper's own `config_entry_id` in `managed_by`, while
+  `display_name` may name something else entirely — a declarative companion stamps the
+  *recipe's* name there. A caption built from `display_name` alone then points at an
+  integration that does not exist ("Edit in Device Pulse", opening the Home Keeper
+  integration page). Check the resolved domain against `utils.HK_DOMAIN` first, and
+  offer the surface that really owns the task: for a declarative-companion task that is
+  its recipe's editor (`panel-declarative.openDeclarativeForm`, reached through
+  `declarativeRecipeFor`).
+
 ### One `ha-form` per section — and seed each with only its own fields
 - `ha-form` renders its own rows and exposes no slot between them, so **a heading
   between two fields is only reachable by splitting the schema.** The task form

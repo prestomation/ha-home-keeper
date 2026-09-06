@@ -177,6 +177,58 @@ describe('HomeKeeperCard completion guard', () => {
   });
 });
 
+describe('HomeKeeperCard monitored rows (issue #231)', () => {
+  /** Boot a card holding *tasks* and hand back its shadow root once a row paints. */
+  async function rowsFor(tasks) {
+    const card = makeCard();
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) =>
+        msg.type === 'home_keeper/get_tasks' ? { tasks } : {},
+    };
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    return sr(card);
+  }
+
+  const monitored = {
+    id: 'm1',
+    name: 'Check on Hallway Sensor',
+    recurrence_type: 'sensor',
+    sensor: { entity_id: 'binary_sensor.hallway_ping', mode: 'availability' },
+    next_due: null,
+    completions: [],
+  };
+
+  // A dormant edge-mode sensor task is waiting for its condition. Pressing Done
+  // recorded a completion and left the task exactly where it was.
+  it('offers no mark-done on a dormant sensor task watching a condition', async () => {
+    const root = await rowsFor([monitored]);
+
+    expect(root.querySelector('.hk-row')).toBeTruthy();
+    expect(root.querySelector('.hk-done')).toBeNull();
+  });
+
+  it('offers mark-done again once the watcher arms the task', async () => {
+    const root = await rowsFor([{ ...monitored, next_due: new Date().toISOString() }]);
+
+    expect(root.querySelector('.hk-done')).toBeTruthy();
+  });
+
+  // A meter is counting up to its target, and completing it early re-anchors that
+  // meter — real work, so the row keeps its button.
+  it('keeps mark-done on a dormant usage meter', async () => {
+    const root = await rowsFor([
+      {
+        ...monitored,
+        id: 'm2',
+        sensor: { entity_id: 'sensor.pump_hours', mode: 'usage', target: 300, baseline: 0 },
+      },
+    ]);
+
+    expect(root.querySelector('.hk-done')).toBeTruthy();
+  });
+});
+
 describe('HomeKeeperCard document chips', () => {
   // Regression guard for the iOS/WKWebView fix: an uploaded *file* document must render
   // as a plain <a href> with a pre-signed URL (a native tap), NOT a <button> that signs

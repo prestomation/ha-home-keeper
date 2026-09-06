@@ -19,7 +19,7 @@
  *     npx playwright test --config=screenshots-declarative.config.ts
  */
 import { test, expect } from '@playwright/test';
-import { openPanel, openSettingsSection } from './tests/helpers';
+import { callService, listTasks, openPanel, openSettingsSection } from './tests/helpers';
 import { centre } from './shots';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
@@ -95,4 +95,89 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
   // Cancelled, not saved: the capture must leave the seeded store as it found it.
   await addDialog.locator('.hk-decl-cancel').click();
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+});
+
+/**
+ * The page of a task a recipe built (issue #231).
+ *
+ * Its own test, and its own recipe, because it needs a *materialized* task and the
+ * capture above deliberately saves nothing. The recipe is added over the service,
+ * photographed, then deleted — which takes its task with it — so the container is
+ * left exactly as it was found.
+ *
+ * `availability` on the always-present battery flag is the reporter's own case: the
+ * entity is healthy, so the task stays dormant and the page reads Monitored. That is
+ * the state that used to carry a Done button which recorded a completion and moved
+ * nothing.
+ */
+test('capture a declarative-companion task page', async ({ page }) => {
+  const created = await callService(
+    'home_keeper',
+    'add_declarative_companion',
+    {
+      // The recipe's name is the user's own label; this is the one the issue reports.
+      name: 'Device Pulse',
+      selection: { domain: 'binary_sensor', device_class: 'battery' },
+      trigger: { mode: 'availability', for_seconds: 3600, clear_on_recover: true },
+      task_template: { name_template: 'Check on {{ device_name or friendly_name }}' },
+    },
+    true,
+  );
+  const specId = created.companion.id as string;
+
+  try {
+    // The reconciler runs off a dispatched signal, so the task lands shortly after.
+    const mine = async (): Promise<Array<Record<string, any>>> =>
+      (await listTasks()).filter((t) => t.source?.declarative_companion?.spec_id === specId);
+    await expect.poll(async () => (await mine()).length, { timeout: 30_000 }).toBe(1);
+    const taskId = (await mine())[0].id as string;
+
+    await page.goto(`/home-keeper/tasks/${taskId}`, { waitUntil: 'domcontentloaded' });
+    const panel = page.locator('home-keeper-panel').first();
+    // The notes editor carries the same class, so take the task card's own row.
+    const actions = panel.locator('.hk-detail-actions').first();
+    await expect(actions).toBeVisible({ timeout: 45_000 });
+
+    // The three things the fix changed, asserted before the shot so a screenshot of
+    // the wrong state cannot be committed.
+    await expect(actions.locator('.d-edit-recipe')).toBeVisible();
+    await expect(actions.locator('.d-open-in')).toHaveCount(0);
+    await expect(actions.locator('.d-done')).toHaveCount(0);
+    await expect(panel.locator('.hk-detail-card').first()).toContainText('Monitored');
+
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(400);
+    await page.screenshot({
+      path: `${OUT}/21e-panel-declarative-task-detail.png`,
+      fullPage: true,
+    });
+
+    // 21f. Edit recipe opens the recipe itself, over the task page. The dialog is
+    // tall, so give it room and photograph its own surface (same treatment as 21d).
+    await page.setViewportSize({ width: 1280, height: 1800 });
+    await actions.locator('.d-edit-recipe').click();
+    const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+    await expect(dialog.locator('[data-decl-section="identity"]')).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(/Showing \d+ of \d+/, {
+      timeout: 20_000,
+    });
+    await page.waitForTimeout(600);
+    const surface = await dialog.locator('dialog').first().boundingBox();
+    if (!surface) throw new Error('the recipe dialog has no rendered surface to photograph');
+    const pad = 16;
+    await page.screenshot({
+      path: `${OUT}/21f-panel-declarative-recipe-dialog.png`,
+      clip: {
+        x: Math.max(0, surface.x - pad),
+        y: Math.max(0, surface.y - pad),
+        width: surface.width + pad * 2,
+        height: surface.height + pad * 2,
+      },
+    });
+    await dialog.locator('.hk-decl-cancel').click();
+  } finally {
+    await callService('home_keeper', 'delete_declarative_companion', { id: specId });
+  }
 });

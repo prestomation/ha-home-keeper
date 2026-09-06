@@ -153,6 +153,21 @@ export function declarativeSpecId(task: Task): string | undefined {
   return source?.declarative_companion?.spec_id;
 }
 
+/**
+ * The stored recipe *task* was materialized from, or undefined for any other task.
+ *
+ * The task page reads it to answer "where are this task's settings?". A recipe that
+ * is no longer stored returns undefined, so the page falls back to the generic
+ * managed-task captions rather than offering an editor for a recipe that is gone.
+ */
+export function declarativeRecipeFor(
+  p: PanelHost,
+  task: Task,
+): DeclarativeCompanion | undefined {
+  const specId = declarativeSpecId(task);
+  return specId ? p._declarativeCompanions.find((s) => s.id === specId) : undefined;
+}
+
 /** What `declarativeOverlap` found: the recipe that already covers the most of the
  *  draft's matches, and how many of those matches it covers. */
 export interface DeclarativeOverlap {
@@ -320,8 +335,9 @@ async function openPresetPicker(p: PanelHost): Promise<void> {
 }
 
 /** Open the form on a copy of *seed* (a stored recipe, or a preset's default), or
- *  on a blank recipe when null. */
-async function openDeclarativeForm(
+ *  on a blank recipe when null. Exported because a task's own page opens the recipe
+ *  that built it — the dialog host is global, so the form works from any view. */
+export async function openDeclarativeForm(
   p: PanelHost,
   seed: DeclarativeCompanion | null,
 ): Promise<void> {

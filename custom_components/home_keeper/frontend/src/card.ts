@@ -45,6 +45,7 @@ import {
   escapeHTML,
   isBuyTask,
   isHttpUrl,
+  isMonitoredDormant,
   isOverdue,
   labelName,
   navigateTo,
@@ -904,10 +905,10 @@ export class HomeKeeperCard extends HTMLElement {
     const partLink = this._resolvePartLink(task);
     const docs = partLink ? [partLink, ...this._resolveDocuments(task)] : this._resolveDocuments(task);
     const docsHtml = docs.map((d) => this._documentChip(d)).join('');
-    // A dormant triggered task has nothing to complete — its owner arms it; hide the
-    // action. A completion-blocked task (a synced problem sensor) keeps a *disabled*
-    // mark-done that, on tap, explains its source clears it.
-    const dormant = task.recurrence_type === 'triggered' && !task.next_due;
+    // A monitored task has nothing to complete — its owner or the sensor watcher arms
+    // it; hide the action. A completion-blocked task (a synced problem sensor) keeps a
+    // *disabled* mark-done that, on tap, explains its source clears it.
+    const dormant = isMonitoredDormant(task);
     // A completed one-off (do-once, now dormant) is also nothing to complete — hide Done.
     const completedOneOff =
       task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;

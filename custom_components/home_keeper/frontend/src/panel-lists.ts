@@ -44,6 +44,7 @@ import {
   escapeHTML,
   formatDate,
   isBuyTask,
+  isMonitoredDormant,
   isOverdue,
   recurrenceSummary,
   scanRequired,
@@ -231,16 +232,16 @@ function taskCard(p: PanelHost, task: Task): string {
   // from an hour late, where a detail page already shows the date.
   const statusChip = statusChipHtml(task, p._hass, { elapsed: true });
   const n = task.completions?.length ?? 0;
-  // A dormant triggered task (monitored, not due) has nothing to mark done — its
-  // owning integration arms it when the condition fires; hide the action. A
-  // completed one-off is already done, so it too hides Done. A completion-blocked
-  // task (e.g. a synced problem sensor) keeps a *disabled* Done that explains why
-  // on click, rather than silently offering no action.
-  const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
+  // A monitored task (dormant, not due) has nothing to mark done — its owning
+  // integration or the sensor watcher arms it when the condition fires; hide the
+  // action. A completed one-off is already done, so it too hides Done. A
+  // completion-blocked task (e.g. a synced problem sensor) keeps a *disabled* Done
+  // that explains why on click, rather than silently offering no action.
+  const monitored = isMonitoredDormant(task);
   // A scan-locked task keeps a *disabled* Done rather than the auto-clear caption:
   // it is still completable, just not from here, so a greyed button that explains
   // itself on tap is the honest affordance.
-  const doneAction = dormantTriggered || completedOneOff
+  const doneAction = monitored || completedOneOff
     ? ''
     : task.managed_by?.completion_blocked
       ? p._blockedDoneInline(task)
