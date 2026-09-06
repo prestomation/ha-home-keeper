@@ -768,8 +768,8 @@ update_skip:
 delete_skip:
   name: Delete skip
   description: >-
-    Remove a recorded skip, identified by its timestamp. The due date does not
-    change, and removal of the skip that last reset a usage meter restores that meter.
+    Remove a recorded skip, identified by its timestamp. Removal of the skip that
+    last reset a usage meter restores that meter, and the due date is unchanged.
   fields:
     task_id:
       name: Task name or ID
