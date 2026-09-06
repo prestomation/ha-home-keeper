@@ -402,7 +402,7 @@ describe('typing into a part must not rebuild the appliance form (issue #296)', 
     const { panel } = await mountPanel('/appliances/a2', makeHass({ assets: [asset] }));
     (await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'))).click();
     const forms = await waitFor(() => {
-      const all = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form .hk-part ha-form') ?? [])];
+      const all = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form .hk-entry ha-form') ?? [])];
       return all.length ? all : null;
     });
     const base = forms.find((f) => schemaFieldNames(f.schema).includes('label'));

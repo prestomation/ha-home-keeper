@@ -142,11 +142,13 @@ function entryBox(
     onRemove: () => void;
   },
 ): HTMLElement {
+  // `hk-entry`, not `hk-part`: a part row is a `details.hk-part` now, and the suite
+  // finds parts by that class — a custom field wearing it would be counted as one.
   const box = document.createElement('div');
-  box.className = 'hk-part';
+  box.className = 'hk-entry';
   box.dataset.idx = String(i);
   const head = document.createElement('div');
-  head.className = 'hk-part-head';
+  head.className = 'hk-entry-head';
   head.innerHTML = `<span class="label">${escapeHTML(spec.title)}</span>`;
   const del = document.createElement('ha-icon-button');
   del.className = 'part-del';
@@ -234,7 +236,7 @@ function documentSchema(): FormField[] {
  *  only its display name. Save commits, Cancel discards. */
 function renderDocumentEdit(p: PanelHost, inner: HTMLElement, d: AssetDocument): void {
   const box = document.createElement('div');
-  box.className = 'hk-part hk-doc-edit';
+  box.className = 'hk-entry hk-doc-edit';
   const isLink = d.kind === 'link';
   const draft = { name: d.name || '', url: d.kind === 'link' ? d.url ?? '' : '' };
   const schema: FormField[] = isLink ? documentSchema() : [{ name: 'doc_name', selector: selText() }];

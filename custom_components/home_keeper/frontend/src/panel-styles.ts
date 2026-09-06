@@ -569,12 +569,14 @@ export const STYLES = `
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
     text-transform: uppercase; letter-spacing: 0.04em; margin: 20px 0 8px;
   }
-  .hk-part {
+  /* A framed entry in the drawer's editors: a custom field, an inline document
+     edit, and (as a details) a part. */
+  .hk-entry, .hk-part {
     border: 1px solid var(--divider-color); border-radius: 8px;
     padding: 8px 12px 12px; margin-bottom: 10px;
   }
-  .hk-part-head { display: flex; align-items: center; justify-content: space-between; }
-  .hk-part-head .label { font-size: 0.85rem; color: var(--secondary-text-color); }
+  .hk-entry-head { display: flex; align-items: center; justify-content: space-between; }
+  .hk-entry-head .label { font-size: 0.85rem; color: var(--secondary-text-color); }
   /* A part in the editor is a folded row until it is the one being edited: its
      summary names it and says what a reader comes back for (stock, reorder point,
      interval), and only one part is open at a time, so the drawer never grows past
