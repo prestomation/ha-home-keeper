@@ -259,6 +259,7 @@ export const STYLES = `
     --md-assist-chip-label-text-color: var(--hk-warn-ink);
     --ha-assist-chip-label-text-color: var(--hk-warn-ink);
     --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
   /* Shopping reads in the warn family too — the same soft/ink pairing, because a
@@ -280,6 +281,7 @@ export const STYLES = `
     --md-assist-chip-label-text-color: var(--hk-ink-2);
     --ha-assist-chip-label-text-color: var(--hk-ink-2);
     --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
   }
   .hk-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   /* A list row's chips sit a size under the page's: the appliance list reads as
