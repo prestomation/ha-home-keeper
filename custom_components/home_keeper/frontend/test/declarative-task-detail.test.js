@@ -188,6 +188,25 @@ describe('a declarative companion task’s page', () => {
     expect(panel.shadowRoot.querySelector('.d-open-in'), 'Home Keeper is never the link').toBeNull();
   });
 
+  // The deep link is suppressed for Home Keeper's *domain*, not for the recipe
+  // source — so a task Home Keeper owns by some other route gets the same
+  // treatment. Without that, "Edit in Home Keeper" would send the reader from the
+  // panel to the integration page and back again.
+  it('never deep-links to Home Keeper for a task it owns by another route', async () => {
+    const panel = await mountTask([
+      task({
+        id: 'selfowned1',
+        source: null,
+        managed_by: { ...MANAGED_BY, deletion_protected: false },
+      }),
+    ]);
+
+    expect(panel.shadowRoot.querySelector('.d-open-in')).toBeNull();
+    // Not source-owned and not deletion-protected, so this one keeps the ordinary
+    // task actions — the assertion above is about the link, not about them.
+    expect(panel.shadowRoot.querySelector('.d-edit')).toBeTruthy();
+  });
+
   it('hides Done while the task is monitored, and shows it once armed', async () => {
     const dormant = await mountTask([task()]);
     expect(dormant.shadowRoot.querySelector('.d-done'), 'nothing to do yet').toBeNull();
