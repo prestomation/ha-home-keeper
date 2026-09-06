@@ -53,6 +53,18 @@ export const STYLES = `
     --hk-r-btn: 8px;
     --hk-r-pill: 999px;
     --hk-tap: 44px;
+    /* The fixed tracks a wide list row is built on — see the rails block below. They
+       are the tuning knob: widen --hk-chip-col and fewer chips truncate, at the cost
+       of the name column beside it. */
+    --hk-name-col: 356px;
+    --hk-chip-col: 224px;
+    /* mdi:open-in-new, as a mask so it takes the chip's own ink in both themes. */
+    --hk-ext-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7Z'/%3E%3C/svg%3E");
+    --hk-status-col: 148px;
+    /* An appliance row buys no action column, so it spends the width on its chips
+       and lets them wrap inside the track instead of clipping: the rail still lines
+       up and nothing an appliance says about itself is lost. */
+    --hk-chip-col-wide: 300px;
     --hk-shadow-card: 0 1px 3px rgba(0,0,0,.08);
     --hk-shadow-float: 0 4px 18px rgba(0,0,0,.16);
     display: block;
@@ -290,6 +302,20 @@ export const STYLES = `
   .hk-card-row .hk-chips ha-assist-chip { --ha-assist-chip-container-height: 24px; --md-assist-chip-container-height: 24px; }
   .hk-task-chip-link { display: contents; }
   ha-assist-chip.hk-device-chip { cursor: pointer; }
+  /* A device chip has two destinations — the appliance page inside the panel, or the
+     device's own Home Assistant page — and which one it is depends on the surface it
+     sits on. The chips that *leave* the panel carry this mark, so a user knows before
+     the click rather than after it. A wrapper, not a sibling element: wireLists
+     recounts the "+n" label from the child count of .hk-chips-inline, so one chip has
+     to stay one child of it. Not display:contents either — a box is what the mark is
+     drawn on. */
+  .hk-chip-ext { display: inline-flex; align-items: center; position: relative; }
+  .hk-chip-ext::after {
+    content: ''; flex: none; width: 11px; height: 11px;
+    margin-left: 3px; background: var(--hk-ink-2); opacity: 0.75;
+    -webkit-mask: var(--hk-ext-mark) center / contain no-repeat;
+    mask: var(--hk-ext-mark) center / contain no-repeat;
+  }
   .hk-managed-prompt {
     font-size: 0.85rem; color: var(--secondary-text-color);
     background: var(--secondary-background-color);
@@ -299,6 +325,9 @@ export const STYLES = `
     font-size: 0.8rem; color: var(--secondary-text-color);
     margin-top: 4px; font-style: italic; align-self: center;
   }
+  /* On a row it stands where a Done would, so it is held to a button's width and
+     wraps rather than widening the action column past every other row's. */
+  .hk-card-row .hk-managed-info { max-width: 96px; margin-top: 0; line-height: 1.25; }
   .hk-dev-img {
     width: 18px; height: 18px; object-fit: contain; border-radius: 3px;
     --mdc-icon-size: 18px;
@@ -823,8 +852,14 @@ export const STYLES = `
   /* The row's one action sits a size below the page's buttons: every row carries
      one, and a column of full-height pills was most of what made the list tall. */
   .hk-row-task .hk-card-actions ha-button { --ha-button-height: 32px; }
+  /* Every row carries the status rail; only an overdue one colours it. It used to be
+     a border that existed on overdue rows alone, and a border is layout: an overdue
+     row's content began 2px right of every other row's, which put the fixed rails
+     below on two x positions instead of one. Reserved on all rows, it costs nothing
+     and the columns line up exactly. */
+  ha-card.hk-card { border-left: 3px solid transparent; }
   ha-card.hk-card.overdue {
-    border-left: 3px solid var(--hk-danger);
+    border-left-color: var(--hk-danger);
     --ha-card-border-radius: 0 var(--hk-r-row) var(--hk-r-row) 0;
   }
   /* A task row reads left to right: what it is, what qualifies it, how late it is,
@@ -886,6 +921,15 @@ export const STYLES = `
   .hk-chip-more:focus-visible { outline: 2px solid var(--hk-accent); outline-offset: 2px; }
   /* The due/overdue pill sits at the end of the row, next to the action it argues
      for, rather than among the descriptive chips. */
+  /* The appliance row grew a status column of its own, so both lists now say the same
+     three things in the same order: what it is, what qualifies it, what it holds.
+     Before this they were two different objects — one a flex line with a status pill,
+     the other a three-line block. */
+  .hk-card-row.hk-row-asset { flex-wrap: wrap; row-gap: 6px; }
+  .hk-row-asset > .grow { flex: 0 1 auto; }
+  .hk-row-asset .hk-chips { margin-top: 0; flex-wrap: wrap; min-width: 0; }
+  /* A row with nothing in a track keeps no empty box there. */
+  .hk-row-asset .hk-chips:empty, .hk-row-asset .hk-status:empty { display: none; }
   .hk-status { flex: none; display: flex; align-items: center; }
   /* No outline on a status pill. A tonal Done and an outlined "Monitored" sat side by
      side at the same height and radius, and the one with the border was the one you
@@ -893,6 +937,9 @@ export const STYLES = `
      Scoped away from the overdue and shopping chips, which carry a colour of their
      own, so removing the outline does not also remove what the colour was saying. */
   .hk-status ha-assist-chip { --ha-assist-chip-container-height: 26px; --md-assist-chip-container-height: 26px; }
+  /* Same trick the "+n" control uses: a day count is read down the column, and
+     proportional digits make two three-digit counts different widths. */
+  .hk-status ha-assist-chip { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-shopping) {
     --ha-assist-chip-outline-width: 0px;
     --md-assist-chip-outline-width: 0px;
@@ -1083,6 +1130,7 @@ export const STYLES = `
      is marked the way the drawer marks the row it is editing. */
   .hk-master ha-card.hk-card { margin-bottom: 6px; }
   .hk-master .hk-card-row { padding: 10px 12px; gap: 8px; }
+  .hk-master .hk-row-asset > .grow { flex: 1 1 100%; }
   .hk-master ha-card.hk-card.hk-selected {
     border-left: 3px solid var(--hk-accent);
     background: var(--hk-accent-soft);
@@ -1543,8 +1591,73 @@ export const STYLES = `
     /* The spacer pushes Done to the right end of a *single-line* row; a grid has
        its own columns for that. */
     .hk-row-spacer { display: none; }
-    /* Appliance rows keep the wrapping flex layout: they have no status or action. */
-    .hk-card-row:not(.hk-row-task) { flex-wrap: wrap; row-gap: 6px; }
+    /* Appliance rows keep the wrapping flex layout: they have no action, and at this
+       width there is no room for a track beside the name. */
+    .hk-card-row:not(.hk-row-task) { display: flex; flex-wrap: wrap; row-gap: 6px; }
+    .hk-row-asset > .grow { flex: 1 1 100%; }
+    .hk-row-asset .hk-chips, .hk-row-asset .hk-status { flex: 0 1 auto; }
+  }
+
+  /* ── Wide: both lists lay their parts on fixed rails ───────────────────────
+     A row is a grid of fixed tracks rather than a shrink-to-fit flex line, so a chip
+     starts at the same x whatever the name beside it says. Shrink-to-fit put the chip
+     cluster wherever the task name happened to end — 121px of drift over the seeded
+     list — and a column of ragged starts is what made a long list hard to scan.
+
+     The tracks are anchored from the *left*, with the slack falling after the last
+     one, and this is the whole reason the rails hold. A row's action column is sized
+     by what is in it: Done and a caret on most rows, a caret alone where there is
+     nothing to mark done, a caption where the task clears itself. Pack the tracks
+     against the right and that 178px of variation moves every rail with it, which is
+     the ragged list again by another route.
+
+     Gated at the same 1150px the drawer uses, and for the same reason: a media query
+     measures the viewport while the panel gets the viewport minus Home Assistant's
+     ~256px sidebar. Under that the row has no width to spend on tracks and keeps the
+     flex line it has always had. */
+  @media (min-width: 1151px) {
+    .hk-card-row.hk-row-task {
+      display: grid;
+      grid-template-columns:
+        minmax(0, var(--hk-name-col)) var(--hk-chip-col) var(--hk-status-col) auto;
+    }
+    /* The grid has its own columns, so the spacer has no work left. It stays in the
+       DOM — it is what pushes Done right on the flex line below this width, and the
+       phone rules already expect to find it. */
+    .hk-card-row.hk-row-task > .hk-row-spacer { display: none; }
+    /* Left-aligned in its own track rather than right-anchored: a pill is read by
+       where it starts, and "8 days overdue" beside "128 days overdue" only ever
+       agreed on where it ended. */
+    .hk-row-task .hk-status { justify-self: start; }
+    /* The meta line is a summary, so it takes one line and ends in an ellipsis rather
+       than wrapping. Wrapping made a row's height depend on how long its recurrence
+       sentence happened to be, which is the ragged list again in the other axis; the
+       task's page carries the whole line. */
+    .hk-row-task .hk-meta {
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    /* A chip too wide for the track fades out instead of being cut through. It used
+       to clip at the card's edge, where a hard cut reads as the end of the row; mid-row
+       the same cut reads as a broken chip. Nothing is lost either way — the task's
+       page lists every chip in full. */
+    .hk-chips.hk-chips-inline:not(.hk-chips-open) {
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+    }
+    /* The appliance row takes the same rails. It carries no Done, so it spends that
+       width on a wider chip track and wraps inside it rather than truncating: the
+       rail still lines up and nothing an appliance says about itself is lost. */
+    .hk-card-row.hk-row-asset {
+      display: grid;
+      grid-template-columns:
+        minmax(0, var(--hk-name-col)) var(--hk-chip-col-wide) var(--hk-status-col);
+      align-items: center;
+    }
+    /* ...except in the 268px picker pane, which cannot hold three tracks. There the
+       row goes back to a stack, where the chips still start at the card's left
+       padding — the alignment the rails were bought for, at a width with no room for
+       them. */
+    .hk-master .hk-card-row.hk-row-asset { display: flex; }
   }
 
   /* ── Narrow: the drawer becomes a bottom sheet ─────────────────────────────

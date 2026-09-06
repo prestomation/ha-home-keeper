@@ -53,6 +53,8 @@
   "chip.archived": "Arkiverad",
   "chip.autoSynced": "Auto-synkroniserad",
   "chip.autoSynced.tip": "Skapas automatiskt från en sensor. Försvinner av sig själv när sensorn återgår till normalt — kan inte markeras klar här.",
+  "chip.device.appliance.tip": "Öppna den här apparatens Home Keeper-sida.",
+  "chip.device.tip": "Öppna den här enhetens Home Assistant-sida.",
   "chip.lowStock": "Lågt lager",
   "chip.managed": "Hanteras av {name}",
   "chip.nfc": "NFC-tagg",

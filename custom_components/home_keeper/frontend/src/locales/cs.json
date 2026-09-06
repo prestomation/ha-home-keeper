@@ -61,6 +61,8 @@
   "chip.archived": "Archivováno",
   "chip.autoSynced": "Automaticky synchronizováno",
   "chip.autoSynced.tip": "Vytvořeno automaticky ze senzoru. Zmizí samo, jakmile se senzor vrátí do normálu — zde nelze dokončit.",
+  "chip.device.appliance.tip": "Otevřít stránku Home Keeper tohoto spotřebiče.",
+  "chip.device.tip": "Otevřít stránku Home Assistant tohoto zařízení.",
   "chip.lowStock": "Nízká zásoba",
   "chip.managed": "Spravováno integrací {name}",
   "chip.nfc": "NFC štítek",

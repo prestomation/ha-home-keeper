@@ -53,6 +53,8 @@
   "chip.archived": "Archived",
   "chip.autoSynced": "Auto-synced",
   "chip.autoSynced.tip": "Created automatically from a sensor. It clears on its own when the sensor returns to normal. You can't mark it done here.",
+  "chip.device.appliance.tip": "Open this appliance's Home Keeper page.",
+  "chip.device.tip": "Open this device's Home Assistant page.",
   "chip.lowStock": "Low stock",
   "chip.managed": "Managed by {name}",
   "chip.nfc": "NFC tag",

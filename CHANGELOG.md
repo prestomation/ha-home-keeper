@@ -6,6 +6,18 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.21.0b7]
+
+### Changed
+
+- **A task's device chip now opens its appliance instead of the Home Assistant
+  device page.** The appliance list and an appliance's own page still link straight
+  to the device. If no appliance owns the device, a mark on the chip shows that it
+  still opens the device page.
+- **Every task row and appliance row now uses the same columns.** A row's chips
+  begin at the same place down the whole list rather than after the end of its name.
+  The overdue pill begins at the same place too, however many days it shows.
+
 ## [0.21.0b6]
 
 ### Fixed

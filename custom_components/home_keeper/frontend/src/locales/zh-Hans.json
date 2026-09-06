@@ -53,6 +53,8 @@
   "chip.archived": "已归档",
   "chip.autoSynced": "自动同步",
   "chip.autoSynced.tip": "由传感器自动创建。当传感器恢复正常时会自动清除——无法在此标记为完成。",
+  "chip.device.appliance.tip": "打开此电器的 Home Keeper 页面。",
+  "chip.device.tip": "打开此设备的 Home Assistant 页面。",
   "chip.lowStock": "库存不足",
   "chip.managed": "由 {name} 管理",
   "chip.nfc": "NFC 标签",

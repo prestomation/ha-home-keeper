@@ -4,11 +4,13 @@
  *   SHOT_DIR=../../docs/images npx playwright test screenshots-device-link.capture.ts \
  *     --config=screenshots-device-link.config.ts
  *
- * Covers two things the user asked for:
- *  1. The "Virtual device" chip on the Appliances list + appliance detail is now a
+ * Covers the two directions a device chip can point:
+ *  1. On the Appliances list and the appliance detail, the "Virtual device" chip is a
  *     clickable link to the appliance's HA device page (it was a dead chip before).
- *  2. The device chip on a *task* row (showing the appliance name) already links to
- *     the device page — asserted here so we know it works, not just believe it.
+ *  2. On a *task* row the same chip points the other way — into the panel, at the
+ *     appliance the task is about. A device page knows nothing about Home Keeper, so
+ *     it was never the useful answer from a task; the appliance page's own chip is
+ *     the one hop on to the device.
  */
 import { test, expect, Locator } from '@playwright/test';
 import { openPanel } from './tests/helpers';
@@ -46,9 +48,8 @@ test('capture + verify panel→device links', async ({ page }) => {
   // Verify the detail chip actually opens the device page.
   await expectChipOpensDevicePage(page, panel.locator('.hk-detail-title ~ .hk-chips .hk-device-chip').first());
 
-  // 3. Task list — a task on the virtual appliance shows the appliance/device-name
-  // chip; assert it ALSO opens the device page (the user's second ask — verifying it
-  // already works rather than assuming).
+  // 3. Task list — a task on the virtual appliance shows the device-name chip, and
+  // from a task that chip opens the *appliance* page inside the panel.
   await openPanel(page);
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(500);
@@ -58,5 +59,16 @@ test('capture + verify panel→device links', async ({ page }) => {
     .locator(`.hk-card[data-id="${TASK.anode}"] .hk-device-chip`)
     .first();
   await taskChip.scrollIntoViewIfNeeded();
-  await expectChipOpensDevicePage(page, taskChip);
+  await expect(taskChip).toBeVisible();
+  // It stays in the panel, so it carries no leaves-the-panel mark.
+  await expect(
+    panel.locator(`.hk-card[data-id="${TASK.anode}"] .hk-chip-ext .hk-device-chip`),
+  ).toHaveCount(0);
+  await taskChip.click();
+  await page.waitForURL(new RegExp(`/home-keeper/appliances/${ASSET.waterHeater}`), {
+    timeout: 10_000,
+  });
+  // The row opener sits right beside the chip; a click that reached it would land on
+  // the task page instead.
+  expect(page.url()).not.toContain('/home-keeper/tasks/');
 });

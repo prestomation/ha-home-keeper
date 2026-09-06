@@ -49,6 +49,7 @@ import {
   ASSET_TABS,
   HK_DOMAIN,
   areaName,
+  assetForTask,
   assetSummary,
   btnAttrs,
   copyText,
@@ -238,7 +239,12 @@ function historySection(p: PanelHost, kind: 'task' | 'asset', id: string): strin
 
 function taskDetail(p: PanelHost, task: Task): string {
   const statusChip = statusChipHtml(task, p._hass);
-  const dev = task.device_id ? deviceChip(p, task.device_id) : '';
+  // From a task the chip means "the appliance this work is about", so it opens the
+  // appliance page. It falls back to the device page when no appliance claims the
+  // device, and says so with a trailing mark.
+  const dev = task.device_id
+    ? deviceChip(p, task.device_id, assetForTask(task, p._assets)?.id)
+    : '';
   // The task's *effective* area — its own, else its device's — so the page explains
   // which "Group by → Area" section the task lands in. When it's inherited, the
   // device chip sits right beside it and shows where it came from.
@@ -899,7 +905,7 @@ export function wireDetail(p: PanelHost, root: ShadowRoot): boolean {
     wireCopyButtons(p, root);
     if (p._detail.kind !== 'asset') {
       wireDetailOpeners(p, root);
-      wireDeviceChips(root);
+      wireDeviceChips(p, root);
       return true;
     }
   }

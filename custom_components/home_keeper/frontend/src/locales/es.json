@@ -57,6 +57,8 @@
   "chip.archived": "Archivado",
   "chip.autoSynced": "Auto-sincronizado",
   "chip.autoSynced.tip": "Creado automáticamente a partir de un sensor. Se borra solo cuando el sensor vuelve a la normalidad: no se puede completar aquí.",
+  "chip.device.appliance.tip": "Abrir la página de Home Keeper de este electrodoméstico.",
+  "chip.device.tip": "Abrir la página de Home Assistant de este dispositivo.",
   "chip.lowStock": "Pocas existencias",
   "chip.managed": "Gestionada por {name}",
   "chip.nfc": "Etiqueta NFC",

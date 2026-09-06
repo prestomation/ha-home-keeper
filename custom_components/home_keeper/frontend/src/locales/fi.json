@@ -53,6 +53,8 @@
   "chip.archived": "Arkistoitu",
   "chip.autoSynced": "Auto-synkronoitu",
   "chip.autoSynced.tip": "Luotu automaattisesti anturista. Poistuu itsestään, kun anturi palaa normaaliksi — ei voi merkitä valmiiksi täällä.",
+  "chip.device.appliance.tip": "Avaa tämän laitteen Home Keeper -sivu.",
+  "chip.device.tip": "Avaa tämän laitteen Home Assistant -sivu.",
   "chip.lowStock": "Vähissä",
   "chip.managed": "Hallinnoija: {name}",
   "chip.nfc": "NFC-tunniste",

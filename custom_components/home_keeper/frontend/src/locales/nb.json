@@ -53,6 +53,8 @@
   "chip.archived": "Arkivert",
   "chip.autoSynced": "Auto-synkronisert",
   "chip.autoSynced.tip": "Opprettet automatisk fra en sensor. Forsvinner av seg selv når sensoren blir normal igjen — kan ikke merkes som ferdig her.",
+  "chip.device.appliance.tip": "Åpne Home Keeper-siden for dette apparatet.",
+  "chip.device.tip": "Åpne Home Assistant-siden for denne enheten.",
   "chip.lowStock": "Lavt lager",
   "chip.managed": "Administrert av {name}",
   "chip.nfc": "NFC-brikke",
