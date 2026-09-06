@@ -182,6 +182,17 @@
     running, while its two neighbours — identical but for that entity — went through
     untouched. Write attribute text with no entities at all: reword around the
     apostrophe rather than escaping it. Wrapping the tag in `<p>` does not help.
+    **An entity is not the only trigger — the `src` filename can be one, and then
+    only renaming the file clears it.** On #298 the `<img>` for
+    `21f-panel-declarative-recipe-from-task.png` came back backtick-wrapped on
+    `create_pull_request` and on two `update_pull_request` calls, while its neighbour
+    `21e-panel-declarative-task-detail.png` — same tag shape, same alt style, no
+    entities in either — went through clean every time. Reordering the attributes
+    made it worse (the `>` came back as `&gt;` too), and swapping the two images
+    proved the mangling follows the *file*, not the position. Renaming the capture's
+    output to `21f-panel-declarative-recipe-dialog.png` fixed it on the first try. So
+    when re-submitting an unchanged body twice does not clear a mangled `<img>`,
+    rename the PNG in the capture script and re-shoot rather than rewriting the tag.
   - **Always visually inspect every captured screenshot before committing it.** Read
     the PNG file with the Read tool and look at the rendered image. Confirm the
     changed surface is visible and correct — dialogs show their heading and buttons,
