@@ -1420,6 +1420,18 @@ describe('Parts editor — folded rows, and the Parts tab as a way in (issue #29
     expect(rebuilt.scrollTop).toBe(240);
   });
 
+  it('starts at the top when the drawer swaps to another appliance', async () => {
+    const other = { id: 'a2', kind: 'virtual', name: 'Dryer', parts: [] };
+    const panel = await mountPanel(makeHassWith({ assets: [heater, other] }).hass, '/appliances');
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card[data-id="a1"]'));
+    panel._openEditAsset(heater);
+    await waitFor(() => rows(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-drawer-sticky').scrollTop = 240;
+    panel._openEditAsset(other);
+    await waitFor(() => panel.shadowRoot.querySelector('.hk-drawer-sub')?.textContent === 'Dryer');
+    expect(panel.shadowRoot.querySelector('.hk-drawer-sticky').scrollTop).toBe(0);
+  });
+
   it('opens a lone part, and a part just added', async () => {
     const one = { ...heater, parts: [heater.parts[0]] };
     const panel = await mountPanel(makeHassWith({ assets: [one] }).hass, '/appliances/a1');

@@ -1364,6 +1364,20 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     );
   }
 
+  /** What the open drawer is editing, as one comparable key — or null when closed.
+   *  A new object (no id yet) is keyed by its draft, which is the same object for as
+   *  long as that form is up. */
+  private get _drawerSubject(): string | object | null {
+    if (this._view === 'tasks' && this._edit.open) return this._edit.task?.id ?? this._edit.task;
+    if (this._view === 'appliances' && this._assetEdit.open) {
+      return this._assetEdit.asset?.id ?? this._assetEdit.asset;
+    }
+    return null;
+  }
+  // The subject the last render drew the drawer for, so the next one can tell "the
+  // same form, rebuilt" from "a different form" when deciding to keep the scroll.
+  private _renderedDrawerSubject: string | object | null = null;
+
   // ── rendering ───────────────────────────────────────────────────────────────
   _render(): void {
     if (!this.shadowRoot) return;
@@ -1382,8 +1396,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // the drawer asked for itself — Add part, Remove part, an upload landing — used to
     // throw the reader to the top of a form they were halfway down; the position is
     // put back below, before anything paints.
+    // `_drawerSubject` is read *after* the state that opened this render has been
+    // set, so a drawer that swaps to another object (Edit on a second row while one
+    // is open) starts that form at its top rather than wherever the last one was.
     const drawerScroll =
       this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky')?.scrollTop ?? 0;
+    const drawerSubject = this._drawerSubject;
     const onTasks = this._view === 'tasks';
 
     let inner: string;
@@ -1487,10 +1505,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       <div id="hk-dialog-host"></div>
     `;
     this._hydrate();
-    if (drawerScroll) {
+    if (drawerScroll && drawerSubject && drawerSubject === this._renderedDrawerSubject) {
       const scroller = this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky');
       if (scroller) scroller.scrollTop = drawerScroll;
     }
+    this._renderedDrawerSubject = drawerSubject;
     this._restoreFocus(focused);
     this._syncDrawerModality();
   }

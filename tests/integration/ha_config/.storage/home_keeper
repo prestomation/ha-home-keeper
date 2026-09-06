@@ -16,7 +16,7 @@
         "enabled": true,
         "created": "2026-05-01T09:00:00-04:00",
         "last_completed": "2026-08-28T21:33:26.584760-04:00",
-        "next_due": "2026-10-06T13:42:52.847811-04:00",
+        "next_due": "2026-09-28T21:33:26.584760-04:00",
         "completions": [
           {
             "ts": "2026-03-01T09:00:00-04:00"
@@ -47,8 +47,7 @@
           "home"
         ],
         "completion_detail": "optional",
-        "completion_required_fields": [],
-        "skips": []
+        "completion_required_fields": []
       },
       "25f086ad-91ce-4ca4-8f05-73b443565479": {
         "id": "25f086ad-91ce-4ca4-8f05-73b443565479",
@@ -57,7 +56,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "370c2e1656fe3efe01851d45514b42bf",
+        "device_id": "8bd73ec4947e9257112074a41eba3a02",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -81,8 +80,7 @@
           }
         },
         "completion_detail": "none",
-        "completion_required_fields": [],
-        "active_season": null
+        "completion_required_fields": []
       },
       "96e74181-ebe2-4b4c-97d0-781fc952924f": {
         "id": "96e74181-ebe2-4b4c-97d0-781fc952924f",
@@ -93,15 +91,12 @@
         "freq": "DAILY",
         "anchor": "2026-01-01T08:00:00-04:00",
         "device_id": null,
-        "area_id": "living_room",
+        "area_id": null,
         "enabled": true,
         "created": "2026-01-01T08:00:00-04:00",
         "last_completed": null,
         "next_due": "2026-06-14T08:00:00-04:00",
-        "completions": [],
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "active_season": null
+        "completions": []
       },
       "c564261f-48a3-4434-b9ad-7c42a4ccf57a": {
         "id": "c564261f-48a3-4434-b9ad-7c42a4ccf57a",
@@ -135,7 +130,7 @@
         "recurrence_type": "floating",
         "interval": 1,
         "unit": "months",
-        "device_id": "370c2e1656fe3efe01851d45514b42bf",
+        "device_id": "5ff1f1bb41a19a763aa4ab750cd37c97",
         "area_id": null,
         "enabled": true,
         "created": "2026-03-20T12:00:00-04:00",
@@ -171,10 +166,7 @@
             "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
             "entry_id": "56656a41-c3a1-4db7-9adf-d1b0fb9e0c23"
           }
-        ],
-        "active_season": null,
-        "tag_id": null,
-        "require_tag_scan": false
+        ]
       },
       "a5d646cc-ab00-471f-b945-73dda6080ddb": {
         "id": "a5d646cc-ab00-471f-b945-73dda6080ddb",
@@ -305,8 +297,7 @@
         ],
         "completion_detail": "none",
         "completion_required_fields": [],
-        "tag_id": null,
-        "active_season": null
+        "tag_id": null
       },
       "b61a0b0e-6838-46a9-89d5-7090f8b4aa35": {
         "id": "b61a0b0e-6838-46a9-89d5-7090f8b4aa35",
@@ -442,15 +433,14 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "370c2e1656fe3efe01851d45514b42bf",
+        "device_id": "8bd73ec4947e9257112074a41eba3a02",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
         "completion_required_fields": [],
         "interval": 36,
         "unit": "months",
-        "next_due": "2026-06-27T17:47:36.205398-04:00",
-        "active_season": null
+        "next_due": "2026-06-27T17:47:36.205398-04:00"
       },
       "49528fb6-c37d-4ddb-8402-4decc73eecee": {
         "id": "49528fb6-c37d-4ddb-8402-4decc73eecee",
@@ -487,8 +477,7 @@
         "enabled": true,
         "completion_detail": "none",
         "completion_required_fields": [],
-        "next_due": "2026-07-30T10:15:17.888802-04:00",
-        "active_season": null
+        "next_due": "2026-07-30T10:15:17.888802-04:00"
       },
       "14a593d8-07e3-4674-b589-1e27ff21a8ea": {
         "id": "14a593d8-07e3-4674-b589-1e27ff21a8ea",
@@ -550,36 +539,6 @@
         "interval": 3,
         "unit": "months",
         "next_due": "2026-08-28T20:36:48.461809-04:00"
-      },
-      "4dbe4e7c-956f-4dd5-901d-91e1f3a7e460": {
-        "id": "4dbe4e7c-956f-4dd5-901d-91e1f3a7e460",
-        "created": "2026-09-06T13:44:20.846455-04:00",
-        "last_completed": null,
-        "completions": [],
-        "skips": [],
-        "source": {
-          "buy": {
-            "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
-            "part_id": "c91fd864-9e72-4645-9ab7-cdca418bb2bc"
-          }
-        },
-        "managed_by": null,
-        "labels": [],
-        "card_links": [],
-        "task_chips": [],
-        "tag_id": null,
-        "require_tag_scan": false,
-        "name": "Buy Anode rod",
-        "notes": "",
-        "recurrence_type": "one-off",
-        "device_id": "370c2e1656fe3efe01851d45514b42bf",
-        "area_id": null,
-        "enabled": true,
-        "completion_detail": "none",
-        "completion_required_fields": [],
-        "active_season": null,
-        "due": "2026-09-06T13:44:20.846455-04:00",
-        "next_due": "2026-09-06T13:44:20.846455-04:00"
       }
     },
     "assets": {
@@ -587,7 +546,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "370c2e1656fe3efe01851d45514b42bf",
+        "device_id": "8bd73ec4947e9257112074a41eba3a02",
         "identifiers": [
           [
             "home_keeper",
@@ -608,20 +567,15 @@
             "type": "wear",
             "vendor": "Home Depot",
             "cost": 35.0,
-            "url": "",
+            "file_name": "anode-rod-receipt.pdf",
+            "file_content_type": "application/pdf",
+            "file_size": 591,
             "notes": "Torque to **40 Nm**. Needs a 1‑1/16\" socket and a breaker bar.",
             "replace_interval": 12,
             "replace_unit": "months",
             "last_replaced": "2025-05-01",
             "stock": 2,
-            "reorder_at": 2,
-            "stock_unit": "",
-            "consume_quantity": null,
-            "create_buy_task": true,
-            "restock_quantity": 4,
-            "file_name": "anode-rod-receipt.pdf",
-            "file_content_type": "application/pdf",
-            "file_size": 591
+            "reorder_at": 2
           },
           {
             "id": "11a79824-31d5-4ccc-b5b9-12104ff7e327",
@@ -630,20 +584,12 @@
             "type": "wear",
             "vendor": "Home Depot",
             "cost": 18.0,
-            "url": "",
             "notes": "",
             "replace_interval": 36,
             "replace_unit": "months",
             "last_replaced": null,
             "stock": null,
-            "reorder_at": null,
-            "stock_unit": "",
-            "consume_quantity": null,
-            "create_buy_task": false,
-            "restock_quantity": null,
-            "file_name": null,
-            "file_content_type": null,
-            "file_size": null
+            "reorder_at": null
           },
           {
             "id": "ae2b576d-67f4-4d4b-9aaf-d0bcebc5953b",
@@ -660,12 +606,7 @@
             "stock": 750,
             "reorder_at": 500,
             "stock_unit": "ml",
-            "consume_quantity": 250,
-            "create_buy_task": false,
-            "restock_quantity": null,
-            "file_name": null,
-            "file_content_type": null,
-            "file_size": null
+            "consume_quantity": 250
           },
           {
             "id": "f8319a3a-c717-48c2-a53e-79a205fb4a48",
@@ -680,14 +621,7 @@
             "replace_unit": null,
             "last_replaced": null,
             "stock": 4,
-            "reorder_at": 1,
-            "stock_unit": "",
-            "consume_quantity": null,
-            "create_buy_task": false,
-            "restock_quantity": null,
-            "file_name": null,
-            "file_content_type": null,
-            "file_size": null
+            "reorder_at": 1
           }
         ],
         "parent_asset_id": null,
@@ -750,37 +684,28 @@
             "value": "Garage corner, behind the shelving"
           },
           {
-            "id": "4f3ed25f-795d-42b3-865c-afaee7edcb98",
             "type": "link",
             "label": "Reorder filter",
-            "value": "https://example.com/reorder-water-filter"
+            "value": "https://example.com/reorder-water-filter",
+            "id": "4f3ed25f-795d-42b3-865c-afaee7edcb98"
           }
         ],
         "documents": [
           {
             "id": "d1d75bd3-9830-431d-a7b2-cf0ab97c1d3f",
             "kind": "link",
-            "created": "",
+            "name": "Owner's manual",
             "url": "https://example.com/water-heater-manual",
-            "name": "Owner's manual"
+            "created": ""
           },
           {
             "id": "56656a41-c3a1-4db7-9adf-d1b0fb9e0c23",
             "kind": "file",
+            "name": "Installation guide (PDF)",
             "created": "",
-            "size": 605,
             "filename": "manual.pdf",
             "content_type": "application/pdf",
-            "name": "Installation guide (PDF)"
-          },
-          {
-            "id": "f6c7f363-fdc6-4d53-9af4-ed67fd087051",
-            "kind": "file",
-            "created": "2026-09-06T13:44:08.098167-04:00",
-            "size": 2097168,
-            "filename": "water-heater-manual.pdf",
-            "content_type": "application/pdf",
-            "name": "water-heater-manual.pdf"
+            "size": 605
           }
         ],
         "serial_number": "RH-2021-0099823",
@@ -790,7 +715,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "1067f207579379af1d810fa7815de6f6",
+        "device_id": "949cc478c2c1de22b6502da9228eb343",
         "identifiers": [
           [
             "home_keeper",
@@ -815,7 +740,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "30df06b4d33a435154dedf2dcf97a4fe",
+        "device_id": "e074eadf852156936f534ed2a35b9d9f",
         "identifiers": [
           [
             "home_keeper",
@@ -835,119 +760,12 @@
         "metadata": [],
         "documents": [],
         "notes": ""
-      },
-      "1939b840-f3d7-4f30-90d1-0febb7829d09": {
-        "id": "1939b840-f3d7-4f30-90d1-0febb7829d09",
-        "created": "2026-09-06T13:43:47.659568-04:00",
-        "device_id": "1f3518c8bde767c34d5c367d7e1ca70a",
-        "identifiers": [
-          [
-            "home_keeper",
-            "asset_1939b840-f3d7-4f30-90d1-0febb7829d09"
-          ]
-        ],
-        "connections": [],
-        "kind": "virtual",
-        "area_id": null,
-        "name": "Old chest freezer",
-        "parent_asset_id": null,
-        "manufacturer": "",
-        "model": "",
-        "serial_number": "",
-        "notes": "",
-        "documents": [],
-        "icon": "",
-        "metadata": [],
-        "cost": null,
-        "parts": [],
-        "related_device_ids": [],
-        "archived_at": "2026-09-06T17:43:48.566156+00:00"
       }
     },
     "problem_notes": {
       "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer."
     },
-    "shopping_items": {
-      "e8d76383-4067-415c-975f-2ee73f475fa1:c91fd864-9e72-4645-9ab7-cdca418bb2bc": {
-        "entity_id": "todo.shopping_list",
-        "summary": "Buy Anode rod (×4)",
-        "uid": "95b952243b7d4641ae0788e03a7a718d"
-      }
-    },
-    "declarative_companions": {},
-    "todo_list_items": {
-      "demo_me:10561eb5-1ab5-4151-aa8e-5f6269a0c28a": {
-        "entity_id": "todo.family_chores",
-        "uid": "99e94ea8-aa1a-11f1-b40f-666baba90357",
-        "summary": "Replace furnace filter",
-        "due": "2026-08-28",
-        "last_completed": null,
-        "added_at": null
-      },
-      "demo_me:21720ccd-21e3-4171-abc7-639ec6ee00f4": {
-        "entity_id": "todo.family_chores",
-        "uid": "99ebd358-aa1a-11f1-b40f-666baba90357",
-        "summary": "Replace battery: Front door sensor",
-        "due": "2026-06-11",
-        "last_completed": "2025-04-02T09:00:00-04:00",
-        "added_at": null
-      },
-      "demo_me:25f086ad-91ce-4ca4-8f05-73b443565479": {
-        "entity_id": "todo.family_chores",
-        "uid": "99ecaa76-aa1a-11f1-b40f-666baba90357",
-        "summary": "Replace Anode rod (Garage water heater)",
-        "due": "2026-05-01",
-        "last_completed": "2025-05-01T10:00:00-04:00",
-        "added_at": null
-      },
-      "demo_me:8ad982ca-e5f9-4f53-bebd-93a05e078844": {
-        "entity_id": "todo.family_chores",
-        "uid": "99ed2a1e-aa1a-11f1-b40f-666baba90357",
-        "summary": "Rex: Vet checkup",
-        "due": "2026-07-10",
-        "last_completed": "2026-01-10T09:00:00-04:00",
-        "added_at": null
-      },
-      "demo_me:96e74181-ebe2-4b4c-97d0-781fc952924f": {
-        "entity_id": "todo.family_chores",
-        "uid": "99ee17b2-aa1a-11f1-b40f-666baba90357",
-        "summary": "Take medicine",
-        "due": "2026-06-14",
-        "last_completed": null,
-        "added_at": null
-      },
-      "demo_me:a5d646cc-ab00-471f-b945-73dda6080ddb": {
-        "entity_id": "todo.family_chores",
-        "uid": "99ee98d6-aa1a-11f1-b40f-666baba90357",
-        "summary": "Buddy: Medicine",
-        "due": "2026-06-22",
-        "last_completed": "2026-06-08T08:00:00-04:00",
-        "added_at": null
-      },
-      "demo_me:acb13a18-979a-4812-8a00-2e4a426df8db": {
-        "entity_id": "todo.family_chores",
-        "uid": "99ef22c4-aa1a-11f1-b40f-666baba90357",
-        "summary": "Replace water filter",
-        "due": "2026-05-20",
-        "last_completed": "2026-04-20T12:00:00-04:00",
-        "added_at": null
-      },
-      "demo_me:cfc844bd-e9de-4efe-84b3-5f4417d186c9": {
-        "entity_id": "todo.family_chores",
-        "uid": "99f02034-aa1a-11f1-b40f-666baba90357",
-        "summary": "Replace T&P relief valve (Garage water heater)",
-        "due": "2026-06-27",
-        "last_completed": null,
-        "added_at": null
-      },
-      "demo_me:e0eaf3f3-ab51-4a8e-a9c7-71d0c6001160": {
-        "entity_id": "todo.family_chores",
-        "uid": "99f120ba-aa1a-11f1-b40f-666baba90357",
-        "summary": "Renew passport",
-        "due": "2026-07-15",
-        "last_completed": null,
-        "added_at": null
-      }
-    }
+    "shopping_items": {},
+    "todo_list_items": {}
   }
 }
