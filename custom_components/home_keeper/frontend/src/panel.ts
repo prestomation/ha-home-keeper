@@ -1895,7 +1895,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
     // Card actions: the row opens the detail page; tasks keep a quick "Done".
     wireDetailOpeners(this, root);
-    wireDeviceChips(root);
+    wireDeviceChips(this, root);
   }
 
   /**

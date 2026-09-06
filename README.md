@@ -163,6 +163,9 @@ On the **Tasks** tab:
 - Press **Edit** on a task to open its form. The form has the groups Basics,
   Schedule, Placement, and Completion. Press **Save** in the header or **Delete** in
   the footer.
+- Select a task's device chip to open its appliance. The appliance list and an
+  appliance's own page link straight to the Home Assistant device instead. A mark on
+  the chip shows when it opens the device page.
 
 The **Search** box matches more than the name of a task. It also reads the notes, the
 attached device, the area and the companion that supplied the task. Every word you type

@@ -47,6 +47,8 @@ import {
   sortedCompletions,
   statusChipHtml,
   taskRecordsReading,
+  assetForTask,
+  assetsForTask,
   taskRelatesToAsset,
   tasksForAsset,
   toast,
@@ -801,6 +803,77 @@ describe('taskRelatesToAsset / tasksForAsset', () => {
       { id: 'c', name: 'c', source: { part: { asset_id: 'asset1', part_id: 'p' } } },
     ];
     expect(tasksForAsset(asset, tasks).map((t) => t.id)).toEqual(['a', 'c']);
+  });
+});
+
+describe('assetsForTask / assetForTask', () => {
+  // Three appliances that all have a claim on dev1, from weakest to strongest, in an
+  // order that no accidental "first match wins" could get right.
+  const related = { id: 'a-related', name: 'Related', related_device_ids: ['dev1'] };
+  const owner = { id: 'a-owner', name: 'Owner', device_id: 'dev1' };
+  const partOwner = { id: 'a-part', name: 'Part owner', device_id: 'dev9' };
+  const all = [related, owner, partOwner];
+
+  it('ranks the appliance whose part the task is above the one that owns its device', () => {
+    const task = {
+      id: 't',
+      name: 'x',
+      device_id: 'dev1',
+      source: { part: { asset_id: 'a-part', part_id: 'p' } },
+    };
+    expect(assetsForTask(task, all).map((a) => a.id)).toEqual(['a-part', 'a-owner', 'a-related']);
+    expect(assetForTask(task, all).id).toBe('a-part');
+  });
+
+  it('ranks the device owner above an appliance that only lists it as related', () => {
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    expect(assetsForTask(task, all).map((a) => a.id)).toEqual(['a-owner', 'a-related']);
+    expect(assetForTask(task, all).id).toBe('a-owner');
+  });
+
+  it('falls to the related appliance when nothing owns the device', () => {
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    expect(assetForTask(task, [related]).id).toBe('a-related');
+  });
+
+  it('puts an archived appliance behind a live one that claims the same device', () => {
+    const archived = { id: 'a-old', name: 'Old', device_id: 'dev1', archived_at: '2026-01-01' };
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    // Archived first in the array, so only the ranking can put the live one first.
+    expect(assetsForTask(task, [archived, owner]).map((a) => a.id)).toEqual(['a-owner', 'a-old']);
+    // ...and it is still the answer when it is the only appliance that claims it.
+    expect(assetForTask(task, [archived]).id).toBe('a-old');
+  });
+
+  it('keeps the given order between appliances with the same claim', () => {
+    // Three, not two: a two-element sort makes a single comparison, which a
+    // symmetric comparator gets right by accident.
+    const same = ['a-first', 'a-second', 'a-third'].map((id) => ({ id, name: id, device_id: 'dev1' }));
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    expect(assetsForTask(task, same).map((a) => a.id))
+      .toEqual(['a-first', 'a-second', 'a-third']);
+    expect(assetsForTask(task, [...same].reverse()).map((a) => a.id))
+      .toEqual(['a-third', 'a-second', 'a-first']);
+  });
+
+  it('belongs to no appliance when the task has no device, whatever the related list holds', () => {
+    // A related list with a hole in it. Without the no-device guard this reaches
+    // `[undefined].includes(undefined)` and claims the task.
+    const holey = { id: 'a-holey', name: 'Holey', related_device_ids: [undefined] };
+    expect(assetForTask({ id: 't', name: 'x' }, [holey])).toBeUndefined();
+  });
+
+  it('returns nothing for a task with no device and no part link', () => {
+    expect(assetsForTask({ id: 't', name: 'x' }, all)).toEqual([]);
+    expect(assetForTask({ id: 't', name: 'x' }, all)).toBeUndefined();
+    expect(assetForTask({ id: 't', name: 'x', device_id: 'unknown' }, all)).toBeUndefined();
+  });
+
+  it('agrees with taskRelatesToAsset about what counts as related', () => {
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    const matched = assetsForTask(task, all).map((a) => a.id);
+    expect(all.filter((a) => taskRelatesToAsset(task, a)).map((a) => a.id).sort())
+      .toEqual([...matched].sort());
   });
 });
 

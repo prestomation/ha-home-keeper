@@ -1010,20 +1010,82 @@ export function completionStats(completions?: { ts: string }[]): CompletionStats
 }
 
 /**
+ * The only two fields that decide which appliance a task belongs to. Narrower than
+ * `Task` on purpose, so the task form can ask the same question of a half-filled
+ * draft rather than keeping a second copy of the rule.
+ */
+export type TaskAssociation = Pick<Task, 'device_id' | 'source'>;
+
+/**
+ * How strongly a task is associated with an appliance: 1 is the strongest link
+ * and 0 means none. `taskRelatesToAsset` is this predicate's boolean face and
+ * `assetsForTask` is its ordering, so the two can never disagree about what
+ * counts as related.
+ */
+function assetRank(task: TaskAssociation, asset: Asset): number {
+  // The task exists *because* of this appliance's part. Nothing beats that.
+  if (task.source?.part?.asset_id === asset.id) return 1;
+  const dev = task.device_id;
+  if (!dev) return 0;
+  if (asset.device_id && dev === asset.device_id) return 2;
+  // A related device is a many-to-one link, so it is the weakest claim.
+  // Stryker disable next-line ArrayDeclaration: equivalent — the stand-in the mutator
+  // puts in the empty fallback is not a device id, so `includes` answers false either
+  // way. Only a task whose device_id were that literal string could tell them apart.
+  if ((asset.related_device_ids || []).includes(dev)) return 3;
+  return 0;
+}
+
+/**
  * True when a task is associated with an appliance — mirrors the backend's
  * `assets.task_relates_to_asset` so the panel can group history client-side.
  */
 export function taskRelatesToAsset(task: Task, asset: Asset): boolean {
-  if (task.source?.part?.asset_id === asset.id) return true;
-  const dev = task.device_id;
-  if (!dev) return false;
-  if (asset.device_id && dev === asset.device_id) return true;
-  return (asset.related_device_ids || []).includes(dev);
+  return assetRank(task, asset) > 0;
 }
 
 /** Every loaded task associated with an appliance. */
 export function tasksForAsset(asset: Asset, tasks: Task[]): Task[] {
   return tasks.filter((task) => taskRelatesToAsset(task, asset));
+}
+
+/**
+ * Every appliance a task is associated with, strongest association first — the
+ * inverse of `tasksForAsset`. A device can be claimed by more than one appliance
+ * (a related device is a many-to-one link), so the order is what decides which
+ * one a single-destination surface picks.
+ *
+ * Ranked, strongest first:
+ *   1. the appliance whose *part* the task is (`source.part.asset_id`) — the task
+ *      exists because of that appliance, so nothing beats it;
+ *   2. the appliance the device belongs to (`asset.device_id`);
+ *   3. an appliance that merely lists the device as related.
+ * An archived appliance always ranks below a live one at the same strength: it is
+ * still the right answer when it is the only one, and never the right answer when
+ * a live appliance claims the same device.
+ */
+export function assetsForTask(task: TaskAssociation, assets: Asset[]): Asset[] {
+  // No index tiebreak: `Array.prototype.sort` is stable, so appliances with an equal
+  // claim keep the order they were given.
+  return assets
+    .map((asset) => ({ asset, rank: assetRank(task, asset) }))
+    .filter((x) => x.rank > 0)
+    .sort(
+      (a, b) =>
+        Number(Boolean(a.asset.archived_at)) - Number(Boolean(b.asset.archived_at)) ||
+        a.rank - b.rank,
+    )
+    .map((x) => x.asset);
+}
+
+/**
+ * The one appliance a task is about, or `undefined` when none claims it. What a
+ * task's device chip opens, and what the task form scopes its consumable picker
+ * to — one ranking, so the two cannot disagree about which appliance a task
+ * belongs to.
+ */
+export function assetForTask(task: TaskAssociation, assets: Asset[]): Asset | undefined {
+  return assetsForTask(task, assets)[0];
 }
 
 /** Compact one-line summary of an asset's notable metadata for the card. */
