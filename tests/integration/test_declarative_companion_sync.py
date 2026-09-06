@@ -319,12 +319,14 @@ def test_a_state_recipe_materializes_one_managed_task_per_matching_entity(ha, sp
     assert task["sensor"]["clear_on_recover"] is True
 
     # Ownership: Home Keeper made it, the reconciler rewrites these fields, and a
-    # user may complete it but may not delete it.
+    # user may neither delete nor complete it. This recipe clears on recover, so
+    # Home Keeper owns the completion and the panel greys Done with a reason.
     managed_by = task["managed_by"]
     assert managed_by["integration"] == "home_keeper"
     assert managed_by["display_name"] == "Water tank"
     assert managed_by["deletion_protected"] is True
-    assert managed_by["completion_blocked"] is False
+    assert managed_by["completion_blocked"] is True
+    assert "Water tank" in managed_by["completion_prompt"]
     assert "name" in managed_by["locked_fields"]
 
     # Born dormant: the tank is fine, so there is nothing to do yet.
@@ -425,6 +427,10 @@ def test_a_device_backed_recipe_arms_on_a_condition_that_is_already_true(ha, spe
         "the whole point of this test is the device-backed reload path; "
         "without a device the reconciler never reloads"
     )
+    # The other half of the completion contract: this recipe does not clear on
+    # recover, so nothing else will ever close the task and Done stays the user's.
+    assert task["managed_by"]["completion_blocked"] is False
+    assert "completion_prompt" not in task["managed_by"]
 
     armed = _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
     assert armed["id"] == task["id"], "arming must not replace the task"
