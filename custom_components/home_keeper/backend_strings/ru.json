@@ -13,5 +13,6 @@
   "declarative_preset.device_pulse.name": "Device Pulse",
   "declarative_preset.device_pulse.description": "Наблюдает за индивидуальными пинг-датчиками устройств вашей интеграции Device Pulse и открывает задачу для каждого устройства, которое не отвечает на пинги более часа. Требует интеграции Device Pulse.",
   "declarative_preset.firmware_update_available.name": "Доступно обновление прошивки",
-  "declarative_preset.firmware_update_available.description": "Наблюдает за каждой сущностью обновления (UniFi, ESPHome, HACS, камеры, принтеры и т. д.) и открывает задачу для установки новой версии."
+  "declarative_preset.firmware_update_available.description": "Наблюдает за каждой сущностью обновления (UniFi, ESPHome, HACS, камеры, принтеры и т. д.) и открывает задачу для установки новой версии.",
+  "declarative_task.completion_prompt": "Открыта рецептом «{name}». Home Keeper автоматически завершает эту задачу, когда условие исчезает, поэтому её нельзя завершить вручную."
 }

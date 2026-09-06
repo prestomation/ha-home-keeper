@@ -501,7 +501,8 @@ def test_reconcile_creates_missing_tasks():
     assert created["next_due"] is None
     assert created["source"]["declarative_companion"]["spec_id"] == spec["id"]
     assert created["managed_by"]["deletion_protected"] is True
-    assert created["managed_by"]["completion_blocked"] is False
+    # The fixture's trigger sets clear_on_recover, so the recipe owns the clear.
+    assert created["managed_by"]["completion_blocked"] is True
 
 
 def test_reconcile_deletes_orphaned_tasks():
@@ -604,14 +605,18 @@ def test_reconcile_created_task_has_full_source_and_managed_by_shape():
         "entity_registry_id": m["entity_registry_id"],
         "entity_id": "sensor.hub_total_failed_pings",
     }
+    # The fixture spec sets ``clear_on_recover``, so the recipe owns the whole
+    # lifecycle and Done is withheld — see the completion-ownership tests below.
     assert created["managed_by"] == {
         "integration": "home_keeper",
         "display_name": spec["name"],
         "config_entry_id": ENTRY,
         "deletion_protected": True,
         "locked_fields": ["name", "recurrence_type", "device_id", "area_id", "sensor"],
-        "completion_blocked": False,
+        "completion_blocked": True,
+        "completion_prompt": created["managed_by"]["completion_prompt"],
     }
+    assert spec["name"] in created["managed_by"]["completion_prompt"]
 
 
 def test_reconcile_rerun_with_same_inputs_reports_no_change():
@@ -757,3 +762,66 @@ def test_firmware_has_no_integration_gate():
         presets.preset_by_id("firmware_update_available")["requires_integration"]
         is None
     )
+
+
+# --- Completion ownership (#231 follow-up) ----------------------------------
+#
+# A recipe whose trigger sets ``clear_on_recover`` owns its tasks' whole
+# lifecycle: the watcher arms on the crossing and completes on the recovery. A
+# hand-pressed Done on such a task is worse than a no-op — ``_evaluate_edge``
+# will not re-arm while the condition merely stays true, so completing an
+# "Update available" task dismisses a firmware update that is still pending, and
+# nothing brings it back until that update is installed and a different one
+# appears. ``completion_blocked`` is what tells the panel, the card, the to-do
+# list and the notification builder to withhold Done.
+#
+# A recipe *without* ``clear_on_recover`` is the opposite case: pressing Done is
+# the only way its task ever clears, so blocking it would strand the task.
+
+
+def test_managed_by_blocks_completion_when_the_recipe_auto_clears():
+    spec = dc.normalize_declarative_companion(_spec())
+
+    managed_by = dc.build_managed_by(spec, ENTRY)
+
+    assert managed_by["completion_blocked"] is True
+    assert managed_by["completion_prompt"]
+    assert spec["name"] in managed_by["completion_prompt"]
+
+
+def test_managed_by_keeps_completion_when_the_recipe_does_not_auto_clear():
+    spec = dc.normalize_declarative_companion(
+        _spec(
+            trigger={
+                "mode": "threshold",
+                "comparison": ">",
+                "value": 0,
+                "clear_on_recover": False,
+            }
+        )
+    )
+
+    managed_by = dc.build_managed_by(spec, ENTRY)
+
+    assert managed_by["completion_blocked"] is False
+    assert "completion_prompt" not in managed_by
+
+
+def test_managed_by_keeps_completion_for_a_usage_meter():
+    # A meter has no condition to recover from; completing it re-anchors the
+    # baseline, which is the whole point of the mode.
+    spec = dc.normalize_declarative_companion(
+        _spec(trigger={"mode": "usage", "target": 300})
+    )
+
+    managed_by = dc.build_managed_by(spec, ENTRY)
+
+    assert managed_by["completion_blocked"] is False
+
+
+def test_every_auto_clearing_preset_blocks_completion():
+    # Both shipped presets set clear_on_recover, so neither should offer Done.
+    for preset in presets.CATALOG_PRESETS:
+        spec = dc.normalize_declarative_companion(dict(preset["default_spec"]))
+        managed_by = dc.build_managed_by(spec, ENTRY)
+        assert managed_by["completion_blocked"] is True, preset["id"]

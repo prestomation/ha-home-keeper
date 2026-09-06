@@ -13,5 +13,6 @@
   "declarative_preset.device_pulse.name": "Device Pulse",
   "declarative_preset.device_pulse.description": "Bewaakt de ping-sensoren per apparaat van je Device Pulse-integratie en opent een taak voor elk apparaat dat langer dan een uur pings mist. Vereist de Device Pulse-integratie.",
   "declarative_preset.firmware_update_available.name": "Firmware-update beschikbaar",
-  "declarative_preset.firmware_update_available.description": "Bewaakt elke update-entiteit (UniFi, ESPHome, HACS, camera's, printers enz.) en opent een taak om de nieuwe versie te installeren."
+  "declarative_preset.firmware_update_available.description": "Bewaakt elke update-entiteit (UniFi, ESPHome, HACS, camera's, printers enz.) en opent een taak om de nieuwe versie te installeren.",
+  "declarative_task.completion_prompt": "Geopend door het recept „{name}“. Home Keeper rondt deze taak automatisch af zodra de conditie verdwijnt, dus kan de taak niet handmatig worden afgevinkt."
 }

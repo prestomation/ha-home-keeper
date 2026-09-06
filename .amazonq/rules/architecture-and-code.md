@@ -701,6 +701,28 @@ client check is a fast path, never the enforcement.
   of the three surfaces used to spell the rule out for itself, and all three tested only
   `triggered` — so every declarative-companion task shipped with a Done that did nothing
   (#231). One predicate, in `utils.ts`, or they drift again.
+- **`clear_on_recover` decides who may press Done.** It is not only a watcher
+  setting: it says who owns the task's whole lifecycle, so
+  `declarative_companions.build_managed_by` reads it straight into
+  `completion_blocked`. Set, the recipe owns both ends — the watcher arms on the
+  crossing and completes on the recovery — and a hand-pressed Done is worse than a
+  no-op, because `sensor_tasks._evaluate_edge` will not re-arm while the condition
+  merely stays true: completing "Update available" dismisses a firmware update that
+  is still pending, and nothing brings it back until that update is installed and a
+  *different* one appears (#231). Clear, nothing else ever clears the task, so Done
+  has to stay — that covers a `usage` meter, where completing early re-anchors the
+  baseline. One flag reaches every surface: the panel, the card, `todo_list.py` and
+  `notifications.is_completion_blocked` all read it, so a task that cannot be
+  completed by hand offers no Done anywhere, including on a phone notification.
+- **A task a reconciler owns is source-owned, and `sourceOwnedTask` is the list.**
+  A declarative companion joins the wear part and the problem sensor there: its
+  reconciler rewrites name, device, area and the sensor binding from the recipe on
+  every pass, so the task's own Edit dialog is a form whose Save the next pass
+  undoes, and Duplicate mints an unmanaged lookalike that drifts. Withhold both, and
+  offer the surface that really owns those values instead — for a recipe's task,
+  **Edit recipe**. A source-owned task with somewhere to send the user must always
+  name it: the generic "kept in step with its source" caption leaves the reader
+  hunting for which source when the page already knows.
 - **Home Keeper is never the target of an "Edit in X" deep link.** A task Home Keeper
   owns carries Home Keeper's own `config_entry_id` in `managed_by`, while
   `display_name` may name something else entirely — a declarative companion stamps the

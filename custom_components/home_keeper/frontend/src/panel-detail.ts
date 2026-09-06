@@ -272,6 +272,24 @@ function taskDetail(p: PanelHost, task: Task): string {
   const dupBtn = p._canDuplicate(task)
     ? `<ha-button ${btnAttrs('secondary')} class="d-dup">${escapeHTML(t('btn.duplicate'))}</ha-button>`
     : p._blockedDuplicate(task);
+  // A declarative-companion task is materialized by a *recipe* Home Keeper holds
+  // itself, so its `managed_by` names the recipe ("Device Pulse") over Home
+  // Keeper's own config entry. The captions below read that as a foreign
+  // integration and sent the user nowhere: "Edit in Device Pulse" opened the Home
+  // Keeper integration page, and "Delete from Device Pulse instead" named a place
+  // that does not exist (#231). The recipe's own editor is the honest destination.
+  //
+  // It is also the *only* editor such a task has. The recipe owns name, device,
+  // area and the sensor binding and rewrites all four on every reconcile pass, so
+  // the task is source-owned and its own Edit dialog would be a form whose Save the
+  // next pass undoes. Built outside the `sourceOwned` branch below for that reason:
+  // it is the one action that survives when Edit and Delete do not.
+  const recipe = declarativeRecipeFor(p, task);
+  const recipeBtn = recipe
+    ? `<ha-button ${btnAttrs('secondary')} class="d-edit-recipe" data-spec-id="${escapeHTML(
+        recipe.id,
+      )}">${escapeHTML(t('btn.editRecipe'))}</ha-button>`
+    : '';
   // Say why Edit and Delete are missing rather than just omitting them. Withholding
   // both silently left a wear-part task's page reading "<task name> / Done" and
   // nothing else, which looks like a surface that forgot to render — the managed
@@ -281,27 +299,27 @@ function taskDetail(p: PanelHost, task: Task): string {
   // its owner's own `completion_prompt` ("Synced from binary_sensor.x — it clears
   // when the originating integration resolves it"), which says the same thing with
   // the specifics; adding a generic line above it would just be saying it twice.
+  //
+  // A recipe's task names the recipe rather than taking the generic line: "kept in
+  // step with its source" leaves the reader hunting for which source, when the page
+  // already knows and the button beside it opens exactly that.
   let manage =
     sourceOwned && !mb?.completion_prompt
-      ? `<span class="hk-managed-info">${escapeHTML(t('managed.sourceOwned'))}</span>`
+      ? `<span class="hk-managed-info">${escapeHTML(
+          recipe
+            ? t('managed.deleteFromRecipe', { name: recipe.name })
+            : t('managed.sourceOwned'),
+        )}</span>`
       : '';
   // A source-owned task offers no Edit and no Delete, but it still gets the greyed
   // Duplicate: "you can't copy this either, and here is why" is information the
   // sourceOwned caption above doesn't carry.
-  manage = `${dupBtn}${manage}`;
+  manage = `${dupBtn}${recipeBtn}${manage}`;
   if (!sourceOwned) {
     const editBtn = `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
     // Deletion protection only holds while the owner is present. Once orphaned
     // (owner uninstalled/disabled), the Delete button returns so the user can
     // clean the task up — otherwise "delete it from X instead" points nowhere.
-    // A declarative-companion task is materialized by a *recipe* Home Keeper holds
-    // itself, so its `managed_by` names the recipe ("Device Pulse") over Home
-    // Keeper's own config entry. Both captions below read that as a foreign
-    // integration and sent the user nowhere: "Edit in Device Pulse" opened the Home
-    // Keeper integration page, and "Delete from Device Pulse instead" named a place
-    // that does not exist (#231). The recipe's own editor is the honest destination
-    // for both.
-    const recipe = declarativeRecipeFor(p, task);
     const deleteBtn =
       mb?.deletion_protected && !orphaned
         ? `<span class="hk-managed-info">${escapeHTML(
@@ -310,14 +328,6 @@ function taskDetail(p: PanelHost, task: Task): string {
               : t('managed.deleteBlocked', { name: mb.display_name }),
           )}</span>`
         : `<ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
-    // Edit recipe sits with Edit and Duplicate, at their weight: on this page Delete
-    // is a caption rather than a button, and a tertiary bare-text control alone past
-    // that caption reads as a footnote to it instead of an action of its own.
-    const recipeBtn = recipe
-      ? `<ha-button ${btnAttrs('secondary')} class="d-edit-recipe" data-spec-id="${escapeHTML(
-          recipe.id,
-        )}">${escapeHTML(t('btn.editRecipe'))}</ha-button>`
-      : '';
     // "Edit in X" deep link when config_entry_id resolves to a loaded domain. Home
     // Keeper's own domain is never that link: the panel the button sits in *is* that
     // integration's UI, so a task it owns offers its recipe above instead.

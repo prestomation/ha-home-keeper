@@ -160,6 +160,14 @@ export interface Task {
   source?: {
     part?: { asset_id: string; part_id: string; manual?: boolean };
     problem_sensor?: { entity_id: string };
+    // The recipe a declarative companion materialized this task from. `spec_id` is
+    // the dedupe key the reconciler owns; the panel reads it to find the recipe and
+    // offer its editor in place of the task's own (see `panel-declarative.ts`).
+    declarative_companion?: {
+      spec_id: string;
+      entity_registry_id?: string;
+      entity_id?: string;
+    };
     buy?: { asset_id: string; part_id: string };
   } | null;
   // Well-known ownership block that Home Keeper inspects. See docs/INTEGRATING.md §6.

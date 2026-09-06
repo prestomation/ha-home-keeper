@@ -13,5 +13,6 @@
   "declarative_preset.device_pulse.name": "Device Pulse",
   "declarative_preset.device_pulse.description": "监控你的 Device Pulse 集成中每台设备的 ping 传感器，并为每台连续 ping 失败超过一小时的设备开启任务。需要 Device Pulse 集成。",
   "declarative_preset.firmware_update_available.name": "固件更新可用",
-  "declarative_preset.firmware_update_available.description": "监控每个更新实体（UniFi、ESPHome、HACS、摄像头、打印机等），并开启一个安装新版本的任务。"
+  "declarative_preset.firmware_update_available.description": "监控每个更新实体（UniFi、ESPHome、HACS、摄像头、打印机等），并开启一个安装新版本的任务。",
+  "declarative_task.completion_prompt": "由配方“{name}”开启。条件消失时，Home Keeper 会自动完成此任务，因此无法手动完成。"
 }

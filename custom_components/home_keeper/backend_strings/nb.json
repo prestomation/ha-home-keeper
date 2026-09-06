@@ -13,5 +13,6 @@
   "declarative_preset.device_pulse.name": "Device Pulse",
   "declarative_preset.device_pulse.description": "Overvåker ping-sensorene per enhet fra din Device Pulse-integrasjon og åpner en oppgave for hver enhet som har feilet pinger i mer enn en time. Krever Device Pulse-integrasjonen.",
   "declarative_preset.firmware_update_available.name": "Fastvareoppdatering tilgjengelig",
-  "declarative_preset.firmware_update_available.description": "Overvåker hver oppdateringsentitet (UniFi, ESPHome, HACS, kameraer, skrivere osv.) og åpner en oppgave for å installere den nye versjonen."
+  "declarative_preset.firmware_update_available.description": "Overvåker hver oppdateringsentitet (UniFi, ESPHome, HACS, kameraer, skrivere osv.) og åpner en oppgave for å installere den nye versjonen.",
+  "declarative_task.completion_prompt": "Åpnet av oppskriften «{name}». Home Keeper fullfører denne oppgaven automatisk når betingelsen forsvinner, så den kan ikke fullføres manuelt."
 }

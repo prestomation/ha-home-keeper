@@ -55,7 +55,13 @@ export function isManagedOrphan(p: PanelHost, task: Task): boolean {
 export function sourceOwnedTask(task: Task): boolean {
   return (
     (Boolean(task.source?.part) && !task.source?.part?.manual) ||
-    Boolean(task.source?.problem_sensor)
+    Boolean(task.source?.problem_sensor) ||
+    // A declarative companion is the third owner. Its reconciler rewrites name,
+    // device, area and the sensor binding from the recipe on every pass, so an
+    // Edit dialog over those fields is a form whose Save the next pass undoes, and
+    // a Duplicate makes an unmanaged lookalike that drifts. The task page offers
+    // Edit recipe instead — the surface that actually owns those values (#231).
+    Boolean(task.source?.declarative_companion)
   );
 }
 

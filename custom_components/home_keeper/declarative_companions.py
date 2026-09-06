@@ -38,6 +38,7 @@ from datetime import datetime
 from typing import Any
 
 from . import models
+from .backend_i18n import resolve_string
 from .const import (
     DOMAIN,
     MAX_DECLARATIVE_ENTITY_REGEX_LEN,
@@ -388,24 +389,50 @@ def expand_spec(
 # --- Managed-by + reconcile -------------------------------------------------
 
 
-def build_managed_by(spec: dict[str, Any], config_entry_id: str) -> dict[str, Any]:
+def build_managed_by(
+    spec: dict[str, Any], config_entry_id: str, *, lang: str = "en"
+) -> dict[str, Any]:
     """Ownership block stamped on a task materialized from *spec*.
 
     ``deletion_protected`` requires ``config_entry_id`` (see
     :func:`models.validate_managed_by`) so the task stays cleanable if Home Keeper
-    is removed. ``completion_blocked`` is **False** — a declarative-companion task
-    is real work a person will complete; ``clear_on_recover`` (per the spec's
-    trigger) still auto-completes when the signal recovers. ``locked_fields`` reflect
-    that the reconciler owns name/device/area/sensor from the spec's template.
+    is removed. ``locked_fields`` reflect that the reconciler owns
+    name/device/area/sensor from the spec's template.
+
+    ``completion_blocked`` follows the trigger's ``clear_on_recover``, because that
+    flag is what decides who owns the task's lifecycle:
+
+    * **Set** — the recipe owns both ends. The watcher arms on the crossing and
+      completes on the recovery, so a hand-pressed Done is worse than a no-op:
+      :func:`sensor_tasks._evaluate_edge` will not re-arm while the condition
+      merely stays true, so completing an "Update available" task dismisses a
+      firmware update that is still pending, and nothing brings it back until that
+      update is installed and a *different* one appears. Done is withheld (with a
+      prompt saying what does clear it) on the panel, the card, the to-do list and
+      the notification — every surface reads this one flag.
+    * **Clear** — nothing else ever clears the task, so Done has to stay. That
+      covers a ``usage`` meter too, where completing early is the point: it
+      re-anchors the baseline.
+
+    ``lang`` localizes the prompt through ``backend_strings/<lang>.json``, the same
+    way :func:`problem_tasks.build_managed_by` does; this module has no HA import,
+    so the caller threads ``hass.config.language`` in.
     """
-    return {
+    trigger = spec.get("trigger") or {}
+    auto_clears = bool(trigger.get("clear_on_recover"))
+    managed_by: dict[str, Any] = {
         "integration": DOMAIN,
         "display_name": spec["name"],
         "config_entry_id": config_entry_id,
         "deletion_protected": True,
         "locked_fields": list(_LOCKED_FIELDS),
-        "completion_blocked": False,
+        "completion_blocked": auto_clears,
     }
+    if auto_clears:
+        managed_by["completion_prompt"] = resolve_string(
+            lang, "declarative_task.completion_prompt", name=spec["name"]
+        )
+    return managed_by
 
 
 def declarative_source(task: dict[str, Any]) -> dict[str, Any] | None:
@@ -443,6 +470,7 @@ def _build_task(
     rendered_notes: str,
     config_entry_id: str,
     now: datetime,
+    lang: str = "en",
 ) -> dict[str, Any]:
     """Create a fresh managed sensor task for *match* under *spec*.
 
@@ -469,7 +497,7 @@ def _build_task(
                 "entity_id": entry["entity_id"],
             }
         },
-        "managed_by": build_managed_by(spec, config_entry_id),
+        "managed_by": build_managed_by(spec, config_entry_id, lang=lang),
     }
     if labels := template.get("labels"):
         task_input["labels"] = labels
@@ -489,6 +517,7 @@ def reconcile_declarative_tasks(
     *,
     config_entry_id: str,
     now: datetime,
+    lang: str = "en",
 ) -> tuple[dict[str, dict[str, Any]], list[tuple[str, dict[str, Any]]], bool]:
     """Diff *spec*'s current match set against *tasks* and return the update plan.
 
@@ -542,6 +571,7 @@ def reconcile_declarative_tasks(
                 rendered_notes=rendered_notes,
                 config_entry_id=config_entry_id,
                 now=now,
+                lang=lang,
             )
             result[task["id"]] = task
             ops.append(("created", task))
@@ -552,7 +582,7 @@ def reconcile_declarative_tasks(
         # Recompute reconciler-owned metadata from the spec + current entity, so
         # renames / device rehoming / spec-name edits flow through.
         entry = match["entity"]
-        managed_by = build_managed_by(spec, config_entry_id)
+        managed_by = build_managed_by(spec, config_entry_id, lang=lang)
         new_source = {
             TASK_SOURCE_DECLARATIVE_COMPANION: {
                 "spec_id": spec["id"],

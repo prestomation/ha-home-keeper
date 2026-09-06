@@ -20,6 +20,15 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   place that does not exist. The page now shows an Edit recipe button, and its caption
   names the recipe to change.
 
+- **A recipe's task no longer shows Edit or Duplicate on its own page.** Home Keeper
+  rewrites the task on each run of its recipe, so a saved edit did not survive. The
+  task page now shows only Edit recipe, and its caption names that recipe.
+
+- **A task from a recipe that auto-clears no longer offers Done.** Home Keeper does
+  not reopen the task while its condition stays true, so pressing Done by hand hid
+  work that was still waiting. Done is now dimmed on the task, and a recipe without
+  auto-clear keeps it.
+
 ## [0.21.0b5]
 
 ### Added

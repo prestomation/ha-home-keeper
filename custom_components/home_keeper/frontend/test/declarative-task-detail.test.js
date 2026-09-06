@@ -49,6 +49,14 @@ const MANAGED_BY = {
   completion_blocked: false,
 };
 
+/** What the backend stamps once the recipe's trigger sets `clear_on_recover`. */
+const BLOCKED_MANAGED_BY = {
+  ...MANAGED_BY,
+  completion_blocked: true,
+  completion_prompt:
+    'Opened by the “Device Pulse” recipe. Home Keeper completes this task when the watched condition recovers, so it cannot be marked done by hand.',
+};
+
 function task(overrides = {}) {
   return {
     id: 'decl1',
@@ -123,6 +131,31 @@ describe('a declarative companion task’s page', () => {
     expect(recipeBtn, 'the page should offer the recipe that built this task').toBeTruthy();
     expect(recipeBtn.dataset.specId).toBe(SPEC.id);
     expect(root.textContent).not.toContain('Edit in Device Pulse');
+  });
+
+  // The recipe owns name, device, area and the sensor binding, and rewrites them
+  // on every pass. An Edit dialog over those fields is a form whose Save is
+  // undone by the next reconcile, so the page offers the recipe instead.
+  it('offers no Edit or Delete on the task itself', async () => {
+    const panel = await mountTask([task()]);
+
+    expect(panel.shadowRoot.querySelector('.d-edit')).toBeNull();
+    expect(panel.shadowRoot.querySelector('.d-del')).toBeNull();
+    expect(panel.shadowRoot.querySelector('.d-edit-recipe')).toBeTruthy();
+  });
+
+  // Done on an armed task the recipe auto-clears is worse than a no-op: the
+  // watcher will not re-arm while the condition stays true, so pressing it
+  // dismisses a firmware update that is still pending. A greyed Done that
+  // explains itself is the honest affordance.
+  it('greys Done on an armed task rather than offering it', async () => {
+    const panel = await mountTask([
+      task({ next_due: '2026-06-01T00:00:00Z', managed_by: BLOCKED_MANAGED_BY }),
+    ]);
+
+    expect(panel.shadowRoot.querySelector('.d-done')).toBeNull();
+    expect(panel.shadowRoot.querySelector('.d-done-blocked-wrap')).toBeTruthy();
+    expect(panel.shadowRoot.textContent).toContain('recovers');
   });
 
   it('names the recipe as the way to remove the task', async () => {

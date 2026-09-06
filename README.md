@@ -1402,6 +1402,15 @@ Home Keeper opens one managed task for each entity that matches the recipe. The 
 clears when the condition recovers. A task that a recipe made has an **Edit recipe**
 button on its detail page. The button opens the recipe that made the task.
 
+Each task that a recipe makes is a sensor-based task, so it has no due date until
+its condition is true. A task with no due date shows as **Monitored** and stays off
+the to-do list and the calendar. When the condition becomes true, Home Keeper sets
+the due date to that moment, so the task is due now and then overdue. The age of an
+overdue task shows how long the condition has been true. In the **Firmware update
+available** preset, a device with an update pending shows an overdue task, and a
+device with no update pending shows **Monitored**. All bundled presets complete the
+task automatically when the condition recovers, so those tasks offer no Done button.
+
 The *Add from preset* picker offers 2 presets.
 
 - **Device Pulse** targets the per-device ping sensors from

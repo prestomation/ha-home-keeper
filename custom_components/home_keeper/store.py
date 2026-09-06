@@ -1452,6 +1452,9 @@ class HomeKeeperStore:
             rendered_by_key,
             config_entry_id=config_entry_id,
             now=dt_util.now(),
+            # Localizes the completion prompt on a recipe that auto-clears, the
+            # same way the problem-sensor sync localizes its own.
+            lang=self._hass.config.language,
         )
         if not changed:
             return False, []
