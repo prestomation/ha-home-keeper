@@ -285,7 +285,7 @@ export const STYLES = `
   /* A list row's chips sit a size under the page's: the appliance list reads as
      compactly as the task list does. */
   .hk-card-row .hk-chips { margin-top: 4px; }
-  .hk-card-row .hk-chips ha-assist-chip { --ha-assist-chip-container-height: 24px; }
+  .hk-card-row .hk-chips ha-assist-chip { --ha-assist-chip-container-height: 24px; --md-assist-chip-container-height: 24px; }
   .hk-task-chip-link { display: contents; }
   ha-assist-chip.hk-device-chip { cursor: pointer; }
   .hk-managed-prompt {
@@ -587,7 +587,7 @@ export const STYLES = `
      one form. The same details/summary pattern as the section it sits in. */
   details.hk-part { padding: 0; overflow: hidden; }
   details.hk-part > summary.hk-part-head {
-    list-style: none; cursor: pointer; justify-content: flex-start; gap: 10px;
+    list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
     padding: 8px 10px 8px 12px; min-height: var(--hk-tap);
   }
   details.hk-part > summary.hk-part-head::-webkit-details-marker { display: none; }
@@ -725,7 +725,7 @@ export const STYLES = `
     word-break: break-word;
   }
   .hk-part-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .hk-part-chips ha-assist-chip { --ha-assist-chip-container-height: 28px; }
+  .hk-part-chips ha-assist-chip { --ha-assist-chip-container-height: 28px; --md-assist-chip-container-height: 28px; }
   /* Each part answers the same three questions — how often, when last, how many
      spares — so each gets its own cell and they always appear in that order. The
      comp draws this as a five-column table; in the real panel the appliance list
@@ -846,7 +846,7 @@ export const STYLES = `
   /* Not hidden while the drawer is open: the drawer only exists above 1150px, where
      the list still has the width to carry a chip, and hiding them changed the list
      into a different list at the moment it was meant to hold still. */
-  .hk-chips.hk-chips-inline ha-assist-chip { --ha-assist-chip-container-height: 24px; }
+  .hk-chips.hk-chips-inline ha-assist-chip { --ha-assist-chip-container-height: 24px; --md-assist-chip-container-height: 24px; }
   /* A chip narrower than its label used to wrap that label onto two or three lines,
      which spilled it straight out of the pill's outline — "Managed by Battery Notes"
      on a phone did exactly that. The container height is fixed, so the extra lines
@@ -890,7 +890,7 @@ export const STYLES = `
      could not press — enclosure now means pressable, and status reads as text.
      Scoped away from the overdue and shopping chips, which carry a colour of their
      own, so removing the outline does not also remove what the colour was saying. */
-  .hk-status ha-assist-chip { --ha-assist-chip-container-height: 26px; }
+  .hk-status ha-assist-chip { --ha-assist-chip-container-height: 26px; --md-assist-chip-container-height: 26px; }
   .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-shopping) {
     --ha-assist-chip-outline-width: 0px;
     --md-assist-chip-outline-width: 0px;
