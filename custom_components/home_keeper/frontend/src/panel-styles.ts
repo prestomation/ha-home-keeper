@@ -1161,8 +1161,17 @@ export const STYLES = `
     display: inline-flex; align-items: stretch;
     border-radius: var(--hk-r-pill); overflow: hidden;
   }
-  .hk-split-pill > ha-button { --ha-button-border-radius: 0; }
-  .hk-split-pill > ha-button::part(base) { box-shadow: none; }
+  /* A *blocked* Done is not a bare ha-button: _blockedButton wraps it in a span that
+     carries the click a disabled button will not report. The pill's rules were
+     direct-child only, so that wrapper kept its own rounded ends and its own height
+     and the pair read as two separate controls with a gap down the middle. Reach one
+     level in, and let the wrapper stretch so both halves share an edge.
+     (No backticks in this file: every rule lives inside a template literal.) */
+  .hk-split-pill > .hk-blocked-wrap { display: inline-flex; align-items: stretch; }
+  .hk-split-pill > ha-button,
+  .hk-split-pill > .hk-blocked-wrap > ha-button { --ha-button-border-radius: 0; }
+  .hk-split-pill > ha-button::part(base),
+  .hk-split-pill > .hk-blocked-wrap > ha-button::part(base) { box-shadow: none; }
   ha-button.hk-split-caret { --mdc-icon-size: 20px; }
   ha-button.hk-split-caret::part(base) {
     min-width: 0; padding-left: 7px; padding-right: 7px;

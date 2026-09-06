@@ -138,17 +138,54 @@ test('capture a declarative-companion task page', async ({ page }) => {
     const actions = panel.locator('.hk-detail-actions').first();
     await expect(actions).toBeVisible({ timeout: 45_000 });
 
-    // The three things the fix changed, asserted before the shot so a screenshot of
-    // the wrong state cannot be committed.
+    // Everything the fix changed, asserted before the shot so a screenshot of the
+    // wrong state cannot be committed. On a *materialized* task rather than a
+    // hand-built fixture: the unit tests build `source.declarative_companion`
+    // themselves, so only this one proves the reconciler writes the shape
+    // `sourceOwnedTask` reads.
     await expect(actions.locator('.d-edit-recipe')).toBeVisible();
     await expect(actions.locator('.d-open-in')).toHaveCount(0);
     await expect(actions.locator('.d-done')).toHaveCount(0);
+    // The recipe owns name, device, area and the binding, so the task's own Edit
+    // and Delete are gone and Duplicate is greyed.
+    await expect(actions.locator('.d-edit')).toHaveCount(0);
+    await expect(actions.locator('.d-del')).toHaveCount(0);
     await expect(panel.locator('.hk-detail-card').first()).toContainText('Monitored');
 
     await page.mouse.move(0, 0);
     await page.waitForTimeout(400);
     await page.screenshot({
       path: `${OUT}/21e-panel-declarative-task-detail.png`,
+      fullPage: true,
+    });
+
+    // 21g. The same task once the watcher arms it. This is the state the Monitored
+    // shot cannot show: Done is greyed rather than absent, because the recipe
+    // auto-clears and a hand-pressed Done would dismiss a condition that still
+    // stands. It has to sit flush against the snooze caret — the blocked Done is a
+    // wrapped button, and the split pill's rules only reached a bare one, so the
+    // pair rendered as two controls with a seam between them.
+    await callService('home_keeper', 'trigger_task', { task_id: taskId });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const armed = panel.locator('.hk-detail-actions').first();
+    await expect(armed.locator('.d-done-blocked-wrap')).toBeVisible({ timeout: 45_000 });
+    await expect(armed.locator('.hk-split-caret')).toBeVisible();
+    await expect(armed.locator('.d-done')).toHaveCount(0);
+    // Both halves of the pill report the same height and share an edge.
+    const pill = armed.locator('.hk-split-pill');
+    const geom = await pill.evaluate((el) => {
+      const done = el.querySelector('.hk-blocked-wrap ha-button') as HTMLElement;
+      const caret = el.querySelector('.hk-split-caret') as HTMLElement;
+      const a = done.getBoundingClientRect();
+      const b = caret.getBoundingClientRect();
+      return { dh: a.height, ch: b.height, gap: b.left - a.right };
+    });
+    expect(Math.abs(geom.dh - geom.ch), 'the two halves must be the same height').toBeLessThan(2);
+    expect(Math.abs(geom.gap), 'the two halves must share an edge').toBeLessThan(2);
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(400);
+    await page.screenshot({
+      path: `${OUT}/21g-panel-declarative-task-armed.png`,
       fullPage: true,
     });
 
