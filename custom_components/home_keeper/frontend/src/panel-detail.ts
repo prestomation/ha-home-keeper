@@ -14,6 +14,7 @@
  * functions of their arguments (or of the DOM they are handed).
  */
 
+import * as api from './api';
 import { openDocument, openPartFile, documentIcon, documentLabel, signedFileKey } from './documents';
 import { t, tn } from './i18n';
 import { markdownBlock } from './markdown';
@@ -29,13 +30,20 @@ import {
   wireDeviceChips,
 } from './panel-chips';
 import { openConfirmDialog } from './panel-dialogs';
-import { completionGroupsFor, historyBody, wireHistory } from './panel-history';
+import { completionGroupsFor, historyBody, setIcon, wireHistory } from './panel-history';
 import { deferMenu, wireSkipHistoryRows } from './panel-defer';
 import type { PanelHost } from './panel-host';
-import { MDI_CONSUMABLE, MDI_OPEN_IN_NEW_ICON, MDI_WEAR } from './panel-icons';
+import {
+  MDI_CONSUMABLE,
+  MDI_EDIT,
+  MDI_MINUS,
+  MDI_OPEN_IN_NEW_ICON,
+  MDI_PLUS,
+  MDI_WEAR,
+} from './panel-icons';
 import { assetAncestry } from './panel-lists';
 import { consumableLinkLabel } from './panel-task-form';
-import type { Asset, Task } from './types';
+import type { Asset, Part, Task } from './types';
 import {
   ASSET_TABS,
   areaName,
@@ -48,15 +56,20 @@ import {
   formatDateTime,
   formatQuantity,
   navigateTo,
+  partStockButtonStep,
+  partStockStep,
   recurrenceSummary,
   round1,
   safeFileHref,
   safeHref,
   scanRequired,
+  snapStock,
   statusChipHtml,
   tasksForAsset,
   toast,
   type AssetTab,
+  TASK_TABS,
+  type TaskTab,
 } from './utils';
 
 export function detailView(p: PanelHost): string {
@@ -342,16 +355,12 @@ function taskDetail(p: PanelHost, task: Task): string {
     notesEditable,
     task.source?.problem_sensor ? t('note.placeholder') : t('note.placeholderMd'),
   );
-  return `
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">
-        <div class="hk-detail-title">${escapeHTML(task.name)}</div>
-        <div class="hk-chips">${statusChip}${dev}${area}${tag}${taskChips}${managed}</div>
-        <div class="hk-detail-actions">
-          ${doneSplit}
-          ${manage}
-        </div>
-        ${completionHint}
-      </div></ha-card>
+  // The same sub-tabs the appliance page has, for the same reason: three stacked
+  // cards made the history a screen away on a phone, and a page that reads like
+  // the appliance page is one less layout to learn. Schedule first — what the task
+  // is and when it is next due — with the notes and the history one tap off.
+  const bodies: Record<TaskTab, string> = {
+    schedule: `
       <div class="hk-section">${escapeHTML(t('detail.schedule'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         ${row(t('field.recurrence_type'), recurrenceSummary(task))}
@@ -360,10 +369,47 @@ function taskDetail(p: PanelHost, task: Task): string {
         ${row(t('detail.nextDue'), due)}
         ${row(t('field.consumable_link'), consumableLinkLabel(p, task), true)}
         ${idRow(task.id)}
-      </div></ha-card>
+      </div></ha-card>`,
+    notes: `
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>
-      ${historySection(p, 'task', task.id)}`;
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>`,
+    history: historySection(p, 'task', task.id),
+  };
+  const tab = p._taskTab();
+  return `
+      <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
+        <div class="hk-detail-title">${escapeHTML(task.name)}</div>
+        <div class="hk-chips">${statusChip}${dev}${area}${tag}${taskChips}${managed}</div>
+        <div class="hk-detail-actions">
+          ${doneSplit}
+          ${manage}
+        </div>
+        ${completionHint}
+      </div>
+      <nav class="hk-subtabs" aria-label="${escapeHTML(task.name)}">${taskSubtabs(task, tab)}</nav>
+      </ha-card>
+      <div class="hk-subtab-body">${bodies[tab]}</div>`;
+}
+
+/** The task detail's sub-tab strip: Schedule, Notes (marked when there are any),
+ *  History with how many entries it holds. */
+function taskSubtabs(task: Task, current: TaskTab): string {
+  const counts: Record<TaskTab, number | null> = {
+    schedule: null,
+    notes: null,
+    history: (task.completions?.length ?? 0) + (task.skips?.length ?? 0),
+  };
+  const labels: Record<TaskTab, string> = {
+    schedule: t('detail.schedule'),
+    notes: t('field.notes'),
+    history: t('btn.history'),
+  };
+  return TASK_TABS.map((tab) => {
+    const n = counts[tab];
+    const count = n ? `<span class="hk-subtab-count">${escapeHTML(String(n))}</span>` : '';
+    return `<button class="hk-subtab${tab === current ? ' active' : ''}" data-tab="${tab}"
+        ${tab === current ? 'aria-current="page"' : ''}>${escapeHTML(labels[tab])}${count}</button>`;
+  }).join('');
 }
 
 function assetDetail(p: PanelHost, asset: Asset): string {
@@ -519,11 +565,10 @@ function documentsSection(p: PanelHost, asset: Asset): string {
 
 function partsSection(p: PanelHost, asset: Asset): string {
   const parts = asset.parts || [];
-  if (!parts.length) return '';
   const chip = (label: string, cls = ''): string =>
     `<ha-assist-chip class="${cls}" label="${escapeHTML(label)}"></ha-assist-chip>`;
   const rows = parts
-    .map((part) => {
+    .map((part, i) => {
       const isWear = part.type === 'wear';
       // Subtitle: the descriptive, identity bits (part number, vendor, cost).
       const sub: string[] = [];
@@ -561,9 +606,16 @@ function partsSection(p: PanelHost, asset: Asset): string {
         // "In stock: 250 ml" — the unit rides with the number wherever stock is
         // shown, so a measured part never reads as a bare count of somethings.
         const onHand = formatQuantity(part.stock, part.stock_unit);
-        spares = low
-          ? chip(t('part.lowStock', { n: onHand }), 'hk-overdue')
-          : chip(t('part.inStock', { n: onHand }));
+        // A saved part's stock is edited right here, as a stepper: changing a
+        // quantity is a stock event, not an edit of the appliance, and the backend
+        // already treats it as one (`adjust_part_stock`, the same path the device
+        // page's number entity takes). A part without an id (never saved) keeps the
+        // read-only chip — there is nothing to adjust yet.
+        spares = part.id
+          ? stockStepper(part, low, onHand)
+          : low
+            ? chip(t('part.lowStock', { n: onHand }), 'hk-overdue')
+            : chip(t('part.inStock', { n: onHand }));
         // What one completion takes off, when it isn't the plain single spare.
         if (part.consume_quantity != null) {
           spares += chip(t('part.perUse', { n: formatQuantity(part.consume_quantity, part.stock_unit) }));
@@ -611,6 +663,12 @@ function partsSection(p: PanelHost, asset: Asset): string {
       const partNotes = part.notes
         ? `<div class="hk-part-notes">${markdownBlock(part.notes, 'hk-md-compact')}</div>`
         : '';
+      // Edit opens the appliance drawer on *this* part, expanded and scrolled to.
+      // The id is what hands the keyboard back here when the drawer closes
+      // (`_openerKeyFor`).
+      const edit = `<ha-icon-button id="part-edit-${i}" class="hk-part-edit" data-part-idx="${i}" label="${escapeHTML(
+        t('btn.editPart'),
+      )}"></ha-icon-button>`;
       return `
           <div class="hk-part-row ${isWear ? 'wear' : 'consumable'}">
             <div class="hk-part-ic">
@@ -623,12 +681,99 @@ function partsSection(p: PanelHost, asset: Asset): string {
               ${partNotes}
               ${idRow(part.id, true)}
             </div>
+            <div class="hk-part-actions">${edit}</div>
           </div>`;
     })
     .join('');
+  // The section keeps its heading and its Add part even with nothing in it: an
+  // appliance's parts are added from here as readily as from the drawer.
+  const body = rows
+    ? `<ha-card class="hk-detail-card"><div class="hk-detail-inner hk-parts">${rows}</div></ha-card>`
+    : `<ha-alert alert-type="info">${escapeHTML(t('appliance.tabEmpty'))}</ha-alert>`;
   return `
-      <div class="hk-section">${escapeHTML(t('section.parts'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner hk-parts">${rows}</div></ha-card>`;
+      <div class="hk-section hk-section-row">
+        <span>${escapeHTML(t('section.parts'))}</span>
+        <ha-button ${btnAttrs('secondary')} class="d-add-part">${escapeHTML(t('btn.addPart'))}</ha-button>
+      </div>
+      ${body}`;
+}
+
+/**
+ * The stock cell as a control: − / the amount / its unit / +. Each tap or typed
+ * value becomes one `adjust_part_stock` call (see `wireStockSteppers`). The low
+ * state keeps its colour *and* a word, so it never says it by colour alone.
+ */
+function stockStepper(part: Part, low: boolean, onHand: string): string {
+  const id = part.id || '';
+  const stock = part.stock ?? 0;
+  const unit = (part.stock_unit || '').trim();
+  return (
+    `<div class="hk-stock${low ? ' low' : ''}" role="group" data-part="${escapeHTML(id)}"` +
+    ` aria-label="${escapeHTML(t('field.stock'))}">` +
+    `<ha-icon-button class="hk-stock-dec" label="${escapeHTML(t('btn.stockDec'))}"${
+      stock <= 0 ? ' disabled' : ''
+    }></ha-icon-button>` +
+    `<input id="hk-stock-${escapeHTML(id)}" class="hk-stock-input" type="number" inputmode="decimal"` +
+    ` min="0" step="${partStockStep(part)}" value="${escapeHTML(String(stock))}"` +
+    ` aria-label="${escapeHTML(t('part.inStock', { n: onHand }))}">` +
+    (unit ? `<span class="hk-stock-unit">${escapeHTML(unit)}</span>` : '') +
+    `<ha-icon-button class="hk-stock-inc" label="${escapeHTML(t('btn.stockInc'))}"></ha-icon-button>` +
+    `</div>` +
+    (low ? `<span class="hk-stock-low">${escapeHTML(t('part.low'))}</span>` : '')
+  );
+}
+
+/**
+ * Make each stock stepper live. A tap moves the stock by one spare (one use, for a
+ * measured part); a typed value commits on Enter or blur, snapped to the part's
+ * step. Every change is one `adjust_part_stock` call — the service path, so the
+ * low-stock transitions and the auto-buy task fire as they do from the device page
+ * — followed by a refresh; the input's id lets the panel's focus restore put the
+ * caret back after that render.
+ */
+function wireStockSteppers(p: PanelHost, root: ShadowRoot, asset: Asset): void {
+  root.querySelectorAll<HTMLElement>('.hk-stock[data-part]').forEach((box) => {
+    const partId = box.dataset.part;
+    const part = asset.parts?.find((x) => x.id === partId);
+    const input = box.querySelector<HTMLInputElement>('.hk-stock-input');
+    const dec = box.querySelector<HTMLElement>('.hk-stock-dec');
+    const inc = box.querySelector<HTMLElement>('.hk-stock-inc');
+    if (!part || !partId || part.stock == null || !input || !dec || !inc) return;
+    setIcon(dec, MDI_MINUS);
+    setIcon(inc, MDI_PLUS);
+    const step = partStockStep(part);
+    const tap = partStockButtonStep(part);
+    let committed = part.stock;
+    let busy = false;
+    const commit = async (target: number): Promise<void> => {
+      if (busy || !p._hass) return;
+      const next = snapStock(target, step);
+      const delta = Math.round((next - committed) * 1000) / 1000;
+      if (!delta) {
+        input.value = String(committed);
+        return;
+      }
+      busy = true;
+      box.setAttribute('data-busy', '');
+      try {
+        const updated = await api.adjustPartStock(p._hass, asset.id, partId, delta);
+        committed = updated.parts?.find((x) => x.id === partId)?.stock ?? next;
+        toast(p, t('toast.stockSet', { n: formatQuantity(committed, part.stock_unit) }));
+        await p._refresh();
+      } catch (err) {
+        toast(p, String((err as { message?: string })?.message || err));
+        input.value = String(committed);
+        box.removeAttribute('data-busy');
+        busy = false;
+      }
+    };
+    dec.addEventListener('click', () => void commit(committed - tap));
+    inc.addEventListener('click', () => void commit(committed + tap));
+    input.addEventListener('change', () => void commit(Number(input.value)));
+    input.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Enter') input.blur();
+    });
+  });
 }
 
 /** Set the mdi `path` on each part-row icon (ha-svg-icon takes a property). */
@@ -637,6 +782,7 @@ function wirePartIcons(root: ShadowRoot): void {
     (el as HTMLElement & { path?: string }).path =
       el.dataset.mdi === 'wear' ? MDI_WEAR : MDI_CONSUMABLE;
   });
+  root.querySelectorAll<HTMLElement>('.hk-part-edit').forEach((el) => setIcon(el, MDI_EDIT));
 }
 
 function relatedTasksSection(p: PanelHost, asset: Asset): string {
@@ -701,11 +847,15 @@ export function wireDetail(p: PanelHost, root: ShadowRoot): boolean {
     wireDetailActions(p, root);
     wirePartIcons(root);
     wireHistory(p, root);
+    const kind = p._detail.kind;
     root.querySelectorAll<HTMLElement>('.hk-subtab').forEach((b) =>
       b.addEventListener('click', () => {
         const tab = b.dataset.tab;
-        if (tab && (ASSET_TABS as readonly string[]).includes(tab)) {
+        if (!tab) return;
+        if (kind === 'asset' && (ASSET_TABS as readonly string[]).includes(tab)) {
           p._setAssetTab(tab as AssetTab);
+        } else if (kind === 'task' && (TASK_TABS as readonly string[]).includes(tab)) {
+          p._setTaskTab(tab as TaskTab);
         }
       }),
     );
@@ -812,6 +962,17 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   const asset = p._assets.find((x) => x.id === d.id);
   if (!asset) return;
   root.querySelector('.d-edit')?.addEventListener('click', () => p._openEditAsset(asset));
+  // The Parts tab's own ways into the drawer: Edit on a row opens it on that part,
+  // Add part opens it on a blank one.
+  root.querySelectorAll<HTMLElement>('.hk-part-edit').forEach((btn) => {
+    btn.addEventListener('click', () =>
+      p._openEditAsset(asset, { part: Number(btn.dataset.partIdx) }),
+    );
+  });
+  root
+    .querySelector('.d-add-part')
+    ?.addEventListener('click', () => p._openEditAsset(asset, { part: 'new' }));
+  wireStockSteppers(p, root, asset);
   p._wireNoteEditor(root, { kind: 'asset', id: asset.id });
   root.querySelector('.d-archive')?.addEventListener('click', () => void p._archiveAsset(asset));
   root.querySelector('.d-restore')?.addEventListener('click', () => void p._restoreAsset(asset));

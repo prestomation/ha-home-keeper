@@ -50,7 +50,7 @@ describe('Editing from a detail page', () => {
     expect(form, 'the task form should mount in the drawer').toBeTruthy();
     expect(panel.shadowRoot.querySelector('.hk-drawer[data-open]')).toBeTruthy();
     // The page is still the task's own page: still a detail, still its URL.
-    expect(panel._detail).toEqual({ kind: 'task', id: 't1' });
+    expect(panel._detail).toEqual({ kind: 'task', id: 't1', tab: 'schedule' });
     expect(location.pathname).toBe(before);
     expect(panel.shadowRoot.querySelector('.hk-wrap').dataset.detail).toBe('task');
     expect(panel.shadowRoot.textContent).toContain('Replace fridge filter');
@@ -89,7 +89,7 @@ describe('Editing from a detail page', () => {
 
     await waitFor(() => !panel.shadowRoot?.querySelector('#hk-form'));
     expect(panel.shadowRoot.querySelector('.hk-drawer[data-open]')).toBeNull();
-    expect(panel._detail).toEqual({ kind: 'task', id: 't1' });
+    expect(panel._detail).toEqual({ kind: 'task', id: 't1', tab: 'schedule' });
     expect(panel.shadowRoot.querySelector('.d-edit'), 'still the detail page').toBeTruthy();
   });
 

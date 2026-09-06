@@ -35,7 +35,14 @@
  */
 import { test, expect, Browser, Locator, Page } from '@playwright/test';
 import { resolve } from 'path';
-import { gotoTab, openPanel, openDashboard, openSettingsSection } from './tests/helpers';
+import {
+  gotoTab,
+  openPanel,
+  openDashboard,
+  openPart,
+  openSettingsSection,
+  openTaskTab,
+} from './tests/helpers';
 import { ASSET, PART, TASK } from './fixture-ids';
 import { DESKTOP, PHONE, Viewport } from './viewports';
 
@@ -183,6 +190,10 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   const taskRow = panel.locator(`.detail-open[data-detail-id="${TASK.waterFilter}"]`);
   await expect(taskRow).toBeVisible();
   await taskRow.click();
+  // The page opens on Schedule; Notes and History are sub-tabs, like an appliance.
+  await expect(panel.locator('.hk-subtab[data-tab="schedule"].active')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await openTaskTab(panel, 'history');
   await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
 
@@ -218,6 +229,8 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // 2a2. Notes are Markdown. The seeded note already renders as headings, a
   //      numbered list, a quote and a link; open the inline editor to show it
   //      being authored, with the live preview updating as the text is typed.
+  await openTaskTab(panel, 'notes');
+  await page.waitForTimeout(BEAT);
   await panel.locator('.d-note-edit').click();
   const walkNote = panel.locator('.d-note-input');
   await expect(walkNote).toBeVisible();
@@ -233,6 +246,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('.d-note-cancel').click();
   await expect(panel.locator('.d-note-edit')).toBeVisible();
   await page.waitForTimeout(BEAT);
+  await openTaskTab(panel, 'schedule');
 
   // 2a3. Edit opens beside the page rather than replacing it: the form slides in as a
   //      column and the schedule, notes and history stay where they were. Cancel, so
@@ -295,6 +309,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await problemRow.click();
   await expect(panel.locator('.hk-managed-prompt')).toBeVisible();
   await page.waitForTimeout(BEAT);
+  await openTaskTab(panel, 'notes');
   await panel.locator('.d-note-edit').click();
   const noteBox = panel.locator('.d-note-input');
   await expect(noteBox).toBeVisible();
@@ -583,8 +598,26 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     .locator('.hk-part-row')
     .filter({ hasText: 'Descaling solution' });
   await measuredRow.scrollIntoViewIfNeeded();
-  await expect(measuredRow.getByText('In stock: 750 ml')).toBeVisible();
+  await expect(measuredRow.getByLabel('In stock: 750 ml')).toHaveValue('750');
   await page.waitForTimeout(BEAT * 2);
+
+  // 4a5. The amount is a stepper: one tap of − is one completion's worth, through
+  //      the same service path the device page uses. Then + puts it back.
+  await measuredRow.locator('.hk-stock-dec').click();
+  await expect(measuredRow.locator('.hk-stock-input')).toHaveValue('500', { timeout: 10_000 });
+  await page.waitForTimeout(BEAT * 2);
+  await measuredRow.locator('.hk-stock-inc').click();
+  await expect(measuredRow.locator('.hk-stock-input')).toHaveValue('750', { timeout: 10_000 });
+  await page.waitForTimeout(BEAT);
+
+  // 4a6. Edit on a part row opens the drawer on that part alone, folded rows above
+  //      and below it — then cancel, and open the editor the usual way for 4b.
+  await measuredRow.locator('.hk-part-edit').click();
+  await expect(panel.locator('#hk-asset-form .hk-part[data-idx="2"]')).toHaveAttribute('open', '');
+  await page.waitForTimeout(BEAT * 3);
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
 
   // 4b. Auto-buy — open the editor, reveal the Parts section, and flip on
   //     "Auto-create buy task" for a stocked consumable so its Restock quantity
@@ -601,11 +634,14 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   }
   // The measured part's own editor first: a Stock unit and a Used-per-completion
   // amount sit beside the ordinary Stock and Reorder at.
+  // Parts are folded rows; opening one closes the others (issue #296).
   const measuredPart = partsSection.locator('.hk-part').nth(2);
+  await openPart(measuredPart);
   await measuredPart.scrollIntoViewIfNeeded();
   await expect(measuredPart.getByText('Stock unit', { exact: false })).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
   const buyPart = partsSection.locator('.hk-part').last();
+  await openPart(buyPart);
   await buyPart.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT);
   await buyPart.locator('ha-switch').first().click();
@@ -902,9 +938,13 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('#hk-task-form')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
-  // 4. A task detail is a page of its own, and Back returns to the list.
+  // 4. A task detail is a page of its own — Schedule, Notes and History as tabs,
+  //    so the history is one tap rather than a screen of scrolling — and Back
+  //    returns to the list.
   await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
   await expect(panel.locator('#back-btn')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await openTaskTab(panel, 'history');
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#hk-list')).toBeVisible();

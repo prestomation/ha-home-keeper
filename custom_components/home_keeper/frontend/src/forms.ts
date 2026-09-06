@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import { recurrenceSummary, round1 } from './utils';
+import { formatQuantity, recurrenceSummary, round1 } from './utils';
 import type {
   Asset,
   Companion,
@@ -1475,11 +1475,14 @@ export function structuredDetailsSchema(): FormField[] {
   return [{ name: 'cost', selector: selNumber(0) }];
 }
 
-/** Schema for one free-form metadata entry. The value control swaps by type, and
- *  a `date` entry adds a "track as sensor" toggle (opt-in automation). */
-export function metadataSchema(m: MetadataEntry): FormField[] {
-  const valueSelector = m.type === 'date' ? selDate() : selText();
-  const fields: FormField[] = [
+/**
+ * A metadata entry's editor is two forms, so a change in one never rebuilds the
+ * other: the *base* form holds the type and label and never changes shape; the
+ * *dependent* form holds the value control, which swaps by type, plus a "track as
+ * sensor" toggle for a date. See `renderMetadataEditor` for why.
+ */
+export function metadataBaseSchema(): FormField[] {
+  return [
     {
       name: '',
       type: 'grid',
@@ -1495,15 +1498,33 @@ export function metadataSchema(m: MetadataEntry): FormField[] {
         { name: 'label', selector: selText() },
       ],
     },
-    { name: 'value', selector: valueSelector },
+  ];
+}
+
+/** The value control (by type) and, for a date, the opt-in "track as sensor" toggle. */
+export function metadataDependentSchema(m: MetadataEntry): FormField[] {
+  const fields: FormField[] = [
+    { name: 'value', selector: m.type === 'date' ? selDate() : selText() },
   ];
   if (m.type === 'date') fields.push({ name: 'track', selector: selBool() });
   return fields;
 }
 
-export function partSchema(part: Part): FormField[] {
-  const isWear = part.type === 'wear';
-  const base: FormField[] = [
+/** Schema for one free-form metadata entry, as one flat list: the base fields and
+ *  the ones the type reveals. Kept as the concatenation of the two builders above so
+ *  the editor's split and this view of it can never disagree. */
+export function metadataSchema(m: MetadataEntry): FormField[] {
+  return [...metadataBaseSchema(), ...metadataDependentSchema(m)];
+}
+
+/**
+ * The fields every part carries, whatever it is. This schema never changes once the
+ * form is built — which is what keeps the box being typed in alive: the fields that
+ * depend on these values live in a second form (`partDependentSchema`), so revealing
+ * one of them never rebuilds this one (issue #296).
+ */
+export function partBaseSchema(): FormField[] {
+  return [
     {
       name: '',
       type: 'grid',
@@ -1529,8 +1550,7 @@ export function partSchema(part: Part): FormField[] {
     },
     { name: 'part_url', selector: selText() },
     // Free-form notes about this part (rendered as Markdown on the appliance's
-    // detail page) — the field has always existed in the stored model but had no
-    // editor until now.
+    // detail page).
     { name: 'notes', selector: selText(true) },
     // Spare quantities are decimal (`'any'`): a part measured in millilitres or
     // topped up a third of a bottle at a time is as valid as one counted in whole
@@ -1545,24 +1565,34 @@ export function partSchema(part: Part): FormField[] {
       ],
     },
   ];
+}
+
+/**
+ * The fields a part's own values reveal: the per-completion amount once stock is
+ * tracked, auto-buy once a reorder threshold defines "low" (and the restock quantity
+ * once auto-buy is on), and the replacement schedule for a wear item. Empty for a
+ * consumable that tracks nothing.
+ */
+export function partDependentSchema(part: Part): FormField[] {
+  const fields: FormField[] = [];
   // How much one completion draws down. Only meaningful once the part is tracking
   // stock at all — with nothing to draw from, the field would promise nothing.
   if (part.stock != null) {
-    base.push({ name: 'consume_quantity', selector: selNumber(MIN_POSITIVE_QUANTITY, 'any') });
+    fields.push({ name: 'consume_quantity', selector: selNumber(MIN_POSITIVE_QUANTITY, 'any') });
   }
   // Auto-buy: only meaningful once a reorder threshold is set (that's what defines
   // "low"). When enabled, offer the restock quantity added on completing the reminder.
   if (part.reorder_at != null) {
-    base.push({ name: 'create_buy_task', selector: selBool() });
+    fields.push({ name: 'create_buy_task', selector: selBool() });
     if (part.create_buy_task) {
-      base.push({
+      fields.push({
         name: 'restock_quantity',
         selector: selNumber(MIN_POSITIVE_QUANTITY, 'any'),
       });
     }
   }
-  if (isWear) {
-    base.push({
+  if (part.type === 'wear') {
+    fields.push({
       name: '',
       type: 'grid',
       schema: [
@@ -1572,9 +1602,122 @@ export function partSchema(part: Part): FormField[] {
     });
     // Let the user record when the part was last replaced so the derived
     // maintenance task's clock starts from the real date instead of "now".
-    base.push({ name: 'last_replaced', selector: selDate() });
+    fields.push({ name: 'last_replaced', selector: selDate() });
   }
-  return base;
+  return fields;
+}
+
+/**
+ * What decides the dependent schema's shape, as one comparable string. The editor
+ * rebuilds the dependent form only when this changes — so typing a second digit into
+ * Stock (still tracked) does nothing to it, and the first digit (untracked → tracked)
+ * reveals the per-completion field in place.
+ */
+export function partDependentKey(part: Part): string {
+  return [
+    part.type === 'wear',
+    part.stock != null,
+    part.reorder_at != null,
+    Boolean(part.create_buy_task),
+  ].join(',');
+}
+
+/** Schema for one part, as one flat list: the fixed fields, then the ones its own
+ *  values reveal. The concatenation of the two builders the editor uses. */
+export function partSchema(part: Part): FormField[] {
+  return [...partBaseSchema(), ...partDependentSchema(part)];
+}
+
+/** A part's fields as the flat form data both of its forms are seeded from (each
+ *  takes its own slice through `pickFormData`). */
+export function partFormData(part: Part): Record<string, unknown> {
+  return {
+    part_name: part.name ?? '',
+    part_number: part.part_number ?? '',
+    type: part.type ?? 'consumable',
+    vendor: part.vendor ?? '',
+    cost: part.cost ?? undefined,
+    part_url: part.url ?? '',
+    notes: part.notes ?? '',
+    stock: part.stock ?? undefined,
+    reorder_at: part.reorder_at ?? undefined,
+    stock_unit: part.stock_unit ?? '',
+    consume_quantity: part.consume_quantity ?? undefined,
+    create_buy_task: part.create_buy_task ?? false,
+    restock_quantity: part.restock_quantity ?? undefined,
+    replace_interval: part.replace_interval ?? undefined,
+    replace_unit: part.replace_unit ?? 'months',
+    last_replaced: part.last_replaced ?? undefined,
+  };
+}
+
+/**
+ * Fold one form's emitted values into *prev*. Each of a part's two forms emits only
+ * its own fields, so a key that is absent means "not this form's field", never "set
+ * to nothing" — hence the `in` guards. The normalisation at the end is what the old
+ * one-form editor got for free from hidden fields reading as `undefined`: a value
+ * whose gate has closed is dropped, so the store never carries a per-completion
+ * amount for a part that tracks no stock, or a restock quantity for a part that
+ * never auto-buys.
+ */
+export function mergePartForm(prev: Part, value: Record<string, unknown>): Part {
+  const has = (k: string): boolean => k in value;
+  const num = (v: unknown): number | null => (v != null && v !== '' ? Number(v) : null);
+  const str = (v: unknown): string => String(v ?? '');
+  const next: Part = { ...prev };
+  if (has('part_name')) next.name = str(value.part_name);
+  if (has('part_number')) next.part_number = str(value.part_number);
+  if (has('type')) next.type = (value.type as Part['type']) ?? 'consumable';
+  if (has('vendor')) next.vendor = str(value.vendor);
+  if (has('cost')) next.cost = num(value.cost);
+  if (has('part_url')) next.url = str(value.part_url).trim();
+  if (has('notes')) next.notes = str(value.notes);
+  if (has('stock')) next.stock = num(value.stock);
+  if (has('reorder_at')) next.reorder_at = num(value.reorder_at);
+  if (has('stock_unit')) next.stock_unit = str(value.stock_unit).trim();
+  if (has('consume_quantity')) next.consume_quantity = num(value.consume_quantity);
+  if (has('create_buy_task')) next.create_buy_task = Boolean(value.create_buy_task);
+  if (has('restock_quantity')) next.restock_quantity = num(value.restock_quantity);
+  if (has('replace_interval')) next.replace_interval = num(value.replace_interval);
+  if (has('replace_unit')) {
+    next.replace_unit = (value.replace_unit as Part['replace_unit']) ?? null;
+  }
+  // The last-replaced date is only editable for a wear item; a consumable keeps
+  // whatever it had (the field is not shown, so nothing can have changed it).
+  if (has('last_replaced')) next.last_replaced = value.last_replaced ? str(value.last_replaced) : null;
+  if (next.stock == null) next.consume_quantity = null;
+  if (next.reorder_at == null) next.create_buy_task = false;
+  if (!next.create_buy_task) next.restock_quantity = null;
+  if (next.type !== 'wear') {
+    next.replace_interval = null;
+    next.replace_unit = null;
+  } else if (!next.replace_interval) {
+    next.replace_unit = null;
+  }
+  return next;
+}
+
+/**
+ * The one line a collapsed part row says about itself: the stock (flagged when it
+ * is at or below the reorder point), the reorder point, and a wear item's interval.
+ * Empty for a part that tracks nothing and repeats on no schedule.
+ */
+export function partSummaryLine(part: Part): string {
+  const bits: string[] = [];
+  if (part.stock != null) {
+    const onHand = formatQuantity(part.stock, part.stock_unit);
+    const low = part.reorder_at != null && part.stock <= part.reorder_at;
+    bits.push(t(low ? 'part.lowStock' : 'part.inStock', { n: onHand }));
+    if (part.reorder_at != null) {
+      bits.push(t('part.reorderAt', { n: formatQuantity(part.reorder_at, part.stock_unit) }));
+    }
+  }
+  if (part.type === 'wear' && part.replace_interval && part.replace_unit) {
+    bits.push(
+      t('part.every', { n: part.replace_interval, unit: t(`opt.unit.${part.replace_unit}`) }),
+    );
+  }
+  return bits.join(' · ');
 }
 
 // ── profiles (saved filters) & notifications (delivery) ─────────────────────

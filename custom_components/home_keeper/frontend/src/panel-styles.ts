@@ -205,15 +205,18 @@ export const STYLES = `
   }
   ha-tab-group { margin-bottom: 16px; }
   ha-card.hk-card { margin-bottom: 12px; position: relative; }
+  /* Compact by default: a list is scanned, and the padding a card wore was the
+     difference between eight rows on a screen and twelve. The row's grammar (name,
+     meta, chips, status, action) is unchanged — only the air around it. */
   .hk-card-row {
-    display: flex; align-items: center; gap: 14px; padding: 13px 16px;
+    display: flex; align-items: center; gap: 12px; padding: 9px 12px;
   }
   .hk-card-row .grow { flex: 1; min-width: 0; }
   .hk-name {
     font-weight: 500; display: flex; align-items: center; gap: 8px;
     flex-wrap: wrap;
   }
-  .hk-meta { color: var(--hk-ink-2); font-size: 0.85rem; margin-top: 2px; }
+  .hk-meta { color: var(--hk-ink-2); font-size: 0.82rem; margin-top: 1px; }
   /* A finished one-off is struck through and faded wherever it appears. Group by
      Status tucked it into a collapsed section, but every other grouping left it
      mid-list looking like work still to do — and which grouping you chose should not
@@ -572,6 +575,45 @@ export const STYLES = `
   }
   .hk-part-head { display: flex; align-items: center; justify-content: space-between; }
   .hk-part-head .label { font-size: 0.85rem; color: var(--secondary-text-color); }
+  /* A part in the editor is a folded row until it is the one being edited: its
+     summary names it and says what a reader comes back for (stock, reorder point,
+     interval), and only one part is open at a time, so the drawer never grows past
+     one form. The same details/summary pattern as the section it sits in. */
+  details.hk-part { padding: 0; overflow: hidden; }
+  details.hk-part > summary.hk-part-head {
+    list-style: none; cursor: pointer; justify-content: flex-start; gap: 10px;
+    padding: 8px 10px 8px 12px; min-height: var(--hk-tap);
+  }
+  details.hk-part > summary.hk-part-head::-webkit-details-marker { display: none; }
+  details.hk-part[open] > summary.hk-part-head {
+    border-bottom: 1px solid var(--divider-color); background: var(--hk-page);
+  }
+  .hk-part-acc-ic {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--secondary-background-color); color: var(--secondary-text-color);
+    --mdc-icon-size: 18px;
+  }
+  details.hk-part.wear .hk-part-acc-ic {
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+    color: var(--primary-color);
+  }
+  .hk-part-acc-text {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .hk-part-acc-name { font-weight: 500; overflow-wrap: anywhere; }
+  .hk-part-acc-sum {
+    flex: 1 1 100%; font-size: 0.8rem; color: var(--secondary-text-color);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  details.hk-part.wear .hk-part-badge {
+    color: var(--primary-color);
+    border-color: color-mix(in srgb, var(--primary-color) 50%, transparent);
+  }
+  details.hk-part > summary .hk-section-chevron { flex: none; }
+  details.hk-part[open] > summary .hk-section-chevron { transform: rotate(180deg); }
+  .hk-part-body { padding: 10px 12px 12px; }
+  .hk-part-foot { display: flex; justify-content: flex-end; margin-top: 4px; }
   .hk-meta-seeds { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
   .hk-meta-seeds ha-button { --mdc-typography-button-font-size: 0.8rem; }
 
@@ -699,6 +741,44 @@ export const STYLES = `
   .hk-meter.hk-part-meter > span { background: var(--hk-ok); }
   .hk-meter.hk-part-meter.low > span { background: var(--hk-warn); }
   .hk-part-notes { color: var(--secondary-text-color); margin-top: 6px; }
+  /* The Parts tab's own way into the drawer, on the row it is about. */
+  .hk-part-actions { flex: none; align-self: flex-start; margin: -8px -8px 0 0; }
+  .hk-part-actions ha-icon-button { --mdc-icon-button-size: 40px; color: var(--hk-ink-2); }
+  /* A section heading that carries the one action for what it heads. */
+  .hk-section-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .hk-section-row ha-button {
+    text-transform: none; letter-spacing: normal; --ha-button-height: 32px;
+    --mdc-typography-button-font-size: 0.8rem;
+  }
+  /* The stock cell as a control: − / amount / unit / +. One pill, sized like the
+     chips beside it; the low state takes the same soft-container/ink pairing the
+     Low stock chip did, plus a word, so colour is never the only signal. */
+  .hk-stock {
+    display: inline-flex; align-items: center; height: 30px;
+    border: 1px solid var(--hk-line); border-radius: var(--hk-r-pill);
+    background: var(--hk-surface); padding: 0 2px;
+  }
+  .hk-stock ha-icon-button { --mdc-icon-button-size: 28px; --mdc-icon-size: 18px; color: var(--hk-accent-ink); }
+  .hk-stock-input {
+    width: 4.5em; height: 100%; text-align: center; border: 0; background: transparent;
+    font: inherit; font-weight: 500; color: inherit; outline: none;
+    font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield;
+  }
+  .hk-stock-input::-webkit-inner-spin-button, .hk-stock-input::-webkit-outer-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
+  .hk-stock-input:focus-visible { box-shadow: inset 0 -2px 0 var(--hk-accent); }
+  .hk-stock-unit { font-size: 0.8rem; color: var(--hk-ink-2); padding-right: 2px; }
+  .hk-stock.low {
+    background: var(--hk-danger-soft); border-color: transparent; color: var(--hk-danger-ink);
+  }
+  .hk-stock.low ha-icon-button { color: var(--hk-danger-ink); }
+  .hk-stock.low .hk-stock-unit { color: inherit; }
+  .hk-stock-low {
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--hk-danger-ink); align-self: center;
+  }
+  .hk-stock[data-busy] { opacity: 0.6; pointer-events: none; }
   /* The rule the form currently describes, in one sentence, immediately above the
      submit button — the last thing read before committing. Louder than .hk-form-hint
      on purpose: the hint explains, this one states the outcome. */
@@ -730,8 +810,11 @@ export const STYLES = `
   ha-card.hk-card {
     --ha-card-box-shadow: none;
     --ha-card-border-radius: var(--hk-r-row);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
+  /* The row's one action sits a size below the page's buttons: every row carries
+     one, and a column of full-height pills was most of what made the list tall. */
+  .hk-row-task .hk-card-actions ha-button { --ha-button-height: 32px; }
   ha-card.hk-card.overdue {
     border-left: 3px solid var(--hk-danger);
     --ha-card-border-radius: 0 var(--hk-r-row) var(--hk-r-row) 0;
@@ -757,7 +840,7 @@ export const STYLES = `
   /* Not hidden while the drawer is open: the drawer only exists above 1150px, where
      the list still has the width to carry a chip, and hiding them changed the list
      into a different list at the moment it was meant to hold still. */
-  .hk-chips.hk-chips-inline ha-assist-chip { --ha-assist-chip-container-height: 26px; }
+  .hk-chips.hk-chips-inline ha-assist-chip { --ha-assist-chip-container-height: 24px; }
   /* A chip narrower than its label used to wrap that label onto two or three lines,
      which spilled it straight out of the pill's outline — "Managed by Battery Notes"
      on a phone did exactly that. The container height is fixed, so the extra lines
@@ -801,7 +884,7 @@ export const STYLES = `
      could not press — enclosure now means pressable, and status reads as text.
      Scoped away from the overdue and shopping chips, which carry a colour of their
      own, so removing the outline does not also remove what the colour was saying. */
-  .hk-status ha-assist-chip { --ha-assist-chip-container-height: 28px; }
+  .hk-status ha-assist-chip { --ha-assist-chip-container-height: 26px; }
   .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-shopping) {
     --ha-assist-chip-outline-width: 0px;
     --md-assist-chip-outline-width: 0px;
@@ -1422,19 +1505,29 @@ export const STYLES = `
       box-shadow: var(--hk-shadow-float);
       border-radius: 14px;
     }
-    /* A phone row stacks: title, meta, the chips, then status and Done on one line.
-       The chips take a row of their own rather than sharing with the status pill, so
-       the pill and the button it argues for always end up side by side. */
-    .hk-card-row { flex-wrap: wrap; row-gap: 10px; }
-    .hk-card-row .grow { flex: 1 1 100%; }
-    .hk-chips.hk-chips-inline { flex: 1 1 100%; flex-wrap: wrap; order: 1; }
-    .hk-status { order: 2; }
-    .hk-card-actions { order: 3; margin-inline-start: auto; }
-    /* The spacer pushes Done to the right end of a *single-line* row. Once the row
-       wraps, the actions' margin-inline-start: auto does that job instead — and the
-       spacer, left at order 0 while .grow beside it is flex: 1 1 100%, cannot share
-       a line with anything and takes a whole empty one of its own. */
+    /* A phone row is a two-column grid: what the task is on the left (title, meta,
+       how late it is, then its chips), and its one action on the right, centred on
+       the whole row. Stacking everything full-width, as this did, put Done on a
+       fourth line and made every row a card you scrolled through; the grid keeps a
+       row to three lines for most tasks and puts the button where a thumb is. */
+    .hk-card-row.hk-row-task {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "grow actions" "status actions" "chips actions";
+      gap: 4px 10px; align-items: center; padding: 10px 8px 10px 12px;
+    }
+    .hk-card-row.hk-row-task > .grow { grid-area: grow; }
+    .hk-status { grid-area: status; justify-self: start; }
+    .hk-chips.hk-chips-inline { grid-area: chips; flex-wrap: wrap; }
+    /* A row with nothing to qualify it keeps no empty line for the chips. */
+    .hk-chips.hk-chips-inline:empty { display: none; }
+    .hk-card-actions { grid-area: actions; align-self: center; }
+    /* Thumb-sized again on a phone, where the desktop's 32px would be a miss. */
+    .hk-row-task .hk-card-actions ha-button { --ha-button-height: 40px; }
+    /* The spacer pushes Done to the right end of a *single-line* row; a grid has
+       its own columns for that. */
     .hk-row-spacer { display: none; }
+    /* Appliance rows keep the wrapping flex layout: they have no status or action. */
+    .hk-card-row:not(.hk-row-task) { flex-wrap: wrap; row-gap: 10px; }
   }
 
   /* ── Narrow: the drawer becomes a bottom sheet ─────────────────────────────

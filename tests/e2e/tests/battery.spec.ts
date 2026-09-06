@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openPanel, trackPanelErrors } from './helpers';
+import { openPanel, openTaskTab, trackPanelErrors } from './helpers';
 import { TASK } from '../fixture-ids';
 
 /**
@@ -55,7 +55,8 @@ test.describe('Home Keeper panel — triggered / battery tasks', { tag: '@respon
     await expect(panel.locator('#back-btn')).toBeVisible();
     // Schedule row reads "Monitored", not a recurrence rule.
     await expect(panel).toContainText('Monitored');
-    // The replacement history (cadence) is listed.
+    // The replacement history (cadence) is listed, on its own tab.
+    await openTaskTab(panel, 'history');
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
     // Editing a managed triggered task offers no recurrence/cadence editor.
     await panel.locator('.d-edit').click();

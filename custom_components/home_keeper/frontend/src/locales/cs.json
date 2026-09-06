@@ -639,5 +639,11 @@
   "sensor.availabilityUnavailable": "{entity}: nedostupný",
   "settings.status_saving": "Ukládání…",
   "settings.status_saved": "Uloženo",
-  "settings.status_failed": "Neuloženo"
+  "settings.status_failed": "Neuloženo",
+  "btn.editPart": "Upravit díl",
+  "btn.stockDec": "Snížit zásobu",
+  "btn.stockInc": "Zvýšit zásobu",
+  "part.low": "Nízká",
+  "part.reorderAt": "Objednat při {n}",
+  "toast.stockSet": "Zásoba nastavena na {n}"
 }

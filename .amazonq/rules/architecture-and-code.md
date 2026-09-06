@@ -706,6 +706,24 @@ client check is a fast path, never the enforcement.
   must check a field is present before reading it** (`'interval' in value`).
   An unguarded read sees `undefined` for fields in other sections; the cadence
   interval is coerced with `Number(...) || 1`, so it silently became 1.
+- **A field that another field reveals lives in a second, *dependent* `ha-form`
+  whose `schema` is reassigned in place — never in a form that is rebuilt.**
+  `_render()` replaces the whole shadow tree, so a `value-changed` handler that
+  calls it destroys the box being typed in: focus falls to `<body>`, the drawer's
+  scroller restarts at the top, and on iOS the keyboard closes (#296 — the first
+  digit into an empty part Stock box). The part editor is `partBaseSchema()` (the
+  gates: type, stock, reorder) plus `partDependentSchema(part)` (what they reveal);
+  `partDependentKey(part)` says when the dependent form's shape changes, and the
+  handler sets `dep.schema`/`dep.data` on the *same* element. The metadata editor
+  does the same for its type-dependent value control. A `_render()` from a click
+  (Add part, Remove) is fine — a click is not mid-keystroke.
+- **A collapsible is a native `details` with the panel's own summary chrome** —
+  an uppercase `.hk-section` label, a `.hk-section-count` pill, and an
+  `.hk-section-chevron` — at every level: the drawer's sections
+  (`collapsibleSection`), each part inside the Parts section (`partBox`), and the
+  list's status groups. Open state lives in panel state (`openSections`,
+  `openPart`), read on render and written from the `toggle` event, so a render
+  never snaps a row shut.
 - Keep the wrapper's id (`hk-task-form`) on a `<div>` around the section forms, so
   every `#hk-task-form <selector>` descendant lookup still resolves. Tests that
   dispatch `value-changed` must address the *section that owns the field* — an

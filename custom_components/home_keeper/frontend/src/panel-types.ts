@@ -42,6 +42,13 @@ export interface AssetEditState {
   // "parts"), preserved across re-renders so an expanded section doesn't snap shut
   // when an unrelated edit re-renders the form. Unset → defaults to "open if non-empty".
   openSections?: Record<string, boolean>;
+  // Which part row is expanded in the parts editor (one at a time). Unset → a lone
+  // part opens, a longer list stays folded; null → the user closed them all.
+  openPart?: number | null;
+  // One-shot: the next render brings the open part into view ('scroll'), or also
+  // hands it the keyboard ('focus', a part just added). Consumed by
+  // `renderPartsEditor`, so a later unrelated render never scrolls the drawer.
+  revealPart?: 'scroll' | 'focus';
   // The single in-flight upload, if any (one at a time — every upload button is
   // disabled while this is set). Lives in state, not just the DOM, so a re-render
   // mid-upload rebuilds the progress bar instead of dropping it.

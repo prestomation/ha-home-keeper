@@ -9,7 +9,7 @@
  * are `ha-select` built on `ha-dropdown` (open, then click the role="menuitem").
  */
 import { test, expect, Locator, Page } from '@playwright/test';
-import { openPanel, openDashboard } from './tests/helpers';
+import { openPanel, openDashboard, openPart, openTaskTab } from './tests/helpers';
 import {
   centre,
   expandGroup,
@@ -138,16 +138,29 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // completion history of every time it was done (now annotated with the per-
   // completion note and cost recorded at Done time).
   await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
-  await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
-  // The note is Markdown (issue #163). Assert it actually rendered — `ha-markdown`
-  // is one of HA's lazily-loaded elements, so a regression here silently degrades to
-  // escaped plain text rather than failing loudly.
+  // The page opens on its Schedule tab; Notes and History are one tap off, like the
+  // appliance page. Assert the schedule is there rather than trusting the picture.
+  await expect(panel.locator('.hk-subtab[data-tab="schedule"].active')).toBeVisible();
+  await expect(panel.locator('.hk-detail-row', { hasText: 'Next due' })).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/7-panel-task-detail.png`, fullPage: true });
+
+  // 7b. The Notes tab. The note is Markdown (issue #163). Assert it actually rendered
+  // — `ha-markdown` is one of HA's lazily-loaded elements, so a regression here
+  // silently degrades to escaped plain text rather than failing loudly.
+  await openTaskTab(panel, 'notes');
   await expect(panel.locator('.hk-detail-inner ha-markdown strong').first()).toBeVisible({
     timeout: 15_000,
   });
   await expect(panel.locator('.hk-detail-inner ha-markdown ol li').first()).toBeVisible();
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/7-panel-task-detail.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/7b-panel-task-notes-tab.png`, fullPage: true });
+  // 7c. The History tab, with the completions the shots below act on.
+  await openTaskTab(panel, 'history');
+  await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/7c-panel-task-history-tab.png`, fullPage: true });
+  await openTaskTab(panel, 'schedule');
 
   // 1a1. Editing beside the page. Edit opens the form in the drawer next to the task's
   // own page rather than throwing it away for the list, so the schedule, the notes and
@@ -179,6 +192,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 1b1. The inline notes editor, open, with its live Markdown preview. Every task
   // gets this now (it used to be problem-sensor tasks only) — notes are prose, so
   // they're authored in a full-width box that previews as you type.
+  await openTaskTab(panel, 'notes');
   await panel.locator('.d-note-edit').click();
   const taskNote = panel.locator('.d-note-input');
   await expect(taskNote).toBeVisible();
@@ -191,6 +205,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // Cancel so the capture leaves the seeded note untouched for later shots.
   await panel.locator('.d-note-cancel').click();
   await expect(panel.locator('.d-note-edit')).toBeVisible();
+  await openTaskTab(panel, 'schedule');
 
   // 1b1a. The Done caret, open. Snooze and Skip are the two other answers to a due
   // task, and neither was reachable from the panel before (#268) — they shipped as
@@ -228,6 +243,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     .fill('Away all month — cartridge still clear');
   await skipDialog.getByRole('button', { name: 'Skip' }).click();
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+  await openTaskTab(panel, 'history');
   await expect(panel.locator('.hk-hist-list li.hk-hist-is-skip')).toBeVisible({
     timeout: 10_000,
   });
@@ -314,6 +330,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // chip (e.g. "2× AAA") is shown alongside the managed chip.
   await panel.locator(`.detail-open[data-detail-id="${TASK.doorBattery}"]`).click();
   await expect(panel.locator('ha-assist-chip.hk-managed').first()).toBeVisible();
+  await openTaskTab(panel, 'history');
   await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/14-panel-battery-detail.png`, fullPage: true });
@@ -356,6 +373,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // logged at (#235) — the number a mileage- or hours-based service actually turns
   // on. Assert the chip as well as photographing it: #221 sat in plain sight in a
   // committed screenshot for months because nothing tested what the picture showed.
+  await openTaskTab(panel, 'history');
   const usageHistoryRow = panel.locator('.hk-hist-list li').first();
   await expect(usageHistoryRow.locator('.hk-hist-chips')).toContainText('at 660 h');
   await usageHistoryRow.scrollIntoViewIfNeeded();
@@ -426,6 +444,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // This runs *before* the blocked-Done toast below: the editor's Markdown preview
   // sits between the textarea and the Save/Cancel row, which puts those buttons right
   // where HA parks its toast — capturing them while one is up hides the buttons.
+  await openTaskTab(panel, 'notes');
   await panel.locator('.d-note-edit').click();
   const noteInput = panel.locator('.d-note-input');
   await expect(noteInput).toBeVisible();
@@ -436,6 +455,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/18-panel-problem-sensor-note.png`, fullPage: true });
   await panel.locator('.d-note-save').click();
   await expect(panel.locator('.d-note-edit')).toBeVisible();
+  await openTaskTab(panel, 'schedule');
 
   // Tapping the disabled Done surfaces a toast explaining why it can't be completed
   // here (best-effort capture — the toast is transient).
@@ -923,13 +943,19 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await fillText(part, 0, 'Anode rod'); // part name
   await fillText(part, 1, 'AR-1'); // part number
   await chooseHaSelect(part.locator('ha-select').first(), 'wear item');
-  // Number selectors in part order: cost #0, stock #1, reorder-at #2, and (after
-  // switching to wear) replace-interval #3. Fill spare-inventory + interval so the
-  // shot shows stock tracking alongside the maintenance cadence.
+  // Number selectors in part order: cost #0, stock #1, reorder-at #2. The fields a
+  // value reveals (Used per completion once stock is set, the wear interval) live in
+  // the part's second form, so the interval is found by its label, not its index.
+  // Fill spare-inventory + interval so the shot shows stock tracking alongside the
+  // maintenance cadence.
   const partNums = panel.locator('.hk-part').first().locator('ha-selector-number');
   await partNums.nth(1).locator('input').fill('2'); // stock
   await partNums.nth(2).locator('input').fill('1'); // reorder at
-  await partNums.nth(3).locator('input').fill('12'); // replace interval
+  await part
+    .locator('ha-selector-number')
+    .filter({ hasText: 'Replace every' })
+    .locator('input')
+    .fill('12');
   // The wear part now exposes a "Last replaced" date field so the maintenance
   // schedule can start from the real date rather than "now".
   await expect(panel.locator('.hk-part').first().locator('ha-selector-date')).toBeVisible();
@@ -1072,10 +1098,19 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     if (!open) await partsDetails.first().locator('summary').click();
   }
   await expect(partsDetails.locator('.hk-part').first()).toBeVisible();
-  // Click the delete (trash) icon-button on the first PART (scoped to the Parts
-  // section so the Custom Fields rows — which share the same class names — are
-  // excluded).
-  await partsDetails.locator('.hk-part').first().locator('ha-icon-button.part-del').click();
+  // 35b. The parts as they open: four folded rows, each naming its part and saying
+  // what a reader comes back for (stock, reorder point, interval) — the drawer no
+  // longer scrolls through four full forms to reach one (issue #296).
+  await expect(partsDetails.locator('.hk-part[open]')).toHaveCount(0);
+  await expect(partsDetails.locator('.hk-part-acc-sum').first()).toContainText('Low stock: 2');
+  await partsDetails.locator('.hk-part').first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await shotWithDrawer(page, `${OUT}/35b-panel-parts-accordion.png`);
+  // Parts are folded rows (issue #296): open the first, then its Remove part (at the
+  // foot of the open row — scoped to the Parts section so the Custom Fields rows,
+  // which share a class, are excluded).
+  await openPart(partsDetails.locator('.hk-part').first());
+  await partsDetails.locator('.hk-part').first().locator('ha-button.part-del').click();
   // Scrim is appended to document.body (not shadow root) so use page.locator.
   await expect(
     page.locator('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]'),
@@ -1104,6 +1139,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // threshold) is the natural home for a buy reminder — flip it on, fill the quantity,
   // and capture just that part card.
   const buyPart = partsDetails.locator('.hk-part').last();
+  await openPart(buyPart);
   await buyPart.scrollIntoViewIfNeeded();
   await buyPart.locator('ha-switch').first().click();
   await expect(buyPart.getByText('Restock quantity', { exact: false })).toBeVisible();
@@ -1118,6 +1154,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // and uses 250 of them per completion, so its editor shows the Stock unit and
   // Used-per-completion fields alongside a decimal-capable Stock and Reorder at.
   const measuredPart = partsDetails.locator('.hk-part').nth(2);
+  await openPart(measuredPart);
   await measuredPart.scrollIntoViewIfNeeded();
   await expect(measuredPart.getByText('Stock unit', { exact: false })).toBeVisible();
   await expect(measuredPart.getByText('Used per completion', { exact: false })).toBeVisible();
@@ -1131,9 +1168,33 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
   const measuredRow = panel.locator('.hk-part-row').filter({ hasText: 'Descaling solution' });
   await measuredRow.scrollIntoViewIfNeeded();
-  await expect(measuredRow.getByText('In stock: 750 ml')).toBeVisible();
+  // The amount is a stepper now (47c): its name carries the unit, the unit sits
+  // beside it, and one tap of − is one completion's worth.
+  await expect(measuredRow.getByLabel('In stock: 750 ml')).toHaveValue('750');
+  await expect(measuredRow.locator('.hk-stock-unit')).toHaveText('ml');
   await page.waitForTimeout(400);
   await measuredRow.screenshot({ path: `${OUT}/47b-panel-part-measured-chips.png` });
+
+  // 47c. The stepper in use: one tap of − takes one completion's worth (250 ml) off
+  // through the same `adjust_part_stock` path the device page uses, and the row
+  // re-reads the store. Put it back with + so later shots see the seeded 750.
+  await measuredRow.locator('.hk-stock-dec').click();
+  await expect(measuredRow.locator('.hk-stock-input')).toHaveValue('500', { timeout: 10_000 });
+  await page.waitForTimeout(400);
+  await measuredRow.screenshot({ path: `${OUT}/47c-panel-part-stepper.png` });
+  await measuredRow.locator('.hk-stock-inc').click();
+  await expect(measuredRow.locator('.hk-stock-input')).toHaveValue('750', { timeout: 10_000 });
+
+  // 47d. The Parts tab's own way into the editor: Edit on a row opens the drawer
+  // on that part, expanded and scrolled to, with the rest still folded.
+  await measuredRow.locator('.hk-part-edit').click();
+  const editedPart = panel.locator('#hk-asset-form .hk-part[data-idx="2"]');
+  await expect(editedPart).toHaveAttribute('open', '');
+  await expect(panel.locator('#hk-asset-form .hk-part[open]')).toHaveCount(1);
+  await page.waitForTimeout(600);
+  await shotWithDrawer(page, `${OUT}/47d-panel-part-edit-from-tab.png`);
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
 
   // 17-pre. Point the buy-reminder mirror at the household shopping list and opt
   // the seeded anode rod (already sitting at its reorder point) into auto-buy, so

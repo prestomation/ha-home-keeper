@@ -47,7 +47,7 @@ import type {
   HomeKeeperOptions,
   Task,
 } from './types';
-import type { AssetTab, BtnWeight, PanelLocation, SettingsSection } from './utils';
+import type { AssetTab, BtnWeight, PanelLocation, SettingsSection, TaskTab } from './utils';
 
 export interface PanelHost extends HTMLElement {
   /** Archive an appliance (the detail page's Archive button). */
@@ -136,6 +136,9 @@ export interface PanelHost extends HTMLElement {
   _exportInventory(): Promise<void>;
   /** Which scope pill the task list is filtered to. */
   _filter: TaskFilter;
+  /** Focus *el* without letting a not-yet-upgraded HA element abort the render;
+   *  retries on the next frame when the element is still upgrading. */
+  _focus(el: HTMLElement | null): void;
   /** How the lists are grouped, as chosen (see `effectiveGroup` for the resolved one). */
   _groupBy: GroupBy;
   _hass?: Hass;
@@ -196,8 +199,9 @@ export interface PanelHost extends HTMLElement {
   _openDuplicate(task: Task): void;
   /** Open the drawer editing *task*. */
   _openEdit(task: Task): void;
-  /** Open the drawer editing *asset*. */
-  _openEditAsset(asset: Asset): void;
+  /** Open the drawer editing *asset*. With *reveal*, the drawer opens on one part:
+   *  an index expands and scrolls to that part, `'new'` appends one and focuses it. */
+  _openEditAsset(asset: Asset, reveal?: { part: number | 'new' }): void;
   /** Integration options — the saved Profiles the list filter offers live here. */
   _options: HomeKeeperOptions | null;
   /** Home Keeper's own todo entities, kept out of the shopping-list picker. */
@@ -220,6 +224,8 @@ export interface PanelHost extends HTMLElement {
   _setAssetFilter(value: AssetFilter): void;
   /** Switch the open appliance's sub-tab (replaces, so Back leaves the appliance). */
   _setAssetTab(tab: AssetTab): void;
+  /** Switch the open task's sub-tab (replaces, so Back leaves the task). */
+  _setTaskTab(tab: TaskTab): void;
   _setAssetView(value: AssetView): void;
   _setFilter(value: TaskFilter): void;
   _setGroupBy(value: GroupBy): void;
@@ -244,6 +250,8 @@ export interface PanelHost extends HTMLElement {
   _signedFiles: SignedUrlCache;
   /** HA tag-registry entries as picker options, for the tag chip. */
   _tags: { value: string; label: string }[];
+  /** Which sub-tab the open task detail is showing. */
+  _taskTab(): TaskTab;
   _tasks: Task[];
   /** The task form's notes preview, so its value-changed handler can feed it in place.
    *  Owned by the panel's `_previews` for disposal — this is only a reference. */

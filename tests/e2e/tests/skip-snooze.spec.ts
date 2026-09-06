@@ -122,7 +122,7 @@ test.describe('Home Keeper panel — snooze and skip', { tag: '@responsive' }, (
     // A live recurring task with existing history. (A completed one-off such as
     // `carRegistration` has no caret at all — there is no occurrence left to defer,
     // which is correct, and the dormant case below covers it.)
-    const panel = await gotoPanel(page, `/tasks/${TASK.fridgeFilter}`);
+    const panel = await gotoPanel(page, `/tasks/${TASK.fridgeFilter}/history`);
 
     const before = await panel.locator('.hk-hist-sub').first().textContent();
 

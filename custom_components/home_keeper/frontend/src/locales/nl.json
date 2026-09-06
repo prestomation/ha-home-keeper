@@ -607,5 +607,11 @@
   "sensor.availabilityUnavailable": "{entity}: niet beschikbaar",
   "settings.status_saving": "Opslaan…",
   "settings.status_saved": "Opgeslagen",
-  "settings.status_failed": "Niet opgeslagen"
+  "settings.status_failed": "Niet opgeslagen",
+  "btn.editPart": "Onderdeel bewerken",
+  "btn.stockDec": "Voorraad verlagen",
+  "btn.stockInc": "Voorraad verhogen",
+  "part.low": "Laag",
+  "part.reorderAt": "Bijbestellen bij {n}",
+  "toast.stockSet": "Voorraad ingesteld op {n}"
 }

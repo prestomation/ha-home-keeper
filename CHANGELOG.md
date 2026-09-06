@@ -6,6 +6,39 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.21.0b5]
+
+### Added
+
+- **Parts in the appliance edit drawer are now collapsible rows.** A collapsed
+  row shows the part's name and a one-line summary. Only 1 part opens at a time,
+  and a new part opens itself.
+
+- **The Parts tab now has an Edit icon on each part and an Add part button.**
+  Both open the edit drawer with that part expanded and scrolled into view. Add
+  part opens a new, empty row the same way.
+
+- **The Parts tab's "In stock" chip is now a stepper.** Press − or + to move the
+  stock by 1 spare, or by 1 completion's amount for a part measured in a unit. A
+  typed value saves on Enter or when the box loses focus, and low-stock events
+  and buy tasks still fire the same way.
+
+### Changed
+
+- **The task list is now more compact.** Rows use less padding, and the chips
+  and the Done button are smaller. On a phone, a row uses 2 columns: task
+  details on the left and Done on the right.
+
+- **A task's page now has the sub-tabs Schedule, Notes, and History.** The page
+  opens on Schedule, and each sub-tab has its own URL.
+
+### Fixed
+
+- **A part's Stock and Reorder-at boxes now keep focus while a user types.**
+  The first digit in an empty box rebuilt the whole form, so the drawer jumped
+  to the top and the keyboard closed on iOS. The fields that a value reveals now
+  appear in place, and typing never rebuilds the form. (Fixes #296)
+
 ## [0.21.0b4]
 
 ### Added

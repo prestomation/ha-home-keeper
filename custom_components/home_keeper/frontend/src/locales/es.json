@@ -623,5 +623,11 @@
   "sensor.availabilityUnavailable": "{entity}: no disponible",
   "settings.status_saving": "Guardando…",
   "settings.status_saved": "Guardado",
-  "settings.status_failed": "No guardado"
+  "settings.status_failed": "No guardado",
+  "btn.editPart": "Editar pieza",
+  "btn.stockDec": "Disminuir existencias",
+  "btn.stockInc": "Aumentar existencias",
+  "part.low": "Bajo",
+  "part.reorderAt": "Reordenar en {n}",
+  "toast.stockSet": "Existencias establecidas en {n}"
 }

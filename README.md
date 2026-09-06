@@ -165,6 +165,17 @@ On the **Tasks** tab:
 
 ![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
 
+The task list is compact, so more tasks fit on the screen. On a phone, each row
+keeps the Done button next to the task.
+
+A task's page has the sub-tabs **Schedule**, **Notes**, and **History**. Each
+sub-tab has its own URL, such as `/home-keeper/tasks/<id>/notes`. The page opens on
+the **Schedule** tab.
+
+![A task's page open on its Schedule tab, showing the recurrence and next due date](docs/images/7-panel-task-detail.png)
+
+![A task's page open on its History tab, listing past completions](docs/images/7c-panel-task-history-tab.png)
+
 On the **Appliances** tab, select an appliance to open it. An appliance has the
 sub-tabs **Parts**, **Tasks**, **Documents**, **Details**, **Related**, and
 **History**. Each sub-tab has its own URL, such as
@@ -360,7 +371,7 @@ The **move date** button on a history row changes the date of that entry. The
 
 ![The completion-details dialog (note, cost, who and photo captured when a task is marked done)](docs/images/11-panel-completion-dialog.png)
 
-![Task history annotated with per-completion cost and notes, each row editable](docs/images/7-panel-task-detail.png)
+![Task history annotated with per-completion cost and notes, each row editable](docs/images/7c-panel-task-history-tab.png)
 
 
 
@@ -736,6 +747,16 @@ the to-do list and the calendar with a mark-done button and a next-due sensor. A
 completion sets the part's *last replaced* date. The **last replaced** date can be
 set to a past date so that the schedule starts from the real date.
 
+The appliance edit drawer shows the parts list as collapsible rows. A collapsed row
+shows the part's name and a one-line summary. Only 1 row is open at a time, and a
+new part opens by itself.
+
+![The appliance edit drawer with its parts list folded into collapsible rows](docs/images/35b-panel-parts-accordion.png)
+
+The appliance page's **Parts** tab has an **Edit** icon on each part row and an
+**Add part** button. Both open the part in the edit drawer, expanded and scrolled
+into view.
+
 A part can have a **product URL**. The part's name on the appliance detail page then
 opens the product page in a new tab. A task that is linked to the part shows the
 same link on its detail page and on the dashboard card.
@@ -752,6 +773,14 @@ automation. Any task can be
 completion of that task then draws down the same stock. Stock deduction applies to
 every completion path. This includes manual completion and tag scans and
 [auto-clearing sensor tasks](#sensor-based-tasks-usage-meters-thresholds--states).
+
+On the appliance page's **Parts** tab, the **In stock** chip is a stepper. Press
+**−** or **+** to move the stock by 1 spare, or by 1 completion's amount for a part
+measured in a unit. Type a value in the box and press **Enter**, or move focus
+away, to save it. Each change uses the same `home_keeper.adjust_part_stock` service
+path as a completion, so low-stock events and auto-created buy tasks still fire.
+
+![The Parts tab stock chip as a stepper, with minus and plus buttons around an editable number and its unit](docs/images/47c-panel-part-stepper.png)
 
 #### Stock you measure rather than count
 

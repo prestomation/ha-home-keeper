@@ -607,5 +607,11 @@
   "sensor.availabilityUnavailable": "{entity}: ei saatavilla",
   "settings.status_saving": "Tallennetaan…",
   "settings.status_saved": "Tallennettu",
-  "settings.status_failed": "Ei tallennettu"
+  "settings.status_failed": "Ei tallennettu",
+  "btn.editPart": "Muokkaa osaa",
+  "btn.stockDec": "Vähennä varastoa",
+  "btn.stockInc": "Lisää varastoa",
+  "part.low": "Vähissä",
+  "part.reorderAt": "Tilausraja: {n}",
+  "toast.stockSet": "Varasto asetettu arvoon {n}"
 }

@@ -623,5 +623,11 @@
   "sensor.availabilityUnavailable": "{entity}: non disponibile",
   "settings.status_saving": "Salvataggio…",
   "settings.status_saved": "Salvato",
-  "settings.status_failed": "Non salvato"
+  "settings.status_failed": "Non salvato",
+  "btn.editPart": "Modifica componente",
+  "btn.stockDec": "Riduci scorte",
+  "btn.stockInc": "Aumenta scorte",
+  "part.low": "Basso",
+  "part.reorderAt": "Riordina a {n}",
+  "toast.stockSet": "Scorte impostate a {n}"
 }

@@ -607,5 +607,11 @@
   "sensor.availabilityUnavailable": "{entity}：不可用",
   "settings.status_saving": "保存中…",
   "settings.status_saved": "已保存",
-  "settings.status_failed": "未保存"
+  "settings.status_failed": "未保存",
+  "btn.editPart": "编辑部件",
+  "btn.stockDec": "减少库存",
+  "btn.stockInc": "增加库存",
+  "part.low": "低",
+  "part.reorderAt": "补货阈值：{n}",
+  "toast.stockSet": "库存已设为{n}"
 }

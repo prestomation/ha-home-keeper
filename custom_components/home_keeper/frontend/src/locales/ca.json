@@ -623,5 +623,11 @@
   "sensor.availabilityUnavailable": "{entity}: no disponible",
   "settings.status_saving": "S'està desant…",
   "settings.status_saved": "Desat",
-  "settings.status_failed": "No desat"
+  "settings.status_failed": "No desat",
+  "btn.editPart": "Edita peça",
+  "btn.stockDec": "Redueix estoc",
+  "btn.stockInc": "Augmenta estoc",
+  "part.low": "Baix",
+  "part.reorderAt": "Reabastir a {n}",
+  "toast.stockSet": "Estoc establert a {n}"
 }

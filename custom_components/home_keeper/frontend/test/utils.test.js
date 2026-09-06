@@ -3,8 +3,10 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
+  DEFAULT_TASK_TAB,
   DEFAULT_SNOOZE_PRESET,
   SETTINGS_SECTIONS,
+  TASK_TABS,
   SNOOZE_PRESETS,
   areaName,
   assetSummary,
@@ -29,6 +31,8 @@ import {
   meterRemaining,
   navigateTo,
   parseRoute,
+  partStockButtonStep,
+  partStockStep,
   personName,
   randomId,
   readingUnit,
@@ -38,6 +42,7 @@ import {
   safeFileHref,
   safeHref,
   setBtnWeight,
+  snapStock,
   sortedCompletions,
   statusChipHtml,
   taskRecordsReading,
@@ -744,11 +749,21 @@ describe('parseRoute', () => {
   it('parses the appliances list', () => {
     expect(parseRoute('/appliances')).toEqual({ view: 'appliances', detail: null });
   });
-  it('parses a task detail', () => {
+  it('parses a task detail, on its default sub-tab', () => {
+    // A bare `/tasks/<id>` — every link minted before task sub-tabs existed — opens
+    // the schedule, as it always did.
     expect(parseRoute('/tasks/abc')).toEqual({
       view: 'tasks',
-      detail: { kind: 'task', id: 'abc' },
+      detail: { kind: 'task', id: 'abc', tab: 'schedule' },
     });
+  });
+  it('parses each task sub-tab from the third segment', () => {
+    for (const tab of TASK_TABS) {
+      expect(parseRoute(`/tasks/abc/${tab}`)).toEqual({
+        view: 'tasks',
+        detail: { kind: 'task', id: 'abc', tab },
+      });
+    }
   });
   it('parses an asset detail under the appliances segment', () => {
     // No sub-tab in the URL resolves to the default one, so every `/appliances/<id>`
@@ -777,17 +792,20 @@ describe('parseRoute', () => {
       });
     }
   });
-  it('does not give a task detail a sub-tab', () => {
-    // Only appliances have sub-tabs; a third segment on a task path is not one.
-    expect(parseRoute('/tasks/abc/documents')).toEqual({
-      view: 'tasks',
-      detail: { kind: 'task', id: 'abc' },
-    });
+  it('falls back to the default task sub-tab for an unknown one', () => {
+    // An appliance's tab names are not a task's; a stale or hand-typed one opens the
+    // task rather than nothing.
+    for (const bogus of ['documents', 'nope', 'SCHEDULE', '']) {
+      expect(parseRoute(`/tasks/abc/${bogus}`)).toEqual({
+        view: 'tasks',
+        detail: { kind: 'task', id: 'abc', tab: DEFAULT_TASK_TAB },
+      });
+    }
   });
   it('decodes percent-encoded ids and tolerates trailing slashes', () => {
     expect(parseRoute('/tasks/a%2Fb/')).toEqual({
       view: 'tasks',
-      detail: { kind: 'task', id: 'a/b' },
+      detail: { kind: 'task', id: 'a/b', tab: 'schedule' },
     });
   });
   it('decodes a percent-encoded section or sub-tab before matching it', () => {
@@ -863,6 +881,16 @@ describe('buildPath', () => {
       ).toBe(`/appliances/x/${tab}`);
     }
   });
+  it('leaves the default task sub-tab implicit, and names the others', () => {
+    expect(buildPath({ view: 'tasks', detail: { kind: 'task', id: 'x', tab: 'schedule' } })).toBe(
+      '/tasks/x',
+    );
+    for (const tab of TASK_TABS.filter((t) => t !== DEFAULT_TASK_TAB)) {
+      expect(buildPath({ view: 'tasks', detail: { kind: 'task', id: 'x', tab } })).toBe(
+        `/tasks/x/${tab}`,
+      );
+    }
+  });
   it('encodes the id even with a sub-tab after it', () => {
     expect(
       buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'a/b', tab: 'history' } }),
@@ -880,9 +908,10 @@ describe('buildPath', () => {
       { view: 'appliances', detail: null },
       { view: 'settings', detail: null },
       ...SETTINGS_SECTIONS.map((section) => ({ view: 'settings', detail: null, section })),
-      { view: 'tasks', detail: { kind: 'task', id: 'task-1' } },
-      // An appliance always resolves with a sub-tab, so that is the shape a
-      // round-trip has to come back as.
+      // A detail always resolves with a sub-tab, so that is the shape a round-trip
+      // has to come back as.
+      { view: 'tasks', detail: { kind: 'task', id: 'task-1', tab: 'schedule' } },
+      ...TASK_TABS.map((tab) => ({ view: 'tasks', detail: { kind: 'task', id: 'task-1', tab } })),
       { view: 'appliances', detail: { kind: 'asset', id: 'asset-9', tab: 'parts' } },
       ...ASSET_TABS.map((tab) => ({
         view: 'appliances',
@@ -1436,5 +1465,52 @@ describe('snooze presets', () => {
 
   it('ends with custom, so the escape hatch sits last in the dropdown', () => {
     expect(SNOOZE_PRESETS[SNOOZE_PRESETS.length - 1].id).toBe('custom');
+  });
+});
+
+// ── the stock stepper's step rules ───────────────────────────────────────────
+
+describe('partStockStep', () => {
+  it('moves in whole spares for a part counted in spares', () => {
+    expect(partStockStep({ name: 'Filter', type: 'consumable', stock: 4, reorder_at: 1 })).toBe(1);
+    expect(partStockStep({ name: 'Filter', type: 'consumable' })).toBe(1);
+  });
+  it('moves finely once the part has a unit', () => {
+    expect(partStockStep({ name: 'Descaler', type: 'consumable', stock: 750, stock_unit: 'ml' })).toBe(0.001);
+    // A blank unit is no unit.
+    expect(partStockStep({ name: 'Descaler', type: 'consumable', stock: 750, stock_unit: '  ' })).toBe(1);
+  });
+  it('moves finely once any quantity is fractional — the same rule as the device page', () => {
+    const base = { name: 'Oil', type: 'consumable', stock: 2 };
+    expect(partStockStep({ ...base, stock: 2.5 })).toBe(0.001);
+    expect(partStockStep({ ...base, reorder_at: 0.5 })).toBe(0.001);
+    expect(partStockStep({ ...base, consume_quantity: 0.25 })).toBe(0.001);
+    expect(partStockStep({ ...base, restock_quantity: 1.5 })).toBe(0.001);
+    expect(partStockStep({ ...base, reorder_at: null, consume_quantity: null })).toBe(1);
+  });
+});
+
+describe('partStockButtonStep', () => {
+  it('is one spare for a counted part', () => {
+    expect(partStockButtonStep({ name: 'Filter', type: 'consumable', stock: 4 })).toBe(1);
+  });
+  it('is one completion for a measured part, and one unit when no amount is set', () => {
+    expect(
+      partStockButtonStep({ name: 'Descaler', type: 'consumable', stock: 750, stock_unit: 'ml', consume_quantity: 250 }),
+    ).toBe(250);
+    expect(partStockButtonStep({ name: 'Descaler', type: 'consumable', stock: 750, stock_unit: 'ml' })).toBe(1);
+  });
+});
+
+describe('snapStock', () => {
+  it('rounds to the step and never goes below zero', () => {
+    expect(snapStock(4.4, 1)).toBe(4);
+    expect(snapStock(4.5, 1)).toBe(5);
+    expect(snapStock(-2, 1)).toBe(0);
+    expect(snapStock(749.9994, 0.001)).toBe(749.999);
+  });
+  it('treats an unreadable value as empty', () => {
+    expect(snapStock(NaN, 1)).toBe(0);
+    expect(snapStock(Infinity, 1)).toBe(0);
   });
 });

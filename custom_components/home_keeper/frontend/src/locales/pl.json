@@ -639,5 +639,11 @@
   "sensor.availabilityUnavailable": "{entity}: niedostępny",
   "settings.status_saving": "Zapisywanie…",
   "settings.status_saved": "Zapisano",
-  "settings.status_failed": "Nie zapisano"
+  "settings.status_failed": "Nie zapisano",
+  "btn.editPart": "Edytuj część",
+  "btn.stockDec": "Zmniejsz zapas",
+  "btn.stockInc": "Zwiększ zapas",
+  "part.low": "Niski",
+  "part.reorderAt": "Zamów przy {n}",
+  "toast.stockSet": "Ustawiono zapas na {n}"
 }

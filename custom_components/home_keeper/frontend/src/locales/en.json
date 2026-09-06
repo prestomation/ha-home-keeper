@@ -607,5 +607,11 @@
   "sensor.availabilityUnavailable": "{entity}: unavailable",
   "settings.status_saving": "Saving…",
   "settings.status_saved": "Saved",
-  "settings.status_failed": "Not saved"
+  "settings.status_failed": "Not saved",
+  "btn.editPart": "Edit part",
+  "btn.stockDec": "Decrease stock",
+  "btn.stockInc": "Increase stock",
+  "part.low": "Low",
+  "part.reorderAt": "Reorder at {n}",
+  "toast.stockSet": "Stock set to {n}"
 }

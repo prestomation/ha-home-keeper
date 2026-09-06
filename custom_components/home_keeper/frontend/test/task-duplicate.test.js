@@ -128,7 +128,7 @@ describe('Duplicate a task from its page (#279)', () => {
     }
     // Duplicating does not navigate: the task's own page is already the tasks view,
     // so the drawer opens beside what you were reading.
-    expect(panel._detail).toEqual({ kind: 'task', id: 't1' });
+    expect(panel._detail).toEqual({ kind: 'task', id: 't1', tab: 'schedule' });
     expect(window.location.pathname).toBe(before);
   });
 

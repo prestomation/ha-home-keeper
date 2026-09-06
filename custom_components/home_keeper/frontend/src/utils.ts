@@ -1,5 +1,5 @@
 import { t, tn } from './i18n';
-import type { Asset, Hass, HassArea, HassLabel, Task } from './types';
+import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
 
 /** Escape user-provided text before injecting into innerHTML. */
 export function escapeHTML(value: unknown): string {
@@ -261,6 +261,34 @@ export function formatQuantity(value: number, unit?: string | null): string {
   const text = String(parseFloat(value.toFixed(3)));
   const label = (unit || '').trim();
   return label ? `${text} ${label}` : text;
+}
+
+/**
+ * The step a part's stock moves in: a whole spare, or a fine step once the part
+ * deals in fractions — it has a unit, or any of its quantities is fractional. The
+ * same rule as the device page's `number` entity (`number.py` `native_step`), so
+ * the two controls accept the same values.
+ */
+export function partStockStep(part: Part): number {
+  if ((part.stock_unit || '').trim()) return 0.001;
+  const quantities = [part.stock, part.reorder_at, part.consume_quantity, part.restock_quantity];
+  return quantities.some((q) => q != null && !Number.isInteger(q)) ? 0.001 : 1;
+}
+
+/**
+ * How far one tap of the stepper's − or + moves the stock: one spare for a part
+ * counted in spares, and one completion's worth for a measured part (a thousandth
+ * of a millilitre is a step nobody wants to tap through).
+ */
+export function partStockButtonStep(part: Part): number {
+  return partStockStep(part) === 1 ? 1 : (part.consume_quantity ?? 1);
+}
+
+/** A typed stock value snapped to *step* and floored at zero, at the stored
+ *  three-decimal precision. */
+export function snapStock(value: number, step: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.round(Math.round(value / step) * step * 1000) / 1000);
 }
 
 /**
@@ -740,6 +768,16 @@ export type AssetTab = (typeof ASSET_TABS)[number];
 export const DEFAULT_ASSET_TAB: AssetTab = 'parts';
 
 /**
+ * The sub-tabs a task's detail page is divided into, mirroring the appliance page so
+ * the two read the same way. `schedule` is the default: what a task is and when it
+ * is next due is the page's first question; its notes and its history are the
+ * second and third.
+ */
+export const TASK_TABS = ['schedule', 'notes', 'history'] as const;
+export type TaskTab = (typeof TASK_TABS)[number];
+export const DEFAULT_TASK_TAB: TaskTab = 'schedule';
+
+/**
  * The Settings tab's sections, in the order they are shown. Each is a URL of its own
  * so a phone, which has no room for six sections at once, can show an index and open
  * one section at a time with Back working normally.
@@ -769,7 +807,7 @@ export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
  */
 export interface PanelLocation {
   view: PanelView;
-  detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab } | null;
+  detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab | TaskTab } | null;
   section?: SettingsSection;
 }
 
@@ -779,10 +817,11 @@ export interface PanelLocation {
  * the tasks list. The asset detail lives under the `appliances` segment but keeps
  * the internal `asset` kind.
  *
- * A third segment names an appliance sub-tab (`/appliances/<id>/documents`). An
- * unrecognised one falls back to the default rather than 404-ing, and a bare
- * `/appliances/<id>` — every link minted before sub-tabs existed, including the
- * `configuration_url` on already-registered devices — keeps resolving.
+ * A third segment names an appliance sub-tab (`/appliances/<id>/documents`) or a
+ * task sub-tab (`/tasks/<id>/history`). An unrecognised one falls back to the
+ * default rather than 404-ing, and a bare `/appliances/<id>` — every link minted
+ * before sub-tabs existed, including the `configuration_url` on already-registered
+ * devices — keeps resolving. A bare `/tasks/<id>` likewise.
  *
  * Under `settings` the second segment names a section (`/settings/notifications`).
  * An unrecognised one falls back to the section index, not to a default section: a
@@ -821,7 +860,11 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
           : DEFAULT_ASSET_TAB;
       return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
     }
-    return { view, detail: { kind, id: decodeURIComponent(parts[1]) } };
+    // A task page has sub-tabs of its own, resolved the same way.
+    const raw = parts[2] && decodeURIComponent(parts[2]);
+    const tab =
+      raw && (TASK_TABS as readonly string[]).includes(raw) ? (raw as TaskTab) : DEFAULT_TASK_TAB;
+    return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
   }
   return { view, detail: null };
 }
@@ -845,7 +888,8 @@ export function buildPath(loc: PanelLocation): string {
   if (!loc.detail) return `/${loc.view}`;
   const base = `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
   const tab = loc.detail.tab;
-  return tab && tab !== DEFAULT_ASSET_TAB ? `${base}/${tab}` : base;
+  const dflt = loc.detail.kind === 'asset' ? DEFAULT_ASSET_TAB : DEFAULT_TASK_TAB;
+  return tab && tab !== dflt ? `${base}/${tab}` : base;
 }
 
 // ── completion history ───────────────────────────────────────────────────────

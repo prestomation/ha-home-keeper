@@ -623,5 +623,11 @@
   "sensor.availabilityUnavailable": "{entity} : indisponible",
   "settings.status_saving": "Enregistrement…",
   "settings.status_saved": "Enregistré",
-  "settings.status_failed": "Non enregistré"
+  "settings.status_failed": "Non enregistré",
+  "btn.editPart": "Modifier la pièce",
+  "btn.stockDec": "Diminuer le stock",
+  "btn.stockInc": "Augmenter le stock",
+  "part.low": "Faible",
+  "part.reorderAt": "Réapprovisionner à {n}",
+  "toast.stockSet": "Stock défini sur {n}"
 }

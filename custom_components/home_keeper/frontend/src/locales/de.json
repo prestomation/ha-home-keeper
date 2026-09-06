@@ -607,5 +607,11 @@
   "sensor.availabilityUnavailable": "{entity}: nicht verfügbar",
   "settings.status_saving": "Wird gespeichert…",
   "settings.status_saved": "Gespeichert",
-  "settings.status_failed": "Nicht gespeichert"
+  "settings.status_failed": "Nicht gespeichert",
+  "btn.editPart": "Teil bearbeiten",
+  "btn.stockDec": "Bestand verringern",
+  "btn.stockInc": "Bestand erhöhen",
+  "part.low": "Niedrig",
+  "part.reorderAt": "Nachbestellen bei {n}",
+  "toast.stockSet": "Bestand auf {n} gesetzt"
 }

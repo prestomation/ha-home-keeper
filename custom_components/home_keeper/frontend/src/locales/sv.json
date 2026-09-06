@@ -607,5 +607,11 @@
   "sensor.availabilityUnavailable": "{entity}: otillgänglig",
   "settings.status_saving": "Sparar…",
   "settings.status_saved": "Sparat",
-  "settings.status_failed": "Inte sparat"
+  "settings.status_failed": "Inte sparat",
+  "btn.editPart": "Redigera del",
+  "btn.stockDec": "Minska lager",
+  "btn.stockInc": "Öka lager",
+  "part.low": "Lågt",
+  "part.reorderAt": "Beställ vid {n}",
+  "toast.stockSet": "Lager inställt på {n}"
 }

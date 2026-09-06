@@ -607,5 +607,11 @@
   "sensor.availabilityUnavailable": "{entity}: utilgjengelig",
   "settings.status_saving": "Lagrer…",
   "settings.status_saved": "Lagret",
-  "settings.status_failed": "Ikke lagret"
+  "settings.status_failed": "Ikke lagret",
+  "btn.editPart": "Rediger del",
+  "btn.stockDec": "Reduser lager",
+  "btn.stockInc": "Øk lager",
+  "part.low": "Lavt",
+  "part.reorderAt": "Bestill ved {n}",
+  "toast.stockSet": "Lager satt til {n}"
 }

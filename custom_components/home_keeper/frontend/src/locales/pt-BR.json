@@ -623,5 +623,11 @@
   "sensor.availabilityUnavailable": "{entity}: indisponível",
   "settings.status_saving": "Salvando…",
   "settings.status_saved": "Salvo",
-  "settings.status_failed": "Não salvo"
+  "settings.status_failed": "Não salvo",
+  "btn.editPart": "Editar peça",
+  "btn.stockDec": "Diminuir estoque",
+  "btn.stockInc": "Aumentar estoque",
+  "part.low": "Baixo",
+  "part.reorderAt": "Reabastecer em {n}",
+  "toast.stockSet": "Estoque definido para {n}"
 }

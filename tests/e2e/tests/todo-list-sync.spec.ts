@@ -8,6 +8,7 @@ import {
   listTasks,
   openDashboard,
   openPanel,
+  openTaskTab,
 } from './helpers';
 
 /**
@@ -254,6 +255,7 @@ test.describe('Home Keeper — tasks synced onto a household to-do list', () => 
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await panel.locator(`.detail-open[data-detail-id="${taskId}"]`).click();
+    await openTaskTab(panel, 'history');
     await expect(panel.locator('.hk-hist-list li')).toHaveCount(1);
   });
 });

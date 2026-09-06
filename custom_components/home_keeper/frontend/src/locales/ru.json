@@ -639,5 +639,11 @@
   "sensor.availabilityUnavailable": "{entity}: недоступен",
   "settings.status_saving": "Сохранение…",
   "settings.status_saved": "Сохранено",
-  "settings.status_failed": "Не сохранено"
+  "settings.status_failed": "Не сохранено",
+  "btn.editPart": "Редактировать деталь",
+  "btn.stockDec": "Уменьшить запас",
+  "btn.stockInc": "Увеличить запас",
+  "part.low": "Низкий",
+  "part.reorderAt": "Заказ при {n}",
+  "toast.stockSet": "Запас установлен на {n}"
 }
