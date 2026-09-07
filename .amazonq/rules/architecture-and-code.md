@@ -1190,6 +1190,21 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
     `problem_sensor` source) and offers Snooze **even when the notification's own button
     set omits it**, so a walk can never park on one forever. Never offer a button the
     store will refuse: `notifier` swallows the rejection, so it reads as a dead button.
+- **A Profile's filter holds one or more groups, and groups are the only shape it
+  supports.** `profiles.matches_filter` and its TS twin `card-filter.profileMatches`
+  read `filter.groups`. Each group carries its own include filters, its own
+  `labels_match` (any/all), and its own exclusions, and a task matches the Profile when
+  it matches any one group. The pre-groups shape (flat include and exclude keys on the
+  filter) is gone: the v1→v2 config-entry migration (`profiles.migrate_options_v1`,
+  wired in `async_migrate_entry`) rewrites every saved Profile once on the first load
+  after the update, `set_options` refuses the flat keys, and nothing reads them. A v2
+  entry loaded by v1 code refuses to start, on purpose, because a v1 reader would drop
+  `groups` and widen every synced to-do list to its whole tier; downgrading needs a
+  backup. Both matchers stay pinned to each other by
+  `tests/fixtures/profile_filter_cases.json`. The card is the one place a legacy shape
+  is still read: `setConfig` lifts its own `labels`/`areas`/`devices`/`label_match` keys
+  into `groups[0]` forever, because Home Assistant has no mechanism to rewrite a saved
+  dashboard and a YAML dashboard is never rewritten by anyone but its owner.
 - **Options have three editing surfaces that share `options.py`.** Config-entry
   `options` are edited from the **options flow**, the **`home_keeper.set_options`
   service**, AND the panel's **Settings tab** (via `home_keeper/get_options` +

@@ -6,6 +6,24 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.22.0b3]
+
+### Added
+
+- **Filter groups.** A Profile now holds one or more groups of filters instead of one
+  flat list. Home Keeper converts every saved Profile automatically on the first start
+  after the update, and a downgrade needs a backup. (Fixes #291)
+
+### Changed
+
+- **Profile filter services.** `home_keeper.list_profiles` and `home_keeper.set_options`
+  now read and write a Profile's filter as `filter.groups`. The old flat filter keys
+  now return an error.
+- **Card filter keys.** The `custom:home-keeper-card` options `labels`, `areas`,
+  `devices`, and `label_match` are now set inside `groups`. An existing card config with
+  the old keys still works, and the card editor rewrites it to `groups` on its next
+  save.
+
 ## [0.22.0b2]
 
 ### Added
