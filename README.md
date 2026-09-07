@@ -977,7 +977,9 @@ every listed label.
 
 For a kids' chore list, add a group with `kids` in **Labels** and the garage in
 **Exclude areas**. Select **Add another group**, then add a second group with `dog` in
-**Labels** and the yard in **Areas**. The Profile selects a `kids` task outside the
+**Labels** and the yard in **Areas**. The first field in a group is an optional **Group
+name**. Each group is a collapsible row that shows its name and a summary of its
+filters. Only one group is open at a time. The Profile selects a `kids` task outside the
 garage and a `dog` task in the yard.
 
 ![Profile with 2 filter groups](docs/images/profile-filter-groups.png)
