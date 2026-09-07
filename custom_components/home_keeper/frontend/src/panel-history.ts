@@ -27,6 +27,7 @@ import {
   personName,
   readingUnit,
   relativeDay,
+  showsUsageIntervals,
   tasksForAsset,
   toast,
   usageIntervalStats,
@@ -208,12 +209,9 @@ function historyGroup(p: PanelHost, group: HistoryGroup, showHead: boolean): str
   // row. An archived group has no live task, so its rows show a bare number.
   const task = group.taskId ? p._tasks.find((x) => x.id === group.taskId) : undefined;
   const unit = readingUnit(task, p._hass);
-  // Only a usage meter has an interval. A threshold task records a reading too, but
-  // that reading is a measurement (airflow at 58%) rather than a meter that only
-  // climbs, so the difference between two of them is not usage. An archived group has
-  // no live task to ask, so it keeps the bare readings it has always shown.
-  const metered = task?.recurrence_type === 'sensor' && task.sensor?.mode === 'usage';
-  const usage = metered ? usageIntervalStats(group.completions) : undefined;
+  // An archived group has no live task to ask, so it keeps the bare readings it has
+  // always shown.
+  const usage = showsUsageIntervals(task) ? usageIntervalStats(group.completions) : undefined;
   const items = comps
     .map(({ entry: c, kind }) => {
       const d = new Date(c.ts);

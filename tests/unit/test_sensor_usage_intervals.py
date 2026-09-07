@@ -134,6 +134,17 @@ def test_a_completion_without_a_timestamp_is_skipped() -> None:
     assert st.usage_intervals(task) == [29100.0]
 
 
+def test_text_that_ends_in_an_offset_but_is_not_a_date_is_skipped() -> None:
+    """The panel tests the tail of the stamp, so this gets past its offset check and is
+    caught by the parse instead. Here it is the ``ValueError`` that catches it, and the
+    two sides drop the same string."""
+    task = usage_task(
+        ("not a date+00:00", 120000.0),
+        ("2025-08-28T09:00:00+00:00", 163900.0),
+    )
+    assert st.usage_intervals(task) == []
+
+
 def test_an_unparseable_timestamp_is_skipped() -> None:
     task = usage_task(
         ("2024-02-04T09:00:00+00:00", 134800.0),
@@ -156,6 +167,33 @@ def test_two_completions_at_the_same_instant_keep_their_stored_order() -> None:
         ("2024-02-04T21:00:00-05:00", 134800.0),
     )
     assert st.usage_intervals(task) == []
+
+
+def test_every_offset_shape_home_assistant_writes_is_accepted() -> None:
+    """``Z``, ``+00:00`` and a real offset all name an instant and all take part."""
+    task = usage_task(
+        ("2024-02-04T09:00:00Z", 134800.0),
+        ("2024-11-19T09:00:00+00:00", 150200.0),
+        ("2025-08-28T04:00:00-05:00", 163900.0),
+    )
+    assert st.usage_intervals(task) == [15400.0, 13700.0]
+
+
+def test_a_stamp_with_no_offset_is_skipped() -> None:
+    """Naive beside aware is not an ordering, it is a ``TypeError``.
+
+    Python refuses to compare the two, which would raise out of the next-due sensor's
+    attributes, and the panel's ``new Date`` would read the offset-free one as the
+    viewer's own zone instead — so the same history would sort differently in Berlin
+    and in Seattle. Neither is an answer, so both sides drop it. Nothing Home Keeper
+    writes is offset-free; hand-edited storage can be.
+    """
+    task = usage_task(
+        ("2024-02-04T09:00:00+00:00", 134800.0),
+        ("2024-11-19T09:00:00", 150200.0),
+        ("2025-08-28T09:00:00+00:00", 163900.0),
+    )
+    assert st.usage_intervals(task) == [29100.0]
 
 
 def test_a_meter_reset_drops_the_negative_interval() -> None:

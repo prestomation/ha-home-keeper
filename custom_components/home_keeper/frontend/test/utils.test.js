@@ -47,6 +47,7 @@ import {
   safeHref,
   setBtnWeight,
   snapStock,
+  showsUsageIntervals,
   sortedCompletions,
   statusChipHtml,
   taskRecordsReading,
@@ -778,6 +779,26 @@ describe('completionStats', () => {
   });
 });
 
+describe('showsUsageIntervals', () => {
+  const meter = { recurrence_type: 'sensor', sensor: { entity_id: 's.x', mode: 'usage' } };
+  it('is true for a usage meter', () => {
+    expect(showsUsageIntervals(meter)).toBe(true);
+  });
+  it('is false for the other sensor modes', () => {
+    // A threshold task logs a reading too, but that reading is a measurement and not a
+    // meter that only climbs.
+    for (const mode of ['threshold', 'state', 'availability']) {
+      expect(showsUsageIntervals({ ...meter, sensor: { entity_id: 's.x', mode } })).toBe(false);
+    }
+  });
+  it('is false for a task that is not sensor-driven, or absent', () => {
+    expect(showsUsageIntervals({ recurrence_type: 'floating' })).toBe(false);
+    expect(showsUsageIntervals({ recurrence_type: 'sensor' })).toBe(false);
+    expect(showsUsageIntervals(undefined)).toBe(false);
+    expect(showsUsageIntervals(null)).toBe(false);
+  });
+});
+
 describe('formatReading', () => {
   it('groups the digits in the viewer language', () => {
     expect(formatReading(163900, 'km', 'en')).toBe('163,900 km');
@@ -882,6 +903,43 @@ describe('usageIntervalStats', () => {
       { ts: '2025-08-28T09:00:00Z', reading: 163900 },
     ]);
     expect(s.count).toBe(0);
+  });
+
+  it('skips text that ends in an offset but is not a date', () => {
+    // The offset test reads the tail, so this gets past it and has to be caught by the
+    // parse. Left in, it would order by NaN and key a made-up interval to it. The
+    // backend drops the same string, on the ValueError out of its own parse.
+    const s = usageIntervalStats([
+      { ts: 'not a date+00:00', reading: 120000 },
+      { ts: '2025-08-28T09:00:00Z', reading: 163900 },
+    ]);
+    expect(s.count).toBe(0);
+    expect(s.byTs.size).toBe(0);
+  });
+
+  it('accepts every offset shape Home Assistant writes', () => {
+    const s = usageIntervalStats([
+      { ts: '2024-02-04T09:00:00Z', reading: 134800 },
+      { ts: '2024-11-19T09:00:00+00:00', reading: 150200 },
+      { ts: '2025-08-28T04:00:00-05:00', reading: 163900 },
+      { ts: '2026-01-04T09:00:00+0000', reading: 170000 },
+    ]);
+    expect(s.count).toBe(3);
+    expect(s.last).toBe(6100);
+  });
+
+  it('skips a stamp with no offset', () => {
+    // `new Date` reads an offset-free stamp as the viewer's own zone, so the same
+    // history would order differently in Berlin and in Seattle; the backend refuses to
+    // compare it against an offset-bearing one at all. Both sides drop it.
+    const s = usageIntervalStats([
+      { ts: '2024-02-04T09:00:00+00:00', reading: 134800 },
+      { ts: '2024-11-19T09:00:00', reading: 150200 },
+      { ts: '2025-08-28T09:00:00+00:00', reading: 163900 },
+    ]);
+    expect(s.count).toBe(1);
+    expect(s.last).toBe(29100);
+    expect(s.byTs.has('2024-11-19T09:00:00')).toBe(false);
   });
 
   it('drops the negative interval a meter reset leaves behind', () => {

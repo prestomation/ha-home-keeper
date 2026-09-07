@@ -402,6 +402,19 @@ export function taskRecordsReading(task: Partial<Task> | null | undefined): bool
 }
 
 /**
+ * Whether `task`'s history reports the usage between its completions.
+ *
+ * A usage meter only, and narrower than `taskRecordsReading` on purpose: a `threshold`
+ * task logs a reading too, but that reading is a measurement (airflow at 58%) and not a
+ * meter that only climbs, so the difference between two of them is not usage. Lives
+ * here beside the other mode predicates rather than in the renderer, so the panel and
+ * its tests ask the same question.
+ */
+export function showsUsageIntervals(task: Partial<Task> | null | undefined): boolean {
+  return task?.recurrence_type === 'sensor' && task.sensor?.mode === 'usage';
+}
+
+/**
  * The unit label to show beside a meter reading for `task`.
  *
  * A usage binding carries its own `unit` (the label the user typed, e.g. "h"), which
@@ -1081,6 +1094,12 @@ export interface UsageIntervalStats {
   longest?: number;
 }
 
+/** A `Z` or a `±HH:MM` / `±HHMM` tail — the shapes Home Assistant writes. */
+// Stryker disable next-line Regex: equivalent — dropping the anchor only admits text
+// carrying an offset somewhere other than the end, and `new Date` answers NaN for all
+// of it, so the parse filter below rejects it either way.
+const TS_HAS_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+
 /**
  * The usage between consecutive completions — "the last oil change ran 15,400 km".
  *
@@ -1105,12 +1124,19 @@ export function usageIntervalStats(
   // mutator puts in the empty fallback has no numeric `reading`, so the filter below
   // drops it and the result is the same empty list either way.
   const dated = (completions || [])
-    // `Number.isFinite` does not coerce, so this one call is the whole guard: a string
-    // reading, a boolean, `undefined`, `NaN` and `Infinity` all answer false. (The
-    // backend needs an explicit `isinstance` beside it, because `float()` there *would*
-    // coerce the string and `True` really is an `int`.)
-    .filter((c) => Number.isFinite(c.reading))
+    // `Number.isFinite` does not coerce, so that one call is the whole reading guard: a
+    // string reading, a boolean, `undefined`, `NaN` and `Infinity` all answer false.
+    // (The backend needs an explicit `isinstance` beside it, because `float()` there
+    // *would* coerce the string and `True` really is an `int`.)
+    //
+    // The stamp has to carry a UTC offset. `new Date` reads an offset-free stamp as the
+    // viewer's own zone, so the same history would order differently in Berlin and in
+    // Seattle, and the backend refuses to compare it against an offset-bearing one at
+    // all. Neither is an answer, so both sides drop it.
+    .filter((c) => Number.isFinite(c.reading) && TS_HAS_OFFSET.test(c.ts))
     .map((c) => ({ ts: c.ts, at: new Date(c.ts).getTime(), reading: c.reading as number }))
+    // The offset test above reads the tail, not the whole stamp, so text that merely
+    // ends in one still has to be parsed before it can be ordered.
     .filter((c) => !Number.isNaN(c.at))
     .sort((a, b) => a.at - b.at);
   const byTs = new Map<string, number>();

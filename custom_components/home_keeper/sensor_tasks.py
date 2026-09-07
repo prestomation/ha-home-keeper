@@ -285,6 +285,13 @@ def usage_intervals(task: dict[str, Any]) -> list[float]:
         # ``None`` input, which the falsy guard above already skipped.
         if when is None:  # pragma: no cover, no mutate - unreachable
             continue  # pragma: no mutate - already required a truthy stamp
+        # A stamp with no UTC offset cannot be ordered against one that has one:
+        # Python refuses to compare the two at all, which would raise out of the
+        # entity's attributes, and the panel's JavaScript would silently read it as
+        # the viewer's own zone. Neither is an answer, so both sides drop it. Nothing
+        # Home Keeper writes is offset-free; hand-edited storage can be.
+        if when.tzinfo is None:
+            continue
         dated.append((when, reading))
     dated.sort(key=lambda pair: pair[0])
     gaps = [dated[i][1] - dated[i - 1][1] for i in range(1, len(dated))]
