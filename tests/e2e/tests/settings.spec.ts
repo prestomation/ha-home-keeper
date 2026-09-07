@@ -43,6 +43,89 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
+  test('a profile edits its filter groups, and Add another group saves a third', async ({
+    page,
+  }) => {
+    // A profile selects a task matching *any one* of its groups, so the editor has to
+    // draw one block per group with the operator between them — and adding a group has
+    // to reach stored options, not just the form. The screenshot of this surface
+    // cannot tell a rendered group from a missing one, and cannot tell a saved group
+    // from one that only ever lived in the browser.
+    const profileId = 'e2e_groups_profile';
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: profileId,
+          name: 'Household jobs or the dog',
+          filter: {
+            status: 'all',
+            groups: [
+              { labels: ['home'], labels_match: 'any' },
+              { labels: ['dog'], labels_match: 'any' },
+            ],
+          },
+        },
+      ],
+    });
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      await settleToasts(page);
+      await openSettingsSection(panel, 'profiles');
+      const card = panel.locator('#hk-profiles');
+      await expect(card).toBeVisible();
+
+      // Rows collapse by default. Guarded rather than a bare click, because Home
+      // Assistant replaces the custom-panel element a few seconds after a page
+      // settles and a fresh panel folds every row again.
+      const row = card.locator('.hk-item-card').first();
+      const openRow = async (): Promise<void> => {
+        const header = row.locator('> .hk-item-header');
+        if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+        await expect(row.locator('.hk-filter-groups .hk-filter-group').first()).toBeVisible();
+      };
+      await openRow();
+
+      // Two groups, one operator between them. The divider is what says the groups
+      // are OR-ed; a stack of blocks with no divider reads as one long AND.
+      await expect(row.locator('.hk-filter-group')).toHaveCount(2);
+      await expect(row.locator('.hk-filter-or')).toHaveCount(1);
+      // …and each group carries its own Delete, which a lone group must not have.
+      await expect(row.locator('.hk-filter-group-delete')).toHaveCount(2);
+
+      // Adding a group is a save, not a redraw.
+      await openRow();
+      await row.locator(`#hk-profile-${profileId}-group-add`).click();
+      await expect(row.locator('.hk-filter-group')).toHaveCount(3);
+      await expect(row.locator('.hk-filter-or')).toHaveCount(2);
+      await expect
+        .poll(
+          async () => {
+            const resp = await callService('home_keeper', 'list_profiles', {}, true);
+            const saved = resp.profiles.find((x: { id: string }) => x.id === profileId);
+            return saved?.filter?.groups?.length ?? 0;
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(3);
+
+      // The two groups the profile was seeded with survived the add, in order — the
+      // failure a third form appended over the top of the list would hide.
+      const saved = (await callService('home_keeper', 'list_profiles', {}, true)).profiles.find(
+        (x: { id: string }) => x.id === profileId,
+      );
+      expect(saved.filter.groups.map((g: { labels: string[] }) => g.labels)).toEqual([
+        ['home'],
+        ['dog'],
+        [],
+      ]);
+
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await callService('home_keeper', 'set_options', { profiles: [] });
+    }
+  });
 
   test('a notification exposes its channel and urgency, and says what they do', async ({
     page,
@@ -57,7 +140,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
         {
           id: 'e2e_notify_profile',
           name: 'Everything',
-          filter: { status: 'all', labels: [], areas: [], devices: [] },
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
         },
       ],
       notifications: [
@@ -156,7 +239,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
         {
           id: 'e2e_send_profile',
           name: 'Everything',
-          filter: { status: 'all', labels: [], areas: [], devices: [] },
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
         },
       ],
       notifications: [
@@ -253,7 +336,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
         {
           id: 'e2e_two_profile',
           name: 'Everything',
-          filter: { status: 'all', labels: [], areas: [], devices: [] },
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
         },
       ],
       notifications: ['Bins', 'Medication'].map((name, i) => ({

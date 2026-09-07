@@ -787,7 +787,17 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
           // Named for the people, not the list: the row's own chip names the list
           // ("Family chores"), so reusing that here would read as one thing twice.
           name: 'Household chores',
-          filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+          // Two filter groups, OR-ed: the household's own jobs, plus the dog's. One
+          // group would draw a single block with no divider and no Delete button,
+          // which is the shape the tour showed before groups existed — so the seed
+          // carries two, and the beat below stops on them.
+          filter: {
+            status: 'overdue',
+            groups: [
+              { labels: ['home'], labels_match: 'any' },
+              { labels: ['dog'], labels_match: 'any' },
+            ],
+          },
           sync: {
             entity_id: 'todo.family_chores',
             two_way: true,
@@ -838,7 +848,16 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await openSyncedProfile();
   await syncedProfile.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT * 2);
-  // Then glide down to the group itself. The filter form above it is long enough
+  // Stop on the filter groups on the way down. This is the *what* the sync sends —
+  // two groups joined by OR, each with its own include and exclude lists, and the
+  // Add another group button under them. Sliding straight past it to the sync would
+  // show where the chores go without ever showing which chores they are.
+  const groups = syncedProfile.locator('.hk-filter-groups');
+  await expect(groups.locator('.hk-filter-group')).toHaveCount(2);
+  await expect(groups.locator('.hk-filter-or')).toHaveCount(1);
+  await groups.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 3);
+  // Then glide down to the sync group itself. The filter form above it is long enough
   // that framing the *row* leaves the sync below the fold, which is how an earlier
   // cut of this tour managed to visit the feature without ever showing it.
   await openSyncedProfile();

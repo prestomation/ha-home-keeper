@@ -1318,10 +1318,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 17a. Settings → Profiles + Notifications. A Profile is a standalone saved filter;
   // a Notification is a delivery binding that references one. Seed one of each via the
-  // public set_options service so both editors render populated. "Upstairs" carries an
-  // area exclusion so the shot shows the exclude_* rows holding a real value, not three
-  // empty pickers; "My chores" stays unfiltered because the Tasks-tab shot below
-  // filters the admin list by it.
+  // public set_options service so both editors render populated. "Upstairs" carries
+  // **two** filter groups — an area exclusion in the first, an area include in the
+  // second — so `profiles-card.png` shows the OR divider, the per-group Delete button
+  // and the Add another group button rather than documenting a one-group profile as
+  // the only shape there is; "My chores" stays unfiltered because the Tasks-tab shot
+  // below filters the admin list by it.
   //
   // "My chores" also carries the `sync` block that syncs its tasks onto "Family
   // chores" — the seeded local_todo list standing in for a Todoist project. That is
@@ -1342,12 +1344,16 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           name: 'My chores',
           filter: {
             status: 'overdue',
-            labels: [],
-            areas: [],
-            devices: [],
-            exclude_labels: [],
-            exclude_areas: [],
-            exclude_devices: [],
+            groups: [
+              {
+                labels: [],
+                areas: [],
+                devices: [],
+                exclude_labels: [],
+                exclude_areas: [],
+                exclude_devices: [],
+              },
+            ],
           },
           sync: {
             entity_id: 'todo.family_chores',
@@ -1356,16 +1362,36 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           },
         },
         {
+          // Two groups, OR-ed: everything that is not the downstairs room, plus
+          // everything in the bedroom. The second group is what puts the OR divider
+          // and the per-group Delete button in the shot — a profile with one group
+          // draws neither, so a single-group seed would document the card as if the
+          // feature were not there. The name is unchanged on purpose: the Tasks-tab
+          // Profile dropdown is photographed below, and renaming it here would move a
+          // shot this feature does not touch.
           id: 'demo_upstairs',
           name: 'Upstairs',
           filter: {
             status: 'due_soon',
-            labels: [],
-            areas: [],
-            devices: [],
-            exclude_labels: [],
-            exclude_areas: downstairs ? [downstairs.area_id] : [],
-            exclude_devices: [],
+            groups: [
+              {
+                labels: [],
+                areas: [],
+                devices: [],
+                exclude_labels: [],
+                exclude_areas: downstairs ? [downstairs.area_id] : [],
+                exclude_devices: [],
+              },
+              {
+                labels: [],
+                labels_match: 'any',
+                areas: ['bedroom'],
+                devices: [],
+                exclude_labels: [],
+                exclude_areas: [],
+                exclude_devices: [],
+              },
+            ],
           },
         },
         {
@@ -1379,12 +1405,16 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           name: 'Bedroom jobs',
           filter: {
             status: 'overdue',
-            labels: [],
-            areas: ['bedroom'],
-            devices: [],
-            exclude_labels: [],
-            exclude_areas: [],
-            exclude_devices: [],
+            groups: [
+              {
+                labels: [],
+                areas: ['bedroom'],
+                devices: [],
+                exclude_labels: [],
+                exclude_areas: [],
+                exclude_devices: [],
+              },
+            ],
           },
         },
       ],
@@ -1433,6 +1463,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     await h.click();
   }
   await expect(panel.locator('#hk-profiles .hk-item-body ha-form').first()).toBeVisible();
+  // The three seeded profiles carry 1 + 2 + 1 groups, so the card holds four group
+  // blocks and exactly one OR divider. Waited for rather than assumed: the group
+  // forms render after the row opens, and a shutter that fires first photographs a
+  // half-built editor.
+  await expect(panel.locator('#hk-profiles .hk-filter-group')).toHaveCount(4);
+  await expect(panel.locator('#hk-profiles .hk-filter-or')).toHaveCount(1);
+  await expect(panel.locator('#hk-profiles .hk-filter-group-add').first()).toBeVisible();
   await page.waitForTimeout(700);
   await panel.locator('#hk-profiles').screenshot({ path: `${OUT}/profiles-card.png` });
   // Settings → Notifications — delivery bindings that each reference a Profile.
