@@ -578,7 +578,7 @@
   "notify.companions_help": "Select companions to show only their tasks.",
   "notify.exclude_companions": "Exclude companions",
   "notify.exclude_shopping": "Exclude shopping",
-  "notify.filters_help": "A Profile holds one or more groups of filters. A task matches the Profile if it matches one of the groups.",
+  "notify.filters_help": "A Profile holds one or more groups of filters. The Profile selects a task that matches any one group.",
   "notify.opt.critical": "Critical",
   "notify.opt.high": "High",
   "notify.opt.normal": "Normal",
