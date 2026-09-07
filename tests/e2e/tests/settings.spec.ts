@@ -117,7 +117,13 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
 
       // The look pair renders too, from the same locale file.
       await expect(form).toContainText('Notification icon');
-      await expect(form).toContainText('Accent color');
+      // The label carries the scope, because the field is inert on Android.
+      await expect(form).toContainText('Accent color (iPhone)');
+      // …and each says what the phone does with it. These 2 are the fields a
+      // maintainer tested on Android and read as broken: Android draws the icon in the
+      // status bar only, and ignores the color outright from 12 on.
+      await expect(form).toContainText(/icon in the status bar/i);
+      await expect(form).toContainText(/Android 12 and later ignore it/i);
       // The icon picker and the color swatch are Home Assistant's own selectors, so
       // what this pins is that the schema reaches them — a mistyped selector name
       // renders nothing at all and `ha-form` says nothing about it.

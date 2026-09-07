@@ -11,9 +11,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **Give a notification its own icon and color.** In *Settings → Notifications* a
-  notification can use any Material Design icon and an accent color. A Medication
-  reminder then shows a pill on the phone while a Batteries reminder shows a battery.
-  (Fixes #293)
+  notification can use any Material Design icon, which Android shows in the status bar.
+  An iPhone shows it on the notification, over an accent color you pick. (Fixes #293)
 
 ## [0.22.0b1]
 

@@ -1312,6 +1312,11 @@ function notificationEditor(
             // urgency change does not move a channel that already exists. Critical
             // needs a permission on iOS.
             computeHelper: (s) => {
+              // The look pair is not self-evident and the chip cannot say it: Android
+              // draws the icon only in the status bar, and ignores the color outright
+              // from 12 on. Both facts are about the phone, not about this form.
+              if (s.name === 'icon') return t('notify.icon_help');
+              if (s.name === 'color') return t('notify.color_help');
               if (s.name === 'channel') return t('notify.channel_help');
               if (s.name === 'urgency') return t('notify.urgency_help');
               return '';

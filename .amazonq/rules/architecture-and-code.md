@@ -1360,17 +1360,28 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
     (`community-material-typeface`), which trails the set the panel's picker offers. The
     backend cannot know a household's app version, so that mismatch belongs in the docs
     rather than in validation.
-- **A platform difference that produces a native result on both sides is not
-  documented.** No helper text under the field, no README section comparing the two.
-  The panel *shows* the choice instead — the notification's row in Settings carries its
-  icon as a chip filled with its color (`utils.notifyRowChip`) — and a warning about a
-  difference nobody would notice only makes a non-problem look like one.
+- **A field that does nothing on a platform says so, in its own label and helper.** The
+  earlier version of this rule said the opposite — that a difference producing a native
+  result on both sides needs no documentation, and that the row chip shows the choice
+  well enough. That was written from the Home Assistant docs and was wrong twice over:
+  Android 12 and later apply `color` only to a foreground-service or MediaStyle
+  notification (see Android's own notification design guide), so the field is inert
+  there, and Android draws `notification_icon` in the status bar only, never on the
+  notification in the shade. A maintainer testing on Android saw a colour picker that
+  did nothing and an icon that seemed to do nothing, which is exactly the confusion the
+  old rule created. `notify.color` is now labelled **Accent color (iPhone)**, and both
+  fields carry helper text naming what each platform does.
+- **"The UI shows it" only excuses documentation when the UI actually can.** The chip in
+  the Settings row shows the colour *in the panel*. It cannot show that the phone
+  ignores it. Do not use a panel affordance as a substitute for a fact about a device
+  the panel cannot see.
 - **An unusable value clamps to `""`, it never passes through.** `normalize_icon` and
   `normalize_color` repair rather than raise, because `normalize_notification` repairs a
-  stored document. This is not tidiness: the companion app draws *nothing at all* for an
-  icon name it cannot resolve and reports nothing, so a typo that reached the phone would
-  silently cost the user the icon they had. `""` sends no key, which is a visible
-  fallback. Validate at the store, and keep the icon's character set tight enough that
+  stored document. This is not tidiness: the companion app falls back to the Home
+  Assistant icon for a name it cannot resolve and reports nothing, so a typo that reached
+  the phone would silently cost the user the icon they picked and look like the feature
+  doing nothing. `""` sends no key, which is the same visible fallback arrived at
+  honestly. Validate at the store, and keep the icon's character set tight enough that
   the value is safe in an `ha-icon` attribute without escaping saving it.
 
 ## Eagerly-resolved backend text (backend_i18n.py, backend_strings/)
