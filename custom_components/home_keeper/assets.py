@@ -43,6 +43,7 @@ from .const import (
     ASSET_KIND_VIRTUAL,
     ASSET_KINDS,
     DOMAIN,
+    MAX_EXTERNAL_ID_LEN,
     MAX_INTERVAL,
     PART_CONSUMABLE,
     PART_TYPES,
@@ -934,6 +935,26 @@ def normalize_fields(data: dict, *, today: date | None = None) -> dict:
     return fields
 
 
+def normalize_external_id(value: Any) -> str:
+    """Normalize the caller's stable key for an appliance.
+
+    The appliance twin of ``models.normalize_external_id`` — same rules, same cap
+    (``const.MAX_EXTERNAL_ID_LEN``), its own exception type so a bad key on an
+    appliance reports as an appliance error. Written out here rather than imported
+    because ``assets`` and ``models`` are deliberately independent siblings; the
+    shared constant is the part that must not drift, and
+    ``tests/unit/test_transfer_roundtrip.py`` exercises both.
+    """
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if len(text) > MAX_EXTERNAL_ID_LEN:
+        raise AssetValidationError(
+            f"external_id must be at most {MAX_EXTERNAL_ID_LEN} characters"
+        )
+    return text
+
+
 def build_asset(data: dict, *, now: datetime) -> dict:
     """Create a brand-new asset dict (with id, created, and provisioning anchors)."""
     fields = normalize_fields(data, today=now.date())
@@ -951,6 +972,9 @@ def build_asset(data: dict, *, now: datetime) -> dict:
         "device_id": fields.pop("device_id", None),
         "identifiers": [],
         "connections": [],
+        # An author-chosen stable key for import/export. Normalized here rather than
+        # in ``normalize_fields`` so an update can only set it when actually sent.
+        "external_id": normalize_external_id(data.get("external_id")),
         **fields,
     }
     if asset["kind"] == ASSET_KIND_VIRTUAL:
@@ -1008,6 +1032,10 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # (re-)chosen target. Either way the kind and virtual identifier are immutable.
     merged.update(fields)
     merged["kind"] = existing.get("kind", ASSET_KIND_VIRTUAL)
+    # Only rewrite the import/export key when the caller actually sent it, so an
+    # import that updates an appliance without restating the key leaves it in place.
+    if "external_id" in updates:
+        merged["external_id"] = normalize_external_id(updates["external_id"])
     return merged
 
 

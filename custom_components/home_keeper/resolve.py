@@ -103,6 +103,19 @@ def _resolve(objects: Iterable[tuple[str, Any]], key: str, field: str) -> str:
     raise NotFound(key)
 
 
+def match_by_name(objects: Mapping[str, Any], key: str) -> str | None:
+    """The id of the single object named *key*, or ``None`` when none is.
+
+    The name step on its own, without the id step :func:`_resolve` runs first and
+    without its "nothing matched" exception. The import document's primary-key ladder
+    (``transfer.plan_import``) needs exactly that: it has already decided that the id
+    and the ``external_id`` did not match, and "no name match either" means *create*
+    rather than *fail*. Ambiguity still raises, because there it means the same thing
+    it means in a service call — two records answer to this name, so say which.
+    """
+    return _by_name(list(objects.items()), key, "name")
+
+
 def resolve_task_id(tasks: Mapping[str, Any], key: str) -> str:
     """The id of the task *key* refers to, by id or by name."""
     return _resolve(tasks.items(), key, "name")

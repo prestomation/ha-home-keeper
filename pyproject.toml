@@ -93,6 +93,10 @@ only_mutate = [
     "custom_components/home_keeper/card_resource.py",
     "custom_components/home_keeper/resolve.py",
     "custom_components/home_keeper/todo_list.py",
+    # The import/export document: what travels, the primary-key ladder, and the
+    # chronological history fold. Pure, and covered by the three tests/unit/test_transfer*
+    # files — the round-trip one is what keeps a newly added field travelling.
+    "custom_components/home_keeper/transfer.py",
     # Imports Home Assistant only under ``TYPE_CHECKING``, so the fast unit tier runs
     # it directly (tests/unit/test_options.py) — see "Pure, HA-free core".
     "custom_components/home_keeper/options.py",

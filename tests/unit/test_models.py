@@ -1787,3 +1787,37 @@ def test_inference_does_not_reach_updates():
     assert updated["recurrence_type"] == "floating"
     assert updated["interval"] == 3
     assert updated["unit"] == "months"
+
+
+def test_external_id_is_stored_and_stripped():
+    task = m.build_task(
+        {"name": "Furnace filter", "external_id": "  centriq-4711  "}, now=NOW
+    )
+    assert task["external_id"] == "centriq-4711"
+
+
+def test_external_id_defaults_to_empty_when_absent():
+    # "" means "no key" and must never match another keyless record on import.
+    task = m.build_task({"name": "Furnace filter"}, now=NOW)
+    assert task["external_id"] == ""
+
+
+def test_external_id_survives_an_update_that_omits_it():
+    # The import path updates a matched task without restating its key. Clearing it
+    # here would stop the *next* re-import matching the record it just wrote.
+    task = m.build_task({"name": "Furnace filter", "external_id": "furnace"}, now=NOW)
+    updated = m.merge_update(task, {"name": "Renamed"}, now=NOW)
+    assert updated["external_id"] == "furnace"
+
+
+def test_external_id_is_cleared_when_explicitly_emptied():
+    task = m.build_task({"name": "Furnace filter", "external_id": "furnace"}, now=NOW)
+    updated = m.merge_update(task, {"external_id": ""}, now=NOW)
+    assert updated["external_id"] == ""
+
+
+def test_external_id_over_the_cap_is_rejected():
+    with raises_exactly(
+        m.TaskValidationError, "external_id must be at most 128 characters"
+    ):
+        m.build_task({"name": "Furnace filter", "external_id": "x" * 129}, now=NOW)

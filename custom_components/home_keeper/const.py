@@ -48,6 +48,23 @@ PART_FILE_URL_PREFIX = "/api/home_keeper/part_document"
 # (see ``assets.append_task_history``).
 MAX_COMPLETION_HISTORY = 500
 
+# An author-chosen stable key on a task or an appliance, used by the import/export
+# document (``transfer.py``) as the second step of its primary-key ladder: id first,
+# then this, then the name. It is the key a migration script or a generated document
+# sets so a re-run updates the same records rather than duplicating them. Home Keeper
+# never reads it for anything else — it is opaque, and empty when unset.
+MAX_EXTERNAL_ID_LEN = 128
+
+# How many records one import document may carry per section. A bound on the work a
+# single service call can ask for, not a statement about how many tasks Home Keeper
+# holds; a bigger migration splits into several documents.
+MAX_IMPORT_RECORDS = 2000
+
+# The format version of the import/export document. Bumped only when the meaning of
+# an existing key changes — adding a section or a field is additive and does not.
+# ``transfer.py`` refuses a document declaring a newer version than this.
+TRANSFER_FORMAT = 1
+
 # Event fired on the HA event bus whenever a task is completed (from any surface:
 # the to-do list, a device mark-done button, or the complete_task service). This is
 # the public, client-agnostic hook other integrations subscribe to in order to mirror

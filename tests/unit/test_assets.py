@@ -1649,3 +1649,34 @@ def test_card_projection_does_not_mutate_the_stored_assets():
     assert asset["cost"] == 1499.0
     assert len(asset["metadata"]) == 3
     assert asset["parts"][0]["vendor"] == "Frigidaire"
+
+
+def test_asset_external_id_is_stored_and_stripped():
+    asset = a.build_asset(
+        {"name": "Kitchen fridge", "external_id": "  centriq-88  "}, now=NOW
+    )
+    assert asset["external_id"] == "centriq-88"
+
+
+def test_asset_external_id_defaults_to_empty_when_absent():
+    asset = a.build_asset({"name": "Kitchen fridge"}, now=NOW)
+    assert asset["external_id"] == ""
+
+
+def test_asset_external_id_survives_an_update_that_omits_it():
+    asset = a.build_asset({"name": "Kitchen fridge", "external_id": "fridge"}, now=NOW)
+    updated = a.merge_update(asset, {"name": "Renamed"}, now=NOW)
+    assert updated["external_id"] == "fridge"
+
+
+def test_asset_external_id_is_cleared_when_explicitly_emptied():
+    asset = a.build_asset({"name": "Kitchen fridge", "external_id": "fridge"}, now=NOW)
+    updated = a.merge_update(asset, {"external_id": ""}, now=NOW)
+    assert updated["external_id"] == ""
+
+
+def test_asset_external_id_over_the_cap_is_rejected():
+    with raises_exactly(
+        a.AssetValidationError, "external_id must be at most 128 characters"
+    ):
+        a.build_asset({"name": "Kitchen fridge", "external_id": "x" * 129}, now=NOW)

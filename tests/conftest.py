@@ -58,6 +58,10 @@ _PURE_MODULES = (
     "tags",
     "card_resource",
     "resolve",
+    # ``transfer`` (the import/export document) imports ``models``, ``assets``,
+    # ``recurrence`` and ``resolve``, so it must come after all four — a module first
+    # pulled in by a sibling and then re-executed here would leave two copies loaded.
+    "transfer",
     # ``device_compat`` imports Home Assistant only under ``TYPE_CHECKING``, so the
     # two device-registry shapes it reconciles are testable here with plain fakes.
     "device_compat",

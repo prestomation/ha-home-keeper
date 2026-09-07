@@ -22,6 +22,7 @@ from .const import (
     COMPLETION_DETAIL_REQUIRED,
     COMPLETION_METADATA_FIELDS,
     FREQS,
+    MAX_EXTERNAL_ID_LEN,
     MAX_INTERVAL,
     MAX_SENSOR_STATE_LEN,
     MAX_SENSOR_UNIT_LEN,
@@ -391,6 +392,29 @@ def normalize_tag_id(value: Any) -> str | None:
     if not isinstance(value, str):
         raise TaskValidationError("tag_id must be a string")
     return value.strip() or None
+
+
+def normalize_external_id(value: Any) -> str:
+    """Normalize the caller's stable key for a task or an appliance.
+
+    The import/export document matches a record on its Home Keeper id first, then on
+    this, then on its name (see ``transfer.py``). Home Keeper never interprets the
+    string — it exists so a migration script, or a document written for one, can name
+    a record in the author's own vocabulary ("centriq-4711", "furnace-filter") and
+    have a re-run update that record instead of creating a second one.
+
+    Absent, ``None`` and whitespace all normalize to ``""``, which means "no key" and
+    never matches anything — otherwise every keyless record would collide with every
+    other one.
+    """
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if len(text) > MAX_EXTERNAL_ID_LEN:
+        raise TaskValidationError(
+            f"external_id must be at most {MAX_EXTERNAL_ID_LEN} characters"
+        )
+    return text
 
 
 def normalize_labels(value: Any) -> list[str]:
@@ -800,6 +824,10 @@ def build_task(data: dict, *, now: datetime) -> dict:
         "managed_by": data.get("managed_by"),
         # HA label-registry ids attached to this task. Free-form, many-to-many, and
         # used (alongside device/area labels) to scope the dashboard card.
+        # An author-chosen stable key for import/export. Independent of recurrence
+        # and identity, like labels, and normalized here rather than in
+        # ``normalize_fields`` so an update can only set it when it is actually sent.
+        "external_id": normalize_external_id(data.get("external_id")),
         "labels": normalize_labels(data.get("labels")),
         # References to appliance links (documents/metadata) the dashboard card shows
         # on this task's row. Independent of recurrence/identity, like labels.
@@ -933,6 +961,13 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # a routine update_task call can't accidentally clear chips set at creation time.
     if "task_chips" in updates:
         merged["task_chips"] = normalize_task_chips(updates["task_chips"])
+
+    # The stable import/export key follows the same only-when-sent rule. This is what
+    # makes an import that omits ``external_id`` on an update leave the stored key
+    # alone rather than clearing it — a re-import would otherwise stop matching the
+    # very records it just wrote.
+    if "external_id" in updates:
+        merged["external_id"] = normalize_external_id(updates["external_id"])
 
     # The tag binding follows the same only-when-sent rule, so a plain rename can't
     # unlink a task's tag or drop its scan requirement.

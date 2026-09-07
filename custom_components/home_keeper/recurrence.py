@@ -504,6 +504,30 @@ def skip_occurrence(task: dict, *, now: datetime, metadata: dict | None = None) 
     return task
 
 
+def record_skip(
+    task: dict, skipped_at: datetime, *, metadata: dict | None = None
+) -> dict:
+    """Return *task* with a skip **logged** at *skipped_at*, leaving ``next_due`` alone.
+
+    The back-dated half of :func:`skip_occurrence`, for replaying a history that
+    already happened (see ``transfer.py``). A skip recorded for 2019 says an
+    occurrence was passed over then; running the live schedule math for it against
+    today's clock would invent a due date nobody ever saw. Whatever the task does
+    next is decided by the events after it, or — when it is the last one — by the
+    schedule ``build_task`` already computed.
+
+    Shares :func:`_record_entry` with the live path, so a backfilled skip gets the
+    same ``ts`` dedupe and the same history cap as one taken today.
+    """
+    if skipped_at.tzinfo is None:
+        raise ValueError("skipped_at must be timezone-aware")
+    entry: dict = {"ts": skipped_at.isoformat()}
+    if metadata:
+        entry.update(metadata)
+    task["skips"] = _record_entry(task.get("skips", []), entry)
+    return task
+
+
 def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
     """Return *task* with the completion at ISO timestamp *ts* removed.
 
