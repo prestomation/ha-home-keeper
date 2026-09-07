@@ -1,46 +1,59 @@
 import { readFileSync } from 'fs';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
-  escapeHTML,
-  formatQuantity,
-  isHttpUrl,
-  isSafeImageUrl,
-  safeFileHref,
-  safeHref,
-  randomId,
-  recurrenceSummary,
-  isArmedTriggered,
-  isOverdue,
-  dueLabel,
-  meterRemaining,
-  taskRecordsReading,
-  readingUnit,
-  btnAttrs,
-  deviceName,
-  formatDate,
-  formatDateTime,
-  setBtnWeight,
-  deviceDomain,
-  brandLogoUrl,
-  areaName,
-  assetSummary,
-  sortedCompletions,
-  completionStats,
-  taskRelatesToAsset,
-  tasksForAsset,
-  parseRoute,
-  buildPath,
-  formatCost,
-  navigateTo,
-  personName,
-  relativeDay,
-  toast,
-  buildAssetTree,
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
+  DEFAULT_TASK_TAB,
+  DEFAULT_SNOOZE_PRESET,
   SETTINGS_SECTIONS,
+  TASK_TABS,
+  SNOOZE_PRESETS,
+  areaName,
+  assetSummary,
+  brandLogoUrl,
+  btnAttrs,
+  buildAssetTree,
+  buildPath,
+  completionStats,
+  deviceDomain,
+  deviceName,
+  dueLabel,
+  escapeHTML,
+  formatCost,
+  formatDate,
+  formatDateTime,
+  formatQuantity,
+  isArmedTriggered,
   isBuyTask,
+  isHttpUrl,
+  isMonitoredDormant,
+  isOverdue,
+  isSafeImageUrl,
+  meterRemaining,
+  navigateTo,
+  normalizeIcon,
+  notifyRowChip,
+  parseRoute,
+  partStockButtonStep,
+  partStockStep,
+  personName,
+  randomId,
+  readingUnit,
+  recurrenceSummary,
+  relativeDay,
+  resolveSnoozePreset,
+  safeFileHref,
+  safeHref,
+  setBtnWeight,
+  snapStock,
+  sortedCompletions,
   statusChipHtml,
+  taskRecordsReading,
+  assetForTask,
+  assetsForTask,
+  taskRelatesToAsset,
+  tasksForAsset,
+  toast,
 } from '../src/utils.ts';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -201,6 +214,74 @@ describe('recurrenceSummary', () => {
       recurrenceSummary({ recurrence_type: 'triggered', next_due: '2026-06-01T00:00:00Z' }),
     ).toBe('Monitored');
   });
+  it('appends season range for floating tasks with active_season', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 2, unit: 'months',
+        active_season: { start: '04-01', end: '09-30' },
+      }),
+    ).toBe('Every 2 months after completion, April 1–September 30');
+  });
+  it('appends season range for fixed tasks with active_season', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'fixed', interval: 1, freq: 'MONTHLY',
+        active_season: { start: '11-01', end: '03-31' },
+      }),
+    ).toBe('Every month, November 1–March 31');
+  });
+  it('omits season range when active_season is null', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 1, unit: 'months',
+        active_season: null,
+      }),
+    ).toBe('Every month after completion');
+  });
+  it('shows multi-window season with ampersand', () => {
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'floating', interval: 1, unit: 'months',
+        active_season: [
+          { start: '04-01', end: '05-31' },
+          { start: '09-01', end: '10-31' },
+        ],
+      }),
+    ).toBe('Every month after completion, April 1–May 31 & September 1–October 31');
+  });
+  it('defaults to daily when freq is missing for a fixed task', () => {
+    expect(
+      recurrenceSummary({ recurrence_type: 'fixed', interval: 1 }),
+    ).toBe('Every day');
+  });
+
+  it('describes an availability task without borrowing the meter’s words', () => {
+    // The mode has no `target`, so before it had a case of its own it fell through to
+    // the usage branch and rendered "Every of use" — a sentence with a hole in it.
+    const summary = recurrenceSummary({
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.hallway_lux', mode: 'availability' },
+    });
+    expect(summary).not.toContain('of use');
+    expect(summary).toContain('unavailable');
+  });
+
+  it('still describes the other sensor modes in their own words', () => {
+    // The guard above sits between `threshold` and the meter, so it is exactly the
+    // kind of edit that can swallow a neighbour.
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'sensor',
+        sensor: { entity_id: 'sensor.h', mode: 'threshold', comparison: '>', value: 0 },
+      }),
+    ).toContain('> 0');
+    expect(
+      recurrenceSummary({
+        recurrence_type: 'sensor',
+        sensor: { entity_id: 'sensor.h', mode: 'usage', target: 300 },
+      }),
+    ).toContain('of use');
+  });
 });
 
 describe('isArmedTriggered', () => {
@@ -215,6 +296,69 @@ describe('isArmedTriggered', () => {
     expect(isArmedTriggered({ recurrence_type: 'floating', next_due: '2026-06-01T00:00:00Z' })).toBe(
       false,
     );
+  });
+});
+
+describe('isMonitoredDormant', () => {
+  const sensor = (mode, rest = {}) => ({
+    recurrence_type: 'sensor',
+    sensor: { entity_id: 'sensor.x', mode },
+    ...rest,
+  });
+
+  it('is true for a dormant triggered task', () => {
+    expect(isMonitoredDormant({ recurrence_type: 'triggered' })).toBe(true);
+    expect(isMonitoredDormant({ recurrence_type: 'triggered', next_due: null })).toBe(true);
+  });
+
+  // #231: a Device Pulse task sat under the Monitored heading with a live Done
+  // button. The three edge modes watch a condition, so a dormant one has no work.
+  it('is true for a dormant sensor task in an edge mode', () => {
+    expect(isMonitoredDormant(sensor('state'))).toBe(true);
+    expect(isMonitoredDormant(sensor('threshold'))).toBe(true);
+    expect(isMonitoredDormant(sensor('availability'))).toBe(true);
+  });
+
+  // A meter is counting up to its target; completing it early is real work that
+  // re-anchors the baseline, so it keeps its Done.
+  it('is false for a dormant usage meter, and for a binding with no mode', () => {
+    expect(isMonitoredDormant(sensor('usage'))).toBe(false);
+    expect(isMonitoredDormant({ recurrence_type: 'sensor', sensor: { entity_id: 'sensor.x' } })).toBe(
+      false,
+    );
+    expect(isMonitoredDormant({ recurrence_type: 'sensor' })).toBe(false);
+  });
+
+  it('is false once the task is armed, whatever its mode', () => {
+    const due = '2026-06-01T00:00:00Z';
+    expect(isMonitoredDormant({ recurrence_type: 'triggered', next_due: due })).toBe(false);
+    expect(isMonitoredDormant(sensor('state', { next_due: due }))).toBe(false);
+    expect(isMonitoredDormant(sensor('availability', { next_due: due }))).toBe(false);
+  });
+
+  it('is false for the clock and one-off shapes, dormant or not', () => {
+    expect(isMonitoredDormant({ recurrence_type: 'floating' })).toBe(false);
+    expect(isMonitoredDormant({ recurrence_type: 'fixed' })).toBe(false);
+    expect(
+      isMonitoredDormant({ recurrence_type: 'one-off', last_completed: '2026-05-01T00:00:00Z' }),
+    ).toBe(false);
+  });
+
+  // The recurrence type decides, not the presence of a binding. A task edited away
+  // from `sensor` can keep a stale block, and it is no longer condition-driven.
+  it('reads the recurrence type, not a leftover sensor block', () => {
+    expect(
+      isMonitoredDormant({
+        recurrence_type: 'floating',
+        sensor: { entity_id: 'sensor.x', mode: 'state' },
+      }),
+    ).toBe(false);
+    expect(
+      isMonitoredDormant({
+        recurrence_type: 'one-off',
+        sensor: { entity_id: 'sensor.x', mode: 'availability' },
+      }),
+    ).toBe(false);
   });
 });
 
@@ -338,7 +482,7 @@ describe('statusChipHtml', () => {
   it('falls back to the due label when nothing is late', () => {
     const soon = { next_due: '2026-06-14T12:00:00Z' };
     const html = statusChipHtml(soon, undefined, { now });
-    // A plain chip carries no class at all — the colour is what separates it from an
+    // A plain chip carries no class at all — the color is what separates it from an
     // overdue or low-stock one, so an empty `class=""` would still be wrong.
     expect(html).toBe('<ha-assist-chip label="tomorrow"></ha-assist-chip>');
   });
@@ -664,6 +808,77 @@ describe('taskRelatesToAsset / tasksForAsset', () => {
   });
 });
 
+describe('assetsForTask / assetForTask', () => {
+  // Three appliances that all have a claim on dev1, from weakest to strongest, in an
+  // order that no accidental "first match wins" could get right.
+  const related = { id: 'a-related', name: 'Related', related_device_ids: ['dev1'] };
+  const owner = { id: 'a-owner', name: 'Owner', device_id: 'dev1' };
+  const partOwner = { id: 'a-part', name: 'Part owner', device_id: 'dev9' };
+  const all = [related, owner, partOwner];
+
+  it('ranks the appliance whose part the task is above the one that owns its device', () => {
+    const task = {
+      id: 't',
+      name: 'x',
+      device_id: 'dev1',
+      source: { part: { asset_id: 'a-part', part_id: 'p' } },
+    };
+    expect(assetsForTask(task, all).map((a) => a.id)).toEqual(['a-part', 'a-owner', 'a-related']);
+    expect(assetForTask(task, all).id).toBe('a-part');
+  });
+
+  it('ranks the device owner above an appliance that only lists it as related', () => {
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    expect(assetsForTask(task, all).map((a) => a.id)).toEqual(['a-owner', 'a-related']);
+    expect(assetForTask(task, all).id).toBe('a-owner');
+  });
+
+  it('falls to the related appliance when nothing owns the device', () => {
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    expect(assetForTask(task, [related]).id).toBe('a-related');
+  });
+
+  it('puts an archived appliance behind a live one that claims the same device', () => {
+    const archived = { id: 'a-old', name: 'Old', device_id: 'dev1', archived_at: '2026-01-01' };
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    // Archived first in the array, so only the ranking can put the live one first.
+    expect(assetsForTask(task, [archived, owner]).map((a) => a.id)).toEqual(['a-owner', 'a-old']);
+    // ...and it is still the answer when it is the only appliance that claims it.
+    expect(assetForTask(task, [archived]).id).toBe('a-old');
+  });
+
+  it('keeps the given order between appliances with the same claim', () => {
+    // Three, not two: a two-element sort makes a single comparison, which a
+    // symmetric comparator gets right by accident.
+    const same = ['a-first', 'a-second', 'a-third'].map((id) => ({ id, name: id, device_id: 'dev1' }));
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    expect(assetsForTask(task, same).map((a) => a.id))
+      .toEqual(['a-first', 'a-second', 'a-third']);
+    expect(assetsForTask(task, [...same].reverse()).map((a) => a.id))
+      .toEqual(['a-third', 'a-second', 'a-first']);
+  });
+
+  it('belongs to no appliance when the task has no device, whatever the related list holds', () => {
+    // A related list with a hole in it. Without the no-device guard this reaches
+    // `[undefined].includes(undefined)` and claims the task.
+    const holey = { id: 'a-holey', name: 'Holey', related_device_ids: [undefined] };
+    expect(assetForTask({ id: 't', name: 'x' }, [holey])).toBeUndefined();
+  });
+
+  it('returns nothing for a task with no device and no part link', () => {
+    expect(assetsForTask({ id: 't', name: 'x' }, all)).toEqual([]);
+    expect(assetForTask({ id: 't', name: 'x' }, all)).toBeUndefined();
+    expect(assetForTask({ id: 't', name: 'x', device_id: 'unknown' }, all)).toBeUndefined();
+  });
+
+  it('agrees with taskRelatesToAsset about what counts as related', () => {
+    const task = { id: 't', name: 'x', device_id: 'dev1' };
+    const matched = assetsForTask(task, all).map((a) => a.id);
+    expect(all.filter((a) => taskRelatesToAsset(task, a)).map((a) => a.id).sort())
+      .toEqual([...matched].sort());
+  });
+});
+
 describe('parseRoute', () => {
   it('defaults empty/unknown paths to the tasks list', () => {
     for (const p of ['', '/', undefined, null, '/bogus']) {
@@ -673,11 +888,21 @@ describe('parseRoute', () => {
   it('parses the appliances list', () => {
     expect(parseRoute('/appliances')).toEqual({ view: 'appliances', detail: null });
   });
-  it('parses a task detail', () => {
+  it('parses a task detail, on its default sub-tab', () => {
+    // A bare `/tasks/<id>` — every link minted before task sub-tabs existed — opens
+    // the schedule, as it always did.
     expect(parseRoute('/tasks/abc')).toEqual({
       view: 'tasks',
-      detail: { kind: 'task', id: 'abc' },
+      detail: { kind: 'task', id: 'abc', tab: 'schedule' },
     });
+  });
+  it('parses each task sub-tab from the third segment', () => {
+    for (const tab of TASK_TABS) {
+      expect(parseRoute(`/tasks/abc/${tab}`)).toEqual({
+        view: 'tasks',
+        detail: { kind: 'task', id: 'abc', tab },
+      });
+    }
   });
   it('parses an asset detail under the appliances segment', () => {
     // No sub-tab in the URL resolves to the default one, so every `/appliances/<id>`
@@ -706,17 +931,20 @@ describe('parseRoute', () => {
       });
     }
   });
-  it('does not give a task detail a sub-tab', () => {
-    // Only appliances have sub-tabs; a third segment on a task path is not one.
-    expect(parseRoute('/tasks/abc/documents')).toEqual({
-      view: 'tasks',
-      detail: { kind: 'task', id: 'abc' },
-    });
+  it('falls back to the default task sub-tab for an unknown one', () => {
+    // An appliance's tab names are not a task's; a stale or hand-typed one opens the
+    // task rather than nothing.
+    for (const bogus of ['documents', 'nope', 'SCHEDULE', '']) {
+      expect(parseRoute(`/tasks/abc/${bogus}`)).toEqual({
+        view: 'tasks',
+        detail: { kind: 'task', id: 'abc', tab: DEFAULT_TASK_TAB },
+      });
+    }
   });
   it('decodes percent-encoded ids and tolerates trailing slashes', () => {
     expect(parseRoute('/tasks/a%2Fb/')).toEqual({
       view: 'tasks',
-      detail: { kind: 'task', id: 'a/b' },
+      detail: { kind: 'task', id: 'a/b', tab: 'schedule' },
     });
   });
   it('decodes a percent-encoded section or sub-tab before matching it', () => {
@@ -792,6 +1020,16 @@ describe('buildPath', () => {
       ).toBe(`/appliances/x/${tab}`);
     }
   });
+  it('leaves the default task sub-tab implicit, and names the others', () => {
+    expect(buildPath({ view: 'tasks', detail: { kind: 'task', id: 'x', tab: 'schedule' } })).toBe(
+      '/tasks/x',
+    );
+    for (const tab of TASK_TABS.filter((t) => t !== DEFAULT_TASK_TAB)) {
+      expect(buildPath({ view: 'tasks', detail: { kind: 'task', id: 'x', tab } })).toBe(
+        `/tasks/x/${tab}`,
+      );
+    }
+  });
   it('encodes the id even with a sub-tab after it', () => {
     expect(
       buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'a/b', tab: 'history' } }),
@@ -809,9 +1047,10 @@ describe('buildPath', () => {
       { view: 'appliances', detail: null },
       { view: 'settings', detail: null },
       ...SETTINGS_SECTIONS.map((section) => ({ view: 'settings', detail: null, section })),
-      { view: 'tasks', detail: { kind: 'task', id: 'task-1' } },
-      // An appliance always resolves with a sub-tab, so that is the shape a
-      // round-trip has to come back as.
+      // A detail always resolves with a sub-tab, so that is the shape a round-trip
+      // has to come back as.
+      { view: 'tasks', detail: { kind: 'task', id: 'task-1', tab: 'schedule' } },
+      ...TASK_TABS.map((tab) => ({ view: 'tasks', detail: { kind: 'task', id: 'task-1', tab } })),
       { view: 'appliances', detail: { kind: 'asset', id: 'asset-9', tab: 'parts' } },
       ...ASSET_TABS.map((tab) => ({
         view: 'appliances',
@@ -1080,7 +1319,7 @@ describe('button weights (#262)', () => {
 
   it('spells each other weight in ha-button’s own vocabulary', () => {
     expect(btnAttrs('secondary')).toBe('appearance="filled" data-hk-weight="secondary"');
-    // Neutral, not brand: plain-brand paints the label accent-coloured, which is
+    // Neutral, not brand: plain-brand paints the label accent-colored, which is
     // 3.26:1 on a card and makes Cancel argue with the action beside it.
     expect(btnAttrs('tertiary')).toBe(
       'appearance="plain" variant="neutral" data-hk-weight="tertiary"',
@@ -1317,5 +1556,151 @@ describe('personName', () => {
     expect(personName(hass, 'person.gone')).toBe('person.gone');
     expect(personName({}, 'person.sam')).toBe('person.sam');
     expect(personName(undefined, 'person.sam')).toBe('person.sam');
+  });
+});
+
+describe('snooze presets', () => {
+  const from = new Date(2026, 7, 30, 9, 0); // Sun 30 Aug 2026, 09:00 local
+
+  it('resolves each offset from the given instant', () => {
+    expect(resolveSnoozePreset('1h', from)).toEqual(new Date(2026, 7, 30, 10, 0));
+    expect(resolveSnoozePreset('1d', from)).toEqual(new Date(2026, 7, 31, 9, 0));
+    expect(resolveSnoozePreset('1w', from)).toEqual(new Date(2026, 8, 6, 9, 0));
+    expect(resolveSnoozePreset('1mo', from)).toEqual(new Date(2026, 8, 30, 9, 0));
+  });
+
+  it('clamps a month onto a shorter one instead of rolling past it', () => {
+    // Jan 31 + 1 month is Feb 28, matching the backend's `recurrence.add_months`.
+    // A bare `setMonth` would roll *forward* to Mar 3, so the date the dialog
+    // previews would not be the date the task ends up with.
+    expect(resolveSnoozePreset('1mo', new Date(2026, 0, 31, 9, 0))).toEqual(
+      new Date(2026, 1, 28, 9, 0),
+    );
+  });
+
+  it('clamps onto a leap February', () => {
+    expect(resolveSnoozePreset('1mo', new Date(2028, 0, 31, 9, 0))).toEqual(
+      new Date(2028, 1, 29, 9, 0),
+    );
+  });
+
+  it('carries an hour offset across a day boundary', () => {
+    expect(resolveSnoozePreset('1h', new Date(2026, 7, 30, 23, 30))).toEqual(
+      new Date(2026, 7, 31, 0, 30),
+    );
+  });
+
+  it('has no offset for custom — the dialog reveals a date field instead', () => {
+    expect(resolveSnoozePreset('custom', from)).toBeNull();
+  });
+
+  it('returns null for an id that is not a preset', () => {
+    expect(resolveSnoozePreset('1y', from)).toBeNull();
+  });
+
+  it('opens on a preset that is actually in the list', () => {
+    expect(SNOOZE_PRESETS.map((p) => p.id)).toContain(DEFAULT_SNOOZE_PRESET);
+  });
+
+  it('ends with custom, so the escape hatch sits last in the dropdown', () => {
+    expect(SNOOZE_PRESETS[SNOOZE_PRESETS.length - 1].id).toBe('custom');
+  });
+});
+
+// ── the stock stepper's step rules ───────────────────────────────────────────
+
+describe('partStockStep', () => {
+  it('moves in whole spares for a part counted in spares', () => {
+    expect(partStockStep({ name: 'Filter', type: 'consumable', stock: 4, reorder_at: 1 })).toBe(1);
+    expect(partStockStep({ name: 'Filter', type: 'consumable' })).toBe(1);
+  });
+  it('moves finely once the part has a unit', () => {
+    expect(partStockStep({ name: 'Descaler', type: 'consumable', stock: 750, stock_unit: 'ml' })).toBe(0.001);
+    // A blank unit is no unit.
+    expect(partStockStep({ name: 'Descaler', type: 'consumable', stock: 750, stock_unit: '  ' })).toBe(1);
+  });
+  it('moves finely once any quantity is fractional — the same rule as the device page', () => {
+    const base = { name: 'Oil', type: 'consumable', stock: 2 };
+    expect(partStockStep({ ...base, stock: 2.5 })).toBe(0.001);
+    expect(partStockStep({ ...base, reorder_at: 0.5 })).toBe(0.001);
+    expect(partStockStep({ ...base, consume_quantity: 0.25 })).toBe(0.001);
+    expect(partStockStep({ ...base, restock_quantity: 1.5 })).toBe(0.001);
+    expect(partStockStep({ ...base, reorder_at: null, consume_quantity: null })).toBe(1);
+  });
+});
+
+describe('partStockButtonStep', () => {
+  it('is one spare for a counted part', () => {
+    expect(partStockButtonStep({ name: 'Filter', type: 'consumable', stock: 4 })).toBe(1);
+  });
+  it('is one completion for a measured part, and one unit when no amount is set', () => {
+    expect(
+      partStockButtonStep({ name: 'Descaler', type: 'consumable', stock: 750, stock_unit: 'ml', consume_quantity: 250 }),
+    ).toBe(250);
+    expect(partStockButtonStep({ name: 'Descaler', type: 'consumable', stock: 750, stock_unit: 'ml' })).toBe(1);
+  });
+});
+
+describe('snapStock', () => {
+  it('rounds to the step and never goes below zero', () => {
+    expect(snapStock(4.4, 1)).toBe(4);
+    expect(snapStock(4.5, 1)).toBe(5);
+    expect(snapStock(-2, 1)).toBe(0);
+    expect(snapStock(749.9994, 0.001)).toBe(749.999);
+  });
+  it('treats an unreadable value as empty', () => {
+    expect(snapStock(NaN, 1)).toBe(0);
+    expect(snapStock(Infinity, 1)).toBe(0);
+  });
+});
+
+describe('normalizeIcon', () => {
+  it('keeps a real mdi name, folded and trimmed', () => {
+    expect(normalizeIcon('mdi:pill')).toBe('mdi:pill');
+    expect(normalizeIcon('  MDI:Air-Filter ')).toBe('mdi:air-filter');
+  });
+
+  it('clamps anything the companion app could not resolve', () => {
+    // The app draws nothing at all for a name it does not have, and says nothing about
+    // it. '' is the visible fallback: the Home Assistant icon the user already had.
+    for (const bad of ['', null, undefined, 7, 'pill', 'mdi:', 'hass:pill', 'mdi:a b']) {
+      expect(normalizeIcon(bad)).toBe('');
+    }
+  });
+
+  it('refuses a name that could break out of an attribute', () => {
+    for (const hostile of ['mdi:pill" onload="x', "mdi:pill'>", 'mdi:pill<script>', 'mdi:a:b']) {
+      expect(normalizeIcon(hostile)).toBe('');
+    }
+  });
+});
+
+describe('notifyRowChip', () => {
+  it('paints the accent and draws the glyph', () => {
+    const html = notifyRowChip('mdi:pill', '#E53935');
+    expect(html).toContain('background:#e53935');
+    expect(html).toContain('<ha-icon icon="mdi:pill">');
+  });
+
+  it('builds nothing without an icon', () => {
+    // A row that has no icon must look exactly as it did before this field existed.
+    expect(notifyRowChip('', '#e53935')).toBe('');
+    expect(notifyRowChip(null, null)).toBe('');
+    expect(notifyRowChip('not-an-icon', '#e53935')).toBe('');
+  });
+
+  it('falls back to a theme color rather than an unusable one', () => {
+    for (const bad of ['', null, 'red', '#fff', 'red;background:url(x)']) {
+      const html = notifyRowChip('mdi:pill', bad);
+      expect(html).toContain('background:var(--secondary-text-color)');
+      expect(html).not.toContain('url(');
+    }
+  });
+
+  it('never lets a stored value reach the markup unchecked', () => {
+    // Both halves land in attributes, so both are gated at the source rather than
+    // escaped after the fact: the icon by its character set, the color by its shape.
+    const html = notifyRowChip('mdi:pill" onload="alert(1)', '#000000"onload="alert(1)');
+    expect(html).toBe('');
   });
 });

@@ -16,6 +16,7 @@ import type { PanelHost } from './panel-host';
 import { MDI_DEVICES } from './panel-icons';
 import type { Asset, Task } from './types';
 import {
+  HK_DOMAIN,
   areaName,
   brandLogoUrl,
   deviceDomain,
@@ -54,7 +55,13 @@ export function isManagedOrphan(p: PanelHost, task: Task): boolean {
 export function sourceOwnedTask(task: Task): boolean {
   return (
     (Boolean(task.source?.part) && !task.source?.part?.manual) ||
-    Boolean(task.source?.problem_sensor)
+    Boolean(task.source?.problem_sensor) ||
+    // A declarative companion is the third owner. Its reconciler rewrites name,
+    // device, area and the sensor binding from the recipe on every pass, so an
+    // Edit dialog over those fields is a form whose Save the next pass undoes, and
+    // a Duplicate makes an unmanaged lookalike that drifts. The task page offers
+    // Edit recipe instead — the surface that actually owns those values (#231).
+    Boolean(task.source?.declarative_companion)
   );
 }
 
@@ -116,7 +123,7 @@ export function managedChip(p: PanelHost, task: Task): string {
   }
   // A task Home Keeper synced from a sensor is "owned" by Home Keeper itself, so
   // "Managed by Home Keeper" reads as redundant — call it what it is: auto-synced.
-  const selfOwned = mb.integration === 'home_keeper';
+  const selfOwned = mb.integration === HK_DOMAIN;
   const label = selfOwned ? t('chip.autoSynced') : t('chip.managed', { name: mb.display_name });
   const tip = selfOwned ? t('chip.autoSynced.tip') : label;
   // A leading glyph gives the owner chip the same icon grammar as the device chip:
@@ -128,10 +135,21 @@ export function managedChip(p: PanelHost, task: Task): string {
 }
 
 /**
- * A device chip that links to the device's HA config page and shows the
- * integration's brand logo (falling back to a generic device icon).
+ * A device chip showing the integration's brand logo (falling back to a generic
+ * device icon), with one of two destinations.
+ *
+ * Pass `assetId` and the chip stays inside the panel: it opens that appliance's
+ * Home Keeper page. That is what the chip means on a *task* — "the appliance this
+ * work is about" — and a device page, which knows nothing about Home Keeper, was
+ * never the useful answer there.
+ *
+ * Leave `assetId` out and the chip keeps its original destination, the device's
+ * Home Assistant page. That is what the chip means on an *appliance*, and it is
+ * also the fallback for a task whose device no appliance claims. A chip that
+ * leaves the panel says so with a trailing mark, so the two destinations are told
+ * apart before the click rather than after it.
  */
-export function deviceChip(p: PanelHost, deviceId: string): string {
+export function deviceChip(p: PanelHost, deviceId: string, assetId?: string): string {
   const name = deviceName(p._hass?.devices, deviceId);
   // No name, no chip. The device has left the registry, so the chip had nothing to
   // say and its link went to a config page that no longer exists — the same guard
@@ -143,9 +161,15 @@ export function deviceChip(p: PanelHost, deviceId: string): string {
         brandLogoUrl(domain),
       )}" data-domain="${escapeHTML(domain)}" />`
     : `<ha-svg-icon slot="icon" class="hk-dev-img"></ha-svg-icon>`;
-  return `<ha-assist-chip class="hk-device-chip" role="link" tabindex="0" data-device-id="${escapeHTML(
+  const asset = assetId ? ` data-asset-id="${escapeHTML(assetId)}"` : '';
+  const tip = assetId ? t('chip.device.appliance.tip') : t('chip.device.tip');
+  const chip = `<ha-assist-chip class="hk-device-chip" role="link" tabindex="0" data-device-id="${escapeHTML(
     deviceId,
-  )}" label="${escapeHTML(name)}">${icon}</ha-assist-chip>`;
+  )}"${asset} label="${escapeHTML(name)}" title="${escapeHTML(tip)}">${icon}</ha-assist-chip>`;
+  // The mark rides a wrapper rather than a sibling element: `wireLists` recounts the
+  // "+n" label from the child count of `.hk-chips-inline`, so one chip has to stay
+  // one child of it.
+  return assetId ? chip : `<span class="hk-chip-ext">${chip}</span>`;
 }
 
 /**
@@ -167,18 +191,27 @@ export function virtualDeviceChip(p: PanelHost, asset: Asset): string {
   return `<ha-assist-chip label="${label}" title="${tip}"></ha-assist-chip>`;
 }
 
-/** Wire navigation + brand-logo fallback for every device chip in the tree. Takes no
- *  `PanelHost`: every chip already carries its device id in `data-device-id`, so the
- *  wiring reads the DOM rather than the panel. */
-export function wireDeviceChips(root: ShadowRoot): void {
+/**
+ * Wire navigation + brand-logo fallback for every device chip in the tree. Each chip
+ * carries its own destination in the DOM — `data-asset-id` for an appliance page,
+ * `data-device-id` for the Home Assistant device page — so this reads the chip rather
+ * than the task or appliance it came from. It takes the panel only to reach
+ * `_openDetail`, which is what keeps an in-panel hop on the panel's own history.
+ *
+ * `root` is a `ParentNode` rather than the shadow root, because `_applyQuery` rebuilds
+ * only `#hk-list` for the text filter and re-wires that element alone.
+ */
+export function wireDeviceChips(p: PanelHost, root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('.hk-device-chip').forEach((chip) => {
     const id = chip.dataset.deviceId;
+    const assetId = chip.dataset.assetId;
     // Stop the event from bubbling to an enclosing `.detail-open` card row — without
     // this, clicking a device chip on a task/appliance card row is hijacked by the
-    // row's open-detail handler and the chip never reaches its device page.
+    // row's open-detail handler and the chip never reaches its own destination.
     const go = (e?: Event): void => {
       e?.stopPropagation();
-      if (id) navigateTo(`/config/devices/device/${id}`);
+      if (assetId) p._openDetail('asset', assetId);
+      else if (id) navigateTo(`/config/devices/device/${id}`);
     };
     chip.addEventListener('click', go);
     chip.addEventListener('keydown', (e) => {

@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Påkrævede fuldførelsesfelter",
           "description": "Hvilke fuldførelsesmetadatafelter panelet gør obligatoriske, når fuldførelsesdetaljen er required – et vilkårligt af note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Påkrævede fuldførelsesfelter",
           "description": "Hvilke fuldførelsesmetadatafelter panelet gør obligatoriske, når fuldførelsesdetaljen er required – et vilkårligt af note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Timer",
-          "description": "Hvor mange timer opgaven skal udskydes (standard 24)."
+          "description": "Hvor mange timer opgaven skal udsættes (standard 24). Ignoreres, når Indtil er angivet."
+        },
+        "until": {
+          "name": "Indtil",
+          "description": "Udsæt opgaven til præcis denne dato og dette klokkeslæt i stedet for et antal timer. Angiver du den, bruges feltet Timer ikke."
         },
         "origin": {
           "name": "Oprindelse",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Spring opgave over",
-      "description": "Ryk en opgave frem til dens næste forekomst uden at registrere en fuldførelse.",
+      "description": "Flytter en opgave frem til næste forekomst uden at registrere en fuldførelse. Overspringningen logges for sig, så den aldrig tæller som en fuldførelse.",
       "fields": {
         "task_id": {
           "name": "Opgavenavn eller -ID",
           "description": "Id'et på den opgave, der skal springes over. Navnet virker også. Panelet viser id'et."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Hvorfor denne forekomst blev sprunget over."
+        },
+        "who": {
+          "name": "Hvem",
+          "description": "Hvem der besluttede at springe den over."
+        },
+        "reading": {
+          "name": "Måleraflæsning",
+          "description": "Den tilknyttede sensors værdi på tidspunktet for overspringningen, for en forbrugsopgave."
         },
         "origin": {
           "name": "Oprindelse",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Mål",
           "description": "Notifikationstjenester at sende til, der tilsidesætter profilen (f.eks. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Tilsidesætter profilens egen status for dette kald: overdue (kun forfaldne opgaver), due_soon (forfaldne og snart forfaldne opgaver), all (alle planlagte opgaver) eller none (matcher ingen opgave, til at sende notifikationen Alt er klaret efter behov)."
+        },
+        "when_empty": {
+          "name": "Når intet matcher",
+          "description": "Hvad et kald sender, hvis filteret ikke matcher nogen opgave. Som standard er det skip: der sendes ingenting. Sæt det til all_clear for at sende notifikationen Alt er klaret i stedet."
         }
       }
     },
@@ -791,6 +823,92 @@
           "description": "ID'et på den reservedel, hvis vedhæftede fil der skal signeres en URL for. Navnet virker også. Panelet viser id'et."
         }
       }
+    },
+    "update_skip": {
+      "name": "Opdater overspringning",
+      "description": "Ret detaljerne i en registreret overspringning, identificeret ved dens tidsstempel. Overspringningen beholder sin dato, og planen røres ikke.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "Id'et på den opgave, hvis overspringning du redigerer. Navnet virker også. Panelet viser id'et."
+        },
+        "ts": {
+          "name": "Overspringningens tidsstempel",
+          "description": "ISO-tidsstemplet (ts) for den overspringningspost, der skal redigeres."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Hvorfor denne forekomst blev sprunget over. En tom værdi rydder den."
+        },
+        "who": {
+          "name": "Hvem",
+          "description": "Hvem der besluttede at springe den over. En tom værdi rydder den."
+        },
+        "reading": {
+          "name": "Måleraflæsning",
+          "description": "Den tilknyttede sensors værdi på tidspunktet for overspringningen, for en forbrugsopgave."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Slet overspringning",
+      "description": "Fjern en registreret overspringning, identificeret ved dens tidsstempel. Fortryder du den overspringning, der senest nulstillede en forbrugsmåler, gendannes den måler.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "Id'et på den opgave, hvis overspringning du fjerner. Navnet virker også. Panelet viser id'et."
+        },
+        "ts": {
+          "name": "Overspringningens tidsstempel",
+          "description": "ISO-tidsstemplet (ts) for den overspringningspost, der skal fjernes."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Flyt overspringning",
+      "description": "Giv en registreret overspringning en ny dato, identificeret ved dens nuværende tidsstempel. Opgavens plan røres ikke.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "Id'et på den opgave, hvis overspringning du flytter. Navnet virker også. Panelet viser id'et."
+        },
+        "old_ts": {
+          "name": "Nuværende tidsstempel for overspringningen",
+          "description": "ISO-tidsstemplet (ts) for den overspringningspost, der skal flyttes."
+        },
+        "new_ts": {
+          "name": "Ny dato",
+          "description": "Den nye dato og det nye klokkeslæt, overspringningen skal registreres på."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Tilføj deklarativ companion",
+      "description": "Registrerer en deklarativ companion — en opskrift, der materialiserer én administreret sensoropgave pr. entitet, der matcher filtrene (målintegration + entitetsfiltre), med Jinja-templated opgavenavn og noter. Kun administratorer."
+    },
+    "update_declarative_companion": {
+      "name": "Opdater deklarativ companion",
+      "description": "Opdaterer felter i en gemt deklarativ companion-specifikation ud fra id. Kun administratorer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Specifikationens stabile uuid, fra list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Slet deklarativ companion",
+      "description": "Fjerner en deklarativ companion-specifikation og enhver administreret opgave, den materialiserede. Kun administratorer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Specifikationens stabile uuid, fra list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Vis deklarative companions",
+      "description": "Returnerer hver gemt deklarativ companion-specifikation som svar."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativ companion ikke fundet: {spec_id}"
     }
   }
 }

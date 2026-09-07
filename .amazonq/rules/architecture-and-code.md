@@ -101,6 +101,21 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   wiring returns.** `_hydrate` returns early for a task detail ("a page of its own"),
   so `_mountDrawerForm` runs above that return — mounted after it, Edit on a task page
   opens an empty drawer.
+- **A link out of the panel is the exception, and it is marked.** `_navigate` moves
+  within the panel; `utils.navigateTo` leaves it (a device page, an integration page)
+  and fires on `window` instead. A chip or button that leaves carries a visible
+  leaves-the-panel mark (`.hk-chip-ext`), so a user reads the destination before the
+  click rather than after it.
+- **A device chip's destination follows the surface it sits on.** From a *task* the
+  chip means "the appliance this work is about" and opens that appliance's page inside
+  the panel; from an *appliance* it means "the Home Assistant device behind this" and
+  opens the device page. So the device is always one hop from a task, and the two
+  directions never disagree. `deviceChip(p, deviceId, assetId?)` decides by whether an
+  appliance id was passed; `assetForTask` in `utils.ts` is the single ranking that
+  answers "which appliance does this task belong to", and the task form's consumable
+  and document pickers read the same ranking so they cannot disagree with the chip.
+  A task whose device no appliance claims falls back to the device page, marked.
+
 - **A form beside a detail page must not dim it.** The dimming that marks the edited
   row on a list is keyed off `.hk-wrap:not([data-detail])`: on a detail page the page
   *is* the subject of the form, so it stays at full contrast. Where a third column
@@ -169,6 +184,28 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   on startup** (`async_baseline`) so a restart never replays a spurious arm — the same
   discipline as `transitions.py`. The coordinator's periodic tick calls
   `sensor_watcher.async_evaluate(refresh=False)` before transition detection.
+- **The startup baseline protects history, so it covers only tasks that have some.**
+  "Already met, no crossing" is right for a task the user has dealt with and wrong for
+  a task made a second ago — and the two are the same code path, because materializing
+  a declarative companion's tasks reloads the config entry and the reload re-runs
+  `async_baseline`. The reconciler therefore names the ids it materialized
+  (`sensor_watcher.async_mark_tasks_new`, a `hass.data` set keyed by entry id so it
+  survives the reload that destroys the reconciler) and the baseline leaves the edge
+  unset for exactly those ids. **Mark ids only on the path that actually reloads**, and
+  the baseline **consumes** the set: a set left behind would arm again on the next
+  unrelated reload. Which tasks even have an edge to skip is the pure
+  `sensor_tasks.holds_edge_state` — a `usage` meter is still anchored, because its
+  baseline is a persisted reading and not an edge.
+- **A declarative companion's notes are re-rendered when the task arms.** The reconcile
+  pass renders name/notes from live state, but it runs on *registry* changes, so a
+  template that quotes the reading (`{{ state }} h left`) froze at whatever the entity
+  read when the task was made. `declarative_companion_sync.async_refresh_task_notes`
+  re-renders from the live entity at the arm transition only — every evaluation would
+  write to the store on each tick — and the watcher calls it *before* `trigger_task` so
+  `home_keeper_task_triggered` carries the fresh note. `notes` is not in
+  `managed_by.locked_fields`, but the reconcile pass already rewrites it from the
+  template, so the field is owned by the recipe and a hand edit does not survive either
+  path.
 - **The `sensor` block is the extension point for new recurrence dimensions.** When a
   usage task needs to be due on something *other* than its meter, add a key to
   `task["sensor"]` and a branch to the pure evaluator — don't reach for the top-level
@@ -560,10 +597,10 @@ fails instantly instead of after a long transfer) is mirrored in
 (`tests/unit/test_upload_limit_parity.py`). The backend stays the authority — the
 client check is a fast path, never the enforcement.
 
-### The panel's visual language is a token block, never literal colour
+### The panel's visual language is a token block, never literal color
 - `STYLES` opens with a `:host` block of `--hk-*` tokens (accent/danger/warn/ok,
   surface/page/line/ink, radii, `--hk-tap`). **Every rule reads a token; no rule
-  hard-codes a colour.** Each token resolves to a Home Assistant theme variable, or
+  hard-codes a color.** Each token resolves to a Home Assistant theme variable, or
   to a `color-mix()` off one for the tints HA does not publish (a 12% mix over the
   *surface* darkens with the surface, so it reads correctly in a dark theme too).
   A design comp is drawn in one palette; pasting its hexes breaks dark mode and
@@ -589,10 +626,32 @@ client check is a fast path, never the enforcement.
     other actions, `danger-primary` only on a surface whose whole job is the deletion
     (the confirm scrim, and nowhere else).
   - `tertiary` is `neutral` rather than brand on purpose — `appearance="plain"` alone
-    paints the label in the accent colour at 3.26:1 on a card.
+    paints the label in the accent color at 3.26:1 on a card.
 - Two shared primitives carry the system: `.hk-eyebrow` (uppercase micro-label
   above a group) and `.hk-indent` (a rule down the left of fields that exist only
   because of a choice above them). Reuse them rather than restating the rules.
+
+### A list row is a grid of fixed rails, not a shrink-to-fit line
+- Both list rows — task and appliance — lay their parts on the **same tracks**:
+  the name takes the slack, then a fixed chip track (`--hk-chip-col`, or
+  `--hk-chip-col-wide` on an appliance row, which buys no action column), then a
+  fixed status track (`--hk-status-col`), then the row's action. A chip therefore
+  starts at the same x on every row and on either tab.
+- Shrink-to-fit is what this replaced, and the reason is scanning: with
+  `flex: 0 1 auto` the chip cluster began wherever the task name happened to end —
+  121px of drift down the seeded list — so the eye had to re-find the column on
+  every line. The two lists also used to be different objects, one a flex line with
+  a status pill and the other a three-line block.
+- The status pill is **left-aligned in its track** and set in `tabular-nums`. A pill
+  is read by where it starts, and "8 days overdue" beside "128 days overdue" agreed
+  only on where it ended.
+- The rails are a desktop grammar. Below 700px, and inside the 268px appliance
+  master pane, the row goes back to a stack — the chips still start at the card's
+  left padding there, which is the alignment the rails were bought for at a width
+  that has no room for them.
+- **A row's chip strip holds one element per chip.** `wireLists` recounts the "+n"
+  label from the child count of `.hk-chips-inline`, so a chip that needs decoration
+  takes a wrapper, never a sibling element.
 
 ### Responsive: viewport media queries, sticky over fixed
 - Breakpoints are **viewport `@media` queries**, so `_render()` stays
@@ -627,25 +686,25 @@ client check is a fast path, never the enforcement.
   something `pointer-events` never did.
 
 ### Contrast and affordance are measured, not eyeballed
-- **Colour pairs are checked against rendered pixels, in both themes.** Sample the
-  computed colours through the shadow root and compute the ratio; the light and dark
+- **Color pairs are checked against rendered pixels, in both themes.** Sample the
+  computed colors through the shadow root and compute the ratio; the light and dark
   failures are rarely the same ones. `--hk-accent-fg` on `--hk-accent` is 3.26:1 —
   Home Assistant's own filled-button pairing, and not good enough for a 12px label,
   so selected states use the soft/ink pair plus an edge.
 - **The `*-ink` tokens mix ~58% hue into `--primary-text-color`, not 78%.** At 78%
   the mix barely moves off the hue in light mode, and stays red-on-red in dark. When
-  adding a semantic colour, pair a `*-soft` container with a `*-ink` label — never a
+  adding a semantic color, pair a `*-soft` container with a `*-ink` label — never a
   literal `#fff` over a mid-tone fill (that pairing measured 1.88–1.96:1).
 - **Enclosure means pressable.** A bordered status pill beside a borderless tonal
   button reads as the pill being the control. Status chips carry no outline; the
   row's action carries the ring.
-- **Reach into a Home Assistant component through its `part`, not its colour custom
-  properties.** `ha-button` reads only fill tokens, so the label colour is only
+- **Reach into a Home Assistant component through its `part`, not its color custom
+  properties.** `ha-button` reads only fill tokens, so the label color is only
   reachable as `::part(base)`. HA's tonal label on its own tonal fill measures
   2.85:1, so every tonal button restates it from `--hk-accent-ink` — keyed off
   `[data-hk-weight="secondary"]` rather than a class, so a button cannot opt out of
   the fix by being written somewhere new.
-- **When a semantic colour needs a label, add the `*-ink` to match the `*-soft`.**
+- **When a semantic color needs a label, add the `*-ink` to match the `*-soft`.**
   The `ok` family shipped with a container and no ink, which is why the "Connected"
   chip was still white-on-mid-tone at 3.30:1 after #261 fixed its neighbours.
 
@@ -658,7 +717,7 @@ client check is a fast path, never the enforcement.
   Its `focus()` dereferences a shadow root that may not exist yet immediately after an
   `innerHTML` assignment, and the throw propagates out of `_render()` and skips
   everything after it.
-- **State conveyed by colour needs a text equivalent.** The rail's dots carry
+- **State conveyed by color needs a text equivalent.** The rail's dots carry
   `role="img"` plus a label; the selected filter chip carries `aria-pressed`.
 - **Don't declare a widget role you have not implemented.** The appliance sub-tabs
   and the phone tab bar are navigation between URLs, so they are buttons with
@@ -666,6 +725,50 @@ client check is a fast path, never the enforcement.
   keys is worse than no role at all.
 - `tests/e2e/tests/a11y.spec.ts` pins all of the above. The rest of the suite runs at
   desktop width with a mouse and noticed none of it.
+
+### A task's actions say what the task can actually do
+- **A monitored task offers no Done.** `utils.isMonitoredDormant` is the single rule
+  the task page, the task list and the dashboard card all read: a dormant `triggered`
+  task and a dormant `sensor` task in an *edge* mode (`state` / `threshold` /
+  `availability` — the panel's twin of `sensor_tasks.holds_edge_state`) are both
+  waiting on a condition, and completing one writes a history entry and moves nothing,
+  because `recurrence.next_due_after_completion` leaves it dormant. A dormant **usage**
+  meter is the exception and keeps its Done: it is counting towards a target, and an
+  early completion re-anchors the baseline through `store._reset_usage_baseline`. Each
+  of the three surfaces used to spell the rule out for itself, and all three tested only
+  `triggered` — so every declarative-companion task shipped with a Done that did nothing
+  (#231). One predicate, in `utils.ts`, or they drift again.
+- **`clear_on_recover` decides who may press Done.** It is not only a watcher
+  setting: it says who owns the task's whole lifecycle, so
+  `declarative_companions.build_managed_by` reads it straight into
+  `completion_blocked`. Set, the recipe owns both ends — the watcher arms on the
+  crossing and completes on the recovery — and a hand-pressed Done is worse than a
+  no-op, because `sensor_tasks._evaluate_edge` will not re-arm while the condition
+  merely stays true: completing "Update available" dismisses a firmware update that
+  is still pending, and nothing brings it back until that update is installed and a
+  *different* one appears (#231). Clear, nothing else ever clears the task, so Done
+  has to stay — that covers a `usage` meter, where completing early re-anchors the
+  baseline. One flag reaches every surface: the panel, the card, `todo_list.py` and
+  `notifications.is_completion_blocked` all read it, so a task that cannot be
+  completed by hand offers no Done anywhere, including on a phone notification.
+- **A task a reconciler owns is source-owned, and `sourceOwnedTask` is the list.**
+  A declarative companion joins the wear part and the problem sensor there: its
+  reconciler rewrites name, device, area and the sensor binding from the recipe on
+  every pass, so the task's own Edit dialog is a form whose Save the next pass
+  undoes, and Duplicate mints an unmanaged lookalike that drifts. Withhold both, and
+  offer the surface that really owns those values instead — for a recipe's task,
+  **Edit recipe**. A source-owned task with somewhere to send the user must always
+  name it: the generic "kept in step with its source" caption leaves the reader
+  hunting for which source when the page already knows.
+- **Home Keeper is never the target of an "Edit in X" deep link.** A task Home Keeper
+  owns carries Home Keeper's own `config_entry_id` in `managed_by`, while
+  `display_name` may name something else entirely — a declarative companion stamps the
+  *recipe's* name there. A caption built from `display_name` alone then points at an
+  integration that does not exist ("Edit in Device Pulse", opening the Home Keeper
+  integration page). Check the resolved domain against `utils.HK_DOMAIN` first, and
+  offer the surface that really owns the task: for a declarative-companion task that is
+  its recipe's editor (`panel-declarative.openDeclarativeForm`, reached through
+  `declarativeRecipeFor`).
 
 ### One `ha-form` per section — and seed each with only its own fields
 - `ha-form` renders its own rows and exposes no slot between them, so **a heading
@@ -684,6 +787,24 @@ client check is a fast path, never the enforcement.
   must check a field is present before reading it** (`'interval' in value`).
   An unguarded read sees `undefined` for fields in other sections; the cadence
   interval is coerced with `Number(...) || 1`, so it silently became 1.
+- **A field that another field reveals lives in a second, *dependent* `ha-form`
+  whose `schema` is reassigned in place — never in a form that is rebuilt.**
+  `_render()` replaces the whole shadow tree, so a `value-changed` handler that
+  calls it destroys the box being typed in: focus falls to `<body>`, the drawer's
+  scroller restarts at the top, and on iOS the keyboard closes (#296 — the first
+  digit into an empty part Stock box). The part editor is `partBaseSchema()` (the
+  gates: type, stock, reorder) plus `partDependentSchema(part)` (what they reveal);
+  `partDependentKey(part)` says when the dependent form's shape changes, and the
+  handler sets `dep.schema`/`dep.data` on the *same* element. The metadata editor
+  does the same for its type-dependent value control. A `_render()` from a click
+  (Add part, Remove) is fine — a click is not mid-keystroke.
+- **A collapsible is a native `details` with the panel's own summary chrome** —
+  an uppercase `.hk-section` label, a `.hk-section-count` pill, and an
+  `.hk-section-chevron` — at every level: the drawer's sections
+  (`collapsibleSection`), each part inside the Parts section (`partBox`), and the
+  list's status groups. Open state lives in panel state (`openSections`,
+  `openPart`), read on render and written from the `toggle` event, so a render
+  never snaps a row shut.
 - Keep the wrapper's id (`hk-task-form`) on a `<div>` around the section forms, so
   every `#hk-task-form <selector>` descendant lookup still resolves. Tests that
   dispatch `value-changed` must address the *section that owns the field* — an
@@ -1214,6 +1335,54 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   Not Disturb override become phone settings, and later payloads cannot change them.
   That is a property of the platform, not a bug to work around — surface it in the
   field's helper text and in the README instead of trying to force a channel update.
+- **When both platforms read a key but render it differently, send one value and let
+  each draw its own native shape.** `icon` and `color` (#293) are the exception to the
+  "each app ignores what it does not know" rule above: `notification_icon` is Android's
+  status bar icon and iOS's *sender* icon, and `color` is Android's accent (the glyph)
+  but iOS's circle *behind* the glyph. Do not try to make the two match. `color` is the
+  only accent Android reads, so pinning it to a neutral to pale the iOS circle costs
+  Android its color outright, and an iOS sender icon is always a filled circle anyway.
+  Per-target branching to send a key to only one platform is also out: it would drag the
+  device registry into a builder that deliberately has no HA imports.
+- **Read the companion app's source before you trust its documentation about a payload
+  key.** Two claims in the Home Assistant docs are wrong, and both shipped as bugs
+  because nobody checked `NotificationFunctions.kt` in `home-assistant/android`:
+  - `notification_icon_color` is documented as iOS-only. Android's `handleColor` reads
+    it **first** and falls back to `color` only when it is absent, so sending the iOS
+    default of white replaced the user's Android accent with white and looked exactly
+    like the colour field doing nothing. Home Keeper never sends the key. Do not re-add
+    it.
+  - An unresolvable `notification_icon` is documented as showing no icon. Android's
+    `handleSmallIcon` falls back to `R.drawable.ic_stat_ic_notification`, the Home
+    Assistant icon, which is why a bad name reads as "the feature does nothing" rather
+    than as an obvious blank.
+  - Android resolves the name against the Iconics font the app bundles
+    (`community-material-typeface`), which trails the set the panel's picker offers. The
+    backend cannot know a household's app version, so that mismatch belongs in the docs
+    rather than in validation.
+- **A field that does nothing on a platform says so, in its own label and helper.** The
+  earlier version of this rule said the opposite — that a difference producing a native
+  result on both sides needs no documentation, and that the row chip shows the choice
+  well enough. That was written from the Home Assistant docs and was wrong twice over:
+  Android 12 and later apply `color` only to a foreground-service or MediaStyle
+  notification (see Android's own notification design guide), so the field is inert
+  there, and Android draws `notification_icon` in the status bar only, never on the
+  notification in the shade. A maintainer testing on Android saw a colour picker that
+  did nothing and an icon that seemed to do nothing, which is exactly the confusion the
+  old rule created. `notify.color` is now labelled **Accent color (iPhone)**, and both
+  fields carry helper text naming what each platform does.
+- **"The UI shows it" only excuses documentation when the UI actually can.** The chip in
+  the Settings row shows the colour *in the panel*. It cannot show that the phone
+  ignores it. Do not use a panel affordance as a substitute for a fact about a device
+  the panel cannot see.
+- **An unusable value clamps to `""`, it never passes through.** `normalize_icon` and
+  `normalize_color` repair rather than raise, because `normalize_notification` repairs a
+  stored document. This is not tidiness: the companion app falls back to the Home
+  Assistant icon for a name it cannot resolve and reports nothing, so a typo that reached
+  the phone would silently cost the user the icon they picked and look like the feature
+  doing nothing. `""` sends no key, which is the same visible fallback arrived at
+  honestly. Validate at the store, and keep the icon's character set tight enough that
+  the value is safe in an `ha-icon` attribute without escaping saving it.
 
 ## Eagerly-resolved backend text (backend_i18n.py, backend_strings/)
 - `translation_key` (above) is **lazy** — the frontend resolves it to text only when

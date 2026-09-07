@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Obligatoriska slutförandefält",
           "description": "Vilka slutförande-metadatafält panelen gör obligatoriska när slutförandedetaljen är required — något av note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Obligatoriska slutförandefält",
           "description": "Vilka slutförande-metadatafält panelen gör obligatoriska när slutförandedetaljen är required — något av note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Timmar",
-          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24)."
+          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24). Ignoreras när Till är angivet."
+        },
+        "until": {
+          "name": "Till",
+          "description": "Skjuter upp uppgiften till exakt detta datum och klockslag i stället för ett antal timmar. Anger du den används inte fältet Timmar."
         },
         "origin": {
           "name": "Ursprung",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Hoppa över uppgift",
-      "description": "Flytta fram en uppgift till nästa tillfälle utan att registrera ett slutförande.",
+      "description": "Flyttar en uppgift till nästa tillfälle utan att registrera ett slutförande. Överhoppningen loggas separat och räknas därför aldrig som ett slutförande.",
       "fields": {
         "task_id": {
           "name": "Uppgiftsnamn eller -ID",
           "description": "ID för uppgiften som ska hoppas över. Namnet fungerar också. Panelen visar id:t."
+        },
+        "note": {
+          "name": "Anteckning",
+          "description": "Varför detta tillfälle hoppades över."
+        },
+        "who": {
+          "name": "Vem",
+          "description": "Vem som bestämde att hoppa över den."
+        },
+        "reading": {
+          "name": "Mätarställning",
+          "description": "Den kopplade sensorns värde vid överhoppningen, för en förbrukningsuppgift."
         },
         "origin": {
           "name": "Ursprung",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Mål",
           "description": "Aviseringstjänster att skicka till, som åsidosätter profilen (t.ex. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Åsidosätter profilens egen status för det här anropet: overdue (endast försenade uppgifter), due_soon (försenade och snart förfallna uppgifter), all (alla schemalagda uppgifter) eller none (matchar ingen uppgift, för att skicka aviseringen Allt klart vid behov)."
+        },
+        "when_empty": {
+          "name": "När inget matchar",
+          "description": "Vad ett anrop skickar om filtret inte matchar någon uppgift. Som standard är det skip: inget skickas. Ställ in det på all_clear för att i stället skicka aviseringen Allt klart."
         }
       }
     },
@@ -791,6 +823,92 @@
           "description": "ID för delen vars bifogade fil ska signeras. Namnet fungerar också. Panelen visar id:t."
         }
       }
+    },
+    "update_skip": {
+      "name": "Uppdatera överhoppning",
+      "description": "Ändrar detaljerna i en loggad överhoppning som identifieras av sin tidsstämpel. Överhoppningen behåller sitt datum och schemat lämnas orört.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften vars överhoppning du redigerar. Namnet fungerar också. Panelen visar id:t."
+        },
+        "ts": {
+          "name": "Överhoppningens tidsstämpel",
+          "description": "ISO-tidsstämpeln (ts) för överhoppningsposten som ska redigeras."
+        },
+        "note": {
+          "name": "Anteckning",
+          "description": "Varför detta tillfälle hoppades över. Ett tomt värde rensar den."
+        },
+        "who": {
+          "name": "Vem",
+          "description": "Vem som bestämde att hoppa över den. Ett tomt värde rensar det."
+        },
+        "reading": {
+          "name": "Mätarställning",
+          "description": "Den kopplade sensorns värde vid överhoppningen, för en förbrukningsuppgift."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Ta bort överhoppning",
+      "description": "Tar bort en loggad överhoppning som identifieras av sin tidsstämpel. Att ångra den överhoppning som senast nollställde en förbrukningsmätare återställer den mätaren.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften vars överhoppning du tar bort. Namnet fungerar också. Panelen visar id:t."
+        },
+        "ts": {
+          "name": "Överhoppningens tidsstämpel",
+          "description": "ISO-tidsstämpeln (ts) för överhoppningsposten som ska tas bort."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Flytta överhoppning",
+      "description": "Ger en loggad överhoppning ett nytt datum; den identifieras av sin nuvarande tidsstämpel. Uppgiftens schema lämnas orört.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften vars överhoppning du flyttar. Namnet fungerar också. Panelen visar id:t."
+        },
+        "old_ts": {
+          "name": "Överhoppningens nuvarande tidsstämpel",
+          "description": "ISO-tidsstämpeln (ts) för överhoppningsposten som ska flyttas."
+        },
+        "new_ts": {
+          "name": "Nytt datum",
+          "description": "Det nya datum och klockslag som överhoppningen ska registreras på."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Lägg till deklarativ companion",
+      "description": "Registrerar en deklarativ companion — ett recept som materialiserar en hanterad sensoruppgift per enhet som matchar filtren (målintegration + enhetsfilter), med Jinja-templated uppgiftsnamn och anteckningar. Endast administratörer."
+    },
+    "update_declarative_companion": {
+      "name": "Uppdatera deklarativ companion",
+      "description": "Uppdaterar fält i en sparad deklarativ companion-specifikation utifrån id. Endast administratörer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Specifikationens stabila uuid, från list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Ta bort deklarativ companion",
+      "description": "Tar bort en deklarativ companion-specifikation och varje hanterad uppgift den materialiserade. Endast administratörer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Specifikationens stabila uuid, från list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Visa deklarativa companions",
+      "description": "Returnerar varje sparad deklarativ companion-specifikation som svar."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativ companion hittades inte: {spec_id}"
     }
   }
 }

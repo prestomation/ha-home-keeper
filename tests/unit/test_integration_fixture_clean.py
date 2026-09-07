@@ -32,7 +32,18 @@ ROOT = Path(__file__).resolve().parents[2]
 
 FIXTURE = ROOT / "tests" / "integration" / "ha_config" / ".storage" / "home_keeper"
 
+CONFIG_ENTRIES = (
+    ROOT / "tests" / "integration" / "ha_config" / ".storage" / "core.config_entries"
+)
+
 E2E_DIR = ROOT / "tests" / "e2e"
+
+
+def _home_keeper_entry() -> dict:
+    payload = json.loads(CONFIG_ENTRIES.read_text())
+    entries = payload["data"]["entries"]
+    return next(e for e in entries if e["domain"] == "home_keeper")
+
 
 #: `.detail-open[data-detail-id="…"]` — how the capture harnesses open a detail page.
 DETAIL_ID = re.compile(r'data-detail-id="([^"]+)"')
@@ -104,6 +115,57 @@ def test_seeded_fixture_has_no_archived_assets() -> None:
         a.get("name") for a in _records(payload, "assets") if a.get("archived_at")
     ]
     assert not archived, f"seeded assets should not be archived: {archived}"
+
+
+#: Maps of what a sync wrote onto an external list, keyed by the record it mirrors.
+#: Both are written only by their syncer, never authored, and both belong to a
+#: reconciler that runs at startup — so a committed one is not just evidence of a
+#: local run, it actively rewrites the store before the first test.
+SYNC_BOOKKEEPING = ("todo_list_items", "shopping_items")
+
+
+def test_seeded_fixture_carries_no_sync_bookkeeping() -> None:
+    """Sync bookkeeping is runtime state and is never authored by hand.
+
+    ``todo_list_items`` maps a profile's synced tasks to the uids it wrote on an
+    external to-do list. Committing a populated one is proof a local run was baked
+    in — and, unlike the named-leftover leaks above, it is *load-bearing*: paired
+    with a seeded two-way sync profile (guarded below) it makes the integration
+    reconcile against a stale external list during platform setup, silently
+    completing every task the list has ticked. Nine seeded tasks were completed
+    before the first test ran, which is what took
+    ``test_todo_entity_exists_with_seeded_tasks`` red on a pristine checkout while a
+    dirty local container stayed green.
+
+    ``shopping_items`` is the same shape of state for the shopping-list sync, which
+    also reconciles at startup. Nothing has leaked through it yet; it is here because
+    the to-do half proved the class is real and there is no reason to wait for the
+    second one to bite.
+    """
+    data = json.loads(FIXTURE.read_text()).get("data", {})
+    populated = {key: sorted(data.get(key) or {})[:5] for key in SYNC_BOOKKEEPING}
+    offenders = {key: sample for key, sample in populated.items() if sample}
+    assert not offenders, (
+        "The committed fixture carries sync bookkeeping, so a local run was "
+        f"committed: {offenders}. Restore it with "
+        "`git checkout -- tests/integration/ha_config/` and re-commit."
+    )
+
+
+def test_seeded_config_entry_has_no_two_way_sync_profile() -> None:
+    """No seeded profile may sync to an external to-do list.
+
+    The other half of the pair above. A profile with a ``sync`` block makes Home
+    Keeper reconcile at startup, so seeding one gives every integration test a
+    mutated store before it begins. ``test_todo_list_sync.py`` creates the profile
+    it needs at runtime and takes it away again; the seed stays inert on purpose.
+    """
+    options = _home_keeper_entry().get("options", {})
+    syncing = [p.get("id") for p in options.get("profiles") or [] if p.get("sync")]
+    assert not syncing, (
+        "seeded profiles must not sync to an external to-do list (they mutate every "
+        f"task at startup): {syncing}"
+    )
 
 
 def test_every_id_the_capture_harnesses_click_is_seeded() -> None:

@@ -2,17 +2,36 @@ import type {
   Asset,
   AssetDocument,
   Companion,
+  DeclarativeCompanion,
+  DeclarativeCompanionPreset,
+  DeclarativeCompanionPreviewResult,
   Hass,
   HassLabel,
   HomeKeeperOptions,
   Inventory,
   NotifyRun,
+  NotifyRunOptions,
   Part,
   Profile,
   Task,
 } from './types';
 
 /** Thin wrappers around the Home Keeper websocket commands. */
+
+/**
+ * True for the websocket error every Home Keeper command sends while the config
+ * entry is not loaded (`_not_loaded` in `websocket_api.py`).
+ *
+ * The entry is unloaded for a moment on **every** reload, and Home Keeper reloads
+ * itself: adding a declarative companion that matches an entity materializes tasks
+ * and the reconciler reloads the entry to baseline the sensor watcher. A panel
+ * refresh that lands in that window gets this error from every command, so the
+ * caller has to wait and ask again rather than treat it as an answer. It is always
+ * temporary — the reload is already running when the error is sent.
+ */
+export function isNotLoaded(err: unknown): boolean {
+  return (err as { code?: string })?.code === 'not_loaded';
+}
 
 /** Read the companion integrations for the Settings → Companions section. */
 export async function getCompanions(hass: Hass): Promise<Companion[]> {
@@ -101,18 +120,23 @@ export async function setOptions(
  * websocket command. `notify` already declares this operation for automations, and a
  * websocket twin would be a second delivery path to keep in step with it for no gain:
  * the panel wants exactly what an automation gets. `return_response` carries back
- * `{matched, sent}` so the caller can tell "delivered" from "nothing was due" — read
- * `matched` for that, since `sent` is a task id (see `NotifyRun`).
+ * `{matched, sent}` so the caller can tell which card went out — read `matched` for
+ * that, since `sent` is a task id (see `NotifyRun`).
+ *
+ * *run* carries the per-call overrides. The Test button sends `status: 'all'` with
+ * `when_empty: 'all_clear'`, which is what makes it deliver in every profile state;
+ * the button beside it sends `status: 'none'` for the "All caught up" card.
  */
 export async function runNotification(
   hass: Hass,
   notificationId: string,
+  run: NotifyRunOptions = {},
 ): Promise<NotifyRun> {
   const res = await hass.callWS<{ response?: NotifyRun }>({
     type: 'call_service',
     domain: 'home_keeper',
     service: 'notify',
-    service_data: { notification: notificationId },
+    service_data: { notification: notificationId, ...run },
     return_response: true,
   });
   return { matched: res?.response?.matched ?? 0, sent: res?.response?.sent ?? null };
@@ -195,6 +219,13 @@ export interface CompletionMetadata {
   reading?: number;
 }
 
+/**
+ * Optional per-skip metadata. A narrower set than a completion's: a skip answers
+ * "why did this one go by?", so it takes the note, the person and the meter reading,
+ * but has no cost or photo.
+ */
+export type SkipMetadata = Pick<CompletionMetadata, 'note' | 'who' | 'reading'>;
+
 /** Drop empty metadata keys so we never send blank `note: ""` etc. */
 function metadataMsg(metadata?: CompletionMetadata): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -259,6 +290,79 @@ export async function moveCompletion(
     task_id: taskId,
     old_ts: oldTs,
     new_ts: newTs,
+  });
+  return res.task;
+}
+
+/**
+ * Defer a task's due date to `until` without recording a completion.
+ *
+ * The wire carries a resolved instant rather than the service's `hours`: the panel
+ * turns the chosen preset into a real date before sending, so a month means the same
+ * thing here as it does on the button the user pressed.
+ */
+export async function snoozeTask(hass: Hass, taskId: string, until: string): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/snooze_task',
+    task_id: taskId,
+    until,
+  });
+  return res.task;
+}
+
+/**
+ * Advance a task to its next occurrence, logging the skip.
+ *
+ * A skip is *not* a completion: it never touches `completions`, `last_completed` or
+ * any count derived from them. It carries note/who/reading only — no cost or photo,
+ * since nothing was bought and there is nothing to show.
+ */
+export async function skipTask(hass: Hass, taskId: string, metadata?: SkipMetadata): Promise<Task> {
+  const msg: Record<string, unknown> = { type: 'home_keeper/skip_task', task_id: taskId };
+  const clean = metadataMsg(metadata);
+  if (Object.keys(clean).length) msg.metadata = clean;
+  const res = await hass.callWS<{ task: Task }>(msg);
+  return res.task;
+}
+
+/** Amend a recorded skip's detail (identified by its `ts`). */
+export async function updateSkip(
+  hass: Hass,
+  taskId: string,
+  ts: string,
+  metadata: SkipMetadata,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/update_skip',
+    task_id: taskId,
+    ts,
+    metadata: metadataMsg(metadata),
+  });
+  return res.task;
+}
+
+/** Re-date a recorded skip, identified by its current `ts`. */
+export async function moveSkip(
+  hass: Hass,
+  taskId: string,
+  oldTs: string,
+  newTs: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/move_skip',
+    task_id: taskId,
+    old_ts: oldTs,
+    new_ts: newTs,
+  });
+  return res.task;
+}
+
+/** Remove a recorded skip (undo an accidental or regretted skip). */
+export async function deleteSkip(hass: Hass, taskId: string, ts: string): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/delete_skip',
+    task_id: taskId,
+    ts,
   });
   return res.task;
 }
@@ -662,4 +766,96 @@ export async function getLoadedEntryIds(hass: Hass): Promise<Set<string>> {
   const ids = new Set<string>();
   for (const e of entries) if (e.state === 'loaded') ids.add(e.entry_id);
   return ids;
+}
+
+// ── declarative companions ───────────────────────────────────────────────────
+
+/** All stored declarative-companion specs for the Settings → Companions section. */
+export async function listDeclarativeCompanions(
+  hass: Hass,
+): Promise<DeclarativeCompanion[]> {
+  const res = await hass.callWS<{ companions: DeclarativeCompanion[] }>({
+    type: 'home_keeper/list_declarative_companions',
+  });
+  return res?.companions ?? [];
+}
+
+/** Create a new declarative-companion spec. Server validates + assigns the id. */
+export async function addDeclarativeCompanion(
+  hass: Hass,
+  companion: Partial<DeclarativeCompanion>,
+): Promise<DeclarativeCompanion> {
+  const res = await hass.callWS<{ companion: DeclarativeCompanion }>({
+    type: 'home_keeper/add_declarative_companion',
+    companion,
+  });
+  return res.companion;
+}
+
+/**
+ * Update fields of a stored spec by id. Any subset of the spec's fields may be sent.
+ *
+ * The spec id rides as `companion_id`, never as `id`: the websocket client stamps
+ * the connection's own message id over an `id` key, so a spec id sent under that
+ * name is silently replaced by an integer before it leaves the browser.
+ */
+export async function updateDeclarativeCompanion(
+  hass: Hass,
+  id: string,
+  updates: Partial<DeclarativeCompanion>,
+): Promise<DeclarativeCompanion> {
+  const res = await hass.callWS<{ companion: DeclarativeCompanion }>({
+    type: 'home_keeper/update_declarative_companion',
+    companion_id: id,
+    updates,
+  });
+  return res.companion;
+}
+
+/** Remove a spec and every managed task it materialized. `companion_id` for the
+ *  reason `updateDeclarativeCompanion` gives. */
+export async function deleteDeclarativeCompanion(
+  hass: Hass,
+  id: string,
+): Promise<void> {
+  await hass.callWS({
+    type: 'home_keeper/delete_declarative_companion',
+    companion_id: id,
+  });
+}
+
+/** The shipped presets the panel offers under "Add from preset". */
+export async function listDeclarativePresets(
+  hass: Hass,
+): Promise<DeclarativeCompanionPreset[]> {
+  const res = await hass.callWS<{ presets: DeclarativeCompanionPreset[] }>({
+    type: 'home_keeper/list_declarative_presets',
+  });
+  return res?.presets ?? [];
+}
+
+/**
+ * Live-preview a spec against the current entity registry. Returns matched
+ * entities (up to 10) plus a total count, and surfaces the 500-match hard cap
+ * via `over_cap`. Never writes.
+ */
+export async function previewDeclarativeCompanion(
+  hass: Hass,
+  companion: Partial<DeclarativeCompanion>,
+): Promise<DeclarativeCompanionPreviewResult> {
+  return hass.callWS<DeclarativeCompanionPreviewResult>({
+    type: 'home_keeper/preview_declarative_companion',
+    companion,
+  });
+}
+
+/**
+ * The distinct `platform` values in the entity registry, sorted. Feeds the
+ * Add-declarative-companion dialog's integration-picker autocomplete.
+ */
+export async function listInstalledIntegrations(hass: Hass): Promise<string[]> {
+  const res = await hass.callWS<{ integrations: string[] }>({
+    type: 'home_keeper/installed_integrations',
+  });
+  return res?.integrations ?? [];
 }

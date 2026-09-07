@@ -28,20 +28,25 @@ import {
   type SignedFileRef,
 } from './documents';
 import {
-  selBool,
-  selDate,
-  selNumber,
-  selSelect,
-  selText,
-  selUnit,
   type FormField,
+  type HaFormElement,
+  mergePartForm,
+  metadataBaseSchema,
+  metadataDependentSchema,
+  partBaseSchema,
+  partDependentKey,
+  partDependentSchema,
+  partFormData,
+  partSummaryLine,
+  pickFormData,
+  selText,
 } from './forms';
 import { t } from './i18n';
 import type { MarkdownPreview } from './markdown';
 import { openConfirmDialog } from './panel-dialogs';
 import { collapsibleSection, section, setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
-import { MDI_DELETE, MDI_EDIT, MDI_OPEN_IN_NEW } from './panel-icons';
+import { MDI_CONSUMABLE, MDI_DELETE, MDI_EDIT, MDI_OPEN_IN_NEW, MDI_WEAR } from './panel-icons';
 import { UPLOAD_KEY_DOCUMENT, uploadKeyPart } from './panel-types';
 import {
   filePicker,
@@ -52,12 +57,6 @@ import {
 } from './panel-upload';
 import type { Asset, AssetDocument, Hass, MetadataEntry, MetadataType, Part } from './types';
 import { escapeHTML, isHttpUrl, randomId, setBtnWeight } from './utils';
-
-// The smallest a part quantity that must be *positive* can be. Stock itself may be
-// zero (you're out), but "how much a completion uses" and "how much a restock adds"
-// can't be — a zero there is a field that quietly does nothing. A number selector
-// has no exclusive minimum, so the floor is one step of the stored precision.
-const MIN_POSITIVE_QUANTITY = 0.001;
 
 // ── shared row scaffolds ────────────────────────────────────────────────────
 
@@ -143,11 +142,13 @@ function entryBox(
     onRemove: () => void;
   },
 ): HTMLElement {
+  // `hk-entry`, not `hk-part`: a part row is a `details.hk-part` now, and the suite
+  // finds parts by that class — a custom field wearing it would be counted as one.
   const box = document.createElement('div');
-  box.className = 'hk-part';
+  box.className = 'hk-entry';
   box.dataset.idx = String(i);
   const head = document.createElement('div');
-  head.className = 'hk-part-head';
+  head.className = 'hk-entry-head';
   head.innerHTML = `<span class="label">${escapeHTML(spec.title)}</span>`;
   const del = document.createElement('ha-icon-button');
   del.className = 'part-del';
@@ -235,7 +236,7 @@ function documentSchema(): FormField[] {
  *  only its display name. Save commits, Cancel discards. */
 function renderDocumentEdit(p: PanelHost, inner: HTMLElement, d: AssetDocument): void {
   const box = document.createElement('div');
-  box.className = 'hk-part hk-doc-edit';
+  box.className = 'hk-entry hk-doc-edit';
   const isLink = d.kind === 'link';
   const draft = { name: d.name || '', url: d.kind === 'link' ? d.url ?? '' : '' };
   const schema: FormField[] = isLink ? documentSchema() : [{ name: 'doc_name', selector: selText() }];
@@ -484,32 +485,6 @@ async function uploadDocument(p: PanelHost, file: File): Promise<void> {
 
 // ── metadata ────────────────────────────────────────────────────────────────
 
-/** Schema for one free-form metadata entry. The value control swaps by type, and
- *  a `date` entry adds a "track as sensor" toggle (opt-in automation). */
-function metadataSchema(m: MetadataEntry): FormField[] {
-  const valueSelector = m.type === 'date' ? selDate() : selText();
-  const fields: FormField[] = [
-    {
-      name: '',
-      type: 'grid',
-      schema: [
-        {
-          name: 'type',
-          selector: selSelect([
-            { value: 'text', label: t('opt.meta.text') },
-            { value: 'link', label: t('opt.meta.link') },
-            { value: 'date', label: t('opt.meta.date') },
-          ]),
-        },
-        { name: 'label', selector: selText() },
-      ],
-    },
-    { name: 'value', selector: valueSelector },
-  ];
-  if (m.type === 'date') fields.push({ name: 'track', selector: selBool() });
-  return fields;
-}
-
 export function renderMetadataEditor(p: PanelHost, inner: HTMLElement): void {
   const entries = p._assetEdit.asset?.metadata || [];
   const { details, body } = collapsibleSection(p, t('section.metadata'), 'metadata', entries.length);
@@ -528,42 +503,52 @@ export function renderMetadataEditor(p: PanelHost, inner: HTMLElement): void {
       },
     });
 
-    const form = p._makeForm(
-      metadataSchema(m),
-      {
-        type: m.type ?? 'text',
-        label: m.label ?? '',
-        value: m.value ?? '',
-        track: Boolean(m.track),
-      },
-      (value) => {
-        const prevType = p._assetEdit.asset?.metadata?.[i]?.type;
-        const newType = (value.type as MetadataType) ?? 'text';
-        const updated: MetadataEntry = {
-          id: m.id,
-          type: newType,
-          label: String(value.label ?? ''),
-          // A date control emits selector-shaped strings; text/link emit text.
-          value: value.value != null ? String(value.value) : '',
-          // `track` only applies to dates — drop it otherwise so it can't strand.
-          track: newType === 'date' ? Boolean(value.track) : undefined,
-        };
-        const list = [...(p._assetEdit.asset?.metadata || [])];
-        list[i] = updated;
-        p._assetEdit.asset!.metadata = list;
-        // Re-render when the type changes so the value control (and the date
-        // "track" toggle) swaps to match.
-        if (newType !== prevType) p._render();
-      },
-    );
-    box.appendChild(form);
-
-    if (m.type === 'date') {
-      const note = document.createElement('div');
-      note.className = 'hk-meta';
-      note.textContent = t('meta.trackHint');
-      box.appendChild(note);
-    }
+    // Two forms, so choosing a type never rebuilds the label being typed into: the
+    // base form (type + label) keeps its shape, and only the dependent form (the value
+    // control, and a date's "track" toggle) has its schema swapped in place.
+    const current = (): MetadataEntry => p._assetEdit.asset?.metadata?.[i] ?? m;
+    const data = (entry: MetadataEntry): Record<string, unknown> => ({
+      type: entry.type ?? 'text',
+      label: entry.label ?? '',
+      value: entry.value ?? '',
+      track: Boolean(entry.track),
+    });
+    const note = document.createElement('div');
+    note.className = 'hk-meta';
+    note.textContent = t('meta.trackHint');
+    let dep: HaFormElement;
+    const merge = (value: Record<string, unknown>): void => {
+      const prev = current();
+      const newType = 'type' in value ? ((value.type as MetadataType) ?? 'text') : (prev.type ?? 'text');
+      const updated: MetadataEntry = {
+        id: m.id,
+        type: newType,
+        label: 'label' in value ? String(value.label ?? '') : (prev.label ?? ''),
+        // A date control emits selector-shaped strings; text/link emit text.
+        value: 'value' in value ? (value.value != null ? String(value.value) : '') : (prev.value ?? ''),
+        // `track` only applies to dates — drop it otherwise so it can't strand.
+        track:
+          newType === 'date'
+            ? Boolean('track' in value ? value.track : prev.track)
+            : undefined,
+      };
+      const list = [...(p._assetEdit.asset?.metadata || [])];
+      list[i] = updated;
+      p._assetEdit.asset!.metadata = list;
+      // The value control (and the date "track" toggle) swap to match the type — on
+      // the dependent form only, in place, never through a render.
+      if (newType !== prev.type) {
+        const schema = metadataDependentSchema(updated);
+        dep.schema = schema;
+        dep.data = pickFormData(data(updated), schema);
+        note.hidden = newType !== 'date';
+      }
+    };
+    const base = p._makeForm(metadataBaseSchema(), pickFormData(data(m), metadataBaseSchema()), merge);
+    dep = p._makeForm(metadataDependentSchema(m), pickFormData(data(m), metadataDependentSchema(m)), merge);
+    box.append(base, dep);
+    note.hidden = m.type !== 'date';
+    box.appendChild(note);
     body.appendChild(box);
   });
 
@@ -604,215 +589,50 @@ export function renderMetadataEditor(p: PanelHost, inner: HTMLElement): void {
 
 // ── parts ───────────────────────────────────────────────────────────────────
 
-function partSchema(part: Part): FormField[] {
-  const isWear = part.type === 'wear';
-  const base: FormField[] = [
-    {
-      name: '',
-      type: 'grid',
-      schema: [
-        { name: 'part_name', selector: selText() },
-        { name: 'part_number', selector: selText() },
-        {
-          name: 'type',
-          selector: selSelect([
-            { value: 'consumable', label: t('opt.part.consumable') },
-            { value: 'wear', label: t('opt.part.wear') },
-          ]),
-        },
-      ],
-    },
-    {
-      name: '',
-      type: 'grid',
-      schema: [
-        { name: 'vendor', selector: selText() },
-        { name: 'cost', selector: selNumber(0) },
-      ],
-    },
-    { name: 'part_url', selector: selText() },
-    // Free-form notes about this part (rendered as Markdown on the appliance's
-    // detail page) — the field has always existed in the stored model but had no
-    // editor until now.
-    { name: 'notes', selector: selText(true) },
-    // Spare quantities are decimal (`'any'`): a part measured in millilitres or
-    // topped up a third of a bottle at a time is as valid as one counted in whole
-    // filters. `stock_unit` is the label those numbers are shown with.
-    {
-      name: '',
-      type: 'grid',
-      schema: [
-        { name: 'stock', selector: selNumber(0, 'any') },
-        { name: 'reorder_at', selector: selNumber(0, 'any') },
-        { name: 'stock_unit', selector: selText() },
-      ],
-    },
-  ];
-  // How much one completion draws down. Only meaningful once the part is tracking
-  // stock at all — with nothing to draw from, the field would promise nothing.
-  if (part.stock != null) {
-    base.push({ name: 'consume_quantity', selector: selNumber(MIN_POSITIVE_QUANTITY, 'any') });
+/**
+ * Which part row is expanded. `undefined` (nothing chosen yet) opens a lone part —
+ * a new appliance's first part, say — and leaves a longer list folded so the drawer
+ * fits on a phone; `null` is a deliberate "all closed". Never past the end: a part
+ * removed from under the index closes the list rather than opening a stranger.
+ */
+function openPartIndex(p: PanelHost, count: number): number {
+  const chosen = p._assetEdit.openPart;
+  if (chosen === null) return -1;
+  if (chosen !== undefined) return chosen < count ? chosen : -1;
+  return count === 1 ? 0 : -1;
+}
+
+/**
+ * Bring *el* into view inside the drawer's own scroller, under its sticky head.
+ * `scrollIntoView` on its own would park the row behind the head; the sheet on a
+ * phone has the same head. Falls back to a plain `scrollIntoView` (or nothing, in
+ * jsdom) when the row is not inside a drawer.
+ */
+function revealInDrawer(p: PanelHost, el: HTMLElement): void {
+  const scroller = el.closest<HTMLElement>('.hk-drawer-sticky');
+  if (!scroller || typeof scroller.scrollBy !== 'function') {
+    if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'start' });
+    return;
   }
-  // Auto-buy: only meaningful once a reorder threshold is set (that's what defines
-  // "low"). When enabled, offer the restock quantity added on completing the reminder.
-  if (part.reorder_at != null) {
-    base.push({ name: 'create_buy_task', selector: selBool() });
-    if (part.create_buy_task) {
-      base.push({
-        name: 'restock_quantity',
-        selector: selNumber(MIN_POSITIVE_QUANTITY, 'any'),
-      });
-    }
-  }
-  if (isWear) {
-    base.push({
-      name: '',
-      type: 'grid',
-      schema: [
-        { name: 'replace_interval', selector: selNumber(1) },
-        { name: 'replace_unit', selector: selUnit() },
-      ],
-    });
-    // Let the user record when the part was last replaced so the derived
-    // maintenance task's clock starts from the real date instead of "now".
-    base.push({ name: 'last_replaced', selector: selDate() });
-  }
-  return base;
+  const head = scroller.querySelector<HTMLElement>('.hk-drawer-head');
+  const top =
+    el.getBoundingClientRect().top -
+    scroller.getBoundingClientRect().top -
+    (head?.offsetHeight ?? 0) -
+    8;
+  if (Math.abs(top) < 2) return;
+  // A drawer that has just opened sits at its top: land on the row rather than
+  // animate the whole form past the reader. From anywhere else — Add part appending
+  // a row below the one being read — a smooth move says where the row went.
+  scroller.scrollBy({ top, behavior: scroller.scrollTop === 0 ? 'auto' : p._scrollBehavior() });
 }
 
 export function renderPartsEditor(p: PanelHost, inner: HTMLElement): void {
   const parts = p._assetEdit.asset?.parts || [];
   const { details, body } = collapsibleSection(p, t('section.parts'), 'parts', parts.length);
   inner.appendChild(details);
-  parts.forEach((part, i) => {
-    const box = entryBox(p, i, {
-      title: t('section.part_n', { n: i + 1 }),
-      removeLabel: t('btn.removePart'),
-      confirmLabel: () =>
-        part.name
-          ? t('confirm.removeNamed', { name: part.name })
-          : t('confirm.removePart', { n: i + 1 }),
-      onRemove: () => {
-        const list = p._assetEdit.asset?.parts || [];
-        p._assetEdit.asset!.parts = list.filter((_, j) => j !== i);
-      },
-    });
-
-    // Declared before the form so its value-changed handler can feed it; attached
-    // below, after the form, so it renders directly under the part's fields.
-    let partNotePreview: MarkdownPreview | null = null;
-    const form = p._makeForm(
-      partSchema(part),
-      {
-        part_name: part.name ?? '',
-        part_number: part.part_number ?? '',
-        type: part.type ?? 'consumable',
-        vendor: part.vendor ?? '',
-        cost: part.cost ?? undefined,
-        part_url: part.url ?? '',
-        notes: part.notes ?? '',
-        stock: part.stock ?? undefined,
-        reorder_at: part.reorder_at ?? undefined,
-        stock_unit: part.stock_unit ?? '',
-        consume_quantity: part.consume_quantity ?? undefined,
-        create_buy_task: part.create_buy_task ?? false,
-        restock_quantity: part.restock_quantity ?? undefined,
-        replace_interval: part.replace_interval ?? undefined,
-        replace_unit: part.replace_unit ?? 'months',
-        last_replaced: part.last_replaced ?? undefined,
-      },
-      (value) => {
-        const prevPart = p._assetEdit.asset?.parts?.[i];
-        const prevType = prevPart?.type;
-        // These fields gate which others render (see partSchema): the reorder
-        // threshold reveals the auto-buy toggle, and the toggle reveals the restock
-        // quantity. Re-render when one of them flips so the dependent field appears.
-        const prevHasReorder = prevPart?.reorder_at != null;
-        const prevBuy = Boolean(prevPart?.create_buy_task);
-        // Tracking stock at all is what reveals the per-completion amount.
-        const prevTracksStock = prevPart?.stock != null;
-        partNotePreview?.update(String(value.notes ?? ''));
-        const updated: Part = {
-          id: part.id,
-          // The last-replaced date is only editable for wear items; preserve any
-          // existing value when the part is a consumable (no field shown).
-          last_replaced:
-            value.type === 'wear'
-              ? value.last_replaced
-                ? String(value.last_replaced)
-                : null
-              : (part.last_replaced ?? null),
-          name: String(value.part_name ?? ''),
-          part_number: String(value.part_number ?? ''),
-          type: (value.type as Part['type']) ?? 'consumable',
-          vendor: String(value.vendor ?? ''),
-          cost: value.cost != null && value.cost !== '' ? Number(value.cost) : null,
-          url: String(value.part_url ?? '').trim(),
-          notes: String(value.notes ?? ''),
-          stock: value.stock != null && value.stock !== '' ? Number(value.stock) : null,
-          reorder_at:
-            value.reorder_at != null && value.reorder_at !== ''
-              ? Number(value.reorder_at)
-              : null,
-          // What the numbers above are counted in ("ml", "bottles"), and how much
-          // one completion takes off. Both free of a value means the part behaves
-          // exactly as parts did before units existed: whole spares, one per use.
-          stock_unit: String(value.stock_unit ?? '').trim(),
-          consume_quantity:
-            value.consume_quantity != null && value.consume_quantity !== ''
-              ? Number(value.consume_quantity)
-              : null,
-          // Auto-buy a low spare. Only exposed once a reorder threshold is set (the
-          // field is hidden otherwise, so value.create_buy_task is then undefined →
-          // off, which is correct — no threshold means no "low" to act on).
-          create_buy_task: Boolean(value.create_buy_task),
-          restock_quantity:
-            value.restock_quantity != null && value.restock_quantity !== ''
-              ? Number(value.restock_quantity)
-              : null,
-          replace_interval:
-            value.type === 'wear' && value.replace_interval
-              ? Number(value.replace_interval)
-              : null,
-          replace_unit:
-            value.type === 'wear' && value.replace_interval
-              ? (value.replace_unit as Part['replace_unit'])
-              : null,
-          // Not editable in this form (upload-only — see renderPartFile); carry
-          // the current known values forward so the in-progress client copy stays
-          // accurate between saves. The server ignores whatever this sends anyway
-          // and always restores the stored values (see assets._merge_parts), but
-          // without this the local UI would show "no file" the moment any other
-          // field on this part changes, even though nothing was actually lost.
-          file_name: part.file_name ?? null,
-          file_content_type: part.file_content_type ?? null,
-          file_size: part.file_size ?? null,
-        };
-        const list = [...(p._assetEdit.asset?.parts || [])];
-        list[i] = updated;
-        p._assetEdit.asset!.parts = list;
-        const nowHasReorder = updated.reorder_at != null;
-        if (
-          value.type !== prevType ||
-          nowHasReorder !== prevHasReorder ||
-          (updated.stock != null) !== prevTracksStock ||
-          Boolean(updated.create_buy_task) !== prevBuy
-        )
-          p._render();
-      },
-    );
-    box.appendChild(form);
-    partNotePreview = p._attachNotePreview(box, String(part.notes ?? ''));
-    renderPartFile(p, box, part, i);
-
-    if (part.type === 'wear') {
-      const note = document.createElement('div');
-      note.className = 'hk-meta';
-      note.textContent = t('part.wearHint');
-      box.appendChild(note);
-    }
-    body.appendChild(box);
-  });
+  const openIdx = openPartIndex(p, parts.length);
+  parts.forEach((part, i) => body.appendChild(partBox(p, body, part, i, i === openIdx)));
 
   const add = document.createElement('ha-button');
   setBtnWeight(add, 'secondary');
@@ -822,9 +642,173 @@ export function renderPartsEditor(p: PanelHost, inner: HTMLElement): void {
     const list = [...(p._assetEdit.asset?.parts || [])];
     list.push({ name: '', type: 'consumable' });
     p._assetEdit.asset!.parts = list;
+    // The new row opens on its own and takes the keyboard: it is the one thing the
+    // click asked for, and a folded blank row would have to be found and opened.
+    p._assetEdit.openPart = list.length - 1;
+    p._assetEdit.revealPart = 'focus';
     p._render();
   });
   body.appendChild(add);
+
+  // One-shot: the Parts tab's Edit / Add part, and the button above, ask for the
+  // opened row to be on screen (and, for a new part, under the cursor). Consumed
+  // here so an unrelated render later never scrolls the drawer again.
+  const reveal = p._assetEdit.revealPart;
+  if (reveal && openIdx >= 0) {
+    p._assetEdit.revealPart = undefined;
+    const target = body.querySelector<HTMLElement>(`details.hk-part[data-idx="${openIdx}"]`);
+    const form = target?.querySelector<HTMLElement>('ha-form');
+    const later =
+      typeof requestAnimationFrame === 'function'
+        ? requestAnimationFrame
+        : (fn: () => void): void => void setTimeout(fn, 0);
+    later(() => {
+      if (!target?.isConnected) return;
+      revealInDrawer(p, target);
+      if (reveal === 'focus' && form) p._focus(form);
+      // The selectors inside an ha-form load lazily and grow the rows above the
+      // target after the first frame; one late correction puts the row back where
+      // the first pass aimed.
+      setTimeout(() => {
+        if (target.isConnected) revealInDrawer(p, target);
+      }, 300);
+    });
+  }
+}
+
+/**
+ * One part in the editor: a `details` whose summary names the part and says what a
+ * reader most often comes back for (stock, reorder point, interval), and whose body
+ * is the part's two forms, its note preview, its attached file and its Remove. Only
+ * one part is open at a time, so the drawer never grows past one form (issue #296).
+ *
+ * Keeps `.hk-part` and `data-idx`: the e2e suite and the capture harnesses find
+ * parts by them.
+ */
+function partBox(
+  p: PanelHost,
+  list: HTMLElement,
+  part: Part,
+  i: number,
+  open: boolean,
+): HTMLDetailsElement {
+  const box = document.createElement('details');
+  box.className = 'hk-part hk-part-acc';
+  box.dataset.idx = String(i);
+  if (part.id) box.dataset.partId = part.id;
+
+  const summary = document.createElement('summary');
+  summary.className = 'hk-part-head';
+  summary.innerHTML =
+    '<ha-svg-icon class="hk-part-acc-ic"></ha-svg-icon>' +
+    '<span class="hk-part-acc-text"><span class="hk-part-acc-name"></span>' +
+    '<span class="hk-part-badge"></span><span class="hk-part-acc-sum"></span></span>' +
+    '<ha-icon icon="mdi:chevron-down" class="hk-section-chevron"></ha-icon>';
+  box.appendChild(summary);
+  const icon = summary.querySelector<HTMLElement>('.hk-part-acc-ic')!;
+  const nameEl = summary.querySelector<HTMLElement>('.hk-part-acc-name')!;
+  const badge = summary.querySelector<HTMLElement>('.hk-part-badge')!;
+  const sum = summary.querySelector<HTMLElement>('.hk-part-acc-sum')!;
+  const updateSummary = (x: Part): void => {
+    const wear = x.type === 'wear';
+    box.classList.toggle('wear', wear);
+    setIcon(icon, wear ? MDI_WEAR : MDI_CONSUMABLE);
+    nameEl.textContent = x.name || t('section.part_n', { n: i + 1 });
+    badge.textContent = t(`opt.part.${x.type ?? 'consumable'}`);
+    sum.textContent = partSummaryLine(x);
+    sum.hidden = !sum.textContent;
+  };
+  updateSummary(part);
+
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'hk-part-body';
+  box.appendChild(bodyEl);
+
+  // Two forms per part (see `partBaseSchema`): the base one is built once and never
+  // has its schema touched, so the box being typed in survives; the dependent one
+  // has its schema reassigned in place when a gate flips. Nothing here calls
+  // `_render()` from a keystroke — that was the iOS jump.
+  let notePreview: MarkdownPreview | null = null;
+  let depKey = partDependentKey(part);
+  let dep: HaFormElement;
+  const wearHint = document.createElement('div');
+  wearHint.className = 'hk-meta';
+  wearHint.textContent = t('part.wearHint');
+  const merge = (value: Record<string, unknown>): void => {
+    const all = [...(p._assetEdit.asset?.parts || [])];
+    const next = mergePartForm(all[i] ?? part, value);
+    all[i] = next;
+    p._assetEdit.asset!.parts = all;
+    if ('notes' in value) notePreview?.update(next.notes ?? '');
+    updateSummary(next);
+    wearHint.hidden = next.type !== 'wear';
+    const key = partDependentKey(next);
+    if (key !== depKey) {
+      depKey = key;
+      const schema = partDependentSchema(next);
+      dep.schema = schema;
+      dep.data = pickFormData(partFormData(next), schema);
+      dep.style.display = schema.length ? '' : 'none';
+    }
+  };
+  const baseSchema = partBaseSchema();
+  const base = p._makeForm(baseSchema, pickFormData(partFormData(part), baseSchema), merge);
+  // An id, so the panel's focus restore can find this form again after a render
+  // that had to happen (a file upload, a removed part) — see `_focusKey`.
+  base.id = `hk-part-form-${i}`;
+  bodyEl.appendChild(base);
+  notePreview = p._attachNotePreview(bodyEl, String(part.notes ?? ''));
+  const depSchema = partDependentSchema(part);
+  dep = p._makeForm(depSchema, pickFormData(partFormData(part), depSchema), merge);
+  dep.className = 'hk-part-dep';
+  if (!depSchema.length) dep.style.display = 'none';
+  bodyEl.appendChild(dep);
+  wearHint.hidden = part.type !== 'wear';
+  bodyEl.appendChild(wearHint);
+  renderPartFile(p, bodyEl, part, i);
+
+  // Remove sits at the foot of the open row, not in its summary: a button inside a
+  // `summary` toggles the row as well as firing, and the browsers disagree on which
+  // happens first.
+  const foot = document.createElement('div');
+  foot.className = 'hk-part-foot';
+  const del = document.createElement('ha-button');
+  setBtnWeight(del, 'danger');
+  del.className = 'part-del';
+  del.textContent = t('btn.removePart');
+  del.addEventListener('click', () => {
+    const name = p._assetEdit.asset?.parts?.[i]?.name;
+    openConfirmDialog(
+      p,
+      name ? t('confirm.removeNamed', { name }) : t('confirm.removePart', { n: i + 1 }),
+      () => {
+        const all = p._assetEdit.asset?.parts || [];
+        p._assetEdit.asset!.parts = all.filter((_, j) => j !== i);
+        const chosen = p._assetEdit.openPart;
+        if (chosen != null) {
+          if (chosen === i) p._assetEdit.openPart = null;
+          else if (chosen > i) p._assetEdit.openPart = chosen - 1;
+        }
+      },
+    );
+  });
+  foot.appendChild(del);
+  bodyEl.appendChild(foot);
+
+  box.open = open;
+  box.addEventListener('toggle', () => {
+    if (box.open) {
+      p._assetEdit.openPart = i;
+      // One at a time. Closing a sibling fires its own toggle, which lands in the
+      // branch below with a different index and changes nothing.
+      list.querySelectorAll<HTMLDetailsElement>('details.hk-part[open]').forEach((other) => {
+        if (other !== box) other.open = false;
+      });
+    } else if (p._assetEdit.openPart === i) {
+      p._assetEdit.openPart = null;
+    }
+  });
+  return box;
 }
 
 /** A part's single attached file: a card (icon, filename · size · type, Open /

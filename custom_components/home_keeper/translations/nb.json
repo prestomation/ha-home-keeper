@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Obligatoriske fullføringsfelter",
           "description": "Hvilke fullførings-metadatafelter panelet gjør obligatoriske når fullføringsdetaljen er required – et hvilket som helst av note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Obligatoriske fullføringsfelter",
           "description": "Hvilke fullførings-metadatafelter panelet gjør obligatoriske når fullføringsdetaljen er required – et hvilket som helst av note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Timer",
-          "description": "Hvor mange timer oppgaven skal utsettes (standard 24)."
+          "description": "Hvor mange timer oppgaven skal utsettes (standard 24). Ignoreres når Til er angitt."
+        },
+        "until": {
+          "name": "Til",
+          "description": "Utsetter oppgaven til nøyaktig denne datoen og dette klokkeslettet i stedet for et antall timer. Angir du den, brukes ikke feltet Timer."
         },
         "origin": {
           "name": "Opprinnelse",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Hopp over oppgave",
-      "description": "Flytt en oppgave frem til neste forekomst uten å registrere en fullføring.",
+      "description": "Flytter en oppgave fram til neste forekomst uten å registrere en fullføring. Overhoppingen loggføres for seg, så den teller aldri som en fullføring.",
       "fields": {
         "task_id": {
           "name": "Oppgavenavn eller -ID",
           "description": "ID-en til oppgaven som skal hoppes over. Navnet fungerer også. Panelet viser id-en."
+        },
+        "note": {
+          "name": "Notat",
+          "description": "Hvorfor denne forekomsten ble hoppet over."
+        },
+        "who": {
+          "name": "Hvem",
+          "description": "Hvem som bestemte at den skulle hoppes over."
+        },
+        "reading": {
+          "name": "Måleravlesning",
+          "description": "Verdien til den tilknyttede sensoren i det overhoppingen skjedde, for en forbruksoppgave."
         },
         "origin": {
           "name": "Opprinnelse",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Mål",
           "description": "Varslingstjenester å sende til, som overstyrer profilen (f.eks. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Overstyrer profilens egen status for dette kallet: overdue (bare forfalte oppgaver), due_soon (forfalte og snart forfalte oppgaver), all (alle planlagte oppgaver) eller none (samsvarer med ingen oppgave, for å sende varselet Alt er unnagjort ved behov)."
+        },
+        "when_empty": {
+          "name": "Når ingenting samsvarer",
+          "description": "Hva et kall sender hvis filteret ikke samsvarer med noen oppgave. Som standard er det skip: ingenting sendes. Sett det til all_clear for å sende varselet Alt er unnagjort i stedet."
         }
       }
     },
@@ -791,6 +823,92 @@
           "description": "ID-en til reservedelen hvis vedlagte fil det skal signeres en URL for. Navnet fungerer også. Panelet viser id-en."
         }
       }
+    },
+    "update_skip": {
+      "name": "Oppdater overhopping",
+      "description": "Endrer detaljene i en loggført overhopping, identifisert ved tidsstempelet. Overhoppingen beholder datoen sin, og planen røres ikke.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven du redigerer overhoppingen for. Navnet fungerer også. Panelet viser id-en."
+        },
+        "ts": {
+          "name": "Overhoppingens tidsstempel",
+          "description": "ISO-tidsstempelet (ts) for overhoppingsoppføringen som skal redigeres."
+        },
+        "note": {
+          "name": "Notat",
+          "description": "Hvorfor denne forekomsten ble hoppet over. En tom verdi fjerner det."
+        },
+        "who": {
+          "name": "Hvem",
+          "description": "Hvem som bestemte at den skulle hoppes over. En tom verdi fjerner det."
+        },
+        "reading": {
+          "name": "Måleravlesning",
+          "description": "Verdien til den tilknyttede sensoren i det overhoppingen skjedde, for en forbruksoppgave."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Slett overhopping",
+      "description": "Fjerner en loggført overhopping, identifisert ved tidsstempelet. Angrer du overhoppingen som sist nullstilte en forbruksmåler, gjenopprettes den måleren.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven du fjerner overhoppingen for. Navnet fungerer også. Panelet viser id-en."
+        },
+        "ts": {
+          "name": "Overhoppingens tidsstempel",
+          "description": "ISO-tidsstempelet (ts) for overhoppingsoppføringen som skal fjernes."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Flytt overhopping",
+      "description": "Gir en loggført overhopping ny dato, identifisert ved det nåværende tidsstempelet. Oppgavens plan røres ikke.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven du flytter overhoppingen for. Navnet fungerer også. Panelet viser id-en."
+        },
+        "old_ts": {
+          "name": "Nåværende tidsstempel for overhoppingen",
+          "description": "ISO-tidsstempelet (ts) for overhoppingsoppføringen som skal flyttes."
+        },
+        "new_ts": {
+          "name": "Ny dato",
+          "description": "Den nye datoen og klokkeslettet overhoppingen skal registreres på."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Legg til deklarativ companion",
+      "description": "Registrerer en deklarativ companion — en oppskrift som materialiserer én administrert sensoroppgave per entitet som matcher filtrene (målintegrasjon + entitetsfiltre), med Jinja-templated oppgavenavn og notater. Kun administratorer."
+    },
+    "update_declarative_companion": {
+      "name": "Oppdater deklarativ companion",
+      "description": "Oppdaterer felter i en lagret deklarativ companion-spesifikasjon etter id. Kun administratorer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Spesifikasjonens stabile uuid, fra list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Slett deklarativ companion",
+      "description": "Fjerner en deklarativ companion-spesifikasjon og hver administrerte oppgave den materialiserte. Kun administratorer.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "Spesifikasjonens stabile uuid, fra list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Vis deklarative companions",
+      "description": "Returnerer hver lagret deklarativ companion-spesifikasjon som svar."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativ companion ikke funnet: {spec_id}"
     }
   }
 }

@@ -14,6 +14,7 @@
  * functions of their arguments (or of the DOM they are handed).
  */
 
+import * as api from './api';
 import { openDocument, openPartFile, documentIcon, documentLabel, signedFileKey } from './documents';
 import { t, tn } from './i18n';
 import { markdownBlock } from './markdown';
@@ -28,16 +29,27 @@ import {
   virtualDeviceChip,
   wireDeviceChips,
 } from './panel-chips';
+import { declarativeRecipeFor, openDeclarativeForm } from './panel-declarative';
 import { openConfirmDialog } from './panel-dialogs';
-import { completionGroupsFor, historyBody, wireHistory } from './panel-history';
+import { completionGroupsFor, historyBody, setIcon, wireHistory } from './panel-history';
+import { deferMenu, wireSkipHistoryRows } from './panel-defer';
 import type { PanelHost } from './panel-host';
-import { MDI_CONSUMABLE, MDI_OPEN_IN_NEW_ICON, MDI_WEAR } from './panel-icons';
+import {
+  MDI_CONSUMABLE,
+  MDI_EDIT,
+  MDI_MINUS,
+  MDI_OPEN_IN_NEW_ICON,
+  MDI_PLUS,
+  MDI_WEAR,
+} from './panel-icons';
 import { assetAncestry } from './panel-lists';
 import { consumableLinkLabel } from './panel-task-form';
-import type { Asset, Task } from './types';
+import type { Asset, Part, Task } from './types';
 import {
   ASSET_TABS,
+  HK_DOMAIN,
   areaName,
+  assetForTask,
   assetSummary,
   btnAttrs,
   copyText,
@@ -46,16 +58,22 @@ import {
   formatDate,
   formatDateTime,
   formatQuantity,
+  isMonitoredDormant,
   navigateTo,
+  partStockButtonStep,
+  partStockStep,
   recurrenceSummary,
   round1,
   safeFileHref,
   safeHref,
   scanRequired,
+  snapStock,
   statusChipHtml,
   tasksForAsset,
   toast,
   type AssetTab,
+  TASK_TABS,
+  type TaskTab,
 } from './utils';
 
 export function detailView(p: PanelHost): string {
@@ -140,6 +158,15 @@ function sensorProgress(p: PanelHost, task: Task): string {
       ? `${entity} (${cond})`
       : `${entity}: ${String(raw)} (${cond})`;
   }
+  // Availability reads the *absence* of a value, so it also has to come before the
+  // numeric coercion. Three-way, mirroring `sensor_watcher.read_availability_status`:
+  // an entity that is not in the state machine at all is "not found", which is
+  // neither the arm signal nor a healthy reading.
+  if (s.mode === 'availability') {
+    if (!state) return t('sensor.availabilityMissing', { entity });
+    const gone = raw == null || raw === '' || raw === 'unavailable' || raw === 'unknown';
+    return t(gone ? 'sensor.availabilityUnavailable' : 'sensor.availabilityAvailable', { entity });
+  }
   const reading = raw == null || raw === '' ? NaN : Number(raw);
   if (s.mode === 'threshold') {
     const cond = `${s.comparison ?? ''} ${s.value ?? ''}`.trim();
@@ -212,7 +239,12 @@ function historySection(p: PanelHost, kind: 'task' | 'asset', id: string): strin
 
 function taskDetail(p: PanelHost, task: Task): string {
   const statusChip = statusChipHtml(task, p._hass);
-  const dev = task.device_id ? deviceChip(p, task.device_id) : '';
+  // From a task the chip means "the appliance this work is about", so it opens the
+  // appliance page. It falls back to the device page when no appliance claims the
+  // device, and says so with a trailing mark.
+  const dev = task.device_id
+    ? deviceChip(p, task.device_id, assetForTask(task, p._assets)?.id)
+    : '';
   // The task's *effective* area — its own, else its device's — so the page explains
   // which "Group by → Area" section the task lands in. When it's inherited, the
   // device chip sits right beside it and shows where it came from.
@@ -246,6 +278,24 @@ function taskDetail(p: PanelHost, task: Task): string {
   const dupBtn = p._canDuplicate(task)
     ? `<ha-button ${btnAttrs('secondary')} class="d-dup">${escapeHTML(t('btn.duplicate'))}</ha-button>`
     : p._blockedDuplicate(task);
+  // A declarative-companion task is materialized by a *recipe* Home Keeper holds
+  // itself, so its `managed_by` names the recipe ("Device Pulse") over Home
+  // Keeper's own config entry. The captions below read that as a foreign
+  // integration and sent the user nowhere: "Edit in Device Pulse" opened the Home
+  // Keeper integration page, and "Delete from Device Pulse instead" named a place
+  // that does not exist (#231). The recipe's own editor is the honest destination.
+  //
+  // It is also the *only* editor such a task has. The recipe owns name, device,
+  // area and the sensor binding and rewrites all four on every reconcile pass, so
+  // the task is source-owned and its own Edit dialog would be a form whose Save the
+  // next pass undoes. Built outside the `sourceOwned` branch below for that reason:
+  // it is the one action that survives when Edit and Delete do not.
+  const recipe = declarativeRecipeFor(p, task);
+  const recipeBtn = recipe
+    ? `<ha-button ${btnAttrs('secondary')} class="d-edit-recipe" data-spec-id="${escapeHTML(
+        recipe.id,
+      )}">${escapeHTML(t('btn.editRecipe'))}</ha-button>`
+    : '';
   // Say why Edit and Delete are missing rather than just omitting them. Withholding
   // both silently left a wear-part task's page reading "<task name> / Done" and
   // nothing else, which looks like a surface that forgot to render — the managed
@@ -255,14 +305,22 @@ function taskDetail(p: PanelHost, task: Task): string {
   // its owner's own `completion_prompt` ("Synced from binary_sensor.x — it clears
   // when the originating integration resolves it"), which says the same thing with
   // the specifics; adding a generic line above it would just be saying it twice.
+  //
+  // A recipe's task names the recipe rather than taking the generic line: "kept in
+  // step with its source" leaves the reader hunting for which source, when the page
+  // already knows and the button beside it opens exactly that.
   let manage =
     sourceOwned && !mb?.completion_prompt
-      ? `<span class="hk-managed-info">${escapeHTML(t('managed.sourceOwned'))}</span>`
+      ? `<span class="hk-managed-info">${escapeHTML(
+          recipe
+            ? t('managed.deleteFromRecipe', { name: recipe.name })
+            : t('managed.sourceOwned'),
+        )}</span>`
       : '';
   // A source-owned task offers no Edit and no Delete, but it still gets the greyed
   // Duplicate: "you can't copy this either, and here is why" is information the
   // sourceOwned caption above doesn't carry.
-  manage = `${dupBtn}${manage}`;
+  manage = `${dupBtn}${recipeBtn}${manage}`;
   if (!sourceOwned) {
     const editBtn = `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
     // Deletion protection only holds while the owner is present. Once orphaned
@@ -270,16 +328,23 @@ function taskDetail(p: PanelHost, task: Task): string {
     // clean the task up — otherwise "delete it from X instead" points nowhere.
     const deleteBtn =
       mb?.deletion_protected && !orphaned
-        ? `<span class="hk-managed-info">${escapeHTML(t('managed.deleteBlocked', { name: mb.display_name }))}</span>`
+        ? `<span class="hk-managed-info">${escapeHTML(
+            recipe
+              ? t('managed.deleteFromRecipe', { name: recipe.name })
+              : t('managed.deleteBlocked', { name: mb.display_name }),
+          )}</span>`
         : `<ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
-    // "Edit in X" deep link when config_entry_id resolves to a loaded domain.
+    // "Edit in X" deep link when config_entry_id resolves to a loaded domain. Home
+    // Keeper's own domain is never that link: the panel the button sits in *is* that
+    // integration's UI, so a task it owns offers its recipe above instead.
     const domain = mb?.config_entry_id ? p._entryDomains[mb.config_entry_id] : null;
-    const openInBtn = domain && !orphaned
-      ? `<ha-button ${btnAttrs('tertiary')} class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
-      : '';
+    const openInBtn =
+      domain && domain !== HK_DOMAIN && !orphaned
+        ? `<ha-button ${btnAttrs('tertiary')} class="d-open-in" data-domain="${escapeHTML(domain)}">${escapeHTML(t('btn.openInIntegration', { name: mb!.display_name }))}</ha-button>`
+        : '';
     // Duplicate sits between Edit and Delete: it is a non-destructive sibling of Edit,
     // and putting a benign action past a destructive one reads badly.
-    manage = `${editBtn}${dupBtn}${deleteBtn}${openInBtn}`;
+    manage = `${editBtn}${dupBtn}${recipeBtn}${deleteBtn}${openInBtn}`;
   }
 
   // When orphaned, explain why deletion is now allowed; otherwise show the
@@ -291,28 +356,33 @@ function taskDetail(p: PanelHost, task: Task): string {
         ? `<div class="hk-managed-prompt">${escapeHTML(mb.completion_prompt)}</div>`
         : '';
 
-  const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
+  const monitored = isMonitoredDormant(task);
   const completedOneOff =
     task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-  const due = dormantTriggered
+  const due = monitored
     ? t('due.monitored')
     : completedOneOff
       ? t('form.task.completedOn', { date: formatDateTime(task.last_completed, p._lang()) })
       : task.next_due
         ? formatDateTime(task.next_due, p._lang())
         : t('due.none');
-  // Nothing to mark done while dormant — the integration arms it when the
-  // monitored condition fires (e.g. a battery goes low) — or once a one-off is
-  // already completed. A completion-blocked task (a synced problem sensor) keeps a
-  // *disabled* Done that, on click, explains its source clears it (the managed
-  // completion prompt also shows below).
+  // Nothing to mark done while the task is monitored — its owner or the sensor
+  // watcher arms it when the condition fires (a battery goes low, a device stops
+  // answering) — or once a one-off is already completed. A completion-blocked task
+  // (a synced problem sensor) keeps a *disabled* Done that, on click, explains its
+  // source clears it (the managed completion prompt also shows below).
   // A scan-locked task lands on the same disabled-Done treatment: the tap explains
   // that the tag is the way in.
-  const doneBtn = dormantTriggered || completedOneOff
+  const doneBtn = monitored || completedOneOff
     ? ''
     : mb?.completion_blocked || scanRequired(task)
       ? p._blockedDone('d-done-blocked-wrap', task, 'primary')
       : `<ha-button ${btnAttrs('primary')} class="d-done">${escapeHTML(t('btn.done'))}</ha-button>`;
+  // Snooze and Skip hang off a caret beside Done rather than sitting as buttons of
+  // their own: they are the exceptions to the one action a task page is really for,
+  // and three peers would read as three equal choices. Done keeps its own hit
+  // target, so it never costs an extra tap or changes meaning.
+  const doneSplit = deferMenu(p, task, doneBtn);
   // Notes get an inline editor right on the detail page: they're long-form prose
   // that renders as Markdown, so authoring deserves a full-width box with a live
   // preview rather than one cramped row among the schedule fields. (For a
@@ -327,16 +397,12 @@ function taskDetail(p: PanelHost, task: Task): string {
     notesEditable,
     task.source?.problem_sensor ? t('note.placeholder') : t('note.placeholderMd'),
   );
-  return `
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">
-        <div class="hk-detail-title">${escapeHTML(task.name)}</div>
-        <div class="hk-chips">${statusChip}${dev}${area}${tag}${taskChips}${managed}</div>
-        <div class="hk-detail-actions">
-          ${doneBtn}
-          ${manage}
-        </div>
-        ${completionHint}
-      </div></ha-card>
+  // The same sub-tabs the appliance page has, for the same reason: three stacked
+  // cards made the history a screen away on a phone, and a page that reads like
+  // the appliance page is one less layout to learn. Schedule first — what the task
+  // is and when it is next due — with the notes and the history one tap off.
+  const bodies: Record<TaskTab, string> = {
+    schedule: `
       <div class="hk-section">${escapeHTML(t('detail.schedule'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         ${row(t('field.recurrence_type'), recurrenceSummary(task))}
@@ -345,10 +411,47 @@ function taskDetail(p: PanelHost, task: Task): string {
         ${row(t('detail.nextDue'), due)}
         ${row(t('field.consumable_link'), consumableLinkLabel(p, task), true)}
         ${idRow(task.id)}
-      </div></ha-card>
+      </div></ha-card>`,
+    notes: `
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>
-      ${historySection(p, 'task', task.id)}`;
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>`,
+    history: historySection(p, 'task', task.id),
+  };
+  const tab = p._taskTab();
+  return `
+      <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
+        <div class="hk-detail-title">${escapeHTML(task.name)}</div>
+        <div class="hk-chips">${statusChip}${dev}${area}${tag}${taskChips}${managed}</div>
+        <div class="hk-detail-actions">
+          ${doneSplit}
+          ${manage}
+        </div>
+        ${completionHint}
+      </div>
+      <nav class="hk-subtabs" aria-label="${escapeHTML(task.name)}">${taskSubtabs(task, tab)}</nav>
+      </ha-card>
+      <div class="hk-subtab-body">${bodies[tab]}</div>`;
+}
+
+/** The task detail's sub-tab strip: Schedule, Notes (marked when there are any),
+ *  History with how many entries it holds. */
+function taskSubtabs(task: Task, current: TaskTab): string {
+  const counts: Record<TaskTab, number | null> = {
+    schedule: null,
+    notes: null,
+    history: (task.completions?.length ?? 0) + (task.skips?.length ?? 0),
+  };
+  const labels: Record<TaskTab, string> = {
+    schedule: t('detail.schedule'),
+    notes: t('field.notes'),
+    history: t('btn.history'),
+  };
+  return TASK_TABS.map((tab) => {
+    const n = counts[tab];
+    const count = n ? `<span class="hk-subtab-count">${escapeHTML(String(n))}</span>` : '';
+    return `<button class="hk-subtab${tab === current ? ' active' : ''}" data-tab="${tab}"
+        ${tab === current ? 'aria-current="page"' : ''}>${escapeHTML(labels[tab])}${count}</button>`;
+  }).join('');
 }
 
 function assetDetail(p: PanelHost, asset: Asset): string {
@@ -504,11 +607,10 @@ function documentsSection(p: PanelHost, asset: Asset): string {
 
 function partsSection(p: PanelHost, asset: Asset): string {
   const parts = asset.parts || [];
-  if (!parts.length) return '';
   const chip = (label: string, cls = ''): string =>
     `<ha-assist-chip class="${cls}" label="${escapeHTML(label)}"></ha-assist-chip>`;
   const rows = parts
-    .map((part) => {
+    .map((part, i) => {
       const isWear = part.type === 'wear';
       // Subtitle: the descriptive, identity bits (part number, vendor, cost).
       const sub: string[] = [];
@@ -546,9 +648,16 @@ function partsSection(p: PanelHost, asset: Asset): string {
         // "In stock: 250 ml" — the unit rides with the number wherever stock is
         // shown, so a measured part never reads as a bare count of somethings.
         const onHand = formatQuantity(part.stock, part.stock_unit);
-        spares = low
-          ? chip(t('part.lowStock', { n: onHand }), 'hk-overdue')
-          : chip(t('part.inStock', { n: onHand }));
+        // A saved part's stock is edited right here, as a stepper: changing a
+        // quantity is a stock event, not an edit of the appliance, and the backend
+        // already treats it as one (`adjust_part_stock`, the same path the device
+        // page's number entity takes). A part without an id (never saved) keeps the
+        // read-only chip — there is nothing to adjust yet.
+        spares = part.id
+          ? stockStepper(part, low, onHand)
+          : low
+            ? chip(t('part.lowStock', { n: onHand }), 'hk-overdue')
+            : chip(t('part.inStock', { n: onHand }));
         // What one completion takes off, when it isn't the plain single spare.
         if (part.consume_quantity != null) {
           spares += chip(t('part.perUse', { n: formatQuantity(part.consume_quantity, part.stock_unit) }));
@@ -596,6 +705,12 @@ function partsSection(p: PanelHost, asset: Asset): string {
       const partNotes = part.notes
         ? `<div class="hk-part-notes">${markdownBlock(part.notes, 'hk-md-compact')}</div>`
         : '';
+      // Edit opens the appliance drawer on *this* part, expanded and scrolled to.
+      // The id is what hands the keyboard back here when the drawer closes
+      // (`_openerKeyFor`).
+      const edit = `<ha-icon-button id="part-edit-${i}" class="hk-part-edit" data-part-idx="${i}" label="${escapeHTML(
+        t('btn.editPart'),
+      )}"></ha-icon-button>`;
       return `
           <div class="hk-part-row ${isWear ? 'wear' : 'consumable'}">
             <div class="hk-part-ic">
@@ -608,12 +723,99 @@ function partsSection(p: PanelHost, asset: Asset): string {
               ${partNotes}
               ${idRow(part.id, true)}
             </div>
+            <div class="hk-part-actions">${edit}</div>
           </div>`;
     })
     .join('');
+  // The section keeps its heading and its Add part even with nothing in it: an
+  // appliance's parts are added from here as readily as from the drawer.
+  const body = rows
+    ? `<ha-card class="hk-detail-card"><div class="hk-detail-inner hk-parts">${rows}</div></ha-card>`
+    : `<ha-alert alert-type="info">${escapeHTML(t('appliance.tabEmpty'))}</ha-alert>`;
   return `
-      <div class="hk-section">${escapeHTML(t('section.parts'))}</div>
-      <ha-card class="hk-detail-card"><div class="hk-detail-inner hk-parts">${rows}</div></ha-card>`;
+      <div class="hk-section hk-section-row">
+        <span>${escapeHTML(t('section.parts'))}</span>
+        <ha-button ${btnAttrs('secondary')} class="d-add-part">${escapeHTML(t('btn.addPart'))}</ha-button>
+      </div>
+      ${body}`;
+}
+
+/**
+ * The stock cell as a control: − / the amount / its unit / +. Each tap or typed
+ * value becomes one `adjust_part_stock` call (see `wireStockSteppers`). The low
+ * state keeps its colour *and* a word, so it never says it by colour alone.
+ */
+function stockStepper(part: Part, low: boolean, onHand: string): string {
+  const id = part.id || '';
+  const stock = part.stock ?? 0;
+  const unit = (part.stock_unit || '').trim();
+  return (
+    `<div class="hk-stock${low ? ' low' : ''}" role="group" data-part="${escapeHTML(id)}"` +
+    ` aria-label="${escapeHTML(t('field.stock'))}">` +
+    `<ha-icon-button class="hk-stock-dec" label="${escapeHTML(t('btn.stockDec'))}"${
+      stock <= 0 ? ' disabled' : ''
+    }></ha-icon-button>` +
+    `<input id="hk-stock-${escapeHTML(id)}" class="hk-stock-input" type="number" inputmode="decimal"` +
+    ` min="0" step="${partStockStep(part)}" value="${escapeHTML(String(stock))}"` +
+    ` aria-label="${escapeHTML(t('part.inStock', { n: onHand }))}">` +
+    (unit ? `<span class="hk-stock-unit">${escapeHTML(unit)}</span>` : '') +
+    `<ha-icon-button class="hk-stock-inc" label="${escapeHTML(t('btn.stockInc'))}"></ha-icon-button>` +
+    `</div>` +
+    (low ? `<span class="hk-stock-low">${escapeHTML(t('part.low'))}</span>` : '')
+  );
+}
+
+/**
+ * Make each stock stepper live. A tap moves the stock by one spare (one use, for a
+ * measured part); a typed value commits on Enter or blur, snapped to the part's
+ * step. Every change is one `adjust_part_stock` call — the service path, so the
+ * low-stock transitions and the auto-buy task fire as they do from the device page
+ * — followed by a refresh; the input's id lets the panel's focus restore put the
+ * caret back after that render.
+ */
+function wireStockSteppers(p: PanelHost, root: ShadowRoot, asset: Asset): void {
+  root.querySelectorAll<HTMLElement>('.hk-stock[data-part]').forEach((box) => {
+    const partId = box.dataset.part;
+    const part = asset.parts?.find((x) => x.id === partId);
+    const input = box.querySelector<HTMLInputElement>('.hk-stock-input');
+    const dec = box.querySelector<HTMLElement>('.hk-stock-dec');
+    const inc = box.querySelector<HTMLElement>('.hk-stock-inc');
+    if (!part || !partId || part.stock == null || !input || !dec || !inc) return;
+    setIcon(dec, MDI_MINUS);
+    setIcon(inc, MDI_PLUS);
+    const step = partStockStep(part);
+    const tap = partStockButtonStep(part);
+    let committed = part.stock;
+    let busy = false;
+    const commit = async (target: number): Promise<void> => {
+      if (busy || !p._hass) return;
+      const next = snapStock(target, step);
+      const delta = Math.round((next - committed) * 1000) / 1000;
+      if (!delta) {
+        input.value = String(committed);
+        return;
+      }
+      busy = true;
+      box.setAttribute('data-busy', '');
+      try {
+        const updated = await api.adjustPartStock(p._hass, asset.id, partId, delta);
+        committed = updated.parts?.find((x) => x.id === partId)?.stock ?? next;
+        toast(p, t('toast.stockSet', { n: formatQuantity(committed, part.stock_unit) }));
+        await p._refresh();
+      } catch (err) {
+        toast(p, String((err as { message?: string })?.message || err));
+        input.value = String(committed);
+        box.removeAttribute('data-busy');
+        busy = false;
+      }
+    };
+    dec.addEventListener('click', () => void commit(committed - tap));
+    inc.addEventListener('click', () => void commit(committed + tap));
+    input.addEventListener('change', () => void commit(Number(input.value)));
+    input.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Enter') input.blur();
+    });
+  });
 }
 
 /** Set the mdi `path` on each part-row icon (ha-svg-icon takes a property). */
@@ -622,6 +824,7 @@ function wirePartIcons(root: ShadowRoot): void {
     (el as HTMLElement & { path?: string }).path =
       el.dataset.mdi === 'wear' ? MDI_WEAR : MDI_CONSUMABLE;
   });
+  root.querySelectorAll<HTMLElement>('.hk-part-edit').forEach((el) => setIcon(el, MDI_EDIT));
 }
 
 function relatedTasksSection(p: PanelHost, asset: Asset): string {
@@ -686,11 +889,15 @@ export function wireDetail(p: PanelHost, root: ShadowRoot): boolean {
     wireDetailActions(p, root);
     wirePartIcons(root);
     wireHistory(p, root);
+    const kind = p._detail.kind;
     root.querySelectorAll<HTMLElement>('.hk-subtab').forEach((b) =>
       b.addEventListener('click', () => {
         const tab = b.dataset.tab;
-        if (tab && (ASSET_TABS as readonly string[]).includes(tab)) {
+        if (!tab) return;
+        if (kind === 'asset' && (ASSET_TABS as readonly string[]).includes(tab)) {
           p._setAssetTab(tab as AssetTab);
+        } else if (kind === 'task' && (TASK_TABS as readonly string[]).includes(tab)) {
+          p._setTaskTab(tab as TaskTab);
         }
       }),
     );
@@ -698,7 +905,7 @@ export function wireDetail(p: PanelHost, root: ShadowRoot): boolean {
     wireCopyButtons(p, root);
     if (p._detail.kind !== 'asset') {
       wireDetailOpeners(p, root);
-      wireDeviceChips(root);
+      wireDeviceChips(p, root);
       return true;
     }
   }
@@ -722,8 +929,13 @@ function wireCopyButtons(p: PanelHost, root: ShadowRoot): void {
   });
 }
 
-/** Wire every `.detail-open` row to open its object's detail page. */
-export function wireDetailOpeners(p: PanelHost, root: ShadowRoot): void {
+/** Wire every `.detail-open` row to open its object's detail page.
+ *
+ *  Takes a `ParentNode` rather than the shadow root, because `_applyQuery` rebuilds
+ *  only `#hk-list` and passes that: on an appliance's page the same class is on the
+ *  detail pane beside the list, which that pass did not rebuild and must not bind
+ *  a second time. */
+export function wireDetailOpeners(p: PanelHost, root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('.detail-open').forEach((el) => {
     const go = (): void => {
       const kind = el.dataset.detailKind;
@@ -756,6 +968,8 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
     root
       .querySelector('.d-done-blocked-wrap')
       ?.addEventListener('click', () => p._notifyBlocked(task));
+    p._wireDeferMenus(root);
+    wireSkipHistoryRows(p, root);
     root.querySelector('.d-edit')?.addEventListener('click', () => p._openEdit(task));
     root.querySelector('.d-dup')?.addEventListener('click', () => p._openDuplicate(task));
     // A greyed Duplicate is a span carrying the tap (a disabled button swallows
@@ -790,11 +1004,31 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
         if (domain) navigateTo(`/config/integrations/integration/${domain}`);
       });
     });
+    // "Edit recipe": open the declarative companion that materialized this task, in
+    // the same dialog Settings → Companions uses. It overlays whatever view is on
+    // screen, so the user edits the recipe without losing the task they were reading.
+    root.querySelectorAll<HTMLElement>('.d-edit-recipe').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const spec = p._declarativeCompanions.find((s) => s.id === btn.dataset.specId);
+        if (spec) void openDeclarativeForm(p, spec);
+      });
+    });
     return;
   }
   const asset = p._assets.find((x) => x.id === d.id);
   if (!asset) return;
   root.querySelector('.d-edit')?.addEventListener('click', () => p._openEditAsset(asset));
+  // The Parts tab's own ways into the drawer: Edit on a row opens it on that part,
+  // Add part opens it on a blank one.
+  root.querySelectorAll<HTMLElement>('.hk-part-edit').forEach((btn) => {
+    btn.addEventListener('click', () =>
+      p._openEditAsset(asset, { part: Number(btn.dataset.partIdx) }),
+    );
+  });
+  root
+    .querySelector('.d-add-part')
+    ?.addEventListener('click', () => p._openEditAsset(asset, { part: 'new' }));
+  wireStockSteppers(p, root, asset);
   p._wireNoteEditor(root, { kind: 'asset', id: asset.id });
   root.querySelector('.d-archive')?.addEventListener('click', () => void p._archiveAsset(asset));
   root.querySelector('.d-restore')?.addEventListener('click', () => void p._restoreAsset(asset));

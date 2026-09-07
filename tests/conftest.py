@@ -70,6 +70,13 @@ _PURE_MODULES = (
     # and normalization rules every write path shares are testable here. Keep it
     # after the siblings it does ``from . import`` (notifications/profiles/shopping).
     "options",
+    # Declarative companions: the recipe-shape module (``declarative_companions``)
+    # and its shipped presets (``declarative_presets``) are pure — the HA-bound
+    # reconciler (``declarative_companion_sync``) is not and lives outside this
+    # allowlist. Load ``declarative_companions`` after ``models`` since it does
+    # ``from . import models``.
+    "declarative_companions",
+    "declarative_presets",
     # ``api_surface`` is the index of every integrator-facing surface. Pure like the
     # rest, and last because it does ``from . import options``.
     "api_surface",

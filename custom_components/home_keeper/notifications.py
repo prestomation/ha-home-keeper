@@ -21,12 +21,14 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from babel import Locale
 from babel.core import UnknownLocaleError
+
+from .transitions import DUE_SOON_WINDOW
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,6 +56,16 @@ STYLE_DIGEST = "digest"  # a single informational summary of everything due
 STYLES = (STYLE_WALK, STYLE_DIGEST)
 
 DEFAULT_SNOOZE_HOURS = 24
+
+# What a send does when its profile matches nothing. The default keeps the long-
+# standing promise that ``home_keeper.notify`` costs nothing on a quiet day, so an
+# automation that runs every 30 minutes stays silent. ``all_clear`` is what the panel's
+# Test button asks for: a delivery that always lands, so the target, the channel and
+# the urgency can be checked before any task is due.
+WHEN_EMPTY_SKIP = "skip"
+WHEN_EMPTY_ALL_CLEAR = "all_clear"
+WHEN_EMPTY = (WHEN_EMPTY_SKIP, WHEN_EMPTY_ALL_CLEAR)
+DEFAULT_WHEN_EMPTY = WHEN_EMPTY_SKIP
 
 # How loudly a notification lands. Home Keeper stores one platform-neutral value and
 # expands it into *both* vocabularies at payload-build time (see :func:`payload_data`),
@@ -90,6 +102,29 @@ _WAKE_URGENCIES = (URGENCY_HIGH, URGENCY_CRITICAL)
 # Alerts to the Home Assistant app, so this is a request rather than a guarantee. Full
 # volume because an alert worth overriding the mute switch is worth hearing.
 _IOS_CRITICAL_SOUND = {"name": "default", "critical": 1, "volume": 1.0}
+
+# How a notification *looks*: one Material Design Icon name and one accent color, both
+# stored platform-neutrally the way the urgency ladder above is. Unlike every other key
+# here the two platforms do not merely ignore each other's vocabulary — they render the
+# same value differently, which is documented on :func:`payload_data`.
+#
+# An empty value is not "no icon", it is "the app's own default", so both normalizers
+# clamp anything unusable to ``""`` and ``payload_data`` then omits the key entirely.
+# That matters more than it looks: the companion app draws *nothing at all* for an icon
+# name it cannot resolve, and says nothing about it, so a typo that reached the phone
+# would silently cost the user the Home Assistant icon they had before.
+ICON_PREFIX = "mdi:"
+# ``notification_icon_color`` is deliberately never sent. The Home Assistant docs
+# describe it as an iOS-only glyph colour, but the Android app reads it *first* and
+# falls back to ``color`` only when it is absent:
+#
+#     val colorString = data[NOTIFICATION_ICON_COLOR] ?: data[COLOR]   // handleColor
+#
+# so sending the iOS default of white would set the Android accent to white and throw
+# the user's colour away. White is already the iOS default, so the key buys nothing on
+# either platform. Do not re-add it without re-reading that function.
+_ICON_NAME = re.compile(r"^[a-z0-9-]+$")
+_HEX_COLOR = re.compile(r"^#[0-9a-f]{6}$")
 
 # Action-string scheme:
 # ``home_keeper::<verb>::<task_id>::<notification_id>::<due_token>``. The action string
@@ -206,15 +241,52 @@ def split_targets(value: Any) -> tuple[list[str], list[str]]:
     return accepted, rejected
 
 
+def normalize_icon(value: Any) -> str:
+    """Coerce *value* to a stored ``mdi:<name>`` icon, or to ``""``.
+
+    Clamps rather than raises, because :func:`normalize_notification` never rejects a
+    stored document — it repairs one. ``""`` means "the companion app's own icon", which
+    is the safe fallback: a name the app cannot resolve draws nothing at all.
+
+    The name is restricted to the character set Material Design Icons actually uses,
+    so a value that reaches an HTML attribute in the panel, or a JSON payload on the
+    wire, cannot carry a quote, a space, or a colon of its own.
+
+    A non-string is rejected outright rather than coerced: nothing but a string is ever
+    a valid icon, so ``str()`` on one only produces a name that fails the check below.
+    """
+    if not isinstance(value, str):
+        return ""
+    icon = value.strip().lower()
+    if not icon.startswith(ICON_PREFIX):
+        return ""
+    return icon if _ICON_NAME.match(icon[len(ICON_PREFIX) :]) else ""
+
+
+def normalize_color(value: Any) -> str:
+    """Coerce *value* to a stored ``#rrggbb`` accent color, or to ``""``.
+
+    Lower-cased so one color has one stored spelling. A named color such as ``red`` is
+    not accepted: the panel picks from a color wheel, and one format on the wire beats
+    two. ``""`` means the app's own accent. A non-string is rejected for the same reason
+    :func:`normalize_icon` rejects one.
+    """
+    if not isinstance(value, str):
+        return ""
+    color = value.strip().lower()
+    return color if _HEX_COLOR.match(color) else ""
+
+
 def normalize_notification(raw: Any) -> dict[str, Any]:
     """Coerce one raw notification to its stored, fully-defaulted shape.
 
     A notification references a profile (``profile_id``) and carries delivery: an id
     (stable, referenced by action strings), a name, mobile ``targets``, the ordered
     ``actions`` button set (clamped to known verbs, de-duplicated), ``snooze_hours``,
-    ``style`` (walk/digest), ``auto`` triggers, and how it lands on the phone —
+    ``style`` (walk/digest), ``auto`` triggers, how it lands on the phone —
     ``channel`` (the Android notification channel, threading reminders on iOS) and
-    ``urgency`` (clamped to :data:`URGENCIES`).
+    ``urgency`` (clamped to :data:`URGENCIES`) — and how it looks: ``icon`` and
+    ``color``, each clamped to ``""`` when unusable.
     """
     raw = raw if isinstance(raw, dict) else {}
     actions: list[str] = []
@@ -248,11 +320,26 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
         "style": style if style in STYLES else STYLE_WALK,
         "channel": str(raw.get("channel") or "").strip(),
         "urgency": urgency if urgency in URGENCIES else DEFAULT_URGENCY,
+        "icon": normalize_icon(raw.get("icon")),
+        "color": normalize_color(raw.get("color")),
         "auto": {
             "overdue": bool(auto.get("overdue", False)),
             "due_soon": bool(auto.get("due_soon", False)),
         },
     }
+
+
+def sends_when_empty(when_empty: Any) -> bool:
+    """Whether a queue that matched nothing should still deliver the all-clear.
+
+    A predicate rather than a clamp because the service schema validates the field
+    against :data:`WHEN_EMPTY` before it reaches here, so there is nothing left to
+    coerce. It lives in this module rather than inline in ``notifier`` so the decision
+    sits on the mutation-scored surface: the same comparison written in ``notifier.py``
+    would never be mutated, and "an empty queue still sends" is exactly the branch worth
+    proving a test would catch.
+    """
+    return when_empty == WHEN_EMPTY_ALL_CLEAR
 
 
 def normalize_notifications(raw: Any) -> list[dict[str, Any]]:
@@ -291,30 +378,54 @@ def is_completion_blocked(task: dict[str, Any]) -> bool:
     return isinstance(managed_by, dict) and bool(managed_by.get("completion_blocked"))
 
 
-def actions_for(task: dict[str, Any], actions: list[str]) -> list[str]:
+def actions_for(
+    task: dict[str, Any],
+    actions: list[str],
+    *,
+    allow_snooze: bool = True,
+    allow_skip: bool = True,
+) -> list[str]:
     """The subset of *actions* that can actually act on *task*, in configured order.
 
-    A completion-blocked task (today, a ``problem``-sensor mirror) rejects *Mark done*
-    and *Skip* in the store: both assert the problem is dealt with, and only the
-    originating integration can decide that. Offering buttons the store will refuse
-    is worse than offering none — ``notifier`` swallows the rejection, so the tap
-    reads as a dead button.
+    Two filters, in order. First the integration-wide switches: *allow_snooze* and
+    *allow_skip* are the ``allow_snooze`` / ``allow_skip`` options, and a verb turned
+    off there is not offered on any button set. They are passed in rather than read
+    here so this stays a pure function of its inputs — the caller
+    (:func:`build_notification`) holds the entry.
+
+    Then the per-task one. A completion-blocked task (today, a ``problem``-sensor
+    mirror) rejects *Mark done* and *Skip* in the store: both assert the problem is
+    dealt with, and only the originating integration can decide that. Offering buttons
+    the store will refuse is worse than offering none — ``notifier`` swallows the
+    rejection, so the tap reads as a dead button.
 
     *Snooze* is the one mutating verb that stays honest on such a task: it defers the
     reminder and leaves the problem standing. So it is offered here **even when the
     notification's own button set leaves it out** — a walk advances only on a
     successful action, and without Snooze one of these at the head of the queue would
     re-send forever and never reach the tasks behind it (#248).
+
+    That injection also **outranks a disabled** *allow_snooze*, the one place the
+    switch does not have the last word. The alternative is a notification with no verb
+    that can move it on, which is not "snooze is off" but "this reminder is now
+    unanswerable" — a worse outcome than one button the user asked not to see. The
+    setting's help text says so.
     """
-    if not is_completion_blocked(task):
-        return list(actions)
-    kept = [verb for verb in actions if verb in (ACTION_SNOOZE, ACTION_OPEN)]
-    if ACTION_SNOOZE not in kept:
-        # Deliberately overriding the user's button set, which is the one place this
-        # function adds rather than subtracts. `open` is a client-side URI that never
-        # calls back, so a set of only `open` (or an empty one) leaves a walk with
-        # nothing that advances it and it re-sends this task forever. One button the
-        # user did not ask for beats a notification that can never be got past.
+    blocked = is_completion_blocked(task)
+    kept = [
+        verb
+        for verb in actions
+        if (allow_snooze or verb != ACTION_SNOOZE)
+        and (allow_skip or verb != ACTION_SKIP)
+        and (not blocked or verb in (ACTION_SNOOZE, ACTION_OPEN))
+    ]
+    if blocked and ACTION_SNOOZE not in kept:
+        # Deliberately overriding both the user's button set and the allow_snooze
+        # switch — the one place this function adds rather than subtracts. `open` is a
+        # client-side URI that never calls back, so a set of only `open` (or an empty
+        # one) leaves a walk with nothing that advances it and it re-sends this task
+        # forever. One button the user did not ask for beats a notification that can
+        # never be got past.
         kept.insert(0, ACTION_SNOOZE)
     return kept
 
@@ -420,6 +531,27 @@ def payload_data(
     fixed when the channel is *created*. Raising the urgency later re-sends the key, but
     the phone keeps the setting the channel already has (only the user can change it, in
     the phone's own settings). Renaming the channel is what starts one over.
+
+    ``icon`` and ``color`` are the one place the "each app ignores what it does not
+    know" rule above does *not* hold. Both platforms read them, and render them
+    differently:
+
+    * ``notification_icon`` is Android's status bar icon. On iOS it is the *sender*
+      icon, which restyles the whole thing as a communication notification.
+    * ``color`` is Android's accent, painting the small icon and the app name in the
+      shade. It never reaches the status bar, which is always monochrome. On iOS it is
+      the circle drawn *behind* the glyph.
+
+    Android resolves the icon name through the Iconics font the app bundles, not through
+    the set the panel's picker offers, and it falls back to the *Home Assistant* icon
+    when the name is not in it. A name from a newer release therefore looks like the
+    feature doing nothing. That is a property of the app, not something to validate
+    here: the store cannot know which app version a household runs.
+
+    So the accent is the glyph on one platform and the ground on the other. Home Keeper
+    sends one value and lets each phone draw its own native shape rather than force a
+    match, because ``color`` is the only accent Android reads: pinning it to a neutral
+    to make the iOS circle pale would cost Android its color entirely.
     """
     data: dict[str, Any] = {
         "tag": notification_tag(notification["id"]),
@@ -445,21 +577,50 @@ def payload_data(
         data["priority"] = "high"
     if urgency == URGENCY_CRITICAL:
         push["sound"] = dict(_IOS_CRITICAL_SOUND)
+    if icon := normalize_icon(notification.get("icon")):
+        data["notification_icon"] = icon
+    if color := normalize_color(notification.get("color")):
+        data["color"] = color
     if push:
         data["push"] = push
     return data
 
 
 def _overdue_phrase(
-    task: dict[str, Any], *, now: datetime, lang: str = _DEFAULT_LANG
+    task: dict[str, Any],
+    *,
+    now: datetime,
+    lang: str = _DEFAULT_LANG,
+    window: timedelta = DUE_SOON_WINDOW,
 ) -> str:
+    """The one-line body of a walk notification: how late, or how far off, *task* is.
+
+    Three cases, in the order a reader meets them: already due, due inside the
+    due-soon *window*, or further out than that.
+
+    The third case is the reason *window* is a parameter. Until a notification could
+    carry a task that is not due yet, "not overdue" and "due soon" were the same
+    thing and everything else read "Due soon." — including a task due in six months.
+    ``home_keeper.notify`` can now be asked for every task a profile covers
+    (``status: all``), which makes that the common case rather than a corner, so
+    anything past the window says how far off it is instead. The window is threaded
+    through rather than read from the module so this agrees with
+    ``profiles.matches_filter``, which takes it the same way and decides what
+    "due soon" means for the queue this phrase describes.
+    """
     next_due = datetime.fromisoformat(task["next_due"])
     if now >= next_due:
         days = (now - next_due).days
         if days <= 0:
             return _t(lang, "due_now")
         return _tn(lang, "overdue", days, days=days)
-    return _t(lang, "due_soon")
+    remaining = next_due - now
+    if remaining <= window:
+        return _t(lang, "due_soon")
+    # Floored, matching the overdue side above: a task 3.5 days out reads "3 days",
+    # the same way one 3.5 days late reads "overdue by 3 days".
+    days = remaining.days
+    return _tn(lang, "due_in", days, days=days)
 
 
 def _open_uri(task: dict[str, Any]) -> str:
@@ -496,15 +657,28 @@ def build_notification(
     notification: dict[str, Any],
     now: datetime,
     lang: str = _DEFAULT_LANG,
+    allow_snooze: bool = True,
+    allow_skip: bool = True,
+    window: timedelta = DUE_SOON_WINDOW,
 ) -> dict[str, Any]:
-    """Build the ``notify`` service data for a single task in a *walk* notification."""
+    """Build the ``notify`` service data for a single task in a *walk* notification.
+
+    *allow_snooze* / *allow_skip* are the integration-wide switches; they default to
+    on so a caller that does not care about them (every test that builds one payload)
+    need not thread them through. See :func:`actions_for`.
+    """
     actions = [
         _action_button(v, task, notification, lang=lang)
-        for v in actions_for(task, notification["actions"])
+        for v in actions_for(
+            task,
+            notification["actions"],
+            allow_snooze=allow_snooze,
+            allow_skip=allow_skip,
+        )
     ]
     return {
         "title": str(task.get("name") or "Home Keeper"),
-        "message": _overdue_phrase(task, now=now, lang=lang),
+        "message": _overdue_phrase(task, now=now, lang=lang, window=window),
         "data": payload_data(notification, actions=actions),
     }
 

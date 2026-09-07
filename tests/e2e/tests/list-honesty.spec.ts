@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openPanel, trackPanelErrors } from './helpers';
-import { TASK } from '../fixture-ids';
+import { ASSET, TASK } from '../fixture-ids';
 
 /**
  * What the task list says about itself (#262).
@@ -127,6 +127,127 @@ test.describe('Home Keeper panel — the list tells the truth about what it show
     // The explanation stands where the two missing buttons would have been.
     await expect(panel.locator('.hk-detail-actions .hk-managed-info')).toBeVisible();
     await expect(panel.locator('.hk-detail-actions .hk-managed-info')).not.toBeEmpty();
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('both lists put a chip on the same rail, and an appliance row still says what it holds', async ({
+    page,
+  }) => {
+    // `docs/images/5-panel-appliances-list.png` documented the old three-line appliance
+    // block for as long as it existed and never asserted a thing about it. A row is a
+    // grid now: name, chips, then what the appliance holds. These are the assertions
+    // that the restyle did not quietly drop a chip on the way.
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    // Every task row's chip cluster starts at the same x — that is the whole point of
+    // the fixed track, and the thing a screenshot cannot check. The rails are gated at
+    // 1151px, so this asserts at a width that has them. Only rows that are actually
+    // laid out: the Status grouping keeps Monitored and Completed in closed <details>,
+    // whose rows measure zero and would agree with nothing.
+    await page.setViewportSize({ width: 1400, height: 900 });
+    const lefts = (sel: string) =>
+      panel.evaluate(
+        (el: HTMLElement, s: string) =>
+          [...(el.shadowRoot?.querySelectorAll(s) || [])]
+            .filter((c) => c.firstElementChild && c.getBoundingClientRect().width > 0)
+            .map((c) => Math.round(c.getBoundingClientRect().left)),
+        sel,
+      );
+
+    const starts = await lefts('.hk-row-task .hk-chips-inline');
+    expect(starts.length, 'the seeded list should carry chips to align').toBeGreaterThan(1);
+    expect(new Set(starts).size, `chip clusters start at ${starts.join(', ')}`).toBe(1);
+
+    // The status pills line up too — they used to agree only on where they ended.
+    const pills = await lefts('.hk-row-task .hk-status');
+    expect(pills.length).toBeGreaterThan(1);
+    expect(new Set(pills).size, `status pills start at ${pills.join(', ')}`).toBe(1);
+
+    await panel.locator('#tab-appliances').click();
+    const row = panel.locator(`.hk-card[data-id="${ASSET.shades}"]`);
+    await expect(row).toBeVisible();
+    // Its device chip qualifies the name; its sub-device count is what it holds, and
+    // that moved to the status rail rather than being dropped.
+    await expect(row.locator('.hk-chips .hk-device-chip')).toHaveCount(1);
+    await expect(row.locator('.hk-status ha-assist-chip')).not.toHaveCount(0);
+    await expect(row.locator('.hk-status')).toContainText('subdevice');
+
+    // The whole row still opens the appliance, not only the text at its left end.
+    // Splitting the row into tracks nearly left the opener holding one of them.
+    await row.click({ position: { x: 10, y: 10 } });
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/appliances/${ASSET.shades}`));
+    await page.goBack();
+    await expect(row).toBeVisible();
+    const box = (await row.boundingBox())!;
+    await row.click({ position: { x: box.width - 10, y: box.height / 2 } });
+    await expect(page, 'the right-hand end of an appliance row opens it too').toHaveURL(
+      new RegExp(`/home-keeper/appliances/${ASSET.shades}`),
+    );
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('the text filter narrows the list, and the pill counts follow it', async ({ page }) => {
+    // The same contract as the scope pills above, for the box beside them: what a
+    // pill promises has to be what the list under it delivers (#297).
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    const box = panel.locator('.hk-search-input');
+    const all = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]');
+    const cards = panel.locator('#hk-list ha-card.hk-card');
+    const before = await cards.count();
+    expect(before, 'the seeded list should hold several tasks').toBeGreaterThan(1);
+
+    await box.fill('water filter');
+    await expect(panel.locator(`.hk-card[data-id="${TASK.waterFilter}"]`)).toBeVisible();
+    await expect(cards).toHaveCount(1);
+    await expect(all.locator('.hk-seg-count')).toHaveText('1');
+
+    // The caret sits after what was typed, because the box was never rebuilt.
+    expect(await box.evaluate((el: HTMLInputElement) => el.selectionStart)).toBe(
+      'water filter'.length,
+    );
+
+    // A query nothing matches is escapable, the way an empty scope is.
+    await box.fill('zzzznothing');
+    await expect(cards).toHaveCount(0);
+    const showAll = panel.locator('#hk-show-all');
+    await expect(showAll).toBeVisible();
+    await showAll.click();
+    await expect(box).toHaveValue('');
+    await expect(cards).toHaveCount(before);
+
+    // ...and so is the clear button.
+    await box.fill('water filter');
+    await expect(cards).toHaveCount(1);
+    await panel.locator('.hk-search-clear').click();
+    await expect(box).toHaveValue('');
+    await expect(cards).toHaveCount(before);
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('the text filter narrows the appliance list too', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    await page.goto('/home-keeper/appliances', { waitUntil: 'domcontentloaded' });
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.waitFor({ state: 'attached', timeout: 45_000 });
+
+    const cards = panel.locator('#hk-list ha-card.hk-card');
+    const before = await cards.count();
+    expect(before, 'the seeded store should hold several appliances').toBeGreaterThan(1);
+
+    await panel.locator('.hk-search-input').fill('water heater');
+    await expect(panel.locator(`.hk-card[data-id="${ASSET.waterHeater}"]`)).toBeVisible();
+    await expect(cards).toHaveCount(1);
+
+    await panel.locator('.hk-search-clear').click();
+    await expect(cards).toHaveCount(before);
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });

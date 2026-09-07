@@ -22,6 +22,7 @@
 
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
+import { profileHasAnyTask } from './card-filter';
 import {
   companionOptions,
   generalSchema,
@@ -35,16 +36,20 @@ import {
   profileSchema,
   profileSyncSchema,
   shoppingSchema,
+  skipSnoozeFlags,
+  skipSnoozeSchema,
   toProfileSync,
   type FormField,
 } from './forms';
 import { t, tn } from './i18n';
+import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import type { PanelHost } from './panel-host';
 import { COMPANIONS_DOCS_URL, DOCS_URL } from './panel-icons';
 import type {
   Companion,
   HomeKeeperOptions,
   Notification,
+  NotifyRunOptions,
   Profile,
   ProfileSync,
 } from './types';
@@ -52,6 +57,7 @@ import {
   btnAttrs,
   escapeHTML,
   navigateTo,
+  notifyRowChip,
   setBtnWeight,
   toast,
   type SettingsSection,
@@ -88,7 +94,7 @@ export function settingsSectionList(p: PanelHost): {
   const opts = p._options;
   // The dot was the rail's only indicator and it said everything in hue: green for
   // on, amber for "configured but with nothing to deliver to". A screen reader got
-  // an empty span, and so did anyone who cannot separate the two colours.
+  // an empty span, and so did anyone who cannot separate the two colors.
   const dot = (state: 'on' | 'warn' | 'off'): string =>
     state === 'off'
       ? ''
@@ -99,7 +105,11 @@ export function settingsSectionList(p: PanelHost): {
         )}"></span>`;
   const count = (n: number): string =>
     n ? `<span class="hk-rail-count">${escapeHTML(String(n))}</span>` : '';
-  const companionsOn = p._companions.filter((c) => c.status === 'connected').length;
+  // A declarative recipe counts as a companion of its own: it is doing the job a
+  // glue integration would, and the card lists it beside them.
+  const companionsOn =
+    p._companions.filter((c) => c.status === 'connected').length +
+    p._declarativeCompanions.length;
   const sections: { key: SettingsSection; card: string; label: string; mark: string }[] = [
     { key: 'general', card: 'hk-settings-general', label: t('settings.general_heading'), mark: '' },
     {
@@ -113,6 +123,18 @@ export function settingsSectionList(p: PanelHost): {
       card: 'hk-settings',
       label: t('settings.heading'),
       mark: dot(opts?.sync_problem_sensors ? 'on' : 'off'),
+    },
+    {
+      key: 'skipsnooze',
+      card: 'hk-settings-skipsnooze',
+      // Both switches default on, so the dot is green unless one has been turned
+      // off — the state worth spotting from the rail is a *withdrawn* verb.
+      label: t('settings.skipsnooze_heading'),
+      mark: dot(
+        skipSnoozeFlags(opts ?? {}).allowSnooze && skipSnoozeFlags(opts ?? {}).allowSkip
+          ? 'on'
+          : 'off',
+      ),
     },
     {
       key: 'profiles',
@@ -144,7 +166,10 @@ export function settingsSectionList(p: PanelHost): {
   const listed: Partial<Record<SettingsSection, string>> = {
     profiles: names(opts?.profiles),
     notifications: names(opts?.notifications),
-    companions: names(p._companions.filter((c) => c.status === 'connected')),
+    companions: names([
+      ...p._companions.filter((c) => c.status === 'connected'),
+      ...p._declarativeCompanions,
+    ]),
   };
   return sections.map((s) => ({
     ...s,
@@ -247,6 +272,11 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
     shopping_list_entity: '',
     profiles: [],
     notifications: [],
+    // Both verbs predate the switch, so "not configured" means on. This fallback is
+    // only reached before the first load answers; `skipSnoozeFlags` is what reads
+    // them once options are in hand.
+    allow_snooze: true,
+    allow_skip: true,
   };
   // General — settings independent of any single feature (e.g. one-off retention).
   host.appendChild(
@@ -293,6 +323,17 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
         labelKey: 'settings.exclusions',
         noteKey: 'settings.exclusions_note',
       },
+    ),
+  );
+  // Skip & snooze — whether the two deferral verbs are offered at all.
+  host.appendChild(
+    settingsCard(
+      p,
+      'hk-settings-skipsnooze',
+      'settings.skipsnooze_heading',
+      'settings.skipsnooze_help',
+      skipSnoozeSchema(),
+      opts,
     ),
   );
 }
@@ -380,6 +421,13 @@ function settingsCard(
  * the controls below it. Returns '' where a card has nothing worth restating.
  */
 function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): string {
+  if (id === 'hk-settings-skipsnooze') {
+    const { allowSnooze, allowSkip } = skipSnoozeFlags(opts);
+    if (allowSnooze && allowSkip) return t('settings.skipsnooze_both');
+    if (allowSnooze) return t('settings.skipsnooze_snooze_only');
+    if (allowSkip) return t('settings.skipsnooze_skip_only');
+    return t('settings.skipsnooze_neither');
+  }
   if (id === 'hk-settings-general') {
     const days = Number(opts.one_off_retention_days) || 0;
     return days > 0 ? tn('settings.retention_summary', days) : t('settings.retention_forever');
@@ -613,11 +661,31 @@ function itemCard(o: {
   className: string;
   name: string;
   headerExtra?: HTMLElement;
+  /** Leading badge markup for the header, re-read on every repaint like
+   *  `secondary.state()`. Carried as a builder rather than an element so a row whose
+   *  badge depends on a field the form owns stays correct without a re-render. */
+  badge?: () => string;
   isOpen: () => boolean;
   setOpen: (open: boolean) => void;
-  fill: (body: HTMLElement, nameSpan: HTMLElement) => void;
+  /** *repaint* re-reads `secondary.state()`. A form edit never re-renders the row
+   *  (`persistOptionList` is called with `render: false`), so a row whose secondary
+   *  action depends on a field the form owns must call this when that field changes. */
+  fill: (body: HTMLElement, nameSpan: HTMLElement, repaint: () => void) => void;
   /** Returns its promise so the button can hold itself down for the round trip. */
   onTest?: () => Promise<void>;
+  /**
+   * A second action beside *onTest* whose label and availability follow live state.
+   * `state()` is re-read on every repaint — see the `repaint` argument handed to
+   * *fill* — so a row can keep it correct without a re-render.
+   */
+  secondary?: {
+    /** Carried here rather than on `itemCard` itself so the two callers that have no
+     *  secondary action keep their current signature. It is only needed to explain an
+     *  unavailable press. */
+    host: PanelHost;
+    state: () => { label: string; disabled: boolean; hint: string };
+    run: () => Promise<void>;
+  };
   onDelete?: () => void;
 }): HTMLElement {
   const isExpanded = o.isOpen();
@@ -629,6 +697,19 @@ function itemCard(o: {
   const header = document.createElement('button');
   header.className = 'hk-item-header';
   header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+  const badgeSpan = document.createElement('span');
+  let repaintBadge = (): void => {};
+  if (o.badge) {
+    const badge = o.badge;
+    badgeSpan.className = 'hk-item-badge';
+    repaintBadge = (): void => {
+      // Built by `notifyRowChip`, which escapes the icon name and accepts only an
+      // `#rrggbb` color, so nothing stored reaches an attribute unchecked.
+      badgeSpan.innerHTML = badge();
+    };
+    repaintBadge();
+    header.appendChild(badgeSpan);
+  }
   const nameSpan = document.createElement('span');
   nameSpan.className = 'hk-item-name';
   nameSpan.textContent = o.name;
@@ -644,12 +725,15 @@ function itemCard(o: {
   const body = document.createElement('div');
   body.className = 'hk-item-body';
   if (!isExpanded) body.style.display = 'none';
-  o.fill(body, nameSpan);
+
+  // The footer is built before `fill` so `fill` can be handed a repaint for it, but it
+  // is still appended *after* the body content — the DOM order the row has always had.
+  let repaintActions = (): void => {};
 
   // One right-aligned footer row, so a row that has both actions keeps Delete where it
   // has always been and puts the safe action to its left.
-  if (o.onTest || o.onDelete) {
-    const actions = document.createElement('div');
+  const actions = document.createElement('div');
+  if (o.onTest || o.secondary || o.onDelete) {
     actions.className = 'hk-item-actions';
     if (o.onTest) {
       const test = document.createElement('ha-button');
@@ -677,6 +761,49 @@ function itemCard(o: {
       });
       actions.appendChild(test);
     }
+    if (o.secondary) {
+      // One element for both states, so the footer keeps a single stable shape. The
+      // wrapper span is what carries the click either way: when the action is
+      // unavailable it takes the `hk-blocked-wrap` treatment, whose `pointer-events:
+      // none` on the inner button is exactly how every other greyed action in the
+      // panel keeps a reason attached to a dead button (`panel.ts` `_blockedButton`).
+      const secondary = o.secondary;
+      const wrap = document.createElement('span');
+      wrap.className = 'hk-notify-test-alt';
+      wrap.setAttribute('role', 'button');
+      wrap.setAttribute('tabindex', '0');
+      const btn = document.createElement('ha-button');
+      setBtnWeight(btn, 'secondary');
+      wrap.appendChild(btn);
+      repaintActions = (): void => {
+        const { label, disabled, hint } = secondary.state();
+        btn.textContent = label;
+        wrap.classList.toggle('hk-blocked-wrap', disabled);
+        wrap.setAttribute('title', hint);
+        if (disabled) btn.setAttribute('disabled', '');
+        else btn.removeAttribute('disabled');
+      };
+      repaintActions();
+      // Held down for the round trip for the same reason Test is: the press delivers a
+      // real notification to a real phone. Unavailable is not the same as in-flight,
+      // though — an unavailable press explains itself and sends nothing.
+      let busy = false;
+      wrap.addEventListener('click', () => {
+        const { disabled, hint } = secondary.state();
+        if (disabled) {
+          toast(secondary.host, hint);
+          return;
+        }
+        if (busy) return;
+        busy = true;
+        btn.setAttribute('disabled', '');
+        void secondary.run().finally(() => {
+          busy = false;
+          repaintActions();
+        });
+      });
+      actions.appendChild(wrap);
+    }
     if (o.onDelete) {
       const del = document.createElement('ha-button');
       del.className = 'hk-notify-delete';
@@ -685,8 +812,12 @@ function itemCard(o: {
       del.addEventListener('click', o.onDelete);
       actions.appendChild(del);
     }
-    body.appendChild(actions);
   }
+  o.fill(body, nameSpan, () => {
+    repaintBadge();
+    repaintActions();
+  });
+  if (actions.className) body.appendChild(actions);
   card.appendChild(body);
 
   header.addEventListener('click', () => {
@@ -1126,14 +1257,35 @@ function notificationEditor(
   return itemCard({
     className: 'hk-item-card',
     name: notification.name,
+    // Reads `current`, not the argument, so the chip follows the icon picker while the
+    // row is open. Collapsed, it is what makes the list a legend of the whole house.
+    badge: () => notifyRowChip(current.icon, current.color),
     isOpen: () => p._itemExpanded.has(notification.id),
     setOpen: (open) => {
       if (open) p._itemExpanded.add(notification.id);
       else p._itemExpanded.delete(notification.id);
     },
-    onTest: () => testNotification(p, () => current, listWith),
+    onTest: () =>
+      testNotification(p, () => current, listWith, {
+        // Widened to every task the profile owns, and floored with the all-clear, so
+        // one press delivers in every profile state. A notification is set up before
+        // anything is overdue, which is exactly when the old Test sent nothing.
+        status: 'all',
+        when_empty: 'all_clear',
+      }),
+    secondary: {
+      host: p,
+      state: () => secondaryState(p, current),
+      run: () =>
+        // Matches nothing on purpose, so the all-clear is what lands. This is the
+        // half of the pair the live state is *not* showing.
+        testNotification(p, () => current, listWith, {
+          status: 'none',
+          when_empty: 'all_clear',
+        }),
+    },
     onDelete: () => void deleteNotification(p, notification.id),
-    fill: (body, nameSpan) => {
+    fill: (body, nameSpan, repaint) => {
       body.appendChild(
         p._makeForm(
           notificationSchema(p._notifyTargets, profiles),
@@ -1141,6 +1293,11 @@ function notificationEditor(
           (value) => {
             if (typeof value.name === 'string') nameSpan.textContent = value.name;
             current = notifyFormToNotification(notification.id, value);
+            // Picking a different profile changes which of the two test cards is the
+            // live one. Nothing else repaints the row — the save below runs with
+            // `render: false`, and a later `set hass` only pushes into `_liveHassEls`
+            // — so the footer is refreshed here, beside the name span above.
+            repaint();
             persistDebounced(p, 'notifications', notification.id, () => listWith(current));
           },
           {
@@ -1155,6 +1312,11 @@ function notificationEditor(
             // urgency change does not move a channel that already exists. Critical
             // needs a permission on iOS.
             computeHelper: (s) => {
+              // The look pair is not self-evident and the chip cannot say it: Android
+              // draws the icon only in the status bar, and ignores the color outright
+              // from 12 on. Both facts are about the phone, not about this form.
+              if (s.name === 'icon') return t('notify.icon_help');
+              if (s.name === 'color') return t('notify.color_help');
               if (s.name === 'channel') return t('notify.channel_help');
               if (s.name === 'urgency') return t('notify.urgency_help');
               return '';
@@ -1167,29 +1329,59 @@ function notificationEditor(
 }
 
 /**
+ * The label and availability of the test button beside Test, which offers whichever
+ * of the two cards the live state is *not* about to send.
+ *
+ * With a task in the profile, Test delivers a real task card and the offer is the
+ * all-clear. With none, Test can only deliver the all-clear, so the offer would be a
+ * task card — and there is no task to build one from, which is what the button says
+ * instead of pretending otherwise.
+ *
+ * The profile is read out of `p._options` rather than the list captured when the card
+ * rendered, so a filter edited in the Profiles card above is picked up on the next
+ * repaint. A notification whose profile was deleted has nothing to match against and
+ * reads as empty; the service rejects that call with its own message anyway.
+ */
+function secondaryState(
+  p: PanelHost,
+  notification: Notification,
+): { label: string; disabled: boolean; hint: string } {
+  const profile = (p._options?.profiles ?? []).find((x) => x.id === notification.profile_id);
+  const hasTask =
+    !!profile &&
+    profileHasAnyTask(p._tasks ?? [], profile.filter, p._hass?.devices, p._hass?.areas);
+  return hasTask
+    ? { label: t('notify.test_all_clear'), disabled: false, hint: '' }
+    : { label: t('notify.test_a_task'), disabled: true, hint: t('notify.test_a_task_blocked') };
+}
+
+/**
  * Send this notification now, so the delivery just configured can be checked on the
  * phone without waiting for a task to come due.
  *
  * Pending edits are saved first: `home_keeper.notify` resolves the notification out of
  * stored options, so an unsaved channel or urgency would test the previous delivery
- * and quietly report success. A run that matched nothing is a real outcome rather than
- * an error, and says the filter found nothing due, so it gets its own message.
+ * and quietly report success.
  *
- * `matched` is what says a notification went out, not `sent`: `sent` is the *task id*
- * a walk surfaced, and a digest that delivered answers `null` for it. Reading `sent`
- * as a count made every real delivery report "no task is due" (#255).
+ * `matched` is what says *which* card went out, not whether one did. Every caller here
+ * passes `when_empty: 'all_clear'`, so something is always delivered: `matched > 0` is
+ * a real task card, and `matched: 0` is the "All caught up" card. `sent` is no help
+ * for this — it is the *task id* a walk surfaced, and a digest that delivered answers
+ * `null` for it, which is how reading it as a count made every real delivery report
+ * "no task is due" (#255).
  */
 async function testNotification(
   p: PanelHost,
   current: () => Notification,
   listWith: (n: Notification) => Notification[],
+  run: NotifyRunOptions,
 ): Promise<void> {
   const hass = p._hass;
   if (!hass) return;
   try {
     p._options = await api.setOptions(hass, { notifications: listWith(current()) });
-    const { matched } = await api.runNotification(hass, current().id);
-    toast(p, matched > 0 ? t('notify.test_sent') : t('notify.test_none'));
+    const { matched } = await api.runNotification(hass, current().id, run);
+    toast(p, matched > 0 ? t('notify.test_sent') : t('notify.test_all_clear_sent'));
   } catch (err) {
     toast(p, String((err as { message?: string })?.message || err));
   }
@@ -1208,6 +1400,8 @@ function addNotification(p: PanelHost): Promise<void> {
     style: 'walk',
     channel: '',
     urgency: 'normal',
+    icon: '',
+    color: '',
     auto: { overdue: false, due_soon: false },
   };
   return persistOptionList(
@@ -1264,10 +1458,15 @@ function renderCompanions(p: PanelHost, host: HTMLElement): void {
       ...suggested.map((c) => companionRow(c)),
     );
   }
+  // Declarative companions close the card: recipes Home Keeper runs itself, so they
+  // belong beside the integrations they stand in for. Always rendered, empty or not,
+  // so a first-time reader learns they exist.
+  sections.push(declarativeSection(p));
   inner.innerHTML = sections.join('');
   card.appendChild(inner);
   host.appendChild(card);
   wireCompanions(p, inner);
+  wireDeclarativeSection(p, inner);
 }
 
 /** One companion row's HTML (icon, name + status chip, description, actions). Takes

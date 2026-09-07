@@ -513,3 +513,52 @@ def test_normalize_filter_coerces_companion_lists():
     # is accepted like the other axes.
     assert filt["companions"] == ["battery_notes"]
     assert filt["exclude_companions"] == ["dog_glue"]
+
+
+# ── the service-only "none" status ──────────────────────────────────────────
+
+
+def test_with_status_replaces_the_status_and_leaves_the_original_alone():
+    # A per-call override must not reach the stored profile: `resolve_profile` hands
+    # back the live options entry, so mutating in place would leak "everything" into
+    # a profile the user saved as "overdue".
+    filt = p.normalize_filter({"status": "overdue", "labels": ["dog"]})
+    widened = p.with_status(filt, "all")
+    assert widened["status"] == "all"
+    assert filt["status"] == "overdue"
+    assert widened["labels"] == ["dog"]
+
+
+def test_with_status_accepts_every_service_status():
+    filt = p.normalize_filter({"status": "overdue"})
+    for status in p.SERVICE_STATUSES:
+        assert p.with_status(filt, status)["status"] == status
+    assert p.STATUS_NONE in p.SERVICE_STATUSES
+
+
+def test_with_status_leaves_the_filter_alone_for_no_override():
+    # The ordinary case: a call that did not ask for one. An unknown value falls back
+    # the same way rather than raising, matching every other clamp in this module.
+    filt = p.normalize_filter({"status": "due_soon"})
+    for value in (None, "", "sometimes", 3):
+        assert p.with_status(filt, value)["status"] == "due_soon"
+
+
+def test_status_none_matches_nothing_that_every_other_status_would():
+    now = dt(2026, 6, 13, 12)
+    overdue = task("t", "X", dt(2026, 6, 1))
+    assert p.matches_filter(overdue, p.normalize_filter({"status": "all"}), now=now)
+    none = p.with_status(p.normalize_filter({"status": "all"}), p.STATUS_NONE)
+    assert p.matches_filter(overdue, none, now=now) is False
+    assert p.due_queue([overdue], none, now=now) == []
+
+
+def test_a_stored_none_status_reads_back_as_overdue():
+    # The boundary that keeps "match nothing" a per-call option and never a saved
+    # profile. `STATUSES` stays three-valued so this clamp does the work; widening it
+    # "for symmetry" would let a user save a profile that can never select anything.
+    assert p.normalize_filter({"status": "none"})["status"] == "overdue"
+    assert p.normalize_profile({"filter": {"status": "none"}})["filter"]["status"] == (
+        "overdue"
+    )
+    assert p.STATUS_NONE not in p.STATUSES

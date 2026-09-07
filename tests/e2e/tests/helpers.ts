@@ -269,6 +269,29 @@ export async function openAppliance(page: Page, assetId: string, tab?: string): 
   return panel;
 }
 
+/**
+ * Open one of a task page's sub-tabs (Schedule, Notes, History). The page opens on
+ * Schedule, so a test about the notes or the history says which it wants.
+ */
+export async function openTaskTab(
+  panel: Locator,
+  tab: 'schedule' | 'notes' | 'history',
+): Promise<void> {
+  await panel.locator(`.hk-subtab[data-tab="${tab}"]`).click();
+  await expect(panel.locator(`.hk-subtab[data-tab="${tab}"].active`)).toBeVisible();
+}
+
+/**
+ * Expand one part row in the appliance editor. A part is a folded `details` until it
+ * is the one being edited (issue #296), so a test that fills a part's fields opens it
+ * first; opening one closes the others.
+ */
+export async function openPart(part: Locator): Promise<void> {
+  const open = await part.evaluate((d: HTMLDetailsElement) => d.open);
+  if (!open) await part.locator('summary').click();
+  await expect(part).toHaveAttribute('open', '');
+}
+
 /** The three top-level destinations, whichever bar is drawing them. */
 export type PanelTab = 'tasks' | 'appliances' | 'settings';
 

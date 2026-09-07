@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openPanel, trackPanelErrors } from './helpers';
+import { openPanel, openTaskTab, trackPanelErrors } from './helpers';
 import { TASK } from '../fixture-ids';
 
 test.describe('Home Keeper panel — completion dialog', { tag: '@responsive' }, () => {
@@ -59,6 +59,7 @@ test.describe('Home Keeper panel — completion dialog', { tag: '@responsive' },
     const panel = page.locator('home-keeper-panel').first();
 
     await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+    await openTaskTab(panel, 'history');
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
     await panel.locator('.hk-hist-move').first().click();
 
@@ -105,9 +106,12 @@ test.describe('Home Keeper panel — completion dialog', { tag: '@responsive' },
       await monitored.locator('summary').click();
     }
     await panel.locator(`.detail-open[data-detail-id="${TASK.nozzleUsage}"]`).click();
+    // The meter lives on the Schedule tab and the log on History, so the invariant
+    // is read across the two.
+    await expect(panel.locator('.hk-meter-note').first()).toHaveText('180 h to go');
+    await openTaskTab(panel, 'history');
     const row = panel.locator('.hk-hist-list li').first();
     await expect(row.locator('.hk-hist-chips')).toContainText('at 660 h');
-    await expect(panel.locator('.hk-meter-note').first()).toHaveText('180 h to go');
 
     await row.locator('.hk-hist-edit').click();
     const dialog = panel.locator('ha-dialog[open]');
@@ -129,7 +133,9 @@ test.describe('Home Keeper panel — completion dialog', { tag: '@responsive' },
     await expect(row.locator('.hk-hist-chips')).toContainText('at 620 h', {
       timeout: 10_000,
     });
+    await openTaskTab(panel, 'schedule');
     await expect(panel.locator('.hk-meter-note').first()).toHaveText('140 h to go');
+    await openTaskTab(panel, 'history');
 
     // Put it back. The seeded store is bind-mounted, so a spec that edits it has to
     // undo itself or the next run starts from a state its own preconditions deny —

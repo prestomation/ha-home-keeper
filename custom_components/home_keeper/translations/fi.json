@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Pakolliset suorituskentät",
           "description": "Mitkä suorituksen metatietokentät paneeli tekee pakollisiksi, kun suorituksen tiedot on required – mikä tahansa seuraavista: note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Pakolliset suorituskentät",
           "description": "Mitkä suorituksen metatietokentät paneeli tekee pakollisiksi, kun suorituksen tiedot on required – mikä tahansa seuraavista: note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Tunnit",
-          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24)."
+          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24). Ohitetaan, kun Mihin asti on asetettu."
+        },
+        "until": {
+          "name": "Mihin asti",
+          "description": "Lykkää tehtävän tarkalleen tähän päivämäärään ja kellonaikaan tuntimäärän sijaan. Kun tämä on asetettu, Tunnit-kenttää ei käytetä."
         },
         "origin": {
           "name": "Alkuperä",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Ohita tehtävä",
-      "description": "Siirrä tehtävä seuraavaan ajankohtaan tallentamatta suoritusta.",
+      "description": "Siirtää tehtävän seuraavaan esiintymäänsä kirjaamatta suoritusta. Ohitus kirjataan erikseen, joten se ei koskaan käy suorituksesta.",
       "fields": {
         "task_id": {
           "name": "Tehtävän nimi tai tunnus",
           "description": "Ohitettavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "note": {
+          "name": "Muistiinpano",
+          "description": "Miksi tämä kerta ohitettiin."
+        },
+        "who": {
+          "name": "Kuka",
+          "description": "Kuka päätti ohittaa sen."
+        },
+        "reading": {
+          "name": "Mittarilukema",
+          "description": "Sidotun anturin arvo ohitushetkellä, käyttöön perustuvassa tehtävässä."
         },
         "origin": {
           "name": "Alkuperä",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Kohde",
           "description": "Ilmoituspalvelut, joihin lähetetään, ohittaen profiilin (esim. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Tila",
+          "description": "Ohittaa profiilin oman tilan tässä kutsussa: overdue (vain myöhässä olevat tehtävät), due_soon (myöhässä olevat ja pian erääntyvät tehtävät), all (kaikki ajastetut tehtävät) tai none (ei vastaa mitään tehtävää, jolloin Kaikki tehty -ilmoitus lähetetään tarvittaessa)."
+        },
+        "when_empty": {
+          "name": "Kun mikään ei vastaa",
+          "description": "Mitä kutsu lähettää, jos suodatin ei vastaa mitään tehtävää. Oletuksena on skip: mitään ei lähetetä. Aseta se arvoon all_clear lähettääksesi Kaikki tehty -ilmoituksen sen sijaan."
         }
       }
     },
@@ -791,6 +823,92 @@
           "description": "Sen varaosan tunnus, jonka liitetylle tiedostolle URL allekirjoitetaan. Myös sen nimi käy. Paneeli näyttää tunnuksen."
         }
       }
+    },
+    "update_skip": {
+      "name": "Päivitä ohitus",
+      "description": "Muokkaa kirjatun ohituksen tietoja, jotka tunnistetaan aikaleimasta. Ohitus säilyttää päivämääränsä eikä aikatauluun kosketa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jonka ohitusta muokkaat. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "ts": {
+          "name": "Ohituksen aikaleima",
+          "description": "Muokattavan ohitusmerkinnän ISO-aikaleima (ts)."
+        },
+        "note": {
+          "name": "Muistiinpano",
+          "description": "Miksi tämä kerta ohitettiin. Tyhjä arvo poistaa sen."
+        },
+        "who": {
+          "name": "Kuka",
+          "description": "Kuka päätti ohittaa sen. Tyhjä arvo poistaa sen."
+        },
+        "reading": {
+          "name": "Mittarilukema",
+          "description": "Sidotun anturin arvo ohitushetkellä, käyttöön perustuvassa tehtävässä."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Poista ohitus",
+      "description": "Poistaa kirjatun ohituksen, joka tunnistetaan aikaleimasta. Viimeksi käyttömittarin nollanneen ohituksen kumoaminen palauttaa kyseisen mittarin.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jonka ohituksen poistat. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "ts": {
+          "name": "Ohituksen aikaleima",
+          "description": "Poistettavan ohitusmerkinnän ISO-aikaleima (ts)."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Siirrä ohitus",
+      "description": "Muuttaa kirjatun ohituksen päivämäärää; ohitus tunnistetaan nykyisestä aikaleimastaan. Tehtävän aikatauluun ei kosketa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jonka ohitusta siirrät. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "old_ts": {
+          "name": "Ohituksen nykyinen aikaleima",
+          "description": "Siirrettävän ohitusmerkinnän ISO-aikaleima (ts)."
+        },
+        "new_ts": {
+          "name": "Uusi päivämäärä",
+          "description": "Uusi päivämäärä ja kellonaika, jolle ohitus kirjataan."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Lisää deklaratiivinen kumppani",
+      "description": "Rekisteröi deklaratiivisen kumppanin — reseptin, joka luo yhden hallitun sensoritehtävän jokaista entiteettiä kohti, joka vastaa suodattimia (kohdeintegraatio + entiteettisuodattimet), Jinja-mallilla laaditulla tehtävän nimellä ja muistiinpanoilla. Vain järjestelmänvalvojille."
+    },
+    "update_declarative_companion": {
+      "name": "Päivitä deklaratiivinen kumppani",
+      "description": "Päivittää tallennetun deklaratiivisen kumppanimäärittelyn kenttiä id:n perusteella. Vain järjestelmänvalvojille.",
+      "fields": {
+        "id": {
+          "name": "Kumppanin id",
+          "description": "Määrittelyn pysyvä uuid, list_declarative_companions-vastauksesta."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Poista deklaratiivinen kumppani",
+      "description": "Poistaa deklaratiivisen kumppanimäärittelyn ja jokaisen hallitun tehtävän, jonka se on luonut. Vain järjestelmänvalvojille.",
+      "fields": {
+        "id": {
+          "name": "Kumppanin id",
+          "description": "Määrittelyn pysyvä uuid, list_declarative_companions-vastauksesta."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Listaa deklaratiiviset kumppanit",
+      "description": "Palauttaa vastauksena jokaisen tallennetun deklaratiivisen kumppanimäärittelyn."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklaratiivista kumppania ei löytynyt: {spec_id}"
     }
   }
 }

@@ -1,5 +1,10 @@
 import { t, tn } from './i18n';
-import type { Asset, Hass, HassArea, HassLabel, Task } from './types';
+import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
+
+/** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
+ *  or materializes itself carries it in `managed_by.integration`, which is how the
+ *  panel tells "another integration owns this" from "we do". */
+export const HK_DOMAIN = 'home_keeper';
 
 /** Escape user-provided text before injecting into innerHTML. */
 export function escapeHTML(value: unknown): string {
@@ -9,6 +14,43 @@ export function escapeHTML(value: unknown): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/**
+ * Clamp a value to a stored `mdi:<name>` icon, or to `''`. Mirrors
+ * `notifications.normalize_icon` in the backend, which is the authority — this copy
+ * keeps the panel from writing a value the store would only throw away, and keeps a
+ * name with a quote or an angle bracket out of an `ha-icon` attribute.
+ */
+export function normalizeIcon(value: unknown): string {
+  const icon = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  return /^mdi:[a-z0-9-]+$/.test(icon) ? icon : '';
+}
+
+/**
+ * The Settings row badge for a notification: the accent as the fill, the glyph in
+ * white. Returns `''` without an icon, so a row that has none stays as it was.
+ *
+ * Filled rather than a bare tinted glyph because the fill is the only treatment that
+ * survives every color the picker offers — a pale glyph on the panel's white card is
+ * invisible, while white on a pale fill is not. It is also what an iPhone draws, so the
+ * chip and the phone agree.
+ */
+export function notifyRowChip(icon: unknown, color: unknown): string {
+  const name = normalizeIcon(icon);
+  if (!name) return '';
+  const hex = String(color ?? '')
+    .trim()
+    .toLowerCase();
+  // The color reaches a `style` attribute, so accept only the one shape the backend
+  // stores rather than escaping an arbitrary string into CSS.
+  const fill = /^#[0-9a-f]{6}$/.test(hex) ? hex : 'var(--secondary-text-color)';
+  return (
+    `<span class="hk-notify-chip" style="background:${fill}">` +
+    `<ha-icon icon="${escapeHTML(name)}"></ha-icon></span>`
+  );
 }
 
 /**
@@ -84,7 +126,7 @@ export function safeFileHref(url: unknown): string {
  *   `.done-btn` rule was already working around one button at a time.
  *
  * `tertiary` is deliberately `neutral` rather than brand: `appearance="plain"` alone
- * paints the label in the accent colour, which is 3.26:1 on a card and makes Cancel
+ * paints the label in the accent color, which is 3.26:1 on a card and makes Cancel
  * compete with the action beside it.
  */
 export type BtnWeight = 'primary' | 'secondary' | 'tertiary' | 'danger' | 'danger-primary';
@@ -103,7 +145,7 @@ const BTN_ATTRS: Record<BtnWeight, Record<string, string>> = {
  *
  * Derived from the table rather than restated beside it: a hand-written list silently
  * stops clearing an attribute the moment a weight adds one the list does not name, and
- * the symptom is a button that keeps a colour from the weight it used to have.
+ * the symptom is a button that keeps a color from the weight it used to have.
  */
 const BTN_ATTR_NAMES: readonly string[] = [
   ...new Set(Object.values(BTN_ATTRS).flatMap((attrs) => Object.keys(attrs))),
@@ -240,6 +282,40 @@ export function isArmedTriggered(task: Task): boolean {
   return task.recurrence_type === 'triggered' && !!task.next_due;
 }
 
+/** The sensor modes that watch a *condition* rather than count a meter — the panel's
+ *  twin of `sensor_tasks.holds_edge_state`. Listed rather than derived by excluding
+ *  `usage`, so a mode added later does not silently join them. */
+const EDGE_SENSOR_MODES: readonly string[] = ['state', 'threshold', 'availability'];
+
+/**
+ * True when a task is watching a condition that has **not** fired — the state every
+ * surface labels "Monitored".
+ *
+ * Two shapes reach it. A dormant `triggered` task, which its owning integration arms.
+ * And a dormant `sensor` task in an edge mode (state / threshold / availability),
+ * which the watcher arms on the next crossing. Neither has work waiting, so neither
+ * offers Done: pressing it wrote a completion and changed nothing else, because
+ * `next_due_after_completion` leaves a sensor task dormant. That is #231 — a Device
+ * Pulse task sat under the Monitored heading with a live Done button.
+ *
+ * A dormant **usage** meter is deliberately not monitored-dormant. It is counting up
+ * to its target, the panel shows that countdown ("in 7000 miles"), and completing it
+ * early is real work that re-anchors the meter (`store._reset_usage_baseline`) — so
+ * the oil change done at 4,500 miles keeps its button.
+ */
+export function isMonitoredDormant(task: Task): boolean {
+  if (task.next_due) return false;
+  if (task.recurrence_type === 'triggered') return true;
+  // The recurrence type decides, not the presence of a binding: a task edited away
+  // from `sensor` can keep a stale `sensor` block, and it is no longer condition-driven.
+  if (task.recurrence_type !== 'sensor') return false;
+  // An absent mode reads as `usage` everywhere else (`models.normalize_sensor`), so
+  // it reads as a meter here too.
+  // Stryker disable next-line StringLiteral: the fallback only has to be a mode that
+  // is not an edge mode, so every string this literal could become answers the same.
+  return EDGE_SENSOR_MODES.includes(task.sensor?.mode ?? 'usage');
+}
+
 /** Round to at most one decimal, dropping a trailing ".0".
  *
  * Meter readings are floats (`661.4166666`); shown raw they swamp the figure that
@@ -261,6 +337,34 @@ export function formatQuantity(value: number, unit?: string | null): string {
   const text = String(parseFloat(value.toFixed(3)));
   const label = (unit || '').trim();
   return label ? `${text} ${label}` : text;
+}
+
+/**
+ * The step a part's stock moves in: a whole spare, or a fine step once the part
+ * deals in fractions — it has a unit, or any of its quantities is fractional. The
+ * same rule as the device page's `number` entity (`number.py` `native_step`), so
+ * the two controls accept the same values.
+ */
+export function partStockStep(part: Part): number {
+  if ((part.stock_unit || '').trim()) return 0.001;
+  const quantities = [part.stock, part.reorder_at, part.consume_quantity, part.restock_quantity];
+  return quantities.some((q) => q != null && !Number.isInteger(q)) ? 0.001 : 1;
+}
+
+/**
+ * How far one tap of the stepper's − or + moves the stock: one spare for a part
+ * counted in spares, and one completion's worth for a measured part (a thousandth
+ * of a millilitre is a step nobody wants to tap through).
+ */
+export function partStockButtonStep(part: Part): number {
+  return partStockStep(part) === 1 ? 1 : (part.consume_quantity ?? 1);
+}
+
+/** A typed stock value snapped to *step* and floored at zero, at the stored
+ *  three-decimal precision. */
+export function snapStock(value: number, step: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.round(Math.round(value / step) * step * 1000) / 1000);
 }
 
 /**
@@ -412,6 +516,10 @@ function recurrenceText(task: Task): string {
         value: s.value ?? '',
       });
     }
+    // Availability has no reading to describe — the condition *is* the entity being
+    // gone. Without its own case it fell through to the meter below and read "Every
+    // of use", because a mode with no `target` renders the usage string empty.
+    if (s.mode === 'availability') return t('recurrence.sensorAvailability');
     const target = s.unit ? `${s.target ?? ''} ${s.unit}` : (s.target ?? '');
     const summary = t('recurrence.sensorUsage', { target });
     if (!s.also_every) return summary;
@@ -421,19 +529,37 @@ function recurrenceText(task: Task): string {
       : t('recurrence.sensorUsageAny', { summary, every });
   }
   const n = task.interval || 1;
+  let summary: string;
   if (task.recurrence_type === 'floating') {
     const base = (task.unit || 'days').replace(/s$/, ''); // day / week / month
     const unit = tn(`recurrence.unit.${base}`, n);
-    return tn('recurrence.floating', n, { unit });
+    summary = tn('recurrence.floating', n, { unit });
+  } else {
+    const freqBase: Record<string, string> = {
+      DAILY: 'day',
+      WEEKLY: 'week',
+      MONTHLY: 'month',
+    };
+    const base = freqBase[task.freq || 'DAILY'] || 'day';
+    const unit = tn(`recurrence.unit.${base}`, n);
+    summary = tn('recurrence.fixed', n, { unit });
   }
-  const freqBase: Record<string, string> = {
-    DAILY: 'day',
-    WEEKLY: 'week',
-    MONTHLY: 'month',
-  };
-  const base = freqBase[task.freq || 'DAILY'] || 'day';
-  const unit = tn(`recurrence.unit.${base}`, n);
-  return tn('recurrence.fixed', n, { unit });
+  if (task.active_season) {
+    const windows = Array.isArray(task.active_season)
+      ? task.active_season
+      : [task.active_season];
+    const range = windows
+      .map((w) => {
+        const s = t(`opt.month.${parseInt(w.start, 10)}`);
+        const sDay = parseInt(w.start.split('-')[1], 10);
+        const e = t(`opt.month.${parseInt(w.end, 10)}`);
+        const eDay = parseInt(w.end.split('-')[1], 10);
+        return `${s} ${sDay}–${e} ${eDay}`;
+      })
+      .join(' & ');
+    summary = t('recurrence.season', { summary, range });
+  }
+  return summary;
 }
 
 /** True when the task's next due date is at or before now. */
@@ -552,7 +678,7 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
  * statuses depending on where you looked at it. A copy per surface is free to disagree,
  * so there is no longer a copy per surface.
  *
- * Only the wording and the colour move. A buy reminder is still overdue to every filter
+ * Only the wording and the color move. A buy reminder is still overdue to every filter
  * pill, count, binary sensor and Profile, so no number changes.
  *
  * *elapsed* appends how overdue the task is ("3 days overdue") instead of a bare
@@ -718,6 +844,16 @@ export type AssetTab = (typeof ASSET_TABS)[number];
 export const DEFAULT_ASSET_TAB: AssetTab = 'parts';
 
 /**
+ * The sub-tabs a task's detail page is divided into, mirroring the appliance page so
+ * the two read the same way. `schedule` is the default: what a task is and when it
+ * is next due is the page's first question; its notes and its history are the
+ * second and third.
+ */
+export const TASK_TABS = ['schedule', 'notes', 'history'] as const;
+export type TaskTab = (typeof TASK_TABS)[number];
+export const DEFAULT_TASK_TAB: TaskTab = 'schedule';
+
+/**
  * The Settings tab's sections, in the order they are shown. Each is a URL of its own
  * so a phone, which has no room for six sections at once, can show an index and open
  * one section at a time with Back working normally.
@@ -729,6 +865,7 @@ export const SETTINGS_SECTIONS = [
   'general',
   'shopping',
   'problem',
+  'skipsnooze',
   'profiles',
   'notifications',
   'companions',
@@ -746,7 +883,7 @@ export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
  */
 export interface PanelLocation {
   view: PanelView;
-  detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab } | null;
+  detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab | TaskTab } | null;
   section?: SettingsSection;
 }
 
@@ -756,10 +893,11 @@ export interface PanelLocation {
  * the tasks list. The asset detail lives under the `appliances` segment but keeps
  * the internal `asset` kind.
  *
- * A third segment names an appliance sub-tab (`/appliances/<id>/documents`). An
- * unrecognised one falls back to the default rather than 404-ing, and a bare
- * `/appliances/<id>` — every link minted before sub-tabs existed, including the
- * `configuration_url` on already-registered devices — keeps resolving.
+ * A third segment names an appliance sub-tab (`/appliances/<id>/documents`) or a
+ * task sub-tab (`/tasks/<id>/history`). An unrecognised one falls back to the
+ * default rather than 404-ing, and a bare `/appliances/<id>` — every link minted
+ * before sub-tabs existed, including the `configuration_url` on already-registered
+ * devices — keeps resolving. A bare `/tasks/<id>` likewise.
  *
  * Under `settings` the second segment names a section (`/settings/notifications`).
  * An unrecognised one falls back to the section index, not to a default section: a
@@ -798,7 +936,11 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
           : DEFAULT_ASSET_TAB;
       return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
     }
-    return { view, detail: { kind, id: decodeURIComponent(parts[1]) } };
+    // A task page has sub-tabs of its own, resolved the same way.
+    const raw = parts[2] && decodeURIComponent(parts[2]);
+    const tab =
+      raw && (TASK_TABS as readonly string[]).includes(raw) ? (raw as TaskTab) : DEFAULT_TASK_TAB;
+    return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
   }
   return { view, detail: null };
 }
@@ -822,7 +964,8 @@ export function buildPath(loc: PanelLocation): string {
   if (!loc.detail) return `/${loc.view}`;
   const base = `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
   const tab = loc.detail.tab;
-  return tab && tab !== DEFAULT_ASSET_TAB ? `${base}/${tab}` : base;
+  const dflt = loc.detail.kind === 'asset' ? DEFAULT_ASSET_TAB : DEFAULT_TASK_TAB;
+  return tab && tab !== dflt ? `${base}/${tab}` : base;
 }
 
 // ── completion history ───────────────────────────────────────────────────────
@@ -833,6 +976,55 @@ export function sortedCompletions(completions?: { ts: string }[]): Date[] {
     .map((c) => new Date(c.ts))
     .filter((d) => !Number.isNaN(d.getTime()))
     .sort((a, b) => b.getTime() - a.getTime());
+}
+
+/**
+ * The durations the snooze dialog offers, in order, plus the custom escape hatch.
+ *
+ * One home for the list so the dialog, its labels and any future "editable presets"
+ * option all read the same definition. `custom` carries no offset — it reveals a
+ * date-time field instead.
+ */
+export const SNOOZE_PRESETS = [
+  { id: '1h', hours: 1 },
+  { id: '1d', days: 1 },
+  { id: '1w', days: 7 },
+  { id: '1mo', months: 1 },
+  { id: 'custom' },
+] as const;
+
+export type SnoozePresetId = (typeof SNOOZE_PRESETS)[number]['id'];
+
+/** The preset the dialog opens on. A week is the middle of the range and the one a
+ *  "not this time" deferral most often means. */
+export const DEFAULT_SNOOZE_PRESET: SnoozePresetId = '1w';
+
+/**
+ * Resolve a snooze preset to a real instant, measured from *from*.
+ *
+ * Month arithmetic clamps a day the target month does not have (Jan 31 + 1 month is
+ * Feb 28), matching what the backend's `recurrence.add_months` does — so the date the
+ * dialog previews is the date the task ends up with. Returns `null` for `custom`,
+ * which has no offset of its own.
+ */
+export function resolveSnoozePreset(id: SnoozePresetId, from: Date): Date | null {
+  const preset = SNOOZE_PRESETS.find((p) => p.id === id);
+  if (!preset || id === 'custom') return null;
+  const out = new Date(from.getTime());
+  const spec = preset as { hours?: number; days?: number; months?: number };
+  if (spec.hours) out.setHours(out.getHours() + spec.hours);
+  if (spec.days) out.setDate(out.getDate() + spec.days);
+  if (spec.months) {
+    const day = out.getDate();
+    // Set the day to 1 before shifting the month: `setMonth` on the 31st of a month
+    // whose target is shorter rolls *forward* into the next month (Jan 31 -> Mar 3),
+    // which is the opposite of clamping.
+    out.setDate(1);
+    out.setMonth(out.getMonth() + spec.months);
+    const lastDay = new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate();
+    out.setDate(Math.min(day, lastDay));
+  }
+  return out;
 }
 
 export interface CompletionStats {
@@ -855,20 +1047,82 @@ export function completionStats(completions?: { ts: string }[]): CompletionStats
 }
 
 /**
+ * The only two fields that decide which appliance a task belongs to. Narrower than
+ * `Task` on purpose, so the task form can ask the same question of a half-filled
+ * draft rather than keeping a second copy of the rule.
+ */
+export type TaskAssociation = Pick<Task, 'device_id' | 'source'>;
+
+/**
+ * How strongly a task is associated with an appliance: 1 is the strongest link
+ * and 0 means none. `taskRelatesToAsset` is this predicate's boolean face and
+ * `assetsForTask` is its ordering, so the two can never disagree about what
+ * counts as related.
+ */
+function assetRank(task: TaskAssociation, asset: Asset): number {
+  // The task exists *because* of this appliance's part. Nothing beats that.
+  if (task.source?.part?.asset_id === asset.id) return 1;
+  const dev = task.device_id;
+  if (!dev) return 0;
+  if (asset.device_id && dev === asset.device_id) return 2;
+  // A related device is a many-to-one link, so it is the weakest claim.
+  // Stryker disable next-line ArrayDeclaration: equivalent — the stand-in the mutator
+  // puts in the empty fallback is not a device id, so `includes` answers false either
+  // way. Only a task whose device_id were that literal string could tell them apart.
+  if ((asset.related_device_ids || []).includes(dev)) return 3;
+  return 0;
+}
+
+/**
  * True when a task is associated with an appliance — mirrors the backend's
  * `assets.task_relates_to_asset` so the panel can group history client-side.
  */
 export function taskRelatesToAsset(task: Task, asset: Asset): boolean {
-  if (task.source?.part?.asset_id === asset.id) return true;
-  const dev = task.device_id;
-  if (!dev) return false;
-  if (asset.device_id && dev === asset.device_id) return true;
-  return (asset.related_device_ids || []).includes(dev);
+  return assetRank(task, asset) > 0;
 }
 
 /** Every loaded task associated with an appliance. */
 export function tasksForAsset(asset: Asset, tasks: Task[]): Task[] {
   return tasks.filter((task) => taskRelatesToAsset(task, asset));
+}
+
+/**
+ * Every appliance a task is associated with, strongest association first — the
+ * inverse of `tasksForAsset`. A device can be claimed by more than one appliance
+ * (a related device is a many-to-one link), so the order is what decides which
+ * one a single-destination surface picks.
+ *
+ * Ranked, strongest first:
+ *   1. the appliance whose *part* the task is (`source.part.asset_id`) — the task
+ *      exists because of that appliance, so nothing beats it;
+ *   2. the appliance the device belongs to (`asset.device_id`);
+ *   3. an appliance that merely lists the device as related.
+ * An archived appliance always ranks below a live one at the same strength: it is
+ * still the right answer when it is the only one, and never the right answer when
+ * a live appliance claims the same device.
+ */
+export function assetsForTask(task: TaskAssociation, assets: Asset[]): Asset[] {
+  // No index tiebreak: `Array.prototype.sort` is stable, so appliances with an equal
+  // claim keep the order they were given.
+  return assets
+    .map((asset) => ({ asset, rank: assetRank(task, asset) }))
+    .filter((x) => x.rank > 0)
+    .sort(
+      (a, b) =>
+        Number(Boolean(a.asset.archived_at)) - Number(Boolean(b.asset.archived_at)) ||
+        a.rank - b.rank,
+    )
+    .map((x) => x.asset);
+}
+
+/**
+ * The one appliance a task is about, or `undefined` when none claims it. What a
+ * task's device chip opens, and what the task form scopes its consumable picker
+ * to — one ranking, so the two cannot disagree about which appliance a task
+ * belongs to.
+ */
+export function assetForTask(task: TaskAssociation, assets: Asset[]): Asset | undefined {
+  return assetsForTask(task, assets)[0];
 }
 
 /** Compact one-line summary of an asset's notable metadata for the card. */

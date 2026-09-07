@@ -9,6 +9,7 @@ unit-testable.
 
 from __future__ import annotations
 
+import calendar as _calendar
 import math
 import uuid
 from datetime import datetime
@@ -33,6 +34,7 @@ from .const import (
     SENSOR_COMBINATOR_ANY,
     SENSOR_COMBINATORS,
     SENSOR_COMPARISONS,
+    SENSOR_MODE_STATE,
     SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_USAGE,
     SENSOR_MODES,
@@ -232,7 +234,9 @@ def _reject_fields(data: dict[str, Any], fields: tuple[str, ...], mode: str) -> 
             )
 
 
-def normalize_sensor(data: Any) -> dict[str, Any]:
+def normalize_sensor(
+    data: Any, *, allow_missing_entity: bool = False
+) -> dict[str, Any]:
     """Validate and normalize a sensor-based task's ``sensor`` binding.
 
     A sensor task derives its armed/dormant state from a bound entity. The
@@ -252,24 +256,39 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
     * ``state`` — a ``state`` string the entity must enter, with the same optional
       ``for_seconds`` hold. This is the binary-sensor mode (``on``/``off``), though any
       state-y entity works.
+    * ``availability`` — arm when the entity (or a bound ``attribute``) is
+      ``unavailable``/``unknown`` / missing for at least ``for_seconds``. **Inverts**
+      the "no reading = do nothing" policy of the other three modes: this mode
+      exists precisely to task the user when a device stops reporting. An entity
+      that starts life unavailable does NOT arm a fresh task (see
+      ``sensor_watcher.async_baseline``); only a live transition from available →
+      unavailable does.
 
-    ``threshold`` and ``state`` also accept ``clear_on_recover``: when set, an armed
-    task clears itself once the condition goes away again, instead of waiting to be
-    completed by hand.
+    ``threshold``, ``state`` and ``availability`` also accept ``clear_on_recover``:
+    when set, an armed task clears itself once the condition goes away again,
+    instead of waiting to be completed by hand.
 
     An optional ``attribute`` reads that entity attribute instead of the state. Raises
     :class:`TaskValidationError` on any malformed field so bad input fails at the edge
     rather than persisting. Pure — no HA imports.
+
+    ``allow_missing_entity`` opts out of the "``entity_id`` is required" gate — used
+    by ``declarative_companions`` to validate a spec's trigger block without stamping
+    a placeholder entity id (the reconciler stamps the real id per matching entity
+    when it materializes the task).
     """
     if not isinstance(data, dict):
         raise TaskValidationError("a sensor task requires a sensor configuration")
     entity_id = str(data.get("entity_id") or "").strip()
-    if not entity_id:
+    if not entity_id and not allow_missing_entity:
         raise TaskValidationError("sensor.entity_id is required")
     mode = data.get("mode") or SENSOR_MODE_USAGE
     if mode not in SENSOR_MODES:
         raise TaskValidationError(f"invalid sensor mode: {mode!r}")
-    result: dict[str, Any] = {"entity_id": entity_id, "mode": mode}
+    result: dict[str, Any] = {}
+    if entity_id:
+        result["entity_id"] = entity_id
+    result["mode"] = mode
     attribute = str(data.get("attribute") or "").strip()
     if attribute:
         result["attribute"] = attribute
@@ -314,7 +333,7 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):
             result["clear_on_recover"] = True
-    else:  # SENSOR_MODE_STATE
+    elif mode == SENSOR_MODE_STATE:
         _reject_fields(
             data, (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value"), "state"
         )
@@ -329,6 +348,25 @@ def normalize_sensor(data: Any) -> dict[str, Any]:
         if for_seconds := _normalize_for_seconds(data):
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):
+            result["clear_on_recover"] = True
+    else:  # SENSOR_MODE_AVAILABILITY
+        # Inverts the "no reading = do nothing" policy: this mode arms *because* the
+        # entity is unavailable/unknown (or the bound ``attribute`` is missing) for
+        # ``for_seconds``. Rejects every numeric/state-comparison field — the
+        # condition is simply "no reading", no operator or target to configure.
+        _reject_fields(
+            data,
+            (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value", "state"),
+            "availability",
+        )
+        if for_seconds := _normalize_for_seconds(data):
+            result["for_seconds"] = for_seconds
+        # ``clear_on_recover`` defaults to True in this mode (an offline device
+        # returning to reachable *is* the recovery signal); the panel still surfaces
+        # a checkbox, and an explicit ``False`` disables auto-clear. Stored only when
+        # True so a dict-equality test does not care about default padding.
+        clear_on_recover = data.get("clear_on_recover")
+        if clear_on_recover is None or bool(clear_on_recover):
             result["clear_on_recover"] = True
     return result
 
@@ -454,6 +492,50 @@ def normalize_task_chips(value: Any) -> list[dict[str, str]]:
     return result
 
 
+def _validate_season_window(data: Any, *, index: int | None = None) -> dict:
+    """Validate a single ``{"start": "MM-DD", "end": "MM-DD"}`` window."""
+    prefix = f"active_season[{index}]" if index is not None else "active_season"
+    if not isinstance(data, dict):
+        raise TaskValidationError(f"{prefix} must be an object")
+    start = data.get("start")
+    end = data.get("end")
+    if not start or not end:
+        raise TaskValidationError(f"{prefix} requires start and end")
+    for label, mmdd in (("start", start), ("end", end)):
+        try:
+            parts = str(mmdd).split("-")
+            month, day = int(parts[0]), int(parts[1])
+        except (ValueError, IndexError) as err:
+            raise TaskValidationError(
+                f"{prefix} {label} must be MM-DD: {mmdd!r}"
+            ) from err
+        if month < 1 or month > 12:
+            raise TaskValidationError(f"{prefix} {label} month must be 1-12: {month}")
+        # Leap year, so February 29 is a valid season boundary.
+        max_day = _calendar.monthrange(2000, month)[1]
+        if day < 1 or day > max_day:
+            raise TaskValidationError(
+                f"{prefix} {label} day must be 1-{max_day} for month {month}: {day}"
+            )
+    return {"start": str(start), "end": str(end)}
+
+
+def normalize_active_season(data: Any) -> list[dict]:
+    """Validate and normalize an ``active_season`` value.
+
+    Accepts a single ``{"start": "MM-DD", "end": "MM-DD"}`` window or a list of
+    windows. Validates each and returns a list. Month must be 1-12 and day valid
+    for that month (using leap year 2000 for Feb to allow 29).
+    """
+    if isinstance(data, dict):
+        return [_validate_season_window(data)]
+    if isinstance(data, list):
+        if not data:
+            raise TaskValidationError("active_season list must not be empty")
+        return [_validate_season_window(w, index=i) for i, w in enumerate(data)]
+    raise TaskValidationError("active_season must be an object or a list of objects")
+
+
 def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     """Validate and normalize the user-supplied fields of a task.
 
@@ -492,6 +574,7 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         "completion_required_fields": normalize_completion_required_fields(
             data.get("completion_required_fields"), detail_mode
         ),
+        "active_season": None,
     }
 
     # A triggered (condition-driven) task has no schedule at all: no interval, unit,
@@ -576,6 +659,10 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
             )
         fields["freq"] = freq
         fields["anchor"] = parsed_anchor.isoformat()
+
+    season = data.get("active_season")
+    if season not in (None, "", {}, []):
+        fields["active_season"] = normalize_active_season(season)
 
     return fields
 
@@ -699,6 +786,11 @@ def build_task(data: dict, *, now: datetime) -> dict:
         "created": now.isoformat(),
         "last_completed": None,
         "completions": [],
+        # Deliberately *not* a completion. A skip records that an occurrence was
+        # passed over on purpose, so it never counts toward the completion tally,
+        # the cadence average or ``last_completed``. Read everywhere with
+        # ``.get("skips", [])`` — documents written before this existed lack it.
+        "skips": [],
         # Optional provenance, e.g. {"part": {"asset_id", "part_id"}} for a task
         # derived from an asset wear part. Owned by its reconciler when present.
         "source": data.get("source"),
@@ -795,6 +887,7 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "completion_required_fields": updates.get(
             "completion_required_fields", existing.get("completion_required_fields")
         ),
+        "active_season": updates.get("active_season", existing.get("active_season")),
     }
     # Converting a task to one-off without supplying a due date defaults to now (due
     # today), mirroring build_task — so the conversion can't fail for a missing due
@@ -867,6 +960,7 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "anchor",
         "due",
         "sensor",
+        "active_season",
     }
     new_type = merged.get("recurrence_type")
     old_type = existing.get("recurrence_type")

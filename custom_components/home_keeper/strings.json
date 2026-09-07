@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Required completion fields",
           "description": "Which completion-metadata fields the panel makes mandatory when completion detail is required: any of note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings. Pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Required completion fields",
           "description": "Which completion-metadata fields the panel makes mandatory when completion detail is required: any of note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings. Pass a list or a single object. Send null to clear the season."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Hours",
-          "description": "How many hours to defer the task (defaults to 24)."
+          "description": "How many hours to defer the task (defaults to 24). Ignored when Until is set."
+        },
+        "until": {
+          "name": "Until",
+          "description": "Defer the task to this exact date and time instead of a number of hours. Setting this leaves Hours unused."
         },
         "origin": {
           "name": "Origin",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Skip task",
-      "description": "Advance a task to its next occurrence without recording a completion.",
+      "description": "Advance a task to its next occurrence without recording a completion. Home Keeper logs the skip separately from the completions, so it is never counted as a completion.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",
           "description": "The id of the task to skip. Its name works too. The panel shows the id."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Why this occurrence was skipped."
+        },
+        "who": {
+          "name": "Who",
+          "description": "Who decided to skip it."
+        },
+        "reading": {
+          "name": "Meter reading",
+          "description": "The bound sensor's value at the moment of the skip, for a usage task."
         },
         "origin": {
           "name": "Origin",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Target",
           "description": "Notify services to send to, overriding the profile. Must be companion-app services (e.g. mobile_app_phone) or persistent_notification."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Overrides the profile's own status for this call. Use overdue, due_soon or all to widen the filter. Use none to match no task, which sends the all-clear notification on demand."
+        },
+        "when_empty": {
+          "name": "When nothing matches",
+          "description": "What a call sends if the filter matches no task. Defaults to skip, so the call sends nothing. Set it to all_clear to send the all-clear notification instead."
         }
       }
     },
@@ -791,6 +823,92 @@
     "list_companions": {
       "name": "List companions",
       "description": "Return the merged companion list (self-registered integrations plus detected upstreams whose glue isn't installed yet) as a response."
+    },
+    "update_skip": {
+      "name": "Update skip",
+      "description": "Amend a recorded skip's detail, identified by its timestamp. The skip keeps its date, and the schedule of the task does not change.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task whose skip you are editing. Its name works too. The panel shows the id."
+        },
+        "ts": {
+          "name": "Skip timestamp",
+          "description": "The ISO timestamp (ts) of the skip entry to edit."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Why this occurrence was skipped. An empty value clears it."
+        },
+        "who": {
+          "name": "Who",
+          "description": "Who decided to skip it. An empty value clears it."
+        },
+        "reading": {
+          "name": "Meter reading",
+          "description": "The bound sensor's value at the moment of the skip, for a usage task."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Delete skip",
+      "description": "Remove a recorded skip, identified by its timestamp. Removal of the skip that last reset a usage meter restores that meter.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task whose skip you are removing. Its name works too. The panel shows the id."
+        },
+        "ts": {
+          "name": "Skip timestamp",
+          "description": "The ISO timestamp (ts) of the skip entry to remove."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Move skip",
+      "description": "Re-date a recorded skip, identified by its current timestamp. The date of the skip changes, and the schedule of the task does not.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task whose skip you are moving. Its name works too. The panel shows the id."
+        },
+        "old_ts": {
+          "name": "Current skip timestamp",
+          "description": "The ISO timestamp (ts) of the skip entry to move."
+        },
+        "new_ts": {
+          "name": "New date",
+          "description": "The new date and time to record the skip at."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Add declarative companion",
+      "description": "Register a declarative companion. The recipe materializes one managed sensor task per entity matched by target integration and entity filters, with Jinja-templated task name and notes. Admin-only."
+    },
+    "update_declarative_companion": {
+      "name": "Update declarative companion",
+      "description": "Update fields of a stored declarative-companion spec by id. Admin-only.",
+      "fields": {
+        "id": {
+          "name": "Companion id",
+          "description": "The spec's stable uuid, from list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Delete declarative companion",
+      "description": "Remove a declarative-companion spec and every managed task it materialized. Admin-only.",
+      "fields": {
+        "id": {
+          "name": "Companion id",
+          "description": "The spec's stable uuid, from list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "List declarative companions",
+      "description": "Return every stored declarative-companion spec as a response."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Declarative companion not found: {spec_id}"
     }
   }
 }

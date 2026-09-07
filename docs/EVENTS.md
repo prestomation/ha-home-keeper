@@ -42,12 +42,40 @@ can't express.
 
 ### Task lifecycle
 
-A snooze moves only `next_due`, leaving the recurrence alone; a skip advances the
-schedule itself, so floating jumps an interval, fixed advances one occurrence, and
-one-off, triggered and sensor tasks go dormant. Both re-arm the edge-triggered
-overdue and due-soon announcements for the new date. Editing the `reading` on a
-**usage** task's *latest* completion also re-anchors its meter, so that event can
-then add a `meter_baseline`.
+Only `next_due` moves when a task is snoozed. The recurrence stays the same.
+
+A skip advances the schedule itself. The step depends on the kind of task:
+
+* **floating** starts a new interval from now
+* **fixed** moves to the next scheduled occurrence
+* **one-off**, **triggered** and **sensor** tasks go dormant
+
+A snooze and a skip both re-arm the edge-triggered overdue and due-soon
+announcements for the new date.
+
+A skip is also recorded. It goes in a `skips` list, beside the `completions` list.
+A skip records an occurrence that was passed over. It never sets `last_completed`,
+and nothing derived from the completion log counts it.
+
+`home_keeper_task_skipped` includes the new entry's `ts`. The `ts` value identifies
+that entry for these services:
+
+* `update_skip`
+* `move_skip`
+* `delete_skip`
+
+The `_skip_updated` and `_skip_removed` events use `ts` the same way.
+
+A skip on a **usage** task resets its meter, the same way a completion does. The
+next interval is then measured from the reading at the skip.
+
+The time backstop, `also_every`, measures from that same point. The default
+`combinator` is `"any"`, so the meter or the backstop can re-arm the task on its
+own. A backstop left at its old point can re-arm the task soon after a skip.
+
+When a user edits the `reading` on whichever completion or skip anchors the meter,
+Home Keeper re-anchors the meter. The `_completion_updated` and `_skip_updated`
+events can then add a `meter_baseline`.
 
 **NFC/RFID tag scans** ride these same events: completing a task by scanning its
 linked tag fires an ordinary `home_keeper_task_completed` carrying
@@ -186,6 +214,24 @@ in `upstream_domain`.
 There is also a fire-and-forget **request** event, `home_keeper_register_companions`,
 emitted at setup and on reload to ask companions to announce themselves again. Its
 data is empty. A companion answers it by calling `home_keeper.register_companion`.
+
+### Declarative companion CRUD
+
+A **declarative companion** is a Home-Keeper-owned recipe (target integration + entity
+filters + Jinja-templated task name/notes; see [INTEGRATING.md](INTEGRATING.md) §7)
+that materializes one managed sensor task per matching entity. Spec-level CRUD fires
+its own bus events so an automation can react to the recipe list changing; the
+materialized sensor tasks themselves emit the ordinary `home_keeper_task_created` /
+`_updated` / `_deleted` / `_triggered` / `_completed` events, so an automation that
+already listens to `home_keeper_task_completed` just works. Automations that want to
+filter to declarative tasks read `managed_by.integration == "home_keeper"` and
+`source.declarative_companion.spec_id`.
+
+| Event | Fires when |
+|---|---|
+| `home_keeper_declarative_companion_added` | a spec was created (via the panel, `home_keeper.add_declarative_companion`, or the matching WS command); payload adds `spec_id`, `name`, `enabled`, `preset_id` |
+| `home_keeper_declarative_companion_updated` | any field of a stored spec was changed; same payload |
+| `home_keeper_declarative_companion_removed` | a spec was deleted (also fires `home_keeper_task_deleted` once per materialized task the spec had); same payload |
 
 ## Payloads
 

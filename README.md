@@ -105,6 +105,22 @@ notifications and the inventory export. The to-do list, the calendar, the
 device-page buttons, and the dashboard card are available to every user. See
 [the security model](docs/SECURITY.md) for what a non-admin user can read.
 
+### Active season
+
+Floating and fixed tasks take an optional **active season**. That is the part of the
+year the task belongs in. Outside it the next due date moves forward to the start of
+the next window. Take *"fertilize the yard every 2 months, April 1 through
+September 30"*. A completion on September 15 makes the task due on April 1 of the
+following year instead of November 15.
+
+Turn **Active season** on in the task form and pick the start and end dates.
+**Add another season** puts a second window on the task, so spring and fall can share
+one. A window that wraps the new year (November through March) works the same way.
+The `home_keeper.add_task` and `update_task` actions take the same windows as a list
+of `{"start": "MM-DD", "end": "MM-DD"}` objects, so an automation can set a season.
+
+<img src="docs/images/3b-panel-create-season.png" alt="The task form with Active season on, showing two windows with month and day pickers" width="820">
+
 ### Put a task in a room
 
 A task can have a Home Assistant area. Select the area in the **Area** field of the
@@ -141,18 +157,50 @@ The panel has the tabs **Tasks**, **Appliances**, and **Settings**.
 On the **Tasks** tab:
 
 - Select a scope pill to filter the list by status.
+- Type in the **Search** box to narrow the list to the tasks that match.
 - Select a saved Profile in the **Profile** picker or a grouping in **Group by**.
 - Press **Add task** to create a task.
 - Press **Edit** on a task to open its form. The form has the groups Basics,
   Schedule, Placement, and Completion. Press **Save** in the header or **Delete** in
   the footer.
+- Select a task's device chip to open its appliance. The appliance list and an
+  appliance's own page link straight to the Home Assistant device instead. A mark on
+  the chip shows when it opens the device page.
+
+The **Search** box reads these parts of a task:
+
+- the name and the notes
+- the attached device and the area
+- the companion that supplied the task
+
+Every word you type must appear somewhere, in any order. Accents are ignored, so
+`cistic` finds `Čistič`. The scope pill counts follow the box, so a pill never
+promises more than the list shows.
+
+![The Tasks tab with the word filter typed in the Search box, the list narrowed to the tasks that match and the scope pill counts down to match](docs/images/57-panel-task-search.png)
 
 ![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](docs/images/54-panel-task-detail-edit.png)
+
+The task list and the appliance list are compact, so more rows fit on the screen.
+On a phone, each task row keeps the Done button next to the task.
+
+A task's page has the sub-tabs **Schedule**, **Notes**, and **History**. Each
+sub-tab has its own URL, such as `/home-keeper/tasks/<id>/notes`. The page opens on
+the **Schedule** tab.
+
+![A task's page open on its Schedule tab, showing the recurrence and next due date](docs/images/7-panel-task-detail.png)
+
+![A task's page open on its History tab, listing past completions](docs/images/7c-panel-task-history-tab.png)
 
 On the **Appliances** tab, select an appliance to open it. An appliance has the
 sub-tabs **Parts**, **Tasks**, **Documents**, **Details**, **Related**, and
 **History**. Each sub-tab has its own URL, such as
 `/home-keeper/appliances/<id>/documents`. Press **Edit** to open the appliance form.
+
+The same **Search** box narrows the appliance list. It matches the model and the serial
+number as well as the name.
+
+![The Appliances tab with the word water typed in the Search box and the list narrowed to the appliances that match](docs/images/57b-panel-appliance-search.png)
 
 ![An appliance detail beside the appliance list, showing its Parts sub-tab](docs/images/8-panel-appliance-detail.png)
 
@@ -344,10 +392,60 @@ The **move date** button on a history row changes the date of that entry. The
 
 ![The completion-details dialog (note, cost, who and photo captured when a task is marked done)](docs/images/11-panel-completion-dialog.png)
 
-![Task history annotated with per-completion cost and notes, each row editable](docs/images/7-panel-task-detail.png)
+![Task history annotated with per-completion cost and notes, each row editable](docs/images/7c-panel-task-history-tab.png)
 
 
 
+
+## Snooze and skip
+
+Home Keeper supports snooze and skip for an occurrence that a user does not
+complete on schedule. Snooze moves the due date and leaves the recurrence
+unchanged. Skip advances the task to its next occurrence and records that the
+occurrence was passed over. This is useful if a task is not done on time, or if
+an occurrence is not needed at all.
+
+Open a task and select **Snooze** or **Skip** next to **Done**.
+
+- **Snooze** takes a duration. Select 1 of 4 durations, or set a date. The dialog
+  shows the new due date before it is applied. The recurrence does not change, so
+  a task snoozed from the 29th to the 6th is due again on the 29th of the next
+  month.
+- **Skip** advances the schedule by 1 occurrence. A floating task starts a new
+  interval from the current date. A fixed task moves to its next scheduled date.
+  For a task measured in miles or hours, the next interval starts from the current
+  reading of the meter.
+
+<img src="docs/images/51-panel-skip-snooze-menu.png" alt="A task's Done button with its caret open, showing Snooze and Skip with a line each explaining what they do" width="820">
+
+<img src="docs/images/52-panel-snooze-dialog.png" alt="The snooze dialog: a duration dropdown and a line stating the date the due date moves to" width="820">
+
+Home Keeper records a skip in the task history, in a list separate from the
+completions. A skip is never counted as a completion, so the completion tally and
+the average interval do not include it. Each entry stores a note and the person
+who made the decision.
+
+<img src="docs/images/53-panel-skip-in-history.png" alt="A task's history with a skipped occurrence marked as skipped, sitting between two completions" width="820">
+
+Snooze and skip are also services, so an automation can defer a task without the
+panel. `home_keeper.snooze_task` accepts `hours`, or an exact date and time in
+`until`. `home_keeper.skip_task` records a skip. 3 more services edit the
+recorded skips:
+
+- `home_keeper.update_skip` changes the note or the person on an entry.
+- `home_keeper.move_skip` changes the date of an entry.
+- `home_keeper.delete_skip` removes an entry and undoes the skip.
+
+The dashboard card supports both, on the row of each task, and opens the same
+dialogs as the panel.
+
+<img src="docs/images/card-skip-snooze-row.png" alt="A dashboard card whose rows show a snooze and a skip button ahead of the accent Done button" width="330">
+
+To turn snooze or skip off, open **Settings** and then **Skip & snooze**. Both
+start on. Home Keeper removes the one that is off from the panel, from the card,
+and from the notification buttons. The `home_keeper.snooze_task` and
+`home_keeper.skip_task` services continue to work, so an existing automation is
+not affected.
 
 ## Complete tasks with NFC/RFID tags
 
@@ -483,13 +581,21 @@ On the task form, select **Based on a sensor** and select the sensor and a mode:
   hold. For a `binary_sensor` the choices are **On** and **Off**. For any other
   entity the state is matched as text. An example is `vacuum.rosie` = `docked`. See
   [below](#when-a-device-just-tells-you).
+- **Availability**: arms when the entity reports unavailable or unknown. The
+  optional hold requires the entity to stay unavailable for a number of seconds
+  before the task arms. An optional attribute is treated as unavailable when it
+  is missing. This mode clears the task by default when the entity recovers.
 
 An armed sensor task behaves like any other task. It is on the to-do list and the
 calendar. It sets the device's overdue sensor and fires the
-`home_keeper_task_overdue` event. Before it is armed, a usage task shows the
-remaining usage in the task list, such as "in 7000 miles". A threshold or state
-task is listed as **Monitored**. The `home_keeper.add_task` service creates a sensor
-task with a `sensor` mapping.
+`home_keeper_task_overdue` event.
+
+Before it is armed, a usage task shows the remaining usage in the task list, such as
+"in 7000 miles". A task in any mode other than usage is listed as **Monitored**. Home
+Keeper does not show the Done button on a monitored task until it arms. A usage task
+keeps its Done button while it counts, because a user can complete it early and Home
+Keeper then moves the meter. The `home_keeper.add_task` service creates a sensor task
+with a `sensor` mapping.
 
 ### Hours or months, whichever comes first
 
@@ -666,6 +772,16 @@ the to-do list and the calendar with a mark-done button and a next-due sensor. A
 completion sets the part's *last replaced* date. The **last replaced** date can be
 set to a past date so that the schedule starts from the real date.
 
+The appliance edit drawer shows the parts list as collapsible rows. A collapsed row
+shows the part's name and a one-line summary. Only 1 row is open at a time, and a
+new part opens by itself.
+
+![The appliance edit drawer with its parts list folded into collapsible rows](docs/images/35b-panel-parts-accordion.png)
+
+The appliance page's **Parts** tab has an **Edit** icon on each part row and an
+**Add part** button. Both open the part in the edit drawer, expanded and scrolled
+into view.
+
 A part can have a **product URL**. The part's name on the appliance detail page then
 opens the product page in a new tab. A task that is linked to the part shows the
 same link on its detail page and on the dashboard card.
@@ -682,6 +798,14 @@ automation. Any task can be
 completion of that task then draws down the same stock. Stock deduction applies to
 every completion path. This includes manual completion and tag scans and
 [auto-clearing sensor tasks](#sensor-based-tasks-usage-meters-thresholds--states).
+
+On the appliance page's **Parts** tab, the **In stock** chip is a stepper. Press
+**−** or **+** to move the stock by 1 spare. For a part measured in a unit, 1 press
+moves 1 completion's amount. To save a typed value, press **Enter** or move focus
+away. Each change uses the same `home_keeper.adjust_part_stock` service path as a
+completion, so low-stock events and auto-created buy tasks still fire.
+
+![The Parts tab stock chip as a stepper, with minus and plus buttons around an editable number and its unit](docs/images/47c-panel-part-stepper.png)
 
 #### Stock you measure rather than count
 
@@ -1027,12 +1151,19 @@ fields:
   tasks.
 - **Notification channel** and **Urgency**: the delivery settings that the phone
   applies. See [Channels and urgency](#channels-and-urgency).
+- **Notification icon** and **Accent color**: how the notification looks on the
+  phone. See [Icons and colors](#icons-and-colors).
 - **Auto-send**: send the notification when a matching task becomes overdue or
   due soon.
 
 Press **Test** on a notification to send it now. Home Keeper saves the notification
 first, then calls `home_keeper.notify` for it, so the phone receives the delivery the
-form shows. If no task is due, Home Keeper sends nothing and says so.
+form shows. Test always sends a notification. The notification shows a task when the
+Profile holds one. It says "All caught up" when the Profile holds none.
+
+A second button beside Test sends whichever notification Test does not. It reads
+**Test all clear** when the Profile holds a task. It reads **Test a task** and stays
+grey when the Profile holds none, because Home Keeper has no task to show.
 
 ### Channels and urgency
 
@@ -1046,7 +1177,7 @@ phone settings for Home Assistant, where the user sets its sound and its Do Not
 Disturb override. A Medication channel can then make a sound during Do Not Disturb
 while a Batteries channel stays silent.
 
-An iPhone has no channels. Home Keeper sends the same name as a thread identifier, so
+iPhone has no channels. Home Keeper sends the same name as a thread identifier, so
 these notifications group together. The urgency becomes the iOS interruption level.
 
 | Urgency | Android | iPhone |
@@ -1068,6 +1199,32 @@ settings.
 If the channel is empty, the notification arrives on the General channel of the
 companion app.
 
+### Icons and colors
+
+Home Keeper supports a **Notification icon** and an **Accent color** on each
+notification. This is useful when 2 reminders must not look alike. A Medication
+notification can show a pill on the phone while a Batteries notification shows a
+battery.
+
+The icon is a Material Design icon such as `mdi:pill`. An empty field uses the icon of
+the companion app. Both fields also set the icon that Home Keeper shows on the
+notification in *Settings → Notifications*.
+
+**On Android** the icon appears in the status bar at the top of the screen. The
+notification in the notification shade keeps the icon of the app, and no field changes
+that. Android 12 and later ignore the accent color, so that field has no effect there.
+
+The companion app has its own copy of the icon set, and that copy is older than the one
+in the icon picker, so a recent icon can be missing from it. A name that the app does
+not have falls back to the Home Assistant icon. Select an older icon if the one you
+picked does not appear on the phone.
+
+**On iPhone** the icon becomes the icon of the notification, and the accent color
+fills the circle behind it. The notification then uses the style that a message uses,
+so it also shows the name of the task as the sender.
+
+<img src="docs/images/52-panel-notification-icons.png" alt="The Notifications page with an icon and a color on each notification" width="820">
+
 ### Language
 
 The button labels and the notification text are localized to the language that is
@@ -1087,12 +1244,18 @@ The `home_keeper.notify` service sends a notification from an automation. Set
 `target:` to override the destinations. The button actions fire events that other
 automations can use. See [Events & automations](#events--automations).
 
+Two more fields change one call. `status:` replaces the Profile's own status for that
+call, so `all` sends every task the Profile holds without a second Profile. `when_empty:
+all_clear` sends the "All caught up" card when no task matches. Home Keeper sends
+nothing in that condition by default.
+
 ### Automation examples
 
 Home Keeper sends a notification once. Use a Home Assistant automation to send it
 again until the task is complete. The `home_keeper.notify` service sends nothing when
-no task matches, so a schedule that runs all day costs nothing on a day with no due
-task. Build these automations in **Settings → Automations & scenes**.
+no task matches, unless the call sets `when_empty: all_clear`. A schedule that runs
+all day costs nothing on a day with no due task. Build these automations in
+**Settings → Automations & scenes**.
 
 **Repeat a notification every 2 hours.** This automation sends *Walk my chores*
 again every 2 hours between 08:00 and 21:00.
@@ -1276,6 +1439,49 @@ To add a companion or a [glue integration](docs/GLUE_INTEGRATIONS.md) to the cat
 [open a GitHub issue](https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20).
 
 ![The Companions section on the Settings tab: connected integrations with Configure buttons](docs/images/21-panel-companions.png)
+
+#### Declarative companions (config-driven, no separate integration)
+
+A **declarative companion** is a recipe. The recipe targets an integration, or it
+matches entities through an entity id filter. The recipe sets a trigger mode: usage,
+threshold, state, or availability. The recipe also sets a Jinja template for the task
+name and the task notes.
+
+Home Keeper opens one managed task for each entity that matches the recipe. The task
+clears when the condition recovers. A task that a recipe made has an **Edit recipe**
+button on its detail page. The button opens the recipe that made the task.
+
+Each task that a recipe makes is a sensor-based task, so it has no due date until
+its condition is true. A task with no due date shows as **Monitored** and stays off
+the to-do list and the calendar. When the condition becomes true, Home Keeper sets
+the due date to that moment, so the task is due now and then overdue. The age of an
+overdue task shows how long the condition has been true. In the **Firmware update
+available** preset, a device with an update pending shows an overdue task, and a
+device with no update pending shows **Monitored**. All bundled presets complete the
+task automatically when the condition recovers, so those tasks offer no Done button.
+
+The *Add from preset* picker offers 2 presets.
+
+- **Device Pulse** targets the per-device ping sensors from
+  [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse).
+  The Device Pulse integration must be installed.
+- **Firmware update available** matches every `update.*` entity that reports `on`.
+  This covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab.
+
+Low batteries have no preset. The [Battery Notes glue
+integration](docs/GLUE_INTEGRATIONS.md) already opens a task for each battery and
+also supplies the battery type and the count. Write a recipe for a low-battery
+`binary_sensor` if you do not use that glue integration.
+
+The *Add companion* dialog shows a live preview of the matches before you save. A
+warning shows above 50 matches. A recipe cannot match more than 500 entities. See
+[INTEGRATING.md](docs/INTEGRATING.md) for the service reference.
+
+![The two-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](docs/images/21c-panel-declarative-preset-picker.png)
+
+![The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right](docs/images/21d-panel-declarative-add-dialog.png)
+
+![The page of a task a recipe made, with an Edit recipe button and no Done button while the task is monitored](docs/images/21e-panel-declarative-task-detail.png)
 
 
 

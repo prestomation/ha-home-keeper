@@ -166,6 +166,17 @@ add_task:
         Needs a tag.
       selector:
         boolean:
+    active_season:
+      name: Active season
+      description: >-
+        Restrict this task to one or more date ranges each year. Outside
+        the active windows the next due date moves to the nearest upcoming
+        window start. Pass a list of objects with "start" and "end" as
+        MM-DD strings, or a single object for one window. Wrapping
+        seasons (e.g. Nov through Mar) are supported. Pass null to clear.
+      example: '[{"start": "04-01", "end": "05-31"}, {"start": "09-01", "end": "10-31"}]'
+      selector:
+        object:
     source:
       name: Source
       description: >-
@@ -332,6 +343,15 @@ update_task:
         Only let the linked tag complete this task. Needs a tag.
       selector:
         boolean:
+    active_season:
+      name: Active season
+      description: >-
+        Restrict this task to one or more date ranges each year. Pass a
+        list of objects with "start" and "end" as MM-DD strings, a single
+        object for one window, or null to clear. See add_task.
+      example: '[{"start": "04-01", "end": "05-31"}, {"start": "09-01", "end": "10-31"}]'
+      selector:
+        object:
     source:
       name: Source
       description: >-
@@ -640,7 +660,7 @@ snooze_task:
         text:
     hours:
       name: Hours
-      description: How many hours to defer the task (defaults to 24).
+      description: How many hours to defer the task (defaults to 24). Ignored when Until is set.
       selector:
         number:
           min: 1
@@ -648,6 +668,13 @@ snooze_task:
           step: 1
           mode: box
           unit_of_measurement: hours
+    until:
+      name: Until
+      description: >-
+        Defer the task to this exact date and time instead of a number of hours. If
+        this field is set, Home Keeper does not use Hours.
+      selector:
+        datetime:
     origin:
       name: Origin
       description: >-
@@ -660,9 +687,9 @@ snooze_task:
 skip_task:
   name: Skip task
   description: >-
-    Advance a task to its next occurrence without recording a completion: "skip this
-    one". Floating tasks jump a fresh interval and fixed tasks advance one scheduled
-    occurrence. Other task types (one-off, triggered, or sensor) simply go dormant.
+    Advance a task to its next occurrence without recording a completion. Home Keeper
+    logs the skip separately from the completions, so it is never counted as a
+    completion.
   fields:
     task_id:
       name: Task name or ID
@@ -670,6 +697,26 @@ skip_task:
       required: true
       selector:
         text:
+    note:
+      name: Note
+      description: Why this occurrence was skipped.
+      selector:
+        text:
+          multiline: true
+    who:
+      name: Who
+      description: Who decided to skip it.
+      selector:
+        text:
+    reading:
+      name: Meter reading
+      description: >-
+        The bound sensor's value at the moment of the skip, for a usage task. If
+        this field is empty, Home Keeper reads the sensor.
+      selector:
+        number:
+          mode: box
+          step: any
     origin:
       name: Origin
       description: >-
@@ -678,6 +725,89 @@ skip_task:
         (loop prevention), and Home Keeper never interprets it.
       selector:
         text:
+
+update_skip:
+  name: Update skip
+  description: >-
+    Amend a recorded skip's detail, identified by its timestamp. The skip keeps its
+    date, and the schedule of the task does not change.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task whose skip you are editing. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    ts:
+      name: Skip timestamp
+      description: The ISO timestamp (ts) of the skip entry to edit.
+      required: true
+      selector:
+        text:
+    note:
+      name: Note
+      description: Why this occurrence was skipped. An empty value clears it.
+      selector:
+        text:
+          multiline: true
+    who:
+      name: Who
+      description: Who decided to skip it. An empty value clears it.
+      selector:
+        text:
+    reading:
+      name: Meter reading
+      description: >-
+        The bound sensor's value at the moment of the skip, for a usage task. A
+        correction to the most recent skip re-anchors the meter.
+      selector:
+        number:
+          mode: box
+          step: any
+
+delete_skip:
+  name: Delete skip
+  description: >-
+    Remove a recorded skip, identified by its timestamp. Removal of the skip that
+    last reset a usage meter restores that meter, and the due date is unchanged.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task whose skip you are removing. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    ts:
+      name: Skip timestamp
+      description: The ISO timestamp (ts) of the skip entry to remove.
+      required: true
+      selector:
+        text:
+
+move_skip:
+  name: Move skip
+  description: >-
+    Re-date a recorded skip, identified by its current timestamp. The date of the
+    skip changes, and the schedule of the task does not.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task whose skip you are moving. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    old_ts:
+      name: Current skip timestamp
+      description: The ISO timestamp (ts) of the skip entry to move.
+      required: true
+      selector:
+        text:
+    new_ts:
+      name: New date
+      description: The new date and time to record the skip at.
+      required: true
+      selector:
+        datetime:
 
 set_task_consumable:
   name: Link task to a consumable
@@ -735,6 +865,33 @@ notify:
       selector:
         text:
           multiple: true
+    status:
+      name: Status
+      description: >-
+        Overrides the profile's own due-state filter for this call. "overdue" keeps
+        only overdue tasks. "due_soon" adds the tasks that come due within three days.
+        "all" takes every scheduled task. "none" matches no task, which pairs with
+        when_empty: all_clear to send the "All caught up" notification on demand.
+        Defaults to the profile's own status if omitted.
+      selector:
+        select:
+          options:
+            - overdue
+            - due_soon
+            - all
+            - none
+    when_empty:
+      name: When nothing matches
+      description: >-
+        What a call sends if the filter matches no task. Defaults to "skip", so the
+        call sends nothing and an automation on a schedule costs nothing. Set it to
+        "all_clear" to send the "All caught up" notification instead, and confirm
+        delivery before a task comes due.
+      selector:
+        select:
+          options:
+            - skip
+            - all_clear
 
 list_tasks:
   name: List tasks
@@ -1269,3 +1426,50 @@ list_companions:
   description: >-
     Return the merged companion list (self-registered integrations plus detected
     upstreams whose glue isn't installed yet) as a response.
+
+add_declarative_companion:
+  name: Add declarative companion
+  description: >-
+    Register a declarative companion. The recipe materializes one managed
+    Home Keeper sensor task per entity matched by target integration and entity
+    filters, with Jinja-templated task name and notes. Fields on the payload:
+    name, description, enabled, preset_id, selection ({target_integration,
+    domain, device_class, entity_regex, area_ids, label_ids, exclude_*}), trigger
+    (same shape as sensor task binding, plus the new availability mode), and
+    task_template ({name_template, notes_template, category, priority, labels}).
+    Admin-only.
+
+update_declarative_companion:
+  name: Update declarative companion
+  description: >-
+    Update fields of a stored declarative-companion spec by id. Any subset of
+    the spec's fields may be passed. The merge is re-normalized as a whole.
+    Admin-only.
+  fields:
+    id:
+      name: Companion id
+      description: The spec's stable uuid, from list_declarative_companions.
+      required: true
+      example: 5f9e...uuid
+      selector:
+        text:
+
+delete_declarative_companion:
+  name: Delete declarative companion
+  description: >-
+    Remove a declarative-companion spec and every managed task it materialized.
+    Admin-only.
+  fields:
+    id:
+      name: Companion id
+      description: The spec's stable uuid, from list_declarative_companions.
+      required: true
+      example: 5f9e...uuid
+      selector:
+        text:
+
+list_declarative_companions:
+  name: List declarative companions
+  description: >-
+    Return every stored declarative-companion spec as a response, for the panel
+    to render or an automation to inspect.

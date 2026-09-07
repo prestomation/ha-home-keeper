@@ -344,7 +344,7 @@ describe('Notes render as Markdown (issue #163)', () => {
       next_due: '2030-01-01T00:00:00+00:00',
       completions: [],
     };
-    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1');
+    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1/notes');
 
     const md = await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
     expect(md, 'the note should render through ha-markdown').toBeTruthy();
@@ -363,7 +363,7 @@ describe('Notes render as Markdown (issue #163)', () => {
       unit: 'days',
       completions: [],
     };
-    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1');
+    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1/notes');
 
     const md = await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
     expect(md).toBeTruthy();
@@ -384,7 +384,7 @@ describe('Notes render as Markdown (issue #163)', () => {
       completions: [],
     };
     const { hass, calls } = makeHassWith({ tasks: [task] });
-    const panel = await mountPanel(hass, '/tasks/t1');
+    const panel = await mountPanel(hass, '/tasks/t1/notes');
 
     // Previously this affordance existed only for problem-sensor tasks.
     const edit = await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'));
@@ -414,7 +414,7 @@ describe('Notes render as Markdown (issue #163)', () => {
       completions: [],
       managed_by: { domain: 'battery_notes', display_name: 'Battery Notes', locked_fields: ['notes'] },
     };
-    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1');
+    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1/notes');
 
     await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
     expect(
@@ -508,17 +508,20 @@ describe('Notes render as Markdown (issue #163)', () => {
     const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
     editBtn.click();
 
-    const partForm = await waitFor(() => {
-      const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];
-      return forms.find((f) => schemaFieldNames(f.schema).includes('part_name'));
+    // A part is edited across two forms — the fixed fields, and the ones its values
+    // reveal — so the editor's offer is the union of both (see partBaseSchema).
+    const partForms = await waitFor(() => {
+      const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form .hk-part ha-form') || [])];
+      return forms.length ? forms : null;
     });
-    const names = schemaFieldNames(partForm.schema);
+    const names = partForms.flatMap((f) => schemaFieldNames(f.schema));
+    const data = Object.assign({}, ...partForms.map((f) => f.data));
     expect(names).toContain('stock_unit');
     expect(names).toContain('consume_quantity');
-    expect(partForm.data.stock_unit).toBe('bottles');
-    expect(partForm.data.consume_quantity).toBe(0.33);
+    expect(data.stock_unit).toBe('bottles');
+    expect(data.consume_quantity).toBe(0.33);
     // The quantities must accept decimals, or the field silently refuses 0.33.
-    const flat = partForm.schema.flatMap((f) => f.schema || [f]);
+    const flat = partForms.flatMap((f) => f.schema.flatMap((s) => s.schema || [s]));
     for (const field of ['stock', 'reorder_at', 'consume_quantity']) {
       const found = flat.find((f) => f.name === field);
       expect(found?.selector?.number?.step, `${field} should accept decimals`).toBe('any');
@@ -537,13 +540,14 @@ describe('Notes render as Markdown (issue #163)', () => {
     const editBtn = await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'));
     editBtn.click();
 
-    const partForm = await waitFor(() => {
-      const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form ha-form') || [])];
-      return forms.find((f) => schemaFieldNames(f.schema).includes('part_name'));
+    const partForms = await waitFor(() => {
+      const forms = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form .hk-part ha-form') || [])];
+      return forms.length ? forms : null;
     });
+    const names = partForms.flatMap((f) => schemaFieldNames(f.schema));
     // A unit is always offered; how much a completion uses needs something to use.
-    expect(schemaFieldNames(partForm.schema)).toContain('stock_unit');
-    expect(schemaFieldNames(partForm.schema)).not.toContain('consume_quantity');
+    expect(names).toContain('stock_unit');
+    expect(names).not.toContain('consume_quantity');
   });
 
   it("shows a measured part's stock with its unit, not as a bare count", async () => {
@@ -570,8 +574,13 @@ describe('Notes render as Markdown (issue #163)', () => {
       return found.length ? found : null;
     });
     const labels = chips.map((c) => c.getAttribute('label'));
-    expect(labels).toContain('In stock: 0.67 bottles');
     expect(labels).toContain('Uses 0.33 bottles per completion');
+    // The on-hand amount is a control now (see the stepper tests), and it still
+    // carries its unit — on the input's name and beside it.
+    const stock = panel.shadowRoot.querySelector('.hk-part-chips .hk-stock-input');
+    expect(stock.getAttribute('aria-label')).toBe('In stock: 0.67 bottles');
+    expect(stock.value).toBe('0.67');
+    expect(panel.shadowRoot.querySelector('.hk-part-chips .hk-stock-unit').textContent).toBe('bottles');
   });
 });
 
@@ -593,7 +602,7 @@ describe('Markdown preview teardown (issue #163)', () => {
   };
 
   it('cancels a pending preview render when the panel unmounts mid-typing', async () => {
-    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1/notes');
     (await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'))).click();
     const input = await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
 
@@ -616,7 +625,7 @@ describe('Markdown preview teardown (issue #163)', () => {
   it('disposes previews when navigating away with a preview timer armed', async () => {
     // The unmount case isn't the only teardown path: a view change re-renders, which
     // detaches every preview. Pin the integration, not just `dispose()` in isolation.
-    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1/notes');
     (await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'))).click();
     const input = await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
 
@@ -640,7 +649,7 @@ describe('Markdown preview teardown (issue #163)', () => {
     // `_attachNotePreview` is the only constructor precisely so that disposal is a
     // single loop. If a future path builds one directly it escapes that teardown, so
     // pin the count against what is actually on screen.
-    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1/notes');
     (await waitFor(() => panel.shadowRoot?.querySelector('.d-note-edit'))).click();
     await waitFor(() => panel.shadowRoot?.querySelector('.d-note-input'));
 
@@ -656,7 +665,7 @@ describe('Markdown preview teardown (issue #163)', () => {
     // `ensureMarkdown()` awaits a lazy chunk load, so it can settle after unmount.
     // The callback must check isConnected — otherwise it rebuilds the whole panel,
     // and the previews it creates would never be torn down.
-    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1');
+    const panel = await mountPanel(makeHassWith({ tasks: [noted] }).hass, '/tasks/t1/notes');
     await waitFor(() => panel.shadowRoot?.querySelector('ha-markdown'));
 
     panel.remove();
@@ -1081,5 +1090,779 @@ describe('the sheet-threshold media query is bound and unbound with the element'
     } finally {
       restore();
     }
+  });
+});
+
+describe('Task detail — snooze and skip behind the Done caret (issue #268)', () => {
+  const dueTask = {
+    id: 't1',
+    name: 'Change water filter',
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'months',
+    next_due: '2026-08-29T09:00:00Z',
+    completions: [],
+    skips: [],
+  };
+
+  /** A hass whose get_options returns *options* (the harness returns `{}`). */
+  const withOptions = (tasks, options = {}) => {
+    const { hass, calls } = makeHassWith({ tasks });
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) => {
+      if (msg.type === 'home_keeper/get_options') return Promise.resolve({ options });
+      if (msg.type === 'home_keeper/snooze_task' || msg.type === 'home_keeper/skip_task') {
+        calls[msg.type] = msg;
+        return Promise.resolve({ task: tasks[0] });
+      }
+      return inner(msg);
+    };
+    return { hass, calls };
+  };
+
+  const openMenu = async (panel) => {
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-split-caret'));
+    const caret = panel.shadowRoot.querySelector('.hk-split-caret');
+    caret.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    return panel.shadowRoot.querySelector('.hk-defer-menu');
+  };
+
+  it('offers both verbs on an ordinary due task', async () => {
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    expect(menu.querySelector('.hk-defer-snooze')).toBeTruthy();
+    expect(menu.querySelector('.hk-defer-skip')).toBeTruthy();
+  });
+
+  it('keeps the menu closed until the caret is pressed', async () => {
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-defer-menu'));
+    const menu = panel.shadowRoot.querySelector('.hk-defer-menu');
+    expect(menu.hidden).toBe(true);
+    const caret = panel.shadowRoot.querySelector('.hk-split-caret');
+    expect(caret.getAttribute('aria-expanded')).toBe('false');
+
+    caret.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(menu.hidden).toBe(false);
+    expect(caret.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('leaves Done its own hit target, so it never costs an extra tap', async () => {
+    const { hass, calls } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.d-done'));
+    panel.shadowRoot.querySelector('.d-done').dispatchEvent(new MouseEvent('click'));
+    await waitFor(() => calls['home_keeper/complete_task']);
+    expect(calls['home_keeper/complete_task']).toBeTruthy();
+  });
+
+  it('hides skip on a completion-blocked task, but keeps snooze', async () => {
+    // The store rejects skip on a problem-sensor mirror, so offering it would be a
+    // dead button; snooze asserts nothing about the problem, so it stays.
+    const { hass } = withOptions([
+      { ...dueTask, managed_by: { integration: 'x', display_name: 'X', completion_blocked: true } },
+    ]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    expect(menu.querySelector('.hk-defer-snooze')).toBeTruthy();
+    expect(menu.querySelector('.hk-defer-skip')).toBeNull();
+  });
+
+  it('shows no caret at all on a dormant task', async () => {
+    // Nothing to defer and no occurrence to advance past.
+    const { hass } = withOptions([
+      { ...dueTask, recurrence_type: 'triggered', next_due: undefined },
+    ]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-detail-actions'));
+    expect(panel.shadowRoot.querySelector('.hk-split-caret')).toBeNull();
+  });
+
+  it('drops a verb the global switch turned off', async () => {
+    const { hass } = withOptions([dueTask], { allow_snooze: false });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    expect(menu.querySelector('.hk-defer-snooze')).toBeNull();
+    expect(menu.querySelector('.hk-defer-skip')).toBeTruthy();
+  });
+
+  // Two lifecycle properties of the deferral menu that nothing asserted on until an
+  // automated review claimed both were broken. They were not — `disconnectedCallback`
+  // calls `_closeDeferMenu`, and `_render` replaces the whole shadow tree so a re-wire
+  // binds fresh nodes — but an invariant no test holds is one the next reader has to
+  // re-derive from the source, which is exactly how the claim arose.
+
+  it('takes its document handlers back off when the panel unmounts', async () => {
+    // The dismiss handlers go on `document`, so they outlive the element unless
+    // unmounting removes them. A leaked one keeps the whole detached shadow tree
+    // reachable and answers keystrokes aimed at whatever replaced the panel.
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const added = [];
+    const removed = [];
+    const realAdd = document.addEventListener.bind(document);
+    const realRemove = document.removeEventListener.bind(document);
+    document.addEventListener = (type, fn, opts) => {
+      added.push(type);
+      return realAdd(type, fn, opts);
+    };
+    document.removeEventListener = (type, fn, opts) => {
+      removed.push(type);
+      return realRemove(type, fn, opts);
+    };
+    try {
+      await openMenu(panel);
+      expect(added, 'opening the menu arms the document dismiss handlers').toEqual(
+        expect.arrayContaining(['keydown', 'click']),
+      );
+
+      panel.remove(); // disconnectedCallback
+
+      for (const type of new Set(added)) {
+        expect(
+          removed.filter((x) => x === type).length,
+          `every document '${type}' handler the menu added is taken back off`,
+        ).toBe(added.filter((x) => x === type).length);
+      }
+    } finally {
+      document.addEventListener = realAdd;
+      document.removeEventListener = realRemove;
+    }
+  });
+
+  it('still opens on one press after repeated re-renders', async () => {
+    // `_wireDeferMenus` runs on every render. If it stacked a second click handler on
+    // the same caret, one press would toggle twice and the menu would open and shut
+    // in the same tick — so this reads as a dead caret, not as a slow leak.
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-split-caret'));
+
+    panel._render();
+    panel._render();
+    panel._render();
+
+    const caret = panel.shadowRoot.querySelector('.hk-split-caret');
+    caret.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(panel.shadowRoot.querySelector('.hk-defer-menu').hidden).toBe(false);
+    expect(caret.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('shows no caret when both switches are off', async () => {
+    const { hass } = withOptions([dueTask], { allow_snooze: false, allow_skip: false });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-detail-actions'));
+    expect(panel.shadowRoot.querySelector('.hk-split-caret')).toBeNull();
+    // …and Done is exactly what it was before any of this existed.
+    expect(panel.shadowRoot.querySelector('.d-done')).toBeTruthy();
+  });
+
+  it('treats a missing option as on, so an existing install is unaffected', async () => {
+    // Every stored options document predates these keys; `!!v` would read that as
+    // "off" and silently withdraw both verbs from everyone.
+    const { hass } = withOptions([dueTask], { sync_problem_sensors: false });
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    expect(menu.querySelector('.hk-defer-snooze')).toBeTruthy();
+    expect(menu.querySelector('.hk-defer-skip')).toBeTruthy();
+  });
+
+  it('opens the snooze dialog from the menu', async () => {
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    menu.querySelector('.hk-defer-snooze').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-snooze-hint'));
+    expect(panel.shadowRoot.querySelector('ha-dialog')).toBeTruthy();
+  });
+
+  it('opens the skip dialog from the menu', async () => {
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    menu.querySelector('.hk-defer-skip').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-dialog'));
+    expect(panel.shadowRoot.querySelector('ha-dialog')).toBeTruthy();
+  });
+});
+
+describe('History — a skip is listed but never counted (issue #268)', () => {
+  const task = {
+    id: 't1',
+    name: 'Change water filter',
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'months',
+    next_due: '2026-09-29T09:00:00Z',
+    completions: [{ ts: '2026-07-29T09:00:00Z' }, { ts: '2026-06-29T09:00:00Z' }],
+    skips: [{ ts: '2026-08-30T09:00:00Z', note: 'away all month' }],
+  };
+
+  it('renders the skip beside the completions, marked as a skip', async () => {
+    const { hass } = makeHassWith({ tasks: [task] });
+    const panel = await mountPanel(hass, '/tasks/t1/history');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-hist-list li'));
+    const rows = [...panel.shadowRoot.querySelectorAll('.hk-hist-list li')];
+    expect(rows).toHaveLength(3);
+    // Newest first, so the skip leads — and it is the row carrying the chip.
+    expect(rows[0].classList.contains('hk-hist-is-skip')).toBe(true);
+    expect(rows[0].querySelector('.hk-hist-skip-chip')).toBeTruthy();
+    expect(rows[1].querySelector('.hk-hist-skip-chip')).toBeNull();
+  });
+
+  it('leaves the completion count reporting only completions', async () => {
+    const { hass } = makeHassWith({ tasks: [task] });
+    const panel = await mountPanel(hass, '/tasks/t1/history');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-hist-sub'));
+    // Two completions and one skip: the tally says two, because a skip is the record
+    // of *not* doing the thing.
+    expect(panel.shadowRoot.querySelector('.hk-hist-sub').textContent).toContain('2');
+  });
+
+  it('gives the skip its own delete target, not the completion one', async () => {
+    const { hass } = makeHassWith({ tasks: [task] });
+    const panel = await mountPanel(hass, '/tasks/t1/history');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-hist-skip-del'));
+    const del = panel.shadowRoot.querySelector('.hk-hist-skip-del');
+    expect(del.dataset.delSkip).toBe('t1');
+    expect(del.dataset.ts).toBe('2026-08-30T09:00:00Z');
+  });
+
+  it('shows a skip-only task rather than "no completions recorded yet"', async () => {
+    // The skips are precisely the record explaining why there are no completions.
+    const { hass } = makeHassWith({
+      tasks: [{ ...task, completions: [] }],
+    });
+    const panel = await mountPanel(hass, '/tasks/t1/history');
+
+    await waitFor(() => panel.shadowRoot?.querySelector('.hk-hist-body'));
+    expect(panel.shadowRoot.querySelectorAll('.hk-hist-list li')).toHaveLength(1);
+    expect(panel.shadowRoot.querySelector('.hk-hist-body ha-alert')).toBeNull();
+  });
+});
+
+describe('Parts editor — folded rows, and the Parts tab as a way in (issue #296)', () => {
+  const heater = {
+    id: 'a1',
+    kind: 'virtual',
+    name: 'Water heater',
+    parts: [
+      { id: 'p1', name: 'Anode rod', type: 'wear', stock: 2, reorder_at: 2, replace_interval: 12, replace_unit: 'months' },
+      { id: 'p2', name: 'Descaling solution', type: 'consumable', stock: 750, reorder_at: 500, stock_unit: 'ml', consume_quantity: 250 },
+      { id: 'p3', name: 'Sediment pre-filter', type: 'consumable', stock: 4, reorder_at: 1 },
+    ],
+  };
+  const rows = (panel) => [...panel.shadowRoot.querySelectorAll('#hk-asset-form details.hk-part')];
+  const settle = () => new Promise((r) => setTimeout(r, 30));
+
+  it('folds every part of an existing appliance, each summarising itself', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: [heater] }).hass, '/appliances/a1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'))).click();
+    await waitFor(() => rows(panel).length === 3);
+    expect(rows(panel).map((d) => d.open)).toEqual([false, false, false]);
+    const sums = rows(panel).map((d) => d.querySelector('.hk-part-acc-sum').textContent);
+    expect(sums[0]).toBe('Low stock: 2 · Reorder at 2 · Every 12 months');
+    expect(sums[1]).toBe('In stock: 750 ml · Reorder at 500 ml');
+    expect(rows(panel)[0].querySelector('.hk-part-acc-name').textContent).toBe('Anode rod');
+    expect(rows(panel)[0].classList.contains('wear')).toBe(true);
+    // Locators the suite relies on survive the fold.
+    expect(rows(panel)[2].dataset.idx).toBe('2');
+    expect(rows(panel)[2].dataset.partId).toBe('p3');
+  });
+
+  it('opens one part at a time and remembers which', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: [heater] }).hass, '/appliances/a1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'))).click();
+    await waitFor(() => rows(panel).length === 3);
+    rows(panel)[1].open = true;
+    await settle();
+    expect(panel._assetEdit.openPart).toBe(1);
+    rows(panel)[2].open = true;
+    await settle();
+    expect(rows(panel).map((d) => d.open)).toEqual([false, false, true]);
+    expect(panel._assetEdit.openPart).toBe(2);
+    rows(panel)[2].open = false;
+    await settle();
+    expect(panel._assetEdit.openPart).toBeNull();
+    // A render (say, after an upload) keeps the choice.
+    panel._render();
+    await waitFor(() => rows(panel).length === 3);
+    expect(rows(panel).map((d) => d.open)).toEqual([false, false, false]);
+  });
+
+  it('keeps the drawer where it was scrolled when Add part re-renders it', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: [heater] }).hass, '/appliances/a1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'))).click();
+    await waitFor(() => rows(panel).length === 3);
+    const scroller = panel.shadowRoot.querySelector('.hk-drawer-sticky');
+    scroller.scrollTop = 240;
+    panel.shadowRoot.querySelector('#a-add-part').click();
+    await waitFor(() => rows(panel).length === 4);
+    // A new scroller, at the old position — not at the top of the form.
+    const rebuilt = panel.shadowRoot.querySelector('.hk-drawer-sticky');
+    expect(rebuilt).not.toBe(scroller);
+    expect(rebuilt.scrollTop).toBe(240);
+  });
+
+  it('keeps the scroll for a new appliance too, whose draft is replaced on every keystroke', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: [] }).hass, '/appliances');
+    (await waitFor(() => panel.shadowRoot?.querySelector('#add-btn'))).click();
+    await waitFor(() => panel.shadowRoot?.querySelector('#a-add-part'));
+    // Typing the name replaces `_assetEdit.asset` with a new object (mergeAsset).
+    panel._assetEdit.asset = { ...panel._assetEdit.asset, name: 'Dryer' };
+    panel.shadowRoot.querySelector('.hk-drawer-sticky').scrollTop = 180;
+    panel.shadowRoot.querySelector('#a-add-part').click();
+    await waitFor(() => rows(panel).length === 1);
+    expect(panel.shadowRoot.querySelector('.hk-drawer-sticky').scrollTop).toBe(180);
+  });
+
+  it('starts at the top when the drawer swaps to another appliance', async () => {
+    const other = { id: 'a2', kind: 'virtual', name: 'Dryer', parts: [] };
+    const panel = await mountPanel(makeHassWith({ assets: [heater, other] }).hass, '/appliances');
+    await waitFor(() => panel.shadowRoot?.querySelector('ha-card.hk-card[data-id="a1"]'));
+    panel._openEditAsset(heater);
+    await waitFor(() => rows(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-drawer-sticky').scrollTop = 240;
+    panel._openEditAsset(other);
+    await waitFor(() => panel.shadowRoot.querySelector('.hk-drawer-sub')?.textContent === 'Dryer');
+    expect(panel.shadowRoot.querySelector('.hk-drawer-sticky').scrollTop).toBe(0);
+  });
+
+  it('opens a lone part, and a part just added', async () => {
+    const one = { ...heater, parts: [heater.parts[0]] };
+    const panel = await mountPanel(makeHassWith({ assets: [one] }).hass, '/appliances/a1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'))).click();
+    await waitFor(() => rows(panel).length === 1);
+    expect(rows(panel)[0].open).toBe(true);
+    panel.shadowRoot.querySelector('#a-add-part').click();
+    await waitFor(() => rows(panel).length === 2);
+    expect(rows(panel).map((d) => d.open)).toEqual([false, true]);
+    expect(panel._assetEdit.openPart).toBe(1);
+    expect(rows(panel)[1].querySelector('.hk-part-acc-name').textContent).toBe('Part 2');
+  });
+
+  it('opens the drawer on the part whose Edit was pressed on the Parts tab', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: [heater] }).hass, '/appliances/a1');
+    const edit = await waitFor(() => panel.shadowRoot?.querySelector('#part-edit-1'));
+    edit.click();
+    await waitFor(() => rows(panel).length === 3);
+    expect(rows(panel).map((d) => d.open)).toEqual([false, true, false]);
+    expect(panel._assetEdit.openPart).toBe(1);
+    // The section around the parts is forced open, whatever was remembered.
+    expect(panel._assetEdit.openSections.parts).toBe(true);
+    // One-shot: consumed by the render that scrolled to it.
+    expect(panel._assetEdit.revealPart).toBeUndefined();
+    // Not a navigation: the page underneath is the same one.
+    expect(panel._detail).toEqual({ kind: 'asset', id: 'a1', tab: 'parts' });
+  });
+
+  it('adds a blank part from the Parts tab and opens the drawer on it', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: [heater] }).hass, '/appliances/a1');
+    const add = await waitFor(() => panel.shadowRoot?.querySelector('.d-add-part'));
+    add.click();
+    await waitFor(() => rows(panel).length === 4);
+    expect(rows(panel).map((d) => d.open)).toEqual([false, false, false, true]);
+    expect(panel._assetEdit.asset.parts[3]).toEqual({ name: '', type: 'consumable' });
+    // The appliance itself is untouched until Save.
+    expect(heater.parts).toHaveLength(3);
+  });
+
+  it('removing an open part closes the list rather than opening a stranger', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: [heater] }).hass, '/appliances/a1');
+    (await waitFor(() => panel.shadowRoot?.querySelector('#part-edit-0'))).click();
+    await waitFor(() => rows(panel).length === 3);
+    rows(panel)[0].querySelector('.part-del').click();
+    const confirm = await waitFor(() =>
+      document.querySelector('.hk-confirm-scrim ha-button[data-hk-weight="danger-primary"]'),
+    );
+    confirm.click();
+    await waitFor(() => rows(panel).length === 2);
+    expect(panel._assetEdit.asset.parts.map((p) => p.id)).toEqual(['p2', 'p3']);
+    expect(panel._assetEdit.openPart).toBeNull();
+    expect(rows(panel).map((d) => d.open)).toEqual([false, false]);
+  });
+});
+
+describe('Parts tab — the stock stepper (issue #296)', () => {
+  const heater = {
+    id: 'a1',
+    kind: 'virtual',
+    name: 'Water heater',
+    parts: [
+      { id: 'p1', name: 'Anode rod', type: 'wear', stock: 2, reorder_at: 2 },
+      { id: 'p2', name: 'Descaling solution', type: 'consumable', stock: 750, reorder_at: 500, stock_unit: 'ml', consume_quantity: 250 },
+      { id: 'p3', name: 'T&P valve', type: 'wear' },
+    ],
+  };
+  /** A hass that records adjust_part_stock and answers with the moved stock. */
+  const withStock = (reject = false) => {
+    const assets = [JSON.parse(JSON.stringify(heater))];
+    const { hass, calls } = makeHassWith({ assets });
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) => {
+      if (msg.type === 'home_keeper/adjust_part_stock') {
+        calls.adjust = msg;
+        if (reject) return Promise.reject(new Error('nope'));
+        const part = assets[0].parts.find((p) => p.id === msg.part_id);
+        part.stock = Math.max(0, Math.round((part.stock + msg.delta) * 1000) / 1000);
+        return Promise.resolve({ asset: assets[0] });
+      }
+      if (msg.type === 'home_keeper/get_assets') return Promise.resolve({ assets });
+      return inner(msg);
+    };
+    return { hass, calls, assets };
+  };
+  const stepper = (panel, id) => panel.shadowRoot.querySelector(`.hk-stock[data-part="${id}"]`);
+
+  it('renders a stepper for a part that tracks stock, and nothing for one that does not', async () => {
+    const panel = await mountPanel(withStock().hass, '/appliances/a1');
+    await waitFor(() => stepper(panel, 'p1'));
+    expect(stepper(panel, 'p3')).toBeNull();
+    // Whole spares step by one; a measured part steps finely, like the device page.
+    expect(stepper(panel, 'p1').querySelector('input').getAttribute('step')).toBe('1');
+    expect(stepper(panel, 'p2').querySelector('input').getAttribute('step')).toBe('0.001');
+    // At the reorder point: coloured *and* worded.
+    expect(stepper(panel, 'p1').classList.contains('low')).toBe(true);
+    expect(stepper(panel, 'p1').nextElementSibling.textContent).toBe('Low');
+    expect(stepper(panel, 'p2').classList.contains('low')).toBe(false);
+    // The meter beside it stays.
+    expect(panel.shadowRoot.querySelectorAll('.hk-meter.hk-part-meter')).toHaveLength(2);
+  });
+
+  it('+ and − move by one spare, through adjust_part_stock', async () => {
+    const { hass, calls } = withStock();
+    const panel = await mountPanel(hass, '/appliances/a1');
+    await waitFor(() => stepper(panel, 'p1'));
+    stepper(panel, 'p1').querySelector('.hk-stock-inc').click();
+    await waitFor(() => calls.adjust);
+    expect(calls.adjust).toEqual({ type: 'home_keeper/adjust_part_stock', asset_id: 'a1', part_id: 'p1', delta: 1 });
+    // The page re-reads the store: the row now says 3, and is no longer low.
+    await waitFor(() => stepper(panel, 'p1')?.querySelector('input').value === '3');
+    expect(stepper(panel, 'p1').classList.contains('low')).toBe(false);
+  });
+
+  it('moves a measured part by one completion, not one thousandth', async () => {
+    const { hass, calls } = withStock();
+    const panel = await mountPanel(hass, '/appliances/a1');
+    await waitFor(() => stepper(panel, 'p2'));
+    stepper(panel, 'p2').querySelector('.hk-stock-dec').click();
+    await waitFor(() => calls.adjust);
+    expect(calls.adjust.delta).toBe(-250);
+    await waitFor(() => stepper(panel, 'p2')?.querySelector('input').value === '500');
+    // …which is at the reorder point now.
+    expect(stepper(panel, 'p2').classList.contains('low')).toBe(true);
+  });
+
+  it('commits a typed amount as a delta, snapped to the step, and ignores no change', async () => {
+    const { hass, calls } = withStock();
+    const panel = await mountPanel(hass, '/appliances/a1');
+    await waitFor(() => stepper(panel, 'p1'));
+    const input = stepper(panel, 'p1').querySelector('input');
+    input.value = '4.4';
+    input.dispatchEvent(new Event('change'));
+    await waitFor(() => calls.adjust);
+    expect(calls.adjust.delta).toBe(2);
+    await waitFor(() => stepper(panel, 'p1')?.querySelector('input').value === '4');
+    calls.adjust = null;
+    const again = stepper(panel, 'p1').querySelector('input');
+    again.value = '4';
+    again.dispatchEvent(new Event('change'));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(calls.adjust, 'the same value is not a change').toBeNull();
+  });
+
+  it('reports a refused change and puts the amount back', async () => {
+    const { hass, calls } = withStock(true);
+    const panel = await mountPanel(hass, '/appliances/a1');
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+    await waitFor(() => stepper(panel, 'p1'));
+    const input = stepper(panel, 'p1').querySelector('input');
+    input.value = '9';
+    input.dispatchEvent(new Event('change'));
+    await waitFor(() => toasts.length);
+    expect(calls.adjust.delta).toBe(7);
+    expect(toasts[0]).toContain('nope');
+    expect(input.value).toBe('2');
+    expect(stepper(panel, 'p1').hasAttribute('data-busy')).toBe(false);
+  });
+});
+
+describe('Task detail — Schedule, Notes and History as sub-tabs', () => {
+  const task = {
+    id: 't1',
+    name: 'Replace filter',
+    notes: 'Twist and pull',
+    recurrence_type: 'floating',
+    interval: 3,
+    unit: 'months',
+    next_due: '2030-01-01T00:00:00+00:00',
+    completions: [{ ts: '2026-07-29T09:00:00Z' }],
+    skips: [{ ts: '2026-08-30T09:00:00Z' }],
+  };
+  const tabs = (panel) => [...panel.shadowRoot.querySelectorAll('.hk-subtab')];
+
+  it('opens on the schedule, with the other two a tab away', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1');
+    await waitFor(() => tabs(panel).length === 3);
+    expect(tabs(panel).map((b) => b.dataset.tab)).toEqual(['schedule', 'notes', 'history']);
+    expect(tabs(panel).find((b) => b.classList.contains('active')).dataset.tab).toBe('schedule');
+    // History counts completions and skips alike: both are entries in the log.
+    expect(tabs(panel)[2].querySelector('.hk-subtab-count').textContent).toBe('2');
+    expect(panel.shadowRoot.querySelector('.hk-detail-row')).toBeTruthy();
+    expect(panel.shadowRoot.querySelector('.hk-hist-list')).toBeNull();
+    expect(panel.shadowRoot.querySelector('.d-note-edit')).toBeNull();
+  });
+
+  it('switches by replacing the URL, so Back leaves the task', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: [task] }).hass, '/tasks/t1');
+    await waitFor(() => tabs(panel).length === 3);
+    const before = history.length;
+    tabs(panel)[2].click();
+    // The panel changes the URL and lets Home Assistant hand the route back — which
+    // nothing does in jsdom, so play HA's part.
+    expect(location.pathname).toBe('/home-keeper/tasks/t1/history');
+    expect(history.length, 'a lateral move replaces rather than pushes').toBe(before);
+    panel.route = { prefix: '/home-keeper', path: '/tasks/t1/history' };
+    const list = await waitFor(() => panel.shadowRoot.querySelector('.hk-hist-list'));
+    expect(list, 'the history tab should render its log').toBeTruthy();
+    expect(panel._detail).toEqual({ kind: 'task', id: 't1', tab: 'history' });
+    expect(tabs(panel).find((b) => b.classList.contains('active')).dataset.tab).toBe('history');
+    tabs(panel)[1].click();
+    expect(location.pathname).toBe('/home-keeper/tasks/t1/notes');
+    panel.route = { prefix: '/home-keeper', path: '/tasks/t1/notes' };
+    const edit = await waitFor(() => panel.shadowRoot.querySelector('.d-note-edit'));
+    expect(edit, 'the notes tab should offer the editor').toBeTruthy();
+  });
+});
+
+describe('The list text filter (#297)', () => {
+  const DUE = '2030-01-01T00:00:00+00:00';
+  /** A task with the fields the list rows and the matcher read. */
+  const mkTask = (over) => ({
+    recurrence_type: 'floating',
+    interval: 3,
+    unit: 'months',
+    next_due: DUE,
+    completions: [],
+    ...over,
+  });
+  const TASKS = [
+    mkTask({ id: 't1', name: 'Replace water filter' }),
+    mkTask({ id: 't2', name: 'Clean gutters' }),
+    mkTask({ id: 't3', name: 'Change smoke alarm battery', managed_by: { display_name: 'Zigbee2MQTT' } }),
+  ];
+  const ASSETS = [
+    { id: 'a1', kind: 'device', name: 'Fridge', manufacturer: 'Bosch', parts: [] },
+    { id: 'a2', kind: 'device', name: 'Furnace', manufacturer: 'Carrier', parts: [] },
+  ];
+
+  const box = (panel) => panel.shadowRoot.querySelector('.hk-search-input');
+  const rows = (panel) => panel.shadowRoot.querySelectorAll('#hk-list ha-card.hk-card');
+  const names = (panel) =>
+    [...rows(panel)].map((c) => c.querySelector('.hk-name')?.textContent.trim());
+
+  /** Type *text* the way the browser reports it: value first, then the event. */
+  async function type(panel, text) {
+    const input = box(panel);
+    input.value = text;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await waitFor(() => true);
+    return input;
+  }
+
+  it('narrows the task list to the rows that match, and clearing it restores them', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+
+    await type(panel, 'water');
+    expect(names(panel)).toEqual(['Replace water filter']);
+
+    await type(panel, '');
+    expect(rows(panel).length, 'an empty box shows every task again').toBe(3);
+  });
+
+  it('finds a companion task by the integration that supplied it — the reason for #297', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    await type(panel, 'zigbee');
+    expect(names(panel)).toEqual(['Change smoke alarm battery']);
+  });
+
+  it('does not replace the box it is being typed into', async () => {
+    // The whole reason `_setQuery` patches instead of rendering. A rebuilt shadow
+    // tree would swap this element out and take the caret and the keyboard with it.
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    const before = box(panel);
+    before.focus();
+    await type(panel, 'water');
+    expect(box(panel), 'the same element, not a replacement').toBe(before);
+    expect(panel.shadowRoot.activeElement, 'the keyboard stays in the box').toBe(before);
+  });
+
+  it('keeps the scope pills counting what the list actually shows', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    const pill = (value) =>
+      panel.shadowRoot.querySelector(`.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="${value}"]`);
+    expect(pill('all').querySelector('.hk-seg-count').textContent).toBe('3');
+
+    await type(panel, 'water');
+    expect(pill('all').querySelector('.hk-seg-count').textContent).toBe('1');
+    // Shopping holds nothing now, and is not the pill being stood on, so it recedes.
+    expect(pill('shopping').classList.contains('hk-seg-empty')).toBe(true);
+    expect(pill('all').classList.contains('hk-seg-empty'), 'the selected pill is never dimmed').toBe(false);
+
+    await type(panel, '');
+    expect(pill('all').querySelector('.hk-seg-count').textContent).toBe('3');
+  });
+
+  it('leaves the rows live after the patch, and binds each of them once', async () => {
+    const { hass, calls } = makeHassWith({ tasks: TASKS });
+    const panel = await mountPanel(hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    await type(panel, 'gutters');
+
+    // Quick Done still reaches the store: `wireLists` ran again over the new rows.
+    panel.shadowRoot.querySelector('#hk-list .done-btn').click();
+    await waitFor(() => calls['home_keeper/complete_task']);
+    expect(calls['home_keeper/complete_task']).toBe(1);
+
+    // ...and opening a row navigates once, not twice: `wireDetailOpeners` was scoped
+    // to the list rather than run again over the whole shadow root.
+    const depth = history.length;
+    panel.shadowRoot.querySelector('#hk-list .detail-open').click();
+    expect(history.length - depth).toBe(1);
+  });
+
+  it('still remembers which sections the user collapsed', async () => {
+    // The group `<details>` live inside the list, so the patch replaces them. Their
+    // toggle handler has to be re-bound with the rows.
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    const section = () => panel.shadowRoot.querySelector('#hk-list details.hk-group');
+    expect(section(), 'the list groups by status by default').toBeTruthy();
+    const key = section().dataset.groupKey;
+
+    section().open = false;
+    section().dispatchEvent(new Event('toggle'));
+    expect(panel._collapsed.has(key)).toBe(true);
+
+    section().open = true;
+    section().dispatchEvent(new Event('toggle'));
+    expect(panel._collapsed.has(key)).toBe(false);
+  });
+
+  it('opens every section while a search is running, without forgetting the choice', async () => {
+    // "Monitored" and "Completed" start collapsed, and a monitored companion task is
+    // what the reader is most often hunting for.
+    const monitored = mkTask({ id: 't4', name: 'Attic leak sensor', recurrence_type: 'triggered', next_due: undefined });
+    const panel = await mountPanel(makeHassWith({ tasks: [...TASKS, monitored] }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 4);
+    const monitoredSection = () =>
+      panel.shadowRoot.querySelector('#hk-list details.hk-group[data-group-key="status:monitored"]');
+    expect(monitoredSection().open, 'monitored starts collapsed').toBe(false);
+
+    await type(panel, 'attic');
+    expect(names(panel)).toEqual(['Attic leak sensor']);
+    expect(monitoredSection().open, 'a match is never left behind a shut heading').toBe(true);
+    expect(panel._collapsed.has('status:monitored'), 'the choice is read, not overwritten').toBe(true);
+
+    await type(panel, '');
+    expect(monitoredSection().open, 'and it closes again once the box is empty').toBe(false);
+  });
+
+  it('offers a way out when nothing matches, and clears the box with it', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    await type(panel, 'zzzz');
+    expect(rows(panel).length).toBe(0);
+
+    const showAll = panel.shadowRoot.querySelector('#hk-show-all');
+    expect(showAll, 'an emptied list is never a dead end').toBeTruthy();
+    showAll.click();
+    await waitFor(() => rows(panel).length === 3);
+    expect(box(panel).value).toBe('');
+  });
+
+  it('empties the box from the clear button, and from Escape', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    const clear = () => panel.shadowRoot.querySelector('.hk-search-clear');
+    expect(clear().hasAttribute('hidden'), 'nothing to clear yet').toBe(true);
+
+    await type(panel, 'water');
+    expect(clear().hasAttribute('hidden')).toBe(false);
+    clear().click();
+    await waitFor(() => rows(panel).length === 3);
+    expect(box(panel).value).toBe('');
+    expect(clear().hasAttribute('hidden')).toBe(true);
+
+    await type(panel, 'water');
+    box(panel).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await waitFor(() => rows(panel).length === 3);
+    expect(box(panel).value).toBe('');
+  });
+
+  it('keeps the typed text through a render it did not ask for', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    await type(panel, 'water');
+    panel._render();
+    expect(box(panel).value, 'a Done press must not empty the box').toBe('water');
+    expect(rows(panel).length).toBe(1);
+  });
+
+  it('escapes what was typed rather than injecting it', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    const nasty = 'a" onfocus="alert(1)';
+    await type(panel, nasty);
+    panel._render();
+    expect(panel.shadowRoot.querySelectorAll('.hk-search-input').length).toBe(1);
+    expect(box(panel).value).toBe(nasty);
+    expect(box(panel).getAttribute('onfocus')).toBe(null);
+  });
+
+  it('narrows the appliance list too, and its empty state clears only the text', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: ASSETS }).hass, '/appliances');
+    await waitFor(() => rows(panel).length === 2);
+
+    await type(panel, 'bosch');
+    expect(names(panel)).toEqual(['Fridge']);
+
+    await type(panel, 'zzzz');
+    expect(rows(panel).length).toBe(0);
+    panel.shadowRoot.querySelector('#hk-show-all').click();
+    await waitFor(() => rows(panel).length === 2);
+    expect(box(panel).value).toBe('');
+    expect(panel._assetFilter, 'the appliance scope is a deliberate choice, and is left alone').toBe('active');
+  });
+
+  it('carries the text from one tab to the other', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS, assets: ASSETS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    await type(panel, 'fridge');
+    panel.route = { prefix: '/home-keeper', path: '/appliances' };
+    await waitFor(() => panel._view === 'appliances');
+    expect(box(panel).value).toBe('fridge');
+    expect(names(panel)).toEqual(['Fridge']);
   });
 });

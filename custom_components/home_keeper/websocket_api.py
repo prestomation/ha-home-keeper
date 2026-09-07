@@ -16,7 +16,15 @@ from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
-from . import companions, devices, inventory, manuals, notifier, options
+from . import (
+    companions,
+    declarative_presets,
+    devices,
+    inventory,
+    manuals,
+    notifier,
+    options,
+)
 from .assets import AssetValidationError, card_projection
 from .backend_i18n import resolve_exception
 from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES
@@ -172,6 +180,11 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_move_completion)
     websocket_api.async_register_command(hass, ws_delete_completion)
     websocket_api.async_register_command(hass, ws_delete_archived_completion)
+    websocket_api.async_register_command(hass, ws_snooze_task)
+    websocket_api.async_register_command(hass, ws_skip_task)
+    websocket_api.async_register_command(hass, ws_update_skip)
+    websocket_api.async_register_command(hass, ws_move_skip)
+    websocket_api.async_register_command(hass, ws_delete_skip)
     websocket_api.async_register_command(hass, ws_get_assets)
     websocket_api.async_register_command(hass, ws_add_asset)
     websocket_api.async_register_command(hass, ws_update_asset)
@@ -190,6 +203,13 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_set_options)
     websocket_api.async_register_command(hass, ws_get_companions)
     websocket_api.async_register_command(hass, ws_get_profiles)
+    websocket_api.async_register_command(hass, ws_list_declarative_companions)
+    websocket_api.async_register_command(hass, ws_add_declarative_companion)
+    websocket_api.async_register_command(hass, ws_update_declarative_companion)
+    websocket_api.async_register_command(hass, ws_delete_declarative_companion)
+    websocket_api.async_register_command(hass, ws_list_declarative_presets)
+    websocket_api.async_register_command(hass, ws_preview_declarative_companion)
+    websocket_api.async_register_command(hass, ws_installed_integrations)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_tasks"})
@@ -424,6 +444,168 @@ async def ws_delete_completion(
     coord: HomeKeeperCoordinator,
 ) -> None:
     task = await coord.store.delete_completion(msg["task_id"], msg["ts"])
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+# ── Snooze and skip ──────────────────────────────────────────────────────────
+#
+# The panel talks websocket, so these exist for it to have anything to call; the
+# ``home_keeper.snooze_task`` / ``skip_task`` services remain the integration contract
+# and these delegate to the same store methods. ``until`` is an ISO string here rather
+# than the service's ``hours``/``until`` pair: the panel resolves its preset to a real
+# instant before sending, so the wire carries the answer, not the arithmetic.
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/snooze_task",
+        vol.Required("task_id"): str,
+        vol.Required("until"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_snooze_task(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    until = dt_util.parse_datetime(msg["until"])
+    if until is None:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=msg["until"])
+        return
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=dt_util.now().tzinfo)
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.snooze_task(msg["task_id"], until)
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/skip_task",
+        vol.Required("task_id"): str,
+        vol.Optional("metadata"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_skip_task(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.skip_task(msg["task_id"], metadata=msg.get("metadata"))
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/update_skip",
+        vol.Required("task_id"): str,
+        vol.Required("ts"): str,
+        vol.Required("metadata"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_update_skip(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.update_skip(msg["task_id"], msg["ts"], msg["metadata"])
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/move_skip",
+        vol.Required("task_id"): str,
+        vol.Required("old_ts"): str,
+        vol.Required("new_ts"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_move_skip(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.move_skip(msg["task_id"], msg["old_ts"], msg["new_ts"])
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/delete_skip",
+        vol.Required("task_id"): str,
+        vol.Required("ts"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_delete_skip(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.delete_skip(msg["task_id"], msg["ts"])
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
     await coord.async_request_refresh()
     connection.send_result(msg["id"], {"task": task})
 
@@ -949,3 +1131,244 @@ async def ws_get_profiles(
         msg["id"],
         {"profiles": options.current_options(coord.entry).get(OPTION_PROFILES, [])},
     )
+
+
+# ── declarative companions ────────────────────────────────────────────────────
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "home_keeper/list_declarative_companions"}
+)
+@websocket_api.async_response
+async def ws_list_declarative_companions(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return every stored declarative-companion spec for the panel to render."""
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    connection.send_result(
+        msg["id"],
+        {
+            "companions": list(coord.store.get_declarative_companions().values()),
+        },
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/add_declarative_companion",
+        vol.Required("companion"): dict,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_add_declarative_companion(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Persist a new declarative-companion spec (delegates to the service path).
+
+    Admin-only: creates deletion-protected managed tasks bound to the config
+    entry and triggers a re-reconcile that may reload the entry. Mirrors the
+    ``home_keeper.add_declarative_companion`` service.
+    """
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        spec = await coord.store.async_add_declarative_companion(msg["companion"])
+    except TaskValidationError as err:
+        _err(
+            hass,
+            connection,
+            msg,
+            "invalid_declarative_companion",
+            "invalid_declarative_companion",
+            error=str(err),
+        )
+        return
+    connection.send_result(msg["id"], {"companion": spec})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/update_declarative_companion",
+        # NOT "id": every websocket message carries the connection's own message
+        # id, and the frontend client stamps it over whatever the caller put
+        # there. A spec id sent as "id" never arrives — it is replaced by an
+        # integer, which then fails this schema.
+        vol.Required("companion_id"): str,
+        vol.Required("updates"): dict,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_update_declarative_companion(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        spec = await coord.store.async_update_declarative_companion(
+            msg["companion_id"], msg["updates"]
+        )
+    except KeyError:
+        _err(
+            hass,
+            connection,
+            msg,
+            "not_found",
+            "declarative_companion_not_found",
+            spec_id=msg["companion_id"],
+        )
+        return
+    except TaskValidationError as err:
+        _err(
+            hass,
+            connection,
+            msg,
+            "invalid_declarative_companion",
+            "invalid_declarative_companion",
+            error=str(err),
+        )
+        return
+    connection.send_result(msg["id"], {"companion": spec})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/delete_declarative_companion",
+        # See the note on the update command: "id" is the message envelope's own
+        # field, so a spec id sent under that name never reaches this handler.
+        vol.Required("companion_id"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_delete_declarative_companion(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    removed = await coord.store.async_delete_declarative_companion(msg["companion_id"])
+    connection.send_result(msg["id"], {"ok": True, "entity_set_changed": removed})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "home_keeper/list_declarative_presets"}
+)
+@websocket_api.async_response
+async def ws_list_declarative_presets(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return the shipped declarative-companion presets for the picker.
+
+    Description strings live in ``backend_strings/<lang>.json`` (the same catalog
+    channel Battery Notes uses); resolve them per this HA's configured language
+    so the panel doesn't need to know which locale to render.
+    """
+    from .backend_i18n import resolve_string  # local import: no HA dep in presets
+
+    if _coordinator(hass) is None:
+        _not_loaded(hass, connection, msg)
+        return
+    lang = hass.config.language
+    presets_out = []
+    for preset in declarative_presets.CATALOG_PRESETS:
+        presets_out.append(
+            {
+                "id": preset["id"],
+                "name": resolve_string(lang, preset["name_key"]),
+                "description": resolve_string(lang, preset["description_key"]),
+                "icon": preset["icon"],
+                "requires_integration": preset["requires_integration"],
+                "default_spec": preset["default_spec"],
+            }
+        )
+    connection.send_result(msg["id"], {"presets": presets_out})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/preview_declarative_companion",
+        vol.Required("companion"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_preview_declarative_companion(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return the live match count + first-10 rendered names for a draft spec.
+
+    The panel's Add/Edit dialog polls this on debounce so the user sees "matches
+    out of N" as they narrow the selection. Never writes — read-only introspection
+    over the current entity registry. Malformed specs return the pure validator's
+    error; the 500-match hard cap surfaces as an ``over_cap`` result the panel
+    renders as a red banner.
+    """
+    from . import declarative_companions as dc  # avoid an import cycle at top
+
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        # Normalize the draft so bad input fails the same way an add would.
+        spec = dc.normalize_declarative_companion(msg["companion"])
+    except TaskValidationError as err:
+        _err(
+            hass,
+            connection,
+            msg,
+            "invalid_declarative_companion",
+            "invalid_declarative_companion",
+            error=str(err),
+        )
+        return
+    sync = coord.declarative_sync
+    if sync is None:
+        _not_loaded(hass, connection, msg)
+        return
+    connection.send_result(msg["id"], sync.preview(spec))
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "home_keeper/installed_integrations"}
+)
+@websocket_api.async_response
+async def ws_installed_integrations(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return sorted, deduped integration domains from the entity registry.
+
+    Feeds the Add-declarative-companion dialog's integration-picker autocomplete.
+    """
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    sync = coord.declarative_sync
+    if sync is None:
+        _not_loaded(hass, connection, msg)
+        return
+    connection.send_result(msg["id"], {"integrations": sync.installed_integrations()})

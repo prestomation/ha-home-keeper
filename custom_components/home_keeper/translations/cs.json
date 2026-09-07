@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Povinná pole dokončení",
           "description": "Která pole metadat dokončení panel učiní povinnými, když jsou podrobnosti dokončení nastaveny na required – kterékoli z note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Povinná pole dokončení",
           "description": "Která pole metadat dokončení panel učiní povinnými, když jsou podrobnosti dokončení nastaveny na required – kterékoli z note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Hodiny",
-          "description": "O kolik hodin úkol odložit (výchozí 24)."
+          "description": "O kolik hodin úkol odložit (výchozí 24). Ignoruje se, když je zadáno Do kdy."
+        },
+        "until": {
+          "name": "Do kdy",
+          "description": "Odloží úkol na přesně toto datum a čas místo počtu hodin. Když jej zadáte, pole Hodiny se nepoužije."
         },
         "origin": {
           "name": "Původ",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Přeskočit úkol",
-      "description": "Posunout úkol na jeho další výskyt bez zaznamenání dokončení.",
+      "description": "Posune úkol na jeho další výskyt bez zaznamenání dokončení. Přeskočení se zapisuje zvlášť, takže se nikdy nepočítá jako dokončení.",
       "fields": {
         "task_id": {
           "name": "Název nebo ID úkolu",
           "description": "ID úkolu, který se má přeskočit. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "note": {
+          "name": "Poznámka",
+          "description": "Proč byl tento výskyt vynechán."
+        },
+        "who": {
+          "name": "Kdo",
+          "description": "Kdo rozhodl o přeskočení."
+        },
+        "reading": {
+          "name": "Stav měřidla",
+          "description": "Hodnota připojeného senzoru v okamžiku přeskočení, u úkolu podle spotřeby."
         },
         "origin": {
           "name": "Původ",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Cíl",
           "description": "Služby oznámení, na které se má odeslat, přepisující profil (např. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Stav",
+          "description": "Přepisuje vlastní stav profilu pro toto volání: overdue (jen úkoly po termínu), due_soon (úkoly po termínu a blížící se termínu), all (všechny naplánované úkoly) nebo none (neodpovídá žádný úkol, pro odeslání oznámení Vše splněno na vyžádání)."
+        },
+        "when_empty": {
+          "name": "Když nic neodpovídá",
+          "description": "Co odešle volání, když filtr neodpovídá žádnému úkolu. Výchozí je skip: neodešle se nic. Nastavte jej na all_clear a odešlete oznámení Vše splněno."
         }
       }
     },
@@ -791,6 +823,92 @@
           "description": "Id dílu, jehož přiložený soubor se má podepsat. Funguje i jeho název. Panel zobrazuje id."
         }
       }
+    },
+    "update_skip": {
+      "name": "Upravit přeskočení",
+      "description": "Upraví podrobnosti zaznamenaného přeskočení určeného časovým razítkem. Přeskočení si ponechá své datum a plán zůstává beze změny.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, jehož přeskočení upravujete. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "ts": {
+          "name": "Časové razítko přeskočení",
+          "description": "Časové razítko ISO (ts) položky přeskočení, kterou chcete upravit."
+        },
+        "note": {
+          "name": "Poznámka",
+          "description": "Proč byl tento výskyt vynechán. Prázdná hodnota jej smaže."
+        },
+        "who": {
+          "name": "Kdo",
+          "description": "Kdo rozhodl o přeskočení. Prázdná hodnota jej smaže."
+        },
+        "reading": {
+          "name": "Stav měřidla",
+          "description": "Hodnota připojeného senzoru v okamžiku přeskočení, u úkolu podle spotřeby."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Smazat přeskočení",
+      "description": "Odebere zaznamenané přeskočení určené časovým razítkem. Vrácení přeskočení, které naposledy vynulovalo měřidlo spotřeby, toto měřidlo obnoví.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, jehož přeskočení odebíráte. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "ts": {
+          "name": "Časové razítko přeskočení",
+          "description": "Časové razítko ISO (ts) položky přeskočení, kterou chcete odebrat."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Přesunout přeskočení",
+      "description": "Změní datum zaznamenaného přeskočení určeného jeho současným časovým razítkem. Plán úkolu zůstává beze změny.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, jehož přeskočení přesouváte. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "old_ts": {
+          "name": "Současné časové razítko přeskočení",
+          "description": "Časové razítko ISO (ts) položky přeskočení, kterou chcete přesunout."
+        },
+        "new_ts": {
+          "name": "Nové datum",
+          "description": "Nové datum a čas, ke kterému se přeskočení zaznamená."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Přidat deklarativního společníka",
+      "description": "Zaregistruje deklarativního společníka — recept, který vytvoří spravovanou senzorovou úlohu pro každou entitu odpovídající filtrům (cílová integrace + filtry entit), s názvem úlohy a poznámkami pomocí šablon Jinja. Pouze pro správce."
+    },
+    "update_declarative_companion": {
+      "name": "Aktualizovat deklarativního společníka",
+      "description": "Aktualizuje pole uložené specifikace deklarativního společníka podle id. Pouze pro správce.",
+      "fields": {
+        "id": {
+          "name": "Id společníka",
+          "description": "Stabilní uuid specifikace, z list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Smazat deklarativního společníka",
+      "description": "Odstraní specifikaci deklarativního společníka a všechny spravované úlohy, které vytvořil. Pouze pro správce.",
+      "fields": {
+        "id": {
+          "name": "Id společníka",
+          "description": "Stabilní uuid specifikace, z list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Vypsat deklarativní společníky",
+      "description": "Vrátí každou uloženou specifikaci deklarativního společníka jako odpověď."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativní společník nebyl nalezen: {spec_id}"
     }
   }
 }

@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import { recurrenceSummary, round1 } from './utils';
+import { formatQuantity, normalizeIcon, recurrenceSummary, round1 } from './utils';
 import type {
   Asset,
   Companion,
@@ -86,6 +86,7 @@ export const selEntity = (
   entity: { filter, multiple, ...(exclude.length ? { exclude_entities: exclude } : {}) },
 });
 export const selIcon = (): Selector => ({ icon: {} });
+export const selColorRgb = (): Selector => ({ color_rgb: {} });
 export const selSelect = (
   options: { value: string; label: string }[],
   multiple = false,
@@ -115,6 +116,13 @@ export const selUnit = (): Selector =>
     { value: 'weeks', label: t('opt.unit.weeks') },
     { value: 'months', label: t('opt.unit.months') },
   ]);
+
+function monthOptions(): { value: string; label: string }[] {
+  return Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1),
+    label: t(`opt.month.${i + 1}`),
+  }));
+}
 
 // ── datetime <-> HA selector string helpers ────────────────────────────────
 // HA's datetime selector uses local "YYYY-MM-DD HH:mm:ss"; we persist ISO.
@@ -160,6 +168,89 @@ export function backstopEnabled(task: Partial<Task>): boolean {
 }
 
 /**
+ * How many season windows the *panel* will edit on one task.
+ *
+ * The stored list is uncapped — a service-API caller can write more — but a form
+ * has to stop somewhere, and a task needing more than six windows a year is really
+ * describing a different schedule. Raising this later breaks nothing.
+ */
+export const MAX_SEASON_WINDOWS = 6;
+
+/** The window a freshly-added season starts as: April 1 through September 30. */
+const DEFAULT_SEASON = { startMonth: '4', startDay: 1, endMonth: '9', endDay: 30 };
+
+/** Last day of *month* (1-12), leap year, so February is 29 and never 28. */
+export function daysInMonth(month: number): number {
+  return new Date(2000, month, 0).getDate();
+}
+
+/**
+ * A task's stored season windows, from either representation.
+ *
+ * The stored shape is a list; a single `{start, end}` object is accepted on input
+ * (services and older tasks), so both are normalized here rather than at each reader.
+ */
+export function seasonWindows(task: Partial<Task>): Array<{ start: string; end: string }> {
+  const s = task.active_season;
+  if (!s) return [];
+  if (Array.isArray(s)) return s;
+  if (typeof s === 'object' && 'start' in s) return [s];
+  return [];
+}
+
+/**
+ * Whether the task is restricted to a season, from either representation — the flat
+ * `season_on` switch the form holds, or the presence of stored windows. Same shape of
+ * predicate as {@link backstopEnabled}, for the same reason: schema, payload and hint
+ * must never disagree about whether the season fields count.
+ */
+export function seasonEnabled(task: Partial<Task>): boolean {
+  const flag = (task as Record<string, unknown>).season_on;
+  if (flag !== undefined && flag !== null) return Boolean(flag);
+  return seasonWindows(task).length > 0;
+}
+
+/**
+ * How many windows the form is editing: the live `season_count` (the user added or
+ * removed one) wins over the stored list's length, so a removal isn't undone by the
+ * task it was removed from. Always at least one — the season switch being on means
+ * there is a window to fill in.
+ */
+export function seasonCount(task: Partial<Task>): number {
+  const flat = (task as Record<string, unknown>).season_count;
+  const n = Number(flat ?? seasonWindows(task).length) || 1;
+  return Math.min(MAX_SEASON_WINDOWS, Math.max(1, Math.floor(n)));
+}
+
+/**
+ * `season_2_start_month` → `season_start_month`.
+ *
+ * Every window is the same control repeated, so every window reads from one set of
+ * translations. Windows that each named themselves ("Active season", "Second window")
+ * is exactly the inconsistency reported on #242.
+ */
+export function seasonFieldLabelKey(name: string): string {
+  return name.replace(/^season_\d+_/, 'season_');
+}
+
+/** The four flat form values for window *i*, read from live edit state then storage. */
+function seasonWindowData(task: Partial<Task>, i: number): Record<string, unknown> {
+  const sd = task as Record<string, unknown>;
+  const w = seasonWindows(task)[i - 1];
+  const month = (mmdd: string | undefined, fallback: string): string =>
+    mmdd ? String(parseInt(mmdd, 10)) : fallback;
+  const day = (mmdd: string | undefined, fallback: number): number =>
+    mmdd ? parseInt(mmdd.split('-')[1], 10) : fallback;
+  return {
+    [`season_${i}_start_month`]:
+      sd[`season_${i}_start_month`] ?? month(w?.start, DEFAULT_SEASON.startMonth),
+    [`season_${i}_start_day`]: sd[`season_${i}_start_day`] ?? day(w?.start, DEFAULT_SEASON.startDay),
+    [`season_${i}_end_month`]: sd[`season_${i}_end_month`] ?? month(w?.end, DEFAULT_SEASON.endMonth),
+    [`season_${i}_end_day`]: sd[`season_${i}_end_day`] ?? day(w?.end, DEFAULT_SEASON.endDay),
+  };
+}
+
+/**
  * Whether a state-mode binding points at a `binary_sensor`, from either representation.
  *
  * Binary sensors are the reason this mode exists and they only ever report `on`/`off`,
@@ -189,9 +280,43 @@ export function isBinarySensorBinding(task: Partial<Task>): boolean {
  * that only exists because of a choice made in the section above it.
  */
 export interface TaskSchemaSection {
-  key: 'basics' | 'schedule' | 'cadence' | 'placement' | 'completion';
+  /**
+   * `basics` | `schedule` | `cadence` | `placement` | `completion`, or `season-<n>`
+   * for the nth active-season window — one section per window, because a window
+   * needs a heading and a Remove button of its own.
+   */
+  key: string;
   fields: FormField[];
   dependent?: boolean;
+}
+
+/** The month/day pair fields for season window *i*, as two `ha-form` grid rows. */
+function seasonWindowFields(task: Partial<Task>, i: number): FormField[] {
+  const data = seasonWindowData(task, i);
+  // The day picker's ceiling follows the month beside it, so February can't offer a
+  // 31st that the payload would silently clamp back to the 29th.
+  const dayField = (name: string, month: unknown): FormField => ({
+    name,
+    selector: { number: { min: 1, max: daysInMonth(Number(month)), mode: 'box' } },
+  });
+  return [
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: `season_${i}_start_month`, selector: selSelect(monthOptions()) },
+        dayField(`season_${i}_start_day`, data[`season_${i}_start_month`]),
+      ],
+    },
+    {
+      name: '',
+      type: 'grid',
+      schema: [
+        { name: `season_${i}_end_month`, selector: selSelect(monthOptions()) },
+        dayField(`season_${i}_end_day`, data[`season_${i}_end_month`]),
+      ],
+    },
+  ];
 }
 
 /**
@@ -264,12 +389,16 @@ export function taskSchemaSections(
     ];
   }
 
+  const isFloating = task.recurrence_type === 'floating';
   const isFixed = task.recurrence_type === 'fixed';
   // A one-off (do-once) task has no cadence at all — just a single due date.
   const isOneOff = task.recurrence_type === 'one-off';
   // A sensor-based task has no clock cadence — its due-state comes from a bound
   // numeric sensor. Show the binding fields instead of interval/unit/freq.
   const isSensor = task.recurrence_type === 'sensor';
+  // A season restricts a repeating date to part of the year, so only the two kinds
+  // that compute one from a calendar offer it.
+  const seasonOffered = (isFloating || isFixed) && !locked.has('active_season');
 
   const cadenceSubFields: FormField[] = isOneOff || isSensor
     ? []
@@ -316,9 +445,20 @@ export function taskSchemaSections(
             { value: 'usage', label: t('opt.sensor_mode.usage') },
             { value: 'threshold', label: t('opt.sensor_mode.threshold') },
             { value: 'state', label: t('opt.sensor_mode.state') },
+            { value: 'availability', label: t('opt.sensor_mode.availability') },
           ]),
         },
-        ...(sensorMode === 'state'
+        // Availability watches for the entity to go away, so it has no condition of
+        // its own — only the hold and the auto-clear the edge modes share. Listed
+        // before `state` because an availability task opened for editing must not
+        // fall through to another mode's fields: the save would stamp that mode's
+        // keys onto the binding and the backend rejects them.
+        ...(sensorMode === 'availability'
+          ? [
+              { name: 'sensor_for', selector: selNumber(0) } as FormField,
+              { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
+            ]
+          : sensorMode === 'state'
           ? [
               // A binary sensor only ever reports on/off, so offer those directly
               // rather than making the user type a magic word. Any other entity keeps
@@ -496,10 +636,30 @@ export function taskSchemaSections(
       : []),
   ];
 
+  // One section per active-season window, each holding the same two rows. A window
+  // is a section rather than a run of fields so the panel can head it ("Season 1")
+  // and offer Remove beside it — `ha-form` has no slot between its own rows.
+  // The switch and the windows it reveals are one run, so the switch is its own
+  // section directly above them rather than a field lost at the end of the cadence:
+  // with `anchor` and "Last completed" in between, the control and what it controls
+  // sat on opposite sides of the form.
+  const seasons: TaskSchemaSection[] = seasonOffered
+    ? [
+        { key: 'season', fields: [{ name: 'season_on', selector: selBool() }] },
+        ...(seasonEnabled(task)
+          ? Array.from({ length: seasonCount(task) }, (_, i) => ({
+              key: `season-${i + 1}`,
+              fields: seasonWindowFields(task, i + 1),
+            }))
+          : []),
+      ]
+    : [];
+
   return [
     { key: 'basics', fields: basics },
     { key: 'schedule', fields: schedule },
     { key: 'cadence', fields: cadenceSection, dependent: true },
+    ...seasons,
     { key: 'placement', fields: placement },
     { key: 'completion', fields: completion },
   ];
@@ -577,7 +737,14 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // state that means "something needs doing" for every device class that matters
     // here (water tank low, battery almost empty, leak detected).
     sensor_state: sd.sensor_state ?? task.sensor?.state ?? 'on',
-    sensor_clear_on_recover: sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover ?? false,
+    // Off by default, except in availability mode: `normalize_sensor` defaults *that*
+    // mode's flag to True (a device coming back is the recovery signal), so a box
+    // seeded unchecked would misreport what the backend would store, and — since the
+    // payload sends this mode's flag as a real boolean — saving would turn it off.
+    sensor_clear_on_recover:
+      sd.sensor_clear_on_recover ??
+      task.sensor?.clear_on_recover ??
+      (sd.sensor_mode ?? task.sensor?.mode) === 'availability',
     sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
     sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
     sensor_unit: sd.sensor_unit ?? task.sensor?.unit ?? '',
@@ -596,6 +763,14 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // than pre-selecting a blank option.
     tag_id: task.tag_id ?? undefined,
     require_tag_scan: task.require_tag_scan ?? false,
+    season_on: seasonEnabled(task),
+    // How many windows the form shows. Every window's four values are flattened
+    // alongside it (`season_1_start_month`, …) and assembled back in buildTaskPayload.
+    season_count: seasonCount(task),
+    ...Object.assign(
+      {},
+      ...Array.from({ length: seasonCount(task) }, (_, i) => seasonWindowData(task, i + 1)),
+    ),
     // Consumable link as an `asset_id:part_id` token (empty = unlinked). The live
     // edit state holds the flat value once the user changes it; fall back to the
     // task's current part source.
@@ -633,6 +808,16 @@ export function taskFormSchemaKey(task: Partial<Task> | Record<string, unknown>)
     d.recurrence_type,
     d.sensor_mode,
     d.sensor_backstop_on,
+    d.season_on,
+    // How many season windows are shown, and each one's two months — the months
+    // because a day picker's ceiling follows the month beside it (February offers 29
+    // days, not 31), so changing a month has to rebuild that row.
+    d.season_on
+      ? Array.from({ length: Number(d.season_count) }, (_, i) => [
+          d[`season_${i + 1}_start_month`],
+          d[`season_${i + 1}_end_month`],
+        ])
+      : null,
     // State mode's value control follows the bound entity: an on/off picker for a
     // binary sensor, free text for anything else. This predicate reads the flat and the
     // nested binding itself, so it needs no normalizing pass of its own.
@@ -796,11 +981,15 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
         ) || 'any') as SensorCombinator;
       }
     } else {
-      // The edge-driven modes (threshold / state) share the hold and the
-      // clear-on-recover flag; only the condition itself differs.
+      // The edge-driven modes (threshold / state / availability) share the hold and
+      // the clear-on-recover flag; only the condition itself differs. Availability
+      // has no condition at all — the entity going away *is* the condition — so it
+      // adds nothing here. It must still be matched explicitly: falling through to
+      // the threshold leg stamped `comparison` and `value` onto the binding, which
+      // the backend rejects as "not valid for an availability-mode sensor task".
       if (mode === 'state') {
         sensor.state = String(sd.sensor_state ?? task.sensor?.state ?? '').trim();
-      } else {
+      } else if (mode !== 'availability') {
         sensor.comparison = (sd.sensor_comparison as SensorComparison) ||
           task.sensor?.comparison ||
           '>=';
@@ -809,7 +998,15 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds) || 0;
       if (forSeconds > 0) sensor.for_seconds = forSeconds;
       const clearOnRecover = sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover;
-      if (clearOnRecover) sensor.clear_on_recover = true;
+      if (mode === 'availability') {
+        // Sent as a real boolean, unlike the two modes above. `normalize_sensor`
+        // defaults this mode's flag to **True** and only an explicit `False` turns
+        // auto-clear off, so omitting a cleared checkbox would silently turn it back
+        // on and the switch would do nothing.
+        sensor.clear_on_recover = clearOnRecover !== false;
+      } else if (clearOnRecover) {
+        sensor.clear_on_recover = true;
+      }
     }
     payload = {
       name: task.name,
@@ -838,9 +1035,25 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       payload.freq = task.freq || 'DAILY';
       payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
     }
-    // Capture mode applies to scheduled tasks; the backend derives which fields a
-    // `required` task makes mandatory (v1: the note).
     payload.completion_detail = task.completion_detail || 'none';
+    // Every window the form is showing, assembled from its flat fields — the whole
+    // list, so removing a window actually removes it. Season off sends an explicit
+    // null, which clears the season rather than leaving the stored one in place.
+    if (seasonEnabled(task) && task.recurrence_type !== 'one-off') {
+      const mmdd = (month: number, day: number): string =>
+        `${String(month).padStart(2, '0')}-${String(Math.min(day, daysInMonth(month))).padStart(2, '0')}`;
+      payload.active_season = Array.from({ length: seasonCount(task) }, (_, i) => {
+        const w = seasonWindowData(task, i + 1);
+        const sm = Number(w[`season_${i + 1}_start_month`]);
+        const em = Number(w[`season_${i + 1}_end_month`]);
+        return {
+          start: mmdd(sm, Number(w[`season_${i + 1}_start_day`])),
+          end: mmdd(em, Number(w[`season_${i + 1}_end_day`])),
+        };
+      });
+    } else {
+      payload.active_season = null;
+    }
   }
   // Area applies to every task kind (including triggered) and always round-trips, so
   // clearing the picker sends an explicit null and drops the task's own area rather
@@ -1031,6 +1244,17 @@ export function sensorHintText(
     );
   }
 
+  // Availability needs nothing entered to be describable — the entity picker above
+  // is the whole binding — so it never returns the empty string the other modes use
+  // for "not enough entered yet".
+  if (mode === 'availability') {
+    return withRecovery(
+      forSeconds > 0
+        ? t('hint.sensor.availabilityFor', { seconds: forSeconds })
+        : t('hint.sensor.availability'),
+    );
+  }
+
   if (mode === 'threshold') {
     const rawValue = sd.sensor_value ?? task.sensor?.value;
     if (rawValue == null || rawValue === '' || Number.isNaN(Number(rawValue))) return '';
@@ -1106,6 +1330,36 @@ export function problemSyncSchema(): FormField[] {
 /** The switch that decides whether problem sensors are mirrored at all. */
 export function problemSyncToggleSchema(): FormField[] {
   return [{ name: 'sync_problem_sensors', selector: selBool() }];
+}
+
+/**
+ * The two switches deciding whether Home Keeper offers Snooze and Skip on a task.
+ *
+ * They govern what this panel shows and what a notification's button set may carry.
+ * The `home_keeper.snooze_task` / `skip_task` services stay callable either way, so
+ * turning one off never breaks an automation someone already wrote.
+ */
+export function skipSnoozeSchema(): FormField[] {
+  return [
+    { name: 'allow_snooze', selector: selBool() },
+    { name: 'allow_skip', selector: selBool() },
+  ];
+}
+
+/**
+ * Read the two switches off an options object, defaulting **on**.
+ *
+ * `!!v` would read a missing key as off, which would withdraw both verbs from every
+ * install whose stored options predate the switches — which is all of them.
+ */
+export function skipSnoozeFlags(options: {
+  allow_snooze?: unknown;
+  allow_skip?: unknown;
+}): { allowSnooze: boolean; allowSkip: boolean } {
+  return {
+    allowSnooze: boolOr(options?.allow_snooze, true),
+    allowSkip: boolOr(options?.allow_skip, true),
+  };
 }
 
 /**
@@ -1222,11 +1476,14 @@ export function structuredDetailsSchema(): FormField[] {
   return [{ name: 'cost', selector: selNumber(0) }];
 }
 
-/** Schema for one free-form metadata entry. The value control swaps by type, and
- *  a `date` entry adds a "track as sensor" toggle (opt-in automation). */
-export function metadataSchema(m: MetadataEntry): FormField[] {
-  const valueSelector = m.type === 'date' ? selDate() : selText();
-  const fields: FormField[] = [
+/**
+ * A metadata entry's editor is two forms, so a change in one never rebuilds the
+ * other: the *base* form holds the type and label and never changes shape; the
+ * *dependent* form holds the value control, which swaps by type, plus a "track as
+ * sensor" toggle for a date. See `renderMetadataEditor` for why.
+ */
+export function metadataBaseSchema(): FormField[] {
+  return [
     {
       name: '',
       type: 'grid',
@@ -1242,15 +1499,33 @@ export function metadataSchema(m: MetadataEntry): FormField[] {
         { name: 'label', selector: selText() },
       ],
     },
-    { name: 'value', selector: valueSelector },
+  ];
+}
+
+/** The value control (by type) and, for a date, the opt-in "track as sensor" toggle. */
+export function metadataDependentSchema(m: MetadataEntry): FormField[] {
+  const fields: FormField[] = [
+    { name: 'value', selector: m.type === 'date' ? selDate() : selText() },
   ];
   if (m.type === 'date') fields.push({ name: 'track', selector: selBool() });
   return fields;
 }
 
-export function partSchema(part: Part): FormField[] {
-  const isWear = part.type === 'wear';
-  const base: FormField[] = [
+/** Schema for one free-form metadata entry, as one flat list: the base fields and
+ *  the ones the type reveals. Kept as the concatenation of the two builders above so
+ *  the editor's split and this view of it can never disagree. */
+export function metadataSchema(m: MetadataEntry): FormField[] {
+  return [...metadataBaseSchema(), ...metadataDependentSchema(m)];
+}
+
+/**
+ * The fields every part carries, whatever it is. This schema never changes once the
+ * form is built — which is what keeps the box being typed in alive: the fields that
+ * depend on these values live in a second form (`partDependentSchema`), so revealing
+ * one of them never rebuilds this one (issue #296).
+ */
+export function partBaseSchema(): FormField[] {
+  return [
     {
       name: '',
       type: 'grid',
@@ -1276,8 +1551,7 @@ export function partSchema(part: Part): FormField[] {
     },
     { name: 'part_url', selector: selText() },
     // Free-form notes about this part (rendered as Markdown on the appliance's
-    // detail page) — the field has always existed in the stored model but had no
-    // editor until now.
+    // detail page).
     { name: 'notes', selector: selText(true) },
     // Spare quantities are decimal (`'any'`): a part measured in millilitres or
     // topped up a third of a bottle at a time is as valid as one counted in whole
@@ -1292,24 +1566,34 @@ export function partSchema(part: Part): FormField[] {
       ],
     },
   ];
+}
+
+/**
+ * The fields a part's own values reveal: the per-completion amount once stock is
+ * tracked, auto-buy once a reorder threshold defines "low" (and the restock quantity
+ * once auto-buy is on), and the replacement schedule for a wear item. Empty for a
+ * consumable that tracks nothing.
+ */
+export function partDependentSchema(part: Part): FormField[] {
+  const fields: FormField[] = [];
   // How much one completion draws down. Only meaningful once the part is tracking
   // stock at all — with nothing to draw from, the field would promise nothing.
   if (part.stock != null) {
-    base.push({ name: 'consume_quantity', selector: selNumber(MIN_POSITIVE_QUANTITY, 'any') });
+    fields.push({ name: 'consume_quantity', selector: selNumber(MIN_POSITIVE_QUANTITY, 'any') });
   }
   // Auto-buy: only meaningful once a reorder threshold is set (that's what defines
   // "low"). When enabled, offer the restock quantity added on completing the reminder.
   if (part.reorder_at != null) {
-    base.push({ name: 'create_buy_task', selector: selBool() });
+    fields.push({ name: 'create_buy_task', selector: selBool() });
     if (part.create_buy_task) {
-      base.push({
+      fields.push({
         name: 'restock_quantity',
         selector: selNumber(MIN_POSITIVE_QUANTITY, 'any'),
       });
     }
   }
-  if (isWear) {
-    base.push({
+  if (part.type === 'wear') {
+    fields.push({
       name: '',
       type: 'grid',
       schema: [
@@ -1319,9 +1603,122 @@ export function partSchema(part: Part): FormField[] {
     });
     // Let the user record when the part was last replaced so the derived
     // maintenance task's clock starts from the real date instead of "now".
-    base.push({ name: 'last_replaced', selector: selDate() });
+    fields.push({ name: 'last_replaced', selector: selDate() });
   }
-  return base;
+  return fields;
+}
+
+/**
+ * What decides the dependent schema's shape, as one comparable string. The editor
+ * rebuilds the dependent form only when this changes — so typing a second digit into
+ * Stock (still tracked) does nothing to it, and the first digit (untracked → tracked)
+ * reveals the per-completion field in place.
+ */
+export function partDependentKey(part: Part): string {
+  return [
+    part.type === 'wear',
+    part.stock != null,
+    part.reorder_at != null,
+    Boolean(part.create_buy_task),
+  ].join(',');
+}
+
+/** Schema for one part, as one flat list: the fixed fields, then the ones its own
+ *  values reveal. The concatenation of the two builders the editor uses. */
+export function partSchema(part: Part): FormField[] {
+  return [...partBaseSchema(), ...partDependentSchema(part)];
+}
+
+/** A part's fields as the flat form data both of its forms are seeded from (each
+ *  takes its own slice through `pickFormData`). */
+export function partFormData(part: Part): Record<string, unknown> {
+  return {
+    part_name: part.name ?? '',
+    part_number: part.part_number ?? '',
+    type: part.type ?? 'consumable',
+    vendor: part.vendor ?? '',
+    cost: part.cost ?? undefined,
+    part_url: part.url ?? '',
+    notes: part.notes ?? '',
+    stock: part.stock ?? undefined,
+    reorder_at: part.reorder_at ?? undefined,
+    stock_unit: part.stock_unit ?? '',
+    consume_quantity: part.consume_quantity ?? undefined,
+    create_buy_task: part.create_buy_task ?? false,
+    restock_quantity: part.restock_quantity ?? undefined,
+    replace_interval: part.replace_interval ?? undefined,
+    replace_unit: part.replace_unit ?? 'months',
+    last_replaced: part.last_replaced ?? undefined,
+  };
+}
+
+/**
+ * Fold one form's emitted values into *prev*. Each of a part's two forms emits only
+ * its own fields, so a key that is absent means "not this form's field", never "set
+ * to nothing" — hence the `in` guards. The normalisation at the end is what the old
+ * one-form editor got for free from hidden fields reading as `undefined`: a value
+ * whose gate has closed is dropped, so the store never carries a per-completion
+ * amount for a part that tracks no stock, or a restock quantity for a part that
+ * never auto-buys.
+ */
+export function mergePartForm(prev: Part, value: Record<string, unknown>): Part {
+  const has = (k: string): boolean => k in value;
+  const num = (v: unknown): number | null => (v != null && v !== '' ? Number(v) : null);
+  const str = (v: unknown): string => String(v ?? '');
+  const next: Part = { ...prev };
+  if (has('part_name')) next.name = str(value.part_name);
+  if (has('part_number')) next.part_number = str(value.part_number);
+  if (has('type')) next.type = (value.type as Part['type']) ?? 'consumable';
+  if (has('vendor')) next.vendor = str(value.vendor);
+  if (has('cost')) next.cost = num(value.cost);
+  if (has('part_url')) next.url = str(value.part_url).trim();
+  if (has('notes')) next.notes = str(value.notes);
+  if (has('stock')) next.stock = num(value.stock);
+  if (has('reorder_at')) next.reorder_at = num(value.reorder_at);
+  if (has('stock_unit')) next.stock_unit = str(value.stock_unit).trim();
+  if (has('consume_quantity')) next.consume_quantity = num(value.consume_quantity);
+  if (has('create_buy_task')) next.create_buy_task = Boolean(value.create_buy_task);
+  if (has('restock_quantity')) next.restock_quantity = num(value.restock_quantity);
+  if (has('replace_interval')) next.replace_interval = num(value.replace_interval);
+  if (has('replace_unit')) {
+    next.replace_unit = (value.replace_unit as Part['replace_unit']) ?? null;
+  }
+  // The last-replaced date is only editable for a wear item; a consumable keeps
+  // whatever it had (the field is not shown, so nothing can have changed it).
+  if (has('last_replaced')) next.last_replaced = value.last_replaced ? str(value.last_replaced) : null;
+  if (next.stock == null) next.consume_quantity = null;
+  if (next.reorder_at == null) next.create_buy_task = false;
+  if (!next.create_buy_task) next.restock_quantity = null;
+  if (next.type !== 'wear') {
+    next.replace_interval = null;
+    next.replace_unit = null;
+  } else if (!next.replace_interval) {
+    next.replace_unit = null;
+  }
+  return next;
+}
+
+/**
+ * The one line a collapsed part row says about itself: the stock (flagged when it
+ * is at or below the reorder point), the reorder point, and a wear item's interval.
+ * Empty for a part that tracks nothing and repeats on no schedule.
+ */
+export function partSummaryLine(part: Part): string {
+  const bits: string[] = [];
+  if (part.stock != null) {
+    const onHand = formatQuantity(part.stock, part.stock_unit);
+    const low = part.reorder_at != null && part.stock <= part.reorder_at;
+    bits.push(t(low ? 'part.lowStock' : 'part.inStock', { n: onHand }));
+    if (part.reorder_at != null) {
+      bits.push(t('part.reorderAt', { n: formatQuantity(part.reorder_at, part.stock_unit) }));
+    }
+  }
+  if (part.type === 'wear' && part.replace_interval && part.replace_unit) {
+    bits.push(
+      t('part.every', { n: part.replace_interval, unit: t(`opt.unit.${part.replace_unit}`) }),
+    );
+  }
+  return bits.join(' · ');
 }
 
 // ── profiles (saved filters) & notifications (delivery) ─────────────────────
@@ -1507,6 +1904,31 @@ export function profileFormToProfile(
 }
 
 /**
+ * `#rrggbb` → the `[r, g, b]` triple `color_rgb` renders, or `undefined` for an empty
+ * field. The backend stores hex because that is what the companion app puts on the
+ * wire; the picker speaks RGB, so the two meet here.
+ */
+export function hexToRgb(hex: unknown): [number, number, number] | undefined {
+  const value = String(hex ?? '')
+    .trim()
+    .toLowerCase();
+  if (!/^#[0-9a-f]{6}$/.test(value)) return undefined;
+  return [
+    parseInt(value.slice(1, 3), 16),
+    parseInt(value.slice(3, 5), 16),
+    parseInt(value.slice(5, 7), 16),
+  ];
+}
+
+/** The `[r, g, b]` triple `color_rgb` gives back → `#rrggbb`. Anything else → `''`. */
+export function rgbToHex(value: unknown): string {
+  if (!Array.isArray(value) || value.length !== 3) return '';
+  const parts = value.map((c) => Number(c));
+  if (parts.some((c) => !Number.isInteger(c) || c < 0 || c > 255)) return '';
+  return `#${parts.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
  * The `ha-form` schema for one **notification** (delivery). *targets* is the live
  * `mobile_app_*` list; *profiles* populates the profile dropdown (what tasks to send).
  */
@@ -1530,6 +1952,10 @@ export function notificationSchema(targets: string[], profiles: Profile[]): Form
     // How it lands on the phone, kept together and after the delivery basics.
     { name: 'channel', selector: selText() },
     { name: 'urgency', selector: selSelect(notifyOptions(NOTIFY_URGENCIES)) },
+    // How it *looks*. After the loudness pair, because a channel is fixed on Android
+    // once it exists and these two are not — they are the cheap thing to change.
+    { name: 'icon', selector: selIcon() },
+    { name: 'color', selector: selColorRgb() },
     { name: 'snooze_hours', selector: selNumber(1) },
     { name: 'auto_overdue', selector: selBool() },
     { name: 'auto_due_soon', selector: selBool() },
@@ -1546,6 +1972,8 @@ export function notifyFormData(n: Notification): Record<string, unknown> {
     style: n.style,
     channel: n.channel,
     urgency: n.urgency,
+    icon: n.icon,
+    color: hexToRgb(n.color),
     snooze_hours: n.snooze_hours,
     auto_overdue: n.auto.overdue,
     auto_due_soon: n.auto.due_soon,
@@ -1566,6 +1994,8 @@ export function notifyFormToNotification(
     style: (data.style as NotifyStyle) ?? 'walk',
     channel: String(data.channel ?? '').trim(),
     urgency: (data.urgency as NotifyUrgency) ?? 'normal',
+    icon: normalizeIcon(data.icon),
+    color: rgbToHex(data.color),
     snooze_hours: Number(data.snooze_hours ?? 24) || 24,
     auto: { overdue: !!data.auto_overdue, due_soon: !!data.auto_due_soon },
   };

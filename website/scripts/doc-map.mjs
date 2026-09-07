@@ -46,6 +46,7 @@ export const USER_SECTIONS = [
   {h: 'One-off (do-once) tasks', slug: 'one-off-tasks', title: 'One-off tasks', label: 'One-off tasks', group: 'tasks'},
   {h: 'Notes are Markdown', slug: 'markdown-notes', title: 'Markdown notes', label: 'Markdown notes', group: 'tasks'},
   {h: 'Logging completions (note, cost, photo, who)', slug: 'completions', title: 'Logging completions', label: 'Completions', group: 'tasks'},
+  {h: 'Snooze and skip', slug: 'snooze-and-skip', title: 'Snooze and skip', label: 'Snooze and skip', group: 'tasks'},
   {h: 'Complete tasks with NFC/RFID tags', slug: 'nfc-tags', title: 'NFC and RFID tags', label: 'NFC and RFID tags', group: 'tasks'},
   {h: 'Condition-driven (triggered) tasks', slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks', group: 'tasks'},
   {h: 'Sensor-based tasks (usage meters, thresholds & states)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks', group: 'tasks'},
@@ -145,6 +146,7 @@ export const ANCHOR_ROUTES = {
   // The Settings section links across to the to-do list sync section (→ todo-sync page).
   '#send-tasks-to-your-to-do-lists': '/docs/guide/todo-sync',
   '#dashboard-task-card': '/docs/guide/dashboard-card',
+  '#snooze-and-skip': '/docs/guide/snooze-and-skip',
   // The Notifications section links across to the events section (→ events page).
   '#events--automations': '/docs/guide/events',
   // The "Link a task to a consumable" subsection lives under the Sensor-based tasks

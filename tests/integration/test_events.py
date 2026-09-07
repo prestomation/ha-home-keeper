@@ -265,17 +265,66 @@ def test_snooze_and_skip_events(ha, ha_token):
     assert payload["snoozed_until"] == payload["next_due"]
 
     def skip():
-        call_service(ha, "home_keeper", "skip_task", {"task_id": created_id["id"]})
+        call_service(
+            ha,
+            "home_keeper",
+            "skip_task",
+            {"task_id": created_id["id"], "note": "away", "who": "sam"},
+        )
 
     skipped = _by_type(_run(ha_token, ["home_keeper_task_skipped"], skip, expected=1))
     assert "home_keeper_task_skipped" in skipped
-    assert skipped["home_keeper_task_skipped"][0]["task_id"] == created_id["id"]
+    skip_payload = skipped["home_keeper_task_skipped"][0]
+    assert skip_payload["task_id"] == created_id["id"]
+    # The payload carries the skip's own timestamp, which is its identity in the log.
+    assert skip_payload["ts"]
 
-    # Neither snooze nor skip recorded a completion — the task's history is empty.
     tasks = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
     body = tasks.get("service_response", tasks)
     task = next(t for t in body["tasks"] if t["id"] == created_id["id"])
+    # Neither snooze nor skip recorded a *completion* — that is the whole point of a
+    # separate log, and it is what keeps every count derived from `completions` honest.
     assert not task.get("completions")
+    assert not task.get("last_completed")
+    # The skip itself is recorded, with the detail the service was given.
+    assert [(s["ts"], s.get("note"), s.get("who")) for s in task["skips"]] == [
+        (skip_payload["ts"], "away", "sam")
+    ]
+
+    def amend():
+        call_service(
+            ha,
+            "home_keeper",
+            "update_skip",
+            {
+                "task_id": created_id["id"],
+                "ts": skip_payload["ts"],
+                "note": "on holiday",
+            },
+        )
+
+    updated = _by_type(
+        _run(ha_token, ["home_keeper_task_skip_updated"], amend, expected=1)
+    )
+    assert updated["home_keeper_task_skip_updated"][0]["ts"] == skip_payload["ts"]
+
+    def undo():
+        call_service(
+            ha,
+            "home_keeper",
+            "delete_skip",
+            {"task_id": created_id["id"], "ts": skip_payload["ts"]},
+        )
+
+    removed = _by_type(
+        _run(ha_token, ["home_keeper_task_skip_removed"], undo, expected=1)
+    )
+    assert removed["home_keeper_task_skip_removed"][0]["ts"] == skip_payload["ts"]
+
+    tasks = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    body = tasks.get("service_response", tasks)
+    task = next(t for t in body["tasks"] if t["id"] == created_id["id"])
+    assert not task.get("skips")
 
     call_service(ha, "home_keeper", "delete_task", {"task_id": created_id["id"]})
 

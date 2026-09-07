@@ -5,6 +5,7 @@ import {
   buildTaskPayload,
   consumableLinkToken,
   duplicateTaskSeed,
+  seasonFieldLabelKey,
   type FormField,
   type HaFormElement,
 } from './forms';
@@ -19,7 +20,11 @@ import {
 } from './markdown';
 import { renderAssetForm } from './panel-asset-form';
 import { sourceOwnedTask, wireDeviceChips } from './panel-chips';
-import { controls, wireControls } from './panel-controls';
+import { emptySkipState, emptySnoozeState, type SkipState, type SnoozeState } from './defer';
+import { DeferMenus } from './defer-dialogs';
+import { controls, patchFilterCounts, wireControls } from './panel-controls';
+import { renderDeclarativeDialog } from './panel-declarative';
+import { openSkip, openSnooze, renderSkip, renderSnooze } from './panel-defer';
 import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
 import {
   openCompletionDialog,
@@ -51,6 +56,7 @@ import {
   type AssetFilter,
   type AssetView,
   type CompletionDialogState,
+  type DeclarativeDialogState,
   type EditState,
   type GroupBy,
   type MoveCompletionDialogState,
@@ -62,6 +68,8 @@ import type {
   Asset,
   AssetKind,
   Companion,
+  DeclarativeCompanion,
+  DeclarativeCompanionPreset,
   Hass,
   HomeKeeperOptions,
   ManagedBy,
@@ -80,10 +88,23 @@ import {
   scanRequired,
   type PanelLocation,
   type PanelView,
+  ASSET_TABS,
   type AssetTab,
   DEFAULT_ASSET_TAB,
+  DEFAULT_TASK_TAB,
+  TASK_TABS,
+  type TaskTab,
   type SettingsSection,
 } from './utils';
+
+/**
+ * How many times a load waits out an unloaded integration, and how long it waits
+ * between tries. A config-entry reload is a second or two, so five tries a second
+ * apart cover a slow one with room to spare, and a failure that is not a reload
+ * gives up on the first try (see `_reload`).
+ */
+const RELOAD_RETRIES = 5;
+const RELOAD_RETRY_MS = 1000;
 
 /**
  * The Home Keeper panel is built entirely from Home Assistant's own web
@@ -116,6 +137,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     task: null,
     ts: '',
   };
+  _snooze: SnoozeState = emptySnoozeState();
+  _skip: SkipState = emptySkipState();
+  // The open deferral menu and the document handlers dismissing it. One at a time:
+  // opening a second closes the first, so this never holds a stale pair.
+  private readonly _deferMenus = new DeferMenus({
+    taskById: (id) => this._tasks.find((x) => x.id === id),
+    onSnooze: (task) => openSnooze(this, task),
+    onSkip: (task) => openSkip(this, task),
+  });
   _confirmDelete: { open: boolean; label: string; onConfirm: (() => void) | null } = {
     open: false,
     label: '',
@@ -151,6 +181,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _ownTodoEntities: string[] = [];
   // Companion integrations shown on the Settings tab (loaded with the rest).
   _companions: Companion[] = [];
+  // Declarative-companion recipes (loaded with the rest), the bundled presets and the
+  // installed-integration list their dialogs need (fetched on first open), and the
+  // dialogs' own state.
+  _declarativeCompanions: DeclarativeCompanion[] = [];
+  _declarativePresets: DeclarativeCompanionPreset[] | null = null;
+  _installedIntegrations: string[] | null = null;
+  _declDialog: DeclarativeDialogState = { open: false, kind: 'picker', draft: null };
   // HA tag-registry entries as picker options, for the task form's tag field and
   // the tag chip. Best-effort: an empty list still leaves a typable combo box.
   _tags: { value: string; label: string }[] = [];
@@ -162,6 +199,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _treeCollapsed = new Set<string>();
   // Selected saved Profile id to filter the task list by ('' = no profile).
   _profile = '';
+  // Free text both lists filter on ('' = no text filter). The one list control that
+  // is *not* persisted: a scope pill states its own name and count, so a remembered
+  // one explains itself, while a remembered substring is a short list with no visible
+  // reason for being short.
+  _query = '';
   // Group sections collapsed by the user, keyed by "<group>:<bucket>".
   // Group sections the user collapsed this session (open is the default). The
   // "monitored" status bucket — dormant condition-driven tasks like healthy
@@ -206,7 +248,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // A form to open once the pending navigation settles in `_applyLocation` (opening
   // an edit form from a detail page changes the URL, which would otherwise clear it).
   private _pendingEdit: Partial<Task> | null = null;
-  private _pendingAssetEdit: Partial<Asset> | null = null;
+  private _pendingAssetEdit: AssetEditState | null = null;
   // What is being note-edited inline on a detail page, or null. Notes are long-form
   // prose that renders as Markdown, so both tasks and appliances get a dedicated
   // full-width editor on their detail page rather than a cramped row in the edit form
@@ -292,7 +334,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._pendingEdit = null;
     }
     if (this._pendingAssetEdit) {
-      this._assetEdit = { open: true, asset: this._pendingAssetEdit };
+      this._assetEdit = { ...this._pendingAssetEdit, open: true };
       this._pendingAssetEdit = null;
     }
     this._render();
@@ -339,6 +381,46 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         .getElementById('settings-back')
         ?.addEventListener('click', () => this._closeSettingsSection());
     }
+    return true;
+  }
+
+  /**
+   * Narrow the list in place for the text in the search box.
+   *
+   * The same move as `_patchSettingsSection`, for a different cost. `_render` replaces
+   * the whole shadow tree, so it replaces the box being typed in — and the caret, the
+   * selection and the keyboard go with it. Only the list and the scope pills' counts
+   * depend on the query, so those two are patched and the control row is left standing.
+   *
+   * Nothing else a render does applies here: a task row and an appliance row hold no
+   * Markdown, no live preview and no signed file link, and `_liveHassEls` must *not* be
+   * reset, because the menu button and any open form registered there and this pass did
+   * not rebuild them.
+   *
+   * Returns false when there is no rendered list to patch — a task's own page, or the
+   * Settings tab — leaving the caller to render normally.
+   */
+  private _applyQuery(): boolean {
+    const root = this.shadowRoot;
+    const list = root?.getElementById('hk-list');
+    if (!root || !list) return false;
+    // The open deferral menu points at a row this is about to replace, and holds
+    // document-level dismiss handlers.
+    this._closeDeferMenu();
+    list.innerHTML = this._view === 'tasks' ? tasksList(this) : assetsList(this);
+    // Scoped to the list, not the shadow root: `wireDetailOpeners` also matches the
+    // appliance detail pane beside it, which this pass did not rebuild and must not
+    // bind a second time.
+    wireLists(this, list);
+    wireDetailOpeners(this, list);
+    wireDeviceChips(this, list);
+    patchFilterCounts(this, root);
+    // A query the panel set itself — the empty state's way out, Escape, the clear
+    // button — has to reach the box too. Guarded, because assigning the same string
+    // still moves the caret to the end.
+    const input = root.querySelector<HTMLInputElement>('.hk-search-input');
+    if (input && input.value !== this._query) input.value = this._query;
+    root.querySelector('.hk-search-clear')?.toggleAttribute('hidden', !this._query);
     return true;
   }
 
@@ -411,6 +493,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // the body-level confirm scrim and its document keydown listener (both live past
     // the element otherwise), plus any pending per-keystroke persist timers.
     teardownOverlay(this);
+    this._closeDeferMenu();
     // The sheet-threshold media query outlives the element, so its listener has to
     // come off too — it closes over `this` and would otherwise keep the whole
     // detached shadow tree reachable, and re-render it on every crossing.
@@ -515,6 +598,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._render();
   }
 
+  /** Filter both lists by free text ('' clears it). */
+  _setQuery(value: string): void {
+    if (this._query === value) return;
+    this._query = value;
+    // Not `_render()`: see `_applyQuery`. It falls back to a full render when there is
+    // no list on screen to patch.
+    if (!this._applyQuery()) this._render();
+  }
+
   /** Pick a saved Profile to drive the task-list filter (''/none clears it). */
   _setProfile(value: string): void {
     if (this._profile === value) return;
@@ -532,13 +624,20 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // Drilling in is a Back-able step: push. An appliance opens on its default
     // sub-tab; `buildPath` leaves that one out of the URL.
     const detail =
-      kind === 'asset' ? { kind, id, tab: DEFAULT_ASSET_TAB } : { kind, id };
+      kind === 'asset' ? { kind, id, tab: DEFAULT_ASSET_TAB } : { kind, id, tab: DEFAULT_TASK_TAB };
     this._navigate({ view: kind === 'asset' ? 'appliances' : 'tasks', detail });
   }
 
   /** Which sub-tab the open appliance detail is showing. */
   _assetTab(): AssetTab {
-    return this._detail?.tab ?? DEFAULT_ASSET_TAB;
+    const tab = this._detail?.tab;
+    return tab && (ASSET_TABS as readonly string[]).includes(tab) ? (tab as AssetTab) : DEFAULT_ASSET_TAB;
+  }
+
+  /** Which sub-tab the open task detail is showing. */
+  _taskTab(): TaskTab {
+    const tab = this._detail?.tab;
+    return tab && (TASK_TABS as readonly string[]).includes(tab) ? (tab as TaskTab) : DEFAULT_TASK_TAB;
   }
 
   /**
@@ -550,6 +649,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const detail = this._detail;
     if (!detail || detail.kind !== 'asset' || this._assetTab() === tab) return;
     this._navigate({ view: 'appliances', detail: { ...detail, tab } }, true);
+  }
+
+  /** Switch the open task's sub-tab — the same lateral, replacing move. */
+  _setTaskTab(tab: TaskTab): void {
+    const detail = this._detail;
+    if (!detail || detail.kind !== 'task' || this._taskTab() === tab) return;
+    this._navigate({ view: 'tasks', detail: { ...detail, tab } }, true);
   }
   /**
    * Leave an open Settings section for the section index — the phone's back arrow.
@@ -590,8 +696,29 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (this._hass && !this._loaded) void this._refresh();
   }
 
-  /** Fetch tasks/assets/domains into state (no render). */
-  async _reload(): Promise<void> {
+  /**
+   * A best-effort fetch: fall back to *fallback* when it fails, **except** while the
+   * integration is unloaded.
+   *
+   * These fallbacks exist so one soft command can't stop the panel from loading. A
+   * `not_loaded` error is not that: the entry is mid-reload and every command is
+   * failing, so falling back would render "no companions, no options, no recipes" —
+   * a confident answer that is wrong. Rethrowing puts the whole batch on the retry
+   * path in `_reload`, which waits for the reload to finish and asks again.
+   */
+  private _soft<T, F>(p: Promise<T>, fallback: F): Promise<T | F> {
+    return p.catch((err) => {
+      if (api.isNotLoaded(err)) throw err;
+      return fallback;
+    });
+  }
+
+  /**
+   * Fetch tasks/assets/domains into state (no render).
+   *
+   * *retriesLeft* is spent only on a `not_loaded` failure — see the catch below.
+   */
+  async _reload(retriesLeft = RELOAD_RETRIES): Promise<void> {
     if (!this._hass) return;
     try {
       const [
@@ -601,19 +728,24 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         loadedEntryIds,
         options,
         companions,
+        declarativeCompanions,
         introDismissed,
         tags,
       ] = await Promise.all([
         api.getTasks(this._hass),
         api.getAssets(this._hass),
-        api.getEntryDomains(this._hass).catch(() => ({})),
-        api.getLoadedEntryIds(this._hass).catch(() => new Set<string>()),
-        api.getOptions(this._hass).catch(() => null),
-        api.getCompanions(this._hass).catch(() => [] as Companion[]),
-        api.getIntroDismissed(this._hass).catch(() => false),
+        this._soft(api.getEntryDomains(this._hass), {}),
+        this._soft(api.getLoadedEntryIds(this._hass), new Set<string>()),
+        this._soft(api.getOptions(this._hass), null),
+        this._soft(api.getCompanions(this._hass), [] as Companion[]),
+        this._soft(
+          api.listDeclarativeCompanions(this._hass),
+          [] as DeclarativeCompanion[],
+        ),
+        this._soft(api.getIntroDismissed(this._hass), false),
         // Best-effort: the tag registry is a convenience for the picker and the
         // chip label, never a precondition for the panel loading.
-        api.getTags(this._hass).catch(() => [] as { value: string; label: string }[]),
+        this._soft(api.getTags(this._hass), [] as { value: string; label: string }[]),
       ]);
       this._tasks = tasks;
       this._assets = assets;
@@ -623,6 +755,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._notifyTargets = options?.notifyTargets ?? [];
       this._ownTodoEntities = options?.ownTodoEntities ?? [];
       this._companions = companions ?? [];
+      this._declarativeCompanions = declarativeCompanions ?? [];
       this._introDismissed = introDismissed;
       this._tags = tags;
       // Drop a remembered Profile filter that no longer exists (deleted since), so the
@@ -638,11 +771,27 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._loaded = true;
       this._loadError = false;
     } catch (err) {
+      // The integration is mid-reload. Wait for it and read again rather than keep
+      // what is on screen: every field above is left untouched by this catch, so a
+      // load that gives up here leaves the *whole* panel — task list, appliances,
+      // options, companions, recipes — showing what it held before, with nothing to
+      // say so and nothing to retry it. Home Keeper reloads itself (adding a
+      // declarative companion that matches an entity materializes tasks, and the
+      // reconciler reloads the entry to baseline the sensor watcher), so the refresh
+      // that follows such a save is the most likely one to land in the window.
+      if (api.isNotLoaded(err) && retriesLeft > 0) {
+        await new Promise((r) => setTimeout(r, RELOAD_RETRY_MS));
+        return this._reload(retriesLeft - 1);
+      }
       // eslint-disable-next-line no-console
       console.error('home-keeper: failed to load data', err);
       // Surface a retry instead of spinning forever (the only auto-retry was on the
       // first `set hass`, so a transient WS failure at startup bricked the panel).
       this._loadError = true;
+      // A panel that is already up shows no retry button — the load error only
+      // reaches the screen in place of the first-load spinner — so say it here. The
+      // alternative is a panel that quietly lies about what is stored.
+      if (this._loaded) toast(this, t('error.loadFailed'));
     }
   }
 
@@ -921,6 +1070,22 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     await this._refresh();
   }
 
+  /**
+   * Wire every split button under *root*, resolving each row's task from its id.
+   *
+   * The list renders one per row and the detail page exactly one, so both surfaces
+   * call this after their own markup lands. One controller holds the single open
+   * menu, so opening a second closes the first.
+   */
+  _wireDeferMenus(root: ParentNode): void {
+    this._deferMenus.wire(root);
+  }
+
+  /** Close whatever deferral menu is open — before replacing markup, or on unmount. */
+  private _closeDeferMenu(): void {
+    this._deferMenus.close();
+  }
+
   /** A completion-blocked task (e.g. a synced problem sensor) can't be marked done
    *  here — its owning integration clears it. Explain why instead of completing.
    *  A scan-locked task is blocked for a different reason, so it says so instead. */
@@ -1041,22 +1206,42 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._assetEdit = { open: true, asset: { kind: 'virtual', parts: [] } };
     this._render();
   }
-  _openEditAsset(asset: Asset): void {
+  _openEditAsset(asset: Asset, reveal?: { part: number | 'new' }): void {
     this._rememberDrawerOpener();
     // Opens beside the page it was pressed on — the appliance's own page keeps its
     // parts, documents and history in view while the form is up. See `_openEdit` for
     // the cross-view case and the pending-edit dance that survives `_applyLocation`
     // clearing ephemeral forms on a route change.
+    const parts = [...(asset.parts || [])];
+    // The Parts tab's Edit and Add part land on one part rather than the top of the
+    // form: the row is expanded, the Parts section it lives in is forced open, and
+    // the next render scrolls to it (a new part also takes the keyboard).
+    let openPart: number | undefined;
+    if (reveal?.part === 'new') {
+      parts.push({ name: '', type: 'consumable' });
+      openPart = parts.length - 1;
+    } else if (typeof reveal?.part === 'number') {
+      openPart = reveal.part;
+    }
     const seeded: Partial<Asset> = {
       ...asset,
-      parts: [...(asset.parts || [])],
+      parts,
       metadata: (asset.metadata || []).map((m) => ({ ...m })),
     };
+    const state: AssetEditState = reveal
+      ? {
+          open: true,
+          asset: seeded,
+          openPart,
+          revealPart: reveal.part === 'new' ? 'focus' : 'scroll',
+          openSections: { parts: true },
+        }
+      : { open: true, asset: seeded };
     if (this._view === 'appliances' && this._editsThisPage('asset', asset.id)) {
-      this._assetEdit = { open: true, asset: seeded };
+      this._assetEdit = state;
       this._render();
     } else {
-      this._pendingAssetEdit = seeded;
+      this._pendingAssetEdit = state;
       this._navigate({ view: 'appliances', detail: null });
     }
   }
@@ -1233,6 +1418,20 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     );
   }
 
+  /** The open drawer's *session*, as one comparable key — or null when closed.
+   *  Keyed by the edit-state object itself: every open builds a new one, and nothing
+   *  replaces it while the form is up (the form's handlers write into it, or swap
+   *  the draft *inside* it — `mergeAsset` replaces `_assetEdit.asset` on every
+   *  keystroke, which is why the draft is not the key). */
+  private get _drawerSubject(): object | null {
+    if (this._view === 'tasks' && this._edit.open) return this._edit;
+    if (this._view === 'appliances' && this._assetEdit.open) return this._assetEdit;
+    return null;
+  }
+  // The session the last render drew the drawer for, so the next one can tell "the
+  // same form, rebuilt" from "a different form" when deciding to keep the scroll.
+  private _renderedDrawerSubject: object | null = null;
+
   // ── rendering ───────────────────────────────────────────────────────────────
   _render(): void {
     if (!this.shadowRoot) return;
@@ -1240,10 +1439,23 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // the keyboard back on the same control in the rebuilt tree.
     const focused = this._focusKey();
     this._ensureMarkdown();
+    // The open deferral menu points at markup this render is about to replace, and
+    // holds document-level dismiss handlers, so it comes down before the rebuild.
+    this._closeDeferMenu();
     this._liveHassEls = [];
     // Everything below is rebuilt from scratch, so every preview on screen is about to
     // be detached — cancel its pending debounce rather than leaking a timer.
     this._disposeAllPreviews();
+    // The drawer's scroller is rebuilt with everything else, at scrollTop 0. A render
+    // the drawer asked for itself — Add part, Remove part, an upload landing — used to
+    // throw the reader to the top of a form they were halfway down; the position is
+    // put back below, before anything paints.
+    // `_drawerSubject` is read *after* the state that opened this render has been
+    // set, so a drawer that swaps to another object (Edit on a second row while one
+    // is open) starts that form at its top rather than wherever the last one was.
+    const drawerScroll =
+      this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky')?.scrollTop ?? 0;
+    const drawerSubject = this._drawerSubject;
     const onTasks = this._view === 'tasks';
 
     let inner: string;
@@ -1347,6 +1559,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       <div id="hk-dialog-host"></div>
     `;
     this._hydrate();
+    if (drawerScroll && drawerSubject && drawerSubject === this._renderedDrawerSubject) {
+      const scroller = this.shadowRoot.querySelector<HTMLElement>('.hk-drawer-sticky');
+      if (scroller) scroller.scrollTop = drawerScroll;
+    }
+    this._renderedDrawerSubject = drawerSubject;
     this._restoreFocus(focused);
     this._syncDrawerModality();
   }
@@ -1395,7 +1612,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * nothing else has claimed focus in the meantime, so a deferred restore can never
    * steal the caret from wherever the reader has since moved.
    */
-  private _focus(el: HTMLElement | null): void {
+  _focus(el: HTMLElement | null): void {
     if (!el || typeof el.focus !== 'function') return;
     try {
       el.focus({ preventScroll: true });
@@ -1600,6 +1817,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const dialogHost = root.getElementById('hk-dialog-host');
     if (dialogHost && this._completion.open) renderCompletionDialog(this, dialogHost);
     if (dialogHost && this._moveCompletion.open) renderMoveCompletionDialog(this, dialogHost);
+    if (dialogHost && this._snooze.open) renderSnooze(this, dialogHost);
+    if (dialogHost && this._skip.open) renderSkip(this, dialogHost);
+    if (dialogHost && this._declDialog.open) renderDeclarativeDialog(this, dialogHost);
     // renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
     // The drawer is a sibling of the whole content column, so it belongs to every
@@ -1675,7 +1895,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
     // Card actions: the row opens the detail page; tasks keep a quick "Done".
     wireDetailOpeners(this, root);
-    wireDeviceChips(root);
+    wireDeviceChips(this, root);
   }
 
   /**
@@ -1769,13 +1989,18 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       form.computeLabel = labelling.computeLabel;
       if (labelling.computeHelper) form.computeHelper = labelling.computeHelper;
     } else {
-      form.computeLabel = (s: { name: string }): string => (s.name ? t('field.' + s.name) : '');
+      // Every season window is the same control repeated, so `season_2_start_month`
+      // reads the label authored once for `season_start_month` — windows that named
+      // themselves individually is the inconsistency reported on #242.
+      form.computeLabel = (s: { name: string }): string =>
+        s.name ? t('field.' + seasonFieldLabelKey(s.name)) : '';
       // Muted per-field helper text under each field (keyed `help.<field>`); returns ''
       // where no string is authored, so helpers appear only where we wrote them.
       form.computeHelper = (s: { name: string }): string => {
         if (!s.name) return '';
-        const h = t('help.' + s.name);
-        return h === 'help.' + s.name ? '' : h;
+        const name = seasonFieldLabelKey(s.name);
+        const h = t('help.' + name);
+        return h === 'help.' + name ? '' : h;
       };
     }
     form.addEventListener('value-changed', (e: Event) => {

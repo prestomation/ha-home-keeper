@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Camps de realització obligatoris",
           "description": "Quins camps de metadades de realització fa obligatoris el panell quan el detall de la realització és required — qualsevol de note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Camps de realització obligatoris",
           "description": "Quins camps de metadades de realització fa obligatoris el panell quan el detall de la realització és required — qualsevol de note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Hores",
-          "description": "Quantes hores s'ha d'ajornar la tasca (24 per defecte)."
+          "description": "Quantes hores s'ha d'ajornar la tasca (per defecte 24). S'ignora si s'indica Fins a."
+        },
+        "until": {
+          "name": "Fins a",
+          "description": "Ajorna la tasca fins a aquesta data i hora exactes en lloc d'un nombre d'hores. Si l'indiqueu, el camp Hores no s'utilitza."
         },
         "origin": {
           "name": "Origen",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Omet la tasca",
-      "description": "Avança una tasca a la seva propera ocurrència sense registrar una compleció.",
+      "description": "Avança una tasca a la seva pròxima ocurrència sense registrar cap realització. L'omissió es registra a part, de manera que mai no compta com una realització.",
       "fields": {
         "task_id": {
           "name": "Nom o ID de tasca",
           "description": "L'id de la tasca a ometre. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Per què s'ha deixat passar aquesta ocurrència."
+        },
+        "who": {
+          "name": "Qui",
+          "description": "Qui ha decidit ometre-la."
+        },
+        "reading": {
+          "name": "Lectura del comptador",
+          "description": "El valor del sensor vinculat en el moment de l'omissió, per a una tasca d'ús."
         },
         "origin": {
           "name": "Origen",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Destinació",
           "description": "Serveis de notificació on enviar, substituint el perfil (p. ex. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Estat",
+          "description": "Substitueix l’estat propi del perfil per a aquesta crida: overdue (només tasques endarrerides), due_soon (tasques endarrerides i properes a vèncer), all (totes les tasques programades) o none (no coincideix cap tasca, per enviar la notificació de tot al dia a petició)."
+        },
+        "when_empty": {
+          "name": "Quan res no coincideix",
+          "description": "Què envia una crida quan el filtre no coincideix amb cap tasca. Per defecte és skip: no s’envia res. Estableix-lo a all_clear per enviar la notificació de tot al dia."
         }
       }
     },
@@ -791,6 +823,92 @@
           "description": "L'id de la peça el fitxer adjunt de la qual s'ha de signar. El seu nom també funciona. El tauler mostra l'id."
         }
       }
+    },
+    "update_skip": {
+      "name": "Actualitza l'omissió",
+      "description": "Modifica el detall d'una omissió registrada, identificada per la seva marca de temps. L'omissió conserva la data i la planificació no es toca.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca de la qual editeu l'omissió. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "ts": {
+          "name": "Marca de temps de l'omissió",
+          "description": "La marca de temps ISO (ts) de l'entrada d'omissió a editar."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Per què s'ha deixat passar aquesta ocurrència. Un valor buit l'esborra."
+        },
+        "who": {
+          "name": "Qui",
+          "description": "Qui ha decidit ometre-la. Un valor buit l'esborra."
+        },
+        "reading": {
+          "name": "Lectura del comptador",
+          "description": "El valor del sensor vinculat en el moment de l'omissió, per a una tasca d'ús."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Elimina l'omissió",
+      "description": "Suprimeix una omissió registrada, identificada per la seva marca de temps. Desfer l'omissió que va reiniciar per última vegada un comptador d'ús en restaura el comptador.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca de la qual suprimiu l'omissió. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "ts": {
+          "name": "Marca de temps de l'omissió",
+          "description": "La marca de temps ISO (ts) de l'entrada d'omissió a suprimir."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Mou l'omissió",
+      "description": "Canvia la data d'una omissió registrada, identificada per la seva marca de temps actual. La planificació de la tasca no es toca.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca de la qual moveu l'omissió. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "old_ts": {
+          "name": "Marca de temps actual de l'omissió",
+          "description": "La marca de temps ISO (ts) de l'entrada d'omissió a moure."
+        },
+        "new_ts": {
+          "name": "Data nova",
+          "description": "La nova data i hora en què registrar l'omissió."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Afegeix un companion declaratiu",
+      "description": "Registra un companion declaratiu — una recepta que materialitza una tasca de sensor gestionada per cada entitat que coincideix amb els filtres (integració objectiu + filtres d'entitat), amb el nom i les notes de la tasca mitjançant plantilles Jinja. Només administradors."
+    },
+    "update_declarative_companion": {
+      "name": "Actualitza un companion declaratiu",
+      "description": "Actualitza camps d'una especificació de companion declaratiu emmagatzemada per id. Només administradors.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "L'uuid estable de l'especificació, des de list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Elimina un companion declaratiu",
+      "description": "Elimina una especificació de companion declaratiu i totes les tasques gestionades que ha materialitzat. Només administradors.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "L'uuid estable de l'especificació, des de list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Llista els companions declaratius",
+      "description": "Retorna com a resposta cada especificació de companion declaratiu emmagatzemada."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "No s'ha trobat cap companion declaratiu: {spec_id}"
     }
   }
 }

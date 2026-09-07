@@ -175,6 +175,9 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("set_task_meter"),
     ServiceSpec("snooze_task"),
     ServiceSpec("skip_task"),
+    ServiceSpec("update_skip"),
+    ServiceSpec("delete_skip"),
+    ServiceSpec("move_skip"),
     ServiceSpec("set_task_consumable"),
     ServiceSpec("notify", response="optional"),
     ServiceSpec("list_tasks", response="only"),
@@ -196,6 +199,10 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("set_options", admin_only=True),
     ServiceSpec("register_companion", response="optional"),
     ServiceSpec("list_companions", response="only"),
+    ServiceSpec("add_declarative_companion", admin_only=True, response="only"),
+    ServiceSpec("update_declarative_companion", admin_only=True, response="only"),
+    ServiceSpec("delete_declarative_companion", admin_only=True),
+    ServiceSpec("list_declarative_companions", response="only"),
 )
 
 SERVICE_NAMES: tuple[str, ...] = tuple(spec.name for spec in SERVICES)
@@ -251,6 +258,12 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
             "str | None",
             "the HA tag whose scan completes the task, or None when none is linked",
         ),
+        Field(
+            "active_season",
+            "list[dict] | None",
+            "the date ranges the task is scheduled in, each a "
+            '{"start": "MM-DD", "end": "MM-DD"} window, or None when it runs all year',
+        ),
     ),
     "stock": (
         Field("asset_id", "str"),
@@ -292,7 +305,24 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
             "the detected upstream, for a catalog-suggested glue",
         ),
     ),
+    "declarative_companion": (
+        Field("spec_id", "str"),
+        Field("name", "str"),
+        Field("enabled", "bool"),
+        Field(
+            "preset_id",
+            "str | None",
+            "the bundled preset the recipe was seeded from, or None for one written "
+            "by hand",
+        ),
+    ),
 }
+
+_MATCH_COUNT = Field(
+    "match_count",
+    "int",
+    "present once the reconciler has run: how many entities the recipe selects",
+)
 
 
 _CHANGED_FIELDS = Field(
@@ -395,14 +425,47 @@ EVENTS: tuple[EventSpec, ...] = (
         "task",
         "a task's due date is deferred without recording a completion; only next_due "
         "moves, the recurrence is untouched",
-        extra=(Field("snoozed_until", "str", "the new due date, ISO"),),
+        extra=(
+            Field("snoozed_until", "str", "the new due date, ISO"),
+            Field("origin", "str | None", "the marker the caller passed"),
+        ),
     ),
     EventSpec(
         const.EVENT_TASK_SKIPPED,
         "EVENT_TASK_SKIPPED",
         "fired",
         "task",
-        "a task is advanced to its next occurrence without recording a completion",
+        "a task is advanced to its next occurrence without recording a completion; "
+        "the skip itself is logged, and a usage task's meter is reset",
+        extra=(
+            Field("ts", "str", "the skip's timestamp, its identity in the skip log"),
+            Field("origin", "str | None", "the marker the caller passed"),
+        ),
+    ),
+    EventSpec(
+        const.EVENT_TASK_SKIP_UPDATED,
+        "EVENT_TASK_SKIP_UPDATED",
+        "fired",
+        "task",
+        "a recorded skip's detail or date is edited after the fact; the schedule is "
+        "untouched",
+        extra=(
+            Field("ts", "str", "the edited skip's timestamp (before a move)"),
+            Field(
+                "meter_baseline",
+                "float",
+                "present when the edit re-anchored a usage task's meter",
+            ),
+        ),
+    ),
+    EventSpec(
+        const.EVENT_TASK_SKIP_REMOVED,
+        "EVENT_TASK_SKIP_REMOVED",
+        "fired",
+        "task",
+        "a recorded skip is undone; a usage task's meter returns to the baseline the "
+        "skip replaced",
+        extra=(Field("ts", "str", "the removed skip's timestamp"),),
     ),
     EventSpec(
         const.EVENT_TASK_OVERDUE,
@@ -491,6 +554,32 @@ EVENTS: tuple[EventSpec, ...] = (
         "fired",
         "companion",
         "a curated upstream is newly detected installed while its glue isn't",
+    ),
+    EventSpec(
+        const.EVENT_DECLARATIVE_COMPANION_ADDED,
+        "EVENT_DECLARATIVE_COMPANION_ADDED",
+        "fired",
+        "declarative_companion",
+        "a declarative-companion recipe is created; the tasks it materializes fire "
+        "the ordinary task events on their own",
+        extra=(_MATCH_COUNT,),
+    ),
+    EventSpec(
+        const.EVENT_DECLARATIVE_COMPANION_UPDATED,
+        "EVENT_DECLARATIVE_COMPANION_UPDATED",
+        "fired",
+        "declarative_companion",
+        "a declarative-companion recipe changes",
+        extra=(_MATCH_COUNT,),
+    ),
+    EventSpec(
+        const.EVENT_DECLARATIVE_COMPANION_REMOVED,
+        "EVENT_DECLARATIVE_COMPANION_REMOVED",
+        "fired",
+        "declarative_companion",
+        "a declarative-companion recipe is deleted, along with every task it "
+        "materialized",
+        extra=(_MATCH_COUNT,),
     ),
     EventSpec(
         const.EVENT_REGISTER_COMPANIONS,
@@ -590,6 +679,11 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/update_completion", service="update_completion"),
     WebsocketSpec("home_keeper/move_completion", service="move_completion"),
     WebsocketSpec("home_keeper/delete_completion", service="delete_completion"),
+    WebsocketSpec("home_keeper/snooze_task", service="snooze_task"),
+    WebsocketSpec("home_keeper/skip_task", service="skip_task"),
+    WebsocketSpec("home_keeper/update_skip", service="update_skip"),
+    WebsocketSpec("home_keeper/move_skip", service="move_skip"),
+    WebsocketSpec("home_keeper/delete_skip", service="delete_skip"),
     WebsocketSpec(
         "home_keeper/delete_archived_completion", service="delete_archived_completion"
     ),
@@ -631,6 +725,30 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/set_options", admin_only=True, service="set_options"),
     WebsocketSpec("home_keeper/get_companions", service="list_companions"),
     WebsocketSpec("home_keeper/get_profiles", service="list_profiles"),
+    WebsocketSpec(
+        "home_keeper/list_declarative_companions",
+        service="list_declarative_companions",
+    ),
+    WebsocketSpec(
+        "home_keeper/add_declarative_companion",
+        admin_only=True,
+        service="add_declarative_companion",
+    ),
+    WebsocketSpec(
+        "home_keeper/update_declarative_companion",
+        admin_only=True,
+        service="update_declarative_companion",
+    ),
+    WebsocketSpec(
+        "home_keeper/delete_declarative_companion",
+        admin_only=True,
+        service="delete_declarative_companion",
+    ),
+    # Read-only helpers for the panel's Add dialog: the bundled presets, a dry-run
+    # expansion of a draft recipe, and the integrations that have a config entry.
+    WebsocketSpec("home_keeper/list_declarative_presets"),
+    WebsocketSpec("home_keeper/preview_declarative_companion"),
+    WebsocketSpec("home_keeper/installed_integrations"),
 )
 
 HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
@@ -660,6 +778,8 @@ HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
 
 OPTIONS: tuple[OptionSpec, ...] = (
     OptionSpec(const.OPTION_SYNC_PROBLEM_SENSORS, in_flow=True),
+    OptionSpec(const.OPTION_ALLOW_SNOOZE, in_flow=False),
+    OptionSpec(const.OPTION_ALLOW_SKIP, in_flow=False),
     OptionSpec(const.OPTION_ONE_OFF_RETENTION_DAYS, in_flow=True),
     OptionSpec(const.OPTION_SHOPPING_LIST_ENTITY, in_flow=True),
     OptionSpec(const.OPTION_PROFILES, in_flow=False),
@@ -782,7 +902,9 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
         "Dispatcher signals",
         "deferred",
         "`SIGNAL_TASK_CONTRIBUTION` is reserved for a future upsert/reconcile "
-        "contribution API and is not connected to anything yet.",
+        "contribution API and is not connected to anything yet; "
+        "`SIGNAL_DECLARATIVE_SPECS_CHANGED` is internal, between the store and the "
+        "declarative-companion reconciler.",
     ),
     SurfaceKind(
         "Intents",

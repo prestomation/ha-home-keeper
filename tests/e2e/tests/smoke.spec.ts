@@ -8,6 +8,7 @@ import {
   openTodoCard,
   tabBar,
   trackPanelErrors,
+  openTaskTab,
 } from './helpers';
 import { ASSET, TASK } from '../fixture-ids';
 import { deleteTask, listTasks } from './helpers';
@@ -122,6 +123,8 @@ test.describe('Home Keeper panel — smoke', { tag: '@responsive' }, () => {
     await panel.locator('#a-add-part').click();
     await expect(panel.locator('.hk-part')).toHaveCount(1);
     const part = panel.locator('.hk-part').first();
+    // A new part opens itself (issue #296): it is the one thing the click asked for.
+    await expect(part).toHaveAttribute('open', '');
     await chooseHaSelect(part.locator('ha-select').first(), 'wear item');
     await expect(panel.locator('.hk-part').first().locator('ha-select')).toHaveCount(2);
   });
@@ -132,8 +135,9 @@ test.describe('Home Keeper panel — smoke', { tag: '@responsive' }, () => {
     const errors = trackPanelErrors(page);
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
-    // Clicking a task's row opens its detail page, which shows the history inline.
+    // Clicking a task's row opens its detail page; the history is its third tab.
     await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+    await openTaskTab(panel, 'history');
     const rows = panel.locator('.hk-hist-list li');
     await expect(rows.first()).toBeVisible();
     const before = await rows.count();
@@ -194,6 +198,7 @@ test.describe('Home Keeper panel — deep linking & Back', { tag: '@responsive' 
     await panel.waitFor({ state: 'attached', timeout: 45_000 });
     // Lands on the detail page (Back button present), not the list.
     await expect(panel.locator('#back-btn')).toBeVisible();
+    await openTaskTab(panel, 'history');
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
@@ -416,6 +421,7 @@ test.describe('Home Keeper panel — one task, end to end', () => {
 
     // Complete, and the completion reaches the history on the page it was done from.
     await panel.locator('.d-done').click();
+    await openTaskTab(panel, 'history');
     await expect(panel.locator('.hk-hist-list li')).toHaveCount(1);
 
     // Delete, and the row is gone from the list it came from.

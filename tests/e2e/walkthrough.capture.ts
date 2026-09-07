@@ -35,7 +35,14 @@
  */
 import { test, expect, Browser, Locator, Page } from '@playwright/test';
 import { resolve } from 'path';
-import { gotoTab, openPanel, openDashboard, openSettingsSection } from './tests/helpers';
+import {
+  gotoTab,
+  openPanel,
+  openDashboard,
+  openPart,
+  openSettingsSection,
+  openTaskTab,
+} from './tests/helpers';
 import { ASSET, PART, TASK } from './fixture-ids';
 import { DESKTOP, PHONE, Viewport } from './viewports';
 
@@ -177,12 +184,30 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await allBtn.click();
   await page.waitForTimeout(BEAT);
 
+  // 1e. The text filter beside the pills (#297). Typed a character at a time, because
+  //     the point of the beat is that the list narrows *as* the word arrives and the
+  //     pills' counts come down with it — a `fill()` would jump straight to the answer
+  //     and show none of that.
+  const searchBox = panel.locator('.hk-search-input');
+  await searchBox.scrollIntoViewIfNeeded();
+  await searchBox.click();
+  await searchBox.pressSequentially('filter', { delay: 110 });
+  await expect(panel.locator('#hk-list ha-card.hk-card')).not.toHaveCount(0);
+  await page.waitForTimeout(BEAT * 3);
+  await panel.locator('.hk-search-clear').click();
+  await expect(searchBox).toHaveValue('');
+  await page.waitForTimeout(BEAT);
+
   // 2. Open a task's detail page — full schedule, notes, completion history, and
   //    (since this task is linked to a part with a product URL) a clickable
   //    "Consumable link" row that jumps straight to buying the replacement.
   const taskRow = panel.locator(`.detail-open[data-detail-id="${TASK.waterFilter}"]`);
   await expect(taskRow).toBeVisible();
   await taskRow.click();
+  // The page opens on Schedule; Notes and History are sub-tabs, like an appliance.
+  await expect(panel.locator('.hk-subtab[data-tab="schedule"].active')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await openTaskTab(panel, 'history');
   await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
 
@@ -196,9 +221,30 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
+  // 2a1. Snooze and skip, the two answers to a due task that are not "done". They
+  //      hang off a caret beside Done rather than sitting next to it, so the tour
+  //      opens the menu, lingers on the line each entry carries, then shows the
+  //      snooze dialog resolving its preset to a real date. Escape out of both so
+  //      the seeded schedule is left where the later beats expect it.
+  //      Every locator here is scoped to the detail actions: the list beside the
+  //      detail renders its own split buttons, so an unscoped `.hk-defer-snooze`
+  //      finds one of their closed menus instead of the open one.
+  const detailActions = panel.locator('.hk-detail-actions');
+  await detailActions.locator('.hk-split-caret').click();
+  await expect(detailActions.locator('.hk-defer-menu .hk-defer-skip')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await detailActions.locator('.hk-defer-snooze').click();
+  await expect(panel.locator('ha-dialog[open] .hk-snooze-hint')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   // 2a2. Notes are Markdown. The seeded note already renders as headings, a
   //      numbered list, a quote and a link; open the inline editor to show it
   //      being authored, with the live preview updating as the text is typed.
+  await openTaskTab(panel, 'notes');
+  await page.waitForTimeout(BEAT);
   await panel.locator('.d-note-edit').click();
   const walkNote = panel.locator('.d-note-input');
   await expect(walkNote).toBeVisible();
@@ -214,6 +260,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('.d-note-cancel').click();
   await expect(panel.locator('.d-note-edit')).toBeVisible();
   await page.waitForTimeout(BEAT);
+  await openTaskTab(panel, 'schedule');
 
   // 2a3. Edit opens beside the page rather than replacing it: the form slides in as a
   //      column and the schedule, notes and history stay where they were. Cancel, so
@@ -276,6 +323,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await problemRow.click();
   await expect(panel.locator('.hk-managed-prompt')).toBeVisible();
   await page.waitForTimeout(BEAT);
+  await openTaskTab(panel, 'notes');
   await panel.locator('.d-note-edit').click();
   const noteBox = panel.locator('.d-note-input');
   await expect(noteBox).toBeVisible();
@@ -360,6 +408,37 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.getByRole('menuitem', { name: /fixed schedule/i }).first().click();
   await expect(panel.locator('#hk-task-form ha-selector-datetime').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
+
+  // 3b. The **active season**: hold a repeating task to the part of the year it
+  //     belongs in. Switch back to a floating cadence, turn the season on, then add a
+  //     second window — the reveal, and the list growing under it, is the motion a
+  //     still cannot carry. The summary strip above the button rewrites itself each
+  //     time, so linger on it.
+  await recurrence.click();
+  await page.getByRole('menuitem', { name: /after each completion/i }).first().click();
+  await page.waitForTimeout(BEAT);
+  const seasonSwitch = panel
+    .locator('#hk-task-form-season ha-switch')
+    .first();
+  await seasonSwitch.click();
+  await expect(panel.locator('#hk-task-form-season-1')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  // The windows open below the fold of a drawer that scrolls its own content, so
+  // follow them down — the reveal is the point of this beat. Scroll to the control
+  // itself rather than by a fixed distance, which lands differently in every
+  // viewport (CI's gif showed the switch and the first window, and stopped there).
+  const addSeason = panel.locator('#hk-season-add');
+  await addSeason.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+  await addSeason.click();
+  await expect(panel.locator('#hk-task-form-season-2')).toBeVisible();
+  await panel.locator('#hk-task-form-season-2').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 3);
+  // Put the form back the way the next beat expects it.
+  await seasonSwitch.click();
+  await expect(panel.locator('#hk-task-form-season-1')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
 
   // 3a. Switch the same form to a **sensor** task and build the shape a real service
   //     interval has: a meter target plus a time backstop. Typing the target, then
@@ -533,8 +612,26 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     .locator('.hk-part-row')
     .filter({ hasText: 'Descaling solution' });
   await measuredRow.scrollIntoViewIfNeeded();
-  await expect(measuredRow.getByText('In stock: 750 ml')).toBeVisible();
+  await expect(measuredRow.getByRole('spinbutton', { name: 'In stock: 750 ml' })).toHaveValue('750');
   await page.waitForTimeout(BEAT * 2);
+
+  // 4a5. The amount is a stepper: one tap of − is one completion's worth, through
+  //      the same service path the device page uses. Then + puts it back.
+  await measuredRow.locator('.hk-stock-dec').click();
+  await expect(measuredRow.locator('.hk-stock-input')).toHaveValue('500', { timeout: 10_000 });
+  await page.waitForTimeout(BEAT * 2);
+  await measuredRow.locator('.hk-stock-inc').click();
+  await expect(measuredRow.locator('.hk-stock-input')).toHaveValue('750', { timeout: 10_000 });
+  await page.waitForTimeout(BEAT);
+
+  // 4a6. Edit on a part row opens the drawer on that part alone, folded rows above
+  //      and below it — then cancel, and open the editor the usual way for 4b.
+  await measuredRow.locator('.hk-part-edit').click();
+  await expect(panel.locator('#hk-asset-form details.hk-part[data-idx="2"]')).toHaveAttribute('open', '');
+  await page.waitForTimeout(BEAT * 3);
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
 
   // 4b. Auto-buy — open the editor, reveal the Parts section, and flip on
   //     "Auto-create buy task" for a stocked consumable so its Restock quantity
@@ -551,11 +648,14 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   }
   // The measured part's own editor first: a Stock unit and a Used-per-completion
   // amount sit beside the ordinary Stock and Reorder at.
+  // Parts are folded rows; opening one closes the others (issue #296).
   const measuredPart = partsSection.locator('.hk-part').nth(2);
+  await openPart(measuredPart);
   await measuredPart.scrollIntoViewIfNeeded();
   await expect(measuredPart.getByText('Stock unit', { exact: false })).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
   const buyPart = partsSection.locator('.hk-part').last();
+  await openPart(buyPart);
   await buyPart.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT);
   await buyPart.locator('ha-switch').first().click();
@@ -643,6 +743,29 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 2);
 
+  // 6a. Declarative companions — the same card's last section: recipes Home Keeper
+  //     runs itself, one managed task per matching entity, no glue integration.
+  //     "Add from preset" opens the bundled recipes; picking Firmware update
+  //     available seeds the form, and the preview under it counts the entities the
+  //     recipe would turn into tasks. Cancelled rather than saved, so the tour leaves
+  //     the seeded data untouched.
+  await panel.locator('.hk-companion-group-decl').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT);
+  await panel.locator('.hk-decl-preset').click();
+  const presetPicker = panel.locator('ha-dialog.hk-decl-picker');
+  await expect(presetPicker.locator('.hk-decl-preset-card')).toHaveCount(2);
+  await page.waitForTimeout(BEAT * 2);
+  await presetPicker
+    .locator('.hk-decl-preset-card', { hasText: 'Firmware update available' })
+    .click();
+  const declForm = panel.locator('ha-dialog.hk-decl-dialog');
+  await expect(declForm.locator('.hk-decl-preview-header')).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await declForm.locator('.hk-decl-cancel').click();
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   // 6b. Settings → Profiles — a saved filter, and inside it the to-do list the
   //     household already checks. A sync *is* a profile: the same filter that
   //     chooses the chores also says where they go, so the tour opens the profile
@@ -674,7 +797,9 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
       ],
       // Seeded alongside the profile so step 7 has a notification to open. It
       // carries a channel and a raised urgency, because an empty box beside a
-      // default choice shows the controls without showing what they are for.
+      // default choice shows the controls without showing what they are for. Two of
+      // them, with different icons, because 1 chip cannot show a list reading as a
+      // legend — which is the whole point of the icon.
       notifications: [
         {
           id: 'walkthrough_chores_notify',
@@ -685,8 +810,24 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
           style: 'walk',
           channel: 'Chores',
           urgency: 'high',
+          icon: 'mdi:broom',
+          color: '#43a047',
           snooze_hours: 24,
           auto: { overdue: true, due_soon: false },
+        },
+        {
+          id: 'walkthrough_meds_notify',
+          name: 'Medication',
+          profile_id: 'walkthrough_family_chores',
+          targets: [],
+          actions: ['complete', 'open'],
+          style: 'digest',
+          channel: 'Medication',
+          urgency: 'critical',
+          icon: 'mdi:pill',
+          color: '#e53935',
+          snooze_hours: 24,
+          auto: { overdue: false, due_soon: false },
         },
       ],
     });
@@ -756,10 +897,33 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await notifyRow.locator('.hk-item-actions').scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT * 3);
 
+  // 7c. Fold the row again. Each reminder keeps its own icon and color on the header,
+  //     so the closed list says what each one is about without opening anything — the
+  //     one view an expanded editor cannot show, because only 1 row fits.
+  await notifyCard.locator('.hk-item-card > .hk-item-header').first().click();
+  await expect(notifyRow.locator('.hk-item-body ha-form')).toBeHidden();
+  await notifyCard.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 3);
+
   // 8. The usage surfaces — the native to-do list and calendar, and beside them the
   //    family's own list, now carrying the synced chores with their due dates.
   await openDashboard(page);
   await page.waitForTimeout(BEAT * 2);
+
+  // 8a. Snooze and skip reach the dashboard too, and here they are simply on the
+  //     row: a caret beside a same-sized icon button had nothing to lean on. Open
+  //     the snooze dialog so the tour shows the preset resolving to a real date,
+  //     then Escape out so the closing shot frames the cards.
+  const hkCard = page.locator('home-keeper-card').first();
+  await expect(hkCard.locator('.hk-defer-snooze').first()).toBeVisible({ timeout: 40_000 });
+  await page.waitForTimeout(BEAT);
+  await hkCard.locator('.hk-defer-snooze').first().click();
+  await expect(page.locator('ha-dialog[open] .hk-snooze-hint').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('ha-dialog[open] .hk-snooze-hint')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   const familyCard = page
     .locator('hui-todo-list-card, todo-list-card')
     .filter({ hasText: 'Family chores' })
@@ -814,9 +978,13 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('#hk-task-form')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
-  // 4. A task detail is a page of its own, and Back returns to the list.
+  // 4. A task detail is a page of its own — Schedule, Notes and History as tabs,
+  //    so the history is one tap rather than a screen of scrolling — and Back
+  //    returns to the list.
   await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
   await expect(panel.locator('#back-btn')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await openTaskTab(panel, 'history');
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#hk-list')).toBeVisible();

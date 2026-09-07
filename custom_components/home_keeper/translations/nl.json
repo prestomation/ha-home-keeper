@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Vereiste voltooiingsvelden",
           "description": "Welke voltooiingsmetadatavelden het paneel verplicht maakt wanneer het voltooiingsdetail required is — een van note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Vereiste voltooiingsvelden",
           "description": "Welke voltooiingsmetadatavelden het paneel verplicht maakt wanneer het voltooiingsdetail required is — een van note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Uren",
-          "description": "Met hoeveel uur de taak wordt uitgesteld (standaard 24)."
+          "description": "Hoeveel uur de taak wordt uitgesteld (standaard 24). Genegeerd als Tot is ingevuld."
+        },
+        "until": {
+          "name": "Tot",
+          "description": "Stelt de taak uit tot precies deze datum en tijd in plaats van een aantal uren. Vul je dit in, dan wordt het veld Uren niet gebruikt."
         },
         "origin": {
           "name": "Oorsprong",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Taak overslaan",
-      "description": "Een taak naar de volgende keer laten doorgaan zonder een voltooiing vast te leggen.",
+      "description": "Zet een taak door naar de volgende keer zonder een voltooiing vast te leggen. Het overslaan wordt apart bijgehouden en telt dus nooit als voltooiing.",
       "fields": {
         "task_id": {
           "name": "Taaknaam of -ID",
           "description": "Het id van de over te slaan taak. De naam werkt ook. Het paneel toont het id."
+        },
+        "note": {
+          "name": "Notitie",
+          "description": "Waarom deze keer is overgeslagen."
+        },
+        "who": {
+          "name": "Wie",
+          "description": "Wie besloot om over te slaan."
+        },
+        "reading": {
+          "name": "Meterstand",
+          "description": "De waarde van de gekoppelde sensor op het moment van overslaan, bij een verbruikstaak."
         },
         "origin": {
           "name": "Oorsprong",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Doel",
           "description": "Meldingsdiensten om naar te sturen, ter overschrijving van het profiel (bijv. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Overschrijft de eigen status van het profiel voor deze aanroep: overdue (alleen te late taken), due_soon (te late en binnenkort te late taken), all (alle geplande taken) of none (komt met geen enkele taak overeen, om de melding Helemaal bij op aanvraag te versturen)."
+        },
+        "when_empty": {
+          "name": "Wanneer niets overeenkomt",
+          "description": "Wat een aanroep verstuurt als het filter met geen enkele taak overeenkomt. Standaard is het skip: er wordt niets verzonden. Zet het op all_clear om in plaats daarvan de melding Helemaal bij te versturen."
         }
       }
     },
@@ -791,6 +823,92 @@
           "description": "De id van het onderdeel waarvan het bijgevoegde bestand moet worden ondertekend. De naam werkt ook. Het paneel toont het id."
         }
       }
+    },
+    "update_skip": {
+      "name": "Overslaan bijwerken",
+      "description": "Past de gegevens van een vastgelegd overslaan aan, aangeduid met het tijdstempel. Het overslaan houdt zijn datum en het schema blijft ongemoeid.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de taak waarvan je het overslaan bewerkt. De naam werkt ook. Het paneel toont het id."
+        },
+        "ts": {
+          "name": "Tijdstempel van overslaan",
+          "description": "Het ISO-tijdstempel (ts) van het te bewerken overslaanitem."
+        },
+        "note": {
+          "name": "Notitie",
+          "description": "Waarom deze keer is overgeslagen. Een lege waarde wist het."
+        },
+        "who": {
+          "name": "Wie",
+          "description": "Wie besloot om over te slaan. Een lege waarde wist het."
+        },
+        "reading": {
+          "name": "Meterstand",
+          "description": "De waarde van de gekoppelde sensor op het moment van overslaan, bij een verbruikstaak."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Overslaan verwijderen",
+      "description": "Verwijdert een vastgelegd overslaan, aangeduid met het tijdstempel. Het overslaan ongedaan maken dat als laatste een verbruiksmeter terugzette, herstelt die meter.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de taak waarvan je het overslaan verwijdert. De naam werkt ook. Het paneel toont het id."
+        },
+        "ts": {
+          "name": "Tijdstempel van overslaan",
+          "description": "Het ISO-tijdstempel (ts) van het te verwijderen overslaanitem."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Overslaan verplaatsen",
+      "description": "Geeft een vastgelegd overslaan een nieuwe datum, aangeduid met het huidige tijdstempel. Het schema van de taak blijft ongemoeid.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de taak waarvan je het overslaan verplaatst. De naam werkt ook. Het paneel toont het id."
+        },
+        "old_ts": {
+          "name": "Huidig tijdstempel van overslaan",
+          "description": "Het ISO-tijdstempel (ts) van het te verplaatsen overslaanitem."
+        },
+        "new_ts": {
+          "name": "Nieuwe datum",
+          "description": "De nieuwe datum en tijd waarop het overslaan wordt vastgelegd."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Declaratieve companion toevoegen",
+      "description": "Registreert een declaratieve companion — een recept dat één beheerde sensortaak materialiseert per entiteit die overeenkomt met de filters (doelintegratie + entiteitsfilters), met Jinja-templated taaknaam en notities. Alleen beheerders."
+    },
+    "update_declarative_companion": {
+      "name": "Declaratieve companion bijwerken",
+      "description": "Werkt velden van een opgeslagen declaratieve companion-specificatie bij op id. Alleen beheerders.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "De stabiele uuid van de specificatie, uit list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Declaratieve companion verwijderen",
+      "description": "Verwijdert een declaratieve companion-specificatie en elke beheerde taak die deze heeft gematerialiseerd. Alleen beheerders.",
+      "fields": {
+        "id": {
+          "name": "Companion-id",
+          "description": "De stabiele uuid van de specificatie, uit list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Declaratieve companions weergeven",
+      "description": "Geeft elke opgeslagen declaratieve companion-specificatie terug als antwoord."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Declaratieve companion niet gevonden: {spec_id}"
     }
   }
 }

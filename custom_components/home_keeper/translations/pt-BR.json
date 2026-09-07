@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Campos de conclusão obrigatórios",
           "description": "Quais campos de metadados da conclusão o painel torna obrigatórios quando o detalhe da conclusão é required — qualquer um entre note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Campos de conclusão obrigatórios",
           "description": "Quais campos de metadados da conclusão o painel torna obrigatórios quando o detalhe da conclusão é required — qualquer um entre note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Horas",
-          "description": "Em quantas horas adiar a tarefa (padrão de 24)."
+          "description": "Quantas horas adiar a tarefa (padrão 24). Ignorado quando Até está definido."
+        },
+        "until": {
+          "name": "Até",
+          "description": "Adia a tarefa para exatamente esta data e hora em vez de um número de horas. Se você definir isto, o campo Horas não é usado."
         },
         "origin": {
           "name": "Origem",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Pular tarefa",
-      "description": "Avançar uma tarefa para a próxima ocorrência sem registrar uma conclusão.",
+      "description": "Avança uma tarefa para a próxima ocorrência sem registrar uma conclusão. A omissão é registrada à parte, então nunca conta como conclusão.",
       "fields": {
         "task_id": {
           "name": "Nome ou ID da tarefa",
           "description": "O id da tarefa a pular. O nome também funciona. O painel mostra o id."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Por que esta ocorrência foi deixada passar."
+        },
+        "who": {
+          "name": "Quem",
+          "description": "Quem decidiu pular."
+        },
+        "reading": {
+          "name": "Leitura do medidor",
+          "description": "O valor do sensor vinculado no momento da omissão, para uma tarefa por uso."
         },
         "origin": {
           "name": "Origem",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Destino",
           "description": "Serviços de notificação para enviar, substituindo o perfil (ex.: mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Substitui o status do perfil para esta chamada: overdue (somente tarefas atrasadas), due_soon (tarefas atrasadas e próximas do prazo), all (todas as tarefas agendadas) ou none (não corresponde a nenhuma tarefa, para enviar a notificação Tudo em dia sob demanda)."
+        },
+        "when_empty": {
+          "name": "Quando nada corresponde",
+          "description": "O que uma chamada envia se o filtro não corresponder a nenhuma tarefa. Por padrão é skip: nada é enviado. Defina como all_clear para enviar a notificação Tudo em dia em vez disso."
         }
       }
     },
@@ -791,6 +823,92 @@
           "description": "O id da peça cujo arquivo anexado deve ser assinado. O nome também funciona. O painel mostra o id."
         }
       }
+    },
+    "update_skip": {
+      "name": "Atualizar omissão",
+      "description": "Altera os detalhes de uma omissão registrada, identificada pelo carimbo de data/hora. A omissão mantém sua data e a programação não é alterada.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa cuja omissão você está editando. O nome também funciona. O painel mostra o id."
+        },
+        "ts": {
+          "name": "Carimbo de data/hora da omissão",
+          "description": "O carimbo de data/hora ISO (ts) da entrada de omissão a editar."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Por que esta ocorrência foi deixada passar. Um valor vazio a limpa."
+        },
+        "who": {
+          "name": "Quem",
+          "description": "Quem decidiu pular. Um valor vazio o limpa."
+        },
+        "reading": {
+          "name": "Leitura do medidor",
+          "description": "O valor do sensor vinculado no momento da omissão, para uma tarefa por uso."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Excluir omissão",
+      "description": "Remove uma omissão registrada, identificada pelo carimbo de data/hora. Desfazer a omissão que zerou por último um medidor de uso restaura esse medidor.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa cuja omissão você está removendo. O nome também funciona. O painel mostra o id."
+        },
+        "ts": {
+          "name": "Carimbo de data/hora da omissão",
+          "description": "O carimbo de data/hora ISO (ts) da entrada de omissão a remover."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Mover omissão",
+      "description": "Redata uma omissão registrada, identificada pelo carimbo de data/hora atual. A programação da tarefa não é alterada.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa cuja omissão você está movendo. O nome também funciona. O painel mostra o id."
+        },
+        "old_ts": {
+          "name": "Carimbo de data/hora atual da omissão",
+          "description": "O carimbo de data/hora ISO (ts) da entrada de omissão a mover."
+        },
+        "new_ts": {
+          "name": "Nova data",
+          "description": "A nova data e hora em que registrar a omissão."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Adicionar companion declarativo",
+      "description": "Registra um companion declarativo — uma receita que materializa uma tarefa de sensor gerenciada por cada entidade que corresponde aos filtros (integração alvo + filtros de entidade), com nome de tarefa e notas usando modelos Jinja. Apenas administradores."
+    },
+    "update_declarative_companion": {
+      "name": "Atualizar companion declarativo",
+      "description": "Atualiza campos de uma especificação de companion declarativo armazenada por id. Apenas administradores.",
+      "fields": {
+        "id": {
+          "name": "Id do companion",
+          "description": "O uuid estável da especificação, de list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Excluir companion declarativo",
+      "description": "Remove uma especificação de companion declarativo e todas as tarefas gerenciadas que ela materializou. Apenas administradores.",
+      "fields": {
+        "id": {
+          "name": "Id do companion",
+          "description": "O uuid estável da especificação, de list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Listar companions declarativos",
+      "description": "Retorna cada especificação de companion declarativo armazenada como resposta."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Companion declarativo não encontrado: {spec_id}"
     }
   }
 }

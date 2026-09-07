@@ -41,7 +41,9 @@ test.describe(
     // tell which one it had landed on. Having *a* name was never the whole contract.
     const names = await panel.evaluate((el) =>
       Array.from(
-        el.shadowRoot!.querySelectorAll('.hk-seg[aria-label], .hk-menu-select[aria-label]'),
+        el.shadowRoot!.querySelectorAll(
+          '.hk-seg[aria-label], .hk-menu-select[aria-label], .hk-search-input[aria-label]',
+        ),
       ).map((n) => n.getAttribute('aria-label')),
     );
     expect(names.length, 'expected the controls row to carry named controls').toBeGreaterThan(1);
@@ -62,6 +64,27 @@ test.describe(
     });
     expect(still.cls).toContain('hk-seg-btn');
     expect(still.val).toBe('overdue');
+  });
+
+  test('typing in the search box leaves the keyboard in the search box', async ({ page }) => {
+    // The one control the render-and-restore dance above cannot serve: restoring
+    // focus puts the caret back at the end, so a word typed into a rebuilt box comes
+    // out scrambled. `_setQuery` patches the list instead and leaves the box standing.
+    await openPanel(page);
+    const panel = panelOf(page);
+    const box = panel.locator('.hk-search-input');
+    await box.click();
+    await page.keyboard.type('filter');
+    // Type a character into the middle of it: the caret only survives where it was
+    // put if nothing replaced the element in between.
+    await box.evaluate((el: HTMLInputElement) => el.setSelectionRange(3, 3));
+    await page.keyboard.type('X');
+    await expect(box).toHaveValue('filXter');
+    expect(await box.evaluate((el: HTMLInputElement) => el.selectionStart)).toBe(4);
+    const focused = await panel.evaluate(
+      (el) => (el.shadowRoot?.activeElement as HTMLElement | null)?.className ?? '',
+    );
+    expect(focused).toContain('hk-search-input');
   });
 
   test('the chip overflow is a control, so nothing clickable is unreachable', async ({ page }) => {
@@ -100,7 +123,11 @@ test.describe(
     // tabpanel, no roving tabindex, no arrow keys. Plain links are the honest shape.
     await page.goto('/home-keeper/appliances');
     const panel = panelOf(page);
-    await panel.locator('.hk-card[data-id]').first().click();
+    // The row's opener, not the card's centre. A centre click used to land on inert
+    // space; now that a row lays its chips across the middle it lands on the device
+    // chip, which has a destination of its own. That a row opens its appliance from
+    // either end is asserted in list-honesty.spec.ts, where it is the subject.
+    await panel.locator('.hk-card[data-id] .detail-open').first().click();
     await expect(panel.locator('.hk-subtab').first()).toBeVisible();
     // (HA's own ha-tab-group owns the three top-level tabs and uses role="tab"
     // legitimately — this is about the sub-tabs and the phone bar we added.)

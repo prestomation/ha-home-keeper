@@ -291,8 +291,8 @@ ship rather than adding a parallel system.
   gain optional `stock`/`reorder_at`; completing a wear-part replacement consumes a
   spare; at/below the threshold a `home_keeper_part_low_stock` event fires (so users
   automate the shopping-list add / reorder themselves). Manual `adjust_part_stock`
-  websocket command for restock. Still open: a built-in shopping-list blueprint and a
-  one-tap restock control in the panel.
+  websocket command for restock; the appliance page's Parts tab has a stock stepper
+  (v0.21). Still open: a built-in shopping-list blueprint.
 
 ### Households & motivation
 

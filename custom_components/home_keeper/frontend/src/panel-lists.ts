@@ -12,7 +12,7 @@
  */
 
 import * as api from './api';
-import { bucketByKey, profileMatches } from './card-filter';
+import { assetMatchesQuery, bucketByKey, profileMatches, taskMatchesQuery } from './card-filter';
 import { t, tn } from './i18n';
 import {
   deviceChip,
@@ -30,12 +30,14 @@ import {
   renderGroups,
   scopeMatches,
 } from './panel-controls';
+import { deferMenu } from './panel-defer';
 import type { PanelHost } from './panel-host';
 import { TASK_CARD_INLINE_CHIPS } from './panel-styles';
 import { LS_TREE_COLLAPSED } from './panel-types';
 import type { Asset, Task } from './types';
 import {
   areaName,
+  assetForTask,
   assetSummary,
   btnAttrs,
   buildAssetTree,
@@ -43,6 +45,7 @@ import {
   escapeHTML,
   formatDate,
   isBuyTask,
+  isMonitoredDormant,
   isOverdue,
   recurrenceSummary,
   scanRequired,
@@ -91,6 +94,13 @@ export function tasksList(p: PanelHost): string {
   } else {
     tasks = tasks.filter((task) => scopeMatches(task, p._filter, now));
   }
+  // The text filter narrows whichever of the two chose the set, rather than replacing
+  // it: a Profile plus a word is how a household finds one task among its own.
+  if (p._query) {
+    tasks = tasks.filter((task) =>
+      taskMatchesQuery(task, p._query, p._hass?.devices, p._hass?.areas),
+    );
+  }
   tasks.sort((a, b) => {
     const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
     const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
@@ -101,7 +111,7 @@ export function tasksList(p: PanelHost): string {
     // full list, so the dead end is escapable even when it was a Profile rather
     // than a scope pill that emptied it.
     const showAll =
-      p._filter === 'all' && !activeProfile(p)
+      p._filter === 'all' && !profile && !p._query
         ? ''
         : `<ha-button slot="action" ${btnAttrs('secondary')} id="hk-show-all">${escapeHTML(
             t('tasks.showAll'),
@@ -149,10 +159,24 @@ export function assetsList(p: PanelHost): string {
     return `<ha-alert alert-type="info">${escapeHTML(t('appliances.empty'))}</ha-alert>`;
   }
   const archived = p._assetFilter === 'archived';
-  const filtered = p._assets.filter((a) => Boolean(a.archived_at) === archived);
+  let filtered = p._assets.filter((a) => Boolean(a.archived_at) === archived);
+  if (p._query) {
+    filtered = filtered.filter((a) =>
+      assetMatchesQuery(a, p._query, p._hass?.devices, p._hass?.areas),
+    );
+  }
   if (!filtered.length) {
-    const emptyKey = archived ? 'appliances.archivedEmpty' : 'appliances.noMatch';
-    return `<ha-alert alert-type="info">${escapeHTML(t(emptyKey))}</ha-alert>`;
+    // An empty Archived scope is a fact about the data. A scope emptied by something
+    // the reader typed is a dead end, and gets the same way out the task list has had
+    // since #262 — clearing the text only, because someone standing on Archived chose
+    // to be there.
+    const emptyKey = archived && !p._query ? 'appliances.archivedEmpty' : 'appliances.noMatch';
+    const showAll = p._query
+      ? `<ha-button slot="action" ${btnAttrs('secondary')} id="hk-show-all">${escapeHTML(
+          t('appliances.showAll'),
+        )}</ha-button>`
+      : '';
+    return `<ha-alert alert-type="info">${escapeHTML(t(emptyKey))}${showAll}</ha-alert>`;
   }
   const cmp = (a: Asset, b: Asset) => (a.name || '').localeCompare(b.name || '');
   if (p._assetView === 'tree') {
@@ -212,7 +236,12 @@ function taskCard(p: PanelHost, task: Task): string {
   // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge that
   // says this work is late.
   const overdue = isOverdue(task) && !isBuyTask(task);
-  const dev = task.device_id ? deviceChip(p, task.device_id) : '';
+  // The chip opens the appliance the task is about, not the Home Assistant device
+  // page behind it — see `deviceChip`. The appliance page's own chip is the one hop
+  // on to the device.
+  const dev = task.device_id
+    ? deviceChip(p, task.device_id, assetForTask(task, p._assets)?.id)
+    : '';
   const tag = tagChip(p, task);
   const managed = managedChip(p, task);
   // A completed one-off (do-once, now dormant) shows when it was done instead of a
@@ -230,16 +259,16 @@ function taskCard(p: PanelHost, task: Task): string {
   // from an hour late, where a detail page already shows the date.
   const statusChip = statusChipHtml(task, p._hass, { elapsed: true });
   const n = task.completions?.length ?? 0;
-  // A dormant triggered task (monitored, not due) has nothing to mark done — its
-  // owning integration arms it when the condition fires; hide the action. A
-  // completed one-off is already done, so it too hides Done. A completion-blocked
-  // task (e.g. a synced problem sensor) keeps a *disabled* Done that explains why
-  // on click, rather than silently offering no action.
-  const dormantTriggered = task.recurrence_type === 'triggered' && !task.next_due;
+  // A monitored task (dormant, not due) has nothing to mark done — its owning
+  // integration or the sensor watcher arms it when the condition fires; hide the
+  // action. A completed one-off is already done, so it too hides Done. A
+  // completion-blocked task (e.g. a synced problem sensor) keeps a *disabled* Done
+  // that explains why on click, rather than silently offering no action.
+  const monitored = isMonitoredDormant(task);
   // A scan-locked task keeps a *disabled* Done rather than the auto-clear caption:
   // it is still completable, just not from here, so a greyed button that explains
   // itself on tap is the honest affordance.
-  const doneAction = dormantTriggered || completedOneOff
+  const doneAction = monitored || completedOneOff
     ? ''
     : task.managed_by?.completion_blocked
       ? p._blockedDoneInline(task)
@@ -282,7 +311,7 @@ function taskCard(p: PanelHost, task: Task): string {
           <span class="hk-row-spacer"></span>
           <div class="hk-status">${statusChip}</div>
           <div class="hk-card-actions">
-            ${doneAction}
+            ${deferMenu(p, task, doneAction, 'secondary')}
           </div>
         </div>
       </ha-card>`;
@@ -300,15 +329,12 @@ function assetCard(p: PanelHost, x: Asset, depth = 0, isLast = false, toggleId =
         : '';
   const title =
     x.name || deviceName(p._hass?.devices, x.device_id) || t('appliance.fallbackName');
-  const subCount = p._assets.filter((a) => a.parent_asset_id === x.id).length;
-  const relCount = x.related_device_ids?.length ?? 0;
-  const extra = [
-    subCount
-      ? `<ha-assist-chip label="${escapeHTML(tn('asset.subdevices', subCount))}"></ha-assist-chip>`
-      : '',
-    relCount
-      ? `<ha-assist-chip label="${escapeHTML(tn('asset.related', relCount))}"></ha-assist-chip>`
-      : '',
+  // Split the way a task row splits. What the appliance *is* — its device, where it
+  // hangs, whether it is retired — reads beside the name; what it *holds* reads in the
+  // status rail, the same column a task's due pill lands in. One grammar for both
+  // lists, so a chip sits at the same x whichever tab you are on.
+  const qualifiers = [
+    kindChip,
     x.parent_asset_id
       ? `<ha-assist-chip label="${escapeHTML(
           '↳ ' + assetAncestry(p, x.parent_asset_id),
@@ -316,6 +342,16 @@ function assetCard(p: PanelHost, x: Asset, depth = 0, isLast = false, toggleId =
       : '',
     x.archived_at
       ? `<ha-assist-chip class="hk-archived" label="${escapeHTML(t('chip.archived'))}"></ha-assist-chip>`
+      : '',
+  ].join('');
+  const subCount = p._assets.filter((a) => a.parent_asset_id === x.id).length;
+  const relCount = x.related_device_ids?.length ?? 0;
+  const counts = [
+    subCount
+      ? `<ha-assist-chip label="${escapeHTML(tn('asset.subdevices', subCount))}"></ha-assist-chip>`
+      : '',
+    relCount
+      ? `<ha-assist-chip label="${escapeHTML(tn('asset.related', relCount))}"></ha-assist-chip>`
       : '',
   ].join('');
   const depthClass = depth > 0 ? ' hk-tree-child' : '';
@@ -330,12 +366,13 @@ function assetCard(p: PanelHost, x: Asset, depth = 0, isLast = false, toggleId =
   return `
       <ha-card class="hk-card${depthClass}${selected}" data-id="${escapeHTML(x.id)}"${depthStyle}>
         ${chevron}
-        <div class="hk-card-row">
+        <div class="hk-card-row hk-row-asset">
           <div class="grow clickable detail-open" data-detail-kind="asset" data-detail-id="${escapeHTML(x.id)}" role="button" tabindex="0">
             <div class="hk-name">${escapeHTML(title)}</div>
             <div class="hk-meta">${escapeHTML(assetSummary(x, p._hass?.areas))}</div>
-            <div class="hk-chips">${kindChip}${extra}</div>
           </div>
+          <div class="hk-chips">${qualifiers}</div>
+          <div class="hk-status">${counts}</div>
         </div>
       </ha-card>`;
 }
@@ -363,17 +400,40 @@ export function assetAncestry(p: PanelHost, assetId: string): string {
  * tree's expand/collapse, a row's quick Done (and the caption that stands in for one
  * a source owns), the intro banner's dismiss, and the "+n" chip unfold.
  */
-export function wireLists(p: PanelHost, root: ShadowRoot): void {
+export function wireLists(p: PanelHost, root: ParentNode): void {
   root
-    .getElementById('cleanup-orphans-btn')
+    .querySelector<HTMLElement>('#cleanup-orphans-btn')
     ?.addEventListener('click', () => void cleanupOrphans(p));
 
-  // The way out of a filter that matches nothing: clears the scope *and* any active
-  // Profile, since either can be what emptied the list.
-  root.getElementById('hk-show-all')?.addEventListener('click', () => {
+  // The way out of a filter that matches nothing: clears the text, the scope *and*
+  // any active Profile, since any of the three can be what emptied the list.
+  root.querySelector<HTMLElement>('#hk-show-all')?.addEventListener('click', () => {
+    // Text first. On its own that is a patch, so the common case renders once; a
+    // scope or Profile change after it then renders with the text already gone,
+    // rather than painting the old query's list on the way through.
+    p._setQuery('');
+    // The scope pills and the Profile picker belong to the task list. The appliance
+    // list reaches this button too, and its own scope is a deliberate choice.
+    if (p._view !== 'tasks') return;
     if (activeProfile(p)) p._setProfile('');
     p._setFilter('all');
   });
+
+  // Remember which group sections the user collapsed (no re-render needed). These
+  // `<details>` come from `renderGroups`, which only ever runs inside the list — so
+  // they are rebuilt whenever the list is, and belong to this pass rather than to
+  // `wireControls` beside it.
+  root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
+    d.addEventListener('toggle', () => {
+      // A search forces every section open (see `renderGroups`), so while one is
+      // running the open state is not a choice anybody made and must not overwrite
+      // the choice they made before it.
+      if (p._query) return;
+      const key = d.dataset.groupKey || '';
+      if (d.open) p._collapsed.delete(key);
+      else p._collapsed.add(key);
+    }),
+  );
 
   // Tree view: expand/collapse parent groups.
   root.querySelectorAll<HTMLElement>('.hk-chevron[data-tree-toggle]').forEach((ch) =>
@@ -397,6 +457,8 @@ export function wireLists(p: PanelHost, root: ShadowRoot): void {
         if (task) void p._complete(task);
       }),
     );
+    // One caret per row, each resolving its own task.
+    p._wireDeferMenus(root);
     root.querySelectorAll<HTMLElement>('.hk-intro-dismiss').forEach((b) =>
       b.addEventListener('click', () => {
         p._introDismissed = true;

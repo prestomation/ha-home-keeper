@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { callService, gotoTab, listStates, openPanel } from './helpers';
+import { callService, gotoTab, listStates, openPanel, openPart } from './helpers';
 import { ASSET, PART } from '../fixture-ids';
 
 /**
@@ -52,8 +52,10 @@ test.describe('a part measured in units, not whole spares', () => {
 
     const row = panel.locator('.hk-part-row').filter({ hasText: 'Descaling solution' });
     await expect(row).toBeVisible();
-    // Not "In stock: 750" — a bare count of somethings is exactly the problem.
-    await expect(row.getByText('In stock: 750 ml')).toBeVisible();
+    // Not "In stock: 750" — a bare count of somethings is exactly the problem. The
+    // amount is a stepper now: its name carries the unit, and the unit sits beside it.
+    await expect(row.getByRole('spinbutton', { name: 'In stock: 750 ml' })).toHaveValue('750');
+    await expect(row.locator('.hk-stock-unit')).toHaveText('ml');
     await expect(row.getByText('Uses 250 ml per completion')).toBeVisible();
   });
 
@@ -73,8 +75,9 @@ test.describe('a part measured in units, not whole spares', () => {
       const open = await parts.first().evaluate((d: HTMLDetailsElement) => d.open);
       if (!open) await parts.first().locator('summary').click();
     }
-    // Third part in the seed: the only one with a unit.
+    // Third part in the seed: the only one with a unit. Folded until opened.
     const measured = parts.locator('.hk-part').nth(2);
+    await openPart(measured);
     await measured.scrollIntoViewIfNeeded();
     await expect(measured.getByText('Stock unit', { exact: false })).toBeVisible();
     await expect(measured.getByText('Used per completion', { exact: false })).toBeVisible();

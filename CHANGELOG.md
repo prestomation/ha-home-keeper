@@ -6,6 +6,220 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.22.0b3]
+
+### Added
+
+- **Give a notification its own icon and color.** In *Settings → Notifications* a
+  notification can use any Material Design icon, which Android shows in the status bar.
+  iPhone shows it on the notification, over an accent color you pick. (Fixes #293)
+
+## [0.22.0b2]
+
+### Added
+
+- **The task list and the appliance list now have a search box.** It matches the name
+  plus other details, such as the model of an appliance or the companion that supplied
+  a task. Home Keeper does not store the text, so every panel load starts with the
+  whole list. (Fixes #297)
+
+## [0.22.0b1]
+
+### Changed
+
+- **Appliance-first device chips.** A task's device chip opens its appliance instead
+  of the Home Assistant device page. The appliance list and an appliance's own page
+  still link straight to the device.
+- **Aligned list rows.** Task rows and appliance rows now use fixed columns. A row's
+  chips and its overdue pill begin at the same place down the whole list.
+
+## [0.21.0] - 2026-09-06
+
+### Added
+
+- **Declarative companions.** Define a pattern over existing entities to create tasks
+  automatically. Home Keeper previews the matches before it opens them. (Fixes #231)
+
+- **Declarative companion presets.** Home Keeper includes pre-built companions for
+  common integrations. Each preset also shows how to build one. (Fixes #230)
+
+- **Availability sensor tasks.** A sensor task can arm when its entity goes
+  unavailable or unknown.
+
+- **Snooze and skip.** Snooze and Skip sit next to Done in the panel and on the card.
+  A skip records a note and a person in the task history. (Fixes #268)
+
+- **Skip and snooze settings.** Settings can turn off either option. 3 new services
+  edit a recorded skip.
+
+- **Seasonal tasks.** A task that repeats on a clock can run only in the months you
+  select. (Fixes #242)
+
+- **Inline part editing.** Edit and add parts directly in the Parts tab. The stock
+  chip is now a stepper.
+
+### Changed
+
+- **Test button notifications.** Test now always sends a notification. It shows a due
+  task, or says "All caught up".
+
+- **Distant task notifications.** A task that is not due soon now says how far off it
+  is. The text used to read "Due soon" for every such task.
+
+- **Compact lists and task sub-tabs.** Task and appliance rows use less space. A
+  task's page splits into 3 sub-tabs.
+
+### Fixed
+
+- **Stale panel data.** The panel kept the old view after Home Keeper reloaded. It now
+  waits and reads again.
+
+- **Stock and Reorder-at focus.** Typing the first digit into an empty box rebuilt the
+  form and closed the keyboard. (Fixes #296)
+
+## [0.21.0b6]
+
+### Fixed
+
+- **A monitored task no longer offers Done.** Pressing Done recorded a completion but
+  did not change the task, because it still waits for its condition. The panel and the
+  card now hide Done while a task is monitored, and a task that counts a meter keeps
+  it. (Fixes #231)
+
+- **A task made by a recipe now opens that recipe.** The task page read the recipe's
+  name as an integration, so its button opened the wrong page and its caption named a
+  place that does not exist. The page now shows an Edit recipe button, and its caption
+  names the recipe to change.
+
+- **A recipe's task no longer shows Edit or Duplicate on its own page.** Home Keeper
+  rewrites the task on each run of its recipe, so a saved edit did not survive. The
+  task page now shows only Edit recipe, and its caption names that recipe.
+
+- **A task from a recipe that auto-clears no longer offers Done.** Home Keeper does
+  not reopen the task while its condition stays true, so pressing Done by hand hid
+  work that was still waiting. Done is now dimmed on the task, and a recipe without
+  auto-clear keeps it.
+
+## [0.21.0b5]
+
+### Added
+
+- **Parts in the appliance edit drawer are now collapsible rows.** A collapsed
+  row shows the part's name and a one-line summary. Only 1 part opens at a time,
+  and a new part opens itself.
+
+- **The Parts tab now has an Edit icon on each part and an Add part button.**
+  Both open the edit drawer with that part expanded and scrolled into view. Add
+  part opens a new, empty row the same way.
+
+- **The Parts tab's "In stock" chip is now a stepper.** Press − or + to move the
+  stock by 1 spare, or by 1 completion's amount for a part measured in a unit. A
+  typed value saves on Enter or when the box loses focus, and low-stock events
+  and buy tasks still fire the same way.
+
+### Changed
+
+- **The task list and the appliance list are now more compact.** Rows use less
+  padding, and the chips and the Done button are smaller. On a phone, a task row
+  uses 2 columns: task details on the left and Done on the right.
+
+- **A task's page now has the sub-tabs Schedule, Notes, and History.** The page
+  opens on Schedule, and each sub-tab has its own URL.
+
+### Fixed
+
+- **A part's Stock and Reorder-at boxes now keep focus while a user types.**
+  The first digit in an empty box rebuilt the whole form, so the drawer jumped
+  to the top and the keyboard closed on iOS. The fields that a value reveals now
+  appear in place, and typing never rebuilds the form. (Fixes #296)
+
+## [0.21.0b4]
+
+### Added
+
+- **The panel now supports snooze and skip on a task.** The task page and each row
+  of the task list show Snooze and Skip next to Done. Each option shows how it
+  changes the due date. (Fixes #268)
+
+- **A dashboard card offers snooze and skip on each row.** Both open the same
+  dialogs as the panel. Home Keeper omits an option that does not apply to the
+  task, such as skip on a blocked task.
+
+- **Home Keeper records a skip in the task history.** Each entry stores a note and
+  a person, and a user can edit or undo it like a completion. A skip is never
+  counted as a completion, so the completion tally and the average interval do not
+  include it.
+
+- **A snooze now offers a choice of duration.** Select 1 of 4 durations, or set a
+  date and time. The dialog shows the new due date first.
+
+- **Settings now has a Skip & snooze section that turns off either one.** Both
+  start on. Home Keeper removes the one that is off from the panel, from the card,
+  and from the notification buttons.
+
+- **3 services now edit the recorded skips.** `update_skip` changes an entry,
+  `delete_skip` removes one, and `move_skip` changes its date. `skip_task` accepts
+  a note and a person, and `snooze_task` accepts `until` for an exact date and
+  time.
+
+### Fixed
+
+- **A skip now defers a task that is measured by a meter.** Such a task cleared its
+  due date and then became due again at the next reading from the sensor. A skip
+  now advances the meter, so the next due date is a full interval later.
+
+- **The skip and snooze events now include `origin`.** The service descriptions
+  stated that these events return `origin` to the caller, which prevents a loop.
+  Home Keeper did not add it before this release.
+
+## [0.21.0b3]
+
+### Added
+
+- **Declarative companions: task-per-entity recipes without a separate integration.**
+  A user configures a recipe in Settings → Companions, or starts from a bundled
+  preset for Device Pulse or firmware updates, and Home Keeper opens one task per
+  matching entity after a live preview of the matches. (Fixes #231) (Fixes #230)
+
+- **A sensor task now supports an availability mode.** The task arms when the
+  entity reports unavailable or unknown, after an optional hold. A user can also
+  bind one task to one entity by hand in the ordinary task form.
+
+### Fixed
+
+- **A task with a hold now falls due the moment the hold ends.** The hold used to
+  complete at the next reading from the watched entity or at the five-minute
+  refresh. An entity that goes offline sends no more readings, which is the case
+  an availability task waits for.
+
+- **The panel no longer shows old information right after some actions.** Adding a
+  companion or changing an option can reload Home Keeper for a moment, and a refresh
+  right then kept the old view. The panel now waits for Home Keeper and reads again.
+
+## [0.21.0b2]
+
+### Added
+
+- **The Test button now always sends a notification.** The notification shows a task
+  when the Profile holds one, and says "All caught up" when the Profile holds none. A
+  second button beside Test sends whichever notification Test does not.
+
+### Changed
+
+- **A notification for a task that is not due soon now says how far off it is.** The
+  text read "Due soon." for every task ahead of its due date, including one months
+  away.
+
+## [0.21.0b1]
+
+### Added
+
+- **Give a task a season.** A task that repeats on a clock can be held to the part of
+  the year it belongs in, so fertilising every two months stops in October and comes
+  back in April rather than falling due in the snow. Add as many windows as the task
+  needs (spring and fall on the same task) from the task form or the
+  `home_keeper.add_task` action. (Fixes #242)
+
 ## [0.20.0] - 2026-09-04
 
 ### Added
@@ -195,7 +409,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **Deleting an appliance over the websocket now runs the same cleanup as the
   service.** The websocket handler carried its own copy of the cleanup code and
   could drift from the service's.
-
 ## [0.19.0b6]
 
 ### Changed

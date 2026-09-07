@@ -16,6 +16,20 @@
   `docs/`, or the PR; the changelog says what changed and stops. One bullet per change,
   never a second paragraph. Three sentences is the budget for the **whole bullet**,
   counting the bold lead as the first, not three per paragraph.
+- **The bold lead is a label, not a sentence.** It names the thing that changed in a
+  short noun phrase and stops: `**Declarative companions.**`, `**Snooze and skip.**`,
+  `**Seasons on a task.**`. Aim for 2–5 words; 8 is the hard ceiling. A lead opening
+  `Home Keeper can now…`, `A user can now…`, `The panel now…` or `Give a task…` is
+  narrating — cut it back to the noun and let the second sentence say what a user
+  notices. `summarize()` in `ci/release-issues.py` quotes only the bold lead into the
+  issue reporter's comment, so it has to stand alone as a headline. Write the lead as a
+  heading and drop the articles and prepositions: `**Seasonal tasks.**`, not `**Seasons
+  on a task.**`. ("Do not omit articles" governs sentences; a lead is a heading.)
+- **The bullet says what a user gets, not how the feature works.** A headline plus at
+  most 2 short sentences of what a user notices. Do not narrate the mechanism — which
+  buttons the feature hides, what it rewrites internally, which surfaces it touches,
+  which fields it added. That is `README.md` material. When trimming a big feature
+  loses something real, split it into 2 bullets rather than growing 1.
 - **Credit an outside contributor in the bullet for their change.** End the bullet
   with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
   not count against the three-sentence budget. An outside contributor is anyone
@@ -28,6 +42,19 @@
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).
+  **Every changed surface needs a desktop shot and a phone shot.** Below 700px the
+  panel is a different layout, not a narrower one: bottom tabs, a floating Add, the
+  filter segment broken into wrapping chips, each non-menu control on a row of its
+  own, and stacked rows. A desktop-only shot leaves that half unreviewed, and an
+  overflowing control or a lost `--hk-tap` target there never reaches a reviewer.
+  The capture file ends with a `page.setViewportSize(PHONE)` block (`PHONE` from
+  `viewports.ts`) — add the phone step there, named with a `-mobile-` segment so the
+  pair sorts together (`57-panel-task-search.png` / `57c-panel-mobile-task-search.png`).
+  Use an HTML `<img>` tag with **no character-entity references in any attribute** —
+  the `update_pull_request` path backtick-wraps and entity-escapes a tag whose `alt`
+  contains one (`&#39;` did it on #272, three submissions running, while the two
+  neighbouring tags without one went through). Reword around the apostrophe, and
+  re-read the body afterwards to confirm nothing was mangled.
 - **The video walkthrough is a CI build artifact, never committed** — for a PR that
   adds a _new user-facing UI feature_, CI keeps it current (bug-fix/styling PRs need
   only screenshots). `walkthrough-preview.yml` runs the capture harness
@@ -45,6 +72,14 @@
   commit under `docs/images/`, embed in the README with a relative `docs/images/…`
   path). A new headline feature isn't "done" until the README shows it. (The moving
   walkthrough is **not** committed to the README — it's the per-PR CI comment above.)
+- **Plans and PRs must list one-way doors.** A one-way door is a design choice
+  that is hard to reverse once users depend on it: the name, shape, or format of
+  a field in a service call, an event payload, storage, an entity attribute, or
+  any other external contract. Plans call them out before implementation; PR
+  bodies include a **One-way doors** section listing every committed surface —
+  field name, format, where it appears, and what users or automations will rely
+  on. Internal-only shapes (frontend form data, private helpers) are two-way
+  doors and don't need listing.
 - **User-facing prose is linted for AI-tell phrasing.** `lint.yml`'s `vale` job runs
   the [vale-ai-tells](https://github.com/tbhb/vale-ai-tells) style (pinned version in
   `.vale.ini`) over `README.md`, `CHANGELOG.md`, the canonical `docs/*.md` (excludes

@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.20.0"
+PANEL_VERSION = "0.22.0b3"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -96,6 +96,13 @@ EVENT_PART_RESTOCKED = f"{DOMAIN}_part_restocked"
 # the task spine plus the edited completion's ``ts``, and ``meter_baseline`` when the
 # edit re-anchored a usage meter (see store.update_completion). See docs/EVENTS.md.
 EVENT_TASK_COMPLETION_UPDATED = f"{DOMAIN}_task_completion_updated"
+# The skip log's edit events, mirroring the two above. ``_skip_updated`` carries the
+# edited skip's ``ts`` (its ``old_ts`` after a move) plus ``meter_baseline`` when the
+# edit re-anchored a usage meter; ``_skip_removed`` carries the ``ts`` undone. There is
+# no re-add pair for a move: nothing downstream mirrors a skip the way an integration
+# mirrors a completion. See docs/EVENTS.md.
+EVENT_TASK_SKIP_UPDATED = f"{DOMAIN}_task_skip_updated"
+EVENT_TASK_SKIP_REMOVED = f"{DOMAIN}_task_skip_removed"
 # Asset (appliance) lifecycle — fired at the store.py asset chokepoints.
 EVENT_ASSET_CREATED = f"{DOMAIN}_asset_created"
 EVENT_ASSET_UPDATED = f"{DOMAIN}_asset_updated"  # payload carries ``changed_fields``
@@ -160,6 +167,17 @@ OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS = "problem_sensor_exclude_labels"
 # (the default) keeps completed one-offs forever; ``N > 0`` purges them once
 # ``last_completed + N days`` has passed, via the coordinator's periodic refresh.
 OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
+# Whether Home Keeper *offers* Snooze and Skip. Both default **on**: they are
+# long-standing verbs, and defaulting them off would hide a feature people already
+# struggle to find (#268). Turning one off withdraws it from the surfaces Home Keeper
+# controls — the panel's task actions and a notification's button set — but never from
+# ``home_keeper.snooze_task`` / ``skip_task``. Services are the interoperability
+# contract, and silently breaking an automation someone already wrote is not a setting.
+# One documented exception: ``notifications.actions_for`` still forces Snooze onto a
+# completion-blocked task, because a notification walk only advances on a successful
+# action and such a task can be neither completed nor skipped (#248).
+OPTION_ALLOW_SNOOZE = "allow_snooze"  # bool, default True
+OPTION_ALLOW_SKIP = "allow_skip"  # bool, default True
 # Catalog glue domains the user dismissed from the Settings → Companions
 # "Suggested" list. A list of domain strings; dismissing only silences a
 # *suggestion* (a connected pairing is always shown). See companions.py.
@@ -173,7 +191,8 @@ OPTION_DISMISSED_COMPANIONS = "dismissed_companions"
 # todo_list.py / todo_list_sync.py for what the sync block drives.
 OPTION_PROFILES = "profiles"
 # Notifications: delivery bindings that reference a profile by ``profile_id`` and add
-# how to deliver (targets, button set, snooze duration, style, automatic triggers).
+# how to deliver (targets, button set, snooze duration, style, automatic triggers), how
+# loudly it lands (channel, urgency) and how it looks (icon, color).
 # Edited from the panel's Settings → Notifications card and the set_options service;
 # consumed by the notify service, the action listener, and the coordinator's automatic
 # source. See notifications.py and docs/PROFILES_REFACTOR_PLAN.md.
@@ -263,7 +282,20 @@ SENSOR_MODE_THRESHOLD = "threshold"  # arm on a numeric crossing of value
 # report ``on``/``off``, never a figure. It is not binary-only — any state-y entity
 # works (``vacuum.x == "docked"``, ``sensor.washer == "finished"``).
 SENSOR_MODE_STATE = "state"
-SENSOR_MODES = [SENSOR_MODE_USAGE, SENSOR_MODE_THRESHOLD, SENSOR_MODE_STATE]
+# ``availability`` inverts the "no reading = do nothing" policy the other three modes
+# share: it arms *because* the entity is ``unavailable``/``unknown`` (or a bound
+# ``attribute`` is missing) for at least ``for_seconds``. This is the mode a
+# user-authored companion uses to say "task me when an entity goes offline"; no
+# shipped preset uses it today. Baseline: an entity that starts life unavailable
+# does NOT arm a fresh task (matches ``problem_sync`` "indeterminate does not
+# fabricate").
+SENSOR_MODE_AVAILABILITY = "availability"
+SENSOR_MODES = [
+    SENSOR_MODE_USAGE,
+    SENSOR_MODE_THRESHOLD,
+    SENSOR_MODE_STATE,
+    SENSOR_MODE_AVAILABILITY,
+]
 
 # Max length of a ``state`` binding's target state. Home Assistant caps a state string
 # at 255 characters, so anything longer could never match a real entity.
@@ -332,6 +364,12 @@ COMPLETION_CAPTURED_FIELDS = ["reading"]
 # ``completion_required_fields`` validation uses the narrower metadata list above.
 COMPLETION_ENTRY_FIELDS = [*COMPLETION_METADATA_FIELDS, *COMPLETION_CAPTURED_FIELDS]
 
+# Every key a *skip* entry may carry beside its mandatory ``ts``. A skip answers "why
+# did this occurrence go by?", so it takes the note and the person, plus the meter
+# ``reading`` it was taken at. It has no ``cost`` or ``photo``: nothing was bought and
+# there is nothing to show — a narrower list, not an oversight.
+SKIP_ENTRY_FIELDS = ["note", "who", "reading"]
+
 # Floating interval units.
 UNIT_DAYS = "days"
 UNIT_WEEKS = "weeks"
@@ -387,6 +425,54 @@ EVENT_REGISTER_COMPANIONS = f"{DOMAIN}_register_companions"
 # upstream's glue is first suggested. Payload built by events.companion_event_data.
 EVENT_COMPANION_CONNECTED = f"{DOMAIN}_companion_connected"
 EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
+
+# ── Declarative companions ─────────────────────────────────────────────────────
+# A **declarative companion** is a Home-Keeper-owned recipe (target integration +
+# entity filters + sensor-task trigger + Jinja-templated task fields) that expands
+# into one managed sensor task per matching entity. Unlike a hand-coded glue
+# integration (see EVENT_REGISTER_COMPANIONS above) it needs no separate repo —
+# users create them from the panel, or install one from a shipped preset (see
+# declarative_presets.py). The reconciler (declarative_companion_sync.py) enumerates
+# matches from the entity registry, renders templates, and delegates trigger
+# evaluation to the existing SensorTaskWatcher. Managed tasks carry
+# ``managed_by.integration = home_keeper`` and
+# ``source = {"declarative_companion":
+# {"spec_id", "entity_registry_id", "entity_id"}}``.
+# Dedupe is on ``entity_registry_id`` so a rename does not churn the task.
+#
+# Upper bound on how many declarative-companion specs are stored.
+# Matches MAX_COMPANIONS.
+MAX_DECLARATIVE_COMPANIONS = 50
+# Length bounds on user-visible strings on a spec — prevents runaway names/notes/regex
+# from wedging the panel or blowing the JSON store.
+MAX_DECLARATIVE_SPEC_NAME_LEN = 100
+MAX_DECLARATIVE_SPEC_DESCRIPTION_LEN = 500
+MAX_DECLARATIVE_ENTITY_REGEX_LEN = 200
+MAX_DECLARATIVE_NAME_TEMPLATE_LEN = 200
+MAX_DECLARATIVE_NOTES_TEMPLATE_LEN = 2000
+# Cap the number of tasks a single declarative spec can materialize. A poorly
+# narrowed regex (``.*``) against a big HA config would otherwise fan out to
+# hundreds of tasks silently. The preview warns at WARN and hard-fails at HARD so
+# a runaway spec cannot be saved.
+MAX_DECLARATIVE_MATCH_WARN = 50
+MAX_DECLARATIVE_MATCH_HARD = 500
+# Provenance key on a managed task's ``source`` dict identifying it as materialized
+# by a declarative-companion spec: ``task["source"] = {"declarative_companion":
+# {"spec_id", "entity_registry_id", "entity_id"}}``. The reconciler exclusively
+# owns these tasks; ``entity_registry_id`` is the survives-rename dedupe key.
+TASK_SOURCE_DECLARATIVE_COMPANION = "declarative_companion"
+# Dispatcher signal the store fires when a spec is added / updated / deleted /
+# toggled; the reconciler subscribes to re-materialize managed tasks without
+# needing a config-entry reload.
+SIGNAL_DECLARATIVE_SPECS_CHANGED = f"{DOMAIN}_declarative_specs_changed"
+# Bus events fired on spec-level mutations. Managed tasks still emit the standard
+# ``home_keeper_task_*`` events; automations filter to declarative tasks via
+# ``managed_by.integration == "home_keeper"`` +
+# ``source.declarative_companion.spec_id``. Payload built by
+# ``events.declarative_companion_event_data``.
+EVENT_DECLARATIVE_COMPANION_ADDED = f"{DOMAIN}_declarative_companion_added"
+EVENT_DECLARATIVE_COMPANION_UPDATED = f"{DOMAIN}_declarative_companion_updated"
+EVENT_DECLARATIVE_COMPANION_REMOVED = f"{DOMAIN}_declarative_companion_removed"
 
 # Well-known field on a task dict that Home Keeper inspects (unlike the opaque
 # ``source`` field). Declares the integration that owns the task: which fields

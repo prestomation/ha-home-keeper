@@ -8,6 +8,7 @@ import {
   stubLazyMarkdown,
   waitFor,
 } from './panel-harness.js';
+import { schemaFieldNames } from '../src/forms.ts';
 
 /**
  * Typing in a form field must never rebuild the form.
@@ -287,5 +288,132 @@ describe('a late ha-markdown upgrade must not rebuild an open form', () => {
       'a background Markdown upgrade must not rebuild the form being typed in',
     ).toBe(form);
     expect(panel.shadowRoot.activeElement).toBe(input);
+  });
+});
+
+describe('typing into a part must not rebuild the appliance form (issue #296)', () => {
+  /**
+   * The reported bug: the first digit into an empty Stock box flipped "this part
+   * tracks stock", which rebuilt the whole drawer — the box being typed in was
+   * destroyed, the sheet scrolled back to the top, and on iOS the keyboard closed.
+   * Each part is now two forms: the base one never changes shape, and only the
+   * dependent one (the fields a value reveals) has its schema swapped, in place.
+   */
+  const heater = {
+    id: 'a1',
+    kind: 'virtual',
+    name: 'Water heater',
+    parts: [
+      { id: 'p1', name: 'T&P relief valve', type: 'wear', replace_interval: 36, replace_unit: 'months' },
+      { id: 'p2', name: 'Sediment pre-filter', type: 'consumable', stock: 4, reorder_at: 1 },
+    ],
+  };
+  const partForms = (panel, idx) => [
+    ...(panel.shadowRoot?.querySelectorAll(`#hk-asset-form .hk-part[data-idx="${idx}"] ha-form`) ?? []),
+  ];
+  const baseOf = (panel, idx) =>
+    partForms(panel, idx).find((f) => schemaFieldNames(f.schema).includes('stock')) ?? null;
+  const depOf = (panel, idx) => partForms(panel, idx).find((f) => f !== baseOf(panel, idx)) ?? null;
+  const names = (form) => schemaFieldNames(form.schema);
+
+  async function openHeater() {
+    const { panel } = await mountPanel('/appliances/a1', makeHass({ assets: [heater] }));
+    // The Parts tab's Edit on the valve: the drawer opens with that part expanded.
+    const edit = await waitFor(() => panel.shadowRoot?.querySelector('#part-edit-0'));
+    edit.click();
+    const base = await waitFor(() => baseOf(panel, 0));
+    expect(base, 'the parts editor should render').toBeTruthy();
+    return { panel, base };
+  }
+
+  it('keeps the base form and its focused field alive through the first digit into an empty Stock', async () => {
+    const { panel, base } = await openHeater();
+    const dep = depOf(panel, 0);
+    expect(names(dep)).not.toContain('consume_quantity');
+    const input = focusField(base);
+
+    emitChange(base, { stock: 3 });
+
+    expect(baseOf(panel, 0), 'starting to track stock must not rebuild the form').toBe(base);
+    expect(panel.shadowRoot.activeElement).toBe(input);
+    // The per-completion amount appears in the dependent form, in place.
+    expect(depOf(panel, 0), 'the dependent form is swapped, not rebuilt').toBe(dep);
+    expect(names(dep)).toContain('consume_quantity');
+    expect(panel._assetEdit.asset.parts[0].stock).toBe(3);
+
+    // Clearing it again is the same gate in the other direction.
+    emitChange(base, { stock: '' });
+    expect(baseOf(panel, 0)).toBe(base);
+    expect(panel.shadowRoot.activeElement).toBe(input);
+    expect(names(dep)).not.toContain('consume_quantity');
+    expect(panel._assetEdit.asset.parts[0].stock).toBeNull();
+  });
+
+  it('reveals auto-buy, then the restock quantity, without leaving the dependent form', async () => {
+    const { panel, base } = await openHeater();
+    const dep = depOf(panel, 0);
+    const input = focusField(base);
+
+    emitChange(base, { reorder_at: 1 });
+    expect(baseOf(panel, 0)).toBe(base);
+    expect(panel.shadowRoot.activeElement).toBe(input);
+    expect(names(dep)).toContain('create_buy_task');
+    expect(names(dep)).not.toContain('restock_quantity');
+
+    emitChange(dep, { create_buy_task: true });
+    expect(depOf(panel, 0), 'toggling auto-buy swaps the dependent schema in place').toBe(dep);
+    expect(names(dep)).toContain('restock_quantity');
+    expect(panel._assetEdit.asset.parts[0].create_buy_task).toBe(true);
+    expect(baseOf(panel, 0)).toBe(base);
+  });
+
+  it('swaps the wear fields when the type changes, base form untouched', async () => {
+    const { panel, base } = await openHeater();
+    const dep = depOf(panel, 0);
+    expect(names(dep)).toContain('replace_interval');
+    const input = focusField(base);
+
+    emitChange(base, { type: 'consumable' });
+
+    expect(baseOf(panel, 0)).toBe(base);
+    expect(panel.shadowRoot.activeElement).toBe(input);
+    expect(names(dep)).not.toContain('replace_interval');
+    expect(panel._assetEdit.asset.parts[0].replace_interval).toBeNull();
+  });
+
+  it('leaves the other form\'s fields alone when one form changes', async () => {
+    const { panel } = await openHeater();
+    // Open the filter (second part) and type its name; its stock must survive.
+    const second = panel.shadowRoot.querySelector('#hk-asset-form .hk-part[data-idx="1"]');
+    second.open = true;
+    const base = baseOf(panel, 1);
+    emitChange(base, { part_name: 'Sediment filter' });
+    expect(panel._assetEdit.asset.parts[1]).toMatchObject({
+      name: 'Sediment filter',
+      stock: 4,
+      reorder_at: 1,
+    });
+    // ...and the collapsed row's summary followed the typing.
+    expect(second.querySelector('.hk-part-acc-name').textContent).toBe('Sediment filter');
+  });
+
+  it('keeps a custom field\'s label alive when its type changes', async () => {
+    const asset = { id: 'a2', kind: 'virtual', name: 'Fridge', metadata: [{ type: 'text', label: 'Serial', value: '' }] };
+    const { panel } = await mountPanel('/appliances/a2', makeHass({ assets: [asset] }));
+    (await waitFor(() => panel.shadowRoot?.querySelector('.d-edit'))).click();
+    const forms = await waitFor(() => {
+      const all = [...(panel.shadowRoot?.querySelectorAll('#hk-asset-form .hk-entry ha-form') ?? [])];
+      return all.length ? all : null;
+    });
+    const base = forms.find((f) => schemaFieldNames(f.schema).includes('label'));
+    const dep = forms.find((f) => schemaFieldNames(f.schema).includes('value'));
+    const input = focusField(base);
+
+    emitChange(base, { type: 'date', label: 'Serial' });
+
+    expect(panel.shadowRoot.contains(base)).toBe(true);
+    expect(panel.shadowRoot.activeElement).toBe(input);
+    expect(schemaFieldNames(dep.schema)).toEqual(['value', 'track']);
+    expect(panel._assetEdit.asset.metadata[0].type).toBe('date');
   });
 });

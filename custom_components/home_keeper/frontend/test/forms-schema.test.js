@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  MAX_SEASON_WINDOWS,
   assetIdentitySchema,
   companionOptions,
   profileSchema,
   buildTaskPayload,
   duplicateTaskSeed,
   formRecurrenceSummary,
+  hexToRgb,
+  mergePartForm,
+  metadataBaseSchema,
+  metadataDependentSchema,
   metadataSchema,
   notifyFormData,
   notifyFormToNotification,
@@ -13,9 +18,15 @@ import {
   pickFormData,
   problemSyncExclusionsSchema,
   problemSyncSchema,
+  partBaseSchema,
+  partDependentKey,
+  partDependentSchema,
+  partFormData,
   partSchema,
+  partSummaryLine,
   problemSyncToggleSchema,
   profileSyncSchema,
+  rgbToHex,
   schemaFieldNames,
   selUnit,
   sensorLive,
@@ -61,6 +72,23 @@ describe('taskSchemaSections is exactly taskSchema, grouped', () => {
     ['sensor / threshold', { recurrence_type: 'sensor', sensor_mode: 'threshold' }],
     ['sensor / state', { recurrence_type: 'sensor', sensor_mode: 'state' }],
     ['a saved task (no last_completed seed)', { id: 't1', recurrence_type: 'floating' }],
+    ['floating with one season window', {
+      recurrence_type: 'floating',
+      active_season: [{ start: '04-01', end: '09-30' }],
+    }],
+    ['fixed with three season windows', {
+      recurrence_type: 'fixed',
+      active_season: [
+        { start: '03-01', end: '05-31' },
+        { start: '09-01', end: '10-31' },
+        { start: '12-01', end: '12-24' },
+      ],
+    }],
+    ['season switched off on a task that has windows', {
+      recurrence_type: 'floating',
+      season_on: false,
+      active_season: [{ start: '04-01', end: '09-30' }],
+    }],
     ['a managed task with locked fields', {
       recurrence_type: 'floating',
       managed_by: { domain: 'x', locked_fields: ['name', 'interval', 'device_id'] },
@@ -88,6 +116,10 @@ describe('taskSchemaSections is exactly taskSchema, grouped', () => {
     expect(cadence).toBeGreaterThan(schedule);
     expect(names(sections[schedule].fields)).toEqual(['recurrence_type']);
     expect(names(sections[cadence].fields)).toEqual(['interval', 'unit', 'last_completed']);
+    // The season switch is its own section, directly above the windows it reveals.
+    const season = sections.findIndex((s) => s.key === 'season');
+    expect(season).toBe(cadence + 1);
+    expect(names(sections[season].fields)).toEqual(['season_on']);
     expect(sections[cadence].dependent).toBe(true);
     // Only the revealed run is dependent — the rest stand on their own.
     expect(sections.filter((s) => s.dependent).map((s) => s.key)).toEqual(['cadence']);
@@ -211,6 +243,7 @@ describe('taskSchema by recurrence type', () => {
       'interval',
       'unit',
       'last_completed',
+      'season_on',
       'device_id',
       'area_id',
       'tag_id',
@@ -229,6 +262,7 @@ describe('taskSchema by recurrence type', () => {
       'freq',
       'anchor',
       'last_completed',
+      'season_on',
       'device_id',
       'area_id',
       'tag_id',
@@ -551,6 +585,8 @@ describe('notification form round-trip', () => {
     style: 'walk',
     channel: 'Chores',
     urgency: 'high',
+    icon: 'mdi:broom',
+    color: '#43a047',
     snooze_hours: 12,
     auto: { overdue: true, due_soon: false },
   };
@@ -564,6 +600,9 @@ describe('notification form round-trip', () => {
       style: 'walk',
       channel: 'Chores',
       urgency: 'high',
+      icon: 'mdi:broom',
+      // The picker speaks RGB; the store speaks hex. #43a047 is [67, 160, 71].
+      color: [67, 160, 71],
       snooze_hours: 12,
       auto_overdue: true,
       auto_due_soon: false,
@@ -641,6 +680,54 @@ describe('notification form round-trip', () => {
       expect(notifyFormToNotification('n1', { name: 'x', urgency }).urgency).toBe(urgency);
     }
   });
+
+  it('leaves a new notification on no icon and no color', () => {
+    // Same reasoning as the channel pair above: both must be '' and not undefined, or
+    // they drop out of the saved JSON and the backend never sees the field at all.
+    const rebuilt = notifyFormToNotification('n1', { name: 'x' });
+    expect(rebuilt.icon).toBe('');
+    expect(rebuilt.color).toBe('');
+  });
+
+  it('clamps an icon the companion app could not resolve', () => {
+    // A name the app cannot resolve draws nothing at all in the status bar, silently.
+    // Storing '' instead keeps the Home Assistant icon the user already had.
+    expect(notifyFormToNotification('n1', { name: 'x', icon: '  MDI:Pill ' }).icon).toBe('mdi:pill');
+    for (const bad of ['pill', 'mdi:', 'mdi:a b', 'hass:pill', null, 7]) {
+      expect(notifyFormToNotification('n1', { name: 'x', icon: bad }).icon).toBe('');
+    }
+  });
+
+  it('stores the picker color as hex', () => {
+    expect(notifyFormToNotification('n1', { name: 'x', color: [3, 169, 244] }).color).toBe(
+      '#03a9f4',
+    );
+    // Padded, so a dark channel never comes back as a 4-digit string.
+    expect(notifyFormToNotification('n1', { name: 'x', color: [0, 0, 15] }).color).toBe('#00000f');
+    for (const bad of [null, '#03a9f4', [1, 2], [1, 2, 3, 4], [1, 2, 300], [1, 2, -1], ['a', 1, 2]]) {
+      expect(notifyFormToNotification('n1', { name: 'x', color: bad }).color).toBe('');
+    }
+  });
+});
+
+describe('color round-trip', () => {
+  it('survives hex → rgb → hex', () => {
+    for (const hex of ['#000000', '#ffffff', '#03a9f4', '#f9a825', '#43a047']) {
+      expect(rgbToHex(hexToRgb(hex))).toBe(hex);
+    }
+  });
+
+  it('lower-cases and trims on the way in', () => {
+    expect(hexToRgb('  #F9A825 ')).toEqual([249, 168, 37]);
+  });
+
+  it('gives the picker undefined rather than a bad triple', () => {
+    // `color_rgb` renders whatever it is handed. An empty field must clear the swatch,
+    // not paint it black, or a notification with no color looks like one set to #000.
+    for (const bad of ['', null, undefined, '#fff', 'red', '#gggggg', 42]) {
+      expect(hexToRgb(bad)).toBeUndefined();
+    }
+  });
 });
 
 describe('notificationSchema', () => {
@@ -655,6 +742,8 @@ describe('notificationSchema', () => {
       'style',
       'channel',
       'urgency',
+      'icon',
+      'color',
       'snooze_hours',
       'auto_overdue',
       'auto_due_soon',
@@ -868,6 +957,211 @@ describe('toProfileSync', () => {
   });
 });
 
+// An active season restricts a repeating task to part of the year. The panel edits
+// the windows as a list — add one, remove one — so what these tests guard is the
+// round trip: what the form shows for a stored task, and what saving it writes back.
+// Issue #242's reporter hit exactly the failure of that round trip: a second window
+// that came back switched on with no pickers under it, and a save that dropped it.
+describe('active season', () => {
+  const floating = { recurrence_type: 'floating', interval: 2, unit: 'months' };
+  const windowNames = (i) => [
+    `season_${i}_start_month`,
+    `season_${i}_start_day`,
+    `season_${i}_end_month`,
+    `season_${i}_end_day`,
+  ];
+  const sectionsOf = (task) => taskSchemaSections(task);
+  const seasonSections = (task) => sectionsOf(task).filter((s) => s.key.startsWith('season-'));
+
+  it('offers the season switch to the two kinds that compute a date from a calendar', () => {
+    expect(names(taskSchema({ recurrence_type: 'floating' }))).toContain('season_on');
+    expect(names(taskSchema({ recurrence_type: 'fixed' }))).toContain('season_on');
+    for (const kind of ['one-off', 'sensor', 'triggered']) {
+      expect(names(taskSchema({ recurrence_type: kind }))).not.toContain('season_on');
+    }
+  });
+
+  it('withholds the season switch from a task whose managing integration locks it', () => {
+    const managed = {
+      recurrence_type: 'floating',
+      managed_by: { domain: 'x', locked_fields: ['active_season'] },
+      active_season: [{ start: '04-01', end: '09-30' }],
+    };
+    expect(names(taskSchema(managed))).not.toContain('season_on');
+    expect(seasonSections(managed)).toEqual([]);
+  });
+
+  it('shows no window until the season is switched on', () => {
+    expect(seasonSections(floating)).toEqual([]);
+    expect(seasonSections({ ...floating, season_on: false })).toEqual([]);
+  });
+
+  it('gives every stored window a section of its own, with the same fields', () => {
+    const task = {
+      ...floating,
+      active_season: [
+        { start: '03-01', end: '05-31' },
+        { start: '09-01', end: '10-31' },
+        { start: '12-01', end: '12-24' },
+      ],
+    };
+    const sections = seasonSections(task);
+    expect(sections.map((s) => s.key)).toEqual(['season-1', 'season-2', 'season-3']);
+    sections.forEach((section, i) => expect(names(section.fields)).toEqual(windowNames(i + 1)));
+  });
+
+  it('reads a window switched on with no stored season as April through September', () => {
+    const data = taskFormData({ ...floating, season_on: true });
+    expect(data.season_count).toBe(1);
+    expect(data.season_1_start_month).toBe('4');
+    expect(data.season_1_start_day).toBe(1);
+    expect(data.season_1_end_month).toBe('9');
+    expect(data.season_1_end_day).toBe(30);
+  });
+
+  it('reads every stored window into the form, days included', () => {
+    const data = taskFormData({
+      ...floating,
+      active_season: [
+        { start: '11-15', end: '03-20' },
+        { start: '06-02', end: '06-28' },
+      ],
+    });
+    expect(data.season_on).toBe(true);
+    expect(data.season_count).toBe(2);
+    expect(data.season_1_start_month).toBe('11');
+    expect(data.season_1_start_day).toBe(15);
+    expect(data.season_1_end_month).toBe('3');
+    expect(data.season_1_end_day).toBe(20);
+    expect(data.season_2_start_month).toBe('6');
+    expect(data.season_2_start_day).toBe(2);
+    expect(data.season_2_end_month).toBe('6');
+    expect(data.season_2_end_day).toBe(28);
+  });
+
+  it('accepts the single-object shape a service call may still send', () => {
+    const data = taskFormData({ ...floating, active_season: { start: '04-01', end: '09-30' } });
+    expect(data.season_count).toBe(1);
+    expect(data.season_1_start_month).toBe('4');
+  });
+
+  it('round-trips three windows through the form without changing them', () => {
+    const active_season = [
+      { start: '03-01', end: '05-31' },
+      { start: '09-01', end: '10-31' },
+      { start: '12-01', end: '12-24' },
+    ];
+    const task = { ...floating, name: 'Fertilize', active_season };
+    const payload = buildTaskPayload({ ...task, ...taskFormData(task) });
+    expect(payload.active_season).toEqual(active_season);
+  });
+
+  it('saves every window the form is showing, not just the first', () => {
+    const payload = buildTaskPayload({
+      ...floating,
+      name: 'Fertilize',
+      season_on: true,
+      season_count: 2,
+      season_1_start_month: '4',
+      season_1_start_day: 1,
+      season_1_end_month: '5',
+      season_1_end_day: 31,
+      season_2_start_month: '9',
+      season_2_start_day: 1,
+      season_2_end_month: '10',
+      season_2_end_day: 31,
+    });
+    expect(payload.active_season).toEqual([
+      { start: '04-01', end: '05-31' },
+      { start: '09-01', end: '10-31' },
+    ]);
+  });
+
+  it('drops a removed window: the live count wins over what is stored', () => {
+    // What the panel leaves behind after Remove on window 1 of 2 — the survivor
+    // shifted down into slot 1, the count down to one, the stored list untouched.
+    const payload = buildTaskPayload({
+      ...floating,
+      name: 'Fertilize',
+      active_season: [
+        { start: '04-01', end: '05-31' },
+        { start: '09-01', end: '10-31' },
+      ],
+      season_on: true,
+      season_count: 1,
+      season_1_start_month: '9',
+      season_1_start_day: 1,
+      season_1_end_month: '10',
+      season_1_end_day: 31,
+    });
+    expect(payload.active_season).toEqual([{ start: '09-01', end: '10-31' }]);
+  });
+
+  it('clears the season when the switch is off, rather than leaving the stored one', () => {
+    const payload = buildTaskPayload({
+      ...floating,
+      name: 'Fertilize',
+      active_season: [{ start: '04-01', end: '09-30' }],
+      season_on: false,
+    });
+    expect(payload.active_season).toBeNull();
+  });
+
+  it('ignores a season on a one-off task, which has no recurring date to restrict', () => {
+    const payload = buildTaskPayload({
+      name: 'Paint',
+      recurrence_type: 'one-off',
+      due: '2026-06-15T10:00:00',
+      season_on: true,
+      season_count: 1,
+      season_1_start_month: '4',
+      season_1_end_month: '9',
+    });
+    expect(payload.active_season).toBeNull();
+  });
+
+  it('offers each day picker only the days its month has', () => {
+    const task = {
+      ...floating,
+      season_on: true,
+      season_1_start_month: '2',
+      season_1_end_month: '4',
+    };
+    const fields = seasonSections(task)[0].fields;
+    const dayField = (name) =>
+      fields.flatMap((f) => f.schema ?? [f]).find((f) => f.name === name);
+    expect(dayField('season_1_start_day').selector.number).toEqual({
+      min: 1,
+      max: 29,
+      mode: 'box',
+    });
+    expect(dayField('season_1_end_day').selector.number.max).toBe(30);
+  });
+
+  it('clamps a day the month cannot have, so February never saves the 31st', () => {
+    const payload = buildTaskPayload({
+      ...floating,
+      name: 'Fertilize',
+      season_on: true,
+      season_count: 1,
+      season_1_start_month: '2',
+      season_1_start_day: 31,
+      season_1_end_month: '4',
+      season_1_end_day: 31,
+    });
+    expect(payload.active_season).toEqual([{ start: '02-29', end: '04-30' }]);
+  });
+
+  it('stops offering another window at the panel cap', () => {
+    const many = Array.from({ length: MAX_SEASON_WINDOWS + 2 }, () => ({
+      start: '04-01',
+      end: '09-30',
+    }));
+    expect(seasonSections({ ...floating, active_season: many })).toHaveLength(
+      MAX_SEASON_WINDOWS,
+    );
+  });
+});
 // ── appliance form schemas ──────────────────────────────────────────────────
 // The appliance drawer's field sets. Same contract as the task form's above: a
 // missing field is a control the user cannot reach, and a selector with the wrong
@@ -1491,5 +1785,345 @@ describe('profileSchema companions fields', () => {
       expect(field.selector.select.multiple).toBe(true);
       expect(field.selector.select.options).toEqual(options);
     }
+  });
+});
+
+// ── the part editor's two forms (issue #296) ─────────────────────────────────
+// Typing into Stock used to rebuild the whole drawer the moment the part started
+// tracking stock. The editor is now a fixed form plus a dependent one, so these pin
+// what each holds, what decides the dependent one's shape, and how their events
+// fold back into one part.
+
+describe('partBaseSchema / partDependentSchema', () => {
+  const consumable = { name: 'Anode rod', type: 'consumable' };
+
+  it('keeps every gate — type, stock, reorder — in the base form, which never changes shape', () => {
+    expect(names(partBaseSchema())).toEqual([
+      'part_name',
+      'part_number',
+      'type',
+      'vendor',
+      'cost',
+      'part_url',
+      'notes',
+      'stock',
+      'reorder_at',
+      'stock_unit',
+    ]);
+    // Whatever the part, the base form is the same list.
+    expect(partBaseSchema()).toEqual(partBaseSchema());
+  });
+
+  it('puts only the revealed fields in the dependent form', () => {
+    expect(names(partDependentSchema(consumable))).toEqual([]);
+    expect(names(partDependentSchema({ ...consumable, stock: 2 }))).toEqual(['consume_quantity']);
+    expect(names(partDependentSchema({ ...consumable, reorder_at: 1 }))).toEqual(['create_buy_task']);
+    expect(names(partDependentSchema({ ...consumable, reorder_at: 1, create_buy_task: true }))).toEqual([
+      'create_buy_task',
+      'restock_quantity',
+    ]);
+    expect(names(partDependentSchema({ ...consumable, type: 'wear' }))).toEqual([
+      'replace_interval',
+      'replace_unit',
+      'last_replaced',
+    ]);
+  });
+
+  it('is what partSchema is the concatenation of', () => {
+    const part = { ...consumable, type: 'wear', stock: 2, reorder_at: 1, create_buy_task: true };
+    expect(partSchema(part)).toEqual([...partBaseSchema(), ...partDependentSchema(part)]);
+  });
+});
+
+describe('partDependentKey', () => {
+  const part = { name: 'Anode rod', type: 'consumable' };
+  it('changes only when the dependent form would', () => {
+    const key = partDependentKey(part);
+    // Another digit in a tracked stock is not a change of shape.
+    expect(partDependentKey({ ...part, stock: 2 })).toBe(partDependentKey({ ...part, stock: 25 }));
+    expect(partDependentKey({ ...part, stock: 0 })).not.toBe(key);
+    expect(partDependentKey({ ...part, reorder_at: 0 })).not.toBe(key);
+    expect(partDependentKey({ ...part, type: 'wear' })).not.toBe(key);
+    expect(partDependentKey({ ...part, reorder_at: 1, create_buy_task: true })).not.toBe(
+      partDependentKey({ ...part, reorder_at: 1, create_buy_task: false }),
+    );
+    // Fields the dependent form does not gate on leave the key alone.
+    expect(partDependentKey({ ...part, name: 'Other', vendor: 'x', notes: 'y' })).toBe(key);
+  });
+});
+
+describe('partFormData', () => {
+  it('seeds every field, defaulting the unit and the buy toggle', () => {
+    expect(partFormData({ name: 'Anode rod', type: 'wear', stock: 2 })).toEqual({
+      part_name: 'Anode rod',
+      part_number: '',
+      type: 'wear',
+      vendor: '',
+      cost: undefined,
+      part_url: '',
+      notes: '',
+      stock: 2,
+      reorder_at: undefined,
+      stock_unit: '',
+      consume_quantity: undefined,
+      create_buy_task: false,
+      restock_quantity: undefined,
+      replace_interval: undefined,
+      replace_unit: 'months',
+      last_replaced: undefined,
+    });
+  });
+});
+
+describe('mergePartForm', () => {
+  const prev = {
+    id: 'p1',
+    name: 'Descaler',
+    type: 'consumable',
+    stock: 750,
+    reorder_at: 500,
+    stock_unit: 'ml',
+    consume_quantity: 250,
+    file_name: 'receipt.pdf',
+    file_content_type: 'application/pdf',
+    file_size: 591,
+  };
+
+  it('only touches the fields the event carries', () => {
+    // The base form's event says nothing about the dependent form's fields.
+    const next = mergePartForm(prev, { part_name: 'Descaling solution', stock: 750, reorder_at: 500, stock_unit: 'ml' });
+    expect(next.name).toBe('Descaling solution');
+    expect(next.consume_quantity).toBe(250);
+    expect(next.file_name).toBe('receipt.pdf');
+    expect(next.id).toBe('p1');
+  });
+
+  it('reads an emptied box as unset', () => {
+    const next = mergePartForm(prev, { stock: '' });
+    expect(next.stock).toBeNull();
+    // ...and drops what depended on it.
+    expect(next.consume_quantity).toBeNull();
+  });
+
+  it('drops a value whose gate has closed', () => {
+    const buying = { ...prev, create_buy_task: true, restock_quantity: 4 };
+    expect(mergePartForm(buying, { reorder_at: '' })).toMatchObject({
+      reorder_at: null,
+      create_buy_task: false,
+      restock_quantity: null,
+    });
+    expect(mergePartForm(buying, { create_buy_task: false })).toMatchObject({
+      create_buy_task: false,
+      restock_quantity: null,
+    });
+  });
+
+  it('keeps the replacement schedule only on a wear item, and only with an interval', () => {
+    const wear = { name: 'Anode', type: 'wear', replace_interval: 12, replace_unit: 'months', last_replaced: '2025-05-01' };
+    expect(mergePartForm(wear, { type: 'consumable' })).toMatchObject({
+      replace_interval: null,
+      replace_unit: null,
+      // A consumable keeps the date: the field is hidden, so nothing changed it.
+      last_replaced: '2025-05-01',
+    });
+    expect(mergePartForm(wear, { replace_interval: '', replace_unit: 'months' })).toMatchObject({
+      replace_interval: null,
+      replace_unit: null,
+    });
+    expect(mergePartForm(wear, { last_replaced: '' }).last_replaced).toBeNull();
+  });
+
+  it('coerces the numbers and trims the text the old one-form handler did', () => {
+    const next = mergePartForm(prev, {
+      cost: '12.5',
+      part_url: ' https://x.example ',
+      stock_unit: ' ml ',
+      restock_quantity: '3',
+    });
+    expect(next.cost).toBe(12.5);
+    expect(next.url).toBe('https://x.example');
+    expect(next.stock_unit).toBe('ml');
+    // Not auto-buying, so the restock quantity has nothing to attach to.
+    expect(next.restock_quantity).toBeNull();
+  });
+});
+
+describe('partSummaryLine', () => {
+  it('says the stock with its unit, flags it when low, and names the reorder point', () => {
+    expect(partSummaryLine({ name: 'Descaler', type: 'consumable', stock: 750, reorder_at: 500, stock_unit: 'ml' })).toBe(
+      'In stock: 750 ml · Reorder at 500 ml',
+    );
+    expect(partSummaryLine({ name: 'Anode', type: 'wear', stock: 2, reorder_at: 2 })).toBe(
+      'Low stock: 2 · Reorder at 2',
+    );
+  });
+  it('adds a wear item\'s interval, and says nothing for a part that tracks nothing', () => {
+    expect(
+      partSummaryLine({ name: 'Anode', type: 'wear', stock: 2, replace_interval: 12, replace_unit: 'months' }),
+    ).toBe('In stock: 2 · Every 12 months');
+    expect(partSummaryLine({ name: 'Valve', type: 'wear', replace_interval: 36, replace_unit: 'months' })).toBe(
+      'Every 36 months',
+    );
+    expect(partSummaryLine({ name: 'Valve', type: 'consumable' })).toBe('');
+    // An interval without a unit is not a schedule.
+    expect(partSummaryLine({ name: 'Valve', type: 'wear', replace_interval: 36 })).toBe('');
+  });
+});
+
+describe('metadataBaseSchema / metadataDependentSchema', () => {
+  it('splits the type and label from the value control the type decides', () => {
+    expect(names(metadataBaseSchema())).toEqual(['type', 'label']);
+    expect(names(metadataDependentSchema({ type: 'text', label: '', value: '' }))).toEqual(['value']);
+    expect(names(metadataDependentSchema({ type: 'date', label: '', value: '' }))).toEqual(['value', 'track']);
+    const m = { type: 'date', label: 'Warranty', value: '' };
+    expect(metadataSchema(m)).toEqual([...metadataBaseSchema(), ...metadataDependentSchema(m)]);
+  });
+});
+
+// Absolute shapes, not only relative ones: a mutant that flips every comparison in
+// `partDependentKey` keeps two parts *different* while lying about both.
+describe('partDependentKey — the exact shape', () => {
+  it('spells out each gate in order', () => {
+    expect(partDependentKey({ name: 'x', type: 'consumable' })).toBe('false,false,false,false');
+    expect(
+      partDependentKey({ name: 'x', type: 'wear', stock: 0, reorder_at: 0, create_buy_task: true }),
+    ).toBe('true,true,true,true');
+    expect(partDependentKey({ name: 'x', type: 'consumable', stock: 2 })).toBe('false,true,false,false');
+  });
+  it('offers nothing dependent for a part that tracks nothing', () => {
+    expect(partDependentSchema({ name: 'x', type: 'consumable' })).toEqual([]);
+  });
+});
+
+describe('partFormData — zeros and blanks survive the seeding', () => {
+  it('keeps a zero quantity as zero, not as empty', () => {
+    const data = partFormData({
+      name: '',
+      type: 'consumable',
+      cost: 0,
+      stock: 0,
+      reorder_at: 0,
+      consume_quantity: 0,
+      restock_quantity: 0,
+      replace_interval: 0,
+    });
+    expect(data).toMatchObject({
+      part_name: '',
+      cost: 0,
+      stock: 0,
+      reorder_at: 0,
+      consume_quantity: 0,
+      restock_quantity: 0,
+      replace_interval: 0,
+    });
+  });
+  it('defaults a part with nothing set', () => {
+    expect(partFormData({})).toEqual({
+      part_name: '',
+      part_number: '',
+      type: 'consumable',
+      vendor: '',
+      cost: undefined,
+      part_url: '',
+      notes: '',
+      stock: undefined,
+      reorder_at: undefined,
+      stock_unit: '',
+      consume_quantity: undefined,
+      create_buy_task: false,
+      restock_quantity: undefined,
+      replace_interval: undefined,
+      replace_unit: 'months',
+      last_replaced: undefined,
+    });
+  });
+});
+
+describe('mergePartForm — every field is guarded by its own key', () => {
+  const full = {
+    id: 'p1',
+    name: 'Anode rod',
+    part_number: 'AR-1',
+    type: 'wear',
+    vendor: 'Home Depot',
+    cost: 35,
+    url: 'https://x.example',
+    notes: 'Torque to 40 Nm',
+    stock: 2,
+    reorder_at: 1,
+    stock_unit: 'pcs',
+    consume_quantity: 1,
+    create_buy_task: true,
+    restock_quantity: 2,
+    replace_interval: 12,
+    replace_unit: 'months',
+    last_replaced: '2025-05-01',
+    file_name: 'r.pdf',
+  };
+
+  it('changes nothing when the event carries nothing', () => {
+    expect(mergePartForm(full, {})).toEqual(full);
+  });
+
+  it('reads a present-but-null text field as empty, and a null number as unset', () => {
+    const next = mergePartForm(full, {
+      part_name: null,
+      part_number: null,
+      vendor: null,
+      part_url: null,
+      notes: null,
+      stock_unit: null,
+      cost: null,
+      type: null,
+      replace_unit: undefined,
+      last_replaced: '2026-01-02',
+    });
+    expect(next).toMatchObject({
+      name: '',
+      part_number: '',
+      vendor: '',
+      url: '',
+      notes: '',
+      stock_unit: '',
+      cost: null,
+      type: 'consumable',
+      last_replaced: '2026-01-02',
+    });
+    // A consumable has no schedule, whatever the unit event said.
+    expect(next.replace_interval).toBeNull();
+    expect(next.replace_unit).toBeNull();
+  });
+
+  it('carries each field it is given, one at a time', () => {
+    const cases = [
+      ['part_name', 'Rod', 'name', 'Rod'],
+      ['part_number', 'AR-2', 'part_number', 'AR-2'],
+      ['vendor', 'Amazon', 'vendor', 'Amazon'],
+      ['cost', '40', 'cost', 40],
+      ['part_url', ' https://y.example ', 'url', 'https://y.example'],
+      ['notes', 'n', 'notes', 'n'],
+      ['stock', '3', 'stock', 3],
+      ['reorder_at', '2', 'reorder_at', 2],
+      ['stock_unit', ' ml ', 'stock_unit', 'ml'],
+      ['consume_quantity', '0.5', 'consume_quantity', 0.5],
+      ['restock_quantity', '4', 'restock_quantity', 4],
+      ['replace_interval', '6', 'replace_interval', 6],
+      ['replace_unit', 'weeks', 'replace_unit', 'weeks'],
+      ['last_replaced', '2026-02-03', 'last_replaced', '2026-02-03'],
+    ];
+    for (const [key, given, field, expected] of cases) {
+      const next = mergePartForm(full, { [key]: given });
+      expect(next[field], key).toEqual(expected);
+      // …and only that field moved.
+      const rest = { ...next };
+      delete rest[field];
+      const before = { ...full };
+      delete before[field];
+      expect(rest, `${key} must touch nothing else`).toEqual(before);
+    }
+    expect(mergePartForm(full, { create_buy_task: false })).toMatchObject({
+      create_buy_task: false,
+      restock_quantity: null,
+    });
   });
 });

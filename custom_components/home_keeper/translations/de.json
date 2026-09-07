@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Erforderliche Erledigungsfelder",
           "description": "Welche Erledigungs-Metadatenfelder das Panel verpflichtend macht, wenn der Detailgrad required ist – eines von note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Erforderliche Erledigungsfelder",
           "description": "Welche Erledigungs-Metadatenfelder das Panel verpflichtend macht, wenn der Detailgrad required ist – eines von note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Stunden",
-          "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard: 24)."
+          "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard 24). Wird ignoriert, wenn Bis gesetzt ist."
+        },
+        "until": {
+          "name": "Bis",
+          "description": "Verschiebt die Aufgabe auf genau dieses Datum und diese Uhrzeit statt um eine Stundenzahl. Wird es gesetzt, bleibt Stunden ungenutzt."
         },
         "origin": {
           "name": "Ursprung",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Aufgabe überspringen",
-      "description": "Eine Aufgabe zum nächsten Termin vorrücken, ohne einen Abschluss zu erfassen.",
+      "description": "Setzt eine Aufgabe auf ihr nächstes Vorkommen, ohne eine Erledigung einzutragen. Das Überspringen wird getrennt protokolliert und zählt daher nie als Erledigung.",
       "fields": {
         "task_id": {
           "name": "Aufgabenname oder -ID",
           "description": "Die ID der zu überspringenden Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Warum dieses Vorkommen ausgelassen wurde."
+        },
+        "who": {
+          "name": "Wer",
+          "description": "Wer entschieden hat, es zu überspringen."
+        },
+        "reading": {
+          "name": "Zählerstand",
+          "description": "Der Wert des verknüpften Sensors zum Zeitpunkt des Überspringens, bei einer Verbrauchsaufgabe."
         },
         "origin": {
           "name": "Ursprung",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Ziel",
           "description": "Benachrichtigungsdienste, an die gesendet wird, überschreibt das Profil (z. B. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Status",
+          "description": "Überschreibt den eigenen Status des Profils für diesen Aufruf: overdue (nur überfällige Aufgaben), due_soon (überfällige und bald fällige Aufgaben), all (alle geplanten Aufgaben) oder none (passt auf keine Aufgabe, um die Benachrichtigung „Alles erledigt“ auf Abruf zu senden)."
+        },
+        "when_empty": {
+          "name": "Wenn nichts passt",
+          "description": "Was ein Aufruf sendet, wenn der Filter auf keine Aufgabe passt. Standardmäßig ist es skip: es wird nichts gesendet. Setze es auf all_clear, um stattdessen die Benachrichtigung „Alles erledigt“ zu senden."
         }
       }
     },
@@ -791,6 +823,92 @@
           "description": "Die ID des Teils, dessen angehängte Datei signiert werden soll. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
         }
       }
+    },
+    "update_skip": {
+      "name": "Überspringen aktualisieren",
+      "description": "Ändert die Angaben eines protokollierten Überspringens, bestimmt durch seinen Zeitstempel. Das Datum bleibt erhalten und der Zeitplan unberührt.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe, deren Überspringen Sie bearbeiten. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "ts": {
+          "name": "Zeitstempel des Überspringens",
+          "description": "Der ISO-Zeitstempel (ts) des zu bearbeitenden Übersprungeintrags."
+        },
+        "note": {
+          "name": "Notiz",
+          "description": "Warum dieses Vorkommen ausgelassen wurde. Ein leerer Wert löscht sie."
+        },
+        "who": {
+          "name": "Wer",
+          "description": "Wer entschieden hat, es zu überspringen. Ein leerer Wert löscht die Angabe."
+        },
+        "reading": {
+          "name": "Zählerstand",
+          "description": "Der Wert des verknüpften Sensors zum Zeitpunkt des Überspringens, bei einer Verbrauchsaufgabe."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Überspringen löschen",
+      "description": "Entfernt ein protokolliertes Überspringen, bestimmt durch seinen Zeitstempel. Wird das Überspringen rückgängig gemacht, das zuletzt einen Verbrauchszähler zurückgesetzt hat, wird dieser Zähler wiederhergestellt.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe, deren Überspringen Sie entfernen. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "ts": {
+          "name": "Zeitstempel des Überspringens",
+          "description": "Der ISO-Zeitstempel (ts) des zu entfernenden Übersprungeintrags."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Überspringen verschieben",
+      "description": "Datiert ein protokolliertes Überspringen um, bestimmt durch seinen aktuellen Zeitstempel. Der Zeitplan der Aufgabe bleibt unberührt.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe, deren Überspringen Sie verschieben. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "old_ts": {
+          "name": "Aktueller Zeitstempel des Überspringens",
+          "description": "Der ISO-Zeitstempel (ts) des zu verschiebenden Übersprungeintrags."
+        },
+        "new_ts": {
+          "name": "Neues Datum",
+          "description": "Das neue Datum und die neue Uhrzeit, unter der das Überspringen eingetragen wird."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Deklarativen Companion hinzufügen",
+      "description": "Registriert einen deklarativen Companion — ein Rezept, das eine verwaltete Sensor-Aufgabe pro Entität erzeugt, die den Filtern (Ziel-Integration + Entitätsfilter) entspricht, mit Jinja-templated Aufgabennamen und Notizen. Nur für Administratoren."
+    },
+    "update_declarative_companion": {
+      "name": "Deklarativen Companion aktualisieren",
+      "description": "Aktualisiert Felder einer gespeicherten deklarativen Companion-Spezifikation anhand der ID. Nur für Administratoren.",
+      "fields": {
+        "id": {
+          "name": "Companion-ID",
+          "description": "Die stabile UUID der Spezifikation, aus list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Deklarativen Companion löschen",
+      "description": "Entfernt eine deklarative Companion-Spezifikation und alle daraus erzeugten verwalteten Aufgaben. Nur für Administratoren.",
+      "fields": {
+        "id": {
+          "name": "Companion-ID",
+          "description": "Die stabile UUID der Spezifikation, aus list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Deklarative Companions auflisten",
+      "description": "Gibt jede gespeicherte deklarative Companion-Spezifikation als Antwort zurück."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Deklarativer Companion nicht gefunden: {spec_id}"
     }
   }
 }

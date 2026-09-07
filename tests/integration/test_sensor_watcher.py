@@ -11,7 +11,7 @@ subscription + evaluation path that the pure unit tests can't.
 import time
 from datetime import UTC, datetime, timedelta
 
-from conftest import HA_URL, call_service
+from conftest import HA_URL, call_service, get_state
 
 METER = "input_number.hk_demo_meter"
 
@@ -56,6 +56,16 @@ def _poll_task(ha, task_id, predicate, timeout=40):
             return last
         time.sleep(1)
     raise AssertionError(f"task {task_id} never satisfied predicate; last={last}")
+
+
+def _require_task(ha, task_id, tries=3):
+    """Read a task now. Retries a transient mid-reload read failure."""
+    for _ in range(tries):
+        task = _get_task(ha, task_id)
+        if task is not None:
+            return task
+        time.sleep(1)
+    raise AssertionError(f"task {task_id} could not be read")
 
 
 def _delete(ha, task_id):
@@ -563,6 +573,102 @@ def test_a_reload_with_the_sensor_already_on_does_not_rearm(ha):
     finally:
         _delete(ha, task_id)
         _set_flag(ha, False)
+
+
+# ── a for_seconds hold completes on its own ─────────────────────────────────
+# A hold ends in its own time, and the watcher must book that moment itself. It used
+# to evaluate a task only when its bound entity sent a state change, so a hold that
+# ran out while the entity was quiet left the task dormant. An entity that has gone
+# unavailable is quiet for good, which is the mode's whole subject.
+#
+# The hold is short (seconds, not the hour a real "device offline" task would use) so
+# the suite stays fast. The coordinator's periodic tick is 5 minutes and is re-anchored
+# by the reload that creating the task runs, so it cannot arm these tasks inside the
+# window each test watches.
+
+HOLD_SECONDS = 15
+
+
+def _force_unavailable(ha, entity_id):
+    """Push an entity to ``unavailable`` and leave it there.
+
+    The states API writes straight into the state machine, and nothing updates an
+    ``input_number`` on its own, so the entity stays unavailable. That is what a
+    device which drops off the network looks like: one state change, then silence.
+    """
+    r = ha.post(f"{HA_URL}/api/states/{entity_id}", json={"state": "unavailable"})
+    r.raise_for_status()
+
+
+def test_a_threshold_hold_completes_after_the_sensor_goes_quiet(ha):
+    _set_meter(ha, 10)
+    task_id = _add_sensor_task(
+        ha,
+        {
+            "entity_id": METER,
+            "mode": "threshold",
+            "comparison": ">",
+            "value": 50,
+            "for_seconds": HOLD_SECONDS,
+        },
+    )
+    try:
+        task = _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        assert task["next_due"] is None  # below the threshold
+
+        # One crossing, and then no more state changes at all.
+        _set_meter(ha, 100)
+        crossed = time.monotonic()
+        time.sleep(HOLD_SECONDS - 8)
+        assert _require_task(ha, task_id)["next_due"] is None, (
+            "the task must wait out the hold"
+        )
+
+        armed = _poll_task(
+            ha,
+            task_id,
+            lambda t: t.get("next_due") is not None,
+            timeout=HOLD_SECONDS + 25,
+        )
+        assert armed["next_due"] is not None
+        assert time.monotonic() - crossed < HOLD_SECONDS + 30
+        # The sensor never moved again: the hold completed by itself.
+        assert get_state(ha, METER)["state"] == "100.0"
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)
+
+
+def test_an_availability_hold_completes_while_the_entity_stays_away(ha):
+    _set_meter(ha, 42)
+    task_id = _add_sensor_task(
+        ha, {"entity_id": METER, "mode": "availability", "for_seconds": HOLD_SECONDS}
+    )
+    try:
+        task = _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        assert task["next_due"] is None  # the entity reports fine
+
+        # The entity goes away and never comes back, so this is the last event the
+        # watcher gets from it.
+        _force_unavailable(ha, METER)
+        gone = time.monotonic()
+        time.sleep(HOLD_SECONDS - 8)
+        assert _require_task(ha, task_id)["next_due"] is None, (
+            "the task must wait out the hold"
+        )
+
+        armed = _poll_task(
+            ha,
+            task_id,
+            lambda t: t.get("next_due") is not None,
+            timeout=HOLD_SECONDS + 25,
+        )
+        assert armed["next_due"] is not None
+        assert time.monotonic() - gone < HOLD_SECONDS + 30
+        assert get_state(ha, METER)["state"] == "unavailable"
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)  # brings the entity back
 
 
 # ── an explicit starting reading, and the reading recorded on completion (#235) ──

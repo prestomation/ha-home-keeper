@@ -35,6 +35,19 @@ TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 1, tzinfo=TZ)
 
 
+def _real_option_defaults() -> dict[str, Any]:
+    """The option defaults the real ``current_options`` fills in.
+
+    Read from the real ``options`` module, which ``conftest`` has already loaded
+    under its true dotted name (its Home Assistant imports are ``TYPE_CHECKING``-only,
+    so it is pure). Reading the table rather than retyping it is what keeps this fake
+    from drifting away from what a running install actually sees.
+    """
+    from custom_components.home_keeper import options as real_options
+
+    return real_options._empty_options()
+
+
 def load_notifier():
     """Load ``notifier.py`` under ``hk`` with fake HA-aware sibling modules."""
     existing = sys.modules.get("hk.notifier")
@@ -46,7 +59,14 @@ def load_notifier():
     # ``options.py`` itself imports HA (ConfigEntry/HomeAssistant) only to type its
     # own params — fake it rather than dragging that in, like coordinator's test does.
     options = types.ModuleType("hk.options")
-    options.current_options = lambda entry: entry.options
+    # The real ``current_options`` fills every key from a defaults table before it
+    # returns, and ``notifier`` subscripts what it gets rather than ``.get``-ing it —
+    # so a fake that handed back ``entry.options`` verbatim raises KeyError on any
+    # option a test did not spell out. Default here what the real one defaults, so a
+    # test says only what it is actually about. The table is read from the real
+    # ``options`` module rather than retyped, so the two cannot drift.
+    defaults = _real_option_defaults()
+    options.current_options = lambda entry: {**defaults, **(entry.options or {})}
     sys.modules["hk.options"] = options
 
     spec = importlib.util.spec_from_file_location(
@@ -116,10 +136,22 @@ class FakeCoord:
 
 def overdue_task(tid: str, *, days: int) -> dict[str, Any]:
     """A task overdue by *days*, with the fields the filter and the builders read."""
+    return _task(tid, -days)
+
+
+def future_task(tid: str, *, days: int) -> dict[str, Any]:
+    """A task not due for *days* yet — nothing an ``overdue`` filter would queue.
+
+    The state a notification is configured in: something to send, none of it late.
+    """
+    return _task(tid, days)
+
+
+def _task(tid: str, offset_days: int) -> dict[str, Any]:
     return {
         "id": tid,
         "name": f"Task {tid}",
-        "next_due": (NOW - timedelta(days=days)).isoformat(),
+        "next_due": (NOW + timedelta(days=offset_days)).isoformat(),
         "labels": [],
         "area_id": None,
         "device_id": None,

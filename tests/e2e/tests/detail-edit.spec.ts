@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openPanel, trackPanelErrors } from './helpers';
+import { openPanel, openTaskTab, trackPanelErrors } from './helpers';
 import { ASSET, TASK } from '../fixture-ids';
 
 /**
@@ -22,6 +22,7 @@ test.describe('Home Keeper panel — editing beside a detail page', () => {
 
     await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
     await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.fridgeFilter}$`));
+    await openTaskTab(panel, 'history');
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
 
     await panel.locator('.d-edit').click();
@@ -31,16 +32,16 @@ test.describe('Home Keeper panel — editing beside a detail page', () => {
     await expect(panel.locator('.hk-drawer[data-open]')).toBeVisible();
     // …beside the page it was opened from, which is still on screen and still legible
     // (the history is the context the form is being filled in against).
-    await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.fridgeFilter}$`));
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.fridgeFilter}/history$`));
     await expect(panel.locator('#back-btn')).toBeVisible();
     await expect(panel.locator('.hk-hist-list li').first()).toBeVisible();
     // History in the drawer's footer is a way to this page, so it is not offered here.
     await expect(panel.locator('.hk-drawer-history')).toHaveCount(0);
 
-    // Closing leaves the page rather than a list.
+    // Closing leaves the page — on the tab it was on — rather than a list.
     await panel.locator('#f-cancel').click();
     await expect(panel.locator('#hk-form')).toHaveCount(0);
-    await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.fridgeFilter}$`));
+    await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.fridgeFilter}/history$`));
     await expect(panel.locator('.d-edit')).toBeVisible();
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);

@@ -204,15 +204,20 @@ test.describe('Home Keeper panel — phone layout', { tag: '@phone' }, () => {
     const actions = find('hk-card-actions');
     expect([name, chips, status, actions].every(Boolean)).toBe(true);
 
-    // Title, then the chips, then the status pill beside the button it argues for.
-    expect(name.bottom).toBeLessThanOrEqual(chips.y + 1);
-    expect(chips.bottom).toBeLessThanOrEqual(status.y + 1);
-    expect(Math.abs(actions.y - status.y)).toBeLessThan(20);
-    expect(actions.x).toBeGreaterThan(status.x);
+    // Title, then how late it is, then the chips — one column, in reading order.
+    expect(name.bottom).toBeLessThanOrEqual(status.y + 1);
+    expect(status.bottom).toBeLessThanOrEqual(chips.y + 1);
+    // Done is a column of its own on the right, beside all of it, where a thumb is:
+    // it starts to the right of everything in the text column and sits within the
+    // row's height rather than on a line of its own under it.
+    for (const part of [name, status, chips]) {
+      expect(actions.x, 'the action column starts right of the text column').toBeGreaterThan(part.x);
+    }
+    expect(actions.y).toBeGreaterThanOrEqual(name.y - 1);
+    expect(actions.bottom).toBeLessThanOrEqual(chips.bottom + 1);
 
-    // The spacer only pushes Done rightwards on a single-line row. Left visible on a
-    // wrapped one it could not share a line with a full-width sibling, so it took an
-    // empty line of its own and cost the row a phantom 10px gap.
+    // The spacer only pushes Done rightwards on a single-line row; the grid has a
+    // column for that, so the spacer must not take a line of its own.
     expect(find('hk-row-spacer').display).toBe('none');
   });
 });

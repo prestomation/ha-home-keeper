@@ -23,6 +23,32 @@
   bullet**, counting the bold lead as the first — not three per paragraph, and not three
   on top of the lead. `(Fixes #N)` must land in the bullet's **first**
   paragraph, because `ci/release-issues.py` quotes the bullet it first appears in.
+- **The bold lead is a label, not a sentence.** It names the thing that changed in a
+  short noun phrase and stops: `**Declarative companions.**`, `**Snooze and skip.**`,
+  `**Seasons on a task.**`. Aim for 2–5 words; 8 is the hard ceiling. A lead that opens
+  `Home Keeper can now…`, `A user can now…`, `The panel now…`, or `Give a task…` is
+  narrating, not labelling — cut it back to the noun and let the *second* sentence say
+  what a user notices. This is the single easiest bullet to get wrong, because a
+  narrative lead reads fine in isolation and only looks bloated next to its neighbours.
+  It also matters downstream: `summarize()` in `ci/release-issues.py` quotes **only the
+  bold lead** into the comment an issue reporter gets, so the lead has to work as a
+  standalone headline.
+  - **Write the lead as a heading, so drop the articles and prepositions.**
+    `**Seasonal tasks.**`, not `**Seasons on a task.**`. `**Declarative companion
+    presets.**`, not `**Presets for a declarative companion.**`. The "do not omit
+    articles" rule in `writing-style.md` governs *sentences*; a bold lead is a heading,
+    and headings are noun phrases. If a lead still has "a", "the", "of", "on", or "for"
+    in it, try again.
+- **The bullet says what a user gets, not how the feature works.** One bullet is a
+  headline plus at most 2 short sentences of what a user notices. Do not narrate the
+  mechanism: which buttons the feature hides or shows, what it rewrites internally,
+  which surfaces it touches, or which fields it added. `**Declarative companions.**
+  Define a pattern over existing entities to create tasks automatically.` is the whole
+  bullet — that the recipe's task shows Edit recipe rather than Edit and Duplicate,
+  and that Home Keeper rewrites the task on each run, are `README.md` facts. When a
+  feature is big enough that trimming it loses something real, **split it into 2
+  bullets** rather than growing one: declarative companions and their shipped presets
+  are 2 entries, not 1 entry with a clause.
 - **A stable release's `## [X.Y.Z]` notes describe what changed since the last
   _stable_ release — not since its betas.** When cutting `X.Y.Z` from an `X.Y.ZbN`
   line, write the section for someone upgrading from the previous stable version and
@@ -121,13 +147,32 @@
   Diff-scoping only checks added/changed lines, so a wholesale rewrite of a file's
   prose (not just a small edit) can surface pre-existing hits on lines that just
   moved. Run `vale <file>` on the whole file yourself before a rewrite-style PR to
-  catch those ahead of CI. There's no automated version-bump for the pinned
+  catch those ahead of CI. **A one-line edit is enough to do this**, because the
+  rules apply per *block*: adding a clause to the first sentence of a paragraph puts
+  the whole paragraph in scope, and a rule like `StackedAnaphora` then reports
+  against a sentence further down that you never touched. A local check that keeps
+  only hits whose line number you added will filter that hit out and tell you the
+  branch is clean — #272 shipped a red `vale` that way. Compare the *set* of hits in
+  each file you edited against `origin/main` instead, or just read the whole
+  paragraph you touched. There's no automated version-bump for the pinned
   `ai-tells.zip` release in `.vale.ini` (Dependabot/Renovate don't track raw
   GitHub release URLs), so bump it by hand occasionally, e.g. alongside the next
   full-corpus cleanup pass.
-- **Every PR that touches the panel UI MUST include screenshots — no exceptions.**
+- **Every PR that touches the panel UI MUST include screenshots — no exceptions,
+  and every changed surface needs BOTH a desktop shot and a phone shot.**
   This is a hard gate: a UI change is not reviewable (or mergeable) until the PR
-  body embeds current screenshots of the changed surface. The capture harness is
+  body embeds current screenshots of the changed surface at both widths. One
+  desktop shot is not enough. Below 700px the panel is a different layout — the
+  tabs move to the bottom, Add floats, the filter segment comes apart into wrapping
+  chips, a control gets a row to itself, and a row stacks — so a desktop-only shot
+  documents none of what a phone user sees, and a control that overflows or loses
+  its tap target there is invisible to review. Capture the phone shot in the same
+  run: `screenshots.capture.ts` ends with a `page.setViewportSize(PHONE)` block
+  (`PHONE` from `viewports.ts`) that photographs the phone layout, and a new
+  surface adds a step to that block as well as to the desktop walk. Name the pair
+  so they sort together, with the phone one carrying a `-mobile-` segment, e.g.
+  `57-panel-task-search.png` and `57c-panel-mobile-task-search.png`. The capture
+  harness is
   `tests/e2e/screenshots.capture.ts` (the test) driven by `screenshots.config.ts`
   (the config — **pass this one to `--config`**, not the test file itself).
   Step-by-step:
@@ -169,6 +214,23 @@
     confirm the URLs weren't mangled and verify each returns HTTP 200. (In-repo
     README/docs markdown with relative `docs/images/…` paths is fine — this only bites
     PR/issue bodies set through the API.)
+    **An HTML `<img>` is not immune either, and the trigger is a character-entity
+    reference in an attribute value.** On #272 the one `<img>` whose `alt` contained
+    `&#39;` came back backtick-wrapped and fully entity-escaped, three submissions
+    running, while its two neighbours — identical but for that entity — went through
+    untouched. Write attribute text with no entities at all: reword around the
+    apostrophe rather than escaping it. Wrapping the tag in `<p>` does not help.
+    **An entity is not the only trigger — the `src` filename can be one, and then
+    only renaming the file clears it.** On #298 the `<img>` for
+    `21f-panel-declarative-recipe-from-task.png` came back backtick-wrapped on
+    `create_pull_request` and on two `update_pull_request` calls, while its neighbour
+    `21e-panel-declarative-task-detail.png` — same tag shape, same alt style, no
+    entities in either — went through clean every time. Reordering the attributes
+    made it worse (the `>` came back as `&gt;` too), and swapping the two images
+    proved the mangling follows the *file*, not the position. Renaming the capture's
+    output to `21f-panel-declarative-recipe-dialog.png` fixed it on the first try. So
+    when re-submitting an unchanged body twice does not clear a mangled `<img>`,
+    rename the PNG in the capture script and re-shoot rather than rewriting the tag.
   - **Always visually inspect every captured screenshot before committing it.** Read
     the PNG file with the Read tool and look at the rendered image. Confirm the
     changed surface is visible and correct — dialogs show their heading and buttons,
@@ -227,6 +289,16 @@
   feature isn't done until the README shows it. (The moving walkthrough is **not** in
   the README — it's the per-PR CI comment described above; the README stays on
   committed screenshots.)
+- **Plans and PRs must list one-way doors.** A one-way door is a design choice
+  that is hard to reverse once users depend on it: the name, shape, or format of
+  a field in a service call, an event payload, storage, an entity attribute, or
+  any other external contract. When a feature introduces or changes one, the plan
+  must call it out before implementation starts, and the PR body must include a
+  **One-way doors** section listing every committed surface — field name, format,
+  where it appears (service input, event, storage, attribute), and what users or
+  automations will rely on. This makes the review focus on what is expensive to
+  change later rather than what is easy to fix. Internal-only shapes (frontend
+  form data, private helpers) are not one-way doors.
 - **Always request an Amazon Q (Cue) review after every push and when opening a
   PR.** Immediately after pushing a commit (or opening a PR), post a PR comment
   of the form `/q review {request}`. Cue gives better results when explicitly

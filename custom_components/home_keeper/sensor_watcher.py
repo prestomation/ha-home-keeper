@@ -12,7 +12,14 @@ changes which tasks exist, only their armed/dormant state and meter baseline.
 Edge state for the threshold/state modes (was-the-condition-true, when-it-crossed)
 lives in this object's memory and is baselined on startup (``async_baseline``) so a
 restart never replays a spurious arm — mirroring how the coordinator baselines the
-overdue/due-soon transitions. Completion normally flows through the user surfaces; the
+overdue/due-soon transitions. A binding with a ``for_seconds`` hold also gets a timer.
+The hold ends in its own time, so the watcher books one re-evaluation per task for the
+moment the pure evaluator says the hold is due, and releases every pending timer on
+unload. Without that timer the hold ends nowhere: the only things that re-evaluate the
+task are the next state change of the bound entity — which an entity that has gone
+unavailable never sends — and the coordinator's five-minute tick.
+
+Completion normally flows through the user surfaces; the
 one exception is a binding with ``clear_on_recover``, where the watcher completes the
 task itself (tagged ``ORIGIN_SENSOR_RECOVER``) once the condition goes away.
 """
@@ -20,6 +27,9 @@ task itself (tagged ``ORIGIN_SENSOR_RECOVER``) once the condition goes away.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
+from datetime import datetime
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -31,13 +41,18 @@ from homeassistant.core import (
     HomeAssistant,
     callback,
 )
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_track_point_in_time,
+    async_track_state_change_event,
+)
 from homeassistant.util import dt as dt_util
 
 from . import sensor_tasks
 from .const import (
+    DOMAIN,
     ORIGIN_SENSOR_RECOVER,
     REC_SENSOR,
+    SENSOR_MODE_AVAILABILITY,
     SENSOR_MODE_STATE,
     SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_USAGE,
@@ -47,6 +62,42 @@ if TYPE_CHECKING:
     from .coordinator import HomeKeeperCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# hass.data namespace holding, per config entry, the ids of sensor tasks that were
+# materialized after the last baseline pass. It lives on ``hass.data`` rather than on
+# the watcher (or the reconciler) because materializing a task with per-task entities
+# reloads the config entry, and the reload destroys both objects while
+# ``async_baseline`` runs again. A genuine HA restart starts with an empty
+# ``hass.data``, so a task that existed before setup keeps the ordinary treatment.
+_NEW_TASKS_STORE = f"{DOMAIN}_new_sensor_tasks"
+
+
+def _new_tasks_store(hass: HomeAssistant) -> dict[str, set[str]]:
+    """The process-lifetime just-made-task map keyed by config-entry id."""
+    return hass.data.setdefault(_NEW_TASKS_STORE, {})
+
+
+@callback
+def async_mark_tasks_new(
+    hass: HomeAssistant, entry_id: str, task_ids: Iterable[str]
+) -> None:
+    """Record tasks made just now so the next baseline pass leaves their edge unset.
+
+    A task made one second ago has no history to protect: the condition its recipe
+    watches may be true right now, and that is exactly what the user wants a task
+    for. Without this the baseline records it as already-met-without-a-crossing and
+    the task stays dormant until the condition goes away and comes back.
+    """
+    ids = {tid for tid in task_ids if tid}
+    if not ids:
+        return
+    _new_tasks_store(hass).setdefault(entry_id, set()).update(ids)
+
+
+@callback
+def async_discard_new_tasks(hass: HomeAssistant, entry_id: str) -> None:
+    """Drop an entry's just-made-task set (called when the entry is removed)."""
+    _new_tasks_store(hass).pop(entry_id, None)
 
 
 def _raw_reading(hass: HomeAssistant, cfg: dict[str, Any] | None) -> Any | None:
@@ -90,6 +141,44 @@ def read_sensor_state(hass: HomeAssistant, cfg: dict[str, Any] | None) -> str | 
     return None if raw is None else str(raw)
 
 
+def read_availability_status(hass: HomeAssistant, cfg: dict[str, Any] | None) -> str:
+    """Classify a binding's *availability*: available / unavailable / missing.
+
+    The ``availability`` mode's counterpart to :func:`read_sensor_value` and
+    :func:`read_sensor_state`, and **inverts** the "no reading = do nothing" policy
+    those two share: this mode arms *because* the entity is unavailable/unknown,
+    so the caller needs to distinguish "entity is unreachable" (arm signal) from
+    "entity is not yet loaded" (indeterminate; hold edge state so a boot-time gap
+    can never fabricate a spurious arm or clear).
+
+    * ``"missing"`` — the binding has no entity_id, or the entity isn't in the
+      state machine yet (restored on boot / never seen). Indeterminate.
+    * ``"unavailable"`` — the entity is present but reporting ``unavailable`` /
+      ``unknown``; or an attribute binding whose target attribute is missing or
+      ``None``. The arm signal.
+    * ``"available"`` — the entity has a real state and (if an attribute is
+      bound) the attribute has a real value.
+
+    Mirrors ``problem_sync._is_problem``'s three-way discipline.
+    """
+    if not cfg:
+        return sensor_tasks.AVAILABILITY_MISSING
+    entity_id = cfg.get("entity_id")
+    if not entity_id:
+        return sensor_tasks.AVAILABILITY_MISSING
+    state = hass.states.get(entity_id)
+    if state is None:
+        return sensor_tasks.AVAILABILITY_MISSING
+    if state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN, "", None):
+        return sensor_tasks.AVAILABILITY_UNAVAILABLE
+    attribute = cfg.get("attribute")
+    if attribute:
+        value = state.attributes.get(attribute)
+        if value is None or value == "":
+            return sensor_tasks.AVAILABILITY_UNAVAILABLE
+    return sensor_tasks.AVAILABILITY_AVAILABLE
+
+
 class SensorTaskWatcher:
     """Evaluates sensor-based tasks against their bound entities."""
 
@@ -107,6 +196,13 @@ class SensorTaskWatcher:
         # In-memory threshold edge state, keyed by task id:
         #   {"condition_met": bool, "crossed_at": datetime | None}
         self._edge: dict[str, dict[str, Any]] = {}
+        # One pending "the hold is up" timer per task id, keyed the same way. A
+        # ``for_seconds`` hold ends in its own time, and the bound entity sends no
+        # state change to mark the moment. An entity that has gone unavailable sends
+        # nothing ever again, so the watcher books the re-evaluation itself. Each
+        # entry is the timer's unsubscribe callback, released the same way as
+        # ``_unsub_state``.
+        self._hold_timers: dict[str, CALLBACK_TYPE] = {}
         # In-memory usage-meter reset-candidate state, keyed by task id: the reading
         # from a prior below-baseline tick, awaiting a second consecutive one before
         # we treat it as a genuine meter reset (debounces a transient dip/blip to 0).
@@ -139,12 +235,26 @@ class SensorTaskWatcher:
         so the first evaluation only reacts to genuine transitions: a threshold sensor
         already above its limit at boot is recorded as already-met (no rising edge), and
         a usage task with no baseline yet is anchored to the current reading.
+
+        Tasks made after the last baseline pass are the one exception (see
+        :func:`async_mark_tasks_new`). Materializing a declarative companion's tasks
+        reloads the config entry, which runs this method again; baselining a task made
+        a second ago would eat the very edge the user made the recipe for. Their edge
+        is left unset, so the first evaluation reads a standing condition as a fresh
+        crossing and arms them. The set is consumed here, so it can neither grow
+        without bound nor reach an unrelated later reload.
         """
+        fresh = _new_tasks_store(self._hass).pop(self._entry.entry_id, set())
         for tid, task in self._sensor_tasks().items():
             cfg = sensor_tasks.sensor_config(task)
             if cfg is None:
                 continue
             mode = cfg.get("mode")
+            if tid in fresh and sensor_tasks.holds_edge_state(mode):
+                # Made after the last baseline: leave the edge unset so the first
+                # evaluation arms on a condition that is already true. A usage meter
+                # has no edge, so it is still anchored below.
+                continue
             if mode == SENSOR_MODE_THRESHOLD:
                 reading = read_sensor_value(self._hass, cfg)
                 met = reading is not None and sensor_tasks.compare(
@@ -160,6 +270,17 @@ class SensorTaskWatcher:
                     == cfg.get("state"),
                     "crossed_at": None,
                 }
+            elif mode == SENSOR_MODE_AVAILABILITY:
+                # Record an already-unavailable entity as met-without-a-crossing:
+                # a device that was offline before HA restarted must not fabricate a
+                # fresh "gone offline" task the first time we look at it. A ``missing``
+                # (not-yet-loaded) entity is indeterminate — treat as not-met so a
+                # genuine transition later drives the arm.
+                status = read_availability_status(self._hass, cfg)
+                self._edge[tid] = {
+                    "condition_met": status == sensor_tasks.AVAILABILITY_UNAVAILABLE,
+                    "crossed_at": None,
+                }
             else:
                 reading = read_sensor_value(self._hass, cfg)
                 if reading is not None and cfg.get("baseline") is None:
@@ -169,6 +290,7 @@ class SensorTaskWatcher:
     def async_start_listeners(self) -> None:
         """Begin reacting to bound-entity state changes (torn down on unload)."""
         self._entry.async_on_unload(self._unsubscribe_state)
+        self._entry.async_on_unload(self._cancel_hold_timers)
         self._resubscribe_state()
 
     @callback
@@ -176,6 +298,52 @@ class SensorTaskWatcher:
         if self._unsub_state is not None:
             self._unsub_state()
             self._unsub_state = None
+
+    @callback
+    def _cancel_hold_timers(self) -> None:
+        """Drop every pending hold timer.
+
+        Registered with ``async_on_unload`` beside :meth:`_unsubscribe_state`, so a
+        reload cannot leave a callback behind that would fire into the watcher the
+        reload replaced.
+        """
+        for unsub in self._hold_timers.values():
+            unsub()
+        self._hold_timers.clear()
+
+    @callback
+    def _cancel_hold_timer(self, tid: str) -> None:
+        """Drop the pending hold timer of one task, if it has one."""
+        unsub = self._hold_timers.pop(tid, None)
+        if unsub is not None:
+            unsub()
+
+    @callback
+    def _schedule_hold(self, tid: str, due_at: datetime | None) -> None:
+        """Keep exactly one pending hold timer for *tid*.
+
+        *due_at* is what the pure evaluator decided (``None`` = nothing is pending).
+        The prior timer is always released first, so a task can never hold two: a
+        state change that re-evaluates the task replaces its timer, and a task that
+        armed, recovered or lost its hold simply has it cancelled.
+        """
+        self._cancel_hold_timer(tid)
+        if due_at is None:
+            return
+        self._hold_timers[tid] = async_track_point_in_time(
+            self._hass, partial(self._handle_hold_due, tid), due_at
+        )
+
+    @callback
+    def _handle_hold_due(self, tid: str, _now: datetime) -> None:
+        """A hold is up: run the same evaluation a state change would run.
+
+        The whole pass runs, not just this task, so the arm, the notes refresh and the
+        events are the ones every other path produces. A task deleted in the meantime
+        is simply not in the pass.
+        """
+        self._hold_timers.pop(tid, None)  # it has fired; there is nothing to cancel
+        self._hass.async_create_task(self.async_evaluate(refresh=True))
 
     @callback
     def _resubscribe_state(self) -> None:
@@ -224,6 +392,19 @@ class SensorTaskWatcher:
                 ):
                     changed_any = True
                 continue
+            if mode == SENSOR_MODE_AVAILABILITY:
+                # Availability inverts the "no reading" policy: an ``unavailable``
+                # entity is the arm signal here, not something to skip. The evaluator
+                # holds edge state on ``missing`` (not-yet-loaded), so boot doesn't
+                # fabricate transitions.
+                if await self._evaluate_availability(
+                    tid,
+                    task,
+                    status=read_availability_status(self._hass, cfg),
+                    now=now,
+                ):
+                    changed_any = True
+                continue
             reading = read_sensor_value(self._hass, cfg)
             if mode == SENSOR_MODE_USAGE:
                 # A usage task with a time backstop must still be evaluable with no
@@ -239,12 +420,16 @@ class SensorTaskWatcher:
                     continue  # unavailable / non-numeric — never arm on bad data
                 if await self._evaluate_threshold(tid, task, reading=reading, now=now):
                     changed_any = True
-        # Drop edge state for tasks that no longer exist so it can't leak.
+        # Drop edge state for tasks that no longer exist so it can't leak. A task that
+        # went away (deleted, disabled, or no longer a sensor task) takes its pending
+        # hold timer with it.
         live = set(self._sensor_tasks())
         for stale in [tid for tid in self._edge if tid not in live]:
             del self._edge[stale]
         for stale in [tid for tid in self._usage_reset if tid not in live]:
             del self._usage_reset[stale]
+        for stale in [tid for tid in self._hold_timers if tid not in live]:
+            self._cancel_hold_timer(stale)
         if changed_any and refresh:
             await self._coordinator.async_request_refresh()
 
@@ -263,7 +448,7 @@ class SensorTaskWatcher:
             await self._coordinator.store.set_sensor_baseline(tid, decision["baseline"])
             return False
         if action == sensor_tasks.ACTION_ARM:
-            await self._coordinator.store.trigger_task(tid)
+            await self._async_arm(tid)
             return True
         return False
 
@@ -295,20 +480,66 @@ class SensorTaskWatcher:
             ),
         )
 
+    async def _evaluate_availability(
+        self, tid: str, task: dict[str, Any], *, status: str, now: Any
+    ) -> bool:
+        return await self._apply_edge(
+            tid,
+            sensor_tasks.evaluate_availability(
+                task,
+                status=status,
+                condition_met_prev=bool(self._edge.get(tid, {}).get("condition_met")),
+                crossed_at=self._edge.get(tid, {}).get("crossed_at"),
+                now=now,
+            ),
+        )
+
+    async def _async_arm(self, tid: str) -> None:
+        """Arm a task, refreshing a declarative companion's notes first.
+
+        The notes of a task a declarative companion manages are rendered from the
+        entity's live state, but only when the reconciler runs — at creation, and on
+        registry changes after that. A template that quotes the reading ("{{ state }}
+        hours left") therefore describes the value from that moment, not the value
+        that armed the task. Rendering again on the arm makes the note describe the
+        reading the person is about to read it for.
+
+        The arm transition is the only place this happens: rendering on every
+        evaluation would write to the store on each tick, for no gain on a task
+        nobody is looking at. The refresh runs *before* the arm so the
+        ``home_keeper_task_triggered`` event already carries the fresh note.
+
+        A refresh must never stop a task from arming, so a failure is logged and
+        swallowed.
+        """
+        sync = self._coordinator.declarative_sync
+        if sync is not None:
+            try:
+                await sync.async_refresh_task_notes(tid)
+            except Exception:  # pragma: no cover - defensive
+                _LOGGER.exception("Could not refresh the notes of task %s", tid)
+        await self._coordinator.store.trigger_task(tid)
+
     async def _apply_edge(self, tid: str, decision: dict[str, Any]) -> bool:
         """Carry an edge decision's state forward and apply its action.
 
         Returns whether the task's due-state changed. A ``clear_on_recover`` clear
         counts as much as an arming: the task drops off the overdue surfaces, and that
         should show up immediately rather than at the next periodic tick.
+
+        The decision also says when a pending ``for_seconds`` hold completes, which is
+        the moment this task must be evaluated again. While the bound entity stays
+        quiet, only the five-minute coordinator tick would do it, and it would arm the
+        task as much as five minutes late.
         """
         self._edge[tid] = {
             "condition_met": decision["condition_met"],
             "crossed_at": decision["crossed_at"],
         }
+        self._schedule_hold(tid, decision["hold_due_at"])
         action = decision["action"]
         if action == sensor_tasks.ACTION_ARM:
-            await self._coordinator.store.trigger_task(tid)
+            await self._async_arm(tid)
             return True
         if action == sensor_tasks.ACTION_CLEAR:
             # The condition went away on its own, so the work is done: record a real

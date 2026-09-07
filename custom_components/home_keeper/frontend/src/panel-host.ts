@@ -22,6 +22,7 @@
  *   commit at a time, alongside the region that needs it.
  */
 
+import type { SkipState, SnoozeState } from './defer';
 import type { SignedUrlCache } from './documents';
 import type { FormField, HaFormElement } from './forms';
 import type { MarkdownPreview } from './markdown';
@@ -30,14 +31,23 @@ import type {
   AssetFilter,
   AssetView,
   CompletionDialogState,
+  DeclarativeDialogState,
   EditState,
   GroupBy,
   MoveCompletionDialogState,
   NoteTarget,
   TaskFilter,
 } from './panel-types';
-import type { Asset, Companion, Hass, HomeKeeperOptions, Task } from './types';
-import type { AssetTab, BtnWeight, PanelLocation, SettingsSection } from './utils';
+import type {
+  Asset,
+  Companion,
+  DeclarativeCompanion,
+  DeclarativeCompanionPreset,
+  Hass,
+  HomeKeeperOptions,
+  Task,
+} from './types';
+import type { AssetTab, BtnWeight, PanelLocation, SettingsSection, TaskTab } from './utils';
 
 export interface PanelHost extends HTMLElement {
   /** Archive an appliance (the detail page's Archive button). */
@@ -100,6 +110,15 @@ export interface PanelHost extends HTMLElement {
   /** Run *fn* once the key has been quiet for *ms*, so a per-keystroke save doesn't
    *  fire a config-entry reload on every character. */
   _debounce(key: string, fn: () => void, ms?: number): void;
+  /** The declarative-companion dialogs' state: the preset picker, or the add/edit
+   *  form with the recipe it is editing. */
+  _declDialog: DeclarativeDialogState;
+  /** Declarative-companion recipes stored on the config entry, listed under
+   *  Settings → Companions. */
+  _declarativeCompanions: DeclarativeCompanion[];
+  /** The bundled presets the "Add from preset" picker offers. Fetched on the first
+   *  open and kept; null until then. */
+  _declarativePresets: DeclarativeCompanionPreset[] | null;
   /** Delete a task outright (already confirmed). */
   _delete(task: Task): Promise<void>;
   /** Delete an appliance outright (already confirmed). */
@@ -117,9 +136,16 @@ export interface PanelHost extends HTMLElement {
   _exportInventory(): Promise<void>;
   /** Which scope pill the task list is filtered to. */
   _filter: TaskFilter;
+  /** Focus *el* without letting a not-yet-upgraded HA element abort the render;
+   *  retries on the next frame when the element is still upgrading. */
+  _focus(el: HTMLElement | null): void;
   /** How the lists are grouped, as chosen (see `effectiveGroup` for the resolved one). */
   _groupBy: GroupBy;
   _hass?: Hass;
+  /** Integration domains that have a config entry, for the declarative-companion
+   *  form's integration picker and the preset picker's "requires" gate. Fetched on
+   *  the first dialog open; null until then. */
+  _installedIntegrations: string[] | null;
   /** Whether this user has dismissed the first-run intro banner. */
   _introDismissed: boolean;
   /** Profile / notification rows (and a profile's sync group) the user has expanded. */
@@ -154,7 +180,8 @@ export interface PanelHost extends HTMLElement {
     editable: boolean,
     placeholder?: string,
   ): string;
-  /** The "move completion date" dialog's state. */
+  /** The "move completion date" dialog's state. Its `kind` says whether the entry
+   *  being re-dated is a completion or a skip — the interaction is the same. */
   _moveCompletion: MoveCompletionDialogState;
   /** Toast why *task*'s Done action is unavailable. */
   _notifyBlocked(task: Task): void;
@@ -172,14 +199,18 @@ export interface PanelHost extends HTMLElement {
   _openDuplicate(task: Task): void;
   /** Open the drawer editing *task*. */
   _openEdit(task: Task): void;
-  /** Open the drawer editing *asset*. */
-  _openEditAsset(asset: Asset): void;
+  /** Open the drawer editing *asset*. With *reveal*, the drawer opens on one part:
+   *  an index expands and scrolls to that part, `'new'` appends one and focuses it. */
+  _openEditAsset(asset: Asset, reveal?: { part: number | 'new' }): void;
   /** Integration options — the saved Profiles the list filter offers live here. */
   _options: HomeKeeperOptions | null;
   /** Home Keeper's own todo entities, kept out of the shopping-list picker. */
   _ownTodoEntities: string[];
   /** The saved Profile id the task list is filtered by ('' = none). */
   _profile: string;
+  /** The text both lists filter on ('' = no text filter). Session-only: it is not
+   *  persisted, so every panel load starts with the whole list. */
+  _query: string;
   /** Reload every collection from the backend and re-render. */
   _refresh(): Promise<void>;
   /** Reload every collection from the backend *without* re-rendering — for a save that
@@ -196,14 +227,26 @@ export interface PanelHost extends HTMLElement {
   _setAssetFilter(value: AssetFilter): void;
   /** Switch the open appliance's sub-tab (replaces, so Back leaves the appliance). */
   _setAssetTab(tab: AssetTab): void;
+  /** Switch the open task's sub-tab (replaces, so Back leaves the task). */
+  _setTaskTab(tab: TaskTab): void;
   _setAssetView(value: AssetView): void;
   _setFilter(value: TaskFilter): void;
   _setGroupBy(value: GroupBy): void;
   _setProfile(value: string): void;
+  /** Set the text filter. Patches the list in place instead of re-rendering, because
+   *  a rebuilt shadow tree replaces the box the reader is typing in. */
+  _setQuery(value: string): void;
   /** Which Settings section the URL names, or null for the section index. */
   _settingsSection: SettingsSection | null;
   /** Settings sections (and profile sync groups) the user has collapsed this session. */
   _settingsSectionCollapsed: Set<string>;
+  /** Wire every deferral split button under *root*, resolving each row's task from
+   *  its id. One controller holds the single open menu for the whole panel. */
+  _wireDeferMenus(root: ParentNode): void;
+  /** The skip dialog's state, for a new skip or an amendment to a logged one. */
+  _skip: SkipState;
+  /** The snooze dialog's state. */
+  _snooze: SnoozeState;
   /** Save the open appliance drawer (validates, then creates or updates). */
   _submitAssetForm(): Promise<void>;
   /** Save the open task drawer (validates, then creates or updates). */
@@ -213,6 +256,8 @@ export interface PanelHost extends HTMLElement {
   _signedFiles: SignedUrlCache;
   /** HA tag-registry entries as picker options, for the tag chip. */
   _tags: { value: string; label: string }[];
+  /** Which sub-tab the open task detail is showing. */
+  _taskTab(): TaskTab;
   _tasks: Task[];
   /** The task form's notes preview, so its value-changed handler can feed it in place.
    *  Owned by the panel's `_previews` for disposal — this is only a reference. */

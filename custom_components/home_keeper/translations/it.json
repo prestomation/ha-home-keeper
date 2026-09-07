@@ -116,6 +116,10 @@
         "completion_required_fields": {
           "name": "Campi di completamento obbligatori",
           "description": "Quali campi di metadati del completamento il pannello rende obbligatori quando il dettaglio del completamento è required — uno tra note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
         }
       }
     },
@@ -202,6 +206,10 @@
         "completion_required_fields": {
           "name": "Campi di completamento obbligatori",
           "description": "Quali campi di metadati del completamento il pannello rende obbligatori quando il dettaglio del completamento è required — uno tra note, cost, photo, who."
+        },
+        "active_season": {
+          "name": "Active season",
+          "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
         }
       }
     },
@@ -325,7 +333,11 @@
         },
         "hours": {
           "name": "Ore",
-          "description": "Di quante ore rinviare l'attività (24 di default)."
+          "description": "Di quante ore rinviare l'attività (24 come predefinito). Ignorato se è impostato Fino a."
+        },
+        "until": {
+          "name": "Fino a",
+          "description": "Rinvia l'attività a questa data e ora esatte anziché di un numero di ore. Se lo imposti, il campo Ore non viene usato."
         },
         "origin": {
           "name": "Origine",
@@ -335,11 +347,23 @@
     },
     "skip_task": {
       "name": "Salta attività",
-      "description": "Fai avanzare un'attività alla sua prossima occorrenza senza registrare un completamento.",
+      "description": "Porta un'attività alla sua occorrenza successiva senza registrare un completamento. Il salto viene annotato a parte, quindi non conta mai come completamento.",
       "fields": {
         "task_id": {
           "name": "Nome o ID attività",
           "description": "L'id dell'attività da saltare. Funziona anche il suo nome. Il pannello mostra l'id."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Perché questa occorrenza è stata lasciata passare."
+        },
+        "who": {
+          "name": "Chi",
+          "description": "Chi ha deciso di saltarla."
+        },
+        "reading": {
+          "name": "Lettura del contatore",
+          "description": "Il valore del sensore collegato al momento del salto, per un'attività a consumo."
         },
         "origin": {
           "name": "Origine",
@@ -380,6 +404,14 @@
         "target": {
           "name": "Destinazione",
           "description": "Servizi di notifica a cui inviare, sostituendo il profilo (es. mobile_app_phone)."
+        },
+        "status": {
+          "name": "Stato",
+          "description": "Sostituisce lo stato del profilo per questa chiamata: overdue (solo attività scadute), due_soon (attività scadute e in scadenza), all (tutte le attività programmate) o none (non corrisponde a nessuna attività, per inviare la notifica Tutto in ordine su richiesta)."
+        },
+        "when_empty": {
+          "name": "Quando nulla corrisponde",
+          "description": "Cosa invia una chiamata se il filtro non corrisponde a nessuna attività. Il valore predefinito è skip: non viene inviato nulla. Impostalo su all_clear per inviare invece la notifica Tutto in ordine."
         }
       }
     },
@@ -791,6 +823,92 @@
           "description": "L'id del ricambio il cui file allegato va firmato. Funziona anche il suo nome. Il pannello mostra l'id."
         }
       }
+    },
+    "update_skip": {
+      "name": "Aggiorna salto",
+      "description": "Modifica i dettagli di un salto registrato, identificato dalla sua marca temporale. Il salto mantiene la data e la pianificazione non viene toccata.",
+      "fields": {
+        "task_id": {
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività di cui stai modificando il salto. Funziona anche il suo nome. Il pannello mostra l'id."
+        },
+        "ts": {
+          "name": "Marca temporale del salto",
+          "description": "La marca temporale ISO (ts) della voce di salto da modificare."
+        },
+        "note": {
+          "name": "Nota",
+          "description": "Perché questa occorrenza è stata lasciata passare. Un valore vuoto la cancella."
+        },
+        "who": {
+          "name": "Chi",
+          "description": "Chi ha deciso di saltarla. Un valore vuoto lo cancella."
+        },
+        "reading": {
+          "name": "Lettura del contatore",
+          "description": "Il valore del sensore collegato al momento del salto, per un'attività a consumo."
+        }
+      }
+    },
+    "delete_skip": {
+      "name": "Elimina salto",
+      "description": "Rimuove un salto registrato, identificato dalla sua marca temporale. Annullare il salto che ha azzerato per ultimo un contatore a consumo ripristina quel contatore.",
+      "fields": {
+        "task_id": {
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività di cui stai rimuovendo il salto. Funziona anche il suo nome. Il pannello mostra l'id."
+        },
+        "ts": {
+          "name": "Marca temporale del salto",
+          "description": "La marca temporale ISO (ts) della voce di salto da rimuovere."
+        }
+      }
+    },
+    "move_skip": {
+      "name": "Sposta salto",
+      "description": "Ridata un salto registrato, identificato dalla sua marca temporale attuale. La pianificazione dell'attività non viene toccata.",
+      "fields": {
+        "task_id": {
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività di cui stai spostando il salto. Funziona anche il suo nome. Il pannello mostra l'id."
+        },
+        "old_ts": {
+          "name": "Marca temporale attuale del salto",
+          "description": "La marca temporale ISO (ts) della voce di salto da spostare."
+        },
+        "new_ts": {
+          "name": "Nuova data",
+          "description": "La nuova data e ora a cui registrare il salto."
+        }
+      }
+    },
+    "add_declarative_companion": {
+      "name": "Aggiungi companion dichiarativo",
+      "description": "Registra un companion dichiarativo — una ricetta che materializza un'attività di sensore gestita per ogni entità che corrisponde ai filtri (integrazione di destinazione + filtri di entità), con nome dell'attività e note tramite modelli Jinja. Solo amministratori."
+    },
+    "update_declarative_companion": {
+      "name": "Aggiorna companion dichiarativo",
+      "description": "Aggiorna i campi di una specifica di companion dichiarativo memorizzata tramite id. Solo amministratori.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "L'uuid stabile della specifica, da list_declarative_companions."
+        }
+      }
+    },
+    "delete_declarative_companion": {
+      "name": "Elimina companion dichiarativo",
+      "description": "Rimuove una specifica di companion dichiarativo e ogni attività gestita che ha materializzato. Solo amministratori.",
+      "fields": {
+        "id": {
+          "name": "Id del companion",
+          "description": "L'uuid stabile della specifica, da list_declarative_companions."
+        }
+      }
+    },
+    "list_declarative_companions": {
+      "name": "Elenca companion dichiarativi",
+      "description": "Restituisce ogni specifica di companion dichiarativo memorizzata come risposta."
     }
   },
   "entity": {
@@ -910,6 +1028,12 @@
     },
     "task_ambiguous": {
       "message": "Several tasks are named {name}. Use an id instead: {ids}"
+    },
+    "invalid_declarative_companion": {
+      "message": "{error}"
+    },
+    "declarative_companion_not_found": {
+      "message": "Companion dichiarativo non trovato: {spec_id}"
     }
   }
 }

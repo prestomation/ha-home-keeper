@@ -40,9 +40,11 @@ from . import (
     devices,
     inventory,
     manuals,
+    notifications,
     notifier,
     options,
     panel,
+    profiles,
     sensor_tasks,
     tag_listener,
     websocket_api,
@@ -52,6 +54,8 @@ from .assets import AssetValidationError, card_projection
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     DOMAIN,
+    OPTION_ALLOW_SKIP,
+    OPTION_ALLOW_SNOOZE,
     OPTION_DISMISSED_COMPANIONS,
     OPTION_NOTIFICATIONS,
     OPTION_ONE_OFF_RETENTION_DAYS,
@@ -64,6 +68,7 @@ from .const import (
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
     SENSOR_MODE_USAGE,
+    SKIP_ENTRY_FIELDS,
 )
 from .coordinator import (
     HomeKeeperCoordinator,
@@ -72,6 +77,7 @@ from .coordinator import (
     find_coordinator,
     task_has_entities,
 )
+from .declarative_companion_sync import DeclarativeCompanionSync
 from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
 from .resolve import (
@@ -82,7 +88,11 @@ from .resolve import (
     resolve_part_id,
     resolve_task_id,
 )
-from .sensor_watcher import SensorTaskWatcher, read_sensor_value
+from .sensor_watcher import (
+    SensorTaskWatcher,
+    async_discard_new_tasks,
+    read_sensor_value,
+)
 from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
 from .todo_list_sync import TodoListSync
@@ -148,6 +158,11 @@ ADD_TASK_SCHEMA = vol.Schema(
         # the link, which is why the value is nullable rather than a bare string.
         vol.Optional("tag_id"): vol.Any(None, cv.string),
         vol.Optional("require_tag_scan"): cv.boolean,
+        # Restrict a floating/fixed task to one or more date ranges each year. A list
+        # of ``{"start": "MM-DD", "end": "MM-DD"}`` windows; a single window may be
+        # passed as one object, and ``None`` clears the season. Validated by
+        # models.normalize_active_season.
+        vol.Optional("active_season"): vol.Any(None, dict, [dict]),
         vol.Optional("source"): dict,
         vol.Optional("managed_by"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
@@ -177,6 +192,8 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         # ``require_tag_scan`` stays on is rejected — see models.merge_update).
         vol.Optional("tag_id"): vol.Any(None, cv.string),
         vol.Optional("require_tag_scan"): cv.boolean,
+        # See ADD_TASK_SCHEMA: ``None`` clears the season, one object is one window.
+        vol.Optional("active_season"): vol.Any(None, dict, [dict]),
         vol.Optional("source"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
     }
@@ -195,15 +212,23 @@ SET_TASK_METER_SCHEMA = vol.Schema(
     }
 )
 # Snooze: defer a task's next due date without recording a completion or advancing
-# recurrence. ``hours`` is the deferral (defaults to a day). ``origin`` is echoed in
-# the home_keeper_task_snoozed event for loop prevention (e.g. an actionable
-# notification action). Skip advances to the next occurrence, also without completing.
+# recurrence. ``origin`` is echoed in the home_keeper_task_snoozed event for loop
+# prevention (e.g. an actionable notification action). Skip advances to the next
+# occurrence, also without completing, and logs the skip.
+#
+# The deferral is either ``hours`` (whole hours from now, the original field) or
+# ``until`` (an absolute datetime). They are mutually exclusive: passing both is a
+# contradiction rather than a precedence puzzle, so voluptuous rejects it. ``hours``
+# keeps its default, so every existing caller — and a bare call passing neither — is
+# unaffected. ``until`` exists because whole hours cannot express "next Tuesday 09:00"
+# across a DST boundary, which the panel's snooze dialog needs.
 SNOOZE_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
         # Whole hours ≥ 1, matching services.yaml's number selector and the
         # notification snooze_hours contract (normalize_notification / the panel).
-        vol.Optional("hours", default=24): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Exclusive("hours", "deferral"): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Exclusive("until", "deferral"): cv.datetime,
         vol.Optional("origin"): cv.string,
     }
 )
@@ -211,6 +236,38 @@ SKIP_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
         vol.Optional("origin"): cv.string,
+        # Why the occurrence was passed over. No ``cost``/``photo``: nothing was
+        # bought and there is nothing to show (see const.SKIP_ENTRY_FIELDS).
+        vol.Optional("note"): cv.string,
+        vol.Optional("who"): cv.string,
+        vol.Optional("reading"): vol.Coerce(float),
+    }
+)
+
+# The skip log's edit trio, mirroring the completion trio below. They key on the
+# skip's ISO ``ts`` exactly as the completion ones key on a completion's.
+UPDATE_SKIP_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("ts"): cv.string,
+        vol.Optional("note"): cv.string,
+        vol.Optional("who"): cv.string,
+        vol.Optional("reading"): vol.Coerce(float),
+    }
+)
+
+DELETE_SKIP_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("ts"): cv.string,
+    }
+)
+
+MOVE_SKIP_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("old_ts"): cv.string,
+        vol.Required("new_ts"): cv.datetime,
     }
 )
 # Link a task to an appliance consumable/part (or clear the link). Completing a
@@ -295,6 +352,7 @@ DELETE_ARCHIVED_COMPLETION_SCHEMA = vol.Schema(
 # service call's data into the ``metadata`` mapping the store expects. Includes the
 # captured ``reading`` — the store decides whether the task may carry one.
 _COMPLETION_METADATA_KEYS = tuple(COMPLETION_ENTRY_FIELDS)
+_SKIP_METADATA_KEYS = tuple(SKIP_ENTRY_FIELDS)
 
 # Structured part (wear item) for the add/update asset schema.
 _PART_SCHEMA = vol.Schema(
@@ -448,6 +506,13 @@ NOTIFY_SCHEMA = vol.Schema(
         vol.Optional("notification"): cv.string,
         vol.Optional("profile"): cv.string,
         vol.Optional("target"): vol.All(cv.ensure_list, [cv.string]),
+        # Two per-call overrides. Both are fixed vocabularies rather than free text, so
+        # they are validated here and never clamped later: a typo in an automation
+        # should fail loudly, not send something subtly different. ``status`` widens (or
+        # empties) the profile's due-state filter for this call only; ``when_empty``
+        # says whether a queue that matched nothing still delivers the all-clear.
+        vol.Optional("status"): vol.In(profiles.SERVICE_STATUSES),
+        vol.Optional("when_empty"): vol.In(notifications.WHEN_EMPTY),
     }
 )
 
@@ -457,6 +522,10 @@ NOTIFY_SCHEMA = vol.Schema(
 SET_OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Optional(OPTION_SYNC_PROBLEM_SENSORS): cv.boolean,
+        # Whether the panel and notification button sets offer Snooze / Skip. The
+        # services themselves stay callable either way (see const.OPTION_ALLOW_SNOOZE).
+        vol.Optional(OPTION_ALLOW_SNOOZE): cv.boolean,
+        vol.Optional(OPTION_ALLOW_SKIP): cv.boolean,
         vol.Optional(OPTION_ONE_OFF_RETENTION_DAYS): vol.All(
             vol.Coerce(int), vol.Range(min=0)
         ),
@@ -535,6 +604,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     problem_sync = ProblemSensorSync(hass, entry, coordinator)
     await problem_sync.async_initial_reconcile()
     coordinator.problem_sync = problem_sync
+    # Declarative-companion reconciler materializes managed sensor tasks for every
+    # stored spec against the current entity registry. Runs before platforms
+    # forward so newly-created tasks' device-page entities are registered by the
+    # time platforms fetch the task list.
+    declarative_sync = DeclarativeCompanionSync(hass, entry, coordinator)
+    await declarative_sync.async_initial_reconcile()
+    coordinator.declarative_sync = declarative_sync
     await coordinator.async_request_refresh()
 
     await panel.async_register_panel(hass)
@@ -582,6 +658,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Now that platforms are up, start the live problem-sensor listeners (these may
     # reload the entry when a synced task is created/removed, so they run last).
     problem_sync.async_start_listeners()
+    # Same for the declarative-companion reconciler: a registry change / spec
+    # edit may create or remove managed tasks (with per-task entities), so its
+    # listener also triggers reloads.
+    declarative_sync.async_start_listeners()
     # Sensor-based tasks: baseline the watcher's edge state / usage meters BEFORE
     # attaching it to the coordinator, so the first evaluation only reacts to genuine
     # transitions (an already-over-threshold sensor at boot does not arm). Then start
@@ -880,6 +960,10 @@ def _register_services(hass: HomeAssistant) -> None:
         """Lift the per-completion metadata keys out of a service call's data."""
         return {k: data[k] for k in _COMPLETION_METADATA_KEYS if k in data}
 
+    def _skip_metadata(data: dict) -> dict[str, Any]:
+        """Lift the per-skip metadata keys out of a service call's data."""
+        return {k: data[k] for k in _SKIP_METADATA_KEYS if k in data}
+
     async def handle_complete_task(call: ServiceCall) -> None:
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
@@ -1004,7 +1088,17 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_snooze_task(call: ServiceCall) -> None:
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
-        until = dt_util.now() + timedelta(hours=call.data["hours"])
+        # ``hours`` and ``until`` are mutually exclusive (see SNOOZE_TASK_SCHEMA), so
+        # at most one is present; neither means the historical default of a day. The
+        # default lives here rather than on the field because a schema default would
+        # fill ``hours`` in even when the caller passed ``until``, and vol.Exclusive
+        # would then reject its own default.
+        if (until := call.data.get("until")) is None:
+            until = dt_util.now() + timedelta(hours=call.data.get("hours", 24))
+        elif until.tzinfo is None:
+            # ``cv.datetime`` parses an offset-less string naively; qualify it with
+            # HA's zone so ``next_due`` is never stored naive (see apply_completion).
+            until = until.replace(tzinfo=dt_util.now().tzinfo)
         with _store_errors(task_id=task_id):
             await coord.store.snooze_task(
                 task_id, until, origin=call.data.get("origin")
@@ -1017,7 +1111,36 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
         with _store_errors(task_id=task_id):
-            await coord.store.skip_task(task_id, origin=call.data.get("origin"))
+            await coord.store.skip_task(
+                task_id,
+                origin=call.data.get("origin"),
+                metadata=_skip_metadata(call.data),
+            )
+        await coord.async_request_refresh()
+
+    async def handle_update_skip(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        with _store_errors(task_id=task_id):
+            await coord.store.update_skip(
+                task_id, call.data["ts"], _skip_metadata(call.data)
+            )
+        await coord.async_request_refresh()
+
+    async def handle_delete_skip(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        with _store_errors(task_id=task_id):
+            await coord.store.delete_skip(task_id, call.data["ts"])
+        await coord.async_request_refresh()
+
+    async def handle_move_skip(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        with _store_errors(task_id=task_id):
+            await coord.store.move_skip(
+                task_id, call.data["old_ts"], call.data["new_ts"].isoformat()
+            )
         await coord.async_request_refresh()
 
     async def handle_notify(call: ServiceCall) -> dict[str, Any]:
@@ -1274,6 +1397,15 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN, "skip_task", handle_skip_task, SKIP_TASK_SCHEMA
     )
     hass.services.async_register(
+        DOMAIN, "update_skip", handle_update_skip, UPDATE_SKIP_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "delete_skip", handle_delete_skip, DELETE_SKIP_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "move_skip", handle_move_skip, MOVE_SKIP_SCHEMA
+    )
+    hass.services.async_register(
         DOMAIN,
         "set_task_consumable",
         handle_set_task_consumable,
@@ -1386,6 +1518,43 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_list_companions(call: ServiceCall) -> dict[str, Any]:
         return {"companions": companions.async_list_companions(hass)}
 
+    async def handle_add_declarative_companion(
+        call: ServiceCall,
+    ) -> dict[str, Any]:
+        """Create a declarative-companion spec.
+
+        Admin-only: a declarative companion creates managed tasks tied to the
+        config entry (deletion-protected) and dispatches an entry reload, both
+        of which are administration. Mirrors ``ws_add_declarative_companion``.
+        """
+        await _verify_admin(call)
+        coord = _coordinator()
+        spec = await coord.store.async_add_declarative_companion(dict(call.data))
+        return {"companion": spec}
+
+    async def handle_update_declarative_companion(
+        call: ServiceCall,
+    ) -> dict[str, Any]:
+        await _verify_admin(call)
+        coord = _coordinator()
+        data = dict(call.data)
+        spec_id = data.pop("id")
+        spec = await coord.store.async_update_declarative_companion(spec_id, data)
+        return {"companion": spec}
+
+    async def handle_delete_declarative_companion(call: ServiceCall) -> None:
+        await _verify_admin(call)
+        coord = _coordinator()
+        await coord.store.async_delete_declarative_companion(call.data["id"])
+
+    async def handle_list_declarative_companions(
+        call: ServiceCall,
+    ) -> dict[str, Any]:
+        coord = _coordinator()
+        return {
+            "companions": list(coord.store.get_declarative_companions().values()),
+        }
+
     hass.services.async_register(
         DOMAIN,
         "export_inventory",
@@ -1407,6 +1576,39 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN,
         "list_companions",
         handle_list_companions,
+        schema=vol.Schema({}),
+        supports_response=SupportsResponse.ONLY,
+    )
+    # Declarative-companion CRUD. Schemas kept minimal (dict pass-through) here
+    # because the pure normalizer owns every field-level validation. Service
+    # docstrings + services.yaml describe the spec shape.
+    hass.services.async_register(
+        DOMAIN,
+        "add_declarative_companion",
+        handle_add_declarative_companion,
+        schema=vol.Schema({}, extra=vol.ALLOW_EXTRA),
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "update_declarative_companion",
+        handle_update_declarative_companion,
+        schema=vol.Schema(
+            {vol.Required("id"): cv.string},
+            extra=vol.ALLOW_EXTRA,
+        ),
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "delete_declarative_companion",
+        handle_delete_declarative_companion,
+        schema=vol.Schema({vol.Required("id"): cv.string}),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "list_declarative_companions",
+        handle_list_declarative_companions,
         schema=vol.Schema({}),
         supports_response=SupportsResponse.ONLY,
     )
@@ -1484,6 +1686,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     panel.async_unregister_panel(hass)
     await card.async_unregister_card_resource(hass)
     discard_edge_state(hass, entry.entry_id)
+    async_discard_new_tasks(hass, entry.entry_id)
     store = HomeKeeperStore(hass)
     await store.async_remove()
     await manuals.async_delete_all_documents(hass)

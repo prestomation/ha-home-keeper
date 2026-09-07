@@ -16,7 +16,7 @@ import { openCompletionEdit, openMoveCompletion } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { MDI_DELETE, MDI_EDIT, MDI_MOVE_DATE } from './panel-icons';
 import type { HistoryGroup } from './panel-types';
-import type { Completion } from './types';
+import type { Completion, Skip } from './types';
 import {
   completionStats,
   escapeHTML,
@@ -45,13 +45,21 @@ export function completionGroupsFor(
   if (kind === 'task') {
     const task = p._tasks.find((t) => t.id === id);
     if (!task) return [];
-    return [{ name: task.name, completions: task.completions || [], taskId: task.id }];
+    return [
+      {
+        name: task.name,
+        completions: task.completions || [],
+        skips: task.skips || [],
+        taskId: task.id,
+      },
+    ];
   }
   const asset = p._assets.find((a) => a.id === id);
   if (!asset) return [];
   const groups: HistoryGroup[] = tasksForAsset(asset, p._tasks).map((task) => ({
     name: task.name,
     completions: task.completions || [],
+    skips: task.skips || [],
     taskId: task.id,
   }));
   for (const entry of asset.task_history || []) {
@@ -64,7 +72,10 @@ export function completionGroupsFor(
     });
   }
   const lastTs = (g: HistoryGroup): number =>
-    g.completions.reduce((m, c) => Math.max(m, new Date(c.ts).getTime() || 0), 0);
+    [...g.completions, ...(g.skips ?? [])].reduce(
+      (m, c) => Math.max(m, new Date(c.ts).getTime() || 0),
+      0,
+    );
   groups.sort((a, b) => lastTs(b) - lastTs(a));
   return groups;
 }
@@ -144,7 +155,13 @@ export function setIcon(button: HTMLElement, path: string): void {
 // ── completion-history rendering (inline in the detail page) ─────────────────
 
 export function historyBody(p: PanelHost, groups: HistoryGroup[]): string {
-  const withAny = groups.filter((g) => (g.completions?.length ?? 0) > 0);
+  // A group earns a place if it has *anything* to show. Keying this on completions
+  // alone would hide a task that has only ever been skipped behind "no completions
+  // recorded yet" — doubly wrong, since the skips are precisely the record
+  // explaining why there are none.
+  const withAny = groups.filter(
+    (g) => (g.completions?.length ?? 0) > 0 || (g.skips?.length ?? 0) > 0,
+  );
   if (!withAny.length) {
     return `<ha-alert alert-type="info">${escapeHTML(t('history.empty'))}</ha-alert>`;
   }
@@ -155,9 +172,16 @@ export function historyBody(p: PanelHost, groups: HistoryGroup[]): string {
 function historyGroup(p: PanelHost, group: HistoryGroup, showHead: boolean): string {
   // Sort the completion objects (not just Dates) so each row keeps its `ts`
   // string for the per-row delete button.
-  const comps = [...(group.completions || [])]
-    .filter((c) => !Number.isNaN(new Date(c.ts).getTime()))
-    .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+  type Row = { entry: Completion | Skip; kind: 'completion' | 'skip' };
+  const comps: Row[] = [
+    ...(group.completions || []).map((entry) => ({ entry, kind: 'completion' as const })),
+    ...(group.skips || []).map((entry) => ({ entry, kind: 'skip' as const })),
+  ]
+    .filter((r) => !Number.isNaN(new Date(r.entry.ts).getTime()))
+    .sort((a, b) => new Date(b.entry.ts).getTime() - new Date(a.entry.ts).getTime());
+  // Deliberately `group.completions`: the count and the cadence are statements about
+  // work actually done, so a skip must not inflate the tally or shorten the average
+  // interval — the one number the cadence exists to report.
   const stats = completionStats(group.completions);
   const sub: string[] = [tn('history.count', stats.count)];
   if (stats.avgIntervalDays) sub.push(t('history.cadence', { days: stats.avgIntervalDays }));
@@ -185,22 +209,35 @@ function historyGroup(p: PanelHost, group: HistoryGroup, showHead: boolean): str
     p._hass,
   );
   const items = comps
-    .map((c) => {
+    .map(({ entry: c, kind }) => {
       const d = new Date(c.ts);
       const date = formatDate(d, p._lang());
+      const skip = kind === 'skip';
+      // A skip's edit/move/delete go to their own services, so the buttons carry
+      // their own classes; a skip's delete target is always the live task, since
+      // skips are never archived onto an appliance.
       const editBtn = editTask
-        ? `<ha-icon-button class="hk-hist-edit" data-edit-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>`
+        ? `<ha-icon-button class="${skip ? 'hk-hist-skip-edit' : 'hk-hist-edit'}" data-edit-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.edit'))}"></ha-icon-button>`
         : '';
       // Moving a completion's date only applies to a live task, same as editing
       // its metadata — move_completion doesn't operate on archived history.
       const moveBtn = editTask
-        ? `<ha-icon-button class="hk-hist-move" data-move-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.moveDate'))}"></ha-icon-button>`
+        ? `<ha-icon-button class="${skip ? 'hk-hist-skip-move' : 'hk-hist-move'}" data-move-task="${escapeHTML(editTask)}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.moveDate'))}"></ha-icon-button>`
         : '';
-      return `<li>
+      const delBtn = skip
+        ? `<ha-icon-button class="hk-hist-skip-del" data-del-skip="${escapeHTML(group.taskId || '')}" data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`
+        : `<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button>`;
+      // The chip is what stops a skip reading as a completion at a glance — the
+      // dates alone look identical, and mistaking the two misreads the whole list.
+      const chip = skip
+        ? `<span class="hk-hist-skip-chip">${escapeHTML(t('history.skipped'))}</span>`
+        : '';
+      return `<li class="${skip ? 'hk-hist-is-skip' : ''}">
           <div class="hk-hist-row">
             <span class="date">${escapeHTML(date)}</span>
+            ${chip}
             <span class="when">${escapeHTML(relativeDay(d))}</span>
-            <span class="hk-hist-actions">${moveBtn}${editBtn}<ha-icon-button class="hk-hist-del" ${delAttrs} data-ts="${escapeHTML(c.ts)}" label="${escapeHTML(t('btn.delete'))}"></ha-icon-button></span>
+            <span class="hk-hist-actions">${moveBtn}${editBtn}${delBtn}</span>
           </div>
           ${completionMeta(p, c, unit)}
         </li>`;

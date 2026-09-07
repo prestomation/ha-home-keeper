@@ -18,10 +18,10 @@ export const STYLES = `
      rather than a pile of independently-styled sections.
 
      Every token resolves to a Home Assistant theme variable, or to a color-mix
-     off one. Nothing here is a literal colour: the design comp was drawn in HA's
+     off one. Nothing here is a literal color: the design comp was drawn in HA's
      default *light* palette, and hard-coding those hexes would break dark mode
      and every custom theme. The soft/line variants exist because HA publishes a
-     semantic colour but no tint of it, and a 12%-over-surface mix reads the same
+     semantic color but no tint of it, and a 12%-over-surface mix reads the same
      way in both themes (in dark, the surface it mixes into is dark, so the tint
      darkens with it instead of glowing).
 
@@ -53,6 +53,18 @@ export const STYLES = `
     --hk-r-btn: 8px;
     --hk-r-pill: 999px;
     --hk-tap: 44px;
+    /* The fixed tracks a wide list row is built on — see the rails block below. They
+       are the tuning knob: widen --hk-chip-col and fewer chips truncate, at the cost
+       of the name column beside it. */
+    --hk-name-col: 356px;
+    --hk-chip-col: 224px;
+    /* mdi:open-in-new, as a mask so it takes the chip's own ink in both themes. */
+    --hk-ext-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7Z'/%3E%3C/svg%3E");
+    --hk-status-col: 148px;
+    /* An appliance row buys no action column, so it spends the width on its chips
+       and lets them wrap inside the track instead of clipping: the rail still lines
+       up and nothing an appliance says about itself is lost. */
+    --hk-chip-col-wide: 300px;
     --hk-shadow-card: 0 1px 3px rgba(0,0,0,.08);
     --hk-shadow-float: 0 4px 18px rgba(0,0,0,.16);
     display: block;
@@ -205,15 +217,18 @@ export const STYLES = `
   }
   ha-tab-group { margin-bottom: 16px; }
   ha-card.hk-card { margin-bottom: 12px; position: relative; }
+  /* Compact by default: a list is scanned, and the padding a card wore was the
+     difference between eight rows on a screen and twelve. The row's grammar (name,
+     meta, chips, status, action) is unchanged — only the air around it. */
   .hk-card-row {
-    display: flex; align-items: center; gap: 14px; padding: 13px 16px;
+    display: flex; align-items: center; gap: 12px; padding: 9px 12px;
   }
   .hk-card-row .grow { flex: 1; min-width: 0; }
   .hk-name {
     font-weight: 500; display: flex; align-items: center; gap: 8px;
     flex-wrap: wrap;
   }
-  .hk-meta { color: var(--hk-ink-2); font-size: 0.85rem; margin-top: 2px; }
+  .hk-meta { color: var(--hk-ink-2); font-size: 0.82rem; margin-top: 1px; }
   /* A finished one-off is struck through and faded wherever it appears. Group by
      Status tucked it into a collapsed section, but every other grouping left it
      mid-list looking like work still to do — and which grouping you chose should not
@@ -256,6 +271,7 @@ export const STYLES = `
     --md-assist-chip-label-text-color: var(--hk-warn-ink);
     --ha-assist-chip-label-text-color: var(--hk-warn-ink);
     --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
   /* Shopping reads in the warn family too — the same soft/ink pairing, because a
@@ -277,10 +293,29 @@ export const STYLES = `
     --md-assist-chip-label-text-color: var(--hk-ink-2);
     --ha-assist-chip-label-text-color: var(--hk-ink-2);
     --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
   }
   .hk-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  /* A list row's chips sit a size under the page's: the appliance list reads as
+     compactly as the task list does. */
+  .hk-card-row .hk-chips { margin-top: 4px; }
+  .hk-card-row .hk-chips ha-assist-chip { --ha-assist-chip-container-height: 24px; --md-assist-chip-container-height: 24px; }
   .hk-task-chip-link { display: contents; }
   ha-assist-chip.hk-device-chip { cursor: pointer; }
+  /* A device chip has two destinations — the appliance page inside the panel, or the
+     device's own Home Assistant page — and which one it is depends on the surface it
+     sits on. The chips that *leave* the panel carry this mark, so a user knows before
+     the click rather than after it. A wrapper, not a sibling element: wireLists
+     recounts the "+n" label from the child count of .hk-chips-inline, so one chip has
+     to stay one child of it. Not display:contents either — a box is what the mark is
+     drawn on. */
+  .hk-chip-ext { display: inline-flex; align-items: center; position: relative; }
+  .hk-chip-ext::after {
+    content: ''; flex: none; width: 11px; height: 11px;
+    margin-left: 3px; background: var(--hk-ink-2); opacity: 0.75;
+    -webkit-mask: var(--hk-ext-mark) center / contain no-repeat;
+    mask: var(--hk-ext-mark) center / contain no-repeat;
+  }
   .hk-managed-prompt {
     font-size: 0.85rem; color: var(--secondary-text-color);
     background: var(--secondary-background-color);
@@ -290,6 +325,9 @@ export const STYLES = `
     font-size: 0.8rem; color: var(--secondary-text-color);
     margin-top: 4px; font-style: italic; align-self: center;
   }
+  /* On a row it stands where a Done would, so it is held to a button's width and
+     wraps rather than widening the action column past every other row's. */
+  .hk-card-row .hk-managed-info { max-width: 96px; margin-top: 0; line-height: 1.25; }
   .hk-dev-img {
     width: 18px; height: 18px; object-fit: contain; border-radius: 3px;
     --mdc-icon-size: 18px;
@@ -332,6 +370,28 @@ export const STYLES = `
   /* A heading between two runs of fields. ha-form renders its own rows and has no
      slot between them, so each section is its own form and these sit in the gaps. */
   .hk-form-section { margin: 20px 0 6px; }
+  /* One active-season window: its number on the left, Remove on the right, and
+     Add another season under the last one — a list the user edits, so the heading
+     row carries the controls that change its length. */
+  /* Each window is boxed so its Remove is visibly its own: with several windows in
+     a row, an unboxed Remove reads as "remove a season" rather than "remove this
+     one". */
+  .hk-season-window {
+    border: 1px solid var(--divider-color, #e0e0e0);
+    border-radius: var(--hk-r-md, 12px);
+    padding: 4px 12px 12px;
+    margin: 10px 0;
+  }
+  .hk-season-window .hk-form-section:first-child { margin-top: 8px; }
+  .hk-season-switch { display: block; margin-top: 14px; }
+  .hk-season-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .hk-season-head ha-button {
+    --ha-button-height: 28px;
+    --mdc-typography-button-font-size: 0.75rem;
+  }
+  .hk-season-add { margin-top: 6px; --mdc-typography-button-font-size: 0.8rem; }
   .hk-form-section:first-child { margin-top: 4px; }
   #hk-task-form .hk-indent { margin: 8px 0 4px; }
   #hk-task-form ha-form { display: block; }
@@ -463,6 +523,14 @@ export const STYLES = `
     color: inherit; font: inherit; text-align: left;
   }
   .hk-item-header:hover { background: var(--secondary-background-color); }
+  .hk-item-badge { display: flex; flex: 0 0 auto; }
+  /* The notification's icon, filled with its accent. Filled rather than a bare tinted
+     glyph so every color the picker offers stays legible on the card. */
+  .hk-notify-chip {
+    display: grid; place-items: center;
+    width: 26px; height: 26px; border-radius: 6px; color: #fff;
+  }
+  .hk-notify-chip ha-icon { --mdc-icon-size: 17px; display: block; }
   .hk-item-name { flex: 1; font-weight: 500; }
   .hk-item-body {
     padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px;
@@ -501,7 +569,7 @@ export const STYLES = `
     border-radius: 999px; padding: 1px 8px; flex: 0 0 auto;
   }
   /* Autosave status, beside the name of the card that saved. Quiet by default — it
-     reports something the user did not ask about — and only coloured when it needs
+     reports something the user did not ask about — and only colored when it needs
      acting on. It replaces a toast, so it must not take a line of its own or push the
      header around: no background, no border, and it never grows or shrinks. */
   .hk-save-status {
@@ -544,12 +612,53 @@ export const STYLES = `
     font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
     text-transform: uppercase; letter-spacing: 0.04em; margin: 20px 0 8px;
   }
-  .hk-part {
+  /* A framed entry in the drawer's editors: a custom field, an inline document
+     edit, and (as a details) a part. */
+  .hk-entry, .hk-part {
     border: 1px solid var(--divider-color); border-radius: 8px;
     padding: 8px 12px 12px; margin-bottom: 10px;
   }
-  .hk-part-head { display: flex; align-items: center; justify-content: space-between; }
-  .hk-part-head .label { font-size: 0.85rem; color: var(--secondary-text-color); }
+  .hk-entry-head { display: flex; align-items: center; justify-content: space-between; }
+  .hk-entry-head .label { font-size: 0.85rem; color: var(--secondary-text-color); }
+  /* A part in the editor is a folded row until it is the one being edited: its
+     summary names it and says what a reader comes back for (stock, reorder point,
+     interval), and only one part is open at a time, so the drawer never grows past
+     one form. The same details/summary pattern as the section it sits in. */
+  details.hk-part { padding: 0; overflow: hidden; }
+  details.hk-part > summary.hk-part-head {
+    list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px 8px 12px; min-height: var(--hk-tap);
+  }
+  details.hk-part > summary.hk-part-head::-webkit-details-marker { display: none; }
+  details.hk-part[open] > summary.hk-part-head {
+    border-bottom: 1px solid var(--divider-color); background: var(--hk-page);
+  }
+  .hk-part-acc-ic {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--secondary-background-color); color: var(--secondary-text-color);
+    --mdc-icon-size: 18px;
+  }
+  details.hk-part.wear .hk-part-acc-ic {
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+    color: var(--primary-color);
+  }
+  .hk-part-acc-text {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .hk-part-acc-name { font-weight: 500; overflow-wrap: anywhere; }
+  .hk-part-acc-sum {
+    flex: 1 1 100%; font-size: 0.8rem; color: var(--secondary-text-color);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  details.hk-part.wear .hk-part-badge {
+    color: var(--primary-color);
+    border-color: color-mix(in srgb, var(--primary-color) 50%, transparent);
+  }
+  details.hk-part > summary .hk-section-chevron { flex: none; }
+  details.hk-part[open] > summary .hk-section-chevron { transform: rotate(180deg); }
+  .hk-part-body { padding: 10px 12px 12px; }
+  .hk-part-foot { display: flex; justify-content: flex-end; margin-top: 4px; }
   .hk-meta-seeds { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
   .hk-meta-seeds ha-button { --mdc-typography-button-font-size: 0.8rem; }
 
@@ -655,7 +764,7 @@ export const STYLES = `
     word-break: break-word;
   }
   .hk-part-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .hk-part-chips ha-assist-chip { --ha-assist-chip-container-height: 28px; }
+  .hk-part-chips ha-assist-chip { --ha-assist-chip-container-height: 28px; --md-assist-chip-container-height: 28px; }
   /* Each part answers the same three questions — how often, when last, how many
      spares — so each gets its own cell and they always appear in that order. The
      comp draws this as a five-column table; in the real panel the appliance list
@@ -671,12 +780,50 @@ export const STYLES = `
 
      Qualified with .hk-meter so these beat the generic meter rules further down the
      sheet: on their own they tie on specificity and lose to whichever comes last,
-     which is how the spares bar was drawing in the accent colour instead of saying
+     which is how the spares bar was drawing in the accent color instead of saying
      anything about the stock level. */
   .hk-meter.hk-part-meter { margin: 0; width: 72px; height: 5px; flex: none; }
   .hk-meter.hk-part-meter > span { background: var(--hk-ok); }
   .hk-meter.hk-part-meter.low > span { background: var(--hk-warn); }
   .hk-part-notes { color: var(--secondary-text-color); margin-top: 6px; }
+  /* The Parts tab's own way into the drawer, on the row it is about. */
+  .hk-part-actions { flex: none; align-self: flex-start; margin: -8px -8px 0 0; }
+  .hk-part-actions ha-icon-button { --mdc-icon-button-size: 40px; color: var(--hk-ink-2); }
+  /* A section heading that carries the one action for what it heads. */
+  .hk-section-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .hk-section-row ha-button {
+    text-transform: none; letter-spacing: normal; --ha-button-height: 32px;
+    --mdc-typography-button-font-size: 0.8rem;
+  }
+  /* The stock cell as a control: − / amount / unit / +. One pill, sized like the
+     chips beside it; the low state takes the same soft-container/ink pairing the
+     Low stock chip did, plus a word, so color is never the only signal. */
+  .hk-stock {
+    display: inline-flex; align-items: center; height: 30px;
+    border: 1px solid var(--hk-line); border-radius: var(--hk-r-pill);
+    background: var(--hk-surface); padding: 0 2px;
+  }
+  .hk-stock ha-icon-button { --mdc-icon-button-size: 28px; --mdc-icon-size: 18px; color: var(--hk-accent-ink); }
+  .hk-stock-input {
+    width: 4.5em; height: 100%; text-align: center; border: 0; background: transparent;
+    font: inherit; font-weight: 500; color: inherit; outline: none;
+    font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield;
+  }
+  .hk-stock-input::-webkit-inner-spin-button, .hk-stock-input::-webkit-outer-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
+  .hk-stock-input:focus-visible { box-shadow: inset 0 -2px 0 var(--hk-accent); }
+  .hk-stock-unit { font-size: 0.8rem; color: var(--hk-ink-2); padding-right: 2px; }
+  .hk-stock.low {
+    background: var(--hk-danger-soft); border-color: transparent; color: var(--hk-danger-ink);
+  }
+  .hk-stock.low ha-icon-button { color: var(--hk-danger-ink); }
+  .hk-stock.low .hk-stock-unit { color: inherit; }
+  .hk-stock-low {
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--hk-danger-ink); align-self: center;
+  }
+  .hk-stock[data-busy] { opacity: 0.6; pointer-events: none; }
   /* The rule the form currently describes, in one sentence, immediately above the
      submit button — the last thing read before committing. Louder than .hk-form-hint
      on purpose: the hint explains, this one states the outcome. */
@@ -708,10 +855,19 @@ export const STYLES = `
   ha-card.hk-card {
     --ha-card-box-shadow: none;
     --ha-card-border-radius: var(--hk-r-row);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
+  /* The row's one action sits a size below the page's buttons: every row carries
+     one, and a column of full-height pills was most of what made the list tall. */
+  .hk-row-task .hk-card-actions ha-button { --ha-button-height: 32px; }
+  /* Every row carries the status rail; only an overdue one colours it. It used to be
+     a border that existed on overdue rows alone, and a border is layout: an overdue
+     row's content began 2px right of every other row's, which put the fixed rails
+     below on two x positions instead of one. Reserved on all rows, it costs nothing
+     and the columns line up exactly. */
+  ha-card.hk-card { border-left: 3px solid transparent; }
   ha-card.hk-card.overdue {
-    border-left: 3px solid var(--hk-danger);
+    border-left-color: var(--hk-danger);
     --ha-card-border-radius: 0 var(--hk-r-row) var(--hk-r-row) 0;
   }
   /* A task row reads left to right: what it is, what qualifies it, how late it is,
@@ -735,7 +891,17 @@ export const STYLES = `
   /* Not hidden while the drawer is open: the drawer only exists above 1150px, where
      the list still has the width to carry a chip, and hiding them changed the list
      into a different list at the moment it was meant to hold still. */
-  .hk-chips.hk-chips-inline ha-assist-chip { --ha-assist-chip-container-height: 26px; }
+  .hk-chips.hk-chips-inline ha-assist-chip { --ha-assist-chip-container-height: 24px; --md-assist-chip-container-height: 24px; }
+  /* A chip narrower than its label used to wrap that label onto two or three lines,
+     which spilled it straight out of the pill's outline — "Managed by Battery Notes"
+     on a phone did exactly that. The container height is fixed, so the extra lines
+     had nowhere to go and simply drew over the row.
+
+     white-space is inherited, and ha-assist-chip leaves its label span unstyled and
+     un-parted, so setting it on the host is what reaches the text. One line then gets
+     clipped by the row's own overflow, at the card's edge, instead of escaping it. A
+     truncated chip loses nothing: the detail page lists every chip in full. */
+  .hk-chips.hk-chips-inline ha-assist-chip { white-space: nowrap; }
   /* Everything past the second chip is folded behind the "+n" beside it. The chips
      stay in the DOM: this is a density decision about one row, not a decision to
      withhold what the task is tagged with — the detail page still lists them all. */
@@ -763,13 +929,25 @@ export const STYLES = `
   .hk-chip-more:focus-visible { outline: 2px solid var(--hk-accent); outline-offset: 2px; }
   /* The due/overdue pill sits at the end of the row, next to the action it argues
      for, rather than among the descriptive chips. */
+  /* The appliance row grew a status column of its own, so both lists now say the same
+     three things in the same order: what it is, what qualifies it, what it holds.
+     Before this they were two different objects — one a flex line with a status pill,
+     the other a three-line block. */
+  .hk-card-row.hk-row-asset { flex-wrap: wrap; row-gap: 6px; }
+  .hk-row-asset > .grow { flex: 0 1 auto; }
+  .hk-row-asset .hk-chips { margin-top: 0; flex-wrap: wrap; min-width: 0; }
+  /* A row with nothing in a track keeps no empty box there. */
+  .hk-row-asset .hk-chips:empty, .hk-row-asset .hk-status:empty { display: none; }
   .hk-status { flex: none; display: flex; align-items: center; }
   /* No outline on a status pill. A tonal Done and an outlined "Monitored" sat side by
      side at the same height and radius, and the one with the border was the one you
      could not press — enclosure now means pressable, and status reads as text.
-     Scoped away from the overdue and shopping chips, which carry a colour of their
-     own, so removing the outline does not also remove what the colour was saying. */
-  .hk-status ha-assist-chip { --ha-assist-chip-container-height: 28px; }
+     Scoped away from the overdue and shopping chips, which carry a color of their
+     own, so removing the outline does not also remove what the color was saying. */
+  .hk-status ha-assist-chip { --ha-assist-chip-container-height: 26px; --md-assist-chip-container-height: 26px; }
+  /* Same trick the "+n" control uses: a day count is read down the column, and
+     proportional digits make two three-digit counts different widths. */
+  .hk-status ha-assist-chip { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-shopping) {
     --ha-assist-chip-outline-width: 0px;
     --md-assist-chip-outline-width: 0px;
@@ -782,7 +960,7 @@ export const STYLES = `
      fill — under the 4.5:1 for text and even the 3:1 for a control — so the label is
      restated from our own accent ink, which measures 6.02:1 on the same fill.
      ha-button exposes its inner button as part "base", and that is the only lever
-     that reaches the label: every colour custom property it reads is a fill token.
+     that reaches the label: every color custom property it reads is a fill token.
      Keyed off the weight rather than a class so a button cannot opt out of it by
      being written somewhere new. */
   [data-hk-weight="secondary"]::part(base) { color: var(--hk-accent-ink); }
@@ -821,9 +999,10 @@ export const STYLES = `
   }
 
   /* ── Filter / group-by controls ───────────────────────────────────────────
-     One row: the scope pills lead, refinements follow, and the single primary
-     action closes it. It wraps rather than scrolls when the viewport can't hold
-     it, so no control is ever unreachable. */
+     One row: the scope pills lead, the text filter sits with them, the
+     refinements follow, and the single primary action closes it. It wraps rather
+     than scrolls when the viewport can't hold it, so no control is ever
+     unreachable. */
   .hk-controls {
     display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap;
     margin-bottom: 16px;
@@ -873,6 +1052,27 @@ export const STYLES = `
   .hk-menu-select:focus-visible, .hk-profile-select:focus-visible {
     outline: 2px solid var(--hk-accent); outline-offset: 2px; border-radius: 4px;
   }
+  /* The text filter: the same chip as the dropdowns beside it, with a text field
+     where their value sits and a clear button that appears once there is something
+     to clear. The ring goes on the chip rather than the input, so the whole control
+     lights up the way a focused dropdown does. */
+  .hk-search { gap: 0; border: 1px solid var(--hk-line); border-radius: var(--hk-r-btn);
+    background: var(--hk-surface); padding: 0 4px 0 12px; }
+  .hk-search .hk-seg-label { font-size: 0.72rem; letter-spacing: 0.05em; flex: none; }
+  .hk-search:focus-within { outline: 2px solid var(--hk-accent); outline-offset: 2px; }
+  .hk-search-input {
+    appearance: none; font: inherit; font-size: 0.85rem; font-weight: 500;
+    padding: 8px; border: 0; background: transparent; color: var(--hk-ink);
+    outline: none; min-width: 0; width: 16ch;
+  }
+  /* Blink and WebKit draw their own clear button on a search field. Firefox draws
+     none, it cannot take the theme's colours, and it carries no name for a screen
+     reader — so it is suppressed and the button beside it does all three. */
+  .hk-search-input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+  .hk-search-clear { --mdc-icon-button-size: 28px; --mdc-icon-size: 16px; color: var(--hk-ink-2); }
+  /* Not redundant with the user agent's own [hidden] rule: the class above sets a
+     display of its own, and the class wins. */
+  .hk-search-clear[hidden] { display: none; }
   /* The closed control blends into its chip via a transparent background, but the
      popup list it opens is the browser's own UI surface — Chromium and Firefox both
      honor a color/background-color set on <option>, so without one the popup falls
@@ -960,6 +1160,7 @@ export const STYLES = `
      is marked the way the drawer marks the row it is editing. */
   .hk-master ha-card.hk-card { margin-bottom: 6px; }
   .hk-master .hk-card-row { padding: 10px 12px; gap: 8px; }
+  .hk-master .hk-row-asset > .grow { flex: 1 1 100%; }
   .hk-master ha-card.hk-card.hk-selected {
     border-left: 3px solid var(--hk-accent);
     background: var(--hk-accent-soft);
@@ -1015,6 +1216,85 @@ export const STYLES = `
   }
   .hk-detail-card .hk-chips { margin-top: 10px; }
   .hk-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  /* The Done split button — one pill carrying two hit targets. The caret sits inside
+     Done's own outline rather than beside it, so the pair reads as a single control
+     that opens rather than as a second button someone parked next to Done. Done still
+     never changes meaning or costs an extra tap.
+
+     The caret is an ha-button carrying Done's own weight, so Home Assistant paints
+     both halves from the same rule. Naming a color here was the earlier mistake: the
+     task page's Done is solid accent while a list row's is a pale tonal, so a wrapper
+     painted with the primary color matched the first and clashed badly on the second,
+     and would clash again under anyone else's theme.
+
+     Both halves square off and the pill wrapper rounds the pair by clipping, because
+     ha-button takes a single-value radius override and rejects a four-value one. The
+     menu is a sibling of that clip rather than a child: it hangs below the button, and
+     the overflow that rounds the corners would cut it off.
+
+     The seam is drawn from currentColor, which inside a filled button is its label
+     color — legible against the fill whichever weight the surface uses. */
+  .hk-split { position: relative; display: inline-flex; }
+  .hk-split-pill {
+    display: inline-flex; align-items: stretch;
+    border-radius: var(--hk-r-pill); overflow: hidden;
+  }
+  /* A *blocked* Done is not a bare ha-button: _blockedButton wraps it in a span that
+     carries the click a disabled button will not report. The pill's rules were
+     direct-child only, so that wrapper kept its own rounded ends and its own height
+     and the pair read as two separate controls with a gap down the middle. Reach one
+     level in, and let the wrapper stretch so both halves share an edge.
+     (No backticks in this file: every rule lives inside a template literal.) */
+  .hk-split-pill > .hk-blocked-wrap { display: inline-flex; align-items: stretch; }
+  .hk-split-pill > ha-button,
+  .hk-split-pill > .hk-blocked-wrap > ha-button { --ha-button-border-radius: 0; }
+  .hk-split-pill > ha-button::part(base),
+  .hk-split-pill > .hk-blocked-wrap > ha-button::part(base) { box-shadow: none; }
+  ha-button.hk-split-caret { --mdc-icon-size: 20px; }
+  ha-button.hk-split-caret::part(base) {
+    min-width: 0; padding-left: 7px; padding-right: 7px;
+    border-left: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  }
+  /* The display below beats the user-agent rule for the hidden attribute, which is
+     a plain type-less one — so without this override the menu is laid out even while
+     hidden, floating over the row beneath it and swallowing its clicks. */
+  .hk-defer-menu[hidden] { display: none; }
+  /* The menu is anchored to whichever edge of the split is *inside* the layout, not
+     always the left one. A list row puts its actions hard against the right margin,
+     so a left-anchored menu starts at the row's right edge and runs 220px past the
+     viewport — on a phone that is a horizontally scrolling page and half a menu. The
+     detail page's actions sit at the left, where left-anchoring is the correct one.
+     The max-width is the backstop for a viewport narrower than the menu itself. */
+  .hk-defer-menu {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 9;
+    min-width: 220px; max-width: calc(100vw - 24px); padding: 6px;
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--card-background-color);
+    border: 1px solid var(--divider-color); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  }
+  .hk-card-actions .hk-defer-menu { left: auto; right: 0; }
+  .hk-defer-menu button {
+    display: flex; align-items: flex-start; gap: 10px; width: 100%;
+    padding: 9px 10px; border: 0; border-radius: 6px;
+    background: transparent; color: var(--primary-text-color);
+    font: inherit; text-align: left; cursor: pointer;
+  }
+  .hk-defer-menu button:hover { background: var(--secondary-background-color); }
+  .hk-defer-menu button:focus-visible {
+    outline: 2px solid var(--primary-color); outline-offset: -2px;
+  }
+  .hk-defer-menu ha-icon { flex: none; color: var(--secondary-text-color); }
+  .hk-defer-text { display: flex; flex-direction: column; min-width: 0; }
+  /* The verbs are not self-explanatory — which is what #268 was about — so each
+     carries one line saying what it does to the schedule. */
+  .hk-defer-sub { font-size: 12px; color: var(--secondary-text-color); margin-top: 2px; }
+  /* The resolved date under the snooze picker: the user reads the answer rather than
+     doing the arithmetic. */
+  .hk-snooze-hint {
+    font-size: 13px; color: var(--secondary-text-color);
+    padding: 4px 2px 0; line-height: 1.4;
+  }
   .hk-detail-row {
     display: flex; gap: 12px; padding: 6px 0; align-items: baseline;
     border-bottom: 1px solid var(--divider-color);
@@ -1077,7 +1357,7 @@ export const STYLES = `
     --mdc-icon-size: 15px; flex: none; color: var(--secondary-text-color);
   }
   .hk-doc-file:hover .hk-doc-ext { color: var(--primary-color); }
-  /* The editor's "Open" action is an anchor (a native navigation), sized and coloured
+  /* The editor's "Open" action is an anchor (a native navigation), sized and colored
      to sit flush with the ha-icon-buttons — Edit, Remove — beside it. */
   .hk-doc-open {
     display: inline-flex; align-items: center; justify-content: center;
@@ -1154,13 +1434,25 @@ export const STYLES = `
   ul.hk-hist-list .date { flex: 1; min-width: 0; }
   ul.hk-hist-list .when { color: var(--secondary-text-color); font-size: 0.85rem; white-space: nowrap; }
   .hk-hist-actions { display: flex; align-items: center; }
-  ha-icon-button.hk-hist-del, ha-icon-button.hk-hist-edit, ha-icon-button.hk-hist-move {
+  ha-icon-button.hk-hist-del, ha-icon-button.hk-hist-edit, ha-icon-button.hk-hist-move,
+  ha-icon-button.hk-hist-skip-del, ha-icon-button.hk-hist-skip-edit,
+  ha-icon-button.hk-hist-skip-move {
     --mdc-icon-button-size: 36px; color: var(--secondary-text-color);
+  }
+  /* A skipped occurrence is a record of *not* doing the thing, so its row sits back
+     from the completions around it: the date is muted and the chip names what it is.
+     Without the chip the two kinds of row look identical, which misreads the list. */
+  .hk-hist-is-skip .date { color: var(--secondary-text-color); }
+  .hk-hist-skip-chip {
+    font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap;
+    padding: 3px 8px; border-radius: 10px;
+    background: var(--secondary-background-color); color: var(--secondary-text-color);
   }
   /* The destructive one of the three reads as destructive on approach rather than at
      rest: three red trashcans down a history list is an alarm, and the row is a
      record, not a control panel. */
-  ha-icon-button.hk-hist-del:hover, ha-icon-button.hk-hist-del:focus-visible {
+  ha-icon-button.hk-hist-del:hover, ha-icon-button.hk-hist-del:focus-visible,
+  ha-icon-button.hk-hist-skip-del:hover, ha-icon-button.hk-hist-skip-del:focus-visible {
     color: var(--hk-danger-ink);
   }
   .hk-hist-meta {
@@ -1293,6 +1585,15 @@ export const STYLES = `
        for most on a phone list, and both sat under the tap target this file defines. */
     .hk-menu { min-height: var(--hk-tap); }
     .hk-menu-select, .hk-profile-select { min-height: calc(var(--hk-tap) - 2px); }
+    /* The rule above gives the search chip a row of its own, so the field takes the
+       width instead of the 16ch it holds beside the pills on a desktop. */
+    .hk-search { min-height: var(--hk-tap); }
+    .hk-search-input {
+      flex: 1 1 auto; width: auto; min-height: calc(var(--hk-tap) - 2px);
+      /* 16px exactly. A WKWebView zooms the whole page when the field taking focus
+         is smaller than that, and the Home Assistant companion app is a WKWebView. */
+      font-size: 16px;
+    }
     .hk-add-btn { --ha-button-height: var(--hk-tap); }
     /* Restore only the width the joined-segment rule zeroes out. Matching that rule's
        first-child specificity here would also tie with the .active rule and, as the
@@ -1308,19 +1609,111 @@ export const STYLES = `
       box-shadow: var(--hk-shadow-float);
       border-radius: 14px;
     }
-    /* A phone row stacks: title, meta, the chips, then status and Done on one line.
-       The chips take a row of their own rather than sharing with the status pill, so
-       the pill and the button it argues for always end up side by side. */
-    .hk-card-row { flex-wrap: wrap; row-gap: 10px; }
-    .hk-card-row .grow { flex: 1 1 100%; }
-    .hk-chips.hk-chips-inline { flex: 1 1 100%; flex-wrap: wrap; order: 1; }
-    .hk-status { order: 2; }
-    .hk-card-actions { order: 3; margin-inline-start: auto; }
-    /* The spacer pushes Done to the right end of a *single-line* row. Once the row
-       wraps, the actions' margin-inline-start: auto does that job instead — and the
-       spacer, left at order 0 while .grow beside it is flex: 1 1 100%, cannot share
-       a line with anything and takes a whole empty one of its own. */
+    /* A phone row is a two-column grid: what the task is on the left (title, meta,
+       how late it is, then its chips), and its one action on the right, centred on
+       the whole row. Stacking everything full-width, as this did, put Done on a
+       fourth line and made every row a card you scrolled through; the grid keeps a
+       row to three lines for most tasks and puts the button where a thumb is. */
+    .hk-card-row.hk-row-task {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "grow actions" "status actions" "chips actions";
+      gap: 4px 10px; align-items: center; padding: 10px 8px 10px 12px;
+    }
+    .hk-card-row.hk-row-task > .grow { grid-area: grow; }
+    .hk-status { grid-area: status; justify-self: start; }
+    .hk-chips.hk-chips-inline { grid-area: chips; flex-wrap: wrap; }
+    /* A row with nothing to qualify it keeps no empty line for the chips. */
+    .hk-chips.hk-chips-inline:empty { display: none; }
+    .hk-card-actions { grid-area: actions; align-self: center; }
+    /* Thumb-sized again on a phone, where the desktop's 32px would be a miss. */
+    .hk-row-task .hk-card-actions ha-button { --ha-button-height: 40px; }
+    /* The spacer pushes Done to the right end of a *single-line* row; a grid has
+       its own columns for that. */
     .hk-row-spacer { display: none; }
+    /* Appliance rows keep the wrapping flex layout: they have no action, and at this
+       width there is no room for a track beside the name. */
+    .hk-card-row:not(.hk-row-task) { display: flex; flex-wrap: wrap; row-gap: 6px; }
+    .hk-row-asset > .grow { flex: 1 1 100%; }
+    .hk-row-asset .hk-chips, .hk-row-asset .hk-status { flex: 0 1 auto; }
+  }
+
+  /* ── Wide: both lists lay their parts on fixed rails ───────────────────────
+     A row is a grid of fixed tracks rather than a shrink-to-fit flex line, so a chip
+     starts at the same x whatever the name beside it says. Shrink-to-fit put the chip
+     cluster wherever the task name happened to end — 121px of drift over the seeded
+     list — and a column of ragged starts is what made a long list hard to scan.
+
+     The tracks are anchored from the *left*, with the slack falling after the last
+     one, and this is the whole reason the rails hold. A row's action column is sized
+     by what is in it: Done and a caret on most rows, a caret alone where there is
+     nothing to mark done, a caption where the task clears itself. Pack the tracks
+     against the right and that 178px of variation moves every rail with it, which is
+     the ragged list again by another route.
+
+     Gated at the same 1150px the drawer uses, and for the same reason: a media query
+     measures the viewport while the panel gets the viewport minus Home Assistant's
+     ~256px sidebar. Under that the row has no width to spend on tracks and keeps the
+     flex line it has always had. */
+  @media (min-width: 1151px) {
+    .hk-card-row.hk-row-task {
+      display: grid;
+      grid-template-columns:
+        minmax(0, var(--hk-name-col)) var(--hk-chip-col) var(--hk-status-col) auto;
+    }
+    /* The grid has its own columns, so the spacer has no work left. It stays in the
+       DOM — it is what pushes Done right on the flex line below this width, and the
+       phone rules already expect to find it. */
+    .hk-card-row.hk-row-task > .hk-row-spacer { display: none; }
+    /* Left-aligned in its own track rather than right-anchored: a pill is read by
+       where it starts, and "8 days overdue" beside "128 days overdue" only ever
+       agreed on where it ended. */
+    .hk-row-task .hk-status { justify-self: start; }
+    /* The meta line is a summary, so it takes one line and ends in an ellipsis rather
+       than wrapping. Wrapping made a row's height depend on how long its recurrence
+       sentence happened to be, which is the ragged list again in the other axis; the
+       task's page carries the whole line. */
+    .hk-row-task .hk-meta {
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    /* A chip too wide for the track fades out instead of being cut through. It used
+       to clip at the card's edge, where a hard cut reads as the end of the row; mid-row
+       the same cut reads as a broken chip. Nothing is lost either way — the task's
+       page lists every chip in full. */
+    .hk-chips.hk-chips-inline:not(.hk-chips-open) {
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+    }
+    /* The appliance row takes the same rails. It carries no Done, so it spends that
+       width on a wider chip track and wraps inside it rather than truncating: the
+       rail still lines up and nothing an appliance says about itself is lost. */
+    .hk-card-row.hk-row-asset {
+      display: grid;
+      grid-template-columns:
+        minmax(0, var(--hk-name-col)) var(--hk-chip-col-wide) var(--hk-status-col);
+      align-items: center;
+    }
+    /* ...except in the 268px picker pane, which cannot hold three tracks. There the
+       row goes back to a stack, where the chips still start at the card's left
+       padding — the alignment the rails were bought for, at a width with no room for
+       them. */
+    .hk-master .hk-card-row.hk-row-asset { display: flex; }
+    /* The whole row still opens the appliance. Splitting the row into tracks left the
+       opener holding only the first one, so a click on the right two thirds of a row
+       — most of it — did nothing, where before the row was one clickable block. The
+       opener stretches back over the card instead.
+
+       The chip and count tracks let their empty space fall through to it and lift only
+       what is actually a target, so a device chip keeps its own destination while the
+       air around it opens the appliance. Raising the whole track would hand most of
+       the row back to a container with no handler on it. */
+    .hk-row-asset > .grow.detail-open::after {
+      content: ''; position: absolute; inset: 0;
+    }
+    .hk-row-asset .hk-chips, .hk-row-asset .hk-status { pointer-events: none; }
+    .hk-row-asset .hk-chips > *, .hk-row-asset .hk-status > *, .hk-chevron {
+      pointer-events: auto; position: relative; z-index: 1;
+    }
+    .hk-chevron { position: absolute; }
   }
 
   /* ── Narrow: the drawer becomes a bottom sheet ─────────────────────────────
@@ -1368,4 +1761,52 @@ export const STYLES = `
       opacity: 1;
     }
   }
+  /* Declarative companions: the subsection at the foot of the Companions card, the
+     preset picker's cards, and the add/edit dialog's sections and live preview. */
+  .hk-companion-group-decl { margin-top: 20px; }
+  .hk-decl-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+  .hk-decl-empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; }
+  .hk-decl-matches { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
+  ha-assist-chip.hk-decl-preset-chip {
+    --ha-assist-chip-container-color: var(--secondary-background-color);
+    --ha-assist-chip-filled-container-color: var(--secondary-background-color);
+  }
+  .hk-decl-preset-list { display: grid; gap: 10px; min-width: min(420px, 80vw); }
+  .hk-decl-preset-card {
+    display: flex; align-items: center; gap: 12px; padding: 12px; text-align: left;
+    border: 1px solid var(--divider-color); border-radius: 12px; cursor: pointer;
+    background: var(--card-background-color); color: var(--primary-text-color);
+    font: inherit;
+  }
+  .hk-decl-preset-card:hover:not(:disabled) { background: var(--secondary-background-color); }
+  .hk-decl-preset-card:disabled { opacity: 0.55; cursor: not-allowed; }
+  .hk-decl-preset-card ha-icon { flex: 0 0 auto; }
+  .hk-decl-preset-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .hk-decl-preset-name { font-weight: 500; }
+  .hk-decl-preset-desc { color: var(--secondary-text-color); font-size: 0.9rem; }
+  .hk-decl-preset-req { color: var(--warning-color); font-size: 0.85rem; }
+  /* No min-width: an ha-dialog is a fixed width (580px at its default "medium"),
+     so a body wider than that dialog's content box does not widen the dialog — it
+     overruns it. A 560px floor put every row 28px past the right padding edge, and
+     the switches on the Enabled and Auto-clear rows were clipped by the dialog's
+     own border. Fill the box instead. */
+  .hk-decl-dialog-body { width: 100%; box-sizing: border-box; gap: 8px; }
+  .hk-decl-dialog-body ha-form { display: block; }
+  .hk-decl-section-title {
+    font-size: 0.75rem; font-weight: 600; color: var(--secondary-text-color);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-top: 8px;
+  }
+  .hk-decl-preview {
+    padding: 12px; border: 1px dashed var(--divider-color); border-radius: 12px;
+    background: var(--secondary-background-color); font-size: 0.85rem;
+    max-height: 260px; overflow-y: auto; margin-top: 8px;
+  }
+  .hk-decl-preview-header { font-weight: 500; margin-bottom: 6px; }
+  .hk-decl-preview-row { padding: 6px 0; border-bottom: 1px solid var(--divider-color); }
+  .hk-decl-preview-row:last-child { border-bottom: none; }
+  .hk-decl-preview-name { font-weight: 500; }
+  .hk-decl-preview-eid {
+    color: var(--secondary-text-color); font-family: monospace; font-size: 0.8rem;
+  }
+  .hk-decl-preview-empty { color: var(--secondary-text-color); font-style: italic; }
 `;

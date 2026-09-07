@@ -7,7 +7,20 @@
  * panel, so they stay here rather than widening the shared surface.
  */
 
-import type { Asset, Completion, Task } from './types';
+import type { Asset, Completion, DeclarativeCompanion, Skip, Task } from './types';
+
+/**
+ * The declarative-companion dialogs' state: the preset picker, or the add/edit form.
+ * `draft` is the recipe the form edits **in place** (each section's form writes into
+ * the same object), so a mode change can rebuild the dialog without losing what was
+ * typed; it is null while the picker is up.
+ */
+export interface DeclarativeDialogState {
+  open: boolean;
+  kind: 'picker' | 'form';
+  draft: DeclarativeCompanion | null;
+  error?: string;
+}
 
 /** What the inline notes editor on a detail page is currently editing. */
 export type NoteTarget = { kind: 'task' | 'asset'; id: string };
@@ -29,6 +42,13 @@ export interface AssetEditState {
   // "parts"), preserved across re-renders so an expanded section doesn't snap shut
   // when an unrelated edit re-renders the form. Unset → defaults to "open if non-empty".
   openSections?: Record<string, boolean>;
+  // Which part row is expanded in the parts editor (one at a time). Unset → a lone
+  // part opens, a longer list stays folded; null → the user closed them all.
+  openPart?: number | null;
+  // One-shot: the next render brings the open part into view ('scroll'), or also
+  // hands it the keyboard ('focus', a part just added). Consumed by
+  // `renderPartsEditor`, so a later unrelated render never scrolls the drawer.
+  revealPart?: 'scroll' | 'focus';
   // The single in-flight upload, if any (one at a time — every upload button is
   // disabled while this is set). Lives in state, not just the DOM, so a re-render
   // mid-upload rebuilds the progress bar instead of dropping it.
@@ -91,11 +111,19 @@ export interface MoveCompletionDialogState {
   ts: string;
   newTs?: string;
   error?: string;
+  /** Which log the entry lives in. Re-dating is the same interaction either way —
+   *  one date field on one entry — so the two share a dialog and differ only in
+   *  which service the save calls. */
+  kind?: 'completion' | 'skip';
 }
 /** One task's completion list within a history dialog (live or archived). */
 export interface HistoryGroup {
   name: string;
   completions: Completion[];
+  /** Logged skips, shown interleaved with the completions above but never counted
+   *  among them. Absent on an archived group — a deleted task's skips are not carried
+   *  onto the appliance, since the cadence they belong to is gone. */
+  skips?: Skip[];
   archived?: boolean;
   // Deletion context for the per-completion trash button: a live task carries
   // `taskId`; an archived (removed-task) group carries `assetId` + `archivedTaskId`.
