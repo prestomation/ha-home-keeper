@@ -10,9 +10,10 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
-- **Filter groups.** A Profile now holds one or more named groups of filters, each
-  shown as a collapsible row. Home Keeper converts every saved Profile automatically on
-  the first start after the update, and a downgrade needs a backup. (Fixes #291)
+- **Filter groups.** A Profile now holds one or more groups of filters, each shown as
+  a collapsible row with its own name. Home Keeper converts every saved Profile
+  automatically on the first start after the update, and a downgrade needs a backup.
+  (Fixes #291)
 
 ### Changed
 
