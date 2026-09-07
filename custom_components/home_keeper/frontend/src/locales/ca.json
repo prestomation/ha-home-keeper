@@ -594,7 +594,7 @@
   "notify.companions_help": "Selecciona complements per mostrar només les seves tasques.",
   "notify.exclude_companions": "Exclou complements",
   "notify.exclude_shopping": "Exclou compra",
-  "notify.filters_help": "Una tasca ha de coincidir amb almenys un valor de cada filtre que defineixis.",
+  "notify.filters_help": "Un perfil conté un o més grups de filtres. Una tasca coincideix amb el perfil si coincideix amb un dels grups.",
   "notify.opt.critical": "Crítica",
   "notify.opt.high": "Alta",
   "notify.opt.normal": "Normal",
@@ -636,5 +636,13 @@
   "btn.stockInc": "Augmenta estoc",
   "part.low": "Baix",
   "part.reorderAt": "Reabastir a {n}",
-  "toast.stockSet": "Estoc establert a {n}"
+  "toast.stockSet": "Estoc establert a {n}",
+  "notify.group_add": "Afegeix un altre grup",
+  "notify.group_delete": "Elimina el grup",
+  "notify.group_help": "Una tasca coincideix amb aquest grup si coincideix amb tots els filtres definits aquí i no coincideix amb cap de les seves exclusions.",
+  "notify.group_or": "O",
+  "notify.group_title": "Grup {n}",
+  "notify.labels_match": "Coincidència d'etiquetes",
+  "notify.opt.labels_all": "Totes les etiquetes seleccionades",
+  "notify.opt.labels_any": "Qualsevol etiqueta seleccionada"
 }

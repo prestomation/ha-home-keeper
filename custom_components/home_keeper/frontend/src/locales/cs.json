@@ -610,7 +610,7 @@
   "notify.companions_help": "Vyberte doplňky, aby se zobrazily jen jejich úkoly.",
   "notify.exclude_companions": "Vyloučit doplňky",
   "notify.exclude_shopping": "Vyloučit nákup",
-  "notify.filters_help": "Úkol musí odpovídat alespoň jedné hodnotě v každém filtru, který nastavíte.",
+  "notify.filters_help": "Profil obsahuje jednu nebo více skupin filtrů. Úkol odpovídá profilu, pokud odpovídá jedné ze skupin.",
   "notify.opt.critical": "Kritická",
   "notify.opt.high": "Vysoká",
   "notify.opt.normal": "Normální",
@@ -652,5 +652,13 @@
   "btn.stockInc": "Zvýšit zásobu",
   "part.low": "Nízká",
   "part.reorderAt": "Objednat při {n}",
-  "toast.stockSet": "Zásoba nastavena na {n}"
+  "toast.stockSet": "Zásoba nastavena na {n}",
+  "notify.group_add": "Přidat další skupinu",
+  "notify.group_delete": "Smazat skupinu",
+  "notify.group_help": "Úkol odpovídá této skupině, pokud odpovídá všem zde nastaveným filtrům a žádné z jejích výjimek.",
+  "notify.group_or": "NEBO",
+  "notify.group_title": "Skupina {n}",
+  "notify.labels_match": "Shoda štítků",
+  "notify.opt.labels_all": "Všechny vybrané štítky",
+  "notify.opt.labels_any": "Libovolný vybraný štítek"
 }

@@ -594,7 +594,7 @@
   "notify.companions_help": "Seleziona le integrazioni partner per mostrare solo le loro attività.",
   "notify.exclude_companions": "Escludi integrazioni partner",
   "notify.exclude_shopping": "Escludi acquisti",
-  "notify.filters_help": "Un'attività deve corrispondere ad almeno un valore in ogni filtro che imposti.",
+  "notify.filters_help": "Un profilo contiene uno o più gruppi di filtri. Un'attività corrisponde al profilo se corrisponde a uno dei gruppi.",
   "notify.opt.critical": "Critica",
   "notify.opt.high": "Alta",
   "notify.opt.normal": "Normale",
@@ -636,5 +636,13 @@
   "btn.stockInc": "Aumenta scorte",
   "part.low": "Basso",
   "part.reorderAt": "Riordina a {n}",
-  "toast.stockSet": "Scorte impostate a {n}"
+  "toast.stockSet": "Scorte impostate a {n}",
+  "notify.group_add": "Aggiungi un altro gruppo",
+  "notify.group_delete": "Elimina gruppo",
+  "notify.group_help": "Un'attività corrisponde a questo gruppo se corrisponde a tutti i filtri impostati qui e a nessuna delle sue esclusioni.",
+  "notify.group_or": "O",
+  "notify.group_title": "Gruppo {n}",
+  "notify.labels_match": "Corrispondenza etichette",
+  "notify.opt.labels_all": "Tutte le etichette selezionate",
+  "notify.opt.labels_any": "Qualsiasi etichetta selezionata"
 }

@@ -578,7 +578,7 @@
   "notify.companions_help": "Vælg ledsagere for kun at vise deres opgaver.",
   "notify.exclude_companions": "Udelad ledsagere",
   "notify.exclude_shopping": "Udelad indkøb",
-  "notify.filters_help": "En opgave skal matche mindst én værdi i hvert filter, du angiver.",
+  "notify.filters_help": "En profil indeholder en eller flere grupper af filtre. En opgave matcher profilen, hvis den matcher en af grupperne.",
   "notify.opt.critical": "Kritisk",
   "notify.opt.high": "Høj",
   "notify.opt.normal": "Normal",
@@ -620,5 +620,13 @@
   "btn.stockInc": "Øg lager",
   "part.low": "Lavt",
   "part.reorderAt": "Bestil ved {n}",
-  "toast.stockSet": "Lager sat til {n}"
+  "toast.stockSet": "Lager sat til {n}",
+  "notify.group_add": "Tilføj endnu en gruppe",
+  "notify.group_delete": "Slet gruppe",
+  "notify.group_help": "En opgave matcher denne gruppe, hvis den matcher alle filtre angivet her og ingen af dens undtagelser.",
+  "notify.group_or": "ELLER",
+  "notify.group_title": "Gruppe {n}",
+  "notify.labels_match": "Etiketmatch",
+  "notify.opt.labels_all": "Alle valgte etiketter",
+  "notify.opt.labels_any": "Enhver valgt etiket"
 }

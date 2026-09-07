@@ -578,7 +578,7 @@
   "notify.companions_help": "Valitse kumppanit, jos haluat näyttää vain niiden tehtävät.",
   "notify.exclude_companions": "Jätä pois kumppanit",
   "notify.exclude_shopping": "Jätä pois ostokset",
-  "notify.filters_help": "Tehtävän on vastattava vähintään yhtä arvoa jokaisessa asettamassasi suodattimessa.",
+  "notify.filters_help": "Profiili sisältää yhden tai useamman suodatinryhmän. Tehtävä vastaa profiilia, jos se vastaa yhtä ryhmistä.",
   "notify.opt.critical": "Kriittinen",
   "notify.opt.high": "Korkea",
   "notify.opt.normal": "Normaali",
@@ -620,5 +620,13 @@
   "btn.stockInc": "Lisää varastoa",
   "part.low": "Vähissä",
   "part.reorderAt": "Tilausraja: {n}",
-  "toast.stockSet": "Varasto asetettu arvoon {n}"
+  "toast.stockSet": "Varasto asetettu arvoon {n}",
+  "notify.group_add": "Lisää toinen ryhmä",
+  "notify.group_delete": "Poista ryhmä",
+  "notify.group_help": "Tehtävä vastaa tätä ryhmää, jos se vastaa kaikkia tähän asetettuja suodattimia eikä mitään sen poikkeuksista.",
+  "notify.group_or": "TAI",
+  "notify.group_title": "Ryhmä {n}",
+  "notify.labels_match": "Tunnisteiden vastaavuus",
+  "notify.opt.labels_all": "Kaikki valitut tunnisteet",
+  "notify.opt.labels_any": "Mikä tahansa valittu tunniste"
 }

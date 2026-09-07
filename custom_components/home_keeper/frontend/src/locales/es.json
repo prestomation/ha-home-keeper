@@ -594,7 +594,7 @@
   "notify.companions_help": "Selecciona complementos para mostrar solo sus tareas.",
   "notify.exclude_companions": "Excluir complementos",
   "notify.exclude_shopping": "Excluir compras",
-  "notify.filters_help": "Una tarea debe coincidir con al menos un valor de cada filtro que definas.",
+  "notify.filters_help": "Un perfil contiene uno o más grupos de filtros. Una tarea coincide con el perfil si coincide con uno de los grupos.",
   "notify.opt.critical": "Crítica",
   "notify.opt.high": "Alta",
   "notify.opt.normal": "Normal",
@@ -636,5 +636,13 @@
   "btn.stockInc": "Aumentar existencias",
   "part.low": "Bajo",
   "part.reorderAt": "Reordenar en {n}",
-  "toast.stockSet": "Existencias establecidas en {n}"
+  "toast.stockSet": "Existencias establecidas en {n}",
+  "notify.group_add": "Añadir otro grupo",
+  "notify.group_delete": "Eliminar grupo",
+  "notify.group_help": "Una tarea coincide con este grupo si coincide con todos los filtros definidos aquí y con ninguna de sus exclusiones.",
+  "notify.group_or": "O",
+  "notify.group_title": "Grupo {n}",
+  "notify.labels_match": "Coincidencia de etiquetas",
+  "notify.opt.labels_all": "Todas las etiquetas seleccionadas",
+  "notify.opt.labels_any": "Cualquier etiqueta seleccionada"
 }

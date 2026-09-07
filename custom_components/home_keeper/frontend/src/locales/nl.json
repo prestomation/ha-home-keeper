@@ -578,7 +578,7 @@
   "notify.companions_help": "Selecteer metgezellen om alleen hun taken te tonen.",
   "notify.exclude_companions": "Metgezellen uitsluiten",
   "notify.exclude_shopping": "Boodschappen uitsluiten",
-  "notify.filters_help": "Een taak moet overeenkomen met minstens één waarde in elk filter dat je instelt.",
+  "notify.filters_help": "Een profiel bevat een of meer groepen filters. Een taak komt overeen met het profiel als die overeenkomt met een van de groepen.",
   "notify.opt.critical": "Kritiek",
   "notify.opt.high": "Hoog",
   "notify.opt.normal": "Normaal",
@@ -620,5 +620,13 @@
   "btn.stockInc": "Voorraad verhogen",
   "part.low": "Laag",
   "part.reorderAt": "Bijbestellen bij {n}",
-  "toast.stockSet": "Voorraad ingesteld op {n}"
+  "toast.stockSet": "Voorraad ingesteld op {n}",
+  "notify.group_add": "Nog een groep toevoegen",
+  "notify.group_delete": "Groep verwijderen",
+  "notify.group_help": "Een taak komt overeen met deze groep als die overeenkomt met elk hier ingesteld filter en met geen van de uitsluitingen.",
+  "notify.group_or": "OF",
+  "notify.group_title": "Groep {n}",
+  "notify.labels_match": "Etiketovereenkomst",
+  "notify.opt.labels_all": "Alle geselecteerde etiketten",
+  "notify.opt.labels_any": "Elk geselecteerd etiket"
 }

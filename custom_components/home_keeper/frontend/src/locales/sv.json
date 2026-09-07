@@ -578,7 +578,7 @@
   "notify.companions_help": "Välj följeslagare för att bara visa deras uppgifter.",
   "notify.exclude_companions": "Uteslut följeslagare",
   "notify.exclude_shopping": "Uteslut inköp",
-  "notify.filters_help": "En uppgift måste matcha minst ett värde i varje filter du anger.",
+  "notify.filters_help": "En profil innehåller en eller flera grupper med filter. En uppgift matchar profilen om den matchar en av grupperna.",
   "notify.opt.critical": "Kritisk",
   "notify.opt.high": "Hög",
   "notify.opt.normal": "Normal",
@@ -620,5 +620,13 @@
   "btn.stockInc": "Öka lager",
   "part.low": "Lågt",
   "part.reorderAt": "Beställ vid {n}",
-  "toast.stockSet": "Lager inställt på {n}"
+  "toast.stockSet": "Lager inställt på {n}",
+  "notify.group_add": "Lägg till en grupp till",
+  "notify.group_delete": "Ta bort grupp",
+  "notify.group_help": "En uppgift matchar den här gruppen om den matchar alla filter som anges här och inget av dess undantag.",
+  "notify.group_or": "ELLER",
+  "notify.group_title": "Grupp {n}",
+  "notify.labels_match": "Etikettmatchning",
+  "notify.opt.labels_all": "Alla valda etiketter",
+  "notify.opt.labels_any": "Valfri vald etikett"
 }

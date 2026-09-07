@@ -578,7 +578,7 @@
   "notify.companions_help": "Velg følgesvenner for å vise bare deres oppgaver.",
   "notify.exclude_companions": "Utelat følgesvenner",
   "notify.exclude_shopping": "Utelat handling",
-  "notify.filters_help": "En oppgave må samsvare med minst én verdi i hvert filter du angir.",
+  "notify.filters_help": "En profil inneholder én eller flere grupper med filtre. En oppgave samsvarer med profilen hvis den samsvarer med én av gruppene.",
   "notify.opt.critical": "Kritisk",
   "notify.opt.high": "Høy",
   "notify.opt.normal": "Normal",
@@ -620,5 +620,13 @@
   "btn.stockInc": "Øk lager",
   "part.low": "Lavt",
   "part.reorderAt": "Bestill ved {n}",
-  "toast.stockSet": "Lager satt til {n}"
+  "toast.stockSet": "Lager satt til {n}",
+  "notify.group_add": "Legg til en gruppe til",
+  "notify.group_delete": "Slett gruppe",
+  "notify.group_help": "En oppgave samsvarer med denne gruppen hvis den samsvarer med alle filtrene som er angitt her, og ingen av unntakene.",
+  "notify.group_or": "ELLER",
+  "notify.group_title": "Gruppe {n}",
+  "notify.labels_match": "Etikettsamsvar",
+  "notify.opt.labels_all": "Alle valgte etiketter",
+  "notify.opt.labels_any": "Hvilken som helst valgt etikett"
 }

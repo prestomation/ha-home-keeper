@@ -594,7 +594,7 @@
   "notify.companions_help": "Selecione complementos para mostrar apenas as tarefas deles.",
   "notify.exclude_companions": "Excluir complementos",
   "notify.exclude_shopping": "Excluir compras",
-  "notify.filters_help": "Uma tarefa deve corresponder a pelo menos um valor em cada filtro que você definir.",
+  "notify.filters_help": "Um perfil contém um ou mais grupos de filtros. Uma tarefa corresponde ao perfil se corresponder a um dos grupos.",
   "notify.opt.critical": "Crítica",
   "notify.opt.high": "Alta",
   "notify.opt.normal": "Normal",
@@ -636,5 +636,13 @@
   "btn.stockInc": "Aumentar estoque",
   "part.low": "Baixo",
   "part.reorderAt": "Reabastecer em {n}",
-  "toast.stockSet": "Estoque definido para {n}"
+  "toast.stockSet": "Estoque definido para {n}",
+  "notify.group_add": "Adicionar outro grupo",
+  "notify.group_delete": "Excluir grupo",
+  "notify.group_help": "Uma tarefa corresponde a este grupo se corresponder a todos os filtros definidos aqui e a nenhuma de suas exclusões.",
+  "notify.group_or": "OU",
+  "notify.group_title": "Grupo {n}",
+  "notify.labels_match": "Correspondência de rótulos",
+  "notify.opt.labels_all": "Todos os rótulos selecionados",
+  "notify.opt.labels_any": "Qualquer rótulo selecionado"
 }

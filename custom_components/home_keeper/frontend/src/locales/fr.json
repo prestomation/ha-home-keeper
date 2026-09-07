@@ -594,7 +594,7 @@
   "notify.companions_help": "Sélectionnez des compagnons pour n'afficher que leurs tâches.",
   "notify.exclude_companions": "Exclure les compagnons",
   "notify.exclude_shopping": "Exclure les achats",
-  "notify.filters_help": "Une tâche doit correspondre à au moins une valeur dans chaque filtre que vous définissez.",
+  "notify.filters_help": "Un profil contient un ou plusieurs groupes de filtres. Une tâche correspond au profil si elle correspond à l'un des groupes.",
   "notify.opt.critical": "Critique",
   "notify.opt.high": "Élevée",
   "notify.opt.normal": "Normale",
@@ -636,5 +636,13 @@
   "btn.stockInc": "Augmenter le stock",
   "part.low": "Faible",
   "part.reorderAt": "Réapprovisionner à {n}",
-  "toast.stockSet": "Stock défini sur {n}"
+  "toast.stockSet": "Stock défini sur {n}",
+  "notify.group_add": "Ajouter un autre groupe",
+  "notify.group_delete": "Supprimer le groupe",
+  "notify.group_help": "Une tâche correspond à ce groupe si elle correspond à tous les filtres définis ici et à aucune de ses exclusions.",
+  "notify.group_or": "OU",
+  "notify.group_title": "Groupe {n}",
+  "notify.labels_match": "Correspondance des étiquettes",
+  "notify.opt.labels_all": "Toutes les étiquettes sélectionnées",
+  "notify.opt.labels_any": "N'importe quelle étiquette sélectionnée"
 }

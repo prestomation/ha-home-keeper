@@ -610,7 +610,7 @@
   "notify.companions_help": "Wybierz powiązane integracje, aby pokazać tylko ich zadania.",
   "notify.exclude_companions": "Wyklucz powiązane integracje",
   "notify.exclude_shopping": "Wyklucz zakupy",
-  "notify.filters_help": "Zadanie musi pasować do co najmniej jednej wartości w każdym ustawionym filtrze.",
+  "notify.filters_help": "Profil zawiera jedną lub więcej grup filtrów. Zadanie pasuje do profilu, jeśli pasuje do jednej z grup.",
   "notify.opt.critical": "Krytyczna",
   "notify.opt.high": "Wysoka",
   "notify.opt.normal": "Normalne",
@@ -652,5 +652,13 @@
   "btn.stockInc": "Zwiększ zapas",
   "part.low": "Niski",
   "part.reorderAt": "Zamów przy {n}",
-  "toast.stockSet": "Ustawiono zapas na {n}"
+  "toast.stockSet": "Ustawiono zapas na {n}",
+  "notify.group_add": "Dodaj kolejną grupę",
+  "notify.group_delete": "Usuń grupę",
+  "notify.group_help": "Zadanie pasuje do tej grupy, jeśli pasuje do każdego ustawionego tu filtra i do żadnego z jej wykluczeń.",
+  "notify.group_or": "LUB",
+  "notify.group_title": "Grupa {n}",
+  "notify.labels_match": "Dopasowanie etykiet",
+  "notify.opt.labels_all": "Wszystkie wybrane etykiety",
+  "notify.opt.labels_any": "Dowolna wybrana etykieta"
 }

@@ -578,7 +578,7 @@
   "notify.companions_help": "选择配套集成，仅显示它们创建的任务。",
   "notify.exclude_companions": "排除配套集成",
   "notify.exclude_shopping": "排除购物",
-  "notify.filters_help": "任务必须匹配你设置的每个筛选器中的至少一个值。",
+  "notify.filters_help": "一个配置文件包含一个或多个筛选器组。任务只要匹配其中一个组，就匹配该配置文件。",
   "notify.opt.critical": "严重",
   "notify.opt.high": "高",
   "notify.opt.normal": "普通",
@@ -620,5 +620,13 @@
   "btn.stockInc": "增加库存",
   "part.low": "低",
   "part.reorderAt": "补货阈值：{n}",
-  "toast.stockSet": "库存已设为{n}"
+  "toast.stockSet": "库存已设为{n}",
+  "notify.group_add": "添加另一个组",
+  "notify.group_delete": "删除组",
+  "notify.group_help": "如果任务匹配此处设置的每个筛选器，且不属于任何排除项，则该任务匹配此组。",
+  "notify.group_or": "或",
+  "notify.group_title": "第 {n} 组",
+  "notify.labels_match": "标签匹配",
+  "notify.opt.labels_all": "所有所选标签",
+  "notify.opt.labels_any": "任一所选标签"
 }
