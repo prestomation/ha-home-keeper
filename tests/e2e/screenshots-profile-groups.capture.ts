@@ -27,6 +27,11 @@ const OUT = process.env.SHOT_DIR || '/tmp/hk-shots';
 
 const PROFILE_ID = 'shot-groups';
 const PROFILE_NAME = 'Household jobs or the dog';
+/** What each group calls itself. A folded group is read from its name, so the seed
+ *  names both rather than leaving the editor's "Group 1" / "Group 2" fallback in a shot
+ *  whose subject is the named row. */
+const GROUP_ONE_NAME = 'Home jobs';
+const GROUP_TWO_NAME = 'Dog in the living room';
 
 /** The container's own profile list, put back when the capture is done. */
 let savedProfiles: unknown[] = [];
@@ -41,9 +46,15 @@ test.afterAll(async () => {
   await callService('home_keeper', 'set_options', { profiles: savedProfiles });
 });
 
-/** The seeded profile's row, opened. Guarded rather than a bare click: Home Assistant
- *  replaces the custom-panel element a few seconds after a page settles, and a fresh
- *  panel starts with every row folded. */
+/** The seeded profile's row, opened, with its first group expanded. Guarded rather than
+ *  a bare click: Home Assistant replaces the custom-panel element a few seconds after a
+ *  page settles, and a fresh panel starts with every row folded.
+ *
+ *  A group is a `details` row now, and a profile with two of them starts with *both*
+ *  folded — so the shot has to open one. One expanded group beside one folded one is
+ *  the state worth documenting: the open row shows the form the filters are set in, and
+ *  the folded row shows what the accordion reduces a group to, its name and its summary
+ *  line. Two open rows would show neither. */
 async function openRow(panel: Locator): Promise<Locator> {
   const card = panel.locator('#hk-profiles');
   await expect(card).toBeVisible({ timeout: 30_000 });
@@ -56,6 +67,22 @@ async function openRow(panel: Locator): Promise<Locator> {
   await expect(row.locator('.hk-filter-group')).toHaveCount(2);
   await expect(row.locator('.hk-filter-or')).toHaveCount(1);
   await expect(row.locator('.hk-filter-group-add')).toBeVisible();
+  // The names carry the feature on a folded row, so they are waited for before the
+  // shutter rather than left to arrive with the next paint.
+  await expect(row.locator('.hk-filter-group[data-group="0"] .hk-filter-group-name')).toHaveText(
+    GROUP_ONE_NAME,
+  );
+  await expect(row.locator('.hk-filter-group[data-group="1"] .hk-filter-group-name')).toHaveText(
+    GROUP_TWO_NAME,
+  );
+  const first = row.locator('.hk-filter-group[data-group="0"]');
+  if ((await first.getAttribute('open')) === null) await first.locator('> summary').click();
+  // The open row's form, not just the open attribute: `details` shows its body one
+  // frame after the toggle, and a shutter between the two catches a row mid-open.
+  await expect(row.locator('.hk-filter-group[open] ha-form')).toBeVisible();
+  // …and the *other* row still folded, which is the half of the shot the accordion is
+  // for. Both open would be the layout this change replaced.
+  await expect(row.locator('.hk-filter-group[open]')).toHaveCount(1);
   return row;
 }
 
@@ -80,7 +107,7 @@ test('capture a profile with two filter groups', async ({ page }) => {
   // row above it would push the groups down the shot without adding anything the
   // README section is about. `afterAll` puts the real list back.
   await page.evaluate(
-    async ({ id, name }) => {
+    async ({ id, name, groupOne, groupTwo }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const hass = (document.querySelector('home-assistant') as any)?.hass;
       if (!hass) return;
@@ -100,15 +127,20 @@ test('capture a profile with two filter groups', async ({ page }) => {
               groups: [
                 // "The household's own jobs, but not the ones in the kitchen" — an
                 // include and an exclude in one group, which is the AND half of the
-                // rule.
+                // rule. The name is what its row is headed with, open or folded.
                 {
+                  name: groupOne,
                   labels: ['home'],
                   labels_match: 'any',
                   exclude_areas: kitchen ? [kitchen] : [],
                 },
                 // "…or anything for the dog in the living room" — a second group,
                 // OR-ed with the first, which is what the divider between them says.
+                // This is the one left folded in the shot, so its name and its summary
+                // line are the whole of what the reader gets: a named group has to be
+                // legible without being opened.
                 {
+                  name: groupTwo,
                   labels: ['dog'],
                   labels_match: 'any',
                   areas: livingRoom ? [livingRoom] : [],
@@ -119,14 +151,22 @@ test('capture a profile with two filter groups', async ({ page }) => {
         ],
       });
     },
-    { id: PROFILE_ID, name: PROFILE_NAME },
+    {
+      id: PROFILE_ID,
+      name: PROFILE_NAME,
+      groupOne: GROUP_ONE_NAME,
+      groupTwo: GROUP_TWO_NAME,
+    },
   );
 
   // Saving options reloads the config entry, which re-registers the sidebar panel —
   // so land on the panel again before asking for a route inside it.
   await openPanel(page);
-  const { row } = await openProfiles(page);
+  const { panel, row } = await openProfiles(page);
   await page.waitForTimeout(1200);
+  // Re-guarded after the settle, not just before it: the panel element Home Assistant
+  // swaps in during that wait folds the row *and* every group in it.
+  await openRow(panel);
 
   // The profile's row, not the whole Settings page: the groups are *inside* one
   // profile, and a full-page shot of this route renders the fields too small to read
@@ -145,8 +185,9 @@ test('capture a profile with two filter groups', async ({ page }) => {
   // bottom tab bar landed straight across the middle of this row, over the first
   // group's exclude fields. A viewport taller than the row leaves the bar below it.
   await page.setViewportSize({ width: PHONE.width, height: 3200 });
-  const { row: phoneRow } = await openProfiles(page);
+  const { panel: phonePanel, row: phoneRow } = await openProfiles(page);
   await page.waitForTimeout(1200);
+  await openRow(phonePanel);
   await phoneRow.scrollIntoViewIfNeeded();
   await phoneRow.screenshot({ path: `${OUT}/profile-mobile-filter-groups.png` });
 });

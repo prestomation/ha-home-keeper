@@ -791,11 +791,15 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
           // group would draw a single block with no divider and no Delete button,
           // which is the shape the tour showed before groups existed — so the seed
           // carries two, and the beat below stops on them.
+          //
+          // Both are named, because a group is a folded row and its name is what the
+          // row says. Two rows reading "Group 1" and "Group 2" would show the
+          // accordion working and the feature it is for missing.
           filter: {
             status: 'overdue',
             groups: [
-              { labels: ['home'], labels_match: 'any' },
-              { labels: ['dog'], labels_match: 'any' },
+              { name: 'Household jobs', labels: ['home'], labels_match: 'any' },
+              { name: 'The dog', labels: ['dog'], labels_match: 'any' },
             ],
           },
           sync: {
@@ -873,7 +877,21 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   const groups = syncedProfile.locator('.hk-filter-groups');
   await expect(groups.locator('.hk-filter-group')).toHaveCount(2);
   await expect(groups.locator('.hk-filter-or')).toHaveCount(1);
+  await expect(groups.locator('.hk-filter-group-name').first()).toHaveText('Household jobs');
   await groups.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+  // Then open the first one, on camera. Two groups start folded, so the pair of named
+  // rows above is what the tour arrives at — and unfolding one is the beat that says
+  // what a row holds: the group's name field and the include and exclude lists under
+  // it. Left folded, the tour would show two captioned bars and never the filter.
+  const firstGroup = groups.locator('.hk-filter-group[data-group="0"]');
+  if ((await firstGroup.getAttribute('open')) === null) {
+    await firstGroup.locator('> summary').click();
+  }
+  // The form, not the `open` attribute: `details` paints its body a frame later, and
+  // the pause below is meant to sit on the open form rather than on the toggle.
+  await expect(firstGroup.locator('ha-form')).toBeVisible();
+  await firstGroup.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT * 3);
   // Then glide down to the sync group itself. The filter form above it is long enough
   // that framing the *row* leaves the sync below the fold, which is how an earlier

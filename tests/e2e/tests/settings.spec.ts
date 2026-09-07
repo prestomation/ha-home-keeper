@@ -60,8 +60,8 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
           filter: {
             status: 'all',
             groups: [
-              { labels: ['home'], labels_match: 'any' },
-              { labels: ['dog'], labels_match: 'any' },
+              { name: 'Household jobs', labels: ['home'], labels_match: 'any' },
+              { name: 'The dog', labels: ['dog'], labels_match: 'any' },
             ],
           },
         },
@@ -92,7 +92,36 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(row.locator('.hk-filter-group')).toHaveCount(2);
       await expect(row.locator('.hk-filter-or')).toHaveCount(1);
       // …and each group carries its own Delete, which a lone group must not have.
+      // Counted, not seen: a group is a folded `details` now, so both Deletes sit in
+      // closed bodies until a row is opened. Asserting they are *visible* here would
+      // fail on a working editor, and asserting they exist is what this line was ever
+      // about — the lone-group case is the one that must draw none.
       await expect(row.locator('.hk-filter-group-delete')).toHaveCount(2);
+
+      // A folded group is read from its summary, so the name the profile stored has to
+      // be on it. Both rows are folded at this point: a list of 2+ groups starts that
+      // way, and only a lone group opens itself.
+      const groupOne = row.locator('.hk-filter-group[data-group="0"]');
+      const groupTwo = row.locator('.hk-filter-group[data-group="1"]');
+      await expect(groupOne.locator('.hk-filter-group-name')).toHaveText('Household jobs');
+      await expect(groupTwo.locator('.hk-filter-group-name')).toHaveText('The dog');
+      // The name is not the whole summary. Beside it the row says what the group
+      // selects, so a reader can tell two named groups apart by their rules and not
+      // only by what somebody called them.
+      await expect(groupOne.locator('.hk-filter-group-sum')).toHaveText(/Labels 1/);
+
+      // One group open at a time. Opening the second has to close the first, or the
+      // accordion is just a stack of forms that each need shutting by hand — which is
+      // the layout this replaced.
+      await groupOne.locator('> summary').click();
+      await expect(groupOne).toHaveJSProperty('open', true);
+      await expect(groupTwo).toHaveJSProperty('open', false);
+      await groupTwo.locator('> summary').click();
+      await expect(groupTwo).toHaveJSProperty('open', true);
+      await expect(groupOne).toHaveJSProperty('open', false);
+      // The open row shows its form. `open` alone would pass on a body that renders
+      // nothing, which is what a broken summary/body split looks like.
+      await expect(groupTwo.locator('ha-form')).toBeVisible();
 
       // Adding a group is a save, not a redraw.
       await openRow();

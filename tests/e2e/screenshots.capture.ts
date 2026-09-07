@@ -1366,15 +1366,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           // everything in the bedroom. The second group is what puts the OR divider
           // and the per-group Delete button in the shot — a profile with one group
           // draws neither, so a single-group seed would document the card as if the
-          // feature were not there. The name is unchanged on purpose: the Tasks-tab
-          // Profile dropdown is photographed below, and renaming it here would move a
-          // shot this feature does not touch.
+          // feature were not there. The *profile* name is unchanged on purpose: the
+          // Tasks-tab Profile dropdown is photographed below, and renaming it here
+          // would move a shot this feature does not touch.
+          //
+          // Each group carries a name of its own. It heads the group's row, folded or
+          // open, and this is the only profile in the seed with two groups — so it is
+          // where the card can show a named row beside the "Group N" fallback the
+          // one-group profiles around it still draw.
           id: 'demo_upstairs',
           name: 'Upstairs',
           filter: {
             status: 'due_soon',
             groups: [
               {
+                name: 'Not downstairs',
                 labels: [],
                 areas: [],
                 devices: [],
@@ -1383,6 +1389,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
                 exclude_devices: [],
               },
               {
+                name: 'The bedroom',
                 labels: [],
                 labels_match: 'any',
                 areas: ['bedroom'],
@@ -1478,6 +1485,30 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-profiles .hk-filter-group')).toHaveCount(4);
   await expect(panel.locator('#hk-profiles .hk-filter-or')).toHaveCount(1);
   await expect(panel.locator('#hk-profiles .hk-filter-group-add').first()).toBeVisible();
+  // A group is a folded row now. A profile with one group opens it — so "My chores"
+  // and "Bedroom jobs" already show their forms — but "Upstairs" has two, and a list
+  // of 2+ starts wholly folded so the section still fits on a phone. Left alone, the
+  // one profile in the seed that has anything to say about groups would be the one
+  // photographed saying nothing. So its first group is opened for the shutter, which
+  // is also what puts an expanded named row beside a folded named row in the shot.
+  const upstairsRow = panel
+    .locator('#hk-profiles .hk-item-card')
+    .filter({ hasText: 'Upstairs' })
+    .first();
+  const upstairsFirstGroup = upstairsRow.locator('.hk-filter-group[data-group="0"]');
+  await expect(upstairsFirstGroup.locator('.hk-filter-group-name')).toHaveText('Not downstairs');
+  if ((await upstairsFirstGroup.getAttribute('open')) === null) {
+    await upstairsFirstGroup.locator('> summary').click();
+  }
+  // The form inside it, not just the `open` attribute: `details` paints its body one
+  // frame after the toggle, and a shutter in between catches a row mid-open.
+  await expect(upstairsFirstGroup.locator('ha-form')).toBeVisible();
+  // …and the second group still folded, reporting itself from its name and its
+  // summary line — the state the accordion exists for.
+  await expect(upstairsRow.locator('.hk-filter-group[data-group="1"]')).not.toHaveAttribute(
+    'open',
+    '',
+  );
   await page.waitForTimeout(700);
   await panel.locator('#hk-profiles').screenshot({ path: `${OUT}/profiles-card.png` });
   // Settings → Notifications — delivery bindings that each reference a Profile.
