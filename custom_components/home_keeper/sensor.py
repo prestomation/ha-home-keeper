@@ -91,6 +91,16 @@ async def async_setup_entry(
     async_add_entities(task_entities + asset_entities)
 
 
+#: The next-due sensor attribute each :func:`sensor_tasks.usage_interval_stats` key
+#: is published as. One place to read the four names an automation depends on.
+_USAGE_INTERVAL_ATTRS = {
+    "last": "usage_last_interval",
+    "average": "usage_avg_interval",
+    "shortest": "usage_min_interval",
+    "longest": "usage_max_interval",
+}
+
+
 class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
     """Timestamp sensor reporting when a task is next due."""
 
@@ -166,6 +176,16 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
         due_at = sensor_tasks.backstop_due(task, cfg)
         if due_at is not None:
             attrs["backstop_due"] = due_at.isoformat()
+        # How much use each past service interval actually ran, summarized. The
+        # readings are already in the history; a template that wants "is this one
+        # running short?" should not have to fetch the whole log and subtract.
+        # Absent until two completions carry a reading. The attribute names are
+        # spelled out rather than derived from the stats keys, because they are the
+        # public contract a template writes against.
+        intervals = sensor_tasks.usage_interval_stats(task)
+        for stat, attr in _USAGE_INTERVAL_ATTRS.items():
+            if stat in intervals:
+                attrs[attr] = round(intervals[stat], 3)
         return attrs
 
 

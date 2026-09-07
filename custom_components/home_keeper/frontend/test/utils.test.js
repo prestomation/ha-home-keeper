@@ -15,6 +15,7 @@ import {
   buildAssetTree,
   buildPath,
   completionStats,
+  formatReading,
   deviceDomain,
   deviceName,
   dueLabel,
@@ -54,6 +55,7 @@ import {
   taskRelatesToAsset,
   tasksForAsset,
   toast,
+  usageIntervalStats,
 } from '../src/utils.ts';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -773,6 +775,148 @@ describe('completionStats', () => {
   });
   it('reports zero for no completions', () => {
     expect(completionStats([]).count).toBe(0);
+  });
+});
+
+describe('formatReading', () => {
+  it('groups the digits in the viewer language', () => {
+    expect(formatReading(163900, 'km', 'en')).toBe('163,900 km');
+    expect(formatReading(163900, 'km', 'de')).toBe('163.900 km');
+  });
+  it('omits the unit when the task has none', () => {
+    expect(formatReading(163900, '', 'en')).toBe('163,900');
+    expect(formatReading(163900, null, 'en')).toBe('163,900');
+    expect(formatReading(163900, undefined, 'en')).toBe('163,900');
+  });
+  it('trims a padded unit rather than doubling the space', () => {
+    expect(formatReading(12, '  h  ', 'en')).toBe('12 h');
+  });
+  it('keeps one decimal and no more', () => {
+    // A run-hours sensor reads 661.4166666; one decimal is the resolution a
+    // maintenance interval needs, and the rest is noise.
+    expect(formatReading(661.4166666, 'h', 'en')).toBe('661.4 h');
+    expect(formatReading(660, 'h', 'en')).toBe('660 h');
+  });
+  it('formats a negative and a zero reading', () => {
+    expect(formatReading(0, 'h', 'en')).toBe('0 h');
+    expect(formatReading(-12.5, 'h', 'en')).toBe('-12.5 h');
+  });
+});
+
+describe('usageIntervalStats', () => {
+  const ODOMETER = [
+    { ts: '2023-03-12T09:00:00Z', reading: 120000 },
+    { ts: '2024-02-04T09:00:00Z', reading: 134800 },
+    { ts: '2024-11-19T09:00:00Z', reading: 150200 },
+    { ts: '2025-08-28T09:00:00Z', reading: 163900 },
+  ];
+
+  it('keys each interval by its own completion', () => {
+    const s = usageIntervalStats(ODOMETER);
+    expect(s.count).toBe(3);
+    expect(s.byTs.get('2024-02-04T09:00:00Z')).toBe(14800);
+    expect(s.byTs.get('2024-11-19T09:00:00Z')).toBe(15400);
+    expect(s.byTs.get('2025-08-28T09:00:00Z')).toBe(13700);
+    // The oldest completion has no predecessor, so it has no interval.
+    expect(s.byTs.has('2023-03-12T09:00:00Z')).toBe(false);
+  });
+
+  it('reports the last, the average and the range', () => {
+    const s = usageIntervalStats(ODOMETER);
+    expect(s.last).toBe(13700);
+    expect(s.average).toBeCloseTo((14800 + 15400 + 13700) / 3, 6);
+    expect(s.shortest).toBe(13700);
+    expect(s.longest).toBe(15400);
+  });
+
+  it('orders by timestamp, not by position', () => {
+    // `completions` keeps insertion order, so a back-dated completion sits at the
+    // end. Subtracting in list order would report 15400 and then -1400.
+    const s = usageIntervalStats([
+      { ts: '2024-02-04T09:00:00Z', reading: 134800 },
+      { ts: '2024-11-19T09:00:00Z', reading: 150200 },
+      { ts: '2023-03-12T09:00:00Z', reading: 120000 },
+    ]);
+    expect(s.byTs.get('2024-02-04T09:00:00Z')).toBe(14800);
+    expect(s.byTs.get('2024-11-19T09:00:00Z')).toBe(15400);
+    expect(s.count).toBe(2);
+  });
+
+  it('compares mixed offsets as instants', () => {
+    const s = usageIntervalStats([
+      { ts: '2024-02-05T02:00:00Z', reading: 134800 },
+      { ts: '2024-02-04T23:00:00-05:00', reading: 150200 },
+    ]);
+    expect(s.last).toBe(15400);
+  });
+
+  it('skips a completion with no reading', () => {
+    const s = usageIntervalStats([
+      { ts: '2024-02-04T09:00:00Z', reading: 134800 },
+      { ts: '2024-11-19T09:00:00Z' },
+      { ts: '2025-08-28T09:00:00Z', reading: 163900 },
+    ]);
+    expect(s.count).toBe(1);
+    expect(s.byTs.get('2025-08-28T09:00:00Z')).toBe(29100);
+    expect(s.byTs.has('2024-11-19T09:00:00Z')).toBe(false);
+  });
+
+  it('skips a non-numeric and a non-finite reading', () => {
+    expect(
+      usageIntervalStats([
+        { ts: '2024-02-04T09:00:00Z', reading: '134800' },
+        { ts: '2025-08-28T09:00:00Z', reading: 163900 },
+      ]).count,
+    ).toBe(0);
+    expect(
+      usageIntervalStats([
+        { ts: '2024-02-04T09:00:00Z', reading: Infinity },
+        { ts: '2025-08-28T09:00:00Z', reading: 163900 },
+      ]).count,
+    ).toBe(0);
+  });
+
+  it('skips an unparseable timestamp', () => {
+    const s = usageIntervalStats([
+      { ts: 'not a date', reading: 120000 },
+      { ts: '2025-08-28T09:00:00Z', reading: 163900 },
+    ]);
+    expect(s.count).toBe(0);
+  });
+
+  it('drops the negative interval a meter reset leaves behind', () => {
+    // A replaced controller reads lower than the completion before it, so the
+    // difference is not usage. The interval after the reset is real.
+    const s = usageIntervalStats([
+      { ts: '2024-02-04T09:00:00Z', reading: 134800 },
+      { ts: '2024-11-19T09:00:00Z', reading: 200 },
+      { ts: '2025-08-28T09:00:00Z', reading: 14000 },
+    ]);
+    expect(s.count).toBe(1);
+    expect(s.byTs.has('2024-11-19T09:00:00Z')).toBe(false);
+    expect(s.last).toBe(13800);
+  });
+
+  it('keeps a zero interval', () => {
+    const s = usageIntervalStats([
+      { ts: '2024-02-04T09:00:00Z', reading: 134800 },
+      { ts: '2024-11-19T09:00:00Z', reading: 134800 },
+    ]);
+    expect(s.count).toBe(1);
+    expect(s.last).toBe(0);
+    expect(s.shortest).toBe(0);
+  });
+
+  it('reports nothing for one reading, none, or no list at all', () => {
+    for (const empty of [[{ ts: '2025-08-28T09:00:00Z', reading: 1 }], [], undefined]) {
+      const s = usageIntervalStats(empty);
+      expect(s.count).toBe(0);
+      expect(s.last).toBeUndefined();
+      expect(s.average).toBeUndefined();
+      expect(s.shortest).toBeUndefined();
+      expect(s.longest).toBeUndefined();
+      expect(s.byTs.size).toBe(0);
+    }
   });
 });
 

@@ -22,6 +22,9 @@ const INTENTIONALLY_IDENTICAL = new Set([
   'managed.completionHint',
   // Two placeholders and a comma: "every 2 months after completion, April 1–September 30".
   'recurrence.season',
+  // A signed number: "+15,400 km". The value carries the digits and the unit, and the
+  // sign reads the same in every language the panel ships.
+  'completion.usageInterval',
 ]);
 
 // Per-locale cognates / loanwords whose translation is genuinely identical to

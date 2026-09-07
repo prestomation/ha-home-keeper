@@ -381,11 +381,18 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 48. The same page's history, now carrying the meter reading each completion was
   // logged at (#235) — the number a mileage- or hours-based service actually turns
-  // on. Assert the chip as well as photographing it: #221 sat in plain sight in a
+  // on — and, beside it, the usage since the completion before (#305). The three
+  // seeded services at 120, 375 and 660 h make that +255 h and then +285 h, so the
+  // strip above the list reads a different figure in each of its four cells.
+  // Assert them as well as photographing them: #221 sat in plain sight in a
   // committed screenshot for months because nothing tested what the picture showed.
   await openTaskTab(panel, 'history');
   const usageHistoryRow = panel.locator('.hk-hist-list li').first();
   await expect(usageHistoryRow.locator('.hk-hist-chips')).toContainText('at 660 h');
+  await expect(usageHistoryRow.locator('.hk-hist-delta')).toHaveText('+285 h');
+  await expect(panel.locator('.hk-hist-usage > div')).toHaveCount(4);
+  await expect(panel.locator('.hk-hist-usage')).toContainText('Last interval');
+  await expect(panel.locator('.hk-hist-usage')).toContainText('270 h');
   await usageHistoryRow.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await page.screenshot({
@@ -1620,6 +1627,24 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/57d-panel-mobile-appliance-search.png` });
   await panel.locator('.hk-search-clear').click();
   await expect(panel.locator('.hk-search-input')).toHaveValue('');
+
+  // 48c. The metered history on a phone. The interval strip is the phone-specific
+  // half of #305: below 700px its four figures wrap to two rows rather than sitting
+  // on one, and the delta rides the chips line, which already wraps, instead of the
+  // date row, which does not.
+  await panel.locator('#mtab-tasks').click();
+  const monitoredPhone = panel.locator('details.hk-group[data-group-key="status:monitored"]');
+  await expandGroup(monitoredPhone);
+  await openRow(page, panel, `.detail-open[data-detail-id="${TASK.nozzleUsage}"]`);
+  await openTaskTab(panel, 'history');
+  await expect(panel.locator('.hk-hist-usage > div')).toHaveCount(4);
+  await expect(panel.locator('.hk-hist-list li').first().locator('.hk-hist-delta')).toHaveText(
+    '+285 h',
+  );
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/48c-panel-mobile-usage-intervals.png` });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
 
   await panel.locator('#mtab-settings').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();

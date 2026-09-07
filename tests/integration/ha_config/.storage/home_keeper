@@ -499,10 +499,18 @@
         "device_id": null,
         "area_id": null,
         "enabled": true,
-        "created": "2026-06-01T09:00:00-04:00",
+        "created": "2025-11-14T10:00:00-05:00",
         "last_completed": "2026-06-01T09:00:00-04:00",
         "next_due": null,
         "completions": [
+          {
+            "ts": "2025-11-14T10:00:00-05:00",
+            "reading": 120.0
+          },
+          {
+            "ts": "2026-02-20T09:30:00-05:00",
+            "reading": 375.0
+          },
           {
             "ts": "2026-06-01T09:00:00-04:00",
             "reading": 660.0

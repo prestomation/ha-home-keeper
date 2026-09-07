@@ -645,7 +645,10 @@ ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
                 "float | str",
                 "meter progress on a usage sensor task: usage_target, usage_unit, "
                 "usage_baseline, usage_consumed, usage_remaining, usage_percent, "
-                "plus backstop_due; absent on every other task",
+                "plus backstop_due; and the usage between past completions as "
+                "usage_last_interval, usage_avg_interval, usage_min_interval and "
+                "usage_max_interval, once two completions carry a reading; absent "
+                "on every other task",
             ),
         ),
     ),

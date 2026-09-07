@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.22.0b4]
+
+### Added
+
+- **Usage intervals.** A metered task's history shows the usage between completions,
+  and a summary above the list gives the average and the range. The next-due sensor
+  reports the same figures as attributes. (Fixes #305)
+
 ## [0.22.0b3]
 
 ### Added

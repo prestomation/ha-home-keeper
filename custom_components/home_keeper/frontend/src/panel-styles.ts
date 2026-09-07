@@ -1425,6 +1425,16 @@ export const STYLES = `
     color: var(--secondary-text-color); border: 1px solid var(--divider-color);
     border-radius: 10px; padding: 1px 8px;
   }
+  /* The four figures a metered task's history opens with: how much use each past
+     service interval ran. Stacked label over value, not inline, because four of them
+     wrap on a phone and an inline "Shortest 13,700 km" splits across the wrap. */
+  .hk-hist-usage {
+    display: flex; flex-wrap: wrap; gap: 4px 18px;
+    margin-bottom: 10px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--divider-color);
+  }
+  .hk-hist-usage > div { display: flex; flex-direction: column; }
+  .hk-hist-usage .v { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
   ul.hk-hist-list { list-style: none; margin: 0; padding: 0; }
   ul.hk-hist-list li {
     padding: 2px 0; border-bottom: 1px solid var(--divider-color);
@@ -1460,6 +1470,9 @@ export const STYLES = `
     margin: 0 0 6px 2px;
   }
   .hk-hist-chips { color: var(--secondary-text-color); font-size: 0.85rem; }
+  /* The usage since the previous completion. It sits among the muted chips, so it
+     takes the accent ink to separate the derived figure from the recorded one. */
+  .hk-hist-delta { color: var(--hk-accent-ink); font-weight: 500; }
   /* Notes render as Markdown (a block), so give one its own full-width line under
      the cost/who chips rather than letting it share the flex row. */
   .hk-hist-note { font-size: 0.9rem; flex: 1 1 100%; min-width: 0; }
@@ -1553,6 +1566,11 @@ export const STYLES = `
 
   @media (max-width: 700px) {
     ha-tab-group { display: none; }
+    /* Four figures do not fit across a 390px card. Left to wrap on their own widths
+       they come out 3 and 1, which reads as one figure left over; a half-width floor
+       makes it 2 and 2, so the strip stays a block rather than a ragged line. */
+    .hk-hist-usage { gap: 6px 12px; }
+    .hk-hist-usage > div { flex: 1 1 calc(50% - 12px); min-width: calc(50% - 12px); }
     .hk-bottombar {
       display: flex;
       position: fixed; inset-inline: 0; bottom: 0; z-index: 4;

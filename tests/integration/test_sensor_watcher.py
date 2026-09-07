@@ -344,6 +344,78 @@ def test_usage_progress_attributes_land_on_the_next_due_sensor(ha):
         _set_meter(ha, 0)
 
 
+def test_usage_interval_attributes_summarise_past_completions(ha):
+    """The usage each past service interval ran, on the next-due sensor (#305).
+
+    Three completions at 1200, 1500 and 1900 are 300 and then 400 units apart, so the
+    four figures are four different numbers and a swapped pair would show. Driven
+    through the real service and the real entity, because the arithmetic being right in
+    ``sensor_tasks`` says nothing about it reaching an automation.
+    """
+    _set_meter(ha, 1000)
+    device_id = _a_seeded_device_id(ha)
+    resp = call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": "Usage interval attributes test",
+            "recurrence_type": "sensor",
+            "device_id": device_id,
+            "sensor": {
+                "entity_id": METER,
+                "mode": "usage",
+                "target": 5000,
+                "unit": "h",
+            },
+        },
+        return_response=True,
+    )
+    task_id = resp.get("service_response", resp)["task_id"]
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("sensor", {}).get("baseline") == 1000)
+        # Back-dated so the three land in a known order: the entries are keyed by
+        # timestamp, and the store keeps them in the order they arrive.
+        base = datetime.now(UTC) - timedelta(days=30)
+        for offset, reading in ((0, 1200), (7, 1500), (14, 1900)):
+            call_service(
+                ha,
+                "home_keeper",
+                "complete_task",
+                {
+                    "task_id": task_id,
+                    "completed_at": (base + timedelta(days=offset)).isoformat(),
+                    "reading": reading,
+                },
+            )
+        _poll_task(ha, task_id, lambda t: len(t.get("completions") or []) == 3)
+
+        def _attrs():
+            for state in ha.get(f"{HA_URL}/api/states").json():
+                attrs = state.get("attributes", {})
+                if attrs.get("task_id") == task_id and state["entity_id"].startswith(
+                    "sensor."
+                ):
+                    return attrs
+            return None
+
+        deadline = time.monotonic() + 60
+        attrs = None
+        while time.monotonic() < deadline:
+            attrs = _attrs()
+            if attrs and attrs.get("usage_last_interval") == 400:
+                break
+            time.sleep(1)
+        assert attrs is not None, "no next-due sensor found for the task"
+        assert attrs["usage_last_interval"] == 400
+        assert attrs["usage_avg_interval"] == 350
+        assert attrs["usage_min_interval"] == 300
+        assert attrs["usage_max_interval"] == 400
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)
+
+
 # ── state mode (binary sensors) ──────────────────────────────────────────────
 # `binary_sensor.hk_demo_water_tank_low` is a template sensor following
 # `input_boolean.hk_demo_flag` (see ha_config/configuration.yaml), so flipping the

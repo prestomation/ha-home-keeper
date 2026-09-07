@@ -628,13 +628,22 @@ time half continues while the sensor is unavailable.
 go". The unit label is prefilled from the sensor and can be changed. The same
 figures are attributes of the task's next-due sensor entity: `usage_consumed`,
 `usage_remaining`, `usage_percent`, `usage_target`, `usage_unit`,
-`usage_baseline`, `backstop_due`, and `last_completion_reading`. The entity exists
-only for a task attached to a device.
+`usage_baseline`, `backstop_due`, and `last_completion_reading`. The entity also
+reports the usage between completions: `usage_last_interval`, `usage_avg_interval`,
+`usage_min_interval`, and `usage_max_interval`. These 4 attributes are absent until
+2 completions record a reading. The entity exists only for a task attached to a
+device.
 
 **History.** A completion of a sensor task records the sensor reading with the
 note and cost and photo. Each history row shows the reading and the reading can be
-edited. The reading on the most recent completion is the meter anchor, so an edit
-to it moves the anchor. An older row is a log entry only.
+edited. The row also shows the usage since the previous completion, such as
+"+15,400 km". The reading on the most recent completion is the meter anchor, so an
+edit to it moves the anchor. An older row is a log entry only.
+
+Above the history list, Home Keeper shows the last interval and the average. It
+also shows the shortest and the longest. If there is only 1 interval, Home Keeper
+shows that interval alone. A meter reset makes one reading lower than the reading
+before it, and Home Keeper leaves that pair out.
 
 The completion dialog prefills the reading from the sensor. To back-date a
 completion, set **Completed at** and type the reading from that date.
