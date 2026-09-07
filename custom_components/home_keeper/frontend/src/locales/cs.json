@@ -660,5 +660,9 @@
   "notify.group_title": "Skupina {n}",
   "notify.labels_match": "Shoda štítků",
   "notify.opt.labels_all": "Všechny vybrané štítky",
-  "notify.opt.labels_any": "Libovolný vybraný štítek"
+  "notify.opt.labels_any": "Libovolný vybraný štítek",
+  "notify.color": "Barva zvýraznění (iPhone)",
+  "notify.color_help": "iPhone zobrazuje tuto barvu za ikonou. Android 12 a novější ji ignorují.",
+  "notify.icon": "Ikona oznámení",
+  "notify.icon_help": "Android zobrazuje tuto ikonu ve stavovém řádku. Samotné oznámení si ponechává ikonu aplikace."
 }

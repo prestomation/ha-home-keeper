@@ -628,5 +628,9 @@
   "notify.group_title": "Gruppe {n}",
   "notify.labels_match": "Etikettsamsvar",
   "notify.opt.labels_all": "Alle valgte etiketter",
-  "notify.opt.labels_any": "Hvilken som helst valgt etikett"
+  "notify.opt.labels_any": "Hvilken som helst valgt etikett",
+  "notify.color": "Aksentfarge (iPhone)",
+  "notify.color_help": "På iPhone vises denne fargen bak ikonet. Android 12 og nyere ignorerer den.",
+  "notify.icon": "Varselikon",
+  "notify.icon_help": "Android viser dette ikonet i statuslinjen. Selve varselet beholder appens ikon."
 }

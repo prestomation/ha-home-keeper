@@ -1432,6 +1432,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           // below, which is what puts the card's autosave status in the shot.
           channel: '',
           urgency: 'high',
+          // Seeded so the editor shot shows the pair holding real values, and so the
+          // collapsed shot below has a chip to read as a legend.
+          icon: 'mdi:broom',
+          color: '#43a047',
           auto: { overdue: true, due_soon: false },
         },
         {
@@ -1446,6 +1450,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
           style: 'digest',
           channel: 'Bedroom',
           urgency: 'normal',
+          // A second, different pair: the point of the feature is that 2 reminders no
+          // longer look alike, which one chip on its own cannot show.
+          icon: 'mdi:washing-machine',
+          color: '#8e24aa',
           auto: { overdue: false, due_soon: false },
         },
       ],
@@ -1495,6 +1503,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   });
   await page.waitForTimeout(300);
   await panel.locator('#hk-notifications').screenshot({ path: `${OUT}/22-panel-notifications.png` });
+
+  // 17a1. The same card with every row folded. This is where the icon and the color
+  // earn their place: collapsed, the list is a legend of what each reminder is about,
+  // which the expanded editor above cannot show because only one row fits.
+  for (const h of await panel.locator('#hk-notifications .hk-item-header').all()) await h.click();
+  await expect(panel.locator('#hk-notifications .hk-item-body ha-form').first()).toBeHidden();
+  // Park the pointer and drop focus. Playwright leaves the mouse where it clicked, so
+  // the last header keeps its hover background, and in a still that reads as one row
+  // being different from the other — the opposite of what a legend shot is for.
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.waitForTimeout(300);
+  await panel
+    .locator('#hk-notifications')
+    .screenshot({ path: `${OUT}/52-panel-notification-icons.png` });
 
   // 17a2. The Tasks tab Profile dropdown — pick a saved Profile to filter the admin list.
   await openPanel(page);

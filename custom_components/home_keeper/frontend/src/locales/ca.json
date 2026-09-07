@@ -644,5 +644,9 @@
   "notify.group_title": "Grup {n}",
   "notify.labels_match": "Coincidència d'etiquetes",
   "notify.opt.labels_all": "Totes les etiquetes seleccionades",
-  "notify.opt.labels_any": "Qualsevol etiqueta seleccionada"
+  "notify.opt.labels_any": "Qualsevol etiqueta seleccionada",
+  "notify.color": "Color d'accent (iPhone)",
+  "notify.color_help": "Un iPhone mostra aquest color darrere de la icona. Android 12 i posteriors l'ignoren.",
+  "notify.icon": "Icona de notificació",
+  "notify.icon_help": "Android mostra aquesta icona a la barra d'estat. La notificació manté la icona de l'aplicació."
 }

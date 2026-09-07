@@ -133,7 +133,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     // The Notifications card had no assertion of its own, only a screenshot — and a
     // screenshot cannot tell a rendered control from a missing one. These two fields
     // are also the ones whose *labels* carry the feature: "Notification channel" is
-    // Android's word and means nothing on an iPhone, so the helper text below each is
+    // Android's word and means nothing on iPhone, so the helper text below each is
     // the whole answer to "does this do anything on my phone?".
     await callService('home_keeper', 'set_options', {
       profiles: [
@@ -154,6 +154,8 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
           snooze_hours: 24,
           channel: 'Medication',
           urgency: 'critical',
+          icon: 'mdi:pill',
+          color: '#e53935',
           auto: { overdue: false, due_soon: false },
         },
       ],
@@ -186,8 +188,8 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(form).toContainText('Notification channel');
       await expect(form).toContainText('Urgency');
       // …and each explains itself, including the two things a user cannot guess: that
-      // an iPhone has no channels, and that Critical needs a permission there.
-      await expect(form).toContainText(/An iPhone has no channels/i);
+      // iPhone has no channels, and that Critical needs a permission there.
+      await expect(form).toContainText(/iPhone has no channels/i);
       await expect(form).toContainText(/Critical Alerts allowed for Home Assistant/i);
       // The saved channel round-tripped into the field rather than rendering blank.
       await expect
@@ -195,6 +197,34 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
           form.locator('input').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value)),
         )
         .toContain('Medication');
+
+      // The look pair renders too, from the same locale file.
+      await expect(form).toContainText('Notification icon');
+      // The label carries the scope, because the field is inert on Android.
+      await expect(form).toContainText('Accent color (iPhone)');
+      // …and each says what the phone does with it. These 2 are the fields a
+      // maintainer tested on Android and read as broken: Android draws the icon in the
+      // status bar only, and ignores the color outright from 12 on.
+      await expect(form).toContainText(/icon in the status bar/i);
+      await expect(form).toContainText(/Android 12 and later ignore it/i);
+      // The icon picker and the color swatch are Home Assistant's own selectors, so
+      // what this pins is that the schema reaches them — a mistyped selector name
+      // renders nothing at all and `ha-form` says nothing about it.
+      await expect(form.locator('ha-selector-icon')).toHaveCount(1);
+      // Underscore, not a dash: Home Assistant names the element after the raw
+      // selector key, so `color_rgb` renders as `ha-selector-color_rgb` while `icon`
+      // renders as `ha-selector-icon`.
+      await expect(form.locator('ha-selector-color_rgb')).toHaveCount(1);
+
+      // The row header carries the icon as a chip, filled with the saved color. This
+      // is what makes the collapsed list a legend, so it is asserted on rather than
+      // left to the screenshot: a capture cannot tell a chip from a missing one.
+      const chip = row.locator('> .hk-item-header .hk-notify-chip');
+      await expect(chip).toBeVisible();
+      await expect(chip.locator('ha-icon')).toHaveAttribute('icon', 'mdi:pill');
+      await expect
+        .poll(() => chip.evaluate((el) => getComputedStyle(el).backgroundColor))
+        .toBe('rgb(229, 57, 53)');
 
       // Test sits beside Delete, so the delivery just configured can be checked on the
       // phone rather than waited for. Its pair sits between them and offers whichever

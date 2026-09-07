@@ -644,5 +644,9 @@
   "notify.group_title": "Grupo {n}",
   "notify.labels_match": "Coincidencia de etiquetas",
   "notify.opt.labels_all": "Todas las etiquetas seleccionadas",
-  "notify.opt.labels_any": "Cualquier etiqueta seleccionada"
+  "notify.opt.labels_any": "Cualquier etiqueta seleccionada",
+  "notify.color": "Color de énfasis (iPhone)",
+  "notify.color_help": "Un iPhone muestra este color detrás del icono. Android 12 y versiones posteriores lo ignoran.",
+  "notify.icon": "Icono de notificación",
+  "notify.icon_help": "Android muestra este icono en la barra de estado. La propia notificación conserva el icono de la app."
 }

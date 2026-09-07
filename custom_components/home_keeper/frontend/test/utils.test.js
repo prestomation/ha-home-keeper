@@ -31,6 +31,8 @@ import {
   isSafeImageUrl,
   meterRemaining,
   navigateTo,
+  normalizeIcon,
+  notifyRowChip,
   parseRoute,
   partStockButtonStep,
   partStockStep,
@@ -480,7 +482,7 @@ describe('statusChipHtml', () => {
   it('falls back to the due label when nothing is late', () => {
     const soon = { next_due: '2026-06-14T12:00:00Z' };
     const html = statusChipHtml(soon, undefined, { now });
-    // A plain chip carries no class at all — the colour is what separates it from an
+    // A plain chip carries no class at all — the color is what separates it from an
     // overdue or low-stock one, so an empty `class=""` would still be wrong.
     expect(html).toBe('<ha-assist-chip label="tomorrow"></ha-assist-chip>');
   });
@@ -1317,7 +1319,7 @@ describe('button weights (#262)', () => {
 
   it('spells each other weight in ha-button’s own vocabulary', () => {
     expect(btnAttrs('secondary')).toBe('appearance="filled" data-hk-weight="secondary"');
-    // Neutral, not brand: plain-brand paints the label accent-coloured, which is
+    // Neutral, not brand: plain-brand paints the label accent-colored, which is
     // 3.26:1 on a card and makes Cancel argue with the action beside it.
     expect(btnAttrs('tertiary')).toBe(
       'appearance="plain" variant="neutral" data-hk-weight="tertiary"',
@@ -1649,5 +1651,56 @@ describe('snapStock', () => {
   it('treats an unreadable value as empty', () => {
     expect(snapStock(NaN, 1)).toBe(0);
     expect(snapStock(Infinity, 1)).toBe(0);
+  });
+});
+
+describe('normalizeIcon', () => {
+  it('keeps a real mdi name, folded and trimmed', () => {
+    expect(normalizeIcon('mdi:pill')).toBe('mdi:pill');
+    expect(normalizeIcon('  MDI:Air-Filter ')).toBe('mdi:air-filter');
+  });
+
+  it('clamps anything the companion app could not resolve', () => {
+    // The app draws nothing at all for a name it does not have, and says nothing about
+    // it. '' is the visible fallback: the Home Assistant icon the user already had.
+    for (const bad of ['', null, undefined, 7, 'pill', 'mdi:', 'hass:pill', 'mdi:a b']) {
+      expect(normalizeIcon(bad)).toBe('');
+    }
+  });
+
+  it('refuses a name that could break out of an attribute', () => {
+    for (const hostile of ['mdi:pill" onload="x', "mdi:pill'>", 'mdi:pill<script>', 'mdi:a:b']) {
+      expect(normalizeIcon(hostile)).toBe('');
+    }
+  });
+});
+
+describe('notifyRowChip', () => {
+  it('paints the accent and draws the glyph', () => {
+    const html = notifyRowChip('mdi:pill', '#E53935');
+    expect(html).toContain('background:#e53935');
+    expect(html).toContain('<ha-icon icon="mdi:pill">');
+  });
+
+  it('builds nothing without an icon', () => {
+    // A row that has no icon must look exactly as it did before this field existed.
+    expect(notifyRowChip('', '#e53935')).toBe('');
+    expect(notifyRowChip(null, null)).toBe('');
+    expect(notifyRowChip('not-an-icon', '#e53935')).toBe('');
+  });
+
+  it('falls back to a theme color rather than an unusable one', () => {
+    for (const bad of ['', null, 'red', '#fff', 'red;background:url(x)']) {
+      const html = notifyRowChip('mdi:pill', bad);
+      expect(html).toContain('background:var(--secondary-text-color)');
+      expect(html).not.toContain('url(');
+    }
+  });
+
+  it('never lets a stored value reach the markup unchecked', () => {
+    // Both halves land in attributes, so both are gated at the source rather than
+    // escaped after the fact: the icon by its character set, the color by its shape.
+    const html = notifyRowChip('mdi:pill" onload="alert(1)', '#000000"onload="alert(1)');
+    expect(html).toBe('');
   });
 });

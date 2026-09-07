@@ -271,3 +271,30 @@ def test_an_unconfigured_notification_adds_no_channel_keys():
     assert "channel" not in data
     assert "importance" not in data
     assert "push" not in data
+    assert "notification_icon" not in data
+    assert "color" not in data
+    assert "notification_icon_color" not in data
+
+
+def test_a_saved_icon_and_color_reach_the_notify_payload():
+    """The service path carries the look through to the mobile-app ``data`` block.
+
+    Same shape as the channel test above, and for the same reason: ``payload_data`` is
+    covered on its own, so what this pins is that nothing between the stored
+    notification and ``notify.mobile_app_*`` drops the 2 fields on the way.
+    """
+    hass = FakeHass()
+    coord = FakeCoord(
+        {"t1": overdue_task("t1", days=3)},
+        _options(icon="mdi:delete-empty", color="#43a047"),
+    )
+
+    _run(hass, coord, {"notification": "n1"})
+
+    (domain, service, payload) = hass.services.calls[0]
+    assert (domain, service) == ("notify", "mobile_app_phone")
+    data = payload["data"]
+    assert data["notification_icon"] == "mdi:delete-empty"  # Android: the status bar
+    assert data["color"] == "#43a047"  # Android: the accent. iOS: the circle.
+    # Never sent: Android reads it ahead of `color` and would take white instead.
+    assert "notification_icon_color" not in data

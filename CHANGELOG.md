@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.22.0b3]
+## [0.22.0b4]
 
 ### Added
 
@@ -23,6 +23,14 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   `devices`, and `label_match` are now set inside `groups`. An existing card config with
   the old keys still works, and the card editor rewrites it to `groups` on its next
   save.
+
+## [0.22.0b3]
+
+### Added
+
+- **Give a notification its own icon and color.** In *Settings → Notifications* a
+  notification can use any Material Design icon, which Android shows in the status bar.
+  iPhone shows it on the notification, over an accent color you pick. (Fixes #293)
 
 ## [0.22.0b2]
 

@@ -644,5 +644,9 @@
   "notify.group_title": "Grupo {n}",
   "notify.labels_match": "Correspondência de rótulos",
   "notify.opt.labels_all": "Todos os rótulos selecionados",
-  "notify.opt.labels_any": "Qualquer rótulo selecionado"
+  "notify.opt.labels_any": "Qualquer rótulo selecionado",
+  "notify.color": "Cor de destaque (iPhone)",
+  "notify.color_help": "No iPhone, essa cor aparece atrás do ícone. O Android 12 e versões mais recentes o ignoram.",
+  "notify.icon": "Ícone de notificação",
+  "notify.icon_help": "O Android mostra esse ícone na barra de status. A própria notificação mantém o ícone do app."
 }

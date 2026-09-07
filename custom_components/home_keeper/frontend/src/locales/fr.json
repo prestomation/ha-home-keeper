@@ -644,5 +644,9 @@
   "notify.group_title": "Groupe {n}",
   "notify.labels_match": "Correspondance des étiquettes",
   "notify.opt.labels_all": "Toutes les étiquettes sélectionnées",
-  "notify.opt.labels_any": "N'importe quelle étiquette sélectionnée"
+  "notify.opt.labels_any": "N'importe quelle étiquette sélectionnée",
+  "notify.color": "Couleur d'accentuation (iPhone)",
+  "notify.color_help": "Sur iPhone, cette couleur s'affiche derrière l'icône. Android 12 et versions ultérieures l'ignorent.",
+  "notify.icon": "Icône de notification",
+  "notify.icon_help": "Android affiche cette icône dans la barre d'état. La notification elle-même conserve l'icône de l'application."
 }

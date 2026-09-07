@@ -806,7 +806,7 @@ def test_check_profiles_use_groups_raises_for_each_legacy_key():
         with pytest.raises(ValueError) as err:
             p.check_profiles_use_groups(raw)
         assert "filter.groups" in str(err.value), key
-        assert "0.22.0b3" in str(err.value), key
+        assert "0.22.0b4" in str(err.value), key
     # An empty legacy list is still a legacy key: the caller is on the old shape and
     # its next save would carry a real list.
     with pytest.raises(ValueError):

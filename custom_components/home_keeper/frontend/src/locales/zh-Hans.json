@@ -628,5 +628,9 @@
   "notify.group_title": "第 {n} 组",
   "notify.labels_match": "标签匹配",
   "notify.opt.labels_all": "所有所选标签",
-  "notify.opt.labels_any": "任一所选标签"
+  "notify.opt.labels_any": "任一所选标签",
+  "notify.color": "强调色（iPhone）",
+  "notify.color_help": "iPhone 会在图标后面显示这个颜色。Android 12 及更高版本会忽略它。",
+  "notify.icon": "通知图标",
+  "notify.icon_help": "Android 会在状态栏中显示这个图标。通知本身保留应用的图标。"
 }

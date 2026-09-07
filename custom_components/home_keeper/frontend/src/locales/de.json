@@ -628,5 +628,9 @@
   "notify.group_title": "Gruppe {n}",
   "notify.labels_match": "Etikettenabgleich",
   "notify.opt.labels_all": "Alle ausgewählten Etiketten",
-  "notify.opt.labels_any": "Beliebiges ausgewähltes Etikett"
+  "notify.opt.labels_any": "Beliebiges ausgewähltes Etikett",
+  "notify.color": "Akzentfarbe (iPhone)",
+  "notify.color_help": "Ein iPhone zeigt diese Farbe hinter dem Symbol an. Android 12 und neuer ignorieren sie.",
+  "notify.icon": "Benachrichtigungssymbol",
+  "notify.icon_help": "Android zeigt dieses Symbol in der Statusleiste an. Die Benachrichtigung selbst behält das Symbol der App."
 }

@@ -17,6 +17,43 @@ export function escapeHTML(value: unknown): string {
 }
 
 /**
+ * Clamp a value to a stored `mdi:<name>` icon, or to `''`. Mirrors
+ * `notifications.normalize_icon` in the backend, which is the authority — this copy
+ * keeps the panel from writing a value the store would only throw away, and keeps a
+ * name with a quote or an angle bracket out of an `ha-icon` attribute.
+ */
+export function normalizeIcon(value: unknown): string {
+  const icon = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  return /^mdi:[a-z0-9-]+$/.test(icon) ? icon : '';
+}
+
+/**
+ * The Settings row badge for a notification: the accent as the fill, the glyph in
+ * white. Returns `''` without an icon, so a row that has none stays as it was.
+ *
+ * Filled rather than a bare tinted glyph because the fill is the only treatment that
+ * survives every color the picker offers — a pale glyph on the panel's white card is
+ * invisible, while white on a pale fill is not. It is also what an iPhone draws, so the
+ * chip and the phone agree.
+ */
+export function notifyRowChip(icon: unknown, color: unknown): string {
+  const name = normalizeIcon(icon);
+  if (!name) return '';
+  const hex = String(color ?? '')
+    .trim()
+    .toLowerCase();
+  // The color reaches a `style` attribute, so accept only the one shape the backend
+  // stores rather than escaping an arbitrary string into CSS.
+  const fill = /^#[0-9a-f]{6}$/.test(hex) ? hex : 'var(--secondary-text-color)';
+  return (
+    `<span class="hk-notify-chip" style="background:${fill}">` +
+    `<ha-icon icon="${escapeHTML(name)}"></ha-icon></span>`
+  );
+}
+
+/**
  * True when *url* is a plain http(s) URL — the only schemes safe to place in an
  * `href`. `escapeHTML` cannot neutralise a `javascript:`/`data:` URI in an href
  * context (it only encodes markup characters), so any link built from stored or
@@ -89,7 +126,7 @@ export function safeFileHref(url: unknown): string {
  *   `.done-btn` rule was already working around one button at a time.
  *
  * `tertiary` is deliberately `neutral` rather than brand: `appearance="plain"` alone
- * paints the label in the accent colour, which is 3.26:1 on a card and makes Cancel
+ * paints the label in the accent color, which is 3.26:1 on a card and makes Cancel
  * compete with the action beside it.
  */
 export type BtnWeight = 'primary' | 'secondary' | 'tertiary' | 'danger' | 'danger-primary';
@@ -108,7 +145,7 @@ const BTN_ATTRS: Record<BtnWeight, Record<string, string>> = {
  *
  * Derived from the table rather than restated beside it: a hand-written list silently
  * stops clearing an attribute the moment a weight adds one the list does not name, and
- * the symptom is a button that keeps a colour from the weight it used to have.
+ * the symptom is a button that keeps a color from the weight it used to have.
  */
 const BTN_ATTR_NAMES: readonly string[] = [
   ...new Set(Object.values(BTN_ATTRS).flatMap((attrs) => Object.keys(attrs))),
@@ -641,7 +678,7 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
  * statuses depending on where you looked at it. A copy per surface is free to disagree,
  * so there is no longer a copy per surface.
  *
- * Only the wording and the colour move. A buy reminder is still overdue to every filter
+ * Only the wording and the color move. A buy reminder is still overdue to every filter
  * pill, count, binary sensor and Profile, so no number changes.
  *
  * *elapsed* appends how overdue the task is ("3 days overdue") instead of a bare

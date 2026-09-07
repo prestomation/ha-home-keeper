@@ -1165,6 +1165,8 @@ fields:
   tasks.
 - **Notification channel** and **Urgency**: the delivery settings that the phone
   applies. See [Channels and urgency](#channels-and-urgency).
+- **Notification icon** and **Accent color**: how the notification looks on the
+  phone. See [Icons and colors](#icons-and-colors).
 - **Auto-send**: send the notification when a matching task becomes overdue or
   due soon.
 
@@ -1189,7 +1191,7 @@ phone settings for Home Assistant, where the user sets its sound and its Do Not
 Disturb override. A Medication channel can then make a sound during Do Not Disturb
 while a Batteries channel stays silent.
 
-An iPhone has no channels. Home Keeper sends the same name as a thread identifier, so
+iPhone has no channels. Home Keeper sends the same name as a thread identifier, so
 these notifications group together. The urgency becomes the iOS interruption level.
 
 | Urgency | Android | iPhone |
@@ -1210,6 +1212,32 @@ settings.
 
 If the channel is empty, the notification arrives on the General channel of the
 companion app.
+
+### Icons and colors
+
+Home Keeper supports a **Notification icon** and an **Accent color** on each
+notification. This is useful when 2 reminders must not look alike. A Medication
+notification can show a pill on the phone while a Batteries notification shows a
+battery.
+
+The icon is a Material Design icon such as `mdi:pill`. An empty field uses the icon of
+the companion app. Both fields also set the icon that Home Keeper shows on the
+notification in *Settings → Notifications*.
+
+**On Android** the icon appears in the status bar at the top of the screen. The
+notification in the notification shade keeps the icon of the app, and no field changes
+that. Android 12 and later ignore the accent color, so that field has no effect there.
+
+The companion app has its own copy of the icon set, and that copy is older than the one
+in the icon picker, so a recent icon can be missing from it. A name that the app does
+not have falls back to the Home Assistant icon. Select an older icon if the one you
+picked does not appear on the phone.
+
+**On iPhone** the icon becomes the icon of the notification, and the accent color
+fills the circle behind it. The notification then uses the style that a message uses,
+so it also shows the name of the task as the sender.
+
+<img src="docs/images/52-panel-notification-icons.png" alt="The Notifications page with an icon and a color on each notification" width="820">
 
 ### Language
 

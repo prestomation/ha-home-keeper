@@ -807,7 +807,9 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
       ],
       // Seeded alongside the profile so step 7 has a notification to open. It
       // carries a channel and a raised urgency, because an empty box beside a
-      // default choice shows the controls without showing what they are for.
+      // default choice shows the controls without showing what they are for. Two of
+      // them, with different icons, because 1 chip cannot show a list reading as a
+      // legend — which is the whole point of the icon.
       notifications: [
         {
           id: 'walkthrough_chores_notify',
@@ -818,8 +820,24 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
           style: 'walk',
           channel: 'Chores',
           urgency: 'high',
+          icon: 'mdi:broom',
+          color: '#43a047',
           snooze_hours: 24,
           auto: { overdue: true, due_soon: false },
+        },
+        {
+          id: 'walkthrough_meds_notify',
+          name: 'Medication',
+          profile_id: 'walkthrough_family_chores',
+          targets: [],
+          actions: ['complete', 'open'],
+          style: 'digest',
+          channel: 'Medication',
+          urgency: 'critical',
+          icon: 'mdi:pill',
+          color: '#e53935',
+          snooze_hours: 24,
+          auto: { overdue: false, due_soon: false },
         },
       ],
     });
@@ -896,6 +914,14 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // the sync group is framed rather than trusting the row's own top.
   await openNotifyRow();
   await notifyRow.locator('.hk-item-actions').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 3);
+
+  // 7c. Fold the row again. Each reminder keeps its own icon and color on the header,
+  //     so the closed list says what each one is about without opening anything — the
+  //     one view an expanded editor cannot show, because only 1 row fits.
+  await notifyCard.locator('.hk-item-card > .hk-item-header').first().click();
+  await expect(notifyRow.locator('.hk-item-body ha-form')).toBeHidden();
+  await notifyCard.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT * 3);
 
   // 8. The usage surfaces — the native to-do list and calendar, and beside them the

@@ -628,5 +628,9 @@
   "notify.group_title": "Ryhmä {n}",
   "notify.labels_match": "Tunnisteiden vastaavuus",
   "notify.opt.labels_all": "Kaikki valitut tunnisteet",
-  "notify.opt.labels_any": "Mikä tahansa valittu tunniste"
+  "notify.opt.labels_any": "Mikä tahansa valittu tunniste",
+  "notify.color": "Korostusväri (iPhone)",
+  "notify.color_help": "iPhonessa tämä väri näkyy kuvakkeen takana. Android 12 ja uudemmat eivät huomioi sitä.",
+  "notify.icon": "Ilmoituskuvake",
+  "notify.icon_help": "Android näyttää tämän kuvakkeen tilarivillä. Itse ilmoitus säilyttää sovelluksen kuvakkeen."
 }

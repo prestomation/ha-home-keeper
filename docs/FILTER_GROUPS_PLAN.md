@@ -5,7 +5,7 @@ filter: a status tier plus label, area, device, and companion filters. A Profile
 holds one or more **groups** instead of one flat filter, so it can express an OR of
 rules and not only an AND. See
 [issue #291](https://github.com/prestomation/ha-home-keeper/issues/291). This plan
-describes work already implemented on this branch. It ships in 0.22.0b3.
+describes work already implemented on this branch. It ships in 0.22.0b4.
 
 ## 1. Use cases
 
@@ -140,7 +140,7 @@ and `groupMatches` reading exactly one filter shape.
 The validator is `check_profiles_use_groups` (`profiles.py`), shared by both write
 paths. Its error text:
 
-> `profile filter uses groups since 0.22.0b3; move labels/areas/devices/companions and
+> `profile filter uses groups since 0.22.0b4; move labels/areas/devices/companions and
 > exclude_* into filter.groups`
 
 Both paths **refuse** a legacy filter rather than dropping the unread keys and saving
@@ -203,7 +203,7 @@ websocket command) refuse each of the 9 flat keys, changing nothing on the refus
 covers the group-match rule and the OR of groups with the kids/dog worked example,
 "Exclusions" covers the per-group exclude lists and `exclude_shopping`, and the
 `custom:home-keeper-card` options list documents `groups`. `CHANGELOG.md` gets an
-`0.22.0b3` **Added** bullet for filter groups and a **Changed** bullet each for the
+`0.22.0b4` **Added** bullet for filter groups and a **Changed** bullet each for the
 Profile filter services and the card filter keys. `.amazonq/rules/architecture-and-code.md`
 gets a rule bullet pinning the one-shape-only design, the v1→v2 migration, and the
 card's permanent legacy lift. Two new screenshots ship:
@@ -234,7 +234,7 @@ beat on `.hk-filter-groups` for the two-group profile it already seeds.
 
 ## 10. Rollout
 
-This work ships as one pull request, labelled `preview-release`, in the `0.22.0b3`
+This work ships as one pull request, labelled `preview-release`, in the `0.22.0b4`
 beta. On first start after the update, Home Assistant runs `async_migrate_entry`
 before it sets up the config entry: it converts every stored Profile and writes one log
 line, `Migrated Home Keeper options to version 2: N profile filter(s) now use filter

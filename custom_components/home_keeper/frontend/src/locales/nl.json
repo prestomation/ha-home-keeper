@@ -628,5 +628,9 @@
   "notify.group_title": "Groep {n}",
   "notify.labels_match": "Etiketovereenkomst",
   "notify.opt.labels_all": "Alle geselecteerde etiketten",
-  "notify.opt.labels_any": "Elk geselecteerd etiket"
+  "notify.opt.labels_any": "Elk geselecteerd etiket",
+  "notify.color": "Accentkleur (iPhone)",
+  "notify.color_help": "Op een iPhone verschijnt deze kleur achter het pictogram. Android 12 en nieuwer negeren die.",
+  "notify.icon": "Meldingspictogram",
+  "notify.icon_help": "Android toont dit pictogram in de statusbalk. De melding zelf behoudt het pictogram van de app."
 }

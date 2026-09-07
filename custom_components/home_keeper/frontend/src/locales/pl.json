@@ -660,5 +660,9 @@
   "notify.group_title": "Grupa {n}",
   "notify.labels_match": "Dopasowanie etykiet",
   "notify.opt.labels_all": "Wszystkie wybrane etykiety",
-  "notify.opt.labels_any": "Dowolna wybrana etykieta"
+  "notify.opt.labels_any": "Dowolna wybrana etykieta",
+  "notify.color": "Kolor akcentu (iPhone)",
+  "notify.color_help": "iPhone wyświetla ten kolor za ikoną. Android 12 i nowsze go ignorują.",
+  "notify.icon": "Ikona powiadomienia",
+  "notify.icon_help": "Android wyświetla tę ikonę na pasku stanu. Samo powiadomienie zachowuje ikonę aplikacji."
 }

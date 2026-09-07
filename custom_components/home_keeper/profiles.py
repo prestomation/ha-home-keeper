@@ -81,7 +81,7 @@ LABELS_MATCHES = (LABELS_MATCH_ANY, LABELS_MATCH_ALL)
 _LEGACY_FILTER_KEYS = (*INCLUDE_KEYS, *EXCLUDE_KEYS, "exclude_shopping")
 
 _LEGACY_FILTER_ERROR = (
-    "profile filter uses groups since 0.22.0b3; move labels/areas/devices/companions "
+    "profile filter uses groups since 0.22.0b4; move labels/areas/devices/companions "
     "and exclude_* into filter.groups"
 )
 

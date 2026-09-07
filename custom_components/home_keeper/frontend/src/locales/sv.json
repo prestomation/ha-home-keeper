@@ -628,5 +628,9 @@
   "notify.group_title": "Grupp {n}",
   "notify.labels_match": "Etikettmatchning",
   "notify.opt.labels_all": "Alla valda etiketter",
-  "notify.opt.labels_any": "Valfri vald etikett"
+  "notify.opt.labels_any": "Valfri vald etikett",
+  "notify.color": "Accentfärg (iPhone)",
+  "notify.color_help": "På en iPhone visas den här färgen bakom ikonen. Android 12 och senare ignorerar den.",
+  "notify.icon": "Aviseringsikon",
+  "notify.icon_help": "Android visar den här ikonen i statusfältet. Själva aviseringen behåller appens ikon."
 }

@@ -573,7 +573,7 @@
   "hint.sensor.availability": "The task becomes due when the sensor becomes unavailable.",
   "hint.sensor.availabilityFor": "The task becomes due when the sensor stays unavailable for {seconds}s.",
   "notify.channel": "Notification channel",
-  "notify.channel_help": "Android creates a notification channel with this name. An iPhone has no channels and groups these notifications under the name.",
+  "notify.channel_help": "Android creates a notification channel with this name. iPhone has no channels and groups these notifications under the name.",
   "notify.companions": "Companions",
   "notify.companions_help": "Select companions to show only their tasks.",
   "notify.exclude_companions": "Exclude companions",
@@ -590,7 +590,7 @@
   "notify.test_all_clear_sent": "All-clear notification sent.",
   "notify.test_sent": "Notification sent.",
   "notify.urgency": "Urgency",
-  "notify.urgency_help": "An Android channel keeps the settings it was created with, so give the channel a new name to change it. Critical urgency needs Critical Alerts allowed for Home Assistant on an iPhone.",
+  "notify.urgency_help": "An Android channel keeps the settings it was created with, so give the channel a new name to change it. Critical urgency needs Critical Alerts allowed for Home Assistant on iPhone.",
   "opt.sensor_mode.availability": "Availability",
   "opt.month.1": "January",
   "opt.month.2": "February",
@@ -628,5 +628,9 @@
   "notify.group_title": "Group {n}",
   "notify.labels_match": "Label match",
   "notify.opt.labels_all": "All selected labels",
-  "notify.opt.labels_any": "Any selected label"
+  "notify.opt.labels_any": "Any selected label",
+  "notify.color": "Accent color (iPhone)",
+  "notify.color_help": "iPhone shows this color behind the icon. Android 12 and later ignore it.",
+  "notify.icon": "Notification icon",
+  "notify.icon_help": "Android shows this icon in the status bar. The notification itself keeps the icon of the app."
 }

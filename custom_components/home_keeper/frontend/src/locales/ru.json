@@ -660,5 +660,9 @@
   "notify.group_title": "Группа {n}",
   "notify.labels_match": "Совпадение меток",
   "notify.opt.labels_all": "Все выбранные метки",
-  "notify.opt.labels_any": "Любая выбранная метка"
+  "notify.opt.labels_any": "Любая выбранная метка",
+  "notify.color": "Акцентный цвет (iPhone)",
+  "notify.color_help": "На iPhone этот цвет отображается за значком. Android 12 и более новые версии его игнорируют.",
+  "notify.icon": "Значок уведомления",
+  "notify.icon_help": "Android показывает этот значок в строке состояния. Само уведомление сохраняет значок приложения."
 }
