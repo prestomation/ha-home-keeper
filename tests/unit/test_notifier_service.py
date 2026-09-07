@@ -296,4 +296,5 @@ def test_a_saved_icon_and_color_reach_the_notify_payload():
     data = payload["data"]
     assert data["notification_icon"] == "mdi:delete-empty"  # Android: the status bar
     assert data["color"] == "#43a047"  # Android: the accent. iOS: the circle.
-    assert data["notification_icon_color"] == "#ffffff"  # iOS: the glyph on it
+    # Never sent: Android reads it ahead of `color` and would take white instead.
+    assert "notification_icon_color" not in data

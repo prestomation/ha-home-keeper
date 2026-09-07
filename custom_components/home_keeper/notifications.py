@@ -114,8 +114,15 @@ _IOS_CRITICAL_SOUND = {"name": "default", "critical": 1, "volume": 1.0}
 # name it cannot resolve, and says nothing about it, so a typo that reached the phone
 # would silently cost the user the Home Assistant icon they had before.
 ICON_PREFIX = "mdi:"
-# iOS only: the glyph drawn on the ``color`` circle. Android never reads this.
-ICON_GLYPH_COLOR = "#ffffff"
+# ``notification_icon_color`` is deliberately never sent. The Home Assistant docs
+# describe it as an iOS-only glyph colour, but the Android app reads it *first* and
+# falls back to ``color`` only when it is absent:
+#
+#     val colorString = data[NOTIFICATION_ICON_COLOR] ?: data[COLOR]   // handleColor
+#
+# so sending the iOS default of white would set the Android accent to white and throw
+# the user's colour away. White is already the iOS default, so the key buys nothing on
+# either platform. Do not re-add it without re-reading that function.
 _ICON_NAME = re.compile(r"^[a-z0-9-]+$")
 _HEX_COLOR = re.compile(r"^#[0-9a-f]{6}$")
 
@@ -533,7 +540,13 @@ def payload_data(
       icon, which restyles the whole thing as a communication notification.
     * ``color`` is Android's accent, painting the small icon and the app name in the
       shade. It never reaches the status bar, which is always monochrome. On iOS it is
-      the circle drawn *behind* the glyph, and ``notification_icon_color`` is the glyph.
+      the circle drawn *behind* the glyph.
+
+    Android resolves the icon name through the Iconics font the app bundles, not through
+    the set the panel's picker offers, and it falls back to the *Home Assistant* icon
+    when the name is not in it. A name from a newer release therefore looks like the
+    feature doing nothing. That is a property of the app, not something to validate
+    here: the store cannot know which app version a household runs.
 
     So the accent is the glyph on one platform and the ground on the other. Home Keeper
     sends one value and lets each phone draw its own native shape rather than force a
@@ -564,16 +577,10 @@ def payload_data(
         data["priority"] = "high"
     if urgency == URGENCY_CRITICAL:
         push["sound"] = dict(_IOS_CRITICAL_SOUND)
-    icon = normalize_icon(notification.get("icon"))
-    color = normalize_color(notification.get("color"))
-    if icon:
+    if icon := normalize_icon(notification.get("icon")):
         data["notification_icon"] = icon
-    if color:
+    if color := normalize_color(notification.get("color")):
         data["color"] = color
-    if icon and color:
-        # iOS draws the glyph on the ``color`` circle, so this only means something
-        # alongside an icon. Android never reads it.
-        data["notification_icon_color"] = ICON_GLYPH_COLOR
     if push:
         data["push"] = push
     return data

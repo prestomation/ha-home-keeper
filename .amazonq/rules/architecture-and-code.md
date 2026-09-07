@@ -1344,6 +1344,22 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   Android its color outright, and an iOS sender icon is always a filled circle anyway.
   Per-target branching to send a key to only one platform is also out: it would drag the
   device registry into a builder that deliberately has no HA imports.
+- **Read the companion app's source before you trust its documentation about a payload
+  key.** Two claims in the Home Assistant docs are wrong, and both shipped as bugs
+  because nobody checked `NotificationFunctions.kt` in `home-assistant/android`:
+  - `notification_icon_color` is documented as iOS-only. Android's `handleColor` reads
+    it **first** and falls back to `color` only when it is absent, so sending the iOS
+    default of white replaced the user's Android accent with white and looked exactly
+    like the colour field doing nothing. Home Keeper never sends the key. Do not re-add
+    it.
+  - An unresolvable `notification_icon` is documented as showing no icon. Android's
+    `handleSmallIcon` falls back to `R.drawable.ic_stat_ic_notification`, the Home
+    Assistant icon, which is why a bad name reads as "the feature does nothing" rather
+    than as an obvious blank.
+  - Android resolves the name against the Iconics font the app bundles
+    (`community-material-typeface`), which trails the set the panel's picker offers. The
+    backend cannot know a household's app version, so that mismatch belongs in the docs
+    rather than in validation.
 - **A platform difference that produces a native result on both sides is not
   documented.** No helper text under the field, no README section comparing the two.
   The panel *shows* the choice instead — the notification's row in Settings carries its

@@ -1189,9 +1189,12 @@ notification can show a pill on the phone while a Batteries notification shows a
 battery.
 
 The icon is a Material Design icon such as `mdi:pill`. On Android it becomes the icon
-in the status bar. An empty field uses the icon of the companion app. Home Keeper
-stores a name that is not in the `mdi:<name>` form as empty. The companion app shows no
-icon for a name that it does not have.
+in the status bar. An empty field uses the icon of the companion app.
+
+The companion app has its own copy of the icon set, and that copy is older than the one
+in the icon picker, so a recent icon can be missing from it. A name that the app does
+not have falls back to the Home Assistant icon. Select an older icon if the one you
+picked does not appear on the phone.
 
 <img src="docs/images/52-panel-notification-icons.png" alt="The Notifications page with an icon and a color on each notification" width="820">
 

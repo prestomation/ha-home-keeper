@@ -173,9 +173,9 @@ def test_normalize_notification_defaults_icon_and_color():
 
 
 def test_normalize_icon_accepts_only_a_real_mdi_name():
-    # A name the companion app cannot resolve draws *nothing* in the status bar, and
-    # says nothing about it. Storing "" instead means the user keeps the Home Assistant
-    # icon they already had, which is a visible fallback rather than a silent blank.
+    # The companion app falls back to the Home Assistant icon for a name it cannot
+    # resolve, and reports nothing, so a bad value looks exactly like the feature doing
+    # nothing. Storing "" keeps the malformed half of that out of the payload.
     assert n.normalize_icon("mdi:pill") == "mdi:pill"
     assert n.normalize_icon("  MDI:Air-Filter  ") == "mdi:air-filter"
     for bad in ("", None, 7, "pill", "mdi:", "mdi: ", "hass:pill", "mdi:pill icon"):
@@ -742,8 +742,6 @@ def test_all_three_builders_carry_channel_and_urgency():
 
 
 def test_payload_data_icon_alone_adds_one_key():
-    # No color set, so no color keys. `notification_icon_color` means nothing with
-    # no circle to draw the glyph on, and an unasked-for key is one more to explain.
     notif = n.normalize_notification({"id": "n1", "icon": "mdi:air-filter"})
     assert n.payload_data(notif) == {
         "tag": "home_keeper_n1",
@@ -752,9 +750,9 @@ def test_payload_data_icon_alone_adds_one_key():
     }
 
 
-def test_payload_data_color_alone_adds_no_glyph_color():
-    # A color with no icon is still meaningful to Android, which tints the app name
-    # with it. It is meaningless to iOS, which has no glyph to draw.
+def test_payload_data_color_alone_reaches_the_phone():
+    # A color with no icon still means something to Android, which tints the app name
+    # with it.
     notif = n.normalize_notification({"id": "n1", "color": "#f9a825"})
     assert n.payload_data(notif) == {
         "tag": "home_keeper_n1",
@@ -763,7 +761,16 @@ def test_payload_data_color_alone_adds_no_glyph_color():
     }
 
 
-def test_payload_data_icon_and_color_carry_the_glyph_color():
+def test_payload_data_never_sends_notification_icon_color():
+    """The regression behind "the color does nothing on Android" (#293 follow-up).
+
+    The Home Assistant docs describe ``notification_icon_color`` as an iOS-only glyph
+    colour, so an earlier version of this sent the iOS default of white alongside every
+    icon. The Android app reads it *first* and only falls back to ``color`` when it is
+    absent (``handleColor`` in NotificationFunctions.kt), so white won and the user's
+    accent never reached the phone. The key is now never sent at all: white is already
+    the iOS default, so it bought nothing on either platform.
+    """
     notif = n.normalize_notification(
         {"id": "n1", "icon": "mdi:pill", "color": "#E53935"}
     )
@@ -772,7 +779,6 @@ def test_payload_data_icon_and_color_carry_the_glyph_color():
         "group": "home_keeper",
         "notification_icon": "mdi:pill",
         "color": "#e53935",
-        "notification_icon_color": "#ffffff",
     }
 
 
@@ -803,7 +809,6 @@ def test_payload_data_look_and_urgency_do_not_collide():
         "priority": "high",
         "notification_icon": "mdi:pill",
         "color": "#e53935",
-        "notification_icon_color": "#ffffff",
         "push": {
             "thread-id": "Medication",
             "interruption-level": "time-sensitive",
@@ -827,7 +832,7 @@ def test_all_three_builders_carry_the_icon_and_color():
     for payload in payloads:
         assert payload["data"]["notification_icon"] == "mdi:broom"
         assert payload["data"]["color"] == "#43a047"
-        assert payload["data"]["notification_icon_color"] == "#ffffff"
+        assert "notification_icon_color" not in payload["data"]
 
 
 # ── translated payload text (#150) ──────────────────────────────────────────
