@@ -104,6 +104,9 @@ export const MDI_CONSUMABLE =
   '6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,' +
   '9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z';
 
+// mdi:filter-variant — one filter group, on its collapsed row.
+export const MDI_FILTER = 'M6,13H18V11H6M3,6V8H21V6M10,18H14V16H10V18Z';
+
 // mdi:plus / mdi:minus — the stock stepper's two buttons.
 export const MDI_PLUS = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
 export const MDI_MINUS = 'M19,13H5V11H19V13Z';

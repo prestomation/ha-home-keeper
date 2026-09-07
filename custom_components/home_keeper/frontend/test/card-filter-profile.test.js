@@ -364,6 +364,7 @@ describe('emptyGroup', () => {
   it('constrains nothing, so seeding one never narrows a profile', () => {
     const g = emptyGroup();
     expect(g).toEqual({
+      name: '',
       labels: [],
       labels_match: 'any',
       areas: [],
@@ -394,6 +395,16 @@ describe('groupActive', () => {
     // The label mode says how to read `labels`; on its own it constrains nothing.
     expect(groupActive({ labels_match: 'all' })).toBe(false);
     expect(groupActive({ exclude_shopping: false })).toBe(false);
+  });
+
+  it('is false for a group that has only been given a name', () => {
+    // The name is what the reader calls the group. Counting it would narrow a profile
+    // to nothing the moment somebody titled an empty group — the group would join the
+    // OR and match no task at all.
+    expect(groupActive({ name: 'The dog' })).toBe(false);
+    expect(groupActive({ ...emptyGroup(), name: 'The dog' })).toBe(false);
+    // It still does not count beside a real rule turning the group on.
+    expect(groupActive({ name: 'The dog', labels: ['dog'] })).toBe(true);
   });
 
   it('is true for any one non-empty list', () => {

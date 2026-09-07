@@ -132,6 +132,12 @@ const S: Record<string, string> = {
   groupHelp:
     'A task matches this group if it matches every filter set here and none of its ' +
     'exclusions.',
+  // The name a group carries on its folded row, and the three phrases that row's
+  // summary line is built from.
+  groupName: 'Group name',
+  groupEmpty: 'No filters yet',
+  groupLabelsAll: 'All selected labels',
+  groupExcludeShopping: 'Exclude shopping',
 };
 
 /**
@@ -140,6 +146,8 @@ const S: Record<string, string> = {
  * the shared `renderGroupsEditor` takes its labelling from whichever surface renders it.
  */
 const GROUP_S: Record<string, string> = {
+  // The group's own name, not the profile's — the card editor has no profile.
+  name: S.groupName,
   labels: 'Labels',
   labels_match: 'Label match',
   areas: 'Areas',
@@ -1339,6 +1347,9 @@ export class HomeKeeperCardEditor extends HTMLElement {
         remove: S.groupDelete,
         or: S.groupOr,
         help: S.groupHelp,
+        empty: S.groupEmpty,
+        labelsAll: S.groupLabelsAll,
+        excludeShopping: S.groupExcludeShopping,
       },
       computeLabel: (s) => GROUP_S[s.name] ?? s.name,
       computeHelper: () => '',

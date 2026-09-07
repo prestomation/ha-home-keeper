@@ -89,6 +89,8 @@ def test_the_seeded_legacy_profile_reads_back_in_the_groups_shape(ha):
 
     # The flat lists became one group, unchanged.
     (group,) = filt["groups"]
+    # The flat shape had no name, so the lifted group reads back unnamed.
+    assert group["name"] == ""
     assert group["labels"] == ["legacy"]
     assert group["labels_match"] == "any"
     assert group["exclude_areas"] == ["garage"]

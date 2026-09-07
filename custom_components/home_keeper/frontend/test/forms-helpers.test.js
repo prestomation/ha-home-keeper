@@ -355,6 +355,8 @@ describe('profile form round-trip', () => {
   // and the sync block — because they are three forms on screen. Every case here is
   // about one of them surviving a save driven by another.
   const group = {
+    // The group's own display name — not the profile's, which the head form owns.
+    name: 'The garage',
     labels: ['l1'],
     labels_match: 'any',
     areas: ['a1'],
@@ -391,6 +393,7 @@ describe('profile form round-trip', () => {
     // The form is seeded from this, so a missing key must arrive as its default rather
     // than as `undefined` — an undefined switch reads as off but saves as nothing.
     expect(groupFormData({ labels: ['l1'] })).toEqual({
+      name: '',
       labels: ['l1'],
       labels_match: 'any',
       areas: [],
@@ -530,8 +533,29 @@ describe('toFilterGroup', () => {
   it('keeps no key the group does not own', () => {
     // A stray key from an older shape must not ride along into the saved profile,
     // where the matcher would never read it and the next reader would trust it.
-    const g = toFilterGroup({ name: 'Renamed', status: 'all', labels: ['dog'] });
+    const g = toFilterGroup({ status: 'all', filter: {}, sync: {}, labels: ['dog'] });
     expect(Object.keys(g).sort()).toEqual(Object.keys(emptyGroup()).sort());
+  });
+
+  it('trims the group name', () => {
+    // The name heads the folded row. Leading space would indent the heading, and a
+    // name of nothing but spaces would hide the "Group N" fallback behind blank text.
+    expect(toFilterGroup({ name: '  The dog  ' }).name).toBe('The dog');
+    expect(toFilterGroup({ name: '   ' }).name).toBe('');
+    expect(toFilterGroup({ name: 'The dog' }).name).toBe('The dog');
+  });
+
+  it('reads a missing or non-string name as empty', () => {
+    // Anything but a string falls back to '' rather than being stringified: a group
+    // headed `[object Object]` says less than "Group 2" does.
+    expect(toFilterGroup({}).name).toBe('');
+    for (const bad of [undefined, null, 42, true, ['x'], { s: 1 }]) {
+      expect(toFilterGroup({ name: bad }).name).toBe('');
+    }
+  });
+
+  it('names the group first, where the form shows it', () => {
+    expect(Object.keys(toFilterGroup({}))[0]).toBe('name');
   });
 });
 

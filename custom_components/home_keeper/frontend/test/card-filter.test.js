@@ -441,6 +441,9 @@ describe('liftLegacyCardConfig', () => {
     const lifted = liftLegacyCardConfig({ ...base, labels: ['dog', 'vet'], label_match: 'all' });
     expect(lifted.groups).toEqual([
       {
+        // A lifted group has no name: the old config had nowhere to write one, and
+        // the editor heads an unnamed group "Group 1".
+        name: '',
         labels: ['dog', 'vet'],
         labels_match: 'all',
         areas: [],
@@ -461,6 +464,16 @@ describe('liftLegacyCardConfig', () => {
   it('defaults a missing label_match to any', () => {
     const lifted = liftLegacyCardConfig({ ...base, labels: ['dog'] });
     expect(lifted.groups[0].labels_match).toBe('any');
+  });
+
+  it('gives the lifted group an empty name', () => {
+    // Not `undefined`: the key has to be there, or the group's form seeds its name
+    // box from nothing and the first keystroke reads as a change nobody made.
+    for (const legacy of [{ labels: ['dog'] }, { areas: ['kitchen'] }, { devices: ['d1'] }]) {
+      const lifted = liftLegacyCardConfig({ ...base, ...legacy });
+      expect(lifted.groups[0].name).toBe('');
+      expect('name' in lifted.groups[0]).toBe(true);
+    }
   });
 
   it('reads any label_match other than "all" as any', () => {

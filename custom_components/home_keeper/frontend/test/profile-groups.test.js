@@ -119,6 +119,7 @@ describe('Settings → Profiles — filter groups', () => {
     expect(savedGroups(calls)[0].labels).toEqual(['dog']);
     // The new group constrains nothing, so the profile still selects what it did.
     expect(savedGroups(calls)[2]).toEqual({
+      name: '',
       labels: [],
       labels_match: 'any',
       areas: [],

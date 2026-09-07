@@ -1851,6 +1851,9 @@ export function profileHeadSchema(): FormField[] {
  *
  * `labels_match` sits directly under `labels` because it says how that one field is
  * read; a task needs any of the chosen labels by default, or all of them.
+ *
+ * `name` comes first: it is what the group's collapsed row is headed with, so it is
+ * read before any filter under it.
  */
 export function filterGroupSchema(companions: CompanionOption[] = []): FormField[] {
   // Home Assistant has no companion selector, so the include/exclude pair is a
@@ -1864,6 +1867,9 @@ export function filterGroupSchema(companions: CompanionOption[] = []): FormField
       ]
     : [];
   return [
+    // Optional, and display-only: an unnamed group is still headed "Group N", and the
+    // name never reaches `groupMatches`.
+    { name: 'name', selector: selText() },
     { name: 'labels', selector: selLabel(true) },
     {
       name: 'labels_match',
@@ -1905,10 +1911,15 @@ export function groupFormData(group: Partial<FilterGroup>): Record<string, unkno
  * that silently selects the wrong tasks. Every list becomes a list of strings, the
  * label mode falls back to `any` (the mode that matches more, so a bad value cannot
  * quietly empty a profile), and the switch is a boolean.
+ *
+ * `name` is trimmed, and anything that is not a string becomes `''`. It is display
+ * text, so a group that arrives with a number or an object there is shown under its
+ * "Group N" fallback rather than under `[object Object]`.
  */
 export function toFilterGroup(raw: unknown): FilterGroup {
   const g = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof FilterGroup, unknown>>;
   return {
+    name: typeof g.name === 'string' ? g.name.trim() : '',
     labels: strList(g.labels),
     labels_match: g.labels_match === 'all' ? 'all' : 'any',
     areas: strList(g.areas),

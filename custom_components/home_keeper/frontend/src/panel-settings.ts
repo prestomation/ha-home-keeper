@@ -1069,6 +1069,11 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
           remove: t('notify.group_delete'),
           or: t('notify.group_or'),
           help: t('notify.group_help'),
+          empty: t('notify.group_empty'),
+          // The summary line reuses the words the form already uses for the two
+          // fields that are not lists, so a folded group says what the open one does.
+          labelsAll: t('notify.opt.labels_all'),
+          excludeShopping: t('notify.exclude_shopping'),
         },
         // A task the user made has no owning integration, so a companion filter
         // silently leaves it out. Say so where the choice is made.

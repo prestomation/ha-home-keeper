@@ -1784,10 +1784,12 @@ describe('profileHeadSchema', () => {
 describe('filterGroupSchema', () => {
   const options = [{ value: 'battery_notes', label: 'Battery Notes' }];
 
-  it('reads as "these, minus these" top to bottom', () => {
-    // The exclude_* rows follow the include rows they subtract from, and the group
-    // carries no name or status — those belong to the profile above it.
+  it('reads as "these, minus these" top to bottom, under the group name', () => {
+    // The exclude_* rows follow the include rows they subtract from. The group carries
+    // no status — that belongs to the profile above it — but it does carry its own
+    // display name, which heads its folded row and so comes first.
     expect(filterGroupSchema().map((f) => f.name)).toEqual([
+      'name',
       'labels',
       'labels_match',
       'areas',
@@ -1797,6 +1799,15 @@ describe('filterGroupSchema', () => {
       'exclude_devices',
       'exclude_shopping',
     ]);
+  });
+
+  it('offers the group name as a plain text box, first and not required', () => {
+    // First, because it is what the folded row is headed with. Optional, because an
+    // unnamed group is headed "Group N" and filters just the same.
+    const field = filterGroupSchema(options)[0];
+    expect(field.name).toBe('name');
+    expect(field.selector).toEqual({ text: {} });
+    expect(field.required).toBeUndefined();
   });
 
   it('puts the label mode directly under the labels it governs', () => {

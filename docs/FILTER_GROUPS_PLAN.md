@@ -35,6 +35,7 @@ filter: {
   status: "all" | "overdue" | "due_soon",
   groups: [
     {
+      name: str,  // display-only label; never affects matching
       labels: [id, ...], labels_match: "any" | "all",
       areas: [id, ...], devices: [id, ...], companions: [domain, ...],
       exclude_labels: [id, ...], exclude_areas: [id, ...],
@@ -59,7 +60,8 @@ This is the one stored shape. Nothing reads a flat `labels`/`areas`/`devices`/
 - **Empty-group rule.** A group with nothing set is not active. An inactive group is
   dropped from the OR rather than treated as "match everything", so a blank group
   beside a filled-in one never widens the Profile. A filter left with no active group
-  has no include gate and selects every task in its status tier.
+  has no include gate and selects every task in its status tier. A `name` on its own
+  does not activate a group: it is display-only.
 - **Status stays per Profile.** `status` sits on `filter`, not on a group, so every
   group in a Profile answers the same "which due-state" question.
 - **`labels_match` values and default.** `any` (default) or `all`. An unrecognized
@@ -157,6 +159,15 @@ a group, edit its fields, delete it" on its own. `group-editor.ts` is that one b
 Each caller supplies its own `ha-form` constructor and its own label strings: the
 panel translates, the card editor stays English-only.
 
+A group is drawn as a folded `details` row, the same accordion a part is drawn as in
+the appliance editor: an icon, the group's `name` (or "Group N" when it has none), a
+one-line summary of what the group selects, and a chevron. Only one row is open at a
+time. A lone group opens by default, and a group just added opens itself. The summary
+line counts the ids in each non-empty list — `Labels 2 · Areas 1` — then names the
+label mode when it is `all`, and the shopping switch when it is on. A group that
+constrains nothing reads "No filters yet". Delete sits at the foot of the open row and
+not in the summary, because a button inside a `summary` also toggles the row.
+
 The panel's profile editor
 ([`panel-settings.ts`](../custom_components/home_keeper/frontend/src/panel-settings.ts),
 `profileEditor`) is three `ha-form`s over one profile: a head form (name, status), the
@@ -217,12 +228,13 @@ beat on `.hk-filter-groups` for the two-group profile it already seeds.
 
 - `filter.groups`: key name, list, order round-trips stably; `filter.status` stays at
   the top.
-- Per-group keys `labels`, `labels_match` (`any`|`all`, default `any`), `areas`,
-  `devices`, `companions`, `exclude_labels`, `exclude_areas`, `exclude_devices`,
-  `exclude_companions`, `exclude_shopping`. Empty include = any; empty exclude =
-  nothing; exclusions win inside their group only.
-- Active-group rule: a group with any value is active; empty groups are ignored beside
-  an active one; no active group = every task in the status tier.
+- Per-group keys `name` (display-only, default `""`), `labels`, `labels_match`
+  (`any`|`all`, default `any`), `areas`, `devices`, `companions`, `exclude_labels`,
+  `exclude_areas`, `exclude_devices`, `exclude_companions`, `exclude_shopping`. Empty
+  include = any; empty exclude = nothing; exclusions win inside their group only.
+- Active-group rule: a group with any matching value is active; `name` never counts;
+  empty groups are ignored beside an active one; no active group = every task in the
+  status tier.
 - Config entry `VERSION = 2`; the v1→v2 conversion is permanent code; a v1 reader
   refuses a v2 entry, so a downgrade needs a backup.
 - Flat keys are refused on `set_options` (service and websocket); `list_profiles`,

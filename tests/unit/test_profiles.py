@@ -8,6 +8,7 @@ import pytest
 TZ = timezone(timedelta(hours=-4))
 
 EMPTY_GROUP = {
+    "name": "",
     "labels": [],
     "labels_match": "any",
     "areas": [],
@@ -160,6 +161,7 @@ def test_normalize_group_reads_every_input_key():
     # read at all and silently comes back empty — lands somewhere visible. The key
     # order is asserted too: the panel's group form reads the shape in this order.
     raw = {
+        "name": "Kids",
         "labels": ["l"],
         "labels_match": "all",
         "areas": ["a"],
@@ -208,6 +210,16 @@ def test_normalize_group_clamps_labels_match():
     assert p.LABELS_MATCHES == ("any", "all")
     assert p.LABELS_MATCH_ANY == "any"
     assert p.LABELS_MATCH_ALL == "all"
+
+
+def test_normalize_group_keeps_a_trimmed_name_and_defaults_to_empty():
+    # The name is display-only, so it is coerced rather than rejected: surrounding
+    # whitespace goes, anything that is not a string is stringified, and a group saved
+    # before names existed reads back with an empty one.
+    assert p.normalize_group({"name": "  Kids  "})["name"] == "Kids"
+    assert p.normalize_group({"name": 42})["name"] == "42"
+    assert p.normalize_group({"name": None})["name"] == ""
+    assert p.normalize_group({})["name"] == ""
 
 
 def test_normalize_group_survives_something_that_is_not_a_mapping():
@@ -575,6 +587,21 @@ def test_an_empty_group_beside_an_active_one_is_ignored():
     assert not p.matches_filter(hers, filt("all", {}, {"labels": ["mine"]}), now=now)
 
 
+def test_a_group_with_only_a_name_is_not_active():
+    # A name is display-only, so a group carrying nothing else is still a blank row: it
+    # leaves the profile with no include gate rather than becoming a rule...
+    now = dt(2026, 6, 13, 12)
+    mine = task("1", "A", dt(2026, 6, 10), labels=["mine"])
+    hers = task("2", "B", dt(2026, 6, 10), labels=["hers"])
+    named_only = filt("all", {"name": "x"})
+    assert p.matches_filter(mine, named_only, now=now)
+    assert p.matches_filter(hers, named_only, now=now)
+    # ...and beside a filled-in sibling it is ignored, so the label still decides.
+    beside = filt("all", {"name": "x"}, {"name": "Mine", "labels": ["mine"]})
+    assert p.matches_filter(mine, beside, now=now)
+    assert not p.matches_filter(hers, beside, now=now)
+
+
 def test_groups_that_are_all_empty_select_every_live_task():
     # No active group means no include gate: the status tier is the whole filter.
     now = dt(2026, 6, 13, 12)
@@ -856,6 +883,7 @@ def test_migrate_filter_v1_wraps_the_flat_keys_in_one_group():
     assert out == {
         "groups": [
             {
+                "name": "",
                 "labels": ["dog"],
                 "labels_match": "any",
                 "areas": ["kitchen"],
@@ -870,6 +898,14 @@ def test_migrate_filter_v1_wraps_the_flat_keys_in_one_group():
         ],
         "status": "due_soon",
     }
+
+
+def test_migrated_group_has_an_empty_name():
+    # The flat shape had no name to carry, so the lifted group must not invent one —
+    # it falls out of normalize_group, and an empty name is the unnamed group.
+    out = p.migrate_filter_v1({"status": "all", "labels": ["dog"]})
+    (group,) = out["groups"]
+    assert group["name"] == ""
 
 
 def test_migrate_filter_v1_selects_the_same_tasks_as_the_flat_filter_did():

@@ -100,6 +100,9 @@ def normalize_group(raw: Any) -> dict[str, Any]:
     list defaults to empty, which reads as "any" for an include list and "nothing" for
     an exclude list, so an empty group selects the whole status tier.
 
+    ``name`` is a display-only label the user gives the group; it never affects
+    matching.
+
     ``labels_match`` is clamped to :data:`LABELS_MATCHES` and falls back to
     :data:`LABELS_MATCH_ANY`, the historical rule — an unknown value must widen the
     group rather than silently demanding every label.
@@ -107,6 +110,7 @@ def normalize_group(raw: Any) -> dict[str, Any]:
     raw = raw if isinstance(raw, dict) else {}
     labels_match = raw.get("labels_match")
     return {
+        "name": str(raw.get("name") or "").strip(),
         "labels": _str_list(raw.get("labels")),
         "labels_match": (
             LABELS_MATCH_ALL if labels_match == LABELS_MATCH_ALL else LABELS_MATCH_ANY
@@ -333,6 +337,9 @@ def _group_active(group: Any) -> bool:
     from the OR instead. An entry that is not a group at all — the matcher reads what it
     is handed, and only ``normalize_groups`` drops those — is inactive for the same
     reason.
+
+    ``name`` is deliberately not read here: it is display-only, so a group carrying
+    nothing but a name is still a blank row rather than a rule.
     """
     if not isinstance(group, dict):
         return False

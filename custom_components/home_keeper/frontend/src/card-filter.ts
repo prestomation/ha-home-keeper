@@ -246,6 +246,10 @@ export function taskLabelIds(
  * straight off a stored profile.
  */
 export interface FilterGroup {
+  /** What the reader calls this group, shown on its collapsed row. Display only: it
+   *  never reaches `groupMatches`, and it never makes a group active. Empty is normal
+   *  — the editor falls back to "Group N". */
+  name: string;
   labels: string[];
   /** Whether a task needs ANY of `labels` (the default) or ALL of them. Per group:
    *  "all" is how one group says "the dog's *outdoor* jobs" with two labels. */
@@ -281,8 +285,10 @@ export interface ProfileFilter {
   groups?: Partial<FilterGroup>[];
 }
 
-/** The eight id lists a group can carry, in the order the editor shows them. */
-const GROUP_LISTS = [
+/** The eight id lists a group can carry, in the order the editor shows them — and the
+ *  order its collapsed row summarises them in (`group-editor.ts`). One list, so the
+ *  summary can never name a field the matcher does not read. */
+export const GROUP_LISTS = [
   'labels',
   'areas',
   'devices',
@@ -298,6 +304,7 @@ const GROUP_LISTS = [
  *  profile is never accidentally emptied by adding a group to it. */
 export function emptyGroup(): FilterGroup {
   return {
+    name: '',
     labels: [],
     labels_match: 'any',
     areas: [],
@@ -334,6 +341,8 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  *
  * `exclude_shopping` counts: a group that only drops the buy reminders is a real rule.
  * `labels_match` does not — it says how to read `labels`, and on its own says nothing.
+ * `name` does not either: it is what the reader calls the group, so a named-but-empty
+ * group would otherwise narrow a profile to nothing the moment somebody titled it.
  */
 export function groupActive(group: Partial<FilterGroup>): boolean {
   if (group.exclude_shopping) return true;
