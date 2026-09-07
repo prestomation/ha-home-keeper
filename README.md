@@ -42,8 +42,8 @@
 | custom\_components/home\_keeper/reconcile.py                    |      121 |        0 |       70 |        1 |     99% | 295-\>293 |
 | custom\_components/home\_keeper/recurrence.py                   |      312 |        8 |      146 |        8 |     97% |195, 225, 262, 273, 302, 353, 446, 772 |
 | custom\_components/home\_keeper/resolve.py                      |       48 |        0 |       16 |        0 |    100% |           |
-| custom\_components/home\_keeper/sensor.py                       |      117 |      117 |       32 |        0 |      0% |    13-219 |
-| custom\_components/home\_keeper/sensor\_tasks.py                |      138 |        3 |       56 |        4 |     96% |133, 166-\>161, 185, 191 |
+| custom\_components/home\_keeper/sensor.py                       |      122 |      122 |       36 |        0 |      0% |    13-239 |
+| custom\_components/home\_keeper/sensor\_tasks.py                |      169 |        3 |       70 |        4 |     97% |134, 167-\>162, 186, 192 |
 | custom\_components/home\_keeper/sensor\_watcher.py              |      207 |      207 |       86 |        0 |      0% |    27-552 |
 | custom\_components/home\_keeper/shopping.py                     |      165 |        0 |       74 |        0 |    100% |           |
 | custom\_components/home\_keeper/shopping\_sync.py               |       95 |       15 |       36 |        5 |     79% |84-87, 110, 125, 134, 167-\>157, 209-224 |
@@ -57,7 +57,7 @@
 | custom\_components/home\_keeper/todo\_sync\_driver.py           |       96 |        4 |       22 |        3 |     94% |119, 199-\>205, 225-226, 259 |
 | custom\_components/home\_keeper/transitions.py                  |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py               |      528 |      528 |       70 |        0 |      0% |    8-1374 |
-| **TOTAL**                                                       | **7607** | **3559** | **2602** |   **96** | **55%** |           |
+| **TOTAL**                                                       | **7643** | **3564** | **2620** |   **96** | **55%** |           |
 
 
 ## Setup coverage badge
