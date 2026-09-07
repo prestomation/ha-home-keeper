@@ -121,7 +121,10 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
 class HomeKeeperConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the Home Keeper config flow."""
 
-    VERSION = 1
+    # 2: a profile's filter carries ``groups`` instead of one flat set of
+    # include/exclude lists. Home Assistant calls ``async_migrate_entry`` (see
+    # __init__.py) for every entry stored below this number.
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None

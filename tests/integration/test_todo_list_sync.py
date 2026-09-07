@@ -78,7 +78,7 @@ def _profile(profile_id, name, status, **sync_overrides):
     return {
         "id": profile_id,
         "name": name,
-        "filter": {"status": status, "labels": [], "areas": [], "devices": []},
+        "filter": {"status": status, "groups": [{}]},
         "sync": _sync(**sync_overrides),
     }
 

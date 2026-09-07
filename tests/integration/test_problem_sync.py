@@ -175,7 +175,10 @@ def test_synced_problem_task_walks_with_a_snooze_only_button_set(ha):
                     {
                         "id": "problemprofile",
                         "name": "The sump pump",
-                        "filter": {"status": "all", "labels": [label]},
+                        "filter": {
+                            "status": "all",
+                            "groups": [{"labels": [label]}],
+                        },
                     }
                 ],
                 "notifications": [
