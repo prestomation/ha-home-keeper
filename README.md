@@ -1159,7 +1159,7 @@ phone settings for Home Assistant, where the user sets its sound and its Do Not
 Disturb override. A Medication channel can then make a sound during Do Not Disturb
 while a Batteries channel stays silent.
 
-An iPhone has no channels. Home Keeper sends the same name as a thread identifier, so
+iPhone has no channels. Home Keeper sends the same name as a thread identifier, so
 these notifications group together. The urgency becomes the iOS interruption level.
 
 | Urgency | Android | iPhone |
@@ -1201,7 +1201,7 @@ in the icon picker, so a recent icon can be missing from it. A name that the app
 not have falls back to the Home Assistant icon. Select an older icon if the one you
 picked does not appear on the phone.
 
-**On an iPhone** the icon becomes the icon of the notification, and the accent color
+**On iPhone** the icon becomes the icon of the notification, and the accent color
 fills the circle behind it. The notification then uses the style that a message uses,
 so it also shows the name of the task as the sender.
 

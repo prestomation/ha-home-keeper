@@ -48,6 +48,14 @@ keys the same as the English source (see "Translations" in
   start the container", not "before starting the container". As a noun it is
   acceptable: "synchronizing the tasks".
 - Do not omit articles. Write "open the panel", not "open panel".
+- **A product or platform name takes no article.** This is the one exception to the rule
+  above. Write "iPhone shows this color behind the icon", not "An iPhone shows this
+  color". Write "on iPhone", not "on an iPhone". The name is a proper noun, so it reads
+  the way "Android" already does, and a sentence that names both platforms stays
+  parallel. The same goes for Home Assistant, HACS, and Home Keeper itself.
+  - The article still belongs to a common noun that the name modifies. "An Android
+    channel keeps the settings it was created with" is correct, because the article is
+    for "channel", not for "Android".
 - Do not omit "that" after "make sure", "confirm", and "check".
 - Put a condition before its instruction. Write "If the task has a device, the
   panel shows a link", not "The panel shows a link if the task has a device".
