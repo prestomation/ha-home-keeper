@@ -50,7 +50,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     // The Notifications card had no assertion of its own, only a screenshot — and a
     // screenshot cannot tell a rendered control from a missing one. These two fields
     // are also the ones whose *labels* carry the feature: "Notification channel" is
-    // Android's word and means nothing on an iPhone, so the helper text below each is
+    // Android's word and means nothing on iPhone, so the helper text below each is
     // the whole answer to "does this do anything on my phone?".
     await callService('home_keeper', 'set_options', {
       profiles: [
@@ -105,8 +105,8 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(form).toContainText('Notification channel');
       await expect(form).toContainText('Urgency');
       // …and each explains itself, including the two things a user cannot guess: that
-      // an iPhone has no channels, and that Critical needs a permission there.
-      await expect(form).toContainText(/An iPhone has no channels/i);
+      // iPhone has no channels, and that Critical needs a permission there.
+      await expect(form).toContainText(/iPhone has no channels/i);
       await expect(form).toContainText(/Critical Alerts allowed for Home Assistant/i);
       // The saved channel round-tripped into the field rather than rendering blank.
       await expect
