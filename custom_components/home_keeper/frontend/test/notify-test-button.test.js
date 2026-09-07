@@ -20,15 +20,8 @@ afterEach(() => {
 const PROFILE = {
   id: 'p1',
   name: 'Everything',
-  filter: {
-    status: 'all',
-    labels: [],
-    areas: [],
-    devices: [],
-    exclude_labels: [],
-    exclude_areas: [],
-    exclude_devices: [],
-  },
+  // One empty group: it constrains nothing, so this profile is "everything".
+  filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
   sync: { entity_id: '', two_way: true, vanish_as_completed: true },
 };
 
@@ -333,7 +326,12 @@ describe('Settings → Notifications — the Test button', () => {
     // A second profile that no task can satisfy.
     panel._options.profiles = [
       ...panel._options.profiles,
-      { ...PROFILE, id: 'p2', name: 'Nothing', filter: { ...PROFILE.filter, devices: ['nope'] } },
+      {
+        ...PROFILE,
+        id: 'p2',
+        name: 'Nothing',
+        filter: { ...PROFILE.filter, groups: [{ devices: ['nope'] }] },
+      },
     ];
     form(panel).dispatchEvent(
       new CustomEvent('value-changed', {

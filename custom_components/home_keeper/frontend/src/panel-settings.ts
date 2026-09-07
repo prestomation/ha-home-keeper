@@ -22,18 +22,19 @@
 
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
-import { profileHasAnyTask } from './card-filter';
+import { emptyGroup, profileHasAnyTask } from './card-filter';
 import {
   companionOptions,
+  editorGroups,
   generalSchema,
   notificationSchema,
   notifyFormData,
   notifyFormToNotification,
   problemSyncExclusionsSchema,
   problemSyncToggleSchema,
-  profileFormData,
   profileFormToProfile,
-  profileSchema,
+  profileHeadData,
+  profileHeadSchema,
   profileSyncSchema,
   shoppingSchema,
   skipSnoozeFlags,
@@ -41,6 +42,7 @@ import {
   toProfileSync,
   type FormField,
 } from './forms';
+import { renderGroupsEditor } from './group-editor';
 import { t, tn } from './i18n';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import type { PanelHost } from './panel-host';
@@ -937,9 +939,9 @@ function persistDebounced(
 
 // ── profiles ────────────────────────────────────────────────────────────────
 
-/** Render the Settings → Profiles card: reusable saved filters (status +
- *  labels/areas/devices), each an autosaving `ha-form`. Profiles are consumed by
- *  notifications, the admin task list, and the dashboard card. */
+/** Render the Settings → Profiles card: reusable saved filters (a status window plus
+ *  the filter groups it ORs together), each an autosaving `ha-form`. Profiles are
+ *  consumed by notifications, the admin task list, and the dashboard card. */
 function renderProfiles(p: PanelHost, host: HTMLElement): void {
   const profiles = p._options?.profiles ?? [];
   settingsListSection(
@@ -953,8 +955,9 @@ function renderProfiles(p: PanelHost, host: HTMLElement): void {
       count: profiles.length,
     },
     (body) => {
-      // The combination rule governs every filter in every profile below, so it sits
-      // with the section intro rather than under one field.
+      // How groups combine — a task is in when any one group takes it — governs every
+      // profile below, so it sits with the section intro rather than being repeated
+      // under one field. What matching a single group means is stated on each group.
       const filters = document.createElement('div');
       filters.className = 'hk-settings-intro';
       filters.textContent = t('notify.filters_help');
@@ -994,49 +997,70 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
     },
     onDelete: () => void deleteProfile(p, profile.id),
     fill: (body, nameSpan) => {
-      // The filter form and the sync group are two `ha-form`s editing one profile, and
-      // both save through the same debounce key. Each keeps the other half in a closure
-      // so whichever fires last still writes both — and so a rename can't wipe a
-      // configured list, which is what saving the filter form alone would do.
-      let filter = profileFormData(profile);
+      // The head form, the group forms and the sync group are several `ha-form`s
+      // editing one profile, and they all save through the same debounce key. Each
+      // keeps the others in a closure so whichever fires last still writes all of them
+      // — and so a rename can't wipe a configured list or a group the user just built,
+      // which is what saving any one form alone would do.
+      let head = profileHeadData(profile);
+      let groups = editorGroups(profile.filter);
       let sync: ProfileSync = toProfileSync(profile.sync);
       const saveProfile = (): void => {
         persistDebounced(p, 'profiles', profile.id, () =>
           (p._options?.profiles ?? []).map((x) =>
-            x.id === profile.id ? profileFormToProfile(profile.id, filter, sync) : x,
+            x.id === profile.id ? profileFormToProfile(profile.id, head, groups, sync) : x,
           ),
         );
       };
 
       body.appendChild(
         p._makeForm(
-          profileSchema(companionOptions(p._companions ?? [], p._tasks ?? [])),
-          filter,
+          profileHeadSchema(),
+          head,
           (value) => {
-            filter = value;
-            if (typeof filter.name === 'string') nameSpan.textContent = filter.name;
+            head = value;
+            if (typeof head.name === 'string') nameSpan.textContent = head.name;
             saveProfile();
           },
           {
-            computeLabel: (s) => {
-              if (s.name === 'name') return t('field.name');
-              if (s.name === 'labels') return t('field.labels');
-              return t('notify.' + s.name);
-            },
+            computeLabel: (s) => (s.name === 'name' ? t('field.name') : t('notify.' + s.name)),
             // The three status values are nested tiers, not independent buckets —
             // "Overdue and due soon" already covers everything overdue. Nothing in a
             // single-select says so, which read as a missing multi-select (#248), so
             // the helper spells it out.
-            computeHelper: (s) => {
-              if (s.name === 'status') return t('notify.status_help');
-              // A task the user made has no owning integration, so a companion
-              // filter silently leaves it out. Say so where the choice is made.
-              if (s.name === 'companions') return t('notify.companions_help');
-              return '';
-            },
+            computeHelper: (s) => (s.name === 'status' ? t('notify.status_help') : ''),
           },
         ),
       );
+
+      // The groups themselves, in the shared editor the dashboard card's own editor
+      // renders from too.
+      const groupsHost = document.createElement('div');
+      groupsHost.className = 'hk-filter-groups';
+      renderGroupsEditor(groupsHost, groups, {
+        companions: companionOptions(p._companions ?? [], p._tasks ?? []),
+        makeForm: (schema, data, onChange, labelling) =>
+          p._makeForm(schema, data, onChange, labelling),
+        addId: `hk-profile-${profile.id}-group-add`,
+        strings: {
+          title: (n) => t('notify.group_title', { n }),
+          add: t('notify.group_add'),
+          remove: t('notify.group_delete'),
+          or: t('notify.group_or'),
+          help: t('notify.group_help'),
+        },
+        // A task the user made has no owning integration, so a companion filter
+        // silently leaves it out. Say so where the choice is made.
+        computeHelper: (s) => (s.name === 'companions' ? t('notify.companions_help') : ''),
+        // The editor reports the whole list back on every edit, add and delete, so
+        // this closure always holds what the next save should write — a group added
+        // in the debounce window is carried by a rename that lands after it.
+        onChange: (next) => {
+          groups = next;
+          saveProfile();
+        },
+      });
+      body.appendChild(groupsHost);
 
       body.appendChild(
         profileSyncGroup(p, profile, sync, (next) => {
@@ -1144,18 +1168,9 @@ function addProfile(p: PanelHost): Promise<void> {
   const blank: Profile = {
     id: '',
     name: t('notify.new_profile'),
-    filter: {
-      status: 'overdue',
-      labels: [],
-      areas: [],
-      devices: [],
-      companions: [],
-      exclude_labels: [],
-      exclude_areas: [],
-      exclude_devices: [],
-      exclude_companions: [],
-      exclude_shopping: false,
-    },
+    // One empty group: the editor always shows a group to fill in, and an empty one
+    // constrains nothing, so a new profile starts out selecting everything.
+    filter: { status: 'overdue', groups: [emptyGroup()] },
     // No list picked: the sync does nothing until one is, and both switches
     // carry the defaults the backend normalizer would fill in.
     sync: { entity_id: '', two_way: true, vanish_as_completed: true },

@@ -578,7 +578,7 @@
   "notify.companions_help": "Select companions to show only their tasks.",
   "notify.exclude_companions": "Exclude companions",
   "notify.exclude_shopping": "Exclude shopping",
-  "notify.filters_help": "A task must match at least one value in each filter you set.",
+  "notify.filters_help": "A Profile holds one or more groups of filters. A task matches the Profile if it matches one of the groups.",
   "notify.opt.critical": "Critical",
   "notify.opt.high": "High",
   "notify.opt.normal": "Normal",
@@ -620,5 +620,13 @@
   "btn.stockInc": "Increase stock",
   "part.low": "Low",
   "part.reorderAt": "Reorder at {n}",
-  "toast.stockSet": "Stock set to {n}"
+  "toast.stockSet": "Stock set to {n}",
+  "notify.group_add": "Add another group",
+  "notify.group_delete": "Delete group",
+  "notify.group_help": "A task matches this group if it matches every filter set here and none of its exclusions.",
+  "notify.group_or": "OR",
+  "notify.group_title": "Group {n}",
+  "notify.labels_match": "Label match",
+  "notify.opt.labels_all": "All selected labels",
+  "notify.opt.labels_any": "Any selected label"
 }

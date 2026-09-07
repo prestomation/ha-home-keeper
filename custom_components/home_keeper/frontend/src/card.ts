@@ -2,6 +2,7 @@ import * as api from './api';
 import {
   filterTasks,
   groupTasks,
+  liftLegacyCardConfig,
   profileMatches,
   sortTasks,
   type CardFilter,
@@ -9,20 +10,19 @@ import {
   type CardSort,
   type Group,
   type HomeKeeperCardConfig,
+  type LegacyCardConfig,
 } from './card-filter';
 import {
   buildTaskPayload,
   seasonFieldLabelKey,
-  selArea,
   selBool,
-  selDevice,
-  selLabel,
   selNumber,
   selSelect,
   selText,
   taskFormData,
   taskFormSchemaKey,
   taskSchema,
+  toFilterGroup,
   type FormField,
   type HaFormElement,
 } from './forms';
@@ -31,13 +31,14 @@ import type { DeferDialogHost } from './defer-dialogs';
 import { deferRowActions, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
 import { renderSkipDialog, renderSnoozeDialog } from './defer-dialogs';
 import { makeForm } from './dialogs';
+import { GROUP_EDITOR_CSS, renderGroupsEditor } from './group-editor';
 import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
 import { ensureMarkdown, markdownBlock, markdownReady, wireMarkdown } from './markdown';
 import { taskChipsList } from './panel-chips';
 import { MDI_OPEN_IN_NEW_ICON } from './panel-icons';
-import type { Asset, Hass, HassLabel, Profile, Task } from './types';
+import type { Asset, FilterGroup, Hass, HassLabel, Profile, Task } from './types';
 import {
   areaName,
   deviceName,
@@ -108,10 +109,6 @@ const S: Record<string, string> = {
   filter: 'Filter',
   sort: 'Sort by',
   group_by: 'Group by',
-  areas: 'Limit to areas',
-  devices: 'Limit to devices',
-  labels: 'Limit to labels',
-  label_match: 'Label match',
   recurrence_types: 'Limit to recurrence types',
   horizon_days: 'Show tasks due within (days, 0 = no limit)',
   max_items: 'Max tasks shown (0 = unlimited)',
@@ -123,6 +120,36 @@ const S: Record<string, string> = {
   show_disabled: 'Include disabled tasks',
   confirm_complete: 'Confirm before completing',
   hide_when_empty: 'Hide card when empty',
+  // The filter-groups section. `groupTitle` is a function of the group's number, so it
+  // is built where it is used; the rest are plain words.
+  groupsHeading: 'Which tasks',
+  groupsIntro:
+    'Leave every group empty to show all tasks. A profile, when one is chosen above, ' +
+    'replaces these groups.',
+  groupAdd: 'Add another group',
+  groupDelete: 'Delete group',
+  groupOr: 'OR',
+  groupHelp:
+    'A task matches this group if it matches every filter set here and none of its ' +
+    'exclusions.',
+};
+
+/**
+ * Field labels for one filter group, in the card editor's English (see `S`). The panel
+ * translates the same fields through its own `notify.` keys; the card editor cannot, so
+ * the shared `renderGroupsEditor` takes its labelling from whichever surface renders it.
+ */
+const GROUP_S: Record<string, string> = {
+  labels: 'Labels',
+  labels_match: 'Label match',
+  areas: 'Areas',
+  devices: 'Devices',
+  companions: 'Companions',
+  exclude_labels: 'Exclude labels',
+  exclude_areas: 'Exclude areas',
+  exclude_devices: 'Exclude devices',
+  exclude_companions: 'Exclude companions',
+  exclude_shopping: 'Exclude shopping',
 };
 
 const FILTER_OPTS: { value: CardFilter; label: string }[] = [
@@ -151,11 +178,6 @@ const RECURRENCE_OPTS = [
   { value: 'one-off', label: 'One-off' },
   { value: 'sensor', label: 'Sensor (usage / threshold)' },
 ];
-const LABEL_MATCH_OPTS = [
-  { value: 'any', label: 'Any selected label' },
-  { value: 'all', label: 'All selected labels' },
-];
-
 const STYLES = `
   :host { display: block; height: 100%; }
   ha-card {
@@ -368,11 +390,16 @@ export class HomeKeeperCard extends HTMLElement {
     return { type: 'custom:home-keeper-card', filter: 'all', sort: 'due', group_by: 'none' };
   }
 
-  setConfig(config: HomeKeeperCardConfig): void {
+  setConfig(config: LegacyCardConfig): void {
     if (!config || typeof config !== 'object') {
       throw new Error('Invalid Home Keeper card configuration');
     }
-    this._config = { ...config };
+    // Every load lifts, and nothing writes the lift back. A card cannot rewrite the
+    // dashboard holding it: Home Assistant owns a storage-mode dashboard's config, and
+    // a YAML dashboard is only ever rewritten by the person who wrote it. So the lift
+    // is permanent rather than a one-off migration — an old card keeps working, in
+    // silence, for as long as its owner leaves it alone.
+    this._config = liftLegacyCardConfig(config);
     if (this._loaded) this._render();
   }
 
@@ -1103,25 +1130,64 @@ export class HomeKeeperCard extends HTMLElement {
   }
 }
 
-/** GUI editor for the card configuration. Built from a single `ha-form`. */
+/**
+ * The card editor's own styles. The card itself is a separate shadow root with its own
+ * `STYLES`, so the shared group CSS has to be included here too — one definition of a
+ * group's look (`GROUP_EDITOR_CSS`), wherever a group is edited. The panel's stylesheet
+ * carries the same block for the Settings → Profiles rows.
+ */
+const EDITOR_STYLES = `
+  .hk-editor-section {
+    margin-top: 16px; font-weight: 500;
+  }
+  .hk-settings-intro {
+    color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4;
+    margin: 4px 0 0;
+  }
+  ${GROUP_EDITOR_CSS}
+`;
+
+/**
+ * GUI editor for the card configuration.
+ *
+ * Two `ha-form`s with the filter groups between them, rather than one form: the groups
+ * are what the card *selects*, so they belong beside the profile picker and the status
+ * filter, above the display switches. Both forms edit one config object and report it
+ * whole, so whichever the user touches last still saves the other's answers.
+ */
 export class HomeKeeperCardEditor extends HTMLElement {
   private _hass?: Hass;
   private _config: HomeKeeperCardConfig = { type: '' };
+  /** The form holding the profile picker — the one `_maybeLoadProfiles` refreshes. */
   private _form?: HaFormElement;
+  private _tail?: HaFormElement;
+  /** The forms inside the groups, kept apart from the two config forms because they
+   *  are replaced whenever the groups are redrawn. Both sets take a later `hass`, so
+   *  the area/label pickers inside a group stay live. */
+  private _groupForms: HaFormElement[] = [];
+  /** The groups the editor is showing. Owned here and mutated in place by
+   *  `renderGroupsEditor`; `_config.groups` is written from it on every change. */
+  private _groups: FilterGroup[] = [];
+  private _groupsHost?: HTMLElement;
   private _profiles: Profile[] = [];
   // Whether the profile fetch has resolved (even to an empty list). Tracked separately
   // from `_profiles.length` so a legitimately empty result doesn't re-hit the API on
   // every `set hass`.
   private _profilesLoaded = false;
 
-  setConfig(config: HomeKeeperCardConfig): void {
-    this._config = { ...config };
+  setConfig(config: LegacyCardConfig): void {
+    // Lifted here as well as in the card, so the editor never holds — or writes back —
+    // a legacy key. Opening an old card in the editor and changing one switch saves it
+    // in the current spelling; leaving it alone changes nothing on disk.
+    this._config = liftLegacyCardConfig(config);
     this._update();
   }
 
   set hass(hass: Hass) {
     this._hass = hass;
-    if (this._form) this._form.hass = hass;
+    for (const form of [this._form, this._tail, ...this._groupForms]) {
+      if (form) form.hass = hass;
+    }
     void this._maybeLoadProfiles();
   }
 
@@ -1129,7 +1195,7 @@ export class HomeKeeperCardEditor extends HTMLElement {
     if (!this._hass || this._profilesLoaded) return;
     this._profilesLoaded = true;
     this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
-    if (this._profiles.length && this._form) this._form.schema = this._schema() as unknown[];
+    if (this._profiles.length && this._form) this._form.schema = this._headSchema() as unknown[];
   }
 
   connectedCallback(): void {
@@ -1137,7 +1203,9 @@ export class HomeKeeperCardEditor extends HTMLElement {
     this._render();
   }
 
-  private _schema(): FormField[] {
+  /** What the card is: its name, the saved profile that can stand in for the groups
+   *  below, and the status/order/grouping of the list it draws. */
+  private _headSchema(): FormField[] {
     return [
       { name: 'title', selector: selText() },
       {
@@ -1156,10 +1224,12 @@ export class HomeKeeperCardEditor extends HTMLElement {
           { name: 'group_by', selector: selSelect(GROUP_OPTS) },
         ],
       },
-      { name: 'areas', selector: selArea(true) },
-      { name: 'devices', selector: selDevice(true) },
-      { name: 'labels', selector: selLabel(true) },
-      { name: 'label_match', selector: selSelect(LABEL_MATCH_OPTS) },
+    ];
+  }
+
+  /** Everything below the groups: the remaining limits, then what a row shows. */
+  private _tailSchema(): FormField[] {
+    return [
       { name: 'recurrence_types', selector: selSelect(RECURRENCE_OPTS, true) },
       {
         name: '',
@@ -1186,31 +1256,124 @@ export class HomeKeeperCardEditor extends HTMLElement {
     ];
   }
 
-  private _render(): void {
-    if (!this.shadowRoot) return;
+  /** One `ha-form`, wired the way every form in this editor is. `labelling` is what
+   *  the shared groups editor supplies for the fields inside a group; the two config
+   *  forms take the editor's own `S` spelling. */
+  private _makeForm(
+    schema: FormField[],
+    data: Record<string, unknown>,
+    onChange: (value: Record<string, unknown>) => void,
+    labelling?: {
+      computeLabel: (s: { name: string }) => string;
+      computeHelper?: (s: { name: string }) => string;
+    },
+  ): HaFormElement {
     const form = document.createElement('ha-form') as HaFormElement;
     form.hass = this._hass;
-    form.schema = this._schema() as unknown[];
-    form.data = this._config as unknown as Record<string, unknown>;
-    form.computeLabel = (s: { name: string }): string => S[s.name] ?? s.name;
+    form.schema = schema as unknown[];
+    form.data = data;
+    const ownLabel = (s: { name: string }): string => S[s.name] ?? s.name;
+    form.computeLabel = labelling?.computeLabel ?? ownLabel;
+    if (labelling?.computeHelper) form.computeHelper = labelling.computeHelper;
     form.addEventListener('value-changed', (e: Event) => {
-      const value = (e as CustomEvent<{ value: Record<string, unknown> }>).detail.value;
-      this._config = { ...this._config, ...value } as HomeKeeperCardConfig;
-      this.dispatchEvent(
-        new CustomEvent('config-changed', {
-          detail: { config: this._config },
-          bubbles: true,
-          composed: true,
-        }),
-      );
+      onChange((e as CustomEvent<{ value: Record<string, unknown> }>).detail.value);
     });
-    this._form = form;
+    return form;
+  }
+
+  private _render(): void {
+    if (!this.shadowRoot) return;
+    const style = document.createElement('style');
+    style.textContent = EDITOR_STYLES;
+
+    const onFormChange = (value: Record<string, unknown>): void => {
+      this._config = { ...this._config, ...value } as HomeKeeperCardConfig;
+      this._emit();
+    };
+    // The groups first: seeding them normalizes `_config.groups`, and both config
+    // forms have to be handed the config as it stands after that.
+    this._groupsHost = document.createElement('div');
+    this._groupsHost.className = 'hk-filter-groups';
+    this._renderGroups();
+
+    const data = (): Record<string, unknown> => this._config as unknown as Record<string, unknown>;
+    this._form = this._makeForm(this._headSchema(), data(), onFormChange);
+    this._tail = this._makeForm(this._tailSchema(), data(), onFormChange);
+
+    const heading = document.createElement('div');
+    heading.className = 'hk-editor-section';
+    heading.textContent = S.groupsHeading;
+    const intro = document.createElement('div');
+    intro.className = 'hk-settings-intro';
+    intro.textContent = S.groupsIntro;
+
     this.shadowRoot.innerHTML = '';
-    this.shadowRoot.appendChild(form);
+    this.shadowRoot.append(style, this._form, heading, intro, this._groupsHost, this._tail);
+  }
+
+  /** (Re)draw the groups from `_config.groups`. An absent list draws no group at all —
+   *  only the Add button — so an untouched editor never writes a `groups` key the user
+   *  did not ask for. */
+  private _renderGroups(): void {
+    if (!this._groupsHost) return;
+    this._groups = (this._config.groups ?? []).map(toFilterGroup);
+    this._groupForms = [];
+    // Hold the normalized list, so a config written by hand (a group missing half its
+    // keys) settles into the shape the editor shows. Only when the config already has
+    // a `groups` key: seeding must never invent one.
+    if (this._config.groups) this._config = { ...this._config, groups: this._groups };
+    renderGroupsEditor(this._groupsHost, this._groups, {
+      // The card editor has no companion registry and no task list to read owners from,
+      // so both companion fields drop out. A profile (edited in the panel, which has
+      // both) is how a card filters by companion.
+      companions: [],
+      makeForm: (schema, formData, onChange, labelling) => {
+        const form = this._makeForm(schema, formData, onChange, labelling);
+        this._groupForms.push(form);
+        return form;
+      },
+      addId: 'hk-card-group-add',
+      strings: {
+        title: (n) => `Group ${n}`,
+        add: S.groupAdd,
+        remove: S.groupDelete,
+        or: S.groupOr,
+        help: S.groupHelp,
+      },
+      computeLabel: (s) => GROUP_S[s.name] ?? s.name,
+      computeHelper: () => '',
+      onChange: (groups) => {
+        this._config = { ...this._config, groups };
+        this._emit();
+      },
+    });
+  }
+
+  /** Report the whole config, and re-seed both forms from it. Re-seeding is what keeps
+   *  a group the user just added from being clobbered by the next edit in either form:
+   *  an `ha-form` emits the data it was given plus the one field that changed. */
+  private _emit(): void {
+    this._update();
+    this.dispatchEvent(
+      new CustomEvent('config-changed', {
+        detail: { config: this._config },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 
   private _update(): void {
-    if (this._form) this._form.data = this._config as unknown as Record<string, unknown>;
+    // Redraw the groups only when the config brought different ones — a `setConfig`
+    // from outside the editor. An echo of the editor's own change leaves them alone,
+    // so the picker the user is filling in is not rebuilt under the cursor. Before the
+    // forms are re-seeded, because a redraw normalizes what they are seeded with.
+    if (this._groupsHost && JSON.stringify(this._config.groups ?? []) !== JSON.stringify(this._groups)) {
+      this._renderGroups();
+    }
+    const data = this._config as unknown as Record<string, unknown>;
+    if (this._form) this._form.data = data;
+    if (this._tail) this._tail.data = data;
   }
 }
 

@@ -34,20 +34,18 @@ export interface HomeKeeperCardConfig {
   sort?: CardSort;
   /** Collapsible section grouping. Default 'none'. */
   group_by?: CardGroupBy;
-  /** Restrict to these areas (a task's own area, else its device's area). */
-  areas?: string[];
-  /** Restrict to tasks attached to these devices. */
-  devices?: string[];
   /** Show only tasks matching this saved **profile** (id or name). When set, the
-   *  profile's filter (status + labels/areas/devices) decides which tasks show; the
-   *  card's own labels/areas/devices/filter fields are ignored. See profileMatches. */
+   *  profile's own filter decides which tasks show; the card's `groups` and its
+   *  `filter` field are ignored. See profileMatches. */
   profile?: string;
-  /** Restrict to tasks carrying these HA labels — on the task itself, its device,
-   *  or its effective area. The backbone of per-subject cards (one per dog/car/kid). */
-  labels?: string[];
-  /** When several labels are configured: match a task carrying ANY of them
-   *  (default) or only one carrying ALL of them. */
-  label_match?: 'any' | 'all';
+  /** The card's own selection, as an OR of **filter groups** — the same rule a
+   *  profile applies, read by the same `groupMatches`. Each group is an AND of the
+   *  include lists it carries, minus its own exclusions, so one card can say "the
+   *  dog's jobs OR anything in the garage". A group that constrains nothing is
+   *  dropped rather than widening the card back to everything (`groupActive`), and a
+   *  card with no active group filters by status and horizon alone. Ignored when
+   *  `profile` is set. */
+  groups?: Partial<FilterGroup>[];
   /** Restrict to these recurrence types. */
   recurrence_types?: RecurrenceType[];
   /** Only show dated tasks due within this many days (0 = no limit). */
@@ -73,6 +71,55 @@ export interface HomeKeeperCardConfig {
    *  built from several per-subject cards where only the ones with something due
    *  should show. */
   hide_when_empty?: boolean;
+}
+
+/**
+ * A card config as a dashboard may still hold it: the flat `labels`/`areas`/`devices`
+ * fields the card selected with before filter groups existed.
+ *
+ * The only input `liftLegacyCardConfig` takes, and the only place these four keys are
+ * named. Everything downstream — `filterTasks`, the card, its editor — reads `groups`
+ * and has no idea the old spelling ever existed.
+ */
+export type LegacyCardConfig = HomeKeeperCardConfig & {
+  labels?: string[];
+  label_match?: 'any' | 'all';
+  areas?: string[];
+  devices?: string[];
+};
+
+/**
+ * Rewrite a stored card config in the current spelling: the legacy `labels`/
+ * `label_match`/`areas`/`devices` fields become one filter group.
+ *
+ * One group, not three: the old fields were ANDed with each other (a task had to be in
+ * an allowed area *and* on an allowed device), and that is exactly what one group
+ * means, so the lift preserves which tasks the card selects.
+ *
+ * Silent by design — no notice, no "your card was migrated" alert. The lift is
+ * idempotent, a config that already carries `groups` keeps them, and the four keys are
+ * dropped either way so nothing downstream has to keep reading both spellings.
+ *
+ * The input is never mutated: a Lovelace config object is shared with the dashboard
+ * that owns it.
+ */
+export function liftLegacyCardConfig(config: LegacyCardConfig): HomeKeeperCardConfig {
+  const { labels = [], label_match, areas = [], devices = [], ...rest } = config;
+  // A config that already speaks groups is already current; the four keys still go.
+  if (Array.isArray(config.groups)) return rest;
+  if (!labels.length && !areas.length && !devices.length) return rest;
+  return {
+    ...rest,
+    groups: [
+      {
+        ...emptyGroup(),
+        labels: [...labels],
+        labels_match: label_match === 'all' ? 'all' : 'any',
+        areas: [...areas],
+        devices: [...devices],
+      },
+    ],
+  };
 }
 
 /**
@@ -185,25 +232,83 @@ export function taskLabelIds(
   return ids;
 }
 
-/** A saved profile's filter (mirrors the backend `profiles.py` shape). */
-export interface ProfileFilter {
-  status: 'all' | 'overdue' | 'due_soon';
+/**
+ * One **group** of a saved filter: a single "these AND these, minus those" rule.
+ *
+ * Every include list that carries a value must be satisfied, and no exclude list may
+ * hit — so a group is an AND of its own fields. A profile holds a list of them and
+ * ORs the results, which is what lets one profile say "the dog's jobs OR anything
+ * overdue in the garage" without two profiles and two notifications.
+ *
+ * Every key is required. A group is built by `emptyGroup` or normalized by
+ * `forms.toFilterGroup`, so nothing downstream has to re-decide what an absent key
+ * means; the matchers still read a `Partial` tolerantly, because a group also arrives
+ * straight off a stored profile.
+ */
+export interface FilterGroup {
   labels: string[];
+  /** Whether a task needs ANY of `labels` (the default) or ALL of them. Per group:
+   *  "all" is how one group says "the dog's *outdoor* jobs" with two labels. */
+  labels_match: 'any' | 'all';
   areas: string[];
   devices: string[];
   /** Integration domains from a task's `managed_by.integration` — the companion that
-   *  owns it. Scopes a profile to one source ("just the battery tasks") without every
+   *  owns it. Scopes a group to one source ("just the battery tasks") without every
    *  companion having to learn to apply a label. */
-  companions?: string[];
+  companions: string[];
   /** Ids that disqualify a task even when it cleared every include list above.
-   *  Empty (or absent, on a profile saved before these existed) excludes nothing. */
-  exclude_labels?: string[];
-  exclude_areas?: string[];
-  exclude_devices?: string[];
-  exclude_companions?: string[];
+   *  Empty excludes nothing. Scoped to this group: an exclusion in one group never
+   *  touches what another group selects. */
+  exclude_labels: string[];
+  exclude_areas: string[];
+  exclude_devices: string[];
+  exclude_companions: string[];
   /** Drop the auto-created "Buy {part}" reminders. Excludes by *kind*, not by id:
-   *  a buy reminder has no label or area of its own to name. Absent means off. */
-  exclude_shopping?: boolean;
+   *  a buy reminder has no label or area of its own to name. */
+  exclude_shopping: boolean;
+}
+
+/**
+ * A saved profile's filter (mirrors the backend `profiles.py` shape): one status
+ * window for the whole profile, then the groups it ORs together.
+ *
+ * Both keys are optional so a filter read straight off a stored profile can be passed
+ * in as it stands. There are no top-level `labels`/`areas`/`devices` keys and nothing
+ * reads them: a filter's selection lives entirely in its `groups`.
+ */
+export interface ProfileFilter {
+  status?: 'all' | 'overdue' | 'due_soon';
+  groups?: Partial<FilterGroup>[];
+}
+
+/** The eight id lists a group can carry, in the order the editor shows them. */
+const GROUP_LISTS = [
+  'labels',
+  'areas',
+  'devices',
+  'companions',
+  'exclude_labels',
+  'exclude_areas',
+  'exclude_devices',
+  'exclude_companions',
+] as const;
+
+/** A group with nothing set — what the editor seeds a new group with, and what a
+ *  profile with no groups at all is rebuilt around. It selects everything, so a
+ *  profile is never accidentally emptied by adding a group to it. */
+export function emptyGroup(): FilterGroup {
+  return {
+    labels: [],
+    labels_match: 'any',
+    areas: [],
+    devices: [],
+    companions: [],
+    exclude_labels: [],
+    exclude_areas: [],
+    exclude_devices: [],
+    exclude_companions: [],
+    exclude_shopping: false,
+  };
 }
 
 /**
@@ -220,6 +325,67 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
 }
 
 /**
+ * Whether *group* constrains anything at all.
+ *
+ * An untouched group — the one every new profile starts with — selects every task, so
+ * ORing it with a real group would quietly widen the profile to everything. Inactive
+ * groups are dropped before the OR instead, which is what lets the editor always show
+ * a group to fill in without that empty row changing what the profile selects.
+ *
+ * `exclude_shopping` counts: a group that only drops the buy reminders is a real rule.
+ * `labels_match` does not — it says how to read `labels`, and on its own says nothing.
+ */
+export function groupActive(group: Partial<FilterGroup>): boolean {
+  if (group.exclude_shopping) return true;
+  return GROUP_LISTS.some((key) => Boolean(group[key]?.length));
+}
+
+/**
+ * Whether *task* satisfies one group: every include list that carries a value, and no
+ * exclude list hit.
+ *
+ * Resolves the task's **effective** labels and area itself (own ids plus those
+ * inherited via its device and area) so every caller — `profileMatches` here, the
+ * card's own `filterTasks` — asks the question the same way, off the same registries.
+ *
+ * An empty include list means "no constraint", not "match nothing": that is what makes
+ * a group of only exclusions ("everything except the call-outs") a group. An empty
+ * exclude list excludes nothing, so a group saved with none behaves as it always did.
+ */
+export function groupMatches(
+  group: Partial<FilterGroup>,
+  task: Task,
+  devices?: Record<string, HassDevice>,
+  areas?: Record<string, HassArea>,
+): boolean {
+  const taskLabels = taskLabelIds(task, devices, areas);
+  const areaId = taskAreaId(task, devices);
+  // The owning integration, from the `managed_by` block a companion sets on
+  // `add_task`. A task nobody claims has none, so `listHas` rejects it from a
+  // non-empty include list and spares it from every exclude list.
+  const companion = task.managed_by?.integration;
+  const labels = group.labels ?? [];
+  // Stryker disable next-line StringLiteral: equivalent — `matchesLabels` only asks
+  // whether the mode is 'all', so every other string takes the ANY branch anyway. The
+  // literal is here to name the mode for a reader.
+  const mode = group.labels_match === 'all' ? 'all' : 'any';
+  if (labels.length && !matchesLabels(taskLabels, new Set(labels), mode)) return false;
+  const wantAreas = group.areas ?? [];
+  if (wantAreas.length && !listHas(wantAreas, areaId)) return false;
+  const wantDevices = group.devices ?? [];
+  if (wantDevices.length && !listHas(wantDevices, task.device_id)) return false;
+  const wantCompanions = group.companions ?? [];
+  if (wantCompanions.length && !listHas(wantCompanions, companion)) return false;
+  // Exclusions subtract, and win over the include lists above — inside this group.
+  if (group.exclude_labels?.some((id) => taskLabels.has(id))) return false;
+  if (listHas(group.exclude_areas, areaId)) return false;
+  if (listHas(group.exclude_devices, task.device_id)) return false;
+  // By kind rather than by id — a buy reminder has none of its own to name.
+  if (group.exclude_shopping && isBuyTask(task)) return false;
+  return !listHas(group.exclude_companions, companion);
+}
+
+/**
  * Whether *task* matches a saved profile's *filter*. Mirrors the backend
  * `profiles.matches_filter` so a Profile selects the same tasks here (card / admin
  * list) as a notification using it does server-side: the same 3-day `due_soon` window
@@ -229,16 +395,18 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  * matching (`notifier.effective_filter_tasks`); here we resolve them inline via
  * `taskLabelIds`/`taskAreaId`.
  *
- * The `exclude_*` lists subtract after the include lists and win over them, so
- * "everything except the jobs that need a tradesperson" is one profile rather than a
- * label on every task that isn't one. They read the same effective ids, so excluding a
- * label also drops a task that only inherits it from its device or area.
- * `exclude_shopping` subtracts beside them but by *kind*, dropping the auto-created
- * buy reminders — they carry no id of their own, only the appliance's.
+ * The shape is a status gate, then an **OR of groups**. The status window is the
+ * profile's, so every group answers the same "which tasks are in season" question;
+ * everything else lives in the groups, and a task is in the profile when *any* active
+ * group takes it (`groupMatches` — an AND of that group's own include lists and
+ * exclusions). This is what makes "the dog's jobs OR anything overdue in the garage"
+ * one profile: two rules that share nothing but the status could not be written as one
+ * flat list of ids at all.
  *
- * `companions` scopes by the integration that owns a task (`managed_by.integration`),
- * which is how "a card of just the battery tasks" stays one saved profile instead of a
- * setting each companion has to grow.
+ * An **inactive** group — one with nothing set — is dropped before the OR, and a filter
+ * left with no active group matches every task the gates let through. Both follow from
+ * the same rule: a group that constrains nothing must not widen the profile, and the
+ * editor always shows one empty group waiting to be filled in.
  *
  * A `problem`-sensor-synced task is an ordinary member of the set. It carries a
  * `next_due` of the moment its sensor went bad while the problem stands, so it reads as
@@ -262,27 +430,11 @@ export function profileMatches(
   const status = filter.status || 'overdue';
   if (status === 'overdue' && due > now) return false;
   if (status === 'due_soon' && due > now + DUE_SOON_DAYS * DAY_MS) return false;
-  const taskLabels = taskLabelIds(task, devices, areas);
-  const areaId = taskAreaId(task, devices);
-  const labels = filter.labels ?? [];
-  if (labels.length && !labels.some((id) => taskLabels.has(id))) return false;
-  const wantAreas = filter.areas ?? [];
-  if (wantAreas.length && !listHas(wantAreas, areaId)) return false;
-  const wantDevices = filter.devices ?? [];
-  if (wantDevices.length && !listHas(wantDevices, task.device_id)) return false;
-  // The owning integration, from the `managed_by` block a companion sets on
-  // `add_task`. A task nobody claims has none, so `listHas` rejects it from a
-  // non-empty include list and spares it from every exclude list.
-  const companion = task.managed_by?.integration;
-  const wantCompanions = filter.companions ?? [];
-  if (wantCompanions.length && !listHas(wantCompanions, companion)) return false;
-  // Exclusions subtract, and win over the include lists above.
-  if (filter.exclude_labels?.some((id) => taskLabels.has(id))) return false;
-  if (listHas(filter.exclude_areas, areaId)) return false;
-  if (listHas(filter.exclude_devices, task.device_id)) return false;
-  // By kind rather than by id — a buy reminder has none of its own to name.
-  if (filter.exclude_shopping && isBuyTask(task)) return false;
-  return !listHas(filter.exclude_companions, companion);
+  // Stryker disable next-line ArrayDeclaration: equivalent — the fallback stands in for
+  // "this filter has no groups", and any element a non-empty one could hold constrains
+  // nothing, so `groupActive` filters it straight back out.
+  const active = (filter.groups ?? []).filter(groupActive);
+  return active.length === 0 || active.some((group) => groupMatches(group, task, devices, areas));
 }
 
 /**
@@ -454,9 +606,15 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
 /**
  * Apply every configured filter, returning the surviving tasks (unsorted).
  *
+ * Selection is an **OR of the card's filter groups**, the same rule a profile applies
+ * (`groupMatches`) — so "the dog's jobs OR anything in the garage" is one card. A group
+ * that constrains nothing is dropped first (`groupActive`), and a card left with no
+ * active group selects every task the status, recurrence and horizon gates let through.
+ * The status/recurrence/horizon gates are the card's own and apply to every group.
+ *
  * `areas` is the HA area registry (passed last to stay backward-compatible with
- * existing positional callers); it's only needed so a label filter can match a
- * task via the labels on its effective area.
+ * existing positional callers); it's only needed so a group's label or area list can
+ * match a task via the labels on its effective area.
  */
 export function filterTasks(
   tasks: Task[],
@@ -465,10 +623,10 @@ export function filterTasks(
   now = Date.now(),
   areas?: Record<string, HassArea>,
 ): Task[] {
-  const areaSet = config.areas?.length ? new Set(config.areas) : null;
-  const devSet = config.devices?.length ? new Set(config.devices) : null;
-  const labelSet = config.labels?.length ? new Set(config.labels) : null;
-  const labelMode = config.label_match === 'all' ? 'all' : 'any';
+  // Stryker disable next-line ArrayDeclaration: equivalent — the fallback stands in for
+  // "this card has no groups", and any element a non-empty one could hold constrains
+  // nothing, so `groupActive` filters it straight back out.
+  const active = (config.groups ?? []).filter(groupActive);
   const recTypes = config.recurrence_types?.length ? new Set(config.recurrence_types) : null;
   const filter = config.filter ?? 'all';
   const horizon = Math.max(0, Number(config.horizon_days) || 0);
@@ -480,10 +638,7 @@ export function filterTasks(
   return tasks.filter((task) => {
     if (!config.show_disabled && task.enabled === false) return false;
     if (config.hide_managed && task.managed_by) return false;
-    if (areaSet && !areaSet.has(taskAreaId(task, devices) ?? '')) return false;
-    if (devSet && !devSet.has(task.device_id ?? '')) return false;
-    if (labelSet && !matchesLabels(taskLabelIds(task, devices, areas), labelSet, labelMode))
-      return false;
+    if (active.length && !active.some((g) => groupMatches(g, task, devices, areas))) return false;
     if (recTypes && !recTypes.has(task.recurrence_type)) return false;
     if (!matchesFilter(task, filter, now)) return false;
     if (horizonCutoff) {
