@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone
 
 import hk_profiles as p
+import pytest
 
 TZ = timezone(timedelta(hours=-4))
 
@@ -826,6 +827,12 @@ def test_check_profiles_use_groups_passes_a_groups_filter_through_unchanged():
     assert p.check_profiles_use_groups(nested) is nested
     assert p.check_profiles_use_groups([]) == []
     assert p.check_profiles_use_groups("nonsense") == "nonsense"
+
+
+def test_check_profiles_use_groups_keeps_looking_past_a_non_dict_entry():
+    # A junk entry must not end the scan: the legacy filter after it is still refused.
+    with pytest.raises(ValueError):
+        p.check_profiles_use_groups(["junk", {"filter": {"labels": ["dog"]}}])
 
 
 # ── migration to groups ─────────────────────────────────────────────────────

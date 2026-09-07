@@ -226,8 +226,9 @@ def migrate_filter_v1(raw: Any) -> dict[str, Any]:
     raw = raw if isinstance(raw, dict) else {}
     if isinstance(raw.get("groups"), list):
         return normalize_filter({"groups": raw["groups"], "status": raw.get("status")})
-    group: dict[str, Any] = {key: raw.get(key) for key in _LEGACY_FILTER_KEYS}
-    group["labels_match"] = LABELS_MATCH_ANY
+    # No ``labels_match`` on purpose: the flat shape only ever matched "any", and
+    # ``normalize_group`` defaults an absent value to exactly that.
+    group = {key: raw.get(key) for key in _LEGACY_FILTER_KEYS}
     return normalize_filter({"groups": [group], "status": raw.get("status")})
 
 
