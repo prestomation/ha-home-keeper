@@ -2,6 +2,7 @@ import { emptyGroup } from './card-filter';
 import type { CompanionOption, FormField } from './forms';
 import { filterGroupSchema, groupFormData, toFilterGroup } from './forms';
 import { t } from './i18n';
+import { MDI_DELETE } from './panel-icons';
 import type { FilterGroup } from './types';
 import { setBtnWeight } from './utils';
 
@@ -109,7 +110,9 @@ export function renderGroupsEditor(
     if (groups.length > 1) {
       const del = document.createElement('ha-icon-button');
       del.className = 'hk-filter-group-delete';
-      del.setAttribute('icon', 'mdi:delete-outline');
+      // ha-icon-button draws from its `path` property; an `icon` attribute renders
+      // nothing at all (an empty 48px hit area), which is how this first shipped.
+      (del as HTMLElement & { path?: string }).path = MDI_DELETE;
       del.setAttribute('title', opts.strings.remove);
       del.setAttribute('aria-label', opts.strings.remove);
       del.addEventListener('click', () => {

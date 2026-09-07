@@ -111,7 +111,9 @@ describe('renderGroupsEditor — several groups', () => {
   it('names the Delete button for a screen reader and a hover', () => {
     const { host } = mount([emptyGroup(), emptyGroup()]);
     const del = host.querySelector('.hk-filter-group-delete');
-    expect(del.getAttribute('icon')).toBe('mdi:delete-outline');
+    // The icon is the `path` property, not an attribute: an attribute draws nothing.
+    expect(del.path).toMatch(/^M19,4H15\.5/);
+    expect(del.getAttribute('icon')).toBeNull();
     expect(del.getAttribute('title')).toBe('Delete group');
     expect(del.getAttribute('aria-label')).toBe('Delete group');
     // The divider is decoration; the titles already say which group is which.
