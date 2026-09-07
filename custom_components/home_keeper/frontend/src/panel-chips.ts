@@ -197,8 +197,11 @@ export function virtualDeviceChip(p: PanelHost, asset: Asset): string {
  * `data-device-id` for the Home Assistant device page — so this reads the chip rather
  * than the task or appliance it came from. It takes the panel only to reach
  * `_openDetail`, which is what keeps an in-panel hop on the panel's own history.
+ *
+ * `root` is a `ParentNode` rather than the shadow root, because `_applyQuery` rebuilds
+ * only `#hk-list` for the text filter and re-wires that element alone.
  */
-export function wireDeviceChips(p: PanelHost, root: ShadowRoot): void {
+export function wireDeviceChips(p: PanelHost, root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('.hk-device-chip').forEach((chip) => {
     const id = chip.dataset.deviceId;
     const assetId = chip.dataset.assetId;

@@ -12,7 +12,7 @@
  */
 
 import * as api from './api';
-import { bucketByKey, profileMatches } from './card-filter';
+import { assetMatchesQuery, bucketByKey, profileMatches, taskMatchesQuery } from './card-filter';
 import { t, tn } from './i18n';
 import {
   deviceChip,
@@ -94,6 +94,13 @@ export function tasksList(p: PanelHost): string {
   } else {
     tasks = tasks.filter((task) => scopeMatches(task, p._filter, now));
   }
+  // The text filter narrows whichever of the two chose the set, rather than replacing
+  // it: a Profile plus a word is how a household finds one task among its own.
+  if (p._query) {
+    tasks = tasks.filter((task) =>
+      taskMatchesQuery(task, p._query, p._hass?.devices, p._hass?.areas),
+    );
+  }
   tasks.sort((a, b) => {
     const ad = a.next_due ? new Date(a.next_due).getTime() : Infinity;
     const bd = b.next_due ? new Date(b.next_due).getTime() : Infinity;
@@ -104,7 +111,7 @@ export function tasksList(p: PanelHost): string {
     // full list, so the dead end is escapable even when it was a Profile rather
     // than a scope pill that emptied it.
     const showAll =
-      p._filter === 'all' && !activeProfile(p)
+      p._filter === 'all' && !profile && !p._query
         ? ''
         : `<ha-button slot="action" ${btnAttrs('secondary')} id="hk-show-all">${escapeHTML(
             t('tasks.showAll'),
@@ -152,10 +159,24 @@ export function assetsList(p: PanelHost): string {
     return `<ha-alert alert-type="info">${escapeHTML(t('appliances.empty'))}</ha-alert>`;
   }
   const archived = p._assetFilter === 'archived';
-  const filtered = p._assets.filter((a) => Boolean(a.archived_at) === archived);
+  let filtered = p._assets.filter((a) => Boolean(a.archived_at) === archived);
+  if (p._query) {
+    filtered = filtered.filter((a) =>
+      assetMatchesQuery(a, p._query, p._hass?.devices, p._hass?.areas),
+    );
+  }
   if (!filtered.length) {
-    const emptyKey = archived ? 'appliances.archivedEmpty' : 'appliances.noMatch';
-    return `<ha-alert alert-type="info">${escapeHTML(t(emptyKey))}</ha-alert>`;
+    // An empty Archived scope is a fact about the data. A scope emptied by something
+    // the reader typed is a dead end, and gets the same way out the task list has had
+    // since #262 — clearing the text only, because someone standing on Archived chose
+    // to be there.
+    const emptyKey = archived && !p._query ? 'appliances.archivedEmpty' : 'appliances.noMatch';
+    const showAll = p._query
+      ? `<ha-button slot="action" ${btnAttrs('secondary')} id="hk-show-all">${escapeHTML(
+          t('appliances.showAll'),
+        )}</ha-button>`
+      : '';
+    return `<ha-alert alert-type="info">${escapeHTML(t(emptyKey))}${showAll}</ha-alert>`;
   }
   const cmp = (a: Asset, b: Asset) => (a.name || '').localeCompare(b.name || '');
   if (p._assetView === 'tree') {
@@ -379,17 +400,40 @@ export function assetAncestry(p: PanelHost, assetId: string): string {
  * tree's expand/collapse, a row's quick Done (and the caption that stands in for one
  * a source owns), the intro banner's dismiss, and the "+n" chip unfold.
  */
-export function wireLists(p: PanelHost, root: ShadowRoot): void {
+export function wireLists(p: PanelHost, root: ParentNode): void {
   root
-    .getElementById('cleanup-orphans-btn')
+    .querySelector<HTMLElement>('#cleanup-orphans-btn')
     ?.addEventListener('click', () => void cleanupOrphans(p));
 
-  // The way out of a filter that matches nothing: clears the scope *and* any active
-  // Profile, since either can be what emptied the list.
-  root.getElementById('hk-show-all')?.addEventListener('click', () => {
+  // The way out of a filter that matches nothing: clears the text, the scope *and*
+  // any active Profile, since any of the three can be what emptied the list.
+  root.querySelector<HTMLElement>('#hk-show-all')?.addEventListener('click', () => {
+    // Text first. On its own that is a patch, so the common case renders once; a
+    // scope or Profile change after it then renders with the text already gone,
+    // rather than painting the old query's list on the way through.
+    p._setQuery('');
+    // The scope pills and the Profile picker belong to the task list. The appliance
+    // list reaches this button too, and its own scope is a deliberate choice.
+    if (p._view !== 'tasks') return;
     if (activeProfile(p)) p._setProfile('');
     p._setFilter('all');
   });
+
+  // Remember which group sections the user collapsed (no re-render needed). These
+  // `<details>` come from `renderGroups`, which only ever runs inside the list — so
+  // they are rebuilt whenever the list is, and belong to this pass rather than to
+  // `wireControls` beside it.
+  root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
+    d.addEventListener('toggle', () => {
+      // A search forces every section open (see `renderGroups`), so while one is
+      // running the open state is not a choice anybody made and must not overwrite
+      // the choice they made before it.
+      if (p._query) return;
+      const key = d.dataset.groupKey || '';
+      if (d.open) p._collapsed.delete(key);
+      else p._collapsed.add(key);
+    }),
+  );
 
   // Tree view: expand/collapse parent groups.
   root.querySelectorAll<HTMLElement>('.hk-chevron[data-tree-toggle]').forEach((ch) =>

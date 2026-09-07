@@ -14,7 +14,14 @@
  * (`_view`, `_groupBy`, `_filter`, the saved Profiles) through the declared seam.
  */
 
-import { bucketByKey, isBuyTask, statusBucket, taskAreaId, type Group } from './card-filter';
+import {
+  bucketByKey,
+  isBuyTask,
+  statusBucket,
+  taskAreaId,
+  taskMatchesQuery,
+  type Group,
+} from './card-filter';
 import { t } from './i18n';
 import type { PanelHost } from './panel-host';
 import {
@@ -126,12 +133,45 @@ export function controls(p: PanelHost): string {
   // sit to the right behind a spacer, and the single primary action closes it. The
   // comp's rule is one primary button per surface, so Add moves in here from the
   // old full-width action bar above the list.
+  // Search sits with the two segments above rather than with the refinements after
+  // it: all three answer "what is listed", while View, Profile and Group by answer
+  // how what is listed is arranged. The pills keep the lead, because their counts
+  // answer "how much is overdue" before anyone has to type anything.
   const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
   const actions = `
       <span class="hk-controls-spacer"></span>
       ${onTasks ? '' : `<ha-button ${btnAttrs('secondary')} id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
       <ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
-  return `<div class="hk-controls">${filterControl}${assetFilterControl}${viewControl}${profileControl(p)}${groupControl}${actions}</div>`;
+  return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${groupControl}${actions}</div>`;
+}
+
+/**
+ * The text filter both lists share.
+ *
+ * Shaped like `menuControl` beside it — a caption and a value inside one bordered
+ * chip — so the row keeps one height and one vocabulary. Three things about it are
+ * load-bearing:
+ *
+ * - The `value` comes from panel state, so a render the query did not ask for (a
+ *   Done press on a narrowed row, opening a form) does not empty the box.
+ * - The `id` is what `_focusKey`'s `#<id>` fallback finds after such a render.
+ * - The clear button is always in the DOM and toggled with `hidden`, so patching the
+ *   list never inserts or removes a node next to the box being typed in. The
+ *   browser's own clear button on `type="search"` cannot do this job: Firefox does
+ *   not draw one, it cannot take the theme's colours, and it carries no name for a
+ *   screen reader. `type` stays `search` for the phone keyboard it asks for.
+ */
+function searchControl(p: PanelHost): string {
+  const label = t('filter.search');
+  return `<label class="hk-control hk-search">
+            <span class="hk-seg-label">${escapeHTML(label)}</span>
+            <input id="hk-search" class="hk-search-input" type="search" autocomplete="off"
+              spellcheck="false" enterkeyhint="search" aria-label="${escapeHTML(label)}"
+              value="${escapeHTML(p._query)}">
+            <ha-icon-button class="hk-search-clear" label="${escapeHTML(
+              t('filter.clearSearch'),
+            )}"${p._query ? '' : ' hidden'}><ha-icon icon="mdi:close"></ha-icon></ha-icon-button>
+          </label>`;
 }
 
 /** The saved Profile currently selected for the list filter, or null. */
@@ -255,12 +295,42 @@ export function scopeMatches(task: Task, scope: TaskFilter, now = Date.now()): b
 /** How many tasks each scope pill would show, for the counts rendered on them. */
 function filterCounts(p: PanelHost, now = Date.now()): Record<TaskFilter, number> {
   const counts = { all: 0, overdue: 0, soon: 0, shopping: 0 };
-  for (const task of p._tasks) {
+  // The text filter is part of what the list shows, so it is part of what a pill
+  // promises. Left out, a pill reads "Overdue 12" above a list of three.
+  const tasks = p._query
+    ? p._tasks.filter((task) =>
+        taskMatchesQuery(task, p._query, p._hass?.devices, p._hass?.areas),
+      )
+    : p._tasks;
+  for (const task of tasks) {
     for (const scope of ['all', 'overdue', 'soon', 'shopping'] as TaskFilter[]) {
       if (scopeMatches(task, scope, now)) counts[scope]++;
     }
   }
   return counts;
+}
+
+/**
+ * Put the current counts back on the scope pills without rebuilding the control row.
+ *
+ * The counterpart to `_applyQuery`'s list patch: the buttons themselves are left
+ * standing, so their listeners survive and the keyboard does not move. Only the
+ * figure and the dimming change, by the same rules `seg` applies when it draws them.
+ */
+export function patchFilterCounts(p: PanelHost, root: ParentNode): void {
+  // The pills are drawn on the tasks list, and not while a Profile is driving it.
+  if (p._view !== 'tasks' || activeProfile(p)) return;
+  const counts = filterCounts(p);
+  root.querySelectorAll<HTMLElement>('.hk-seg[data-seg="filter"] .hk-seg-btn').forEach((btn) => {
+    const scope = btn.dataset.segVal as TaskFilter | undefined;
+    if (!scope || !(scope in counts)) return;
+    const n = counts[scope];
+    const cell = btn.querySelector('.hk-seg-count');
+    if (cell) cell.textContent = String(n);
+    // Mirrors `seg`: the selected pill is never dimmed, so the one being stood on
+    // stays solid when a query empties it underneath.
+    btn.classList.toggle('hk-seg-empty', n === 0 && !btn.classList.contains('active'));
+  });
 }
 
 export function groupTasks(p: PanelHost, tasks: Task[], now = Date.now()): Group<Task>[] {
@@ -343,7 +413,12 @@ export function renderGroups<T>(
   }
   return groups
     .map((g) => {
-      const open = p._collapsed.has(g.key) ? '' : 'open';
+      // A search opens every section it drew. Two of them start collapsed —
+      // "Monitored" and "Completed" — and a monitored companion task is exactly what
+      // the reader is most often hunting for, so a match landing behind a shut
+      // heading would fail at the one job this filter has. The set is read, never
+      // written, so each section closes again the moment the box is cleared.
+      const open = p._query || !p._collapsed.has(g.key) ? 'open' : '';
       // `data-bucket` lets the header take the section's status colour (Overdue reads
       // red) without the label text having to carry that meaning on its own. The rule
       // and the collapse caption are decorative: the whole summary is the hit target,
@@ -365,7 +440,12 @@ export function renderGroups<T>(
 
 /**
  * Wire the control row: Add/Export, the pill segments and their dropdown twins, the
- * saved-Profile picker, and the per-group collapse memory.
+ * saved-Profile picker, and the text filter.
+ *
+ * The per-group collapse memory is *not* here, although the segments it sits beside
+ * are. `renderGroups` emits those `<details>` into the list, and the list is rebuilt
+ * on its own by `_applyQuery` — so they are wired by `wireLists`, which is the pass
+ * that runs again when they are replaced.
  */
 export function wireControls(p: PanelHost, root: ShadowRoot): void {
   root.getElementById('add-btn')?.addEventListener('click', () => {
@@ -403,12 +483,38 @@ export function wireControls(p: PanelHost, root: ShadowRoot): void {
   root
     .querySelector<HTMLSelectElement>('select[data-profile-filter]')
     ?.addEventListener('change', (e) => p._setProfile((e.target as HTMLSelectElement).value));
-  // Remember which group sections the user collapsed (no re-render needed).
-  root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
-    d.addEventListener('toggle', () => {
-      const key = d.dataset.groupKey || '';
-      if (d.open) p._collapsed.delete(key);
-      else p._collapsed.add(key);
-    }),
-  );
+
+  // The text filter.
+  const search = root.querySelector<HTMLInputElement>('.hk-search-input');
+  if (search) {
+    // `input` rather than `keyup`, so a paste registers too. The composition guard is
+    // for the languages that compose a character from several keystrokes: without it a
+    // half-typed pinyin syllable filters the list out from under the person typing it.
+    let composing = false;
+    search.addEventListener('compositionstart', () => {
+      composing = true;
+    });
+    search.addEventListener('compositionend', () => {
+      composing = false;
+      p._setQuery(search.value);
+    });
+    search.addEventListener('input', () => {
+      if (!composing) p._setQuery(search.value);
+    });
+    // Escape clears the box instead of leaving the panel, matching what Escape does
+    // in every other search field the reader uses.
+    search.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      p._setQuery('');
+    });
+  }
+  root.querySelector<HTMLElement>('.hk-search-clear')?.addEventListener('click', (e) => {
+    // The button sits inside the <label>, which would otherwise re-fire the click on
+    // the input it labels.
+    e.preventDefault();
+    p._setQuery('');
+    p._focus(search);
+  });
 }

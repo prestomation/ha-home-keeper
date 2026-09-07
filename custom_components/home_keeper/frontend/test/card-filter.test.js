@@ -4,12 +4,16 @@ import { setLanguage } from '../src/i18n.ts';
 import {
   DAY_MS,
   SOON_DAYS,
+  assetMatchesQuery,
   bucketByKey,
   filterTasks,
   groupTasks,
+  matchesQuery,
+  normalizeSearch,
   profileMatches,
   sortTasks,
   statusBucket,
+  taskMatchesQuery,
 } from '../src/card-filter.ts';
 
 afterEach(() => setLanguage('en'));
@@ -546,4 +550,168 @@ describe('profileMatches conformance (shared backend/frontend fixture)', () => {
       expect(profileMatches(c.task, c.filter, {}, {}, now)).toBe(c.expected);
     });
   }
+});
+
+// ── the panel's text filter (#297) ──────────────────────────────────────────
+// These pin the folding rules one at a time, because each step of
+// `normalizeSearch` is a separate mutant: drop the trim, drop either
+// `toLowerCase`, widen `\s+` to `\s`, or skip the diacritic strip, and the filter
+// still works for the easy queries. Each case below fails for exactly one of them.
+describe('normalizeSearch', () => {
+  it('folds case, diacritics and runs of whitespace, and trims the ends', () => {
+    expect(normalizeSearch('  Čistič   Vzduchu  ')).toBe('cistic vzduchu');
+    expect(normalizeSearch('Über\tdas\nJahr')).toBe('uber das jahr');
+  });
+
+  it('answers an empty string for nothing at all', () => {
+    expect(normalizeSearch('')).toBe('');
+    expect(normalizeSearch('   ')).toBe('');
+    expect(normalizeSearch(null)).toBe('');
+    expect(normalizeSearch(undefined)).toBe('');
+  });
+
+  it('leaves a script with no separable marks alone', () => {
+    expect(normalizeSearch('Кухня')).toBe('кухня');
+    expect(normalizeSearch('冰箱')).toBe('冰箱');
+  });
+});
+
+describe('matchesQuery', () => {
+  const fields = ['Replace filter', 'Water heater', 'Kitchen'];
+
+  it('matches everything when the query holds no words', () => {
+    expect(matchesQuery(fields, '')).toBe(true);
+    expect(matchesQuery(fields, '   ')).toBe(true);
+    // ...and an empty field list is still matched by an empty query, but by nothing else.
+    expect(matchesQuery([], '')).toBe(true);
+    expect(matchesQuery([], 'filter')).toBe(false);
+  });
+
+  it('is case-insensitive on both sides', () => {
+    expect(matchesQuery(fields, 'FILTER')).toBe(true);
+    expect(matchesQuery(['Replace FILTER'], 'filter')).toBe(true);
+  });
+
+  it('matches inside a word, not only at its start', () => {
+    expect(matchesQuery(fields, 'ilte')).toBe(true);
+    expect(matchesQuery(fields, 'eater')).toBe(true);
+  });
+
+  it('needs every word, and takes them in any order and from any field', () => {
+    expect(matchesQuery(fields, 'water filter')).toBe(true);
+    expect(matchesQuery(fields, 'filter water')).toBe(true);
+    expect(matchesQuery(fields, 'water   filter')).toBe(true);
+    expect(matchesQuery(fields, '  filter  ')).toBe(true);
+    // One word missing is no match, even though the other one is there.
+    expect(matchesQuery(fields, 'water furnace')).toBe(false);
+    expect(matchesQuery(fields, 'zzz')).toBe(false);
+  });
+
+  it('never lets a word match across two fields', () => {
+    // "Replace filter" then "Water heater": without the joining space, "filterwater"
+    // would be a hit.
+    expect(matchesQuery(fields, 'filterwater')).toBe(false);
+  });
+
+  it('folds diacritics on both sides', () => {
+    expect(matchesQuery(['Čistič vzduchu'], 'cistic')).toBe(true);
+    expect(matchesQuery(['Cistic vzduchu'], 'čistič')).toBe(true);
+    // The fold is not a free pass: an unrelated query still misses.
+    expect(matchesQuery(['Čistič vzduchu'], 'zzz')).toBe(false);
+  });
+
+  it('skips fields that hold nothing', () => {
+    expect(matchesQuery([null, undefined, '', 'Fridge'], 'fridge')).toBe(true);
+    expect(matchesQuery([null, undefined, ''], 'fridge')).toBe(false);
+  });
+});
+
+describe('taskMatchesQuery', () => {
+  const devices = { d1: { name: 'Fridge', name_by_user: null, area_id: 'kitchen' } };
+  const areas = { kitchen: { area_id: 'kitchen', name: 'Kitchen' } };
+  const t = task({ name: 'Replace water filter', device_id: 'd1' });
+
+  it('matches the task name', () => {
+    expect(taskMatchesQuery(t, 'water', devices, areas)).toBe(true);
+    expect(taskMatchesQuery(t, 'furnace', devices, areas)).toBe(false);
+  });
+
+  it('matches the notes written on the task', () => {
+    const noted = task({ name: 'Service', notes: 'Model GX-40, cartridge is under the sink' });
+    expect(taskMatchesQuery(noted, 'gx-40')).toBe(true);
+    expect(taskMatchesQuery(noted, 'cartridge')).toBe(true);
+  });
+
+  it('matches the name of the device the task is on', () => {
+    expect(taskMatchesQuery(t, 'fridge', devices, areas)).toBe(true);
+    // The name the user gave the device wins, the way the row shows it.
+    const renamed = { d1: { name: 'Fridge', name_by_user: 'Garage freezer' } };
+    expect(taskMatchesQuery(t, 'garage', renamed, areas)).toBe(true);
+  });
+
+  it('matches the effective area, which a task with none of its own takes from its device', () => {
+    expect(taskMatchesQuery(t, 'kitchen', devices, areas)).toBe(true);
+    // Its own area wins over the device's.
+    const placed = task({ name: 'Replace filter', device_id: 'd1', area_id: 'garage' });
+    const both = { ...areas, garage: { area_id: 'garage', name: 'Garage' } };
+    expect(taskMatchesQuery(placed, 'garage', devices, both)).toBe(true);
+  });
+
+  it('matches the integration that supplied the task', () => {
+    // The reason #297 was opened: a household running several companions cannot tell
+    // one generated task from another by name alone.
+    const managed = task({ name: 'Change battery', managed_by: { display_name: 'Zigbee2MQTT' } });
+    expect(taskMatchesQuery(managed, 'zigbee')).toBe(true);
+    expect(taskMatchesQuery(managed, 'zwave')).toBe(false);
+  });
+
+  it('matches a chip the integration put on the row', () => {
+    const chipped = task({ name: 'Refill', task_chips: [{ label: 'Salt' }, { label: 'Rinse aid' }] });
+    expect(taskMatchesQuery(chipped, 'rinse')).toBe(true);
+  });
+
+  it('survives a device or an area that is not in the registry', () => {
+    const orphan = task({ name: 'Replace filter', device_id: 'gone' });
+    expect(taskMatchesQuery(orphan, 'filter', {}, {})).toBe(true);
+    expect(taskMatchesQuery(orphan, 'fridge', {}, {})).toBe(false);
+    // No registries at all is the panel's own first-paint state.
+    expect(taskMatchesQuery(orphan, 'filter')).toBe(true);
+  });
+});
+
+describe('assetMatchesQuery', () => {
+  const devices = { d9: { name: 'Kitchen fridge', name_by_user: null } };
+  const areas = { kitchen: { area_id: 'kitchen', name: 'Kitchen' } };
+  const asset = {
+    id: 'a1',
+    kind: 'device',
+    name: 'Fridge',
+    manufacturer: 'Bosch',
+    model: 'KGN39',
+    serial_number: 'SN-77321',
+    area_id: 'kitchen',
+  };
+
+  it('matches the name, the nameplate and the area', () => {
+    expect(assetMatchesQuery(asset, 'fridge', {}, areas)).toBe(true);
+    expect(assetMatchesQuery(asset, 'bosch', {}, areas)).toBe(true);
+    expect(assetMatchesQuery(asset, 'kgn39', {}, areas)).toBe(true);
+    expect(assetMatchesQuery(asset, 'sn-77321', {}, areas)).toBe(true);
+    expect(assetMatchesQuery(asset, 'kitchen', {}, areas)).toBe(true);
+    expect(assetMatchesQuery(asset, 'siemens', {}, areas)).toBe(false);
+  });
+
+  it('matches a make and model that only read as one phrase together', () => {
+    expect(assetMatchesQuery(asset, 'bosch kgn39', {}, areas)).toBe(true);
+  });
+
+  it('matches the device name, which titles an appliance that has no name', () => {
+    const nameless = { id: 'a2', kind: 'device', name: '', device_id: 'd9' };
+    expect(assetMatchesQuery(nameless, 'fridge', devices, {})).toBe(true);
+  });
+
+  it('matches the notes written on the appliance', () => {
+    const noted = { id: 'a3', kind: 'device', name: 'Boiler', notes: 'Serviced by Acme every March' };
+    expect(assetMatchesQuery(noted, 'acme')).toBe(true);
+  });
 });

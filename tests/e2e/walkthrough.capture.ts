@@ -184,6 +184,20 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await allBtn.click();
   await page.waitForTimeout(BEAT);
 
+  // 1e. The text filter beside the pills (#297). Typed a character at a time, because
+  //     the point of the beat is that the list narrows *as* the word arrives and the
+  //     pills' counts come down with it — a `fill()` would jump straight to the answer
+  //     and show none of that.
+  const searchBox = panel.locator('.hk-search-input');
+  await searchBox.scrollIntoViewIfNeeded();
+  await searchBox.click();
+  await searchBox.pressSequentially('filter', { delay: 110 });
+  await expect(panel.locator('#hk-list ha-card.hk-card')).not.toHaveCount(0);
+  await page.waitForTimeout(BEAT * 3);
+  await panel.locator('.hk-search-clear').click();
+  await expect(searchBox).toHaveValue('');
+  await page.waitForTimeout(BEAT);
+
   // 2. Open a task's detail page — full schedule, notes, completion history, and
   //    (since this task is linked to a part with a product URL) a clickable
   //    "Consumable link" row that jumps straight to buying the replacement.

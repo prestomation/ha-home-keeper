@@ -999,9 +999,10 @@ export const STYLES = `
   }
 
   /* ── Filter / group-by controls ───────────────────────────────────────────
-     One row: the scope pills lead, refinements follow, and the single primary
-     action closes it. It wraps rather than scrolls when the viewport can't hold
-     it, so no control is ever unreachable. */
+     One row: the scope pills lead, the text filter sits with them, the
+     refinements follow, and the single primary action closes it. It wraps rather
+     than scrolls when the viewport can't hold it, so no control is ever
+     unreachable. */
   .hk-controls {
     display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap;
     margin-bottom: 16px;
@@ -1051,6 +1052,27 @@ export const STYLES = `
   .hk-menu-select:focus-visible, .hk-profile-select:focus-visible {
     outline: 2px solid var(--hk-accent); outline-offset: 2px; border-radius: 4px;
   }
+  /* The text filter: the same chip as the dropdowns beside it, with a text field
+     where their value sits and a clear button that appears once there is something
+     to clear. The ring goes on the chip rather than the input, so the whole control
+     lights up the way a focused dropdown does. */
+  .hk-search { gap: 0; border: 1px solid var(--hk-line); border-radius: var(--hk-r-btn);
+    background: var(--hk-surface); padding: 0 4px 0 12px; }
+  .hk-search .hk-seg-label { font-size: 0.72rem; letter-spacing: 0.05em; flex: none; }
+  .hk-search:focus-within { outline: 2px solid var(--hk-accent); outline-offset: 2px; }
+  .hk-search-input {
+    appearance: none; font: inherit; font-size: 0.85rem; font-weight: 500;
+    padding: 8px; border: 0; background: transparent; color: var(--hk-ink);
+    outline: none; min-width: 0; width: 16ch;
+  }
+  /* Blink and WebKit draw their own clear button on a search field. Firefox draws
+     none, it cannot take the theme's colours, and it carries no name for a screen
+     reader — so it is suppressed and the button beside it does all three. */
+  .hk-search-input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+  .hk-search-clear { --mdc-icon-button-size: 28px; --mdc-icon-size: 16px; color: var(--hk-ink-2); }
+  /* Not redundant with the user agent's own [hidden] rule: the class above sets a
+     display of its own, and the class wins. */
+  .hk-search-clear[hidden] { display: none; }
   /* The closed control blends into its chip via a transparent background, but the
      popup list it opens is the browser's own UI surface — Chromium and Firefox both
      honor a color/background-color set on <option>, so without one the popup falls
@@ -1563,6 +1585,15 @@ export const STYLES = `
        for most on a phone list, and both sat under the tap target this file defines. */
     .hk-menu { min-height: var(--hk-tap); }
     .hk-menu-select, .hk-profile-select { min-height: calc(var(--hk-tap) - 2px); }
+    /* The rule above gives the search chip a row of its own, so the field takes the
+       width instead of the 16ch it holds beside the pills on a desktop. */
+    .hk-search { min-height: var(--hk-tap); }
+    .hk-search-input {
+      flex: 1 1 auto; width: auto; min-height: calc(var(--hk-tap) - 2px);
+      /* 16px exactly. A WKWebView zooms the whole page when the field taking focus
+         is smaller than that, and the Home Assistant companion app is a WKWebView. */
+      font-size: 16px;
+    }
     .hk-add-btn { --ha-button-height: var(--hk-tap); }
     /* Restore only the width the joined-segment rule zeroes out. Matching that rule's
        first-child specificity here would also tie with the .active rule and, as the

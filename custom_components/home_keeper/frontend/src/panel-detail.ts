@@ -929,8 +929,13 @@ function wireCopyButtons(p: PanelHost, root: ShadowRoot): void {
   });
 }
 
-/** Wire every `.detail-open` row to open its object's detail page. */
-export function wireDetailOpeners(p: PanelHost, root: ShadowRoot): void {
+/** Wire every `.detail-open` row to open its object's detail page.
+ *
+ *  Takes a `ParentNode` rather than the shadow root, because `_applyQuery` rebuilds
+ *  only `#hk-list` and passes that: on an appliance's page the same class is on the
+ *  detail pane beside the list, which that pass did not rebuild and must not bind
+ *  a second time. */
+export function wireDetailOpeners(p: PanelHost, root: ParentNode): void {
   root.querySelectorAll<HTMLElement>('.detail-open').forEach((el) => {
     const go = (): void => {
       const kind = el.dataset.detailKind;

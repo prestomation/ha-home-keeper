@@ -41,7 +41,9 @@ test.describe(
     // tell which one it had landed on. Having *a* name was never the whole contract.
     const names = await panel.evaluate((el) =>
       Array.from(
-        el.shadowRoot!.querySelectorAll('.hk-seg[aria-label], .hk-menu-select[aria-label]'),
+        el.shadowRoot!.querySelectorAll(
+          '.hk-seg[aria-label], .hk-menu-select[aria-label], .hk-search-input[aria-label]',
+        ),
       ).map((n) => n.getAttribute('aria-label')),
     );
     expect(names.length, 'expected the controls row to carry named controls').toBeGreaterThan(1);
@@ -62,6 +64,27 @@ test.describe(
     });
     expect(still.cls).toContain('hk-seg-btn');
     expect(still.val).toBe('overdue');
+  });
+
+  test('typing in the search box leaves the keyboard in the search box', async ({ page }) => {
+    // The one control the render-and-restore dance above cannot serve: restoring
+    // focus puts the caret back at the end, so a word typed into a rebuilt box comes
+    // out scrambled. `_setQuery` patches the list instead and leaves the box standing.
+    await openPanel(page);
+    const panel = panelOf(page);
+    const box = panel.locator('.hk-search-input');
+    await box.click();
+    await page.keyboard.type('filter');
+    // Type a character into the middle of it: the caret only survives where it was
+    // put if nothing replaced the element in between.
+    await box.evaluate((el: HTMLInputElement) => el.setSelectionRange(3, 3));
+    await page.keyboard.type('X');
+    await expect(box).toHaveValue('filXter');
+    expect(await box.evaluate((el: HTMLInputElement) => el.selectionStart)).toBe(4);
+    const focused = await panel.evaluate(
+      (el) => (el.shadowRoot?.activeElement as HTMLElement | null)?.className ?? '',
+    );
+    expect(focused).toContain('hk-search-input');
   });
 
   test('the chip overflow is a control, so nothing clickable is unreachable', async ({ page }) => {

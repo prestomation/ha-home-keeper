@@ -189,4 +189,66 @@ test.describe('Home Keeper panel — the list tells the truth about what it show
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
+
+  test('the text filter narrows the list, and the pill counts follow it', async ({ page }) => {
+    // The same contract as the scope pills above, for the box beside them: what a
+    // pill promises has to be what the list under it delivers (#297).
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    const box = panel.locator('.hk-search-input');
+    const all = panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]');
+    const cards = panel.locator('#hk-list ha-card.hk-card');
+    const before = await cards.count();
+    expect(before, 'the seeded list should hold several tasks').toBeGreaterThan(1);
+
+    await box.fill('water filter');
+    await expect(panel.locator(`.hk-card[data-id="${TASK.waterFilter}"]`)).toBeVisible();
+    await expect(cards).toHaveCount(1);
+    await expect(all.locator('.hk-seg-count')).toHaveText('1');
+
+    // The caret sits after what was typed, because the box was never rebuilt.
+    expect(await box.evaluate((el: HTMLInputElement) => el.selectionStart)).toBe(
+      'water filter'.length,
+    );
+
+    // A query nothing matches is escapable, the way an empty scope is.
+    await box.fill('zzzznothing');
+    await expect(cards).toHaveCount(0);
+    const showAll = panel.locator('#hk-show-all');
+    await expect(showAll).toBeVisible();
+    await showAll.click();
+    await expect(box).toHaveValue('');
+    await expect(cards).toHaveCount(before);
+
+    // ...and so is the clear button.
+    await box.fill('water filter');
+    await expect(cards).toHaveCount(1);
+    await panel.locator('.hk-search-clear').click();
+    await expect(box).toHaveValue('');
+    await expect(cards).toHaveCount(before);
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('the text filter narrows the appliance list too', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    await page.goto('/home-keeper/appliances', { waitUntil: 'domcontentloaded' });
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.waitFor({ state: 'attached', timeout: 45_000 });
+
+    const cards = panel.locator('#hk-list ha-card.hk-card');
+    const before = await cards.count();
+    expect(before, 'the seeded store should hold several appliances').toBeGreaterThan(1);
+
+    await panel.locator('.hk-search-input').fill('water heater');
+    await expect(panel.locator(`.hk-card[data-id="${ASSET.waterHeater}"]`)).toBeVisible();
+    await expect(cards).toHaveCount(1);
+
+    await panel.locator('.hk-search-clear').click();
+    await expect(cards).toHaveCount(before);
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
 });

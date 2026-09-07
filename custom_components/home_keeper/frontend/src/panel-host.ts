@@ -208,6 +208,9 @@ export interface PanelHost extends HTMLElement {
   _ownTodoEntities: string[];
   /** The saved Profile id the task list is filtered by ('' = none). */
   _profile: string;
+  /** The text both lists filter on ('' = no text filter). Session-only: it is not
+   *  persisted, so every panel load starts with the whole list. */
+  _query: string;
   /** Reload every collection from the backend and re-render. */
   _refresh(): Promise<void>;
   /** Reload every collection from the backend *without* re-rendering — for a save that
@@ -230,6 +233,9 @@ export interface PanelHost extends HTMLElement {
   _setFilter(value: TaskFilter): void;
   _setGroupBy(value: GroupBy): void;
   _setProfile(value: string): void;
+  /** Set the text filter. Patches the list in place instead of re-rendering, because
+   *  a rebuilt shadow tree replaces the box the reader is typing in. */
+  _setQuery(value: string): void;
   /** Which Settings section the URL names, or null for the section index. */
   _settingsSection: SettingsSection | null;
   /** Settings sections (and profile sync groups) the user has collapsed this session. */

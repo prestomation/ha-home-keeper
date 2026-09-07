@@ -10,9 +10,14 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
+- **The task list and the appliance list now have a search box.** It matches the name
+  plus other details, such as the model of an appliance or the companion that supplied
+  a task. Home Keeper does not store the text, so every panel load starts with the
+  whole list. (Fixes #297)
+
 - **Give a notification its own icon and color.** In *Settings → Notifications* a
   notification can use any Material Design icon, which Android shows in the status bar.
-  An iPhone shows it on the notification, over an accent color you pick. (Fixes #293)
+  iPhone shows it on the notification, over an accent color you pick. (Fixes #293)
 
 ## [0.22.0b1]
 

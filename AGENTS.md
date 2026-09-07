@@ -158,9 +158,21 @@
   `ai-tells.zip` release in `.vale.ini` (Dependabot/Renovate don't track raw
   GitHub release URLs), so bump it by hand occasionally, e.g. alongside the next
   full-corpus cleanup pass.
-- **Every PR that touches the panel UI MUST include screenshots — no exceptions.**
+- **Every PR that touches the panel UI MUST include screenshots — no exceptions,
+  and every changed surface needs BOTH a desktop shot and a phone shot.**
   This is a hard gate: a UI change is not reviewable (or mergeable) until the PR
-  body embeds current screenshots of the changed surface. The capture harness is
+  body embeds current screenshots of the changed surface at both widths. One
+  desktop shot is not enough. Below 700px the panel is a different layout — the
+  tabs move to the bottom, Add floats, the filter segment comes apart into wrapping
+  chips, a control gets a row to itself, and a row stacks — so a desktop-only shot
+  documents none of what a phone user sees, and a control that overflows or loses
+  its tap target there is invisible to review. Capture the phone shot in the same
+  run: `screenshots.capture.ts` ends with a `page.setViewportSize(PHONE)` block
+  (`PHONE` from `viewports.ts`) that photographs the phone layout, and a new
+  surface adds a step to that block as well as to the desktop walk. Name the pair
+  so they sort together, with the phone one carrying a `-mobile-` segment, e.g.
+  `57-panel-task-search.png` and `57c-panel-mobile-task-search.png`. The capture
+  harness is
   `tests/e2e/screenshots.capture.ts` (the test) driven by `screenshots.config.ts`
   (the config — **pass this one to `--config`**, not the test file itself).
   Step-by-step:

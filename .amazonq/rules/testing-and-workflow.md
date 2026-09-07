@@ -45,6 +45,14 @@
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).
+  **Every changed surface needs a desktop shot and a phone shot.** Below 700px the
+  panel is a different layout, not a narrower one: bottom tabs, a floating Add, the
+  filter segment broken into wrapping chips, each non-menu control on a row of its
+  own, and stacked rows. A desktop-only shot leaves that half unreviewed, and an
+  overflowing control or a lost `--hk-tap` target there never reaches a reviewer.
+  The capture file ends with a `page.setViewportSize(PHONE)` block (`PHONE` from
+  `viewports.ts`) — add the phone step there, named with a `-mobile-` segment so the
+  pair sorts together (`57-panel-task-search.png` / `57c-panel-mobile-task-search.png`).
   Use an HTML `<img>` tag with **no character-entity references in any attribute** —
   the `update_pull_request` path backtick-wraps and entity-escapes a tag whose `alt`
   contains one (`&#39;` did it on #272, three submissions running, while the two

@@ -22,7 +22,7 @@ import { renderAssetForm } from './panel-asset-form';
 import { sourceOwnedTask, wireDeviceChips } from './panel-chips';
 import { emptySkipState, emptySnoozeState, type SkipState, type SnoozeState } from './defer';
 import { DeferMenus } from './defer-dialogs';
-import { controls, wireControls } from './panel-controls';
+import { controls, patchFilterCounts, wireControls } from './panel-controls';
 import { renderDeclarativeDialog } from './panel-declarative';
 import { openSkip, openSnooze, renderSkip, renderSnooze } from './panel-defer';
 import { detailView, wireDetail, wireDetailOpeners } from './panel-detail';
@@ -199,6 +199,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _treeCollapsed = new Set<string>();
   // Selected saved Profile id to filter the task list by ('' = no profile).
   _profile = '';
+  // Free text both lists filter on ('' = no text filter). The one list control that
+  // is *not* persisted: a scope pill states its own name and count, so a remembered
+  // one explains itself, while a remembered substring is a short list with no visible
+  // reason for being short.
+  _query = '';
   // Group sections collapsed by the user, keyed by "<group>:<bucket>".
   // Group sections the user collapsed this session (open is the default). The
   // "monitored" status bucket — dormant condition-driven tasks like healthy
@@ -380,6 +385,46 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /**
+   * Narrow the list in place for the text in the search box.
+   *
+   * The same move as `_patchSettingsSection`, for a different cost. `_render` replaces
+   * the whole shadow tree, so it replaces the box being typed in — and the caret, the
+   * selection and the keyboard go with it. Only the list and the scope pills' counts
+   * depend on the query, so those two are patched and the control row is left standing.
+   *
+   * Nothing else a render does applies here: a task row and an appliance row hold no
+   * Markdown, no live preview and no signed file link, and `_liveHassEls` must *not* be
+   * reset, because the menu button and any open form registered there and this pass did
+   * not rebuild them.
+   *
+   * Returns false when there is no rendered list to patch — a task's own page, or the
+   * Settings tab — leaving the caller to render normally.
+   */
+  private _applyQuery(): boolean {
+    const root = this.shadowRoot;
+    const list = root?.getElementById('hk-list');
+    if (!root || !list) return false;
+    // The open deferral menu points at a row this is about to replace, and holds
+    // document-level dismiss handlers.
+    this._closeDeferMenu();
+    list.innerHTML = this._view === 'tasks' ? tasksList(this) : assetsList(this);
+    // Scoped to the list, not the shadow root: `wireDetailOpeners` also matches the
+    // appliance detail pane beside it, which this pass did not rebuild and must not
+    // bind a second time.
+    wireLists(this, list);
+    wireDetailOpeners(this, list);
+    wireDeviceChips(this, list);
+    patchFilterCounts(this, root);
+    // A query the panel set itself — the empty state's way out, Escape, the clear
+    // button — has to reach the box too. Guarded, because assigning the same string
+    // still moves the caret to the end.
+    const input = root.querySelector<HTMLInputElement>('.hk-search-input');
+    if (input && input.value !== this._query) input.value = this._query;
+    root.querySelector('.hk-search-clear')?.toggleAttribute('hidden', !this._query);
+    return true;
+  }
+
+  /**
    * Mount whichever form the drawer is holding.
    *
    * The pairing is by view, not by page: the task form mounts wherever the tasks view
@@ -551,6 +596,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       /* ignore */
     }
     this._render();
+  }
+
+  /** Filter both lists by free text ('' clears it). */
+  _setQuery(value: string): void {
+    if (this._query === value) return;
+    this._query = value;
+    // Not `_render()`: see `_applyQuery`. It falls back to a full render when there is
+    // no list on screen to patch.
+    if (!this._applyQuery()) this._render();
   }
 
   /** Pick a saved Profile to drive the task-list filter (''/none clears it). */

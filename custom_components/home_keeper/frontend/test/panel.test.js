@@ -1651,3 +1651,218 @@ describe('Task detail — Schedule, Notes and History as sub-tabs', () => {
     expect(edit, 'the notes tab should offer the editor').toBeTruthy();
   });
 });
+
+describe('The list text filter (#297)', () => {
+  const DUE = '2030-01-01T00:00:00+00:00';
+  /** A task with the fields the list rows and the matcher read. */
+  const mkTask = (over) => ({
+    recurrence_type: 'floating',
+    interval: 3,
+    unit: 'months',
+    next_due: DUE,
+    completions: [],
+    ...over,
+  });
+  const TASKS = [
+    mkTask({ id: 't1', name: 'Replace water filter' }),
+    mkTask({ id: 't2', name: 'Clean gutters' }),
+    mkTask({ id: 't3', name: 'Change smoke alarm battery', managed_by: { display_name: 'Zigbee2MQTT' } }),
+  ];
+  const ASSETS = [
+    { id: 'a1', kind: 'device', name: 'Fridge', manufacturer: 'Bosch', parts: [] },
+    { id: 'a2', kind: 'device', name: 'Furnace', manufacturer: 'Carrier', parts: [] },
+  ];
+
+  const box = (panel) => panel.shadowRoot.querySelector('.hk-search-input');
+  const rows = (panel) => panel.shadowRoot.querySelectorAll('#hk-list ha-card.hk-card');
+  const names = (panel) =>
+    [...rows(panel)].map((c) => c.querySelector('.hk-name')?.textContent.trim());
+
+  /** Type *text* the way the browser reports it: value first, then the event. */
+  async function type(panel, text) {
+    const input = box(panel);
+    input.value = text;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await waitFor(() => true);
+    return input;
+  }
+
+  it('narrows the task list to the rows that match, and clearing it restores them', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+
+    await type(panel, 'water');
+    expect(names(panel)).toEqual(['Replace water filter']);
+
+    await type(panel, '');
+    expect(rows(panel).length, 'an empty box shows every task again').toBe(3);
+  });
+
+  it('finds a companion task by the integration that supplied it — the reason for #297', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    await type(panel, 'zigbee');
+    expect(names(panel)).toEqual(['Change smoke alarm battery']);
+  });
+
+  it('does not replace the box it is being typed into', async () => {
+    // The whole reason `_setQuery` patches instead of rendering. A rebuilt shadow
+    // tree would swap this element out and take the caret and the keyboard with it.
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    const before = box(panel);
+    before.focus();
+    await type(panel, 'water');
+    expect(box(panel), 'the same element, not a replacement').toBe(before);
+    expect(panel.shadowRoot.activeElement, 'the keyboard stays in the box').toBe(before);
+  });
+
+  it('keeps the scope pills counting what the list actually shows', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    const pill = (value) =>
+      panel.shadowRoot.querySelector(`.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="${value}"]`);
+    expect(pill('all').querySelector('.hk-seg-count').textContent).toBe('3');
+
+    await type(panel, 'water');
+    expect(pill('all').querySelector('.hk-seg-count').textContent).toBe('1');
+    // Shopping holds nothing now, and is not the pill being stood on, so it recedes.
+    expect(pill('shopping').classList.contains('hk-seg-empty')).toBe(true);
+    expect(pill('all').classList.contains('hk-seg-empty'), 'the selected pill is never dimmed').toBe(false);
+
+    await type(panel, '');
+    expect(pill('all').querySelector('.hk-seg-count').textContent).toBe('3');
+  });
+
+  it('leaves the rows live after the patch, and binds each of them once', async () => {
+    const { hass, calls } = makeHassWith({ tasks: TASKS });
+    const panel = await mountPanel(hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    await type(panel, 'gutters');
+
+    // Quick Done still reaches the store: `wireLists` ran again over the new rows.
+    panel.shadowRoot.querySelector('#hk-list .done-btn').click();
+    await waitFor(() => calls['home_keeper/complete_task']);
+    expect(calls['home_keeper/complete_task']).toBe(1);
+
+    // ...and opening a row navigates once, not twice: `wireDetailOpeners` was scoped
+    // to the list rather than run again over the whole shadow root.
+    const depth = history.length;
+    panel.shadowRoot.querySelector('#hk-list .detail-open').click();
+    expect(history.length - depth).toBe(1);
+  });
+
+  it('still remembers which sections the user collapsed', async () => {
+    // The group `<details>` live inside the list, so the patch replaces them. Their
+    // toggle handler has to be re-bound with the rows.
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    const section = () => panel.shadowRoot.querySelector('#hk-list details.hk-group');
+    expect(section(), 'the list groups by status by default').toBeTruthy();
+    const key = section().dataset.groupKey;
+
+    section().open = false;
+    section().dispatchEvent(new Event('toggle'));
+    expect(panel._collapsed.has(key)).toBe(true);
+
+    section().open = true;
+    section().dispatchEvent(new Event('toggle'));
+    expect(panel._collapsed.has(key)).toBe(false);
+  });
+
+  it('opens every section while a search is running, without forgetting the choice', async () => {
+    // "Monitored" and "Completed" start collapsed, and a monitored companion task is
+    // what the reader is most often hunting for.
+    const monitored = mkTask({ id: 't4', name: 'Attic leak sensor', recurrence_type: 'triggered', next_due: undefined });
+    const panel = await mountPanel(makeHassWith({ tasks: [...TASKS, monitored] }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 4);
+    const monitoredSection = () =>
+      panel.shadowRoot.querySelector('#hk-list details.hk-group[data-group-key="status:monitored"]');
+    expect(monitoredSection().open, 'monitored starts collapsed').toBe(false);
+
+    await type(panel, 'attic');
+    expect(names(panel)).toEqual(['Attic leak sensor']);
+    expect(monitoredSection().open, 'a match is never left behind a shut heading').toBe(true);
+    expect(panel._collapsed.has('status:monitored'), 'the choice is read, not overwritten').toBe(true);
+
+    await type(panel, '');
+    expect(monitoredSection().open, 'and it closes again once the box is empty').toBe(false);
+  });
+
+  it('offers a way out when nothing matches, and clears the box with it', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    await type(panel, 'zzzz');
+    expect(rows(panel).length).toBe(0);
+
+    const showAll = panel.shadowRoot.querySelector('#hk-show-all');
+    expect(showAll, 'an emptied list is never a dead end').toBeTruthy();
+    showAll.click();
+    await waitFor(() => rows(panel).length === 3);
+    expect(box(panel).value).toBe('');
+  });
+
+  it('empties the box from the clear button, and from Escape', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    const clear = () => panel.shadowRoot.querySelector('.hk-search-clear');
+    expect(clear().hasAttribute('hidden'), 'nothing to clear yet').toBe(true);
+
+    await type(panel, 'water');
+    expect(clear().hasAttribute('hidden')).toBe(false);
+    clear().click();
+    await waitFor(() => rows(panel).length === 3);
+    expect(box(panel).value).toBe('');
+    expect(clear().hasAttribute('hidden')).toBe(true);
+
+    await type(panel, 'water');
+    box(panel).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await waitFor(() => rows(panel).length === 3);
+    expect(box(panel).value).toBe('');
+  });
+
+  it('keeps the typed text through a render it did not ask for', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    await type(panel, 'water');
+    panel._render();
+    expect(box(panel).value, 'a Done press must not empty the box').toBe('water');
+    expect(rows(panel).length).toBe(1);
+  });
+
+  it('escapes what was typed rather than injecting it', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    const nasty = 'a" onfocus="alert(1)';
+    await type(panel, nasty);
+    panel._render();
+    expect(panel.shadowRoot.querySelectorAll('.hk-search-input').length).toBe(1);
+    expect(box(panel).value).toBe(nasty);
+    expect(box(panel).getAttribute('onfocus')).toBe(null);
+  });
+
+  it('narrows the appliance list too, and its empty state clears only the text', async () => {
+    const panel = await mountPanel(makeHassWith({ assets: ASSETS }).hass, '/appliances');
+    await waitFor(() => rows(panel).length === 2);
+
+    await type(panel, 'bosch');
+    expect(names(panel)).toEqual(['Fridge']);
+
+    await type(panel, 'zzzz');
+    expect(rows(panel).length).toBe(0);
+    panel.shadowRoot.querySelector('#hk-show-all').click();
+    await waitFor(() => rows(panel).length === 2);
+    expect(box(panel).value).toBe('');
+    expect(panel._assetFilter, 'the appliance scope is a deliberate choice, and is left alone').toBe('active');
+  });
+
+  it('carries the text from one tab to the other', async () => {
+    const panel = await mountPanel(makeHassWith({ tasks: TASKS, assets: ASSETS }).hass, '/tasks');
+    await waitFor(() => rows(panel).length === 3);
+    await type(panel, 'fridge');
+    panel.route = { prefix: '/home-keeper', path: '/appliances' };
+    await waitFor(() => panel._view === 'appliances');
+    expect(box(panel).value).toBe('fridge');
+    expect(names(panel)).toEqual(['Fridge']);
+  });
+});
