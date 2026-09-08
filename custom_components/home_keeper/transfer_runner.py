@@ -91,36 +91,43 @@ async def async_import_document(
     planned_tasks = plan.for_section("tasks")
     unattached: list[transfer.Problem] = []
     if planned_tasks:
+        # Build the write list rather than editing the plan. `PlannedRecord` is
+        # frozen, and a frozen record whose dict gets rewritten underneath it is a
+        # half-promise: the plan should stay the record of what was *planned*, so
+        # anything that reads it back — a report, a log, a future retry — sees the
+        # same thing the preview showed.
+        tasks_to_write: list[tuple[str, dict[str, Any], bool]] = []
         for record in planned_tasks:
-            asset_id = transfer.planned_asset_id(record.payload.get("device_id"))
-            if asset_id is None:
-                continue
-            device_id = (coord.store.get_asset(asset_id) or {}).get("device_id")
-            record.payload["device_id"] = device_id
-            if not device_id:
-                # Provisioning is the one step that can still fail after validation
-                # passed, and the appliances are already written by now, so there is
-                # nothing to roll back to. Import the task standalone and *say so*:
-                # a task that quietly lost its appliance is the kind of thing a
-                # migration only notices months later.
-                unattached.append(
-                    transfer.Problem(
-                        section="tasks",
-                        index=record.index,
-                        path=f"tasks[{record.index}].appliance",
-                        message=(
-                            f'"{record.name}" was imported without its appliance: '
-                            "Home Assistant did not give that appliance a device. "
-                            "Open the appliance, then set the task's appliance again."
-                        ),
-                        severity="warning",
+            payload = record.payload
+            asset_id = transfer.planned_asset_id(payload.get("device_id"))
+            if asset_id is not None:
+                device_id = (coord.store.get_asset(asset_id) or {}).get("device_id")
+                payload = {**payload, "device_id": device_id}
+                if not device_id:
+                    # Provisioning is the one step that can still fail after
+                    # validation passed, and the appliances are already written by
+                    # now, so there is nothing to roll back to. Import the task
+                    # standalone and *say so*: a task that quietly lost its
+                    # appliance is the kind of thing a migration notices months late.
+                    unattached.append(
+                        transfer.Problem(
+                            section="tasks",
+                            index=record.index,
+                            path=f"tasks[{record.index}].appliance",
+                            message=(
+                                f'"{record.name}" was imported without its appliance: '
+                                "Home Assistant did not give that appliance a device. "
+                                "Open the appliance, then set the task's appliance "
+                                "again."
+                            ),
+                            severity="warning",
+                        )
                     )
-                )
+            tasks_to_write.append(
+                (record.record_id, payload, record.action == "create")
+            )
         await coord.store.async_import_records(
-            assets_to_write=[],
-            tasks_to_write=[
-                (r.record_id, r.payload, r.action == "create") for r in planned_tasks
-            ],
+            assets_to_write=[], tasks_to_write=tasks_to_write
         )
 
     if plan.records:
