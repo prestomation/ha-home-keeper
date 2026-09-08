@@ -11,6 +11,11 @@
 # Synced from ../docs/images at build/start time (see scripts/sync-assets.mjs)
 /static/img/screenshots
 
+# Generated from the integration at build/start time (see ci/generate_schema.py).
+# Published at /schema/home-keeper-<format>.schema.json, which every exported file
+# names on its first line.
+/static/schema
+
 # Generated from canonical Markdown at build/start time (see scripts/sync-docs.mjs)
 /docs/guide
 /docs/release-notes.md

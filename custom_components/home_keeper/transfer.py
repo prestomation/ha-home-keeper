@@ -144,8 +144,17 @@ _RECONCILER_SOURCES = frozenset(
 )
 
 # Document-only keys on a record: everything that is not simply a service field.
-_TASK_EXTRA_KEYS = frozenset({"external_id", "appliance", "area", "history", "skips"})
+_TASK_EXTRA_KEYS = frozenset(
+    {"external_id", "appliance", "area", "enabled", "history", "skips"}
+)
 _ASSET_EXTRA_KEYS = frozenset({"external_id", "area", "archived"})
+
+# The two ``add_task`` fields the published schema does not offer. ``normalize_fields``
+# accepts either, so a document setting one is not refused — but the task it creates is
+# one :func:`is_portable_task` then declines to export, which makes it a trap rather
+# than a feature. The schema is permissive, so leaving them out hides them from an
+# editor's completions without rejecting a file that has them.
+UNPORTABLE_TASK_KEYS: tuple[str, ...] = ("source", "managed_by")
 
 
 # ── Results ──────────────────────────────────────────────────────────────────

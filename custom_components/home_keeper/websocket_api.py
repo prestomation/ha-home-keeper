@@ -1064,7 +1064,7 @@ async def ws_export_data(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
-    """Return the portable document plus a ready-to-save JSON file.
+    """Return the portable document plus a ready-to-save YAML file.
 
     Admin-only: the document is every task, note, serial number and cost in the
     store, which a non-admin household member should not be able to walk off with.
@@ -1077,7 +1077,9 @@ async def ws_export_data(
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "home_keeper/import_data",
-        vol.Required("document"): dict,
+        # A mapping, or the whole file as text. Kept identical to
+        # ``IMPORT_DATA_SCHEMA``: a gate the service twin does not share is not a gate.
+        vol.Required("document"): vol.Any(dict, str),
         vol.Optional("dry_run", default=False): bool,
         vol.Optional("match", default="auto"): vol.In(("auto", "none")),
     }

@@ -36,7 +36,7 @@ async def async_export_document(
         now=dt_util.now(),
         include=data.get("include"),
     )
-    return {"document": document, "json": transfer.document_to_json(document)}
+    return {"document": document, "yaml": transfer.document_to_yaml(document)}
 
 
 async def async_import_document(

@@ -36,11 +36,20 @@ jobs:
       # install the integration's own runtime requirements (manifest.json) so their
       # imports resolve too.
       - name: Install mypy + Home Assistant + integration requirements
-        run: pip install mypy homeassistant Babel
+        run: pip install mypy homeassistant Babel types-PyYAML
       - name: Report and verify the Home Assistant version being checked
         run: python ci/check-ha-version.py
       - name: Mypy (strict typing)
         run: mypy custom_components/home_keeper
+      # The published JSON Schema is converted from the integration's own voluptuous
+      # service schemas, so its gate needs Home Assistant — which the unit lane
+      # deliberately does not install (requirements-test.txt). It runs here, on every
+      # PR, rather than in the path-filtered docs workflow: a change to
+      # models.build_task can drift the schema without touching a docs path.
+      - name: Install the schema gate's own dependencies
+        run: pip install pytest PyYAML jsonschema voluptuous-openapi
+      - name: Published document schema matches the code
+        run: python -m pytest tests/unit/test_generate_schema.py -v
 
   vale:
     runs-on: ubuntu-latest

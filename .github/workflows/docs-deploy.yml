@@ -51,16 +51,22 @@ jobs:
           cache: npm
           cache-dependency-path: website/package-lock.json
 
-      # `npm run sync` renders the API reference with ci/generate_api_docs.py
-      # before Docusaurus builds.
+      # `npm run sync` renders the API reference with ci/generate_api_docs.py and the
+      # published JSON Schema with ci/generate_schema.py before Docusaurus builds.
+      # The schema is converted from the integration's own voluptuous service schemas,
+      # which are written in Home Assistant validators — so unlike the API reference,
+      # this one needs Home Assistant installed. That is why the Python here must be at
+      # or above HA's own floor (>=3.14.2 since HA 2026.3): below it, pip backtracks to
+      # an ancient HA instead of failing, and the schema would be built from an API
+      # nobody runs (#199).
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Install
         working-directory: website
         run: |
-          pip install PyYAML
+          pip install PyYAML homeassistant voluptuous-openapi Babel
           npm ci
 
       - name: Extract version
