@@ -14,6 +14,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# The property tests are scored like any other test rather than deselected: they
+# kill mutants the example-based tests leave alive. The `mutmut` profile is what
+# makes that affordable — it drops the shrink phase, so a mutant costs one failing
+# example instead of an unbounded reduction. See tests/unit/conftest.py.
+export HK_HYPOTHESIS_PROFILE="${HK_HYPOTHESIS_PROFILE:-mutmut}"
+
 MODE="${1:---changed}"
 BASE="${MUTATION_BASE_REF:-origin/main}"
 MUTMUT=(python -m mutmut)

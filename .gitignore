@@ -48,6 +48,11 @@ tests/upgrade/home_keeper_working_tree/
 # sandboxes into .stryker-tmp/ and writes its report into reports/).
 mutants/
 .mutmut-cache
+
+# Hypothesis remembers the inputs that failed, which is what you want on a
+# workstation. It is never cached in CI: a gate whose result depends on which
+# branch last filled the cache is not a gate.
+.hypothesis/
 .stryker-tmp/
 stryker.log
 reports/

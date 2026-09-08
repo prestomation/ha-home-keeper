@@ -3,6 +3,9 @@ pytest
 pytest-cov
 pytest-timeout
 PyYAML  # ci/generate_api_docs.py parses services.yaml
+# Property-based tests (tests/unit/test_*_properties.py). Without it those
+# files skip at collection and the rest of the suite still runs.
+hypothesis
 requests
 websockets
 

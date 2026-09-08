@@ -31,6 +31,7 @@ asyncio_mode = "auto"
 pythonpath = ["tests/unit"]
 markers = [
     "real_ha: marks tests that use real HA modules (not mocked)",
+    "property: property-based test; needs hypothesis, skips without it",
 ]
 
 [tool.coverage.run]
