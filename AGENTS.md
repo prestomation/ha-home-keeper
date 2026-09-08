@@ -103,16 +103,13 @@
   try the feature via HACS *before* merge. The build is ephemeral and auto-deletes
   when the PR closes (see RELEASE.md → "Preview releases"). Bug-fix-only /
   developer-only PRs don't need it.
-- **Always have a Sonnet 4.5 subagent write user-facing text.** Any prose a *user* reads —
-  `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
-  `services.yaml` descriptions, the frontend locale — is drafted by a subagent spawned
-  with `model: sonnet`, not written inline. Give it the diff, the surrounding section for
-  voice, and the house rules it has to satisfy (the STE100 rules in
-  `.amazonq/rules/writing-style.md`, the three-sentence CHANGELOG budget, the
-  `(Fixes #N)` placement, the vale AI-tells style), then review what comes back and edit
-  it yourself before committing — the subagent drafts, you are still responsible for what
-  ships. Commit messages, PR bodies and code comments are *not* user-facing text and stay
-  inline.
+- **Know which text a user reads, and hold it to the house rules.** `CHANGELOG.md`
+  bullets, `README.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml`
+  descriptions and the frontend locale are all read by users, so each one has to
+  satisfy the STE100 rules in `.amazonq/rules/writing-style.md`, the three-sentence
+  CHANGELOG budget, the `(Fixes #N)` placement, and the vale AI-tells style. Read the
+  surrounding section for voice before you add to it. Commit messages, PR bodies and
+  code comments are *not* user-facing text and are not held to this.
 - **A plan starts with the CHANGELOG entry it will ship.** Write the proposed bullet
   first, at the top of the plan, before the design and the file list. One bullet is the
   whole change in 3 sentences, so a bullet that will not come out cleanly is telling you

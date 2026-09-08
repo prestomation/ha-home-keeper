@@ -6,12 +6,12 @@
 - Never push directly to `main`. Work on a feature branch and open a PR; squash
   merge.
 - Update `CHANGELOG.md` for every user-facing change before a release.
-- **User-facing text is drafted by a Sonnet 4.5 subagent** (`model: sonnet`), not written
-  inline: `CHANGELOG.md` bullets, `README.md`, the canonical `docs/*.md`, `strings.json`,
-  `services.yaml` descriptions, the frontend locale. Hand it the diff, the surrounding
-  section for voice, and the house rules it must satisfy; review and edit the draft before
-  committing. Commit messages, PR bodies and code comments stay inline — they are not
-  user-facing.
+- **User-facing text is held to the house rules**: `CHANGELOG.md` bullets,
+  `README.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml` descriptions
+  and the frontend locale. Each must satisfy the STE100 rules, the three-sentence
+  CHANGELOG budget and the vale AI-tells style. Read the surrounding section for voice
+  before you add to it. Commit messages, PR bodies and code comments are not
+  user-facing and are not held to this.
 - **Keep every CHANGELOG bullet to three sentences at most.** A bold lead naming the
   change, then what a user notices, then a caveat or `(Fixes #N)` if one is needed.
   Cut the worked example, the before-and-after story, the list of every surface the
