@@ -682,6 +682,12 @@ def plan_import(
             if ref:
                 asset_refs.setdefault(str(ref), entry.record_id)
 
+    # Only now, with every parent link in the document decided, can a loop be seen.
+    if looped := _looping_parents(planned, assets, problems):
+        planned = [r for r in planned if r.record_id not in looped]
+        planned_assets = {k: v for k, v in planned_assets.items() if k not in looped}
+        asset_refs = {k: v for k, v in asset_refs.items() if v not in looped}
+
     doc_tasks = _section(document, "tasks", problems)
     for index, record in enumerate(doc_tasks):
         entry, counted = _plan_task(
@@ -1076,6 +1082,58 @@ def _parent_id(
         if key in (asset_id, asset.get("external_id")):
             return asset_id
     return resolve.match_by_name(stored_assets, key)
+
+
+def _looping_parents(
+    planned_assets: list[PlannedRecord],
+    stored: dict[str, dict[str, Any]],
+    problems: list[Problem],
+) -> set[str]:
+    """The ids whose ``parent_asset_id`` closes a loop once the document is applied.
+
+    Every other write path refuses a loop through ``store._validate_parent``, and
+    ``devices`` walks the parent chain to provision parents before their children.
+    An import writes built records straight into the store, so without this it is the
+    one path that can break that invariant — and the damage outlives the import:
+    ``_clean_relationship_links`` only nulls a parent that does not *exist*, so a loop
+    between two real appliances is kept, and every later reconcile logs a cyclic-chain
+    error against a tree the user cannot see is broken.
+
+    The check has to run against the *projected* graph rather than the stored one,
+    because a single document can re-parent both halves of a loop in the same run:
+    taken one at a time, each edge looks harmless, and only the pair is wrong. Both
+    ends are reported, because either one can be changed to open the loop.
+
+    The store's own definition of a loop is reused rather than restated, so the two
+    can never come to disagree about what one is.
+    """
+    projected: dict[str, dict[str, Any]] = {
+        asset_id: {"parent_asset_id": asset.get("parent_asset_id")}
+        for asset_id, asset in stored.items()
+    }
+    for record in planned_assets:
+        projected[record.record_id] = {
+            "parent_asset_id": record.payload.get("parent_asset_id")
+        }
+    looped: set[str] = set()
+    for record in planned_assets:
+        parent = record.payload.get("parent_asset_id")
+        if not parent or not assets_model.would_create_cycle(
+            projected, record.record_id, str(parent)
+        ):
+            continue
+        looped.add(record.record_id)
+        problems.append(
+            Problem(
+                "appliances",
+                record.index,
+                f"appliances[{record.index}].parent_asset_id",
+                f'"{record.name}" would sit under itself through this parent link, '
+                "and an appliance cannot be its own parent. Point one appliance in "
+                "the loop at a different parent.",
+            )
+        )
+    return looped
 
 
 def _appliance_device(

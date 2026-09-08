@@ -1589,7 +1589,7 @@ A record also takes these fields:
 | `appliance` | tasks | Which appliance the task belongs to, by `external_id`, name, or id. A stated `device_id` wins, if that device is on this Home Assistant. |
 | `history` | tasks | Past completions. Each entry needs `completed_at`, and can add `note`, `cost`, `who`, `photo`. |
 | `skips` | tasks | Past skips. Each entry needs `skipped_at`. |
-| `parent_asset_id` | appliances | The appliance this one sits under, by `external_id`, name, or id. List a parent before its children. |
+| `parent_asset_id` | appliances | The appliance this one sits under, by `external_id`, name, or id. List a parent before its children. An appliance cannot sit under itself, through one link or a chain of them. |
 | `archived` | appliances | `true` for an archived appliance. |
 
 Dates can be a plain `2026-03-04` or a full timestamp. History is read in date order,

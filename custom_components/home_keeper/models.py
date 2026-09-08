@@ -691,6 +691,23 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     return fields
 
 
+def validate_source(source: Any) -> None:
+    """Reject a ``source`` that is not a mapping.
+
+    ``source`` is opaque provenance — Home Keeper never reads inside another
+    integration's namespace — but the *shape* is not opaque. Every reconciler reads
+    it as ``{namespace: payload}``, and ``store`` walks ``source.values()`` outright
+    when it repoints device ids. A string would pass every ``isinstance`` guard by
+    being skipped, then break that walk with ``'str' object has no attribute
+    'values'`` long after the write that stored it.
+
+    The service schemas have always typed this ``dict``; this is the same rule for
+    the paths that do not go through voluptuous.
+    """
+    if source is not None and not isinstance(source, dict):
+        raise TaskValidationError("source must be a mapping")
+
+
 def validate_managed_by(managed_by: Any) -> None:
     """Validate a task's optional ``managed_by`` ownership block.
 
@@ -800,6 +817,7 @@ def build_task(data: dict, *, now: datetime) -> dict:
     if rec_type == REC_ONE_OFF and not data.get("due"):
         data = {**data, "due": now.isoformat()}
     fields = normalize_fields(data, tz=now.tzinfo)
+    validate_source(data.get("source"))
     validate_managed_by(data.get("managed_by"))
     tag_id = normalize_tag_id(data.get("tag_id"))
     require_tag_scan = bool(data.get("require_tag_scan"))

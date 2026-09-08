@@ -587,6 +587,105 @@ def test_a_parent_nobody_has_is_refused_rather_than_silently_dropped():
     assert "List the parent before its children" in _errors(plan)[0]
 
 
+def _stored_assets(*names) -> dict:
+    built = [
+        tr.assets_model.build_asset({"name": n.title(), "external_id": n}, now=NOW)
+        for n in names
+    ]
+    return {a["id"]: a for a in built}
+
+
+def test_an_appliance_cannot_be_made_its_own_parent():
+    # Every other write path refuses this through `store._validate_parent`, and an
+    # import writes built records straight in — so without the check it is the one
+    # way to put a loop in the store.
+    stored = _stored_assets("boiler")
+    plan = _plan(
+        _doc(appliances=[{"external_id": "boiler", "parent_asset_id": "boiler"}]),
+        assets=stored,
+    )
+    assert not plan.ok
+    assert "would sit under itself" in _errors(plan)[0]
+    assert plan.records == ()
+
+
+def test_two_appliances_cannot_be_made_each_others_parent():
+    # The pair is what is wrong, not either edge: taken one at a time each looks
+    # harmless, which is why this is judged against the projected graph.
+    stored = _stored_assets("boiler", "pump")
+    plan = _plan(
+        _doc(
+            appliances=[
+                {"external_id": "boiler", "parent_asset_id": "pump"},
+                {"external_id": "pump", "parent_asset_id": "boiler"},
+            ]
+        ),
+        assets=stored,
+    )
+    assert not plan.ok
+    # Both ends are named, because changing either one opens the loop.
+    assert len(_errors(plan)) == 2
+    assert plan.records == ()
+
+
+def test_a_loop_closed_through_an_appliance_the_document_leaves_alone():
+    # The document moves one appliance; the rest of the chain is already stored.
+    # Nothing in this document is wrong on its own.
+    stored = _stored_assets("hvac", "furnace")
+    hvac, furnace = (a for a in stored.values())
+    furnace["parent_asset_id"] = hvac["id"]
+    plan = _plan(
+        _doc(appliances=[{"external_id": "hvac", "parent_asset_id": "furnace"}]),
+        assets=stored,
+    )
+    assert not plan.ok
+    assert "would sit under itself" in _errors(plan)[0]
+
+
+def test_a_parent_loop_problem_points_at_the_parent_key():
+    stored = _stored_assets("boiler")
+    plan = _plan(
+        _doc(appliances=[{"external_id": "boiler", "parent_asset_id": "boiler"}]),
+        assets=stored,
+    )
+    assert _only(plan)["path"] == "appliances[0].parent_asset_id"
+
+
+def test_a_loop_takes_the_tasks_that_named_that_appliance_down_with_it():
+    # A rejected appliance stops being something a task can attach to. The task is
+    # refused in its own right rather than planned with nothing to attach to, so the
+    # preview never shows a task landing on an appliance that will not be written.
+    stored = _stored_assets("boiler")
+    plan = _plan(
+        _doc(
+            appliances=[{"external_id": "boiler", "parent_asset_id": "boiler"}],
+            tasks=[{"name": "Flush it", "appliance": "boiler"}],
+        ),
+        assets=stored,
+    )
+    assert not plan.ok
+    assert plan.records == ()
+    assert [p.path for p in plan.problems] == [
+        "appliances[0].parent_asset_id",
+        "tasks[0].appliance",
+    ]
+
+
+def test_nesting_that_forms_no_loop_is_left_alone():
+    stored = _stored_assets("hvac")
+    plan = _plan(
+        _doc(
+            appliances=[
+                {"name": "Furnace", "parent_asset_id": "hvac"},
+                {"name": "Burner", "parent_asset_id": "Furnace"},
+            ]
+        ),
+        assets=stored,
+    )
+    assert plan.ok, _errors(plan)
+    assert len(plan.records) == 2
+
+
 # ── A problem says *where*, not just what ────────────────────────────────────
 #
 # Every problem carries a section, an index and a path, and the panel draws all
@@ -745,6 +844,17 @@ def test_a_source_home_keeper_does_not_reserve_is_carried_through():
     plan = _plan(_doc(tasks=[{"name": "T", "source": {"pawsistant": {"pet": "7"}}}]))
     assert plan.ok, _errors(plan)
     assert plan.records[0].payload["source"] == {"pawsistant": {"pet": "7"}}
+
+
+def test_a_source_that_is_not_a_mapping_is_refused_rather_than_stored():
+    # An import builds records without going through the service schemas, which are
+    # what types this `dict` everywhere else. A plausible hand-written `source: part`
+    # would otherwise be stored verbatim and break `store.async_repoint_device_ids`
+    # much later, with nothing to connect the crash to the document that caused it.
+    plan = _plan(_doc(tasks=[{"name": "T", "source": "part"}]))
+    assert not plan.ok
+    assert _errors(plan) == ["source must be a mapping"]
+    assert plan.records == ()
 
 
 def test_an_ambiguous_name_problem_points_at_the_record():

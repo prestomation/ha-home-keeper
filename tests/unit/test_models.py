@@ -514,6 +514,41 @@ def test_build_task_rejects_non_mapping_managed_by():
         )
 
 
+@pytest.mark.parametrize("bad", ["part", 5, ["part"], True])
+def test_build_task_rejects_a_source_that_is_not_a_mapping(bad):
+    # `source` is opaque, but its *shape* is not: every reconciler reads it as
+    # {namespace: payload}, and `store.async_repoint_device_ids` walks
+    # `source.values()` outright. A string passes each isinstance guard by being
+    # skipped, then breaks that walk long after the write that stored it. The
+    # service schemas have always typed this `dict`; this is the same rule for the
+    # paths that do not go through voluptuous.
+    with raises_exactly(m.TaskValidationError, "source must be a mapping"):
+        m.build_task(
+            {
+                "name": "X",
+                "recurrence_type": "floating",
+                "interval": 1,
+                "unit": "days",
+                "source": bad,
+            },
+            now=NOW,
+        )
+
+
+def test_build_task_keeps_a_mapping_source():
+    task = m.build_task(
+        {
+            "name": "X",
+            "recurrence_type": "floating",
+            "interval": 1,
+            "unit": "days",
+            "source": {"acme": {"ref": "7"}},
+        },
+        now=NOW,
+    )
+    assert task["source"] == {"acme": {"ref": "7"}}
+
+
 def test_build_task_allows_managed_without_protection_and_no_config_entry_id():
     # A managed task that doesn't request deletion protection needs no config_entry_id.
     task = m.build_task(
