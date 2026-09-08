@@ -538,7 +538,7 @@
   "transfer.exportHeading": "Salva in un file",
   "transfer.exportHelp": "Il file contiene le attività e gli elettrodomestici, con la loro cronologia. I manuali e le ricevute caricati restano indietro, caricateli di nuovo dopo un'importazione.",
   "transfer.heading": "Importa ed esporta",
-  "transfer.help": "Salva ogni attività e ogni elettrodomestico in un file e ne rilegge uno. Serve per passare a un altro Home Assistant o per portare dentro registrazioni che tenete altrove.",
+  "transfer.help": "Salva ogni attività e ogni elettrodomestico in un file e ne rilegge uno. Serve per passare a un altro Home Assistant o per portare dentro registrazioni che tenete altrove. La documentazione descrive il file: <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">che cosa contiene un record</a>.",
   "transfer.importHeading": "Leggi da un file",
   "transfer.importHelp": "Incollate un file oppure sceglietene uno. Guardate prima l'anteprima: riferisce che cosa cambierebbe senza scrivere nulla.",
   "transfer.importOk": "Il documento è stato importato.",

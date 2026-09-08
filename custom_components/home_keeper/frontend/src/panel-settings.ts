@@ -45,7 +45,7 @@ import { t, tn } from './i18n';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
-import { COMPANIONS_DOCS_URL, DOCS_URL } from './panel-icons';
+import { COMPANIONS_DOCS_URL, DOCS_URL, TRANSFER_DOCS_URL } from './panel-icons';
 import type {
   Companion,
   HomeKeeperOptions,
@@ -1604,7 +1604,10 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
 
   inner.innerHTML = [
     `<div class="hk-form-title">${escapeHTML(t('transfer.heading'))}</div>`,
-    `<div class="hk-settings-intro">${escapeHTML(t('transfer.help'))}</div>`,
+    // The help text ends in a link to the docs page for the format. Only the
+    // template's `<a>` is trusted here — the URL is a constant, no user content —
+    // which is why this one fragment skips `escapeHTML`, as `renderCompanions` does.
+    `<div class="hk-settings-intro">${t('transfer.help', { url: TRANSFER_DOCS_URL })}</div>`,
 
     `<div class="hk-transfer-group">${escapeHTML(t('transfer.exportHeading'))}</div>`,
     `<div class="hk-settings-intro">${escapeHTML(t('transfer.exportHelp'))}</div>`,

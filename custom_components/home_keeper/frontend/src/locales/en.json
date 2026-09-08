@@ -522,7 +522,7 @@
   "transfer.exportHeading": "Save to a file",
   "transfer.exportHelp": "The file holds your tasks and appliances, with their history. Uploaded manuals and receipts stay behind, so upload those again after an import.",
   "transfer.heading": "Import and export",
-  "transfer.help": "Save every task and appliance to one file, and read one back. This is how you move your data to another Home Assistant or bring in records from elsewhere.",
+  "transfer.help": "Save every task and appliance to one file, and read one back. This is how you move your data to another Home Assistant or bring in records from elsewhere. The docs describe the file: <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">what a record holds</a>.",
   "transfer.importHeading": "Read from a file",
   "transfer.importHelp": "Paste a file, or choose one. Preview first: it reports what would change without writing anything.",
   "transfer.importOk": "The document was imported.",

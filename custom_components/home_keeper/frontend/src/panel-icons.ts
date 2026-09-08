@@ -37,6 +37,13 @@ export const SENSOR_DOCS_URL =
 // so "where do I read about this?" is answered from the page that raises the question.
 export const DOCS_URL = 'https://prestomation.github.io/ha-home-keeper/docs/guide/';
 
+// User Guide page for the portable import/export document — the Settings card links
+// here, because the card asks a user to understand a file format and the page is where
+// that format is written down. Generated from README.md's "Import and export" section
+// (slug `import-export`, see website/scripts/doc-map.mjs).
+export const TRANSFER_DOCS_URL =
+  'https://prestomation.github.io/ha-home-keeper/docs/guide/import-export';
+
 // Docs section explaining a 413 from a reverse proxy in front of HA (see README
 // "Large uploads (413)"). Linked from the upload error so users can self-serve the fix.
 export const DOCS_UPLOAD_413_URL =

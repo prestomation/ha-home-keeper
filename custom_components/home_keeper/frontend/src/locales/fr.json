@@ -538,7 +538,7 @@
   "transfer.exportHeading": "Enregistrer dans un fichier",
   "transfer.exportHelp": "Le fichier contient vos tâches et vos appareils, avec leur historique. Les notices et les reçus téléversés restent en arrière, téléversez-les à nouveau après un import.",
   "transfer.heading": "Import et export",
-  "transfer.help": "Enregistre chaque tâche et chaque appareil dans un fichier, et relit un fichier. Servez-vous-en pour passer à un autre Home Assistant, ou pour reprendre des relevés que vous tenez ailleurs.",
+  "transfer.help": "Enregistre chaque tâche et chaque appareil dans un fichier, et relit un fichier. Servez-vous-en pour passer à un autre Home Assistant, ou pour reprendre des relevés que vous tenez ailleurs. La documentation décrit le fichier : <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">ce que contient un enregistrement</a>.",
   "transfer.importHeading": "Lire depuis un fichier",
   "transfer.importHelp": "Collez un fichier, ou choisissez-en un. Faites d'abord un aperçu : il indique ce qui changerait sans rien écrire.",
   "transfer.importOk": "Le document a été importé.",

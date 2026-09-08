@@ -554,7 +554,7 @@
   "transfer.exportHeading": "Zapisz do pliku",
   "transfer.exportHelp": "Plik zawiera zadania i urządzenia wraz z ich historią. Wgrane instrukcje i paragony zostają, wgraj je ponownie po imporcie.",
   "transfer.heading": "Import i eksport",
-  "transfer.help": "Zapisuje każde zadanie i każde urządzenie do jednego pliku i wczytuje plik z powrotem. Przyda się przy przenosinach do innego Home Assistanta albo do wciągnięcia zapisów prowadzonych gdzie indziej.",
+  "transfer.help": "Zapisuje każde zadanie i każde urządzenie do jednego pliku i wczytuje plik z powrotem. Przyda się przy przenosinach do innego Home Assistanta albo do wciągnięcia zapisów prowadzonych gdzie indziej. Dokumentacja opisuje plik: <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">co zawiera rekord</a>.",
   "transfer.importHeading": "Wczytaj z pliku",
   "transfer.importHelp": "Wklej plik albo go wybierz. Najpierw zobacz podgląd: zgłasza, co by się zmieniło, nic nie zapisując.",
   "transfer.importOk": "Dokument został zaimportowany.",

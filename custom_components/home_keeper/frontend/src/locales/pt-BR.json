@@ -538,7 +538,7 @@
   "transfer.exportHeading": "Salvar em um arquivo",
   "transfer.exportHelp": "O arquivo leva suas tarefas e eletrodomésticos, com o histórico. Manuais e recibos enviados ficam para trás, envie-os de novo depois de uma importação.",
   "transfer.heading": "Importar e exportar",
-  "transfer.help": "Guarda cada tarefa e cada eletrodoméstico em um arquivo, e lê um de volta. Use para mudar para outro Home Assistant ou para trazer registros que você mantém em outro lugar.",
+  "transfer.help": "Guarda cada tarefa e cada eletrodoméstico em um arquivo, e lê um de volta. Use para mudar para outro Home Assistant ou para trazer registros que você mantém em outro lugar. A documentação descreve o arquivo: <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">o que um registro contém</a>.",
   "transfer.importHeading": "Ler de um arquivo",
   "transfer.importHelp": "Cole um arquivo ou escolha um. Veja a prévia antes: ela informa o que mudaria sem gravar nada.",
   "transfer.importOk": "O documento foi importado.",

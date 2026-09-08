@@ -522,7 +522,7 @@
   "transfer.exportHeading": "Tallenna tiedostoon",
   "transfer.exportHelp": "Tiedosto sisältää tehtäväsi ja laitteesi historioineen. Ladatut käyttöohjeet ja kuitit jäävät jälkeen, lataa ne uudelleen tuonnin jälkeen.",
   "transfer.heading": "Tuonti ja vienti",
-  "transfer.help": "Tallentaa jokaisen tehtävän ja laitteen yhteen tiedostoon ja lukee tiedoston takaisin. Käytä tätä, kun siirryt toiseen Home Assistantiin tai tuot mukaan muualla pitämiäsi merkintöjä.",
+  "transfer.help": "Tallentaa jokaisen tehtävän ja laitteen yhteen tiedostoon ja lukee tiedoston takaisin. Käytä tätä, kun siirryt toiseen Home Assistantiin tai tuot mukaan muualla pitämiäsi merkintöjä. Ohjeet kuvaavat tiedoston: <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">mitä tietue sisältää</a>.",
   "transfer.importHeading": "Lue tiedostosta",
   "transfer.importHelp": "Liitä tiedosto tai valitse sellainen. Katso ensin esikatselu: se kertoo, mikä muuttuisi, kirjoittamatta mitään.",
   "transfer.importOk": "Asiakirja tuotiin.",

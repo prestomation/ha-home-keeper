@@ -522,7 +522,7 @@
   "transfer.exportHeading": "Lagre til en fil",
   "transfer.exportHelp": "Filen inneholder oppgavene og apparatene dine, med historikken. Opplastede bruksanvisninger og kvitteringer blir igjen, last dem opp på nytt etter en import.",
   "transfer.heading": "Import og eksport",
-  "transfer.help": "Lagrer hver oppgave og hvert apparat i én fil, og leser en fil tilbake. Bruk det til å flytte til en annen Home Assistant, eller til å hente inn notater du fører et annet sted.",
+  "transfer.help": "Lagrer hver oppgave og hvert apparat i én fil, og leser en fil tilbake. Bruk det til å flytte til en annen Home Assistant, eller til å hente inn notater du fører et annet sted. Dokumentasjonen beskriver fila: <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">hva en post inneholder</a>.",
   "transfer.importHeading": "Les fra en fil",
   "transfer.importHelp": "Lim inn en fil, eller velg en. Se forhåndsvisningen først: den melder hva som ville endret seg uten å skrive noe.",
   "transfer.importOk": "Dokumentet ble importert.",

@@ -138,6 +138,22 @@ describe('Settings — Import and export', () => {
     expect(root.querySelector('#transfer-pick')).toBeTruthy();
   });
 
+  it('links to the documentation for the file format', async () => {
+    // The card asks a user to understand a file format. The link is the only thing on
+    // it that says where that format is written down, and it is markup rather than
+    // behaviour, so nothing else here would notice it going missing.
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    const link = panel.shadowRoot.querySelector('#hk-transfer a[href]');
+    expect(link).toBeTruthy();
+    expect(link.getAttribute('href')).toBe(
+      'https://prestomation.github.io/ha-home-keeper/docs/guide/import-export',
+    );
+    // Opened in a new tab, and without handing the docs site a window opener.
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
   it('disables both import buttons until there is a document', async () => {
     const { hass } = makeHass();
     const panel = await mount(hass);

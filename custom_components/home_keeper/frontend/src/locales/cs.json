@@ -554,7 +554,7 @@
   "transfer.exportHeading": "Uložit do souboru",
   "transfer.exportHelp": "Soubor obsahuje vaše úkoly a spotřebiče i s jejich historií. Nahrané návody a účtenky zůstanou, po importu je nahrajte znovu.",
   "transfer.heading": "Import a export",
-  "transfer.help": "Uloží každý úkol a každý spotřebič do jednoho souboru a soubor zase načte. Hodí se při přechodu na jiný Home Assistant nebo když chcete přenést záznamy, které vedete jinde.",
+  "transfer.help": "Uloží každý úkol a každý spotřebič do jednoho souboru a soubor zase načte. Hodí se při přechodu na jiný Home Assistant nebo když chcete přenést záznamy, které vedete jinde. Dokumentace soubor popisuje: <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">co obsahuje záznam</a>.",
   "transfer.importHeading": "Načíst ze souboru",
   "transfer.importHelp": "Vložte soubor nebo nějaký vyberte. Nejdřív se podívejte na náhled: oznámí, co by se změnilo, aniž by cokoli zapsal.",
   "transfer.importOk": "Dokument byl naimportován.",

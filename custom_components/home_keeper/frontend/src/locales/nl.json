@@ -522,7 +522,7 @@
   "transfer.exportHeading": "Opslaan in een bestand",
   "transfer.exportHelp": "Het bestand bevat uw taken en apparaten, met hun geschiedenis. Geüploade handleidingen en bonnen blijven achter, upload die na een import opnieuw.",
   "transfer.heading": "Importeren en exporteren",
-  "transfer.help": "Bewaart elke taak en elk apparaat in één bestand, en leest er een terug. Gebruik dit om naar een andere Home Assistant te verhuizen, of om gegevens binnen te halen die u elders bijhoudt.",
+  "transfer.help": "Bewaart elke taak en elk apparaat in één bestand, en leest er een terug. Gebruik dit om naar een andere Home Assistant te verhuizen, of om gegevens binnen te halen die u elders bijhoudt. De documentatie beschrijft het bestand: <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">wat een record bevat</a>.",
   "transfer.importHeading": "Lezen uit een bestand",
   "transfer.importHelp": "Plak een bestand, of kies er een. Bekijk eerst het voorbeeld: het meldt wat er zou veranderen zonder iets te schrijven.",
   "transfer.importOk": "Het document is geïmporteerd.",

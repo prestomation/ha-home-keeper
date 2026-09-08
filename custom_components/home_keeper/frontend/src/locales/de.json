@@ -522,7 +522,7 @@
   "transfer.exportHeading": "In eine Datei sichern",
   "transfer.exportHelp": "Die Datei enthält Ihre Aufgaben und Geräte samt Verlauf. Hochgeladene Anleitungen und Belege bleiben zurück, laden Sie diese nach einem Import erneut hoch.",
   "transfer.heading": "Import und Export",
-  "transfer.help": "Sichert jede Aufgabe und jedes Gerät in einer Datei und liest eine wieder ein. Damit ziehen Sie zu einem anderen Home Assistant um oder holen Aufzeichnungen herein, die Sie woanders führen.",
+  "transfer.help": "Sichert jede Aufgabe und jedes Gerät in einer Datei und liest eine wieder ein. Damit ziehen Sie zu einem anderen Home Assistant um oder holen Aufzeichnungen herein, die Sie woanders führen. Die Dokumentation beschreibt die Datei: <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">was ein Datensatz enthält</a>.",
   "transfer.importHeading": "Aus einer Datei lesen",
   "transfer.importHelp": "Fügen Sie eine Datei ein oder wählen Sie eine aus. Sehen Sie zuerst die Vorschau: Sie meldet, was sich ändern würde, ohne etwas zu schreiben.",
   "transfer.importOk": "Das Dokument wurde importiert.",
