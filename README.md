@@ -1526,7 +1526,7 @@ in a spreadsheet or an old app.
 
 **Settings → Import and export** has both halves.
 
-- **Export** saves every task and appliance, with the history, as a JSON file.
+- **Export** saves every task and appliance, with the history, as a YAML file.
 - **Import** reads such a file. Paste it, or choose it from disk, then press
   **Preview**. Preview only reports what would change. **Import** stays off until a
   preview of that exact text comes back clean.
@@ -1580,6 +1580,12 @@ an `add_task` payload. An `appliances` record is an `add_asset` payload. The
 [API reference](https://prestomation.github.io/ha-home-keeper/developer/api#actions)
 lists every field of both, so it documents the file as well.
 
+The same fields also have a
+[JSON Schema](https://prestomation.github.io/ha-home-keeper/schema/home-keeper-1.schema.json).
+Every export names it on the first line, so an editor such as Visual Studio Code
+checks the file and completes the field names as you type. Home Keeper builds the
+schema from the code, so it always matches the version you run.
+
 A record also takes these fields:
 
 | Field | Applies to | What it does |
@@ -1594,6 +1600,12 @@ A record also takes these fields:
 
 Dates can be a plain `2026-03-04` or a full timestamp. History is read in date order,
 whatever order you write it in.
+
+If you write a file by hand, put quotation marks around a value such as `no`, `on` or
+`NO`. Without them YAML reads the value as true or false. Indent with spaces, because
+YAML does not accept a tab.
+
+A JSON file also imports, because YAML accepts JSON. Indent it with spaces.
 
 ### How a record finds its match
 
@@ -1621,8 +1633,9 @@ The file does not hold every record. What an export leaves out is listed in its 
 `home_keeper` block, and the preview names every field that Home Keeper did not read
 on the way back in.
 
-- **Uploaded manuals and receipts.** A JSON document has no room for a file, so
-  upload those again after an import. A link to a document is only text, so it stays.
+- **Uploaded manuals and receipts.** A text file has no room for a picture or a
+  PDF, so upload those again after an import. A link to a document is only text,
+  so it stays.
 - **Tasks that another part of Home Keeper owns**, such as a wear part's replacement
   reminder, a buy reminder, a problem-sensor mirror, or a recipe's task. Home Keeper
   builds these again from the appliance and its parts, which the file does include.
@@ -1633,7 +1646,7 @@ on the way back in.
 
 The format is meant to be easy to generate. Export what you have, then give the file
 to an AI agent with whatever holds your records now, such as a photo of a spreadsheet
-or a page of notes. Ask for the same shape back as one JSON document,
+or a page of notes. Ask for the same shape back as one YAML document,
 with an `external_id` on every record. Paste the answer into the Import
 box and press **Preview** first: it checks every record and reports each problem with
 the path to it, so you can fix the file and try again. Nothing is written until the

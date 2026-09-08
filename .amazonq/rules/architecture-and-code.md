@@ -472,8 +472,10 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
 
 ## Data portability: a new field travels, or says why it does not
 
-- **`transfer.py` is the portable document** — one JSON shape that `export_data`
-  writes and `import_data` reads. Symmetry is the point: an export is also a worked
+- **`transfer.py` is the portable document** — one YAML shape that `export_data`
+  writes and `import_data` reads, with a JSON Schema published on the docs site
+  (`ci/generate_schema.py`, converted from the service schemas by
+  `voluptuous_openapi`) and named on the first line of every export. Symmetry is the point: an export is also a worked
   example of the format, which is what makes "show an assistant your export and ask
   for twelve more like it" a complete instruction.
 - **A record's fields are the service's fields.** A `tasks` record is an `add_task`

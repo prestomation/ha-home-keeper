@@ -223,13 +223,13 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
   `update_completion` service accept `note`, `cost`, `photo`, and `who` (person
   entity id); metadata is stored per-completion, surfaced as entity attributes, and
   editable in the panel history view. See `docs/PER_COMPLETION_METADATA_PLAN.md`.
-- ~~**Import/export & backup** of tasks (JSON), and migration tooling between
+- ~~**Import/export & backup** of tasks (YAML), and migration tooling between
   versions.~~ **Shipped** for tasks (with history) and appliances: pure `transfer.py`
   (`build_document` + `plan_import`), the `export_data`/`import_data` services and
   their websocket twins, and a **Import and export** section on the Settings tab.
   Upsert on an id / `external_id` / name ladder. Still open: recipes, profiles,
-  notifications and options, plus uploaded document blobs (a binary cannot ride a
-  JSON document).
+  notifications and options, plus uploaded document blobs (a text file has no room
+  for a binary).
 
 ## New use cases (brainstorm)
 
