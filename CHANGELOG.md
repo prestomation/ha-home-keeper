@@ -6,52 +6,31 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.22.0b5]
+## [0.22.0] - 2026-09-08
 
-### Changed
+### Added
 
+- **Task and appliance search.** The task list and the appliance list have a search
+  box. It matches the name plus other details, such as an appliance's model or the
+  companion that supplied a task. (Fixes #297)
+- **Notification icons and colors.** In *Settings → Notifications* a notification
+  can use any Material Design icon, which Android shows in the status bar. iPhone
+  shows it on the notification, over an accent color you pick. (Fixes #293)
+- **Usage intervals.** A metered task's history shows the usage between
+  completions, and a summary above the list gives the average and the range. The
+  next-due sensor reports the same figures as attributes. (Fixes #305)
+- **Appliance-first device chips.** A task's device chip opens its appliance
+  instead of the Home Assistant device page. The appliance list and an appliance's
+  own page still link straight to the device.
+- **Aligned list rows.** Task rows and appliance rows use fixed columns. A row's
+  chips and its overdue pill begin at the same place down the whole list.
 - **Profile deletion guard.** Home Keeper asks you to confirm before it deletes a
   profile. A profile that a notification uses cannot be deleted at all.
 
 ### Fixed
 
-- **Phone companion rows.** A companion row on a phone puts its buttons on a line of
-  their own. Edit and Delete no longer go past the edge of the screen.
-
-## [0.22.0b4]
-
-### Added
-
-- **Usage intervals.** A metered task's history shows the usage between completions,
-  and a summary above the list gives the average and the range. The next-due sensor
-  reports the same figures as attributes. (Fixes #305)
-
-## [0.22.0b3]
-
-### Added
-
-- **Give a notification its own icon and color.** In *Settings → Notifications* a
-  notification can use any Material Design icon, which Android shows in the status bar.
-  iPhone shows it on the notification, over an accent color you pick. (Fixes #293)
-
-## [0.22.0b2]
-
-### Added
-
-- **The task list and the appliance list now have a search box.** It matches the name
-  plus other details, such as the model of an appliance or the companion that supplied
-  a task. Home Keeper does not store the text, so every panel load starts with the
-  whole list. (Fixes #297)
-
-## [0.22.0b1]
-
-### Changed
-
-- **Appliance-first device chips.** A task's device chip opens its appliance instead
-  of the Home Assistant device page. The appliance list and an appliance's own page
-  still link straight to the device.
-- **Aligned list rows.** Task rows and appliance rows now use fixed columns. A row's
-  chips and its overdue pill begin at the same place down the whole list.
+- **Phone companion rows.** A companion row on a phone puts its buttons on a line
+  of their own. Edit and Delete no longer go past the edge of the screen.
 
 ## [0.21.0] - 2026-09-06
 
