@@ -282,8 +282,12 @@ def profile_removals_in_use(
         removed.pop(profile["id"], None)
     blocked: list[tuple[str, str]] = []
     for notification in merged[OPTION_NOTIFICATIONS]:
-        # ``profile_id`` is None for a notification that covers every due task, and
-        # None is never a key here, so it falls through.
+        # ``profile_id`` is None for a notification that covers every due task. That
+        # is a **valid** value, not malformed input, and it has to fall through: such
+        # a notification names no profile, so no profile removal can strand it. The
+        # lookup handles it because every key here is a string, so None never matches.
+        # Do not "harden" this into a string check — that would make a None read as a
+        # blocker. ``test_a_notification_with_no_profile_is_never_a_blocker`` pins it.
         profile_name = removed.get(notification["profile_id"])
         if profile_name is not None:
             blocked.append((profile_name, notification["name"]))

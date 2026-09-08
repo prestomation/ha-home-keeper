@@ -178,6 +178,22 @@ describe('Settings → Profiles — deleting a profile', () => {
     expect(panel._options.profiles).toEqual([CHORES]);
   });
 
+  it('does not roll a second delete back over a first one that already landed', async () => {
+    // The rollback restores a snapshot, so the question is whether two deletes in
+    // flight at once can restore each other's row. They cannot: each snapshot is taken
+    // *after* the previous delete's optimistic write, and `isNewest()` stops a stale
+    // save writing at all. Deleting both profiles in one go leaves both gone.
+    const { hass, saves } = makeHass({ profiles: [CHORES, GARDEN] });
+    const panel = await mountSettings(hass);
+    deleteButton(rows(panel)[0]).click();
+    buttonLabelled('Delete').click();
+    await waitFor(() => saves.length === 1);
+    deleteButton(rows(panel)[0]).click();
+    buttonLabelled('Delete').click();
+    await waitFor(() => saves.length === 2);
+    expect(panel._options.profiles).toEqual([]);
+  });
+
   it('keeps what the user typed when an edit is refused', async () => {
     // The opposite rule, and the reason the rollback is opt-in: a rejected *edit* has
     // text in a field, and taking it back out under them loses the retry.

@@ -1677,6 +1677,9 @@ export const STYLES = `
       column-gap: 12px; row-gap: 8px;
       align-items: start;
     }
+    /* The flex declarations these three carry in the base rule above are inert here —
+       a grid parent ignores them — but they stay, because the same classes lay the row
+       out as a flex line above 700px. Do not read them as live rules for this block. */
     .hk-companion-ic { grid-area: ic; }
     .hk-companion-body { grid-area: body; }
     /* The action row is a grid area, so it has a width to wrap against. The flex-wrap
