@@ -122,10 +122,37 @@
   desktop **and** phone width, with the real markup rather than a sketch, so the choice is
   made against what will ship. A change with one obvious rendering does not need this.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
-  - Pure-logic unit tests need only `pip install pytest PyYAML`: `pytest tests/unit -v`.
-    (`PyYAML` is for the API-surface gate below, which reads `services.yaml`; without
-    it those few tests skip and the rest still run.)
+  - Pure-logic unit tests need only `pip install pytest PyYAML Babel hypothesis`:
+    `pytest tests/unit -v`. Each of the last 3 covers one group of tests and each one
+    skips cleanly on its own: `PyYAML` for the API-surface gate, which reads
+    `services.yaml`; `Babel` for the locale checks; `hypothesis` for the property-based
+    tests below. Leave any of them out and those tests skip while the rest still run.
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
+- **Property-based tests state an invariant and let the machine pick the inputs.**
+  They live in `tests/unit/test_recurrence_properties.py` and
+  `tests/unit/test_transfer_properties.py`, share `tests/unit/property_strategies.py`,
+  and carry the `property` marker, so `pytest tests/unit -m property` runs only them.
+  Write one when the claim is about a whole domain ("the fast path always agrees with
+  the slow one") rather than about a case ("Jan 31 plus a month is Feb 28"). A case is
+  still better said as an ordinary test.
+  - **Build inputs through the real builders.** A strategy calls `models.build_task` or
+    `assets.build_asset`. A hand-rolled dict is a second description of what a task is,
+    free to drift from the first one.
+  - **A property must hold for every input it can draw, or be scoped until it does.**
+    Widening an assertion to swallow a failure turns a found defect into a hidden one.
+    When the failure is real, scope the generator, then pin the defect with
+    `xfail(strict=True)` and a `@example` carrying the reproducer, so it cannot start
+    passing unnoticed. `test_r4b` is the worked example.
+  - **`HK_HYPOTHESIS_PROFILE` picks the settings**: `dev` (default) shrinks and
+    remembers; `ci` derandomizes so a red run is a real defect and not an unlucky seed;
+    `mutmut` drops the shrink phase. `ci/test-python-unit.sh` and
+    `ci/test-mutation-python.sh` export the right one. `.hypothesis/` is gitignored and
+    is never cached in CI: a gate whose result depends on which branch last filled a
+    cache is not a gate.
+  - **Property tests are scored by the mutation gate, not deselected from it.** They
+    kill mutants the example-based tests leave alive, and the shrink-free profile is
+    what keeps that inside the 45-minute budget. Each property names the mutant it
+    kills, and that claim is checked by mutating the line and watching it go red.
 - **Mutation testing gates every PR** at an 80% mutation score on the code the PR
   changed — see "Mutation testing" below. It is too slow for the
   run-before-you-push loop; run it when you touch the mutable surface.

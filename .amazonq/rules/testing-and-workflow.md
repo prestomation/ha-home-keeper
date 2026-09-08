@@ -118,6 +118,17 @@
   through the parent's `__name__` — aliasing them makes the modules
   `test_coordinator_purge.py` / `test_calendar.py` load as `hk.coordinator` pull
   in the real HA-importing siblings instead of their fakes.
+- **Property-based tests** (hypothesis) live in `tests/unit/test_*_properties.py` and
+  share `tests/unit/property_strategies.py`. They carry the `property` marker.
+  Hypothesis is optional: each file opens with `pytest.importorskip`, so a bare install
+  skips them and runs everything else. Build generated records through
+  `models.build_task` / `assets.build_asset`, never by hand. A property holds for its
+  whole domain or gets scoped until it does. Pin a real failure with
+  `xfail(strict=True)` plus an `@example`; never absorb one into a weaker assertion.
+  `HK_HYPOTHESIS_PROFILE` selects `dev` / `ci` / `mutmut`, and the runner scripts export
+  it. These tests are **scored by the mutation gate rather than deselected from it**:
+  they kill mutants the example-based tests miss, and the shrink-free `mutmut` profile
+  is what keeps the job inside its budget.
 - Layers: `tests/unit` (pytest, pure logic), `tests/frontend` +
   `frontend/test` (vitest), `tests/integration` (Docker HA), `tests/e2e`
   (Playwright), `tests/upgrade` (two-phase HA version upgrade). Run e2e/integration

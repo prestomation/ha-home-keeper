@@ -202,8 +202,22 @@ def _task_payload() -> st.SearchStrategy[dict]:
 
 
 def tasks(*, now: datetime) -> st.SearchStrategy[dict]:
-    """A task of any recurrence type, built through ``models.build_task``."""
-    return _task_payload().map(lambda payload: models.build_task(payload, now=now))
+    """A task of any recurrence type, built through ``models.build_task``.
+
+    Half carry an ``external_id``. Both halves matter: without one, the export branch
+    that writes the key never runs; with one always set, the branch that omits it never
+    runs. A maximal fixture can only ever cover the first case.
+    """
+    keys = st.one_of(
+        st.just(""), st.text(min_size=1, max_size=20).filter(lambda s: s.strip())
+    )
+    return st.builds(
+        lambda payload, key: models.build_task(
+            {**payload, **({"external_id": key} if key else {})}, now=now
+        ),
+        _task_payload(),
+        keys,
+    )
 
 
 def assets(*, now: datetime) -> st.SearchStrategy[dict]:
