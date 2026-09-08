@@ -1,4 +1,4 @@
-"""The portable Home Keeper document: one JSON shape export writes and import reads.
+"""The portable Home Keeper document: one YAML shape export writes and import reads.
 
 Home Keeper's data has always been easy to *reach* — every action is a service — and
 hard to *move*. Somebody arriving from a spreadsheet, from a dead app, or from years of
@@ -32,7 +32,6 @@ with an injected clock and runs to completion *before* anything reaches disk.
 
 from __future__ import annotations
 
-import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -43,6 +42,7 @@ from . import assets as assets_model
 from . import models, recurrence, resolve
 from .const import (
     COMPLETION_ENTRY_FIELDS,
+    MAX_IMPORT_BYTES,
     MAX_IMPORT_RECORDS,
     SKIP_ENTRY_FIELDS,
     TASK_SOURCE_BUY,
@@ -50,6 +50,7 @@ from .const import (
     TASK_SOURCE_PART,
     TASK_SOURCE_PROBLEM_SENSOR,
     TRANSFER_FORMAT,
+    TRANSFER_SCHEMA_URL,
 )
 
 # ── What does not travel ─────────────────────────────────────────────────────
@@ -352,9 +353,9 @@ def _asset_out(asset: dict[str, Any], *, area_names: dict[str, str]) -> dict[str
 def count_file_documents(assets: list[dict[str, Any]]) -> int:
     """How many uploaded files the document leaves behind.
 
-    Reported in the envelope rather than passed over in silence: a blob cannot ride a
-    JSON document, and somebody restoring onto a new install needs to know that three
-    manuals are waiting to be re-uploaded, not discover it a month later.
+    Reported in the envelope rather than passed over in silence: a text document has no
+    room for a blob, and somebody restoring onto a new install needs to know that
+    three manuals are waiting to be re-uploaded, not discover it a month later.
     """
     return sum(
         1
@@ -400,9 +401,172 @@ def build_document(
     return document
 
 
-def document_to_json(document: dict[str, Any]) -> str:
-    """The document as a file a person can read and an assistant can copy."""
-    return json.dumps(document, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
+# The implicit resolver the loader drops. Spelled out rather than reached for
+# through yaml.resolver, so the reason sits next to the name.
+_TIMESTAMP_TAG = "tag:yaml.org,2002:timestamp"
+
+
+@lru_cache(maxsize=1)
+def _yaml_dialect() -> tuple[Any, Any]:
+    """The ``(Dumper, Loader)`` pair this document is written and read with.
+
+    Built once, and PyYAML is imported here rather than at module scope for the same
+    reason ``ci/generate_api_docs.py`` does it: the pure modules are loaded at test
+    collection, and ``pytest PyYAML Babel hypothesis`` is documented as four *optional*
+    installs. A top-level import would make every transfer test need PyYAML to run.
+
+    PyYAML is not in ``manifest.json``. Home Assistant reads ``configuration.yaml``
+    with it, so it cannot boot without it — the same class as ``voluptuous``, which
+    this integration also imports and does not declare. Declaring it would only add a
+    pip resolution at setup that could move Home Assistant's own pinned version.
+    """
+    import yaml
+
+    class _Dumper(yaml.SafeDumper):
+        """Block YAML that reads like the worked example in the README."""
+
+        def increase_indent(self, flow: bool = False, indentless: bool = False) -> Any:
+            # PyYAML writes ``tasks:\n- name:``. Forcing ``indentless`` off puts the
+            # dash under its key, which is how a person writes YAML by hand.
+            return super().increase_indent(flow=flow, indentless=False)
+
+        def ignore_aliases(self, data: Any) -> bool:
+            # Never emit ``&a``/``*a``. The loader below refuses an alias, so a
+            # document that used one would be unreadable by the code that wrote it.
+            return True
+
+    def _represent_str(dumper: Any, data: str) -> Any:
+        # A multi-line note as a literal block instead of a quoted scalar with blank
+        # lines in it. PyYAML falls back to a quoted form by itself when a line has
+        # trailing whitespace, which a block scalar cannot hold, so this needs no guard.
+        style = "|" if "\n" in data else None
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style=style)
+
+    _Dumper.add_representer(str, _represent_str)
+
+    class _Loader(yaml.SafeLoader):
+        """Safe YAML, minus two behaviours this format has no use for.
+
+        **Aliases are refused.** The format never needed anchors, and refusing them is
+        what stops a billion-laughs expansion bomb: the attack is pure alias expansion,
+        and :data:`MAX_IMPORT_RECORDS` cannot see it because a document is already
+        expanded in memory by the time there are records to count. Refusing an alias
+        also removes merge keys (``<<: *base``), which the format has never used.
+
+        **Bare timestamps stay text.** The rule is that the document's scalars are
+        JSON's scalars. Stock ``SafeLoader`` reads ``completed_at: 2026-03-04`` as a
+        ``date`` and ``due: 2026-01-15T09:00:00`` as a ``datetime``; the second reaches
+        ``datetime.fromisoformat`` and raises ``TypeError``, and either one inside a
+        free-form ``metadata`` value would reach the store, where ``json.dumps`` cannot
+        write it. Dropping the resolver makes both load as the exact strings the same
+        document carried when it was JSON.
+
+        The YAML 1.1 *boolean* resolver stays. Home Assistant's own loader keeps it and
+        people write Home Assistant YAML every day, so ``enabled: no`` meaning false is
+        what a reader expects; dropping it would make ``"no"`` a truthy string, which
+        fails in the more surprising direction. The cost falls only on a hand-written
+        file, because the exporter quotes such a value by itself.
+        """
+
+        def compose_node(self, parent: Any, index: Any) -> Any:
+            if self.check_event(yaml.events.AliasEvent):
+                event = self.peek_event()
+                raise yaml.constructor.ConstructorError(
+                    None,
+                    None,
+                    "a Home Keeper document cannot use an anchor or an alias",
+                    event.start_mark,
+                )
+            return super().compose_node(parent, index)
+
+    _Loader.yaml_implicit_resolvers = {
+        first: [(tag, regexp) for tag, regexp in resolvers if tag != _TIMESTAMP_TAG]
+        for first, resolvers in _Loader.yaml_implicit_resolvers.items()
+    }
+
+    return _Dumper, _Loader
+
+
+def document_to_yaml(document: dict[str, Any]) -> str:
+    """The document as a file a person can read and an assistant can copy.
+
+    The first line is a ``yaml-language-server`` modeline naming the published schema,
+    so an exported file validates and completes itself in an editor. It is a comment,
+    so every parser skips it and the round trip is unaffected.
+    """
+    import yaml
+
+    dumper, _loader = _yaml_dialect()
+    body = yaml.dump(
+        document,
+        Dumper=dumper,
+        sort_keys=False,
+        default_flow_style=False,
+        allow_unicode=True,
+        indent=2,
+        # Only affects where a long scalar wraps; every width round-trips, so no
+        # assertion can tell one from another.
+        width=100,  # pragma: no mutate
+    )
+    return f"# yaml-language-server: $schema={TRANSFER_SCHEMA_URL}\n{body}"
+
+
+class DocumentSyntaxError(ValueError):
+    """The text is not YAML at all, so there is no document to validate."""
+
+    def __init__(self, message: str, *, line: int | None, column: int | None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.line = line
+        self.column = column
+
+    def as_problem(self) -> Problem:
+        """The failure as an ordinary problem row, with somewhere to look."""
+        where = "home_keeper"
+        if self.line is not None and self.column is not None:
+            where = f"line {self.line}, column {self.column}"
+        return Problem(
+            section="home_keeper", index=None, path=where, message=self.message
+        )
+
+
+def parse_document(text: str) -> Any:
+    """Read a document from text. The partner of :func:`document_to_yaml`.
+
+    Every JSON document is also YAML, so a file written before the format was YAML
+    still reads — with one exception worth stating: YAML forbids a tab as indentation,
+    so hand-written tab-indented JSON is refused. No exported file was ever indented
+    that way.
+
+    Returns whatever the text held, which is not necessarily a mapping.
+    :func:`plan_import` is what rejects a list or a scalar, so there is one rule about
+    that and not two.
+    """
+    import yaml
+
+    if len(text.encode("utf-8")) > MAX_IMPORT_BYTES:
+        raise DocumentSyntaxError(
+            f"this file is larger than {MAX_IMPORT_BYTES // (1024 * 1024)} MB, "
+            "so it was not read. Split the migration into several documents.",
+            line=None,
+            column=None,
+        )
+
+    _dumper, loader = _yaml_dialect()
+    try:
+        return yaml.load(text, Loader=loader)
+    # RecursionError is a RuntimeError, not a YAMLError: deeply nested flow
+    # collections exhaust PyYAML's recursive-descent parser, and catching only
+    # YAMLError would let that escape into the websocket handler.
+    except (yaml.YAMLError, RecursionError) as err:
+        mark = getattr(err, "problem_mark", None)
+        detail = getattr(err, "problem", None) or "the file could not be read"
+        # PyYAML counts from zero; a person's editor counts from one.
+        raise DocumentSyntaxError(
+            f"this file is not valid YAML: {detail}. Check the indentation.",
+            line=mark.line + 1 if mark is not None else None,
+            column=mark.column + 1 if mark is not None else None,
+        ) from err
 
 
 # ── Import ───────────────────────────────────────────────────────────────────
@@ -609,6 +773,14 @@ def plan_import(
     gives whoever generated it a clean fix-and-retry loop.
     """
     problems: list[Problem] = []
+    # Reading the text is part of validating it. The panel and the service both hand
+    # over whatever the user pasted, so a syntax error arrives as an ordinary problem
+    # row with a line and a column, through the same report as every other problem.
+    if isinstance(document, str):
+        try:
+            document = parse_document(document)
+        except DocumentSyntaxError as err:
+            return ImportPlan(problems=(err.as_problem(),))
     if not isinstance(document, dict):
         return ImportPlan(problems=(_bad("the document must be a mapping"),))
 

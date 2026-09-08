@@ -475,11 +475,15 @@ def test_the_export_omits_empty_values_so_the_file_stays_readable():
     assert record["name"] == "Furnace filter"
 
 
-def test_the_json_form_is_something_a_person_can_read():
-    text = tr.document_to_json(tr.build_document([_task()], [], now=NOW))
-    assert text.startswith("{\n")
+def test_the_yaml_form_is_something_a_person_can_read():
+    text = tr.document_to_yaml(tr.build_document([_task()], [], now=NOW))
+    # The modeline first, the document from line 2. An editor reads the first line to
+    # find the schema; a person reads the second to find their data.
+    lines = text.splitlines()
+    assert lines[0] == f"# yaml-language-server: $schema={tr.TRANSFER_SCHEMA_URL}"
+    assert lines[1] == "home_keeper:"
     assert text.endswith("\n")
-    assert '"name": "Furnace filter"' in text
+    assert "name: Furnace filter" in text
 
 
 # ── Every planned payload is a whole record ──────────────────────────────────
@@ -1008,18 +1012,173 @@ def test_the_export_counts_only_uploaded_files_as_skipped():
     assert "skipped" not in tr.build_document([], [asset], now=NOW)["home_keeper"]
 
 
-def test_the_json_form_keeps_non_ascii_readable_and_the_document_order():
+def test_the_yaml_form_keeps_non_ascii_readable_and_the_document_order():
     document = {"home_keeper": {"format": 1}, "tasks": [{"name": "Cambiar filtro ñ"}]}
-    text = tr.document_to_json(document)
-    # Not ñ escapes: somebody has to read and edit this file.
+    text = tr.document_to_yaml(document)
+    # Not \\u00f1 escapes: somebody has to read and edit this file.
     assert "ñ" in text
     # Envelope first, as written — sorting the keys would bury it mid-file.
-    assert text.index('"home_keeper"') < text.index('"tasks"')
+    assert text.index("home_keeper") < text.index("tasks")
 
 
-def test_the_json_form_is_indented_rather_than_one_long_line():
-    text = tr.document_to_json({"home_keeper": {"format": 1}, "tasks": []})
-    assert '\n  "home_keeper"' in text
+def test_the_yaml_form_indents_a_record_under_the_section_that_holds_it():
+    text = tr.document_to_yaml({"home_keeper": {"format": 1}, "tasks": [{"name": "F"}]})
+    # PyYAML's own default puts the dash in the first column, which reads as though
+    # the record were a sibling of the section rather than one of its items.
+    assert "\ntasks:\n  - name: F" in text
+
+
+def test_the_yaml_form_writes_a_multi_line_note_as_a_block():
+    text = tr.document_to_yaml({"tasks": [{"notes": "First line.\n\nThird line."}]})
+    # The alternative is a quoted scalar with the blank line folded away, which is
+    # unreadable for the markdown notes a task actually holds.
+    assert "notes: |-" in text
+    assert "\n      First line." in text
+
+
+def test_the_yaml_form_repeats_a_shared_record_rather_than_pointing_at_it():
+    shared = {"name": "F"}
+    text = tr.document_to_yaml({"tasks": [shared, shared]})
+    # A YAML anchor would be unreadable by our own loader, which refuses one. Two
+    # references to one dict is not a thing an export can produce today, but it is a
+    # thing a caller could hand ``document_to_yaml`` directly.
+    assert "&" not in text and "*" not in text
+    assert text.count("name: F") == 2
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["2026-03-04", "2026-01-15T09:00:00", "no", "on", "123", "null", "1.0"],
+    ids=["date", "datetime", "norway", "on", "digits", "null", "float"],
+)
+def test_a_string_that_looks_like_another_type_survives_the_round_trip(value):
+    """The export quotes what it must, so no reader has to guess.
+
+    Every one of these is a plain scalar YAML would resolve to a date, a bool, an int
+    or None. PyYAML's emitter checks each against its own resolvers and quotes it, so
+    a task named ``no`` comes back a string rather than ``False``.
+    """
+    document = {"home_keeper": {"format": 1}, "tasks": [{"name": value}]}
+    assert tr.parse_document(tr.document_to_yaml(document)) == document
+
+
+def test_a_bare_date_a_person_typed_is_read_as_text():
+    """A hand-written file is not quoted, and must still mean what it says.
+
+    Stock ``SafeLoader`` returns ``datetime.date(2026, 3, 4)`` here, which reaches
+    ``datetime.fromisoformat`` as a non-string and raises, and which the store cannot
+    write. Dropping the implicit timestamp resolver is what keeps this text.
+    """
+    parsed = tr.parse_document("a: 2026-03-04\nb: 2026-01-15T09:00:00\n")
+    assert parsed == {"a": "2026-03-04", "b": "2026-01-15T09:00:00"}
+
+
+def test_a_bare_yes_or_no_a_person_typed_is_still_a_boolean():
+    """The other half of the dialect, stated so it cannot be dropped by accident.
+
+    Home Assistant's own loader reads ``no`` as false and people write Home Assistant
+    YAML every day. Making it the string ``"no"`` would leave ``enabled: no`` truthy,
+    which fails in the more surprising direction.
+    """
+    assert tr.parse_document("enabled: no\narchived: on\n") == {
+        "enabled": False,
+        "archived": True,
+    }
+
+
+def test_json_still_reads_because_yaml_is_a_superset_of_it():
+    document = tr.parse_document('{"home_keeper": {"format": 1}, "tasks": []}')
+    assert document == {"home_keeper": {"format": 1}, "tasks": []}
+
+
+def test_a_syntax_error_names_the_line_and_the_column():
+    with pytest.raises(tr.DocumentSyntaxError) as caught:
+        tr.parse_document("tasks:\n  - name: A\n   bad: B\n")
+    problem = caught.value.as_problem()
+    # 1-based, because that is what the editor showing the file counts in.
+    assert caught.value.line == 3
+    assert problem.path == "line 3, column 4"
+    assert problem.severity == "error"
+    assert "not valid YAML" in problem.message
+
+
+def test_a_syntax_error_with_no_mark_still_reports_a_problem():
+    error = tr.DocumentSyntaxError("broken", line=None, column=None)
+    assert error.as_problem().path == "home_keeper"
+
+
+def test_an_anchor_is_refused_because_expanding_one_is_the_attack():
+    """A billion-laughs bomb is pure alias expansion.
+
+    ``MAX_IMPORT_RECORDS`` cannot see it: by the time there are records to count, the
+    document has already been expanded in memory. The format has never used an anchor,
+    so refusing one costs nothing and closes the hole outright.
+    """
+    bomb = "a: &x [1, 1]\nb: &y [*x, *x]\nc: [*y, *y]\n"
+    with pytest.raises(tr.DocumentSyntaxError) as caught:
+        tr.parse_document(bomb)
+    assert "anchor or an alias" in caught.value.message
+
+
+def test_a_deeply_nested_document_is_refused_rather_than_crashing_the_handler():
+    """``RecursionError`` is a ``RuntimeError``, not a ``yaml.YAMLError``.
+
+    PyYAML parses by recursive descent, so nested flow collections exhaust the stack.
+    Catching only ``YAMLError`` would let that escape into the websocket handler.
+    """
+    with pytest.raises(tr.DocumentSyntaxError):
+        tr.parse_document("a: " + "[" * 40000 + "]" * 40000)
+
+
+def test_a_document_over_the_byte_cap_is_refused_before_it_is_parsed():
+    at_cap = "#" + "x" * (tr.MAX_IMPORT_BYTES - 2) + "\n"
+    assert len(at_cap.encode()) == tr.MAX_IMPORT_BYTES
+    assert tr.parse_document(at_cap) is None
+    with pytest.raises(tr.DocumentSyntaxError) as caught:
+        tr.parse_document(at_cap + "x")
+    assert caught.value.line is None
+    assert "larger than" in caught.value.message
+
+
+def test_the_byte_cap_counts_bytes_and_not_characters():
+    """A multi-byte character costs what it costs on the wire.
+
+    ``len(text)`` would let a document of astral characters through at four times the
+    intended size, which is the whole point of having a cap.
+    """
+    over = "#" + "é" * tr.MAX_IMPORT_BYTES
+    assert len(over) < tr.MAX_IMPORT_BYTES * 2
+    with pytest.raises(tr.DocumentSyntaxError):
+        tr.parse_document(over)
+
+
+def test_plan_import_reads_text_as_well_as_a_mapping():
+    document = _doc(tasks=[{"name": "Furnace filter", "interval": 1, "unit": "months"}])
+    from_mapping = _plan(document)
+    from_text = _plan(tr.document_to_yaml(document))
+    assert from_text.ok and from_mapping.ok
+
+    def without_the_new_id(plan):
+        # A created record claims a fresh uuid on each pass, so that one key differs
+        # between two runs of the same document and says nothing about the parser.
+        return [
+            {k: v for k, v in r.as_dict().items() if k != "id"} for r in plan.records
+        ]
+
+    assert without_the_new_id(from_text) == without_the_new_id(from_mapping)
+    assert from_text.records[0].payload["name"] == "Furnace filter"
+
+
+def test_unreadable_text_is_reported_as_a_problem_rather_than_raised():
+    plan = _plan("tasks:\n  - name: A\n   bad: B\n")
+    assert not plan.ok
+    assert len(plan.problems) == 1
+    assert plan.problems[0].path.startswith("line ")
+
+
+def test_text_that_reads_as_a_list_is_refused_by_the_one_mapping_rule():
+    plan = _plan("- name: A\n")
+    assert [p.message for p in plan.problems] == ["the document must be a mapping"]
 
 
 # ── Guard-rail details ───────────────────────────────────────────────────────

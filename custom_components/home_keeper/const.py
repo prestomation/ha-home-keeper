@@ -60,10 +60,33 @@ MAX_EXTERNAL_ID_LEN = 128
 # holds; a bigger migration splits into several documents.
 MAX_IMPORT_RECORDS = 2000
 
+# The largest import document Home Keeper reads, in bytes. Checked before the parser
+# runs, because the parser is what a huge file attacks: ``MAX_IMPORT_RECORDS`` counts
+# records, and a document is already expanded in memory by the time there are records
+# to count. 8 MiB holds a very large migration and stays under Home Assistant's own
+# websocket message limit.
+MAX_IMPORT_BYTES = 8 * 1024 * 1024
+
 # The format version of the import/export document. Bumped only when the meaning of
 # an existing key changes — adding a section or a field is additive and does not.
 # ``transfer.py`` refuses a document declaring a newer version than this.
+#
+# Serialization is not shape: the document became YAML in 0.23.0 and stayed format 1,
+# so every file written by an earlier build still imports.
 TRANSFER_FORMAT = 1
+
+# Where the published JSON Schema for that format lives. Two consumers, so they cannot
+# disagree: ``transfer.document_to_yaml`` writes it as the first line of every export
+# (the ``yaml-language-server`` convention, which makes an exported file self-validating
+# in an editor), and ``ci/generate_schema.py`` writes it as the schema's own ``$id``.
+#
+# The version is in the filename on purpose. A file exported today keeps pointing at
+# the schema it was written for, so bumping ``TRANSFER_FORMAT`` must *add* a file
+# rather than replace one — see the warning in ``ci/generate_schema.py``.
+TRANSFER_SCHEMA_URL = (
+    "https://prestomation.github.io/ha-home-keeper"
+    f"/schema/home-keeper-{TRANSFER_FORMAT}.schema.json"
+)
 
 # Event fired on the HA event bus whenever a task is completed (from any surface:
 # the to-do list, a device mark-done button, or the complete_task service). This is
