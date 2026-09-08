@@ -1528,8 +1528,8 @@ in a spreadsheet or an old app.
 
 - **Export** saves every task and appliance, with the history, as a JSON file.
 - **Import** reads such a file. Paste it, or choose it from disk, then press
-  **Preview**. Preview reports what would change and writes nothing. **Import** stays
-  off until a preview of that exact text comes back clean.
+  **Preview**. Preview only reports what would change. **Import** stays off until a
+  preview of that exact text comes back clean.
 
 Both halves are also actions, so a script or an automation can call them:
 `home_keeper.export_data` and `home_keeper.import_data`. Both are admin-only.
@@ -1607,32 +1607,32 @@ steps, and stops at the first that matches:
    a copy of everything.
 3. **`name`**, an exact match first, then one that ignores case and spaces.
 
-Home Keeper creates a record that matches nothing. When a name matches 2 records you
-get an error that names both, because Home Keeper does not guess which one you meant.
-To create every record and match nothing, pass `match: none` to
+Home Keeper creates a record that matches no stored record. When a name matches 2
+records you get an error that names both, because Home Keeper does not guess which one
+you meant. To create every record and match no stored record, pass `match: none` to
 `home_keeper.import_data`.
 
 An update only changes the fields the file states. Fields it leaves out keep the
 value they have.
 
-### What the file does not hold
+### Import and export limitations
 
-The export says so in its own `home_keeper` block. The preview reports anything in a
-file that Home Keeper did not read.
+The file does not hold every record. An export lists what it left out in its own
+`home_keeper` block. An import reports every field in a file that it did not read.
 
 - **Uploaded manuals and receipts.** A JSON document has no room for a file, so
   upload those again after an import. A link to a document is only text, so it stays.
 - **Tasks that another part of Home Keeper owns**, such as a wear part's replacement
   reminder, a buy reminder, a problem-sensor mirror, or a recipe's task. Home Keeper
   builds these again from the appliance and its parts, which the file does include.
-- **Tasks that another integration owns.**
+- **Tasks created by companions.**
 - **Settings, profiles, notifications and recipes.** These stay in the config entry.
 
-### Ask an assistant to write one
+### Ask an AI agent to write one
 
-The format is meant to be easy to generate. Export what you have, then hand the file
-to an assistant along with whatever your records are in, such as a photo of a
-spreadsheet or a page of notes. Ask for the same shape back as one JSON document,
+The format is meant to be easy to generate. Export what you have, then give the file
+to an AI agent with whatever holds your records now, such as a photo of a spreadsheet
+or a page of notes. Ask for the same shape back as one JSON document,
 with an `external_id` on every record. Paste the answer into the Import
 box and press **Preview** first: it checks every record and reports each problem with
 the path to it, so you can fix the file and try again. Nothing is written until the

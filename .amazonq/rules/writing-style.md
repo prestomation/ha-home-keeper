@@ -35,6 +35,15 @@ keys the same as the English source (see "Translations" in
 - Use "make sure that", not "ensure".
 - Do not put more than 3 nouns in a row. Write "the list of tasks that are due", not
   "the due task list summary view".
+- **Name the noun. Do not write "nothing", "anything", or "something"** where a real
+  noun fits. Write "a record that matches no stored record", not "a record that
+  matches nothing". Write "the import reports every field it did not read", not "the
+  import reports anything it did not read". A vague pronoun makes the reader guess
+  which thing is meant.
+- **Say what a thing does, not what it does not do.** Write "Preview only reports what
+  would change", not "Preview reports what would change and writes nothing". A trailing
+  negative reads as an afterthought and leaves the reader to work out the point. Use a
+  negative only when the absence *is* the point, such as a limitation.
 
 ### Sentences
 
@@ -154,6 +163,7 @@ Use these names and no others for these things.
 | device | | A device is a Home Assistant device. Do not call an appliance a device. |
 | companion | | An integration that Home Keeper lists under Settings, Companions. |
 | glue integration | glue, bridge, connector | The pattern name for a small integration that connects another integration to Home Keeper. A glue integration is one kind of companion. |
+| AI agent | assistant, AI assistant, chatbot, LLM, model | Use it for any tool a user asks to write or read Home Keeper data on their behalf. "Home Assistant" is unrelated and keeps its name. |
 
 Service and code names keep their current identifiers. `add_asset` stays `add_asset`
 in code and in a code span. The prose around it says "appliance".
