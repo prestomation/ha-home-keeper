@@ -246,37 +246,70 @@
             "type": "string"
           },
           "labels": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "card_links": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "asset_id": {
-                  "type": "string"
-                },
-                "entry_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
                   "type": "string"
                 }
+              }
+            ]
+          },
+          "card_links": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "asset_id": {
+                    "type": "string"
+                  },
+                  "entry_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "asset_id",
+                  "entry_id"
+                ]
               },
-              "required": [
-                "asset_id",
-                "entry_id"
-              ]
-            }
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "asset_id": {
+                      "type": "string"
+                    },
+                    "entry_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "asset_id",
+                    "entry_id"
+                  ]
+                }
+              }
+            ]
           },
           "completion_detail": {
             "type": "string"
           },
           "completion_required_fields": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
           },
           "tag_id": {
             "anyOf": [
@@ -336,24 +369,45 @@
             ]
           },
           "task_chips": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "label": {
-                  "type": "string"
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
                 },
-                "icon": {
-                  "type": "string"
-                },
-                "url": {
-                  "type": "string"
-                }
+                "required": [
+                  "label"
+                ]
               },
-              "required": [
-                "label"
-              ]
-            }
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "icon": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "label"
+                  ]
+                }
+              }
+            ]
           },
           "id": {
             "type": "string"
