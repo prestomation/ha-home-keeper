@@ -611,6 +611,34 @@
       "name": "Exportera inventarium",
       "description": "Returnerar ett heminventarium för försäkring som svar (en rad per apparat plus summor), med en färdig CSV-fil att spara under nyckeln \"csv\"."
     },
+    "export_data": {
+      "name": "Exportera data",
+      "description": "Ger varje uppgift och varje apparat som ett flyttbart dokument, plus samma dokument som en färdig JSON-fil under nyckeln \"json\".",
+      "fields": {
+        "include": {
+          "name": "Ta med",
+          "description": "Vilka delar som exporteras. Båda som standard."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Importera data",
+      "description": "Läser ett flyttbart dokument och skapar eller uppdaterar uppgifterna och apparaterna i det. Hela dokumentet kontrolleras först, så ett dokument med ett fel skriver ingenting.",
+      "fields": {
+        "document": {
+          "name": "Dokument",
+          "description": "Dokumentet som läses, i den form export_data ger."
+        },
+        "dry_run": {
+          "name": "Endast förhandsgranskning",
+          "description": "Kontrollerar dokumentet och rapporterar vad som skulle ändras, utan att skriva något."
+        },
+        "match": {
+          "name": "Träff",
+          "description": "Hur posten som avses hittas. \"auto\" söker på id, sedan external_id, sedan namnet. \"none\" skapar varje post."
+        }
+      }
+    },
     "set_options": {
       "name": "Ange alternativ",
       "description": "Uppdatera Home Keepers integrationsalternativ — samma inställningar som panelens Inställningar-flik och alternativflödet. Endast de fält du anger ändras.",

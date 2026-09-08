@@ -611,6 +611,34 @@
       "name": "Vie luettelo",
       "description": "Palauta kotiluettelo vakuutusta varten vastauksena (yksi rivi laitetta kohden sekä summat), valmiina tallennettavan CSV-tiedoston kanssa avaimen \"csv\" alla."
     },
+    "export_data": {
+      "name": "Vie tiedot",
+      "description": "Palauttaa jokaisen tehtävän ja laitteen yhtenä siirrettävänä asiakirjana sekä saman asiakirjan valmiina JSON-tiedostona avaimen \"json\" alla.",
+      "fields": {
+        "include": {
+          "name": "Ota mukaan",
+          "description": "Mitkä osat viedään. Oletuksena molemmat."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Tuo tiedot",
+      "description": "Lukee siirrettävän asiakirjan ja luo tai päivittää siinä olevat tehtävät ja laitteet. Koko asiakirja tarkistetaan ensin, joten virheellinen asiakirja ei kirjoita mitään.",
+      "fields": {
+        "document": {
+          "name": "Asiakirja",
+          "description": "Luettava asiakirja siinä muodossa, jonka export_data palauttaa."
+        },
+        "dry_run": {
+          "name": "Vain esikatselu",
+          "description": "Tarkistaa asiakirjan ja kertoo, mikä muuttuisi, kirjoittamatta mitään."
+        },
+        "match": {
+          "name": "Vastaavuus",
+          "description": "Miten tarkoitettu tietue haetaan. \"auto\" hakee tunnuksella, sitten external_id-arvolla, sitten nimellä. \"none\" luo jokaisen tietueen."
+        }
+      }
+    },
     "set_options": {
       "name": "Aseta asetukset",
       "description": "Päivitä Home Keeperin integraatioasetukset – samat kuin paneelin Asetukset-välilehdellä ja asetusvalintaikkunassa. Vain annetut kentät muuttuvat.",

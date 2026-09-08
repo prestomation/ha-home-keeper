@@ -789,6 +789,89 @@ class HomeKeeperStore:
             )
         return merged
 
+    async def async_import_records(
+        self,
+        *,
+        assets_to_write: list[tuple[str, dict[str, Any], bool]],
+        tasks_to_write: list[tuple[str, dict[str, Any], bool]],
+    ) -> None:
+        """Write a planned import: fully built records, under ids chosen for them.
+
+        The import path needs two things the ordinary CRUD methods cannot give it.
+        It needs to write a record under a *stated* id — ``build_task`` and
+        ``build_asset`` mint their own, and a restore that re-minted them would hand
+        every task new entities and orphan every automation pointing at the old ones.
+        And it needs a task to arrive with its history already on it: ``transfer``
+        folds a decade of completions in before the record gets here, so exactly one
+        created/updated event fires per record rather than one per completion. A
+        backfill is a record of a decade, not a decade of things happening now, and
+        firing each one would replay through notifications and to-do sync as if it
+        were.
+
+        Everything else is unchanged. This is still the ``store`` chokepoint: one
+        save for the whole batch, and the same ``home_keeper_*_created`` /
+        ``_updated`` events every other write path fires, so an import is as
+        observable as a panel edit. The plan is validated in full before any of it
+        reaches here (``transfer.plan_import``), which is what lets the batch be
+        applied without a half-written store on the way.
+
+        Each entry is ``(record_id, record, is_new)``. Appliances are written first
+        because a task points at an appliance's device.
+        """
+        events_to_fire: list[tuple[str, dict[str, Any]]] = []
+        for asset_id, record, is_new in assets_to_write:
+            existing = self._assets.get(asset_id)
+            self._assets[asset_id] = record
+            if is_new or existing is None:
+                events_to_fire.append(
+                    (EVENT_ASSET_CREATED, events.asset_event_data(record))
+                )
+            elif changed := _changed_fields(existing, record):
+                events_to_fire.append(
+                    (
+                        EVENT_ASSET_UPDATED,
+                        events.asset_event_data(
+                            record, extra={"changed_fields": changed}
+                        ),
+                    )
+                )
+        for task_id, record, is_new in tasks_to_write:
+            existing = self._tasks.get(task_id)
+            self._tasks[task_id] = record
+            if is_new or existing is None:
+                events_to_fire.append(
+                    (EVENT_TASK_CREATED, events.task_event_data(record))
+                )
+            else:
+                # ``_changed_fields`` ignores the history on purpose — a reschedule
+                # must not read as an edit. For an import the history often *is* the
+                # change (backfilling years onto a task that already exists), so name
+                # it explicitly rather than letting the one event nobody else fires
+                # go unfired.
+                changed = _changed_fields(existing, record)
+                for log in ("completions", "skips"):
+                    if len(record.get(log, [])) != len(existing.get(log, [])):
+                        changed = sorted({*changed, log})
+                if changed:
+                    events_to_fire.append(
+                        (
+                            EVENT_TASK_UPDATED,
+                            events.task_event_data(
+                                record, extra={"changed_fields": changed}
+                            ),
+                        )
+                    )
+        await self._save()
+        _LOGGER.debug(
+            "Imported %d appliances and %d tasks",
+            len(assets_to_write),
+            len(tasks_to_write),
+        )
+        # Fire only once the batch is on disk: a listener that reads the store back
+        # (the to-do sync does) must not see a half-applied import.
+        for event_type, data in events_to_fire:
+            self._hass.bus.async_fire(event_type, data)
+
     async def _mutate_asset(
         self, asset_id: str, op: _AssetOp, *, changed_field: str
     ) -> Any:

@@ -611,6 +611,34 @@
       "name": "Esporta inventario",
       "description": "Restituisce un inventario domestico per l'assicurazione come risposta (una riga per elettrodomestico più i totali), con un CSV pronto da salvare sotto la chiave «csv»."
     },
+    "export_data": {
+      "name": "Esporta i dati",
+      "description": "Restituisce ogni attività e ogni elettrodomestico in un documento trasferibile, insieme allo stesso documento come file JSON pronto da salvare, sotto la chiave \"json\".",
+      "fields": {
+        "include": {
+          "name": "Includi",
+          "description": "Quali sezioni esportare. Entrambe per impostazione predefinita."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Importa i dati",
+      "description": "Legge un documento trasferibile e crea o aggiorna le attività e gli elettrodomestici che contiene. Prima viene controllato l'intero documento, quindi un documento con un errore non scrive nulla.",
+      "fields": {
+        "document": {
+          "name": "Documento",
+          "description": "Il documento da leggere, nella forma restituita da export_data."
+        },
+        "dry_run": {
+          "name": "Solo anteprima",
+          "description": "Controlla il documento e riferisce che cosa cambierebbe, senza scrivere nulla."
+        },
+        "match": {
+          "name": "Corrispondenza",
+          "description": "Come si trova il record a cui si riferisce. \"auto\" cerca per id, poi external_id, poi il nome. \"none\" crea ogni record."
+        }
+      }
+    },
     "set_options": {
       "name": "Imposta opzioni",
       "description": "Aggiorna le opzioni dell'integrazione Home Keeper: le stesse impostazioni della scheda Impostazioni del pannello e del flusso opzioni. Cambiano solo i campi forniti.",

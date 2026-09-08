@@ -611,6 +611,34 @@
       "name": "Exportar inventário",
       "description": "Retorna um inventário doméstico para seguro como resposta (uma linha por eletrodoméstico mais os totais), com um CSV pronto para salvar na chave \"csv\"."
     },
+    "export_data": {
+      "name": "Exportar dados",
+      "description": "Devolve cada tarefa e cada eletrodoméstico em um documento portátil, junto com esse mesmo documento como arquivo JSON pronto para salvar, sob a chave \"json\".",
+      "fields": {
+        "include": {
+          "name": "Incluir",
+          "description": "Quais seções exportar. As duas por padrão."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Importar dados",
+      "description": "Lê um documento portátil e cria ou atualiza as tarefas e os eletrodomésticos nele. O documento inteiro é conferido primeiro, então um documento com erro não grava nada.",
+      "fields": {
+        "document": {
+          "name": "Documento",
+          "description": "O documento a ler, no formato que export_data devolve."
+        },
+        "dry_run": {
+          "name": "Apenas prévia",
+          "description": "Confere o documento e informa o que mudaria, sem gravar nada."
+        },
+        "match": {
+          "name": "Correspondência",
+          "description": "Como achar o registro a que se refere. \"auto\" busca por id, depois external_id, depois o nome. \"none\" cria cada registro."
+        }
+      }
+    },
     "set_options": {
       "name": "Definir opções",
       "description": "Atualiza as opções da integração Home Keeper — as mesmas configurações da aba Configurações do painel e do fluxo de opções. Apenas os campos informados mudam.",

@@ -1473,3 +1473,60 @@ list_declarative_companions:
   description: >-
     Return every stored declarative-companion spec as a response, for the panel
     to render or an automation to inspect.
+
+export_data:
+  name: Export data
+  description: >-
+    Return every task and appliance as one portable document, plus the same
+    document as a ready-to-save JSON file under the "json" key. The document is
+    what import_data reads, so an export is also a worked example of the format.
+    Admin-only.
+  fields:
+    include:
+      name: Include
+      description: >-
+        Which sections to export. Both by default.
+      example: '["tasks"]'
+      selector:
+        select:
+          multiple: true
+          options:
+            - appliances
+            - tasks
+
+import_data:
+  name: Import data
+  description: >-
+    Read a portable document and create or update the tasks and appliances in it.
+    A record matches an existing one by id, then by external_id, then by an exact
+    name; anything that matches nothing is created. The whole document is checked
+    first, so a document with an error writes nothing. Returns a report of what
+    changed and every problem found. Admin-only.
+  fields:
+    document:
+      name: Document
+      description: >-
+        The document to read, in the shape export_data returns.
+      required: true
+      example: '{"home_keeper": {"format": 1}, "tasks": [{"name": "Replace furnace filter", "interval": 3, "unit": "months"}]}'
+      selector:
+        object:
+    dry_run:
+      name: Preview only
+      description: >-
+        Check the document and report what would change, without writing anything.
+      default: false
+      selector:
+        boolean:
+    match:
+      name: Match
+      description: >-
+        How to find the record a document record refers to. "auto" matches on id,
+        then external_id, then name. "none" creates every record, which is what you
+        want when you import a backlog whose names repeat.
+      default: auto
+      selector:
+        select:
+          options:
+            - auto
+            - none

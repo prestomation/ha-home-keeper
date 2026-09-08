@@ -131,12 +131,18 @@ def _call(session, service, data=None, return_response=False):
     [
         ("export_inventory", {}),
         ("set_options", {"sync_problem_sensors": True}),
+        # The portable document is every task, note, serial and cost in the store,
+        # and the import writes tasks and appliances wholesale.
+        ("export_data", {}),
+        ("import_data", {"document": {"home_keeper": {"format": 1}}, "dry_run": True}),
     ],
 )
 def test_admin_only_services_refuse_a_non_admin(non_admin, service, data):
-    # Both have ``@websocket_api.require_admin`` twins. Calling the service instead
-    # used to return the identical payload to anyone with a login.
-    r = _call(non_admin, service, data, return_response=service == "export_inventory")
+    # All of these have ``@websocket_api.require_admin`` twins. Calling the service
+    # instead used to return the identical payload to anyone with a login.
+    # ``set_options`` is the one here that returns nothing; asking it for a response
+    # would fail on the shape rather than on the gate we are testing.
+    r = _call(non_admin, service, data, return_response=service != "set_options")
     assert r.status_code == 401, f"{service} answered a non-admin: {r.status_code}"
 
 

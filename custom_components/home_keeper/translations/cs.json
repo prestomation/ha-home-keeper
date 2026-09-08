@@ -611,6 +611,34 @@
       "name": "Exportovat inventář",
       "description": "Vrátí domácí inventář pro pojištění jako odpověď (jeden řádek na spotřebič plus součty), s CSV připraveným k uložení pod klíčem \"csv\"."
     },
+    "export_data": {
+      "name": "Exportovat data",
+      "description": "Vrátí každý úkol a každý spotřebič jako jeden přenosný dokument a tentýž dokument jako hotový soubor JSON pod klíčem \"json\".",
+      "fields": {
+        "include": {
+          "name": "Zahrnout",
+          "description": "Které části se exportují. Ve výchozím nastavení obě."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Importovat data",
+      "description": "Přečte přenosný dokument a vytvoří nebo aktualizuje úkoly a spotřebiče v něm. Nejdřív se zkontroluje celý dokument, takže dokument s chybou nic nezapíše.",
+      "fields": {
+        "document": {
+          "name": "Dokument",
+          "description": "Dokument ke čtení ve tvaru, který vrací export_data."
+        },
+        "dry_run": {
+          "name": "Jen náhled",
+          "description": "Zkontroluje dokument a oznámí, co by se změnilo, aniž by cokoli zapsal."
+        },
+        "match": {
+          "name": "Shoda",
+          "description": "Jak se hledá míněný záznam. \"auto\" hledá podle id, pak podle external_id a pak podle názvu. \"none\" vytvoří každý záznam."
+        }
+      }
+    },
     "set_options": {
       "name": "Nastavit možnosti",
       "description": "Aktualizuje možnosti integrace Home Keeper – stejná nastavení jako karta Nastavení v panelu a dialog možností. Změní se jen předaná pole.",

@@ -611,6 +611,34 @@
       "name": "Eksportér inventar",
       "description": "Returnér et hjemmeinventar til forsikring som et svar (én række pr. apparat plus totaler) med en klar-til-at-gemme CSV under nøglen \"csv\"."
     },
+    "export_data": {
+      "name": "Eksportér data",
+      "description": "Giver hver opgave og hvert apparat som ét flytbart dokument samt det samme dokument som en færdig JSON-fil under nøglen \"json\".",
+      "fields": {
+        "include": {
+          "name": "Tag med",
+          "description": "Hvilke dele der eksporteres. Begge som standard."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Importér data",
+      "description": "Læser et flytbart dokument og opretter eller opdaterer opgaverne og apparaterne i det. Hele dokumentet kontrolleres først, så et dokument med en fejl skriver ingenting.",
+      "fields": {
+        "document": {
+          "name": "Dokument",
+          "description": "Dokumentet der læses, i den form export_data giver."
+        },
+        "dry_run": {
+          "name": "Kun forhåndsvisning",
+          "description": "Kontrollerer dokumentet og melder, hvad der ville blive ændret, uden at skrive noget."
+        },
+        "match": {
+          "name": "Sammenkobling",
+          "description": "Hvordan den post, der menes, findes. \"auto\" søger på id, derefter external_id, derefter navnet. \"none\" opretter hver post."
+        }
+      }
+    },
     "set_options": {
       "name": "Angiv indstillinger",
       "description": "Opdater Home Keepers integrationsindstillinger — de samme som fanen Indstillinger i panelet og indstillingsdialogen. Kun de angivne felter ændres.",

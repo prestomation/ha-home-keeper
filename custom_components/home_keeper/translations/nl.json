@@ -611,6 +611,34 @@
       "name": "Inventaris exporteren",
       "description": "Geeft een huisinventaris voor verzekeringen terug als antwoord (één rij per apparaat plus totalen), met een direct op te slaan CSV onder de sleutel \"csv\"."
     },
+    "export_data": {
+      "name": "Gegevens exporteren",
+      "description": "Geeft elke taak en elk apparaat terug als één overdraagbaar document, plus datzelfde document als kant-en-klaar JSON-bestand onder de sleutel \"json\".",
+      "fields": {
+        "include": {
+          "name": "Meenemen",
+          "description": "Welke onderdelen worden geëxporteerd. Standaard allebei."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Gegevens importeren",
+      "description": "Leest een overdraagbaar document en maakt of werkt de taken en apparaten erin bij. Eerst wordt het hele document gecontroleerd, dus een document met een fout schrijft niets.",
+      "fields": {
+        "document": {
+          "name": "Document",
+          "description": "Het document dat wordt gelezen, in de vorm die export_data teruggeeft."
+        },
+        "dry_run": {
+          "name": "Alleen voorbeeld",
+          "description": "Controleert het document en meldt wat er zou veranderen, zonder iets te schrijven."
+        },
+        "match": {
+          "name": "Koppeling",
+          "description": "Hoe het bedoelde item wordt gezocht. \"auto\" zoekt op id, dan external_id, dan de naam. \"none\" maakt elk item nieuw aan."
+        }
+      }
+    },
     "set_options": {
       "name": "Opties instellen",
       "description": "Werk de integratieopties van Home Keeper bij — dezelfde instellingen als het tabblad Instellingen van het paneel en de optiestroom. Alleen de doorgegeven velden veranderen.",

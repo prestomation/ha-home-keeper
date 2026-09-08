@@ -59,6 +59,7 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.add_task.fields.notes.name",
             "services.adjust_part_stock.fields.delta.name",
             "services.complete_task.fields.cost.name",  # "Cost" — CA cognate
+            "services.import_data.fields.document.name",
             "services.update_asset.fields.cost.name",
             "services.update_asset.fields.documents.name",  # "Documents" — CA cognate
             "services.update_asset.fields.model.name",
@@ -81,15 +82,16 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     ),
     "da": frozenset(
         {
-            "services.notify.fields.status.name",  # "Status" — cognate
             "services.add_asset.fields.metadata.name",
             "services.add_asset.fields.model.name",
             "services.add_task.fields.interval.name",
             "services.complete_task.fields.note.name",  # "Note" — DA cognate
+            "services.import_data.fields.document.name",
+            "services.notify.fields.status.name",  # "Status" — cognate
+            "services.skip_task.fields.note.name",  # "Note" — DA cognate
             "services.update_asset.fields.metadata.name",
             "services.update_asset.fields.model.name",
             "services.update_completion.fields.note.name",  # "Note" — DA cognate
-            "services.skip_task.fields.note.name",  # "Note" — DA cognate
             "services.update_skip.fields.note.name",  # "Note" — DA cognate
             "services.update_task.fields.interval.name",
         }
@@ -117,14 +119,15 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
             "services.add_task.fields.source.name",  # "Source" — FR cognate
             "services.complete_task.fields.note.name",  # "Note" — FR cognate
             "services.complete_task.fields.photo.name",  # "Photo" — FR cognate
+            "services.import_data.fields.document.name",
             "services.notify.fields.notification.name",  # "Notification" — FR cognate
             "services.register_companion.fields.description.name",  # FR cognate
+            "services.skip_task.fields.note.name",  # "Note" — FR cognate
             "services.update_asset.fields.documents.name",  # "Documents" — FR cognate
             "services.update_asset.fields.notes.name",  # "Notes" — FR cognate
             "services.update_completion.fields.note.name",  # "Note" — FR cognate
-            "services.skip_task.fields.note.name",  # "Note" — FR cognate
-            "services.update_skip.fields.note.name",  # "Note" — FR cognate
             "services.update_completion.fields.photo.name",  # "Photo" — FR cognate
+            "services.update_skip.fields.note.name",  # "Note" — FR cognate
             "services.update_task.fields.notes.name",
             "services.update_task.fields.source.name",  # "Source" — FR cognate
         }
@@ -147,12 +150,13 @@ _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
     ),
     "nl": frozenset(
         {
-            "services.notify.fields.status.name",  # "Status" — cognate
             "services.add_asset.fields.metadata.name",
             "services.add_asset.fields.model.name",
             "services.add_asset_document.fields.document.name",
             "services.add_task.fields.interval.name",
             "services.add_task.fields.labels.name",  # "Labels" — NL loanword (HA UI)
+            "services.import_data.fields.document.name",
+            "services.notify.fields.status.name",  # "Status" — cognate
             "services.update_asset.fields.metadata.name",
             "services.update_asset.fields.model.name",
             "services.update_task.fields.interval.name",

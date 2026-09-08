@@ -47,6 +47,7 @@ from . import (
     profiles,
     sensor_tasks,
     tag_listener,
+    transfer,
     websocket_api,
 )
 from .api_surface import SERVICE_NAMES
@@ -96,6 +97,10 @@ from .sensor_watcher import (
 from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
 from .todo_list_sync import TodoListSync
+from .transfer_runner import (
+    async_export_document,
+    async_import_document,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -496,6 +501,21 @@ SIGN_PART_FILE_URL_SCHEMA = vol.Schema(
     }
 )
 EXPORT_INVENTORY_SCHEMA = vol.Schema({})
+
+# The portable document, both directions. ``document`` is deliberately a bare dict
+# rather than a spelled-out voluptuous shape: ``transfer.plan_import`` validates the
+# whole thing against the live store — which a schema cannot see — and reports every
+# problem at once with a path, instead of failing on the first key at the edge.
+EXPORT_DATA_SCHEMA = vol.Schema(
+    {vol.Optional("include"): vol.All(cv.ensure_list, [vol.In(transfer.SECTIONS)])}
+)
+IMPORT_DATA_SCHEMA = vol.Schema(
+    {
+        vol.Required("document"): dict,
+        vol.Optional("dry_run", default=False): cv.boolean,
+        vol.Optional("match", default="auto"): vol.In(("auto", "none")),
+    }
+)
 
 # Send an actionable notification on demand for what's due now (the pull / "walk"
 # entry point). Name a saved notification, or a profile (filter), optionally with a
@@ -1353,6 +1373,19 @@ def _register_services(hass: HomeAssistant) -> None:
         csv = inventory.inventory_to_csv(report, lang=hass.config.language)
         return {"inventory": report, "csv": csv}
 
+    async def handle_export_data(call: ServiceCall) -> dict[str, Any]:
+        # Admin-only: the document is every task, note, serial number and cost in
+        # the store. Mirrors ``ws_export_data``'s ``require_admin``.
+        await _verify_admin(call)
+        return await async_export_document(hass, _coordinator(), dict(call.data))
+
+    async def handle_import_data(call: ServiceCall) -> dict[str, Any]:
+        # Admin-only: it writes tasks and appliances wholesale. Mirrors
+        # ``ws_import_data``'s ``require_admin``.
+        await _verify_admin(call)
+        with _store_errors():
+            return await async_import_document(hass, _coordinator(), dict(call.data))
+
     hass.services.async_register(
         DOMAIN,
         "add_task",
@@ -1573,6 +1606,20 @@ def _register_services(hass: HomeAssistant) -> None:
         "export_inventory",
         handle_export_inventory,
         EXPORT_INVENTORY_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "export_data",
+        handle_export_data,
+        EXPORT_DATA_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "import_data",
+        handle_import_data,
+        IMPORT_DATA_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
     hass.services.async_register(

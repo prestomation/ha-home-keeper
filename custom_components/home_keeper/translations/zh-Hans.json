@@ -611,6 +611,34 @@
       "name": "导出清单",
       "description": "以响应形式返回用于保险的家庭清单（每个设备一行，外加合计），并在“csv”键下提供可直接保存的 CSV。"
     },
+    "export_data": {
+      "name": "导出数据",
+      "description": "把每一个任务和每一件电器作为一份可迁移文档返回，并在 \"json\" 键下附上同一份文档的可直接保存的 JSON 文件。",
+      "fields": {
+        "include": {
+          "name": "包含",
+          "description": "导出哪些部分。默认两者都导出。"
+        }
+      }
+    },
+    "import_data": {
+      "name": "导入数据",
+      "description": "读取一份可迁移文档，并创建或更新其中的任务和电器。先检查整份文档，因此有错误的文档不会写入任何内容。",
+      "fields": {
+        "document": {
+          "name": "文档",
+          "description": "要读取的文档，格式与 export_data 返回的一致。"
+        },
+        "dry_run": {
+          "name": "仅预览",
+          "description": "检查文档并报告会有哪些改动，但不写入任何内容。"
+        },
+        "match": {
+          "name": "匹配",
+          "description": "如何找到所指的记录。\"auto\" 依次按 id、external_id、名称查找。\"none\" 则每条记录都新建。"
+        }
+      }
+    },
     "set_options": {
       "name": "设置选项",
       "description": "更新 Home Keeper 的集成选项——与面板“设置”标签页和选项流程相同的设置。仅更改你传入的字段。",

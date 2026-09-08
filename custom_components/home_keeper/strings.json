@@ -699,6 +699,34 @@
       "name": "Export inventory",
       "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
     },
+    "export_data": {
+      "name": "Export data",
+      "description": "Return every task and appliance as one portable document, with the same document as a ready-to-save JSON file under the \"json\" key.",
+      "fields": {
+        "include": {
+          "name": "Include",
+          "description": "Which sections to export. Both by default."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Import data",
+      "description": "Read a portable document and create or update the tasks and appliances in it. The whole document is checked first, so a document with an error writes nothing.",
+      "fields": {
+        "document": {
+          "name": "Document",
+          "description": "The document to read, in the shape export_data returns."
+        },
+        "dry_run": {
+          "name": "Preview only",
+          "description": "Check the document and report what would change, without writing anything."
+        },
+        "match": {
+          "name": "Match",
+          "description": "How to find the record a document record refers to. \"auto\" matches on id, then external_id, then name. \"none\" creates every record."
+        }
+      }
+    },
     "set_options": {
       "name": "Set options",
       "description": "Update Home Keeper's integration options: the same settings as the panel's Settings tab and the options flow. Only the fields you pass change.",

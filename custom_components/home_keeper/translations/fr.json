@@ -611,6 +611,34 @@
       "name": "Exporter l'inventaire",
       "description": "Renvoie un inventaire du domicile pour l'assurance sous forme de réponse (une ligne par appareil plus les totaux), avec un CSV prêt à enregistrer sous la clé « csv »."
     },
+    "export_data": {
+      "name": "Exporter les données",
+      "description": "Renvoie chaque tâche et chaque appareil dans un document transférable, ainsi que ce même document sous forme de fichier JSON prêt à enregistrer, sous la clé \"json\".",
+      "fields": {
+        "include": {
+          "name": "Inclure",
+          "description": "Les sections à exporter. Les deux par défaut."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Importer les données",
+      "description": "Lit un document transférable et crée ou met à jour les tâches et les appareils qu'il contient. Le document entier est vérifié d'abord, donc un document erroné n'écrit rien.",
+      "fields": {
+        "document": {
+          "name": "Document",
+          "description": "Le document à lire, dans la forme que renvoie export_data."
+        },
+        "dry_run": {
+          "name": "Aperçu seulement",
+          "description": "Vérifie le document et indique ce qui changerait, sans rien écrire."
+        },
+        "match": {
+          "name": "Correspondance",
+          "description": "Comment trouver l'enregistrement visé. \"auto\" cherche par id, puis external_id, puis le nom. \"none\" crée chaque enregistrement."
+        }
+      }
+    },
     "set_options": {
       "name": "Définir les options",
       "description": "Met à jour les options de l'intégration Home Keeper — les mêmes réglages que l'onglet Réglages du panneau et le flux d'options. Seuls les champs fournis changent.",

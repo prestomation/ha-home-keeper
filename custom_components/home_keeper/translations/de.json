@@ -611,6 +611,34 @@
       "name": "Inventar exportieren",
       "description": "Gibt ein Hausinventar für Versicherungszwecke als Antwort zurück (eine Zeile pro Gerät plus Summen), mit einer speicherfertigen CSV-Datei unter dem Schlüssel \"csv\"."
     },
+    "export_data": {
+      "name": "Daten exportieren",
+      "description": "Gibt jede Aufgabe und jedes Gerät als ein übertragbares Dokument zurück, dazu dasselbe Dokument als speicherfertige JSON-Datei unter dem Schlüssel \"json\".",
+      "fields": {
+        "include": {
+          "name": "Einschließen",
+          "description": "Welche Abschnitte exportiert werden. Standardmäßig beide."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Daten importieren",
+      "description": "Liest ein übertragbares Dokument und legt die darin enthaltenen Aufgaben und Geräte an oder aktualisiert sie. Das gesamte Dokument wird zuerst geprüft, ein fehlerhaftes Dokument schreibt also nichts.",
+      "fields": {
+        "document": {
+          "name": "Dokument",
+          "description": "Das zu lesende Dokument, in der Form, die export_data zurückgibt."
+        },
+        "dry_run": {
+          "name": "Nur Vorschau",
+          "description": "Prüft das Dokument und meldet, was sich ändern würde, ohne etwas zu schreiben."
+        },
+        "match": {
+          "name": "Zuordnung",
+          "description": "Wie der gemeinte Datensatz gefunden wird. \"auto\" sucht über die ID, dann external_id, dann den Namen. \"none\" legt jeden Datensatz neu an."
+        }
+      }
+    },
     "set_options": {
       "name": "Optionen festlegen",
       "description": "Aktualisiere die Integrationsoptionen von Home Keeper – dieselben Einstellungen wie im Einstellungen-Tab des Panels und im Optionsdialog. Nur die übergebenen Felder ändern sich.",

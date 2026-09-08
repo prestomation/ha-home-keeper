@@ -37,6 +37,7 @@ panel uses, and the matching `home_keeper.*` service.
 | Spare-part stock adjustments | `adjust_part_stock` |
 | Settings, profiles and notification delivery | `set_options` |
 | The home-inventory export (costs, serials, value totals) | `export_inventory` |
+| Data export and import (every task, note, serial and cost) | `export_data`, `import_data` |
 
 Home Keeper creates a Home Assistant device for each appliance, and removes
 the device when it deletes the appliance. Home Assistant reserves the

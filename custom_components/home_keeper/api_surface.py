@@ -196,6 +196,8 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("sign_document_url", response="only"),
     ServiceSpec("sign_part_file_url", response="only"),
     ServiceSpec("export_inventory", admin_only=True, response="only"),
+    ServiceSpec("export_data", admin_only=True, response="only"),
+    ServiceSpec("import_data", admin_only=True, response="only"),
     ServiceSpec("set_options", admin_only=True),
     ServiceSpec("register_companion", response="optional"),
     ServiceSpec("list_companions", response="only"),
@@ -724,6 +726,8 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec(
         "home_keeper/export_inventory", admin_only=True, service="export_inventory"
     ),
+    WebsocketSpec("home_keeper/export_data", admin_only=True, service="export_data"),
+    WebsocketSpec("home_keeper/import_data", admin_only=True, service="import_data"),
     WebsocketSpec("home_keeper/get_options"),
     WebsocketSpec("home_keeper/set_options", admin_only=True, service="set_options"),
     WebsocketSpec("home_keeper/get_companions", service="list_companions"),
@@ -881,6 +885,13 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
         "published",
         "The dashboard task card registers itself as a Lovelace resource on "
         "storage-mode installs.",
+    ),
+    SurfaceKind(
+        "Data portability",
+        "published",
+        "Tasks and appliances travel as one documented JSON document that "
+        "`export_data` writes and `import_data` reads, upserting on a stated "
+        "primary key.",
     ),
     SurfaceKind(
         "WebSocket commands",

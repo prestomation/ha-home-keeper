@@ -611,6 +611,34 @@
       "name": "Eksportuj inwentarz",
       "description": "Zwraca inwentarz domowy do celów ubezpieczeniowych jako odpowiedź (jeden wiersz na urządzenie plus sumy), z gotowym do zapisania plikiem CSV pod kluczem \"csv\"."
     },
+    "export_data": {
+      "name": "Eksportuj dane",
+      "description": "Zwraca każde zadanie i każde urządzenie jako jeden przenośny dokument oraz ten sam dokument jako gotowy do zapisania plik JSON pod kluczem \"json\".",
+      "fields": {
+        "include": {
+          "name": "Uwzględnij",
+          "description": "Które sekcje wyeksportować. Domyślnie obie."
+        }
+      }
+    },
+    "import_data": {
+      "name": "Importuj dane",
+      "description": "Czyta przenośny dokument i tworzy lub aktualizuje zawarte w nim zadania i urządzenia. Najpierw sprawdzany jest cały dokument, więc dokument z błędem niczego nie zapisuje.",
+      "fields": {
+        "document": {
+          "name": "Dokument",
+          "description": "Dokument do odczytania, w postaci zwracanej przez export_data."
+        },
+        "dry_run": {
+          "name": "Tylko podgląd",
+          "description": "Sprawdza dokument i zgłasza, co by się zmieniło, bez zapisywania czegokolwiek."
+        },
+        "match": {
+          "name": "Dopasowanie",
+          "description": "Jak odnaleźć wskazany wpis. \"auto\" szuka po id, potem external_id, potem po nazwie. \"none\" tworzy każdy wpis od nowa."
+        }
+      }
+    },
     "set_options": {
       "name": "Ustaw opcje",
       "description": "Aktualizuje opcje integracji Home Keeper — te same ustawienia co karta Ustawienia w panelu i okno opcji. Zmieniają się tylko przekazane pola.",

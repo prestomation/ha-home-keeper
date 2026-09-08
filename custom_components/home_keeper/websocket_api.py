@@ -36,6 +36,10 @@ from .coordinator import (
 )
 from .models import TaskValidationError
 from .shopping_sync import own_todo_entity_ids
+from .transfer_runner import (
+    async_export_document,
+    async_import_document,
+)
 
 
 def _coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
@@ -209,6 +213,8 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_remove_part_file)
     websocket_api.async_register_command(hass, ws_sign_part_file_url)
     websocket_api.async_register_command(hass, ws_export_inventory)
+    websocket_api.async_register_command(hass, ws_export_data)
+    websocket_api.async_register_command(hass, ws_import_data)
     websocket_api.async_register_command(hass, ws_get_options)
     websocket_api.async_register_command(hass, ws_set_options)
     websocket_api.async_register_command(hass, ws_get_companions)
@@ -1046,6 +1052,57 @@ async def ws_export_inventory(
     )
     csv = inventory.inventory_to_csv(report, lang=hass.config.language)
     connection.send_result(msg["id"], {"inventory": report, "csv": csv})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "home_keeper/export_data"})
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_export_data(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    """Return the portable document plus a ready-to-save JSON file.
+
+    Admin-only: the document is every task, note, serial number and cost in the
+    store, which a non-admin household member should not be able to walk off with.
+    """
+    connection.send_result(
+        msg["id"], await async_export_document(hass, coord, dict(msg))
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/import_data",
+        vol.Required("document"): dict,
+        vol.Optional("dry_run", default=False): bool,
+        vol.Optional("match", default="auto"): vol.In(("auto", "none")),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_import_data(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    """Plan an import and, unless this is a dry run, apply it.
+
+    The panel's preview and its real import are the *same* call with ``dry_run``
+    flipped, so what the preview shows is what the import does — a second code path
+    for the preview could only ever be a second thing to keep in step.
+
+    Admin-only: it writes tasks and appliances wholesale. Mirrors
+    ``handle_import_data``'s ``_verify_admin``.
+    """
+    connection.send_result(
+        msg["id"], await async_import_document(hass, coord, dict(msg))
+    )
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_options"})
