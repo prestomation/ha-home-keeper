@@ -968,6 +968,8 @@ A Profile is used in 4 places:
 Home Keeper does not delete a Profile that a notification uses. Point those
 notifications at a different Profile first. You can also delete them.
 
+![The panel refusing to delete a Profile, and naming the notification that uses it](docs/images/58-panel-profile-delete-blocked.png)
+
 ### Status tiers
 
 The **Include** setting has 3 tiers. Each tier includes the tiers before it:
@@ -1494,6 +1496,13 @@ warning shows above 50 matches. A recipe cannot match more than 500 entities. Se
 ![The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right](docs/images/21d-panel-declarative-add-dialog.png)
 
 ![The page of a task a recipe made, with an Edit recipe button and no Done button while the task is monitored](docs/images/21e-panel-declarative-task-detail.png)
+
+Each recipe gets a row under **Settings → Companions** with an Edit button and a
+Delete button. On a phone the row stacks, and the buttons take a line of their own.
+
+![A recipe row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete](docs/images/21h-panel-declarative-row-actions.png)
+
+![The same recipe row on a phone, with Edit and Delete on a line under the name](docs/images/21i-panel-mobile-declarative-row-actions.png)
 
 
 

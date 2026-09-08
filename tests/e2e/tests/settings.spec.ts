@@ -386,13 +386,15 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       const rowFor = (name: string) =>
         card.locator('.hk-item-card').filter({ hasText: name }).first();
       const openRow = async (name: string) => {
-        const header = rowFor(name).locator('.hk-item-header');
+        // A profile row contains a *second* `.hk-item-card` — the sync group — so
+        // take this row's own header rather than both.
+        const header = rowFor(name).locator('> .hk-item-header');
         if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
       };
 
       // The held profile: blocked, and the notification is named.
       await openRow('Held profile');
-      await rowFor('Held profile').locator('.hk-notify-delete').click();
+      await rowFor('Held profile').locator('> .hk-item-body .hk-notify-delete').click();
       const scrim = page.locator('.hk-confirm-scrim');
       await expect(scrim).toBeVisible();
       await expect(scrim).toContainText('Bin day');
@@ -411,7 +413,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
 
       // The free profile: asked for first, then deleted.
       await openRow('Free profile');
-      await rowFor('Free profile').locator('.hk-notify-delete').click();
+      await rowFor('Free profile').locator('> .hk-item-body .hk-notify-delete').click();
       await expect(scrim).toBeVisible();
       await scrim.locator('ha-button', { hasText: 'Delete' }).click();
       await expect
