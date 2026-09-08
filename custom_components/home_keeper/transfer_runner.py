@@ -89,13 +89,33 @@ async def async_import_document(
         await devices.async_reconcile_assets(hass, coord.entry, coord.store)
 
     planned_tasks = plan.for_section("tasks")
+    unattached: list[transfer.Problem] = []
     if planned_tasks:
         for record in planned_tasks:
             asset_id = transfer.planned_asset_id(record.payload.get("device_id"))
             if asset_id is None:
                 continue
-            asset = coord.store.get_asset(asset_id)
-            record.payload["device_id"] = (asset or {}).get("device_id")
+            device_id = (coord.store.get_asset(asset_id) or {}).get("device_id")
+            record.payload["device_id"] = device_id
+            if not device_id:
+                # Provisioning is the one step that can still fail after validation
+                # passed, and the appliances are already written by now, so there is
+                # nothing to roll back to. Import the task standalone and *say so*:
+                # a task that quietly lost its appliance is the kind of thing a
+                # migration only notices months later.
+                unattached.append(
+                    transfer.Problem(
+                        section="tasks",
+                        index=record.index,
+                        path=f"tasks[{record.index}].appliance",
+                        message=(
+                            f'"{record.name}" was imported without its appliance: '
+                            "Home Assistant did not give that appliance a device. "
+                            "Open the appliance, then set the task's appliance again."
+                        ),
+                        severity="warning",
+                    )
+                )
         await coord.store.async_import_records(
             assets_to_write=[],
             tasks_to_write=[
@@ -109,4 +129,6 @@ async def async_import_document(
         await coord.store.reconcile_part_tasks()
         await coord.store.reconcile_buy_tasks()
         await hass.config_entries.async_reload(coord.entry.entry_id)
-    return plan.as_report(dry_run=False)
+    report = plan.as_report(dry_run=False)
+    report["problems"].extend(problem.as_dict() for problem in unattached)
+    return report
