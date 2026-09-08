@@ -69,6 +69,11 @@ def test_r1_the_fast_path_agrees_with_single_stepping(anchor, freq, interval, ga
 
     Generalises `test_recurrence_fixed.py::test_next_monthly_far_past_matches_naive_
     across_day_clamping`, which asserts exactly this over 6 hand-picked anchors.
+
+    The reference shares `_step` with the code under test, so this is not an oracle for
+    `_step` itself — it isolates the *jumping*, which is where both shipped defects
+    were. `_step` has its own properties in R5a and R5b, which do not use it to check
+    itself.
     """
     after = anchor + timedelta(days=gap_days)
     # Keep the reference walk finite; the unbounded domain is R2's job.

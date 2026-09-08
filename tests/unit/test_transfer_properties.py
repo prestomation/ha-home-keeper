@@ -201,13 +201,19 @@ def test_t3_every_parent_loop_is_found_and_only_loops_are_reported(graph):
     looped = tr._looping_parents(records, {}, problems)
 
     def has_cycle(start: str, links: dict[str, str | None]) -> bool:
-        seen, cursor = {start}, links.get(start)
-        while cursor:
-            if cursor in seen:
-                return True
-            seen.add(cursor)
+        """Pigeonhole, not a seen-set.
+
+        `assets.would_create_cycle` — which `_looping_parents` calls — decides this by
+        tracking the nodes it has visited. Writing the oracle the same way would make
+        the two share a misconception and agree wrongly. So: a chain through `n` nodes
+        that has not ended after `n` hops must be revisiting one.
+        """
+        cursor = links.get(start)
+        for _ in range(len(links) + 1):
+            if cursor is None:
+                return False
             cursor = links.get(cursor)
-        return False
+        return True
 
     expected = {asset_id for asset_id in ids if has_cycle(asset_id, parent_of)}
     assert looped == expected
