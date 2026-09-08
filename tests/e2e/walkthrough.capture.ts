@@ -886,7 +886,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
     (el as HTMLTextAreaElement & { value: string }).value = value;
     el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, `{\n  \"home_keeper\": { \"format\": 1 },\n  \"tasks\": [\n    {\n      \"external_id\": \"dishwasher-filter\",\n      \"name\": \"Clean the dishwasher filter\",\n      \"interval\": 1,\n      \"unit\": \"months\",\n      \"history\": [{ \"completed_at\": \"2026-05-02\" }]\n    }\n  ]\n}`);
+  }, `home_keeper:\n  format: 1\ntasks:\n  - external_id: dishwasher-filter\n    name: Clean the dishwasher filter\n    interval: 1\n    unit: months\n    history:\n      - completed_at: 2026-05-02\n`);
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('#transfer-preview').click();
   await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
@@ -1037,7 +1037,7 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
     (el as HTMLTextAreaElement & { value: string }).value = value;
     el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, `{\n  \"home_keeper\": { \"format\": 1 },\n  \"tasks\": [\n    {\n      \"external_id\": \"dishwasher-filter\",\n      \"name\": \"Clean the dishwasher filter\",\n      \"interval\": 1,\n      \"unit\": \"months\",\n      \"history\": [{ \"completed_at\": \"2026-05-02\" }]\n    }\n  ]\n}`);
+  }, `home_keeper:\n  format: 1\ntasks:\n  - external_id: dishwasher-filter\n    name: Clean the dishwasher filter\n    interval: 1\n    unit: months\n    history:\n      - completed_at: 2026-05-02\n`);
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('#transfer-preview').click();
   await expect(panel.locator('.hk-transfer-counts')).toBeVisible();

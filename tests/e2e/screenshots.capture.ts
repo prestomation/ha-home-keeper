@@ -1526,7 +1526,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
     (el as HTMLTextAreaElement & { value: string }).value = value;
     el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, `{\n  \"home_keeper\": { \"format\": 1 },\n  \"appliances\": [\n    { \"external_id\": \"dishwasher\", \"name\": \"Kitchen dishwasher\", \"manufacturer\": \"Bosch\" }\n  ],\n  \"tasks\": [\n    {\n      \"external_id\": \"dishwasher-filter\",\n      \"name\": \"Clean the dishwasher filter\",\n      \"appliance\": \"dishwasher\",\n      \"interval\": 1,\n      \"unit\": \"months\",\n      \"history\": [{ \"completed_at\": \"2026-05-02\" }]\n    }\n  ]\n}`);
+  }, `home_keeper:\n  format: 1\nappliances:\n  - external_id: dishwasher\n    name: Kitchen dishwasher\n    manufacturer: Bosch\ntasks:\n  - external_id: dishwasher-filter\n    name: Clean the dishwasher filter\n    appliance: dishwasher\n    interval: 1\n    unit: months\n    history:\n      - completed_at: 2026-05-02\n`);
   await panel.locator('#transfer-preview').click();
   await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
   await page.waitForTimeout(700);
@@ -1689,7 +1689,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
     (el as HTMLTextAreaElement & { value: string }).value = value;
     el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, `{\n  \"home_keeper\": { \"format\": 1 },\n  \"appliances\": [\n    { \"external_id\": \"dishwasher\", \"name\": \"Kitchen dishwasher\", \"manufacturer\": \"Bosch\" }\n  ],\n  \"tasks\": [\n    {\n      \"external_id\": \"dishwasher-filter\",\n      \"name\": \"Clean the dishwasher filter\",\n      \"appliance\": \"dishwasher\",\n      \"interval\": 1,\n      \"unit\": \"months\",\n      \"history\": [{ \"completed_at\": \"2026-05-02\" }]\n    }\n  ]\n}`);
+  }, `home_keeper:\n  format: 1\nappliances:\n  - external_id: dishwasher\n    name: Kitchen dishwasher\n    manufacturer: Bosch\ntasks:\n  - external_id: dishwasher-filter\n    name: Clean the dishwasher filter\n    appliance: dishwasher\n    interval: 1\n    unit: months\n    history:\n      - completed_at: 2026-05-02\n`);
   await panel.locator('#transfer-preview').click();
   await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
   // Scroll the action row into frame. The two buttons taking a row of their own,

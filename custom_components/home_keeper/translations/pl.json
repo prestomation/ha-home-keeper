@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Eksportuj dane",
-      "description": "Zwraca każde zadanie i każde urządzenie jako jeden przenośny dokument oraz ten sam dokument jako gotowy do zapisania plik JSON pod kluczem \"json\".",
+      "description": "Zwraca każde zadanie i każde urządzenie jako jeden przenośny dokument oraz ten sam dokument jako gotowy do zapisania plik YAML pod kluczem \"yaml\".",
       "fields": {
         "include": {
           "name": "Uwzględnij",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Dokument",
-          "description": "Dokument do odczytania, w postaci zwracanej przez export_data."
+          "description": "Dokument do odczytania, w postaci zwracanej przez export_data. Podaj go jako mapowanie albo jako cały plik w jednym ciągu znaków."
         },
         "dry_run": {
           "name": "Tylko podgląd",

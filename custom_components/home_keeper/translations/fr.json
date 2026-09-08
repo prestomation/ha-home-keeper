@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Exporter les données",
-      "description": "Renvoie chaque tâche et chaque appareil dans un document transférable, ainsi que ce même document sous forme de fichier JSON prêt à enregistrer, sous la clé \"json\".",
+      "description": "Renvoie chaque tâche et chaque appareil dans un document transférable, ainsi que ce même document sous forme de fichier YAML prêt à enregistrer, sous la clé \"yaml\".",
       "fields": {
         "include": {
           "name": "Inclure",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Document",
-          "description": "Le document à lire, dans la forme que renvoie export_data."
+          "description": "Le document à lire, dans la forme que renvoie export_data. Donnez-le sous forme de dictionnaire ou de fichier entier en une chaîne."
         },
         "dry_run": {
           "name": "Aperçu seulement",

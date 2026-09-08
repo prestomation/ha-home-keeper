@@ -40,14 +40,18 @@ def _assets(ha):
 
 def test_export_returns_the_document_and_a_file_to_save(ha):
     payload = _export(ha)
-    assert "document" in payload and "json" in payload
+    assert "document" in payload and "yaml" in payload
     document = payload["document"]
     assert document["home_keeper"]["format"] == 1
     assert document["home_keeper"]["version"]
     assert isinstance(document["tasks"], list)
     assert isinstance(document["appliances"], list)
-    # The JSON is the same document, not a second rendering of it.
-    assert '"format": 1' in payload["json"]
+    # The YAML is the same document, not a second rendering of it.
+    text = payload["yaml"]
+    assert "format: 1" in text
+    # An editor reads the first line to find the schema to check the file against.
+    assert text.splitlines()[0].startswith("# yaml-language-server: $schema=")
+    assert "/schema/home-keeper-1.schema.json" in text.splitlines()[0]
 
 
 def test_export_can_be_narrowed_to_one_section(ha):
@@ -193,3 +197,38 @@ def test_a_document_from_a_newer_format_is_refused_with_something_to_act_on(ha):
     report = _import(ha, {"home_keeper": {"format": 99}, "tasks": []})
     assert report["ok"] is False
     assert "Update Home Keeper" in report["problems"][0]["message"]
+
+
+def test_a_document_given_as_text_is_read_the_same_way(ha):
+    """The panel sends the file as text, so the service has to take it as text.
+
+    Both spellings on purpose: YAML because that is what an export writes now, and
+    JSON because YAML is a superset of it, so a file saved before the format changed
+    still imports. If these two ever disagree the panel and an automation would be
+    reading different documents.
+    """
+    as_yaml = (
+        "home_keeper:\n"
+        "  format: 1\n"
+        "tasks:\n"
+        "  - external_id: text-import-yaml\n"
+        "    name: Text import via YAML\n"
+        "    interval: 4\n"
+        "    unit: months\n"
+    )
+    as_json = (
+        '{"home_keeper": {"format": 1}, "tasks": [{"external_id": "text-import-json",'
+        ' "name": "Text import via JSON", "interval": 4, "unit": "months"}]}'
+    )
+    for text in (as_yaml, as_json):
+        report = _import(ha, text, dry_run=True)
+        assert report["ok"], report["problems"]
+        assert report["counts"]["tasks"]["created"] == 1
+
+
+def test_a_file_that_is_not_yaml_is_reported_with_a_line_and_a_column(ha):
+    report = _import(ha, "tasks:\n  - name: A\n   bad: B\n", dry_run=True)
+    assert not report["ok"]
+    problem = report["problems"][0]
+    assert problem["path"] == "line 3, column 4"
+    assert "not valid YAML" in problem["message"]

@@ -701,7 +701,7 @@
     },
     "export_data": {
       "name": "Export data",
-      "description": "Return every task and appliance as one portable document, with the same document as a ready-to-save JSON file under the \"json\" key.",
+      "description": "Return every task and appliance as one portable document, with the same document as a ready-to-save YAML file under the \"yaml\" key.",
       "fields": {
         "include": {
           "name": "Include",
@@ -715,7 +715,7 @@
       "fields": {
         "document": {
           "name": "Document",
-          "description": "The document to read, in the shape export_data returns."
+          "description": "The document to read, in the shape export_data returns. Give it as a mapping, or as the whole file in one string."
         },
         "dry_run": {
           "name": "Preview only",

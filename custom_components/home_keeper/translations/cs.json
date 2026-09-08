@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Exportovat data",
-      "description": "Vrátí každý úkol a každý spotřebič jako jeden přenosný dokument a tentýž dokument jako hotový soubor JSON pod klíčem \"json\".",
+      "description": "Vrátí každý úkol a každý spotřebič jako jeden přenosný dokument a tentýž dokument jako hotový soubor YAML pod klíčem \"yaml\".",
       "fields": {
         "include": {
           "name": "Zahrnout",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Dokument",
-          "description": "Dokument ke čtení ve tvaru, který vrací export_data."
+          "description": "Dokument ke čtení ve tvaru, který vrací export_data. Předejte ho jako mapování nebo jako celý soubor v jednom řetězci."
         },
         "dry_run": {
           "name": "Jen náhled",

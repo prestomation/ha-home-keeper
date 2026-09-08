@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "导出数据",
-      "description": "把每一个任务和每一件电器作为一份可迁移文档返回，并在 \"json\" 键下附上同一份文档的可直接保存的 JSON 文件。",
+      "description": "把每一个任务和每一件电器作为一份可迁移文档返回，并在 \"yaml\" 键下附上同一份文档的可直接保存的 YAML 文件。",
       "fields": {
         "include": {
           "name": "包含",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "文档",
-          "description": "要读取的文档，格式与 export_data 返回的一致。"
+          "description": "要读取的文档，格式与 export_data 返回的一致。可以传入映射，也可以把整个文件作为一个字符串传入。"
         },
         "dry_run": {
           "name": "仅预览",

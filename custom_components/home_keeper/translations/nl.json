@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Gegevens exporteren",
-      "description": "Geeft elke taak en elk apparaat terug als één overdraagbaar document, plus datzelfde document als kant-en-klaar JSON-bestand onder de sleutel \"json\".",
+      "description": "Geeft elke taak en elk apparaat terug als één overdraagbaar document, plus datzelfde document als kant-en-klaar YAML-bestand onder de sleutel \"yaml\".",
       "fields": {
         "include": {
           "name": "Meenemen",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Document",
-          "description": "Het document dat wordt gelezen, in de vorm die export_data teruggeeft."
+          "description": "Het document dat wordt gelezen, in de vorm die export_data teruggeeft. Geef het als toewijzing of als het hele bestand in één tekenreeks."
         },
         "dry_run": {
           "name": "Alleen voorbeeld",

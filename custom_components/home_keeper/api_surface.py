@@ -889,9 +889,9 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
     SurfaceKind(
         "Data portability",
         "published",
-        "Tasks and appliances travel as one documented JSON document that "
-        "`export_data` writes and `import_data` reads, upserting on a stated "
-        "primary key.",
+        "Tasks and appliances move as one YAML document with a published JSON "
+        "Schema, which `export_data` writes and `import_data` reads, upserting on "
+        "a stated primary key.",
     ),
     SurfaceKind(
         "WebSocket commands",

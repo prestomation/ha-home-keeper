@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Vie tiedot",
-      "description": "Palauttaa jokaisen tehtävän ja laitteen yhtenä siirrettävänä asiakirjana sekä saman asiakirjan valmiina JSON-tiedostona avaimen \"json\" alla.",
+      "description": "Palauttaa jokaisen tehtävän ja laitteen yhtenä siirrettävänä asiakirjana sekä saman asiakirjan valmiina YAML-tiedostona avaimen \"yaml\" alla.",
       "fields": {
         "include": {
           "name": "Ota mukaan",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Asiakirja",
-          "description": "Luettava asiakirja siinä muodossa, jonka export_data palauttaa."
+          "description": "Luettava asiakirja siinä muodossa, jonka export_data palauttaa. Anna se kuvauksena tai koko tiedostona yhtenä merkkijonona."
         },
         "dry_run": {
           "name": "Vain esikatselu",

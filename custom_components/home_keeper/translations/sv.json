@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Exportera data",
-      "description": "Ger varje uppgift och varje apparat som ett flyttbart dokument, plus samma dokument som en färdig JSON-fil under nyckeln \"json\".",
+      "description": "Ger varje uppgift och varje apparat som ett flyttbart dokument, plus samma dokument som en färdig YAML-fil under nyckeln \"yaml\".",
       "fields": {
         "include": {
           "name": "Ta med",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Dokument",
-          "description": "Dokumentet som läses, i den form export_data ger."
+          "description": "Dokumentet som läses, i den form export_data ger. Ange det som en avbildning eller som hela filen i en sträng."
         },
         "dry_run": {
           "name": "Endast förhandsgranskning",

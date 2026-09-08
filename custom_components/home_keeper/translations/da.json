@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Eksportér data",
-      "description": "Giver hver opgave og hvert apparat som ét flytbart dokument samt det samme dokument som en færdig JSON-fil under nøglen \"json\".",
+      "description": "Giver hver opgave og hvert apparat som ét flytbart dokument samt det samme dokument som en færdig YAML-fil under nøglen \"yaml\".",
       "fields": {
         "include": {
           "name": "Tag med",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Dokument",
-          "description": "Dokumentet der læses, i den form export_data giver."
+          "description": "Dokumentet der læses, i den form export_data giver. Angiv det som et opslag eller som hele filen i én streng."
         },
         "dry_run": {
           "name": "Kun forhåndsvisning",

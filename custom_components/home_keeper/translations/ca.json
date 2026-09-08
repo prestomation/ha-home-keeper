@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Exporta les dades",
-      "description": "Retorna cada tasca i cada electrodomèstic en un document transferible, juntament amb aquest mateix document com a fitxer JSON a punt per desar, sota la clau \"json\".",
+      "description": "Retorna cada tasca i cada electrodomèstic en un document transferible, juntament amb aquest mateix document com a fitxer YAML a punt per desar, sota la clau \"yaml\".",
       "fields": {
         "include": {
           "name": "Inclou",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Document",
-          "description": "El document que es llegirà, amb la forma que retorna export_data."
+          "description": "El document que es llegirà, amb la forma que retorna export_data. Doneu-lo com a mapa o com tot el fitxer en una cadena."
         },
         "dry_run": {
           "name": "Només vista prèvia",

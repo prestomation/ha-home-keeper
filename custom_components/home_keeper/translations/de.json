@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Daten exportieren",
-      "description": "Gibt jede Aufgabe und jedes Gerät als ein übertragbares Dokument zurück, dazu dasselbe Dokument als speicherfertige JSON-Datei unter dem Schlüssel \"json\".",
+      "description": "Gibt jede Aufgabe und jedes Gerät als ein übertragbares Dokument zurück, dazu dasselbe Dokument als speicherfertige YAML-Datei unter dem Schlüssel \"yaml\".",
       "fields": {
         "include": {
           "name": "Einschließen",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Dokument",
-          "description": "Das zu lesende Dokument, in der Form, die export_data zurückgibt."
+          "description": "Das zu lesende Dokument, in der Form, die export_data zurückgibt. Übergeben Sie es als Zuordnung oder als ganze Datei in einer Zeichenkette."
         },
         "dry_run": {
           "name": "Nur Vorschau",

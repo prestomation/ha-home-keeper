@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Exportar dados",
-      "description": "Devolve cada tarefa e cada eletrodoméstico em um documento portátil, junto com esse mesmo documento como arquivo JSON pronto para salvar, sob a chave \"json\".",
+      "description": "Devolve cada tarefa e cada eletrodoméstico em um documento portátil, junto com esse mesmo documento como arquivo YAML pronto para salvar, sob a chave \"yaml\".",
       "fields": {
         "include": {
           "name": "Incluir",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Documento",
-          "description": "O documento a ler, no formato que export_data devolve."
+          "description": "O documento a ler, no formato que export_data devolve. Informe como mapeamento ou como o arquivo inteiro em uma cadeia."
         },
         "dry_run": {
           "name": "Apenas prévia",

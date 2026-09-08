@@ -613,7 +613,7 @@
     },
     "export_data": {
       "name": "Esporta i dati",
-      "description": "Restituisce ogni attività e ogni elettrodomestico in un documento trasferibile, insieme allo stesso documento come file JSON pronto da salvare, sotto la chiave \"json\".",
+      "description": "Restituisce ogni attività e ogni elettrodomestico in un documento trasferibile, insieme allo stesso documento come file YAML pronto da salvare, sotto la chiave \"yaml\".",
       "fields": {
         "include": {
           "name": "Includi",
@@ -627,7 +627,7 @@
       "fields": {
         "document": {
           "name": "Documento",
-          "description": "Il documento da leggere, nella forma restituita da export_data."
+          "description": "Il documento da leggere, nella forma restituita da export_data. Indicatelo come mappatura o come intero file in una stringa."
         },
         "dry_run": {
           "name": "Solo anteprima",

@@ -25,26 +25,29 @@ import {
  * create, and the re-import-updates property has its own integration test.
  */
 function makeDocument(tag: string): string {
-  return JSON.stringify(
-    {
-      home_keeper: { format: 1 },
-      appliances: [
-        { external_id: `e2e-boiler-${tag}`, name: `E2E boiler ${tag}`, manufacturer: 'Acme' },
-      ],
-      tasks: [
-        {
-          external_id: `e2e-flush-${tag}`,
-          name: `E2E flush the boiler ${tag}`,
-          appliance: `e2e-boiler-${tag}`,
-          interval: 6,
-          unit: 'months',
-          history: [{ completed_at: '2025-04-01', note: 'Imported from a spreadsheet' }],
-        },
-      ],
-    },
-    null,
-    2,
-  );
+  // Written as YAML, which is what an export now writes and what somebody editing one
+  // by hand types. JSON still imports — YAML is a superset — and the JSON path has its
+  // own case below.
+  return [
+    'home_keeper:',
+    '  format: 1',
+    'appliances:',
+    `  - external_id: e2e-boiler-${tag}`,
+    `    name: E2E boiler ${tag}`,
+    '    manufacturer: Acme',
+    'tasks:',
+    `  - external_id: e2e-flush-${tag}`,
+    `    name: E2E flush the boiler ${tag}`,
+    `    appliance: e2e-boiler-${tag}`,
+    '    interval: 6',
+    '    unit: months',
+    '    history:',
+    // Unquoted on purpose: the loader drops YAML's implicit timestamp resolver, so
+    // this has to stay text rather than arrive as a date the store cannot write.
+    '      - completed_at: 2025-04-01',
+    "        note: Imported from a spreadsheet",
+    '',
+  ].join('\n');
 }
 
 async function typeDocument(panel: import('@playwright/test').Locator, text: string) {
@@ -110,6 +113,8 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
     const panel = page.locator('home-keeper-panel').first();
 
     await openSettingsSection(panel, 'transfer');
+    // JSON, because YAML is a superset of it: this is also the case proving a file
+    // exported before the format was YAML still imports.
     await typeDocument(
       panel,
       JSON.stringify({ home_keeper: { format: 1 }, tasks: [{ name: '' }] }),
@@ -119,6 +124,26 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
     await expect(panel.locator('.hk-transfer-problems')).toBeVisible();
     await expect(panel.locator('.hk-transfer-problems')).toContainText('tasks[0]');
     // Import stays shut, so a document with an error cannot be applied by mistake.
+    await expect(panel.locator('#transfer-import')).toHaveAttribute('disabled', '');
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('a file that is not YAML at all is refused with a line and a column', async ({
+    page,
+  }) => {
+    // The panel carries no parser, so this message comes back from the backend. That
+    // is the whole point of sending the text rather than a parsed object: a syntax
+    // error arrives with somewhere to look.
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    await openSettingsSection(panel, 'transfer');
+    await typeDocument(panel, 'tasks:\n  - name: A\n   bad: B\n');
+    await panel.locator('#transfer-preview').click();
+
+    await expect(panel.locator('.hk-transfer-problems')).toContainText('line 3');
     await expect(panel.locator('#transfer-import')).toHaveAttribute('disabled', '');
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);

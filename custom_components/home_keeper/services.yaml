@@ -1478,7 +1478,7 @@ export_data:
   name: Export data
   description: >-
     Return every task and appliance as one portable document, plus the same
-    document as a ready-to-save JSON file under the "json" key. The document is
+    document as a ready-to-save YAML file under the "yaml" key. The document is
     what import_data reads, so an export is also a worked example of the format.
     Admin-only.
   fields:
@@ -1506,7 +1506,8 @@ import_data:
     document:
       name: Document
       description: >-
-        The document to read, in the shape export_data returns.
+        The document to read, in the shape export_data returns. Give it as a
+        mapping, or as the whole file in one string.
       required: true
       example: '{"home_keeper": {"format": 1}, "tasks": [{"name": "Replace furnace filter", "interval": 3, "unit": "months"}]}'
       selector:
