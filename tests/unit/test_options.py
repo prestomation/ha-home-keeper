@@ -482,11 +482,40 @@ def test_the_error_joins_and_de_duplicates_both_sides() -> None:
     """Both callers fill in the same two placeholders from these attributes.
 
     The profile name appears once however many notifications hold it, because the
-    message reads "profile X is used by A, B", not "X, X".
+    message reads "profile X is used by A, B", not "X, X". Both sides are joined the
+    same way, so one save that clears two held profiles still reads as a list.
     """
     err = opts.ProfileInUseError([("My chores", "Walk"), ("My chores", "Evening")])
     assert err.profiles == "My chores"
     assert err.notifications == "Walk, Evening"
+
+    two = opts.ProfileInUseError([("My chores", "Walk"), ("Garden", "Weekend")])
+    assert two.profiles == "My chores, Garden"
+    assert two.notifications == "Walk, Weekend"
+    # The exception's own text carries both, for a log line or an unhandled raise —
+    # the translated message the two callers build is separate from this.
+    assert str(two) == "My chores, Garden: Walk, Weekend"
+
+
+def test_removing_two_held_profiles_at_once_reports_both() -> None:
+    """One save can clear several profiles, and each blocker belongs in the message."""
+    base = _opts([_P1, _P2], [_N_ON_P1, _N_ON_P2])
+    merged = _opts([], [_N_ON_P1, _N_ON_P2])
+    assert opts.profile_removals_in_use(base, merged) == [
+        ("My chores", "Walk"),
+        ("Garden", "Weekend"),
+    ]
+
+
+def test_adding_a_profile_in_the_same_save_is_not_a_removal() -> None:
+    """A profile only *merged* has was never in the before-set, so it drops out.
+
+    Renaming by delete-and-add is the shape this has to get right: the new row is not
+    a removal, and the old row still is.
+    """
+    base = _opts([_P1], [_N_ON_P1])
+    merged = _opts([_P2], [_N_ON_P1])
+    assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
 
 
 def test_a_profile_sent_without_an_id_reads_as_a_removal() -> None:

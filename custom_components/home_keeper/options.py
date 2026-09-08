@@ -269,20 +269,24 @@ def profile_removals_in_use(
       holds a dangling ``profile_id`` still reads and writes — that state is designed
       (``notifier._notification_profile``), documented, and reachable from a backup
     - ids are matched, names are only reported, so a rename is not a removal
+
+    Both arguments are **normalized** documents — ``current_options`` and
+    ``_normalize`` are the only two things that produce them, and both hold every
+    option key and give every profile an ``id`` and a ``name`` (see
+    ``profiles.normalize_profile``). So this indexes rather than defending: a missing
+    key here is a bug in the caller, and a ``KeyError`` says so instead of quietly
+    returning "nothing is in the way" and writing the save through.
     """
-    removed = {
-        str(profile["id"]): str(profile.get("name") or profile["id"])
-        for profile in base.get(OPTION_PROFILES, [])
-        if profile.get("id")
-    }
-    for profile in merged.get(OPTION_PROFILES, []):
-        removed.pop(str(profile.get("id")), None)
+    removed = {profile["id"]: profile["name"] for profile in base[OPTION_PROFILES]}
+    for profile in merged[OPTION_PROFILES]:
+        removed.pop(profile["id"], None)
     blocked: list[tuple[str, str]] = []
-    for notification in merged.get(OPTION_NOTIFICATIONS, []):
-        profile_id = str(notification.get("profile_id") or "")
-        if profile_id in removed:
-            name = str(notification.get("name") or notification.get("id") or "")
-            blocked.append((removed[profile_id], name))
+    for notification in merged[OPTION_NOTIFICATIONS]:
+        # ``profile_id`` is None for a notification that covers every due task, and
+        # None is never a key here, so it falls through.
+        profile_name = removed.get(notification["profile_id"])
+        if profile_name is not None:
+            blocked.append((profile_name, notification["name"]))
     return blocked
 
 
