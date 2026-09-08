@@ -11,14 +11,21 @@ nothing in the suite imports the real ``custom_components.home_keeper`` in-proce
 fresh interpreter keeps that true, and has the side effect of testing the command the
 docs build actually runs rather than a function next to it.
 
-The whole file skips without Home Assistant, which is the normal state of the fast unit
-tier (see ``requirements-test.txt``). It runs in ``lint.yml``'s mypy job, which already
-installs Home Assistant on a Python at its floor and verifies what pip resolved.
+**This file runs only where ``HK_SCHEMA_GATE`` is set**, which is ``lint.yml``'s mypy
+job. "Is Home Assistant importable?" is the wrong question, and an ``importorskip``
+answered it wrongly: the unit lane installs ``pytest-homeassistant-custom-component``,
+so Home Assistant *is* importable there — but on that job's Python pip backtracks to a
+release old enough that the integration cannot import against it (``LOVELACE_DATA`` was
+gone), and the gate failed for a reason that had nothing to do with the schema. That is
+the #199 trap in a new place. The mypy job pins a Python at Home Assistant's floor and
+runs ``ci/check-ha-version.py`` to prove what pip resolved, so it is the one job that
+can answer this honestly — and it checks these tests really ran rather than skipped.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -26,7 +33,13 @@ from pathlib import Path
 import hk_transfer as tr
 import pytest
 
-pytest.importorskip("homeassistant", reason="the schema is built from HA validators")
+if not os.environ.get("HK_SCHEMA_GATE"):
+    pytest.skip(
+        "the published-schema gate needs Home Assistant at its own floor; "
+        "lint.yml's mypy job sets HK_SCHEMA_GATE",
+        allow_module_level=True,
+    )
+
 pytest.importorskip("voluptuous_openapi", reason="the converter")
 jsonschema = pytest.importorskip("jsonschema", reason="nothing validates without it")
 

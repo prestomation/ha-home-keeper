@@ -142,15 +142,22 @@
   generator's tests need `PyYAML`, so the bare-`pytest` loop is now
   `pip install pytest PyYAML`; without it those few tests skip and the rest still run.
 - **`tests/unit/test_generate_schema.py` is the drift gate for the published JSON
-  Schema**, and it is the one unit test the unit lane cannot run. The schema is
-  converted by `voluptuous_openapi` from the integration's own service schemas, which
-  are written in Home Assistant validators, so the whole file skips without Home
-  Assistant — and the unit lane deliberately has none. It runs in `lint.yml`'s **mypy**
-  job, which already installs Home Assistant on a Python at its floor. The gate runs
-  the generator as a *subprocess*, because `tests/conftest.py` installs stub parent
-  packages so the pure core loads without Home Assistant and promises nothing imports
-  the real package in-process; a fresh interpreter keeps that true and has the side
-  effect of testing the command the docs build runs.
+  Schema**, and it runs only where `HK_SCHEMA_GATE` is set — `lint.yml`'s **mypy** job.
+  It needs a Home Assistant new enough to import the integration, and an
+  `importorskip("homeassistant")` answered the wrong question: the unit lane installs
+  `pytest-homeassistant-custom-component`, so Home Assistant is importable there on
+  whatever release pip backtracked to, and the gate failed on a missing
+  `LOVELACE_DATA`. **A guard that asks "is it installed?" where the real question is
+  "is it current?" is the #199 trap.** The mypy job pins a Python at HA's floor, runs
+  `ci/check-ha-version.py`, and greps the pytest output so a gate that silently stops
+  running fails instead. The gate runs the generator as a *subprocess*, because
+  `tests/conftest.py` installs stub parent packages so the pure core loads without Home
+  Assistant and promises nothing imports the real package in-process.
+- **A test dependency that changes what other tests skip does not belong in
+  `requirements-test.txt`.** `voluptuous-openapi` pulls `voluptuous` in, and
+  `voluptuous` is what `test_config_flow.py` and its neighbours guard on — adding it
+  for every lane quietly changed which modules ran. Install such a dependency in the
+  one job that needs it (`ci/install-schema-deps.sh`).
 - **Never subtract `EXCLUDED_*` keys from the published schema.** They name what the
   *export* omits; the schema describes what *import* accepts, and three of them
   (`last_completed`, `source`, appliance `device_id`) are real service fields an

@@ -42,10 +42,11 @@ jobs:
       - name: Mypy (strict typing)
         run: mypy custom_components/home_keeper
       # The published JSON Schema is converted from the integration's own voluptuous
-      # service schemas, so its gate needs Home Assistant — which the unit lane
-      # deliberately does not install (requirements-test.txt). It runs here, on every
-      # PR, rather than in the path-filtered docs workflow: a change to
-      # models.build_task can drift the schema without touching a docs path.
+      # service schemas, so its gate needs a Home Assistant new enough to import the
+      # integration. That rules out the unit lane, whose Home Assistant is whatever pip
+      # backtracked to for its Python. It runs here, on every PR, rather than in the
+      # path-filtered docs workflow: a change to models.build_task can drift the schema
+      # without touching a docs path.
       - name: Install the schema gate's own dependencies
         # voluptuous-openapi goes in under Home Assistant's constraints, because the
         # version is Home Assistant's to choose — see ci/install-schema-deps.sh.
@@ -53,7 +54,17 @@ jobs:
           pip install pytest PyYAML jsonschema
           bash ci/install-schema-deps.sh
       - name: Published document schema matches the code
-        run: python -m pytest tests/unit/test_generate_schema.py -v
+        # HK_SCHEMA_GATE opts the file in; it is unset everywhere else, so the skip
+        # there is deliberate rather than accidental. The grep is what stops this
+        # becoming a gate that silently never runs.
+        env:
+          HK_SCHEMA_GATE: "1"
+        run: |
+          python -m pytest tests/unit/test_generate_schema.py -v | tee /tmp/schema.log
+          grep -qE "[0-9]+ passed" /tmp/schema.log
+          if grep -qE "[0-9]+ skipped" /tmp/schema.log; then
+            echo "::error::the schema gate skipped instead of running"; exit 1
+          fi
 
   vale:
     runs-on: ubuntu-latest

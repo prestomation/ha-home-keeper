@@ -130,15 +130,26 @@
     locale checks; `hypothesis` for the property-based tests below; `jsonschema` for
     the published-schema gate. Leave any of them out and those tests skip while the
     rest still run.
-  - **The published-schema gate does not run in this lane at all.**
-    `tests/unit/test_generate_schema.py` builds the schema from the integration's own
-    voluptuous service schemas, which are written in Home Assistant validators, so the
-    whole file skips without Home Assistant — and this lane deliberately has none
-    (`requirements-test.txt` keeps `pytest-homeassistant-custom-component` commented
-    out). It runs in `lint.yml`'s **mypy** job, which already installs Home Assistant
-    on a Python at its floor and verifies what pip resolved. Run it locally the same
-    way: `pip install homeassistant voluptuous-openapi jsonschema` on a Python at or
-    above HA's floor, then `pytest tests/unit/test_generate_schema.py`.
+  - **The published-schema gate runs only where `HK_SCHEMA_GATE` is set**, which is
+    `lint.yml`'s **mypy** job. `tests/unit/test_generate_schema.py` builds the schema
+    from the integration's own voluptuous service schemas, so it needs a Home Assistant
+    new enough to import the integration — and "is Home Assistant importable?" is the
+    wrong question. `ci/install-deps.sh` installs
+    `pytest-homeassistant-custom-component`, so it *is* importable in the unit lane, on
+    whatever release pip backtracked to for that job's Python; `LOVELACE_DATA` was gone
+    from it and the gate failed for a reason that had nothing to do with the schema.
+    That is the #199 trap in a new place, so the opt-in is explicit and the mypy job
+    greps the output to prove the tests really ran rather than skipped. Run it locally
+    the same way: `pip install homeassistant voluptuous-openapi jsonschema` on a Python
+    at or above HA's floor, then
+    `HK_SCHEMA_GATE=1 pytest tests/unit/test_generate_schema.py`.
+  - **Neither `jsonschema` nor `voluptuous-openapi` is in `requirements-test.txt`.**
+    `voluptuous-openapi` pulls `voluptuous` in, and `voluptuous` is what decides
+    whether `test_config_flow.py` and its neighbours skip — installing it for every
+    lane silently changes what the suite covers. `ci/install-schema-deps.sh` installs
+    both in the one job that needs them, under Home Assistant's own
+    `package_constraints.txt`, because which `voluptuous-openapi` works is Home
+    Assistant's choice rather than ours.
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
 - **Property-based tests state an invariant and let the machine pick the inputs.**
   They live in `tests/unit/test_recurrence_properties.py` and

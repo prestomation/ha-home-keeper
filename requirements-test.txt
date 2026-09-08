@@ -3,11 +3,11 @@ pytest
 pytest-cov
 pytest-timeout
 PyYAML  # ci/generate_api_docs.py parses services.yaml; transfer.py writes the document
-# The published JSON Schema gate (tests/unit/test_generate_schema.py). It also needs
-# Home Assistant, so the whole file skips in this lane and runs in lint.yml's mypy
-# job, which installs HA on a Python at its floor.
-jsonschema
-voluptuous-openapi
+# The published-schema gate (tests/unit/test_generate_schema.py) needs `jsonschema` and
+# `voluptuous-openapi`, and neither is listed here on purpose. voluptuous-openapi pulls
+# voluptuous in, and voluptuous decides whether other test modules skip — installing it
+# for every lane silently changes what the suite covers. `ci/install-schema-deps.sh`
+# installs both in the one job that runs that gate.
 # Property-based tests (tests/unit/test_*_properties.py). Without it those
 # files skip at collection and the rest of the suite still runs.
 hypothesis
