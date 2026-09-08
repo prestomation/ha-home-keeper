@@ -733,11 +733,11 @@ export async function signPartFileUrl(
   return res.url;
 }
 
-/** Fetch the portable document plus a ready-to-save JSON file. */
+/** Fetch the portable document plus a ready-to-save YAML file. */
 export async function exportData(
   hass: Hass,
-): Promise<{ document: PortableDocument; json: string }> {
-  return hass.callWS<{ document: PortableDocument; json: string }>({
+): Promise<{ document: PortableDocument; yaml: string }> {
+  return hass.callWS<{ document: PortableDocument; yaml: string }>({
     type: 'home_keeper/export_data',
   });
 }
@@ -751,7 +751,9 @@ export async function exportData(
  */
 export async function importData(
   hass: Hass,
-  document: PortableDocument,
+  // A parsed document, or the whole file as text. The panel sends text and lets the
+  // backend read it, so the browser carries no YAML parser of its own.
+  document: PortableDocument | string,
   opts: { dryRun?: boolean; match?: 'auto' | 'none' } = {},
 ): Promise<ImportReport> {
   return hass.callWS<ImportReport>({

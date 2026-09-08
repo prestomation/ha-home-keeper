@@ -1604,10 +1604,10 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
 
   inner.innerHTML = [
     `<div class="hk-form-title">${escapeHTML(t('transfer.heading'))}</div>`,
-    // The help text ends in a link to the docs page for the format. Only the
-    // template's `<a>` is trusted here — the URL is a constant, no user content —
-    // which is why this one fragment skips `escapeHTML`, as `renderCompanions` does.
-    `<div class="hk-settings-intro">${t('transfer.help', { url: TRANSFER_DOCS_URL })}</div>`,
+    // The whole help line is the link, so the markup lives here and the locale holds
+    // plain text. That is one fewer unescaped interpolation on this card, not only a
+    // shorter sentence.
+    `<div class="hk-settings-intro"><a href="${TRANSFER_DOCS_URL}" target="_blank" rel="noopener noreferrer">${escapeHTML(t('transfer.help'))}</a></div>`,
 
     `<div class="hk-transfer-group">${escapeHTML(t('transfer.exportHeading'))}</div>`,
     `<div class="hk-settings-intro">${escapeHTML(t('transfer.exportHelp'))}</div>`,
@@ -1738,7 +1738,10 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
   // typed into, so there is one input to the import and no upload endpoint to guard.
   const picker = document.createElement('input');
   picker.type = 'file';
-  picker.accept = 'application/json,.json';
+  // Extensions carry the weight: plenty of systems report a .yaml file as
+  // application/octet-stream. .json stays because YAML is a superset of JSON, so
+  // an export written before the format was YAML still reads.
+  picker.accept = '.yaml,.yml,.json,application/yaml,application/json';
   picker.style.display = 'none';
   picker.addEventListener('change', () => {
     const file = picker.files?.[0];

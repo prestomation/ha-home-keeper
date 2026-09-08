@@ -90,7 +90,10 @@ function makeHass(report = OK_REPORT) {
         case 'home_keeper/get_companions':
           return Promise.resolve({ companions: [] });
         case 'home_keeper/export_data':
-          return Promise.resolve({ document: { home_keeper: { format: 1 } }, json: '{\n  "home_keeper": {}\n}\n' });
+          return Promise.resolve({
+            document: { home_keeper: { format: 1 } },
+            yaml: '# yaml-language-server: $schema=https://example/s.json\nhome_keeper:\n  format: 1\n',
+          });
         case 'home_keeper/import_data':
           return Promise.resolve({ ...report, dry_run: !!msg.dry_run });
         default:
@@ -229,26 +232,39 @@ describe('Settings — Import and export', () => {
     expect(panel._transfer.report).toBeNull();
   });
 
-  it('reports unparseable text without calling the backend', async () => {
+  it('sends the pasted text over as text, so one parser reads it', async () => {
+    // There is no YAML parser in the bundle. The backend reads the file, which is why
+    // a syntax error can come back naming a line and a column — something a parse in
+    // the browser could not have produced.
     const { hass, calls } = makeHass();
     const panel = await mount(hass);
-    await type(panel, 'not json at all');
+    await type(panel, 'tasks:\n  - name: A\n');
     await panel._previewImport();
-    expect(calls.filter((c) => c.type === 'home_keeper/import_data')).toHaveLength(0);
-    expect(panel.shadowRoot.querySelector('#hk-transfer').textContent).toContain(
-      'not valid JSON',
-    );
+    const imports = calls.filter((c) => c.type === 'home_keeper/import_data');
+    expect(imports).toHaveLength(1);
+    expect(imports[0].document).toBe('tasks:\n  - name: A\n');
   });
 
-  it('refuses a JSON array, which is valid JSON but not a document', async () => {
-    const { hass, calls } = makeHass();
+  it('renders a syntax error the backend located', async () => {
+    const { hass } = makeHass({
+      ...BAD_REPORT,
+      problems: [
+        {
+          section: 'home_keeper',
+          index: null,
+          path: 'line 3, column 4',
+          message: 'this file is not valid YAML: bad indentation. Check the indentation.',
+          severity: 'error',
+        },
+      ],
+    });
     const panel = await mount(hass);
-    await type(panel, '[1, 2, 3]');
+    await type(panel, 'tasks:\n  - name: A\n   bad: B\n');
     await panel._previewImport();
-    expect(calls.filter((c) => c.type === 'home_keeper/import_data')).toHaveLength(0);
-    expect(panel.shadowRoot.querySelector('#hk-transfer').textContent).toContain(
-      'must be a JSON object',
-    );
+    const card = panel.shadowRoot.querySelector('#hk-transfer').textContent;
+    expect(card).toContain('line 3, column 4');
+    expect(card).toContain('not valid YAML');
+    expect(buttons(panel.shadowRoot).run.hasAttribute('disabled')).toBe(true);
   });
 
   it('runs the real import with dry_run off', async () => {
@@ -277,5 +293,19 @@ describe('Settings — Import and export', () => {
     const panel = await mount(hass);
     await panel._exportData();
     expect(calls.some((c) => c.type === 'home_keeper/export_data')).toBe(true);
+  });
+
+  it('saves the export as a YAML file', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    const saved = [];
+    panel._downloadFile = (name, contents, mime) => saved.push({ name, contents, mime });
+    await panel._exportData();
+    expect(saved).toHaveLength(1);
+    expect(saved[0].name).toMatch(/^home-keeper-\d{4}-\d{2}-\d{2}\.yaml$/);
+    expect(saved[0].mime).toBe('application/yaml');
+    // The modeline the backend writes rides through untouched: it is what makes an
+    // exported file self-validating in an editor.
+    expect(saved[0].contents).toContain('# yaml-language-server: $schema=');
   });
 });

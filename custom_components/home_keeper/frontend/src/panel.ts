@@ -1352,38 +1352,22 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /**
-   * Save every task and appliance as one JSON file.
+   * Save every task and appliance as one YAML file.
    *
    * The same document `_runImport` reads, so this file is also the worked example of
    * the format — which is what makes "show an assistant your export and ask for
-   * twelve more like it" a complete instruction.
+   * twelve more like it" a complete instruction. Its first line names the published
+   * JSON Schema, so an editor checks it as you edit it.
    */
   async _exportData(): Promise<void> {
     if (!this._hass) return;
     try {
-      const { json } = await api.exportData(this._hass);
+      const { yaml } = await api.exportData(this._hass);
       const stamp = new Date().toISOString().slice(0, 10);
-      this._downloadFile(`home-keeper-${stamp}.json`, json, 'application/json');
+      this._downloadFile(`home-keeper-${stamp}.yaml`, yaml, 'application/yaml');
     } catch (err) {
       console.error('home-keeper: data export failed', err);
       toast(this, t('error.exportFailed'));
-    }
-  }
-
-  /** Parse the pasted text, or record why it could not be parsed. */
-  private _parseTransfer(): PortableDocument | null {
-    try {
-      const parsed: unknown = JSON.parse(this._transfer.text);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        this._transfer.error = t('transfer.notADocument');
-        return null;
-      }
-      return parsed as PortableDocument;
-    } catch {
-      // A syntax error is by far the likeliest failure for a hand-edited or
-      // generated file, and it is the one the backend never gets to see.
-      this._transfer.error = t('transfer.notJson');
-      return null;
     }
   }
 
@@ -1413,16 +1397,16 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   private async _transferCall(dryRun: boolean): Promise<void> {
     if (!this._hass || this._transfer.busy) return;
     this._transfer.error = '';
-    const document = this._parseTransfer();
-    if (!document) {
-      this._transfer.report = null;
-      this._render();
-      return;
-    }
     this._transfer.busy = true;
     this._render();
     try {
-      this._transfer.report = await api.importData(this._hass, document, { dryRun });
+      // The pasted text goes over as text. The backend reads it, so there is one
+      // parser rather than a second one here that could accept a slightly different
+      // dialect — and a syntax error comes back as an ordinary problem row naming the
+      // line and column, which a parse in the browser could not have told us.
+      this._transfer.report = await api.importData(this._hass, this._transfer.text, {
+        dryRun,
+      });
     } catch (err) {
       console.error('home-keeper: import failed', err);
       this._transfer.report = null;
