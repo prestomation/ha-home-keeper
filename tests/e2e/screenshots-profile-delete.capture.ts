@@ -103,7 +103,7 @@ test('capture the profile delete dialogs', async ({ page }) => {
     await expect(scrim).toBeVisible();
     await expect(scrim).toContainText('Walk my chores');
     await page.waitForTimeout(400);
-    await page.screenshot({ path: `${OUT}/58c-panel-mobile-profile-delete-blocked.png` });
+    await page.screenshot({ path: `${OUT}/58c-panel-mobile-profile-held.png` });
     await scrim.locator('ha-button').click();
     await expect(scrim).toBeHidden();
     await page.setViewportSize({ width: 1280, height: 720 });

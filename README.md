@@ -1502,7 +1502,7 @@ Delete button. On a phone the row stacks, and the buttons take a line of their o
 
 ![A recipe row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete](docs/images/21h-panel-declarative-row-actions.png)
 
-![The same recipe row on a phone, with Edit and Delete on a line under the name](docs/images/21i-panel-mobile-declarative-row-actions.png)
+![The same recipe row on a phone, with Edit and Delete on a line under the name](docs/images/21i-panel-mobile-recipe-row.png)
 
 
 

@@ -278,7 +278,7 @@ test('capture the declarative recipe row at both widths', async ({ page }) => {
     // fix the shot exists to show.
     await phoneRow.locator('.hk-companion-actions').scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
-    await page.screenshot({ path: `${OUT}/21i-panel-mobile-declarative-row-actions.png` });
+    await page.screenshot({ path: `${OUT}/21i-panel-mobile-recipe-row.png` });
     await page.setViewportSize({ width: 1280, height: 720 });
   } finally {
     await callService('home_keeper', 'delete_declarative_companion', { id: specId });
