@@ -1499,7 +1499,7 @@ import_data:
   description: >-
     Read a portable document and create or update the tasks and appliances in it.
     A record matches an existing one by id, then by external_id, then by an exact
-    name; anything that matches nothing is created. The whole document is checked
+    name. Anything that matches nothing is created. The whole document is checked
     first, so a document with an error writes nothing. Returns a report of what
     changed and every problem found. Admin-only.
   fields:

@@ -1530,7 +1530,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#transfer-preview').click();
   await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
   await page.waitForTimeout(700);
-  await page.screenshot({ path: `${OUT}/60-panel-transfer.png`, fullPage: true });
+  // The card alone, not the whole Settings page: it sits last, so a full-page shot
+  // renders it a thumbnail at the bottom of eight others.
+  await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
+  await panel.locator('#hk-transfer').screenshot({ path: `${OUT}/60-panel-transfer.png` });
 
   // 17c. Settings → Profiles → "My chores" → its **Sync to a to-do list** group: the
   // to-do list this profile's tasks are synced onto ("Family chores", the seeded
@@ -1687,6 +1692,18 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   }, `{\n  \"home_keeper\": { \"format\": 1 },\n  \"appliances\": [\n    { \"external_id\": \"dishwasher\", \"name\": \"Kitchen dishwasher\", \"manufacturer\": \"Bosch\" }\n  ],\n  \"tasks\": [\n    {\n      \"external_id\": \"dishwasher-filter\",\n      \"name\": \"Clean the dishwasher filter\",\n      \"appliance\": \"dishwasher\",\n      \"interval\": 1,\n      \"unit\": \"months\",\n      \"history\": [{ \"completed_at\": \"2026-05-02\" }]\n    }\n  ]\n}`);
   await panel.locator('#transfer-preview').click();
   await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
+  // Scroll the action row into frame. The two buttons taking a row of their own,
+  // with full tap targets, is the phone-specific half of this card — a shot that
+  // cuts them off documents none of it.
+  // Wheel the actions into frame rather than `scrollIntoViewIfNeeded`, which does
+  // nothing here: the panel sits inside Home Assistant's own scroller, so the
+  // element is "in view" of a container that is itself scrolled to the top. The two
+  // buttons taking a row of their own is the phone-specific half of this card, and
+  // a shot that cuts them off documents none of it.
+  await page.mouse.move(200, 500);
+  await page.mouse.wheel(0, 300);
+  await expect(panel.locator('#transfer-import')).toBeInViewport();
+  await page.mouse.move(0, 0);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60b-panel-mobile-transfer.png` });
 

@@ -669,6 +669,7 @@ def plan_import(
             matcher=asset_matcher,
             stored=assets,
             areas=areas,
+            asset_refs=asset_refs,
             match=match,
             now=now,
             problems=problems,
@@ -812,6 +813,7 @@ def _plan_asset(
     matcher: _Matcher,
     stored: dict[str, dict[str, Any]],
     areas: dict[str, str],
+    asset_refs: dict[str, str],
     match: str,
     now: datetime,
     problems: list[Problem],
@@ -827,6 +829,26 @@ def _plan_asset(
     payload = {k: v for k, v in record.items() if k not in ("area", "archived", "id")}
     if (area_id := _resolve_area(record, areas)) is not None:
         payload["area_id"] = area_id
+    # A subdevice names its parent the same readable way a task names its appliance,
+    # and against the same two places: this document first, then the store. Without
+    # this a document describing a nested appliance tree would carry the *author's*
+    # parent key straight through as an id, and `_clean_relationship_links` would
+    # quietly null it on the next load — losing the tree with nothing said.
+    if parent := payload.get("parent_asset_id"):
+        resolved = _parent_id(str(parent), asset_refs, stored)
+        if resolved is None:
+            problems.append(
+                Problem(
+                    "appliances",
+                    index,
+                    f"appliances[{index}].parent_asset_id",
+                    f'no appliance called "{parent}" is in this document or in Home '
+                    "Keeper, so this one has nothing to sit under. List the parent "
+                    "before its children.",
+                )
+            )
+            return None
+        payload["parent_asset_id"] = resolved
 
     try:
         matched, matched_by = (None, None) if match == "none" else matcher.match(record)
@@ -1033,6 +1055,27 @@ def _plan_task(
         ),
         counted,
     )
+
+
+def _parent_id(
+    key: str,
+    asset_refs: dict[str, str],
+    stored_assets: dict[str, dict[str, Any]],
+) -> str | None:
+    """The asset id a ``parent_asset_id`` reference names, document before store.
+
+    Unlike a task's ``appliance`` this resolves to the *asset* id rather than a
+    device id, so a parent planned earlier in the same document needs no placeholder
+    — its id is already decided by the time its children are read. Which is also why
+    a parent has to be listed before its children: ``asset_refs`` only holds what has
+    been planned so far.
+    """
+    if asset_id := asset_refs.get(key):
+        return asset_id
+    for asset_id, asset in stored_assets.items():
+        if key in (asset_id, asset.get("external_id")):
+            return asset_id
+    return resolve.match_by_name(stored_assets, key)
 
 
 def _appliance_device(

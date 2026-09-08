@@ -544,3 +544,40 @@ def test_an_appliance_update_keeps_the_fields_the_document_left_out():
     assert payload["name"] == "Furnace (renamed)"
     assert payload["manufacturer"] == "Carrier"
     assert payload["serial_number"] == "1234"
+
+
+# ── Nested appliances ────────────────────────────────────────────────────────
+
+
+def test_a_child_appliance_names_its_parent_from_the_same_document():
+    # A nested tree has to survive as a tree. Without resolution the author's own
+    # parent key would ride through as an id, and the store's link cleanup would
+    # quietly null it on the next load — losing the tree with nothing said.
+    plan = _plan(
+        _doc(
+            appliances=[
+                {"external_id": "hvac", "name": "HVAC"},
+                {"external_id": "furnace", "name": "Furnace", "parent_asset_id": "hvac"},
+            ]
+        )
+    )
+    assert plan.ok, _errors(plan)
+    parent, child = plan.records
+    assert child.payload["parent_asset_id"] == parent.record_id
+
+
+def test_a_child_appliance_can_name_a_parent_already_in_home_keeper():
+    stored = tr.assets_model.build_asset(
+        {"name": "HVAC", "external_id": "hvac"}, now=NOW
+    )
+    plan = _plan(
+        _doc(appliances=[{"name": "Furnace", "parent_asset_id": "hvac"}]),
+        assets={stored["id"]: stored},
+    )
+    assert plan.records[0].payload["parent_asset_id"] == stored["id"]
+
+
+def test_a_parent_nobody_has_is_refused_rather_than_silently_dropped():
+    plan = _plan(_doc(appliances=[{"name": "Furnace", "parent_asset_id": "hvac"}]))
+    assert not plan.ok
+    assert "List the parent before its children" in _errors(plan)[0]

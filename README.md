@@ -1589,6 +1589,7 @@ A record also takes these fields:
 | `appliance` | tasks | Which appliance the task belongs to, by `external_id`, name, or id. A stated `device_id` wins, if that device is on this Home Assistant. |
 | `history` | tasks | Past completions. Each entry needs `completed_at`, and can add `note`, `cost`, `who`, `photo`. |
 | `skips` | tasks | Past skips. Each entry needs `skipped_at`. |
+| `parent_asset_id` | appliances | The appliance this one sits under, by `external_id`, name, or id. List a parent before its children. |
 | `archived` | appliances | `true` for an archived appliance. |
 
 Dates can be a plain `2026-03-04` or a full timestamp. History is read in date order,
@@ -1630,14 +1631,16 @@ file that Home Keeper did not read.
 ### Ask an assistant to write one
 
 The format is meant to be easy to generate. Export what you have, then hand the file
-to an assistant along with the records you want to add. A photo of a spreadsheet
-works. So does a page of notes. Ask for the same shape, with an `external_id` on
-every record, and for one JSON document back. Paste the answer into the Import
+to an assistant along with whatever your records are in, such as a photo of a
+spreadsheet or a page of notes. Ask for the same shape back as one JSON document,
+with an `external_id` on every record. Paste the answer into the Import
 box and press **Preview** first: it checks every record and reports each problem with
 the path to it, so you can fix the file and try again. Nothing is written until the
 preview is clean.
 
 ![Settings, Import and export, with a preview of what an import would change](docs/images/60-panel-transfer.png)
+
+![The same card on a phone, with the Preview and Import buttons on a row of their own](docs/images/60b-panel-mobile-transfer.png)
 
 ## Services
 
