@@ -1,0 +1,265 @@
+/**
+ * Settings → Import and export.
+ *
+ * The behaviour worth pinning is the two-step gate. An import writes tasks and
+ * appliances wholesale, and the document is often generated rather than typed, so
+ * Import must stay disabled until a preview of *exactly this text* came back clean —
+ * and editing the text has to take that permission away again.
+ */
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { HomeKeeperPanel } from '../src/panel.ts';
+
+beforeAll(() => {
+  for (const tag of [
+    'ha-card',
+    'ha-form',
+    'ha-button',
+    'ha-icon-button',
+    'ha-tab-group',
+    'ha-tab-group-tab',
+    'ha-alert',
+    'ha-assist-chip',
+    'ha-menu-button',
+    'ha-svg-icon',
+    'ha-spinner',
+    'ha-icon',
+    'ha-textarea',
+  ]) {
+    if (!customElements.get(tag)) customElements.define(tag, class extends HTMLElement {});
+  }
+  if (!customElements.get('home-keeper-panel')) {
+    customElements.define('home-keeper-panel', HomeKeeperPanel);
+  }
+});
+
+async function waitFor(fn, timeout = 2000) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    const v = fn();
+    if (v) return v;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  return null;
+}
+
+const OK_REPORT = {
+  ok: true,
+  dry_run: true,
+  counts: { appliances: { created: 0, updated: 0 }, tasks: { created: 2, updated: 1 }, completions: 5, skips: 0 },
+  records: [],
+  problems: [],
+};
+
+const BAD_REPORT = {
+  ok: false,
+  dry_run: true,
+  counts: { appliances: { created: 0, updated: 0 }, tasks: { created: 0, updated: 0 }, completions: 0, skips: 0 },
+  records: [],
+  problems: [
+    { section: 'tasks', index: 1, path: 'tasks[1].interval', message: 'interval must be at least 1', severity: 'error' },
+    { section: 'tasks', index: 0, path: 'tasks[0].priority', message: '"priority" is not a field this version reads', severity: 'warning' },
+  ],
+};
+
+function makeHass(report = OK_REPORT) {
+  const calls = [];
+  const hass = {
+    language: 'en',
+    states: {},
+    callWS(msg) {
+      calls.push(msg);
+      switch (msg.type) {
+        case 'home_keeper/get_tasks':
+          return Promise.resolve({ tasks: [] });
+        case 'home_keeper/get_assets':
+          return Promise.resolve({ assets: [] });
+        case 'config_entries/get':
+          return Promise.resolve([]);
+        case 'config/label_registry/list':
+          return Promise.resolve([]);
+        case 'home_keeper/get_options':
+          return Promise.resolve({
+            options: {
+              sync_problem_sensors: false,
+              problem_sensor_exclude_entities: [],
+              problem_sensor_exclude_areas: [],
+              problem_sensor_exclude_labels: [],
+              dismissed_companions: [],
+            },
+          });
+        case 'home_keeper/get_companions':
+          return Promise.resolve({ companions: [] });
+        case 'home_keeper/export_data':
+          return Promise.resolve({ document: { home_keeper: { format: 1 } }, json: '{\n  "home_keeper": {}\n}\n' });
+        case 'home_keeper/import_data':
+          return Promise.resolve({ ...report, dry_run: !!msg.dry_run });
+        default:
+          return Promise.resolve({});
+      }
+    },
+  };
+  return { hass, calls };
+}
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
+async function mount(hass) {
+  const panel = document.createElement('home-keeper-panel');
+  panel.route = { prefix: '/home-keeper', path: '/settings' };
+  document.body.appendChild(panel);
+  panel.hass = hass;
+  await waitFor(() => panel.shadowRoot?.querySelector('#hk-transfer'));
+  return panel;
+}
+
+const buttons = (root) => ({
+  preview: root.querySelector('#transfer-preview'),
+  run: root.querySelector('#transfer-import'),
+  exportBtn: root.querySelector('#transfer-export'),
+});
+
+async function type(panel, text) {
+  const box = panel.shadowRoot.querySelector('#transfer-text');
+  box.value = text;
+  box.dispatchEvent(new Event('input'));
+  await Promise.resolve();
+}
+
+describe('Settings — Import and export', () => {
+  it('renders the card with both halves', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    const root = panel.shadowRoot;
+    expect(root.querySelector('#hk-transfer')).toBeTruthy();
+    expect(buttons(root).exportBtn).toBeTruthy();
+    expect(root.querySelector('#transfer-text')).toBeTruthy();
+    expect(root.querySelector('#transfer-pick')).toBeTruthy();
+  });
+
+  it('disables both import buttons until there is a document', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    const { preview, run } = buttons(panel.shadowRoot);
+    expect(preview.hasAttribute('disabled')).toBe(true);
+    expect(run.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('enables Preview once text is entered, but not Import', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    const { preview, run } = buttons(panel.shadowRoot);
+    expect(preview.hasAttribute('disabled')).toBe(false);
+    // Import is still shut: nothing has told the user what it would do yet.
+    expect(run.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('previews as a dry run and only then unlocks Import', async () => {
+    const { hass, calls } = makeHass();
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    await panel._previewImport();
+    const imports = calls.filter((c) => c.type === 'home_keeper/import_data');
+    expect(imports).toHaveLength(1);
+    expect(imports[0].dry_run).toBe(true);
+    expect(buttons(panel.shadowRoot).run.hasAttribute('disabled')).toBe(false);
+  });
+
+  it('shows what a preview would change', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    await panel._previewImport();
+    const text = panel.shadowRoot.querySelector('#hk-transfer').textContent;
+    expect(text).toContain('Tasks: 2 new, 1 updated');
+    expect(text).toContain('History entries: 5');
+  });
+
+  it('keeps Import shut when the preview found errors, and lists them', async () => {
+    const { hass } = makeHass(BAD_REPORT);
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    await panel._previewImport();
+    const root = panel.shadowRoot;
+    expect(buttons(root).run.hasAttribute('disabled')).toBe(true);
+    const text = root.querySelector('#hk-transfer').textContent;
+    expect(text).toContain('tasks[1].interval');
+    expect(text).toContain('interval must be at least 1');
+    // A warning is reported too — a field nobody read is data that did not arrive.
+    expect(text).toContain('tasks[0].priority');
+  });
+
+  it('lists errors before warnings', async () => {
+    const { hass } = makeHass(BAD_REPORT);
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    await panel._previewImport();
+    const items = [...panel.shadowRoot.querySelectorAll('.hk-transfer-problems li')];
+    expect(items.map((li) => li.className)).toEqual(['error', 'warning']);
+  });
+
+  it('withdraws Import the moment the document is edited', async () => {
+    // Otherwise a preview of one document would license importing another.
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    await panel._previewImport();
+    expect(buttons(panel.shadowRoot).run.hasAttribute('disabled')).toBe(false);
+
+    await type(panel, '{"home_keeper":{"format":1},"tasks":[]}');
+    expect(buttons(panel.shadowRoot).run.hasAttribute('disabled')).toBe(true);
+    expect(panel._transfer.report).toBeNull();
+  });
+
+  it('reports unparseable text without calling the backend', async () => {
+    const { hass, calls } = makeHass();
+    const panel = await mount(hass);
+    await type(panel, 'not json at all');
+    await panel._previewImport();
+    expect(calls.filter((c) => c.type === 'home_keeper/import_data')).toHaveLength(0);
+    expect(panel.shadowRoot.querySelector('#hk-transfer').textContent).toContain(
+      'not valid JSON',
+    );
+  });
+
+  it('refuses a JSON array, which is valid JSON but not a document', async () => {
+    const { hass, calls } = makeHass();
+    const panel = await mount(hass);
+    await type(panel, '[1, 2, 3]');
+    await panel._previewImport();
+    expect(calls.filter((c) => c.type === 'home_keeper/import_data')).toHaveLength(0);
+    expect(panel.shadowRoot.querySelector('#hk-transfer').textContent).toContain(
+      'must be a JSON object',
+    );
+  });
+
+  it('runs the real import with dry_run off', async () => {
+    const { hass, calls } = makeHass({ ...OK_REPORT, dry_run: false });
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    await panel._previewImport();
+    await panel._runImport();
+    const imports = calls.filter((c) => c.type === 'home_keeper/import_data');
+    expect(imports.map((c) => c.dry_run)).toEqual([true, false]);
+  });
+
+  it('re-reads tasks and appliances after a real import', async () => {
+    // The import rewrote both wholesale, so the panel's copy is the stale one.
+    const { hass, calls } = makeHass({ ...OK_REPORT, dry_run: false });
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    const before = calls.filter((c) => c.type === 'home_keeper/get_tasks').length;
+    await panel._runImport();
+    const after = calls.filter((c) => c.type === 'home_keeper/get_tasks').length;
+    expect(after).toBeGreaterThan(before);
+  });
+
+  it('asks the backend for the export when Export is pressed', async () => {
+    const { hass, calls } = makeHass();
+    const panel = await mount(hass);
+    await panel._exportData();
+    expect(calls.some((c) => c.type === 'home_keeper/export_data')).toBe(true);
+  });
+});

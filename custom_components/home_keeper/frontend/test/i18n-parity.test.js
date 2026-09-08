@@ -44,12 +44,12 @@ const INTENTIONALLY_IDENTICAL = new Set([
 // keeps "Name"; French uses "Description" as a cognate; Dutch keeps "Trigger"
 // where the German UI convention has established the English loanword).
 const DECLARATIVE_COGNATES = {
-  ca: ['declarative.companions.preset_badge'],
+  ca: ['declarative.companions.preset_badge', 'transfer.documentLabel'],
   de: ['declarative.companions.field_name'],
   es: ['declarative.companions.preset_badge'],
-  fr: ['declarative.companions.field_description', 'field.skipNote'],
+  fr: ['declarative.companions.field_description', 'field.skipNote', 'transfer.documentLabel'],
   it: ['declarative.companions.preset_badge'],
-  nl: ['declarative.companions.preset_badge', 'declarative.companions.section_trigger', 'defer.preset.1w'],
+  nl: ['declarative.companions.preset_badge', 'declarative.companions.section_trigger', 'defer.preset.1w', 'transfer.documentLabel'],
   'pt-BR': ['declarative.companions.preset_badge'],
 };
 

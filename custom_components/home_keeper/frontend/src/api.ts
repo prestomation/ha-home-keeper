@@ -7,11 +7,13 @@ import type {
   DeclarativeCompanionPreviewResult,
   Hass,
   HassLabel,
+  ImportReport,
   HomeKeeperOptions,
   Inventory,
   NotifyRun,
   NotifyRunOptions,
   Part,
+  PortableDocument,
   Profile,
   Task,
 } from './types';
@@ -729,6 +731,35 @@ export async function signPartFileUrl(
     part_id: partId,
   });
   return res.url;
+}
+
+/** Fetch the portable document plus a ready-to-save JSON file. */
+export async function exportData(
+  hass: Hass,
+): Promise<{ document: PortableDocument; json: string }> {
+  return hass.callWS<{ document: PortableDocument; json: string }>({
+    type: 'home_keeper/export_data',
+  });
+}
+
+/**
+ * Plan an import and, unless `dryRun`, apply it.
+ *
+ * The preview and the real import are the same call with one flag flipped, so what
+ * the preview shows is what the import does. A second code path for the preview
+ * could only ever be a second thing to keep in step with this one.
+ */
+export async function importData(
+  hass: Hass,
+  document: PortableDocument,
+  opts: { dryRun?: boolean; match?: 'auto' | 'none' } = {},
+): Promise<ImportReport> {
+  return hass.callWS<ImportReport>({
+    type: 'home_keeper/import_data',
+    document,
+    dry_run: !!opts.dryRun,
+    match: opts.match ?? 'auto',
+  });
 }
 
 /** Fetch the home-inventory report (for insurance) plus a ready-to-save CSV. */

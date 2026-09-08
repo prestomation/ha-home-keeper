@@ -49,6 +49,7 @@ import { COMPANIONS_DOCS_URL, DOCS_URL } from './panel-icons';
 import type {
   Companion,
   HomeKeeperOptions,
+  ImportReport,
   Notification,
   NotifyRunOptions,
   Profile,
@@ -153,6 +154,7 @@ export function settingsSectionList(p: PanelHost): {
       mark: p._notifyTargets.length ? count(opts?.notifications?.length ?? 0) : dot('warn'),
     },
     { key: 'companions', card: 'hk-companions', label: t('companions.heading'), mark: count(companionsOn) },
+    { key: 'transfer', card: 'hk-transfer', label: t('transfer.heading'), mark: '' },
   ];
   // Every section says what it holds, not just how much. A bare "2" beside Profiles
   // is not enough to decide whether to open it, and those three sections are exactly
@@ -1576,6 +1578,177 @@ function wireCompanions(p: PanelHost, root: HTMLElement): void {
   );
 }
 
+/**
+ * Settings -> Import and export: save everything to one file, and read one back.
+ *
+ * The import half is deliberately two steps. An import writes tasks and appliances
+ * wholesale, and the file is often one somebody generated rather than typed, so the
+ * panel will not apply a document it has not first shown the consequences of:
+ * Preview runs the same call with `dry_run` set, and Import stays disabled until a
+ * preview of *exactly this text* came back clean.
+ */
+function renderTransfer(p: PanelHost, host: HTMLElement): void {
+  const card = document.createElement('ha-card');
+  card.className = 'hk-form-card';
+  card.id = 'hk-transfer';
+  const inner = document.createElement('div');
+  inner.className = 'hk-form-inner';
+
+  const state = p._transfer;
+  const busy = state.busy;
+  const ready = !!state.report?.ok && !!state.text.trim();
+
+  inner.innerHTML = [
+    `<div class="hk-form-title">${escapeHTML(t('transfer.heading'))}</div>`,
+    `<div class="hk-settings-intro">${escapeHTML(t('transfer.help'))}</div>`,
+
+    `<div class="hk-transfer-group">${escapeHTML(t('transfer.exportHeading'))}</div>`,
+    `<div class="hk-settings-intro">${escapeHTML(t('transfer.exportHelp'))}</div>`,
+    `<div class="hk-transfer-actions">`,
+    `<ha-button id="transfer-export" ${btnAttrs('secondary')}>`,
+    `${escapeHTML(t('btn.exportData'))}</ha-button></div>`,
+
+    `<div class="hk-transfer-group">${escapeHTML(t('transfer.importHeading'))}</div>`,
+    `<div class="hk-settings-intro">${escapeHTML(t('transfer.importHelp'))}</div>`,
+    `<div class="hk-transfer-actions">`,
+    `<ha-button id="transfer-pick" ${btnAttrs('secondary')}${busy ? ' disabled' : ''}>`,
+    `${escapeHTML(t('btn.chooseFile'))}</ha-button>`,
+    state.filename
+      ? `<span class="hk-transfer-file">${escapeHTML(state.filename)}</span>`
+      : '',
+    `</div>`,
+    `<ha-textarea id="transfer-text" rows="6" autogrow`,
+    ` label="${escapeHTML(t('transfer.documentLabel'))}"`,
+    ` helper="${escapeHTML(t('transfer.documentHelp'))}"`,
+    `${busy ? ' disabled' : ''}></ha-textarea>`,
+    state.error
+      ? `<ha-alert alert-type="error">${escapeHTML(state.error)}</ha-alert>`
+      : '',
+    reportBlock(state.report),
+    `<div class="hk-transfer-actions">`,
+    `<ha-button id="transfer-preview" ${btnAttrs('secondary')}`,
+    `${busy || !state.text.trim() ? ' disabled' : ''}>`,
+    `${escapeHTML(t(busy ? 'transfer.working' : 'btn.preview'))}</ha-button>`,
+    `<ha-button id="transfer-import" ${btnAttrs('primary')}`,
+    `${busy || !ready ? ' disabled' : ''}>`,
+    `${escapeHTML(t('btn.importData'))}</ha-button>`,
+    `</div>`,
+  ].join('');
+
+  card.appendChild(inner);
+  host.appendChild(card);
+  wireTransfer(p, inner);
+}
+
+/** The preview's verdict: what would change, and everything wrong with the file. */
+function reportBlock(report: ImportReport | null): string {
+  if (!report) return '';
+  const sections = ['appliances', 'tasks'] as const;
+  const lines = sections
+    .map((section) => {
+      const counts = report.counts[section];
+      if (!counts || typeof counts === 'number') return '';
+      if (!counts.created && !counts.updated) return '';
+      return `<li>${escapeHTML(
+        t(`transfer.count_${section}`, { created: counts.created, updated: counts.updated }),
+      )}</li>`;
+    })
+    .filter(Boolean);
+  if (report.counts.completions) {
+    lines.push(
+      `<li>${escapeHTML(
+        t('transfer.count_history', { n: report.counts.completions }),
+      )}</li>`,
+    );
+  }
+  // Errors first: they are why nothing happened. Warnings say what was ignored,
+  // which matters even on a clean import — a field nobody reads is data that did
+  // not arrive, and saying so is the difference between a migration and a guess.
+  const problems = [...report.problems].sort((a, b) =>
+    a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1,
+  );
+  return [
+    `<div class="hk-transfer-report">`,
+    `<ha-alert alert-type="${report.ok ? 'success' : 'error'}">`,
+    escapeHTML(
+      t(
+        report.ok
+          ? report.dry_run
+            ? 'transfer.previewOk'
+            : 'transfer.importOk'
+          : 'transfer.previewFailed',
+      ),
+    ),
+    `</ha-alert>`,
+    lines.length ? `<ul class="hk-transfer-counts">${lines.join('')}</ul>` : '',
+    problems.length
+      ? `<ul class="hk-transfer-problems">${problems
+          .map(
+            (problem) =>
+              `<li class="${problem.severity}"><code>${escapeHTML(
+                problem.path,
+              )}</code> ${escapeHTML(problem.message)}</li>`,
+          )
+          .join('')}</ul>`
+      : '',
+    `</div>`,
+  ].join('');
+}
+
+function wireTransfer(p: PanelHost, root: HTMLElement): void {
+  root.querySelector('#transfer-export')?.addEventListener('click', () => {
+    void p._exportData();
+  });
+  root.querySelector('#transfer-preview')?.addEventListener('click', () => {
+    void p._previewImport();
+  });
+  root.querySelector('#transfer-import')?.addEventListener('click', () => {
+    void p._runImport();
+  });
+
+  const text = root.querySelector<HTMLTextAreaElement>('#transfer-text');
+  if (text) {
+    text.value = p._transfer.text;
+    text.addEventListener('input', () => {
+      p._transfer.text = text.value;
+      // The report described the *previous* text, so it stops being an answer the
+      // moment a character changes. Dropping it here is what stops Import applying a
+      // document on the strength of a preview of something else.
+      p._transfer.report = null;
+      p._transfer.error = '';
+      p._transfer.filename = '';
+      // Toggle the buttons in place rather than re-rendering: a render would rebuild
+      // the textarea and take the caret with it, mid-paste.
+      const preview = root.querySelector('#transfer-preview');
+      const run = root.querySelector('#transfer-import');
+      if (preview) preview.toggleAttribute('disabled', !text.value.trim());
+      if (run) run.setAttribute('disabled', '');
+      root.querySelector('.hk-transfer-report')?.remove();
+    });
+  }
+
+  // A file is read in the browser and pasted into the same box the user could have
+  // typed into, so there is one input to the import and no upload endpoint to guard.
+  const picker = document.createElement('input');
+  picker.type = 'file';
+  picker.accept = 'application/json,.json';
+  picker.style.display = 'none';
+  picker.addEventListener('change', () => {
+    const file = picker.files?.[0];
+    picker.value = '';
+    if (!file) return;
+    void file.text().then((contents) => {
+      p._transfer.text = contents;
+      p._transfer.filename = file.name;
+      p._transfer.report = null;
+      p._transfer.error = '';
+      p._render();
+    });
+  });
+  root.appendChild(picker);
+  root.querySelector('#transfer-pick')?.addEventListener('click', () => picker.click());
+}
+
 /** Hide a suggested companion by persisting its domain to dismissed_companions. */
 async function dismissCompanion(p: PanelHost, domain: string): Promise<void> {
   if (!p._hass) return;
@@ -1606,6 +1779,8 @@ export function wireSettings(p: PanelHost, root: ShadowRoot): void {
   if (notificationsHost) renderNotifications(p, notificationsHost);
   const companionsHost = root.getElementById('hk-companions-host');
   if (companionsHost) renderCompanions(p, companionsHost);
+  const transferHost = root.getElementById('hk-transfer-host');
+  if (transferHost) renderTransfer(p, transferHost);
 
   // Mark the card the URL names, so the phone rules can show that one and hide its
   // five siblings without CSS having to compare two attribute values. This is a

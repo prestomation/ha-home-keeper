@@ -627,3 +627,53 @@ export interface DeclarativeCompanionPreviewResult {
   warnings: string[];
   over_cap: boolean;
 }
+
+/**
+ * The portable import/export document. Deliberately opaque here: its records are the
+ * service payloads, and the backend (`transfer.py`) is the one authority on what
+ * those hold. Typing them a second time in the panel would be a second thing to keep
+ * in step, and the panel does nothing with a record but hand it back.
+ */
+export interface PortableDocument {
+  home_keeper: {
+    format: number;
+    version?: string;
+    exported_at?: string;
+    skipped?: { file_documents?: number };
+  };
+  [section: string]: unknown;
+}
+
+/** One reason a document, or one record in it, cannot be applied as written. */
+export interface ImportProblem {
+  section: string;
+  index: number | null;
+  path: string;
+  message: string;
+  /** `error` blocks the whole import; `warning` is reported and applied anyway. */
+  severity: 'error' | 'warning';
+}
+
+/** What one record will become, and why it matched an existing one. */
+export interface ImportRecord {
+  section: string;
+  index: number;
+  id: string;
+  external_id: string;
+  name: string;
+  action: 'create' | 'update';
+  matched_by: 'id' | 'external_id' | 'name' | null;
+}
+
+/** What an import did, or — with `dry_run` — what it would do. */
+export interface ImportReport {
+  ok: boolean;
+  dry_run: boolean;
+  counts: {
+    completions: number;
+    skips: number;
+    [section: string]: number | { created: number; updated: number };
+  };
+  records: ImportRecord[];
+  problems: ImportProblem[];
+}

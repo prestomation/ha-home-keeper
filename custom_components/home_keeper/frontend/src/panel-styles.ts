@@ -520,6 +520,35 @@ export const STYLES = `
     color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4; margin-top: 2px;
   }
   .hk-companion-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; flex-wrap: wrap; }
+  /* Import and export section (Settings tab). */
+  .hk-transfer-group {
+    font-size: 0.8rem; font-weight: 600; color: var(--secondary-text-color);
+    text-transform: uppercase; letter-spacing: 0.04em; margin: 20px 0 8px;
+    border-top: 1px solid var(--divider-color); padding-top: 16px;
+  }
+  /* Wraps rather than shrinks: below 700px the buttons take a row each and keep
+     their full tap target instead of squeezing onto one line. */
+  .hk-transfer-actions {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px;
+  }
+  .hk-transfer-file {
+    color: var(--secondary-text-color); font-size: 0.9rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  }
+  #hk-transfer ha-textarea { display: block; width: 100%; margin-top: 12px; }
+  .hk-transfer-report { margin-top: 12px; }
+  .hk-transfer-counts, .hk-transfer-problems {
+    margin: 8px 0 0; padding-left: 20px; font-size: 0.9rem; line-height: 1.5;
+  }
+  .hk-transfer-problems { color: var(--secondary-text-color); }
+  /* An error is why nothing happened; a warning is something the file said that
+     Home Keeper did not read. Different weights, because they need different
+     reactions. */
+  .hk-transfer-problems li.error { color: var(--error-color); }
+  .hk-transfer-problems code {
+    font-size: 0.85em; background: var(--secondary-background-color);
+    padding: 1px 4px; border-radius: 4px;
+  }
   /* Individual collapsible profile/notification items. */
   .hk-item-card {
     border: 1px solid var(--divider-color); border-radius: 8px;

@@ -62,6 +62,7 @@ import {
   type MoveCompletionDialogState,
   type NoteTarget,
   type TaskFilter,
+  type TransferState,
 } from './panel-types';
 import { setAssetError } from './panel-upload';
 import type {
@@ -74,6 +75,7 @@ import type {
   HomeKeeperOptions,
   ManagedBy,
   PanelInfo,
+  PortableDocument,
   Profile,
   Task,
 } from './types';
@@ -194,6 +196,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _declarativePresets: DeclarativeCompanionPreset[] | null = null;
   _installedIntegrations: string[] | null = null;
   _declDialog: DeclarativeDialogState = { open: false, kind: 'picker', draft: null };
+  _transfer: TransferState = {
+    text: '',
+    report: null,
+    busy: false,
+    error: '',
+    filename: '',
+  };
   // HA tag-registry entries as picker options, for the task form's tag field and
   // the tag chip. Best-effort: an empty list still leaves a typable combo box.
   _tags: { value: string; label: string }[] = [];
@@ -1342,6 +1351,88 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     }
   }
 
+  /**
+   * Save every task and appliance as one JSON file.
+   *
+   * The same document `_runImport` reads, so this file is also the worked example of
+   * the format — which is what makes "show an assistant your export and ask for
+   * twelve more like it" a complete instruction.
+   */
+  async _exportData(): Promise<void> {
+    if (!this._hass) return;
+    try {
+      const { json } = await api.exportData(this._hass);
+      const stamp = new Date().toISOString().slice(0, 10);
+      this._downloadFile(`home-keeper-${stamp}.json`, json, 'application/json');
+    } catch (err) {
+      console.error('home-keeper: data export failed', err);
+      toast(this, t('error.exportFailed'));
+    }
+  }
+
+  /** Parse the pasted text, or record why it could not be parsed. */
+  private _parseTransfer(): PortableDocument | null {
+    try {
+      const parsed: unknown = JSON.parse(this._transfer.text);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        this._transfer.error = t('transfer.notADocument');
+        return null;
+      }
+      return parsed as PortableDocument;
+    } catch {
+      // A syntax error is by far the likeliest failure for a hand-edited or
+      // generated file, and it is the one the backend never gets to see.
+      this._transfer.error = t('transfer.notJson');
+      return null;
+    }
+  }
+
+  /** Check the document and show what an import would do, writing nothing. */
+  async _previewImport(): Promise<void> {
+    await this._transferCall(true);
+  }
+
+  /** Apply the document the preview approved. */
+  async _runImport(): Promise<void> {
+    await this._transferCall(false);
+    if (this._transfer.report?.ok && !this._transfer.report.dry_run) {
+      // An import rewrites tasks and appliances wholesale, so re-read rather than
+      // patching: the panel's copy of both lists is now the stale one. `_reload` is
+      // the right door because the import triggers a config-entry reload on its way
+      // out, and `_reload` already knows to wait that out rather than treating the
+      // `not_loaded` error as an answer.
+      await this._reload();
+      this._render();
+    }
+  }
+
+  /**
+   * Preview and import are one call with `dryRun` flipped, so the preview cannot
+   * describe anything but what the import will actually do.
+   */
+  private async _transferCall(dryRun: boolean): Promise<void> {
+    if (!this._hass || this._transfer.busy) return;
+    this._transfer.error = '';
+    const document = this._parseTransfer();
+    if (!document) {
+      this._transfer.report = null;
+      this._render();
+      return;
+    }
+    this._transfer.busy = true;
+    this._render();
+    try {
+      this._transfer.report = await api.importData(this._hass, document, { dryRun });
+    } catch (err) {
+      console.error('home-keeper: import failed', err);
+      this._transfer.report = null;
+      this._transfer.error = t('error.actionFailed');
+    } finally {
+      this._transfer.busy = false;
+      this._render();
+    }
+  }
+
   /** Coalesce rapid calls under *key*, running only the trailing one after *ms*. */
   _debounce(key: string, fn: () => void, ms = 600): void {
     const prev = this._persistTimers[key];
@@ -1524,6 +1615,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
             <div id="hk-profiles-host"></div>
             <div id="hk-notifications-host"></div>
             <div id="hk-companions-host"></div>
+            <div id="hk-transfer-host"></div>
           </div>
         </div>`;
     } else {

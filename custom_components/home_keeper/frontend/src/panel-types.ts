@@ -7,7 +7,14 @@
  * panel, so they stay here rather than widening the shared surface.
  */
 
-import type { Asset, Completion, DeclarativeCompanion, Skip, Task } from './types';
+import type {
+  Asset,
+  Completion,
+  DeclarativeCompanion,
+  ImportReport,
+  Skip,
+  Task,
+} from './types';
 
 /**
  * The declarative-companion dialogs' state: the preset picker, or the add/edit form.
@@ -151,3 +158,24 @@ export const LS_ASSET_FILTER = 'home-keeper.assetFilter';
 export const LS_PROFILE = 'home-keeper.profile';
 export const LS_ASSET_VIEW = 'home-keeper.assetView';
 export const LS_TREE_COLLAPSED = 'home-keeper.treeCollapsed';
+
+/**
+ * The Import and export card's state.
+ *
+ * `report` is the last preview, and it is what gates the Import button: the panel
+ * will not apply a document it has not shown the user the consequences of. It is
+ * cleared the moment `text` changes, so an edited document can never be applied on
+ * the strength of the previous one's preview.
+ */
+export interface TransferState {
+  /** The document as typed, pasted, or read from a picked file. */
+  text: string;
+  /** The last dry-run report for exactly this text, or null when there is none. */
+  report: ImportReport | null;
+  /** A call is in flight; both buttons are disabled while it is. */
+  busy: boolean;
+  /** What went wrong with the last call, if anything (parse errors included). */
+  error: string;
+  /** The name of the picked file, shown so the user can tell which one is loaded. */
+  filename: string;
+}
