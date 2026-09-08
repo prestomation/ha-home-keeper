@@ -1617,8 +1617,9 @@ value they have.
 
 ### Import and export limitations
 
-The file does not hold every record. An export lists what it left out in its own
-`home_keeper` block. An import reports every field in a file that it did not read.
+The file does not hold every record. What an export leaves out is listed in its own
+`home_keeper` block, and the preview names every field that Home Keeper did not read
+on the way back in.
 
 - **Uploaded manuals and receipts.** A JSON document has no room for a file, so
   upload those again after an import. A link to a document is only text, so it stays.
