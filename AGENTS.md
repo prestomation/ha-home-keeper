@@ -122,11 +122,23 @@
   desktop **and** phone width, with the real markup rather than a sketch, so the choice is
   made against what will ship. A change with one obvious rendering does not need this.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
-  - Pure-logic unit tests need only `pip install pytest PyYAML Babel hypothesis`:
-    `pytest tests/unit -v`. Each of the last 3 covers one group of tests and each one
-    skips cleanly on its own: `PyYAML` for the API-surface gate, which reads
-    `services.yaml`; `Babel` for the locale checks; `hypothesis` for the property-based
-    tests below. Leave any of them out and those tests skip while the rest still run.
+  - Pure-logic unit tests need only
+    `pip install pytest PyYAML Babel hypothesis jsonschema`: `pytest tests/unit -v`.
+    Each of the last 4 covers one group of tests and each one skips cleanly on its own:
+    `PyYAML` for the API-surface gate (which reads `services.yaml`) and for the
+    import/export document, which `transfer.py` writes and reads; `Babel` for the
+    locale checks; `hypothesis` for the property-based tests below; `jsonschema` for
+    the published-schema gate. Leave any of them out and those tests skip while the
+    rest still run.
+  - **The published-schema gate does not run in this lane at all.**
+    `tests/unit/test_generate_schema.py` builds the schema from the integration's own
+    voluptuous service schemas, which are written in Home Assistant validators, so the
+    whole file skips without Home Assistant — and this lane deliberately has none
+    (`requirements-test.txt` keeps `pytest-homeassistant-custom-component` commented
+    out). It runs in `lint.yml`'s **mypy** job, which already installs Home Assistant
+    on a Python at its floor and verifies what pip resolved. Run it locally the same
+    way: `pip install homeassistant voluptuous-openapi jsonschema` on a Python at or
+    above HA's floor, then `pytest tests/unit/test_generate_schema.py`.
   - Full unit suite uses `pip install pytest-homeassistant-custom-component`.
 - **Property-based tests state an invariant and let the machine pick the inputs.**
   They live in `tests/unit/test_recurrence_properties.py` and

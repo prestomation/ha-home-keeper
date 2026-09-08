@@ -141,6 +141,23 @@
   Adding a surface means adding its spec. Its `services.yaml` check and the
   generator's tests need `PyYAML`, so the bare-`pytest` loop is now
   `pip install pytest PyYAML`; without it those few tests skip and the rest still run.
+- **`tests/unit/test_generate_schema.py` is the drift gate for the published JSON
+  Schema**, and it is the one unit test the unit lane cannot run. The schema is
+  converted by `voluptuous_openapi` from the integration's own service schemas, which
+  are written in Home Assistant validators, so the whole file skips without Home
+  Assistant — and the unit lane deliberately has none. It runs in `lint.yml`'s **mypy**
+  job, which already installs Home Assistant on a Python at its floor. The gate runs
+  the generator as a *subprocess*, because `tests/conftest.py` installs stub parent
+  packages so the pure core loads without Home Assistant and promises nothing imports
+  the real package in-process; a fresh interpreter keeps that true and has the side
+  effect of testing the command the docs build runs.
+- **Never subtract `EXCLUDED_*` keys from the published schema.** They name what the
+  *export* omits; the schema describes what *import* accepts, and three of them
+  (`last_completed`, `source`, appliance `device_id`) are real service fields an
+  import still takes. The schema withholds only `transfer.UNPORTABLE_TASK_KEYS`, and
+  `additionalProperties` stays open at every level, because an unknown field or
+  section is a named warning on import and never an error — a schema stricter than the
+  code it describes sends people to fix files that would have imported.
 - **A panel assertion is not coverage for a native entity.** The panel and the
   `todo`/`calendar` entities are separate projections of the same store, so the panel
   being right proves nothing about them. #221 shipped with a passing e2e test that
