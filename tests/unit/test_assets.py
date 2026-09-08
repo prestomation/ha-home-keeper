@@ -1680,3 +1680,81 @@ def test_asset_external_id_over_the_cap_is_rejected():
         a.AssetValidationError, "external_id must be at most 128 characters"
     ):
         a.build_asset({"name": "Kitchen fridge", "external_id": "x" * 129}, now=NOW)
+
+
+# ── merge_update carries every field it was not asked to change ─────────────
+#
+# The appliance twin of the task check: `merge_update` rebuilds its candidate
+# field by field, so a field left out of that dict reverts to its default on the
+# next unrelated edit. A rename must not cost a serial number.
+
+_FULL_ASSET = {
+    "name": "Kitchen fridge",
+    "external_id": "centriq-88",
+    "kind": "virtual",
+    "area_id": "area_kitchen",
+    "manufacturer": "Frigidaire",
+    "model": "FGHB2868TF",
+    "serial_number": "1234-5678",
+    "notes": "Behind the kick plate.",
+    "icon": "mdi:fridge",
+    "cost": 1800.0,
+    "metadata": [{"type": "text", "label": "Breaker", "value": "B14"}],
+    "documents": [{"kind": "link", "name": "Manual", "url": "https://example.com/m"}],
+    "parts": [{"name": "Water filter", "part_number": "WF-1"}],
+    "related_device_ids": ["dev_thermostat"],
+}
+
+
+@pytest.mark.parametrize("field", sorted(_FULL_ASSET))
+def test_an_appliance_rename_carries_every_other_field_through(field):
+    asset = a.build_asset(dict(_FULL_ASSET), now=NOW)
+    renamed = a.merge_update(asset, {"name": "Renamed"}, now=NOW)
+    if field == "name":
+        assert renamed["name"] == "Renamed"
+    else:
+        assert renamed[field] == asset[field], field
+
+
+def test_an_appliance_edit_changes_the_field_it_names():
+    asset = a.build_asset(dict(_FULL_ASSET), now=NOW)
+    assert a.merge_update(asset, {"model": "X-2"}, now=NOW)["model"] == "X-2"
+    assert (
+        a.merge_update(asset, {"manufacturer": "Bosch"}, now=NOW)["manufacturer"]
+        == "Bosch"
+    )
+    assert (
+        a.merge_update(asset, {"serial_number": "9999"}, now=NOW)["serial_number"]
+        == "9999"
+    )
+    assert a.merge_update(asset, {"notes": "New"}, now=NOW)["notes"] == "New"
+    assert (
+        a.merge_update(asset, {"icon": "mdi:snowflake"}, now=NOW)["icon"]
+        == "mdi:snowflake"
+    )
+    assert a.merge_update(asset, {"cost": 2000}, now=NOW)["cost"] == 2000
+    assert a.merge_update(asset, {"area_id": "area_x"}, now=NOW)["area_id"] == "area_x"
+
+
+def test_an_appliance_edit_can_clear_the_fields_that_are_clearable():
+    asset = a.build_asset(dict(_FULL_ASSET), now=NOW)
+    assert a.merge_update(asset, {"notes": ""}, now=NOW)["notes"] == ""
+    assert a.merge_update(asset, {"serial_number": ""}, now=NOW)["serial_number"] == ""
+    assert a.merge_update(asset, {"cost": None}, now=NOW)["cost"] is None
+    assert a.merge_update(asset, {"area_id": None}, now=NOW)["area_id"] is None
+    assert a.merge_update(asset, {"metadata": []}, now=NOW)["metadata"] == []
+    assert (
+        a.merge_update(asset, {"related_device_ids": []}, now=NOW)["related_device_ids"]
+        == []
+    )
+
+
+def test_an_appliance_rename_keeps_its_identity_and_provisioning_anchors():
+    asset = a.build_asset(dict(_FULL_ASSET), now=NOW)
+    asset["device_id"] = "dev_fridge"
+    renamed = a.merge_update(asset, {"name": "Renamed"}, now=NOW)
+    assert renamed["id"] == asset["id"]
+    assert renamed["created"] == asset["created"]
+    assert renamed["kind"] == "virtual"
+    assert renamed["identifiers"] == asset["identifiers"]
+    assert renamed["device_id"] == "dev_fridge"

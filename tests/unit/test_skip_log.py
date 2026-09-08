@@ -337,3 +337,62 @@ def test_a_reading_survives_for_a_metered_task():
     assert normalize_completion_metadata({"reading": 30000}, allow_reading=True) == {
         "reading": 30000.0
     }
+
+
+# ── record_skip: the back-dated half of skip_occurrence ──────────────────────
+
+
+def test_record_skip_logs_at_the_date_given_not_at_now():
+    task = floating()
+    r.record_skip(task, datetime(2019, 5, 1, 9, tzinfo=TZ))
+    assert task["skips"][0]["ts"].startswith("2019-05-01")
+
+
+def test_record_skip_leaves_the_due_date_alone():
+    # A skip from 2019 says an occurrence was passed over then. Running today's
+    # schedule math for it would invent a due date nobody ever saw.
+    task = floating()
+    before = task["next_due"]
+    r.record_skip(task, datetime(2019, 5, 1, 9, tzinfo=TZ))
+    assert task["next_due"] == before
+
+
+def test_record_skip_carries_its_metadata_onto_the_entry():
+    task = floating()
+    r.record_skip(
+        task,
+        datetime(2019, 5, 1, 9, tzinfo=TZ),
+        metadata={"note": "Away", "who": "p.c"},
+    )
+    assert task["skips"][0]["note"] == "Away"
+    assert task["skips"][0]["who"] == "p.c"
+
+
+def test_record_skip_records_just_the_timestamp_without_metadata():
+    task = floating()
+    r.record_skip(task, datetime(2019, 5, 1, 9, tzinfo=TZ))
+    assert set(task["skips"][0]) == {"ts"}
+
+
+def test_record_skip_replaces_an_entry_at_the_same_instant():
+    # Same dedupe as the live path: a twin at one instant is ambiguous to undo.
+    task = floating()
+    when = datetime(2019, 5, 1, 9, tzinfo=TZ)
+    r.record_skip(task, when, metadata={"note": "first"})
+    r.record_skip(task, when, metadata={"note": "second"})
+    assert len(task["skips"]) == 1
+    assert task["skips"][0]["note"] == "second"
+
+
+def test_record_skip_leaves_the_completion_log_untouched():
+    task = floating()
+    r.record_skip(task, datetime(2019, 5, 1, 9, tzinfo=TZ))
+    assert task["completions"] == [{"ts": "2026-01-01T00:00:00-04:00"}]
+    assert task["last_completed"] == "2026-01-01T00:00:00-04:00"
+
+
+def test_record_skip_refuses_a_naive_datetime():
+    # One naive value in the log poisons every later comparison in the store.
+    task = floating()
+    with pytest.raises(ValueError, match="skipped_at must be timezone-aware"):
+        r.record_skip(task, datetime(2019, 5, 1, 9))

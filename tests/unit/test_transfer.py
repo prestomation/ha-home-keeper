@@ -585,3 +585,406 @@ def test_a_parent_nobody_has_is_refused_rather_than_silently_dropped():
     plan = _plan(_doc(appliances=[{"name": "Furnace", "parent_asset_id": "hvac"}]))
     assert not plan.ok
     assert "List the parent before its children" in _errors(plan)[0]
+
+
+# ── A problem says *where*, not just what ────────────────────────────────────
+#
+# Every problem carries a section, an index and a path, and the panel draws all
+# three: the path is what tells somebody which record of two hundred to open.
+# Asserting only the message leaves them free to be wrong, which is how a report
+# ends up pointing at `tasks[0]` for a fault in `tasks[57]`.
+
+
+def _only(plan) -> dict:
+    (problem,) = plan.problems
+    return problem.as_dict()
+
+
+def test_a_task_problem_points_at_the_record_it_came_from():
+    plan = _plan(
+        _doc(
+            tasks=[{"name": "Fine"}, {"name": "Fine too"}, {"name": "", "interval": 1}]
+        )
+    )
+    assert _only(plan) == {
+        "section": "tasks",
+        "index": 2,
+        "path": "tasks[2]",
+        "message": "missing required field: 'name'",
+        "severity": "error",
+    }
+
+
+def test_an_appliance_problem_points_at_the_record_it_came_from():
+    plan = _plan(_doc(appliances=[{"name": "Fine"}, {"name": "", "kind": "virtual"}]))
+    problem = _only(plan)
+    assert (problem["section"], problem["index"], problem["path"]) == (
+        "appliances",
+        1,
+        "appliances[1]",
+    )
+    assert problem["severity"] == "error"
+
+
+def test_an_unknown_field_warning_names_the_field_in_its_path():
+    plan = _plan(_doc(tasks=[{"name": "T"}, {"name": "T2", "priority": "high"}]))
+    assert _only(plan) == {
+        "section": "tasks",
+        "index": 1,
+        "path": "tasks[1].priority",
+        "message": '"priority" is not a field this version of Home Keeper reads, so '
+        "it was ignored",
+        "severity": "warning",
+    }
+
+
+def test_an_unknown_section_warning_names_the_section():
+    plan = _plan(_doc(recipes=[]))
+    assert _only(plan) == {
+        "section": "recipes",
+        "index": None,
+        "path": "recipes",
+        "message": '"recipes" is not a section this version of Home Keeper reads, so '
+        "it was left alone",
+        "severity": "warning",
+    }
+
+
+def test_a_section_that_is_not_a_list_says_which_section():
+    plan = _plan(_doc(tasks={"name": "not a list"}))
+    assert _only(plan) == {
+        "section": "tasks",
+        "index": None,
+        "path": "tasks",
+        "message": '"tasks" must be a list',
+        "severity": "error",
+    }
+
+
+def test_a_record_that_is_not_a_mapping_says_which_one():
+    plan = _plan(_doc(tasks=[{"name": "T"}, "just a string"]))
+    problem = _only(plan)
+    assert (problem["section"], problem["index"], problem["path"]) == (
+        "tasks",
+        1,
+        "tasks[1]",
+    )
+    assert problem["message"] == "each record must be a mapping"
+
+
+def test_the_record_cap_problem_names_the_section_and_the_limit():
+    plan = _plan(_doc(tasks=[{"name": f"T{i}"} for i in range(2001)]))
+    assert _only(plan) == {
+        "section": "tasks",
+        "index": None,
+        "path": "tasks",
+        "message": '"tasks" has 2001 records; at most 2000 can be imported at once. '
+        "Split the document.",
+        "severity": "error",
+    }
+
+
+def test_a_history_that_is_not_a_list_says_so_at_its_own_path():
+    plan = _plan(_doc(tasks=[{"name": "T", "history": "2026-03-04"}]))
+    assert _only(plan) == {
+        "section": "tasks",
+        "index": 0,
+        "path": "tasks[0].history",
+        "message": '"history" must be a list',
+        "severity": "error",
+    }
+
+
+def test_a_history_entry_with_no_date_says_which_entry():
+    plan = _plan(
+        _doc(tasks=[{"name": "T", "history": [{"completed_at": "2026-01-01"}, {}]}])
+    )
+    assert _only(plan) == {
+        "section": "tasks",
+        "index": 0,
+        "path": "tasks[0].history[1]",
+        "message": 'each entry needs a "completed_at" date',
+        "severity": "error",
+    }
+
+
+def test_a_skip_entry_with_no_date_names_the_skip_key():
+    plan = _plan(_doc(tasks=[{"name": "T", "skips": [{"note": "no date"}]}]))
+    problem = _only(plan)
+    assert problem["path"] == "tasks[0].skips[0]"
+    assert problem["message"] == 'each entry needs a "skipped_at" date'
+
+
+def test_an_envelope_problem_is_attributed_to_the_envelope():
+    plan = _plan({"tasks": []})
+    assert _only(plan) == {
+        "section": "home_keeper",
+        "index": None,
+        "path": "home_keeper",
+        "message": 'the document needs a "home_keeper" block naming its format',
+        "severity": "error",
+    }
+
+
+def test_a_reserved_source_problem_points_at_the_source_key():
+    plan = _plan(_doc(tasks=[{"name": "T", "source": {"buy": {"asset_id": "a"}}}]))
+    problem = _only(plan)
+    assert problem["path"] == "tasks[0].source"
+    assert problem["index"] == 0
+
+
+def test_a_managed_by_problem_points_at_the_managed_by_key():
+    plan = _plan(_doc(tasks=[{"name": "T", "managed_by": {"integration": "x"}}]))
+    assert _only(plan)["path"] == "tasks[0].managed_by"
+
+
+def test_a_source_home_keeper_does_not_reserve_is_carried_through():
+    # Only the *reserved* namespaces are refused. An integration's own opaque
+    # provenance is exactly what `source` is for, and a check that tested
+    # "has any source at all" would reject it.
+    plan = _plan(_doc(tasks=[{"name": "T", "source": {"pawsistant": {"pet": "7"}}}]))
+    assert plan.ok, _errors(plan)
+    assert plan.records[0].payload["source"] == {"pawsistant": {"pet": "7"}}
+
+
+def test_an_ambiguous_name_problem_points_at_the_record():
+    one, two = _task(), _task()
+    plan = _plan(
+        _doc(tasks=[{"name": "Furnace filter"}]),
+        tasks={one["id"]: one, two["id"]: two},
+    )
+    problem = _only(plan)
+    assert (problem["section"], problem["index"], problem["path"]) == (
+        "tasks",
+        0,
+        "tasks[0]",
+    )
+    assert one["id"] in problem["message"] and two["id"] in problem["message"]
+
+
+def test_an_ambiguous_appliance_name_problem_points_at_the_record():
+    one = tr.assets_model.build_asset({"name": "Furnace"}, now=NOW)
+    two = tr.assets_model.build_asset({"name": "Furnace"}, now=NOW)
+    plan = _plan(
+        _doc(appliances=[{"name": "Furnace"}]),
+        assets={one["id"]: one, two["id"]: two},
+    )
+    problem = _only(plan)
+    assert problem["section"] == "appliances"
+    assert "matches several appliances" in problem["message"]
+
+
+def test_a_missing_appliance_problem_points_at_the_appliance_key():
+    plan = _plan(_doc(tasks=[{"name": "T", "appliance": "Boiler"}]))
+    assert _only(plan)["path"] == "tasks[0].appliance"
+
+
+def test_a_missing_parent_problem_points_at_the_parent_key():
+    plan = _plan(_doc(appliances=[{"name": "F", "parent_asset_id": "nope"}]))
+    assert _only(plan)["path"] == "appliances[0].parent_asset_id"
+
+
+def test_a_stale_device_warning_points_at_the_device_key():
+    plan = _plan(
+        _doc(tasks=[{"name": "T", "device_id": "dev_elsewhere"}]),
+        device_ids=frozenset({"dev_here"}),
+    )
+    assert _only(plan) == {
+        "section": "tasks",
+        "index": 0,
+        "path": "tasks[0].device_id",
+        "message": 'no device "dev_elsewhere" exists here, so the task was imported '
+        "without an appliance. Name the appliance instead.",
+        "severity": "warning",
+    }
+
+
+# ── The exported record's exact shape ────────────────────────────────────────
+
+
+def test_an_exported_appliance_carries_every_field_under_its_own_name():
+    asset = tr.assets_model.build_asset(
+        {
+            "name": "Furnace",
+            "external_id": "centriq-4711",
+            "manufacturer": "Carrier",
+            "model": "59TP6A",
+            "serial_number": "1234",
+            "notes": "Installed by ABC.",
+            "icon": "mdi:fire",
+            "cost": 4200,
+            "area_id": "area_base",
+            "parts": [{"name": "Filter"}],
+            "metadata": [{"type": "text", "label": "Breaker", "value": "B14"}],
+        },
+        now=NOW,
+    )
+    asset["device_id"] = "dev_furnace"
+    asset["archived_at"] = NOW.isoformat()
+    record = tr.build_document(
+        [], [asset], area_names={"area_base": "Basement"}, now=NOW
+    )["appliances"][0]
+
+    assert record["id"] == asset["id"]
+    assert record["external_id"] == "centriq-4711"
+    assert record["name"] == "Furnace"
+    assert record["manufacturer"] == "Carrier"
+    assert record["model"] == "59TP6A"
+    assert record["serial_number"] == "1234"
+    assert record["notes"] == "Installed by ABC."
+    assert record["icon"] == "mdi:fire"
+    assert record["cost"] == 4200
+    assert record["area"] == "Basement"
+    assert record["area_id"] == "area_base"
+    assert record["device_id"] == "dev_furnace"
+    assert record["archived"] is True
+    assert [p["name"] for p in record["parts"]] == ["Filter"]
+    assert [m["label"] for m in record["metadata"]] == ["Breaker"]
+    # The raw timestamp is re-shaped as the boolean, not carried as well.
+    assert "archived_at" not in record
+    # Registry snapshots of *this* install's device never travel.
+    assert "identifiers" not in record and "connections" not in record
+
+
+def test_an_unarchived_appliance_says_nothing_about_archiving():
+    asset = tr.assets_model.build_asset({"name": "Furnace"}, now=NOW)
+    record = tr.build_document([], [asset], now=NOW)["appliances"][0]
+    assert "archived" not in record
+
+
+def test_an_appliance_with_no_area_omits_both_area_keys():
+    asset = tr.assets_model.build_asset({"name": "Furnace"}, now=NOW)
+    record = tr.build_document([], [asset], now=NOW)["appliances"][0]
+    assert "area" not in record and "area_id" not in record
+
+
+def test_an_area_with_no_name_falls_back_to_its_id():
+    # A task can outlive the area it named. Emitting the bare id keeps the record
+    # honest rather than dropping the attachment silently.
+    task = _task()
+    task["area_id"] = "area_gone"
+    record = tr.build_document([task], [], area_names={}, now=NOW)["tasks"][0]
+    assert record["area"] == "area_gone"
+
+
+def test_an_exported_task_names_its_appliance_by_name_when_it_has_no_key():
+    asset = tr.assets_model.build_asset({"name": "Furnace"}, now=NOW)
+    asset["device_id"] = "dev_furnace"
+    task = _task()
+    task["device_id"] = "dev_furnace"
+    record = tr.build_document([task], [asset], now=NOW)["tasks"][0]
+    assert record["appliance"] == "Furnace"
+
+
+def test_history_entries_are_re_keyed_for_the_document():
+    task = _task()
+    tr.recurrence.apply_completion(
+        task, datetime(2026, 3, 4, 9, tzinfo=TZ), now=NOW, metadata={"note": "n"}
+    )
+    tr.recurrence.record_skip(task, datetime(2026, 4, 1, 9, tzinfo=TZ))
+    record = tr.build_document([task], [], now=NOW)["tasks"][0]
+    assert record["history"][0]["completed_at"].startswith("2026-03-04")
+    assert record["history"][0]["note"] == "n"
+    assert record["skips"][0]["skipped_at"].startswith("2026-04-01")
+    # `ts` is the storage key; the document uses the service's vocabulary.
+    assert "ts" not in record["history"][0]
+
+
+def test_the_export_counts_only_uploaded_files_as_skipped():
+    asset = tr.assets_model.build_asset({"name": "Furnace"}, now=NOW)
+    asset["documents"] = [
+        {"id": "d1", "kind": "link", "name": "M", "url": "https://example.com/m"},
+    ]
+    assert "skipped" not in tr.build_document([], [asset], now=NOW)["home_keeper"]
+
+
+def test_the_json_form_keeps_non_ascii_readable_and_the_document_order():
+    document = {"home_keeper": {"format": 1}, "tasks": [{"name": "Cambiar filtro ñ"}]}
+    text = tr.document_to_json(document)
+    # Not ñ escapes: somebody has to read and edit this file.
+    assert "ñ" in text
+    # Envelope first, as written — sorting the keys would bury it mid-file.
+    assert text.index('"home_keeper"') < text.index('"tasks"')
+
+
+def test_the_json_form_is_indented_rather_than_one_long_line():
+    text = tr.document_to_json({"home_keeper": {"format": 1}, "tasks": []})
+    assert '\n  "home_keeper"' in text
+
+
+# ── Guard-rail details ───────────────────────────────────────────────────────
+
+
+def test_a_bare_id_that_is_not_a_uuid_is_replaced_rather_than_stored():
+    # The id keys the store, so a value that is not one would be a record nobody
+    # can address. Minting a fresh one keeps the import going.
+    plan = _plan(_doc(tasks=[{"id": "not-a-uuid", "name": "T"}]))
+    assert plan.records[0].record_id != "not-a-uuid"
+    assert plan.records[0].payload["id"] == plan.records[0].record_id
+
+
+def test_two_new_records_stating_the_same_id_do_not_both_take_it():
+    same = "11111111-2222-3333-4444-555555555555"
+    plan = _plan(_doc(tasks=[{"id": same, "name": "One"}, {"id": same, "name": "Two"}]))
+    first, second = plan.records
+    assert first.record_id == same
+    assert second.record_id != same
+
+
+def test_an_area_named_by_its_own_id_resolves_to_itself():
+    plan = _plan(
+        _doc(tasks=[{"name": "T", "area": "area_base"}]),
+        area_ids={"Basement": "area_base"},
+    )
+    assert plan.records[0].payload["area_id"] == "area_base"
+
+
+def test_an_area_name_match_ignores_case_and_spaces():
+    plan = _plan(
+        _doc(tasks=[{"name": "T", "area": "  basement  "}]),
+        area_ids={"Basement": "area_base"},
+    )
+    assert plan.records[0].payload["area_id"] == "area_base"
+
+
+def test_an_area_id_beats_an_area_name_that_disagrees_with_it():
+    plan = _plan(
+        _doc(tasks=[{"name": "T", "area": "Kitchen", "area_id": "area_base"}]),
+        area_ids={"Basement": "area_base", "Kitchen": "area_kitchen"},
+    )
+    assert plan.records[0].payload["area_id"] == "area_base"
+
+
+def test_an_appliance_reference_can_be_the_stored_appliances_own_id():
+    stored = tr.assets_model.build_asset({"name": "Furnace"}, now=NOW)
+    stored["device_id"] = "dev_furnace"
+    plan = _plan(
+        _doc(tasks=[{"name": "T", "appliance": stored["id"]}]),
+        assets={stored["id"]: stored},
+    )
+    assert plan.records[0].payload["device_id"] == "dev_furnace"
+
+
+def test_a_stored_appliance_with_no_device_is_not_a_usable_reference():
+    # An unprovisioned appliance has no device for a task to hang on, so naming it
+    # is an error rather than a task quietly imported unattached.
+    stored = tr.assets_model.build_asset({"name": "Furnace"}, now=NOW)
+    plan = _plan(
+        _doc(tasks=[{"name": "T", "appliance": "Furnace"}]),
+        assets={stored["id"]: stored},
+    )
+    assert not plan.ok
+
+
+def test_planned_asset_id_only_answers_for_its_own_placeholder():
+    assert tr.planned_asset_id("dev_real") is None
+    assert tr.planned_asset_id(None) is None
+
+
+def test_a_parent_can_be_named_by_the_stored_appliances_id():
+    stored = tr.assets_model.build_asset({"name": "HVAC"}, now=NOW)
+    plan = _plan(
+        _doc(appliances=[{"name": "Furnace", "parent_asset_id": stored["id"]}]),
+        assets={stored["id"]: stored},
+    )
+    assert plan.records[0].payload["parent_asset_id"] == stored["id"]
