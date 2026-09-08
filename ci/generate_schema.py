@@ -98,15 +98,32 @@ def load_component() -> Any:
 
 
 def _serialize(schema: Any) -> Any:
-    """The two validators ``voluptuous_openapi`` cannot read for itself.
+    """The handful of validators ``voluptuous_openapi`` cannot read for itself.
 
     It returns ``UNSUPPORTED`` for anything else, which hands the value back to the
     library's own inference — so this stays a list of exceptions rather than a second
     type table.
     """
+    import voluptuous as vol
     from homeassistant.helpers import config_validation as cv
-    from voluptuous_openapi import UNSUPPORTED
+    from voluptuous_openapi import UNSUPPORTED, OpenApiVersion, convert
 
+    if (
+        isinstance(schema, vol.All)
+        and schema.validators
+        and schema.validators[0] is cv.ensure_list
+    ):
+        # ``vol.All(cv.ensure_list, [X])`` takes a bare X *or* a list of them, and
+        # ``labels: kitchen`` is the obvious thing to write by hand. The library renders
+        # only the list, so an editor would flag a document that imports cleanly — the
+        # one thing a published schema must never do.
+        as_list = convert(
+            vol.Schema(schema.validators[1]),
+            custom_serializer=_serialize,
+            openapi_version=OpenApiVersion.V3_1,
+        )
+        item = as_list.get("items")
+        return {"anyOf": [item, as_list]} if item else UNSUPPORTED
     if schema is cv.string:
         # Inferred correctly on its own, but not inside a ``vol.Any``, where the
         # library emits an empty (anything-goes) branch instead.

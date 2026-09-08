@@ -201,6 +201,77 @@ def test_the_schema_and_the_importer_agree_on_these(validator, document, accepte
     assert plan.ok is accepted, f"the importer disagrees: {why}"
 
 
+@pytest.mark.parametrize(
+    ("task", "accepted_by_schema", "why"),
+    [
+        # ── The schema is STRICTER. Both are coercions: plain voluptuous takes the
+        # string and int()s it. No export ever writes a number as a string, so this is
+        # the difference between what a forgiving action tolerates and what a document
+        # should contain — an editor squiggle on `interval: "3"` is a service, not a
+        # false alarm.
+        ({"name": "A", "interval": "3", "unit": "days"}, False, "interval coerces"),
+        (
+            {
+                "name": "A",
+                "interval": 1,
+                "unit": "days",
+                "history": [{"completed_at": "2026-01-01", "cost": "24.50"}],
+            },
+            False,
+            "a completion's cost coerces",
+        ),
+        # ── The schema is LAXER, and only because a normalizer is stricter than its
+        # own action's schema. `ADD_TASK_SCHEMA` wraps `card_links` in
+        # `cv.ensure_list`, so the action accepts one object — but
+        # `models.normalize_card_links` then refuses it with "card_links must be a
+        # list". The schema follows the action, which is what the README promises a
+        # record is. Being lax here costs a missed editor warning, which the preview
+        # then reports with a path; being strict would flag documents that import.
+        (
+            {
+                "name": "A",
+                "interval": 1,
+                "unit": "days",
+                "card_links": {"asset_id": "x", "entry_id": "y"},
+            },
+            True,
+            "card_links takes ensure_list at the action and a list at the normalizer",
+        ),
+    ],
+)
+def test_where_the_schema_and_the_importer_disagree(
+    validator, task, accepted_by_schema, why
+):
+    """The divergences, named — so a new one is a decision rather than a surprise.
+
+    Every row here is a document the schema and ``plan_import`` judge differently. The
+    list is short and each entry says why; a fourth appearing means something changed
+    that nobody chose. The two directions are not equally serious: the schema being
+    stricter about a scalar's *spelling* is fine, and the schema being laxer than a
+    normalizer only loses a warning an import still gives.
+    """
+    document = {**_ENVELOPE, "tasks": [task]}
+    assert validator.is_valid(document) is accepted_by_schema, why
+    plan = tr.plan_import(document, tasks={}, assets={}, now=NOW)
+    assert plan.ok is not accepted_by_schema, f"no longer a divergence: {why}"
+
+
+@pytest.mark.parametrize(
+    "value", ["kitchen", ["kitchen"]], ids=["one scalar", "a list"]
+)
+def test_a_field_that_takes_one_or_many_says_so(validator, value):
+    """``labels: kitchen`` is the obvious thing to write, and it imports.
+
+    ``vol.All(cv.ensure_list, [cv.string])`` accepts either shape, and the converter
+    renders only the list form — so before ``_serialize`` learned this, an editor
+    flagged a document that imports cleanly. That is the one failure a published schema
+    must not have.
+    """
+    document = {**_ENVELOPE, "tasks": [{"name": "A", "labels": value}]}
+    assert validator.is_valid(document)
+    assert tr.plan_import(document, tasks={}, assets={}, now=NOW).ok
+
+
 def test_a_wrongly_typed_value_is_caught(validator):
     """The negative control. A gate that cannot fail is not a gate.
 
