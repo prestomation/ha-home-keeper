@@ -557,7 +557,11 @@ def test_a_child_appliance_names_its_parent_from_the_same_document():
         _doc(
             appliances=[
                 {"external_id": "hvac", "name": "HVAC"},
-                {"external_id": "furnace", "name": "Furnace", "parent_asset_id": "hvac"},
+                {
+                    "external_id": "furnace",
+                    "name": "Furnace",
+                    "parent_asset_id": "hvac",
+                },
             ]
         )
     )
