@@ -313,6 +313,17 @@ ship rather than adding a parallel system.
 - Diagnostics download (`diagnostics.py`) for support, like Pawsistant.
 - Broaden e2e screenshots into a documented before/after gallery in the README.
 - Coverage gate on the recurrence engine specifically (it's the correctness core).
+- **A season boundary on February 29 disagrees with itself.** `_next_season_start`
+  clamps the day to Feb 28 in a non-leap year, exactly as its docstring says it does.
+  `in_season` applies no such clamp when it checks. So an ordinary window like
+  `{"start": "02-29", "end": "03-05"}` clamps a floating task to a date *outside* the
+  season it was just clamped into, in 3 years out of 4. Found by the property tests in
+  #309 and pinned there as `test_r4b`, an `xfail(strict=True)` carrying the reproducer,
+  so it cannot start passing unnoticed. Fixing it changes user-visible scheduling, so
+  it wants its own change with its own CHANGELOG bullet and beta. Decide which side is
+  wrong first: either `in_season` should clamp the same way, or `_next_season_start`
+  should skip to the next year that actually has the date. Check whether the same
+  asymmetry exists anywhere else that takes an `MM-DD` boundary.
 
 ---
 

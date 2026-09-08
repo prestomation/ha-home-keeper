@@ -1615,7 +1615,7 @@ you meant. To create every record and match no stored record, pass `match: none`
 An update only changes the fields the file states. Fields it leaves out keep the
 value they have.
 
-### Import and export limitations
+### Import/Export Limitations
 
 The file does not hold every record. What an export leaves out is listed in its own
 `home_keeper` block, and the preview names every field that Home Keeper did not read
