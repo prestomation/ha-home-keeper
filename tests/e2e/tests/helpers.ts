@@ -339,7 +339,14 @@ export async function expectTabActive(panel: Locator, tab: PanelTab): Promise<vo
  */
 export async function openSettingsSection(
   panel: Locator,
-  section: 'general' | 'shopping' | 'problem' | 'profiles' | 'notifications' | 'companions',
+  section:
+    | 'general'
+    | 'shopping'
+    | 'problem'
+    | 'profiles'
+    | 'notifications'
+    | 'companions'
+    | 'transfer',
 ): Promise<void> {
   await gotoTab(panel, 'settings');
   // Settle on the layout that holds all three parts, so the branch below is decided

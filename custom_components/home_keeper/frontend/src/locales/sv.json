@@ -341,6 +341,7 @@
   "settings.companions_none": "Inga upptäckta än",
   "settings.notifications_none": "Inga aviseringar än",
   "settings.profiles_none": "Inga profiler än",
+  "settings.transfer_summary": "Spara en fil, eller läsa en",
   "todo_sync.chip": "Synkas med {name}",
   "todo_sync.entity_id": "Att-göra-lista",
   "todo_sync.group": "Synkronisera med en att-göra-lista",

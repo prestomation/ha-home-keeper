@@ -6,6 +6,17 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.23.0b1]
+
+### Added
+
+- **Import and export.** Settings has a new *Import and export* card that saves every
+  task and appliance to one JSON file, and reads one back. Move to a new Home
+  Assistant, or bring years of history in from another system. (Fixes #308)
+- **A stable key of your own.** Give a task or an appliance an `external_id` of your
+  choice. An import matches on it, so running a migration script twice updates your
+  records instead of copying them.
+
 ## [0.22.0] - 2026-09-08
 
 ### Added

@@ -341,6 +341,7 @@
   "settings.companions_none": "Nog geen gedetecteerd",
   "settings.notifications_none": "Nog geen meldingen",
   "settings.profiles_none": "Nog geen profielen",
+  "settings.transfer_summary": "Een bestand opslaan, of er een lezen",
   "todo_sync.chip": "Synchroniseert met {name}",
   "todo_sync.entity_id": "Takenlijst",
   "todo_sync.group": "Synchroniseren met een takenlijst",

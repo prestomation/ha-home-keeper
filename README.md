@@ -1419,7 +1419,7 @@ Home Assistant options flow and saves each change immediately. The same options 
 available in the options flow under **Settings → Devices & services → Configure** and
 through the `home_keeper.set_options` service.
 
-The tab has 6 sections:
+The tab has 7 sections:
 
 - **General** sets how long completed one-off tasks are kept.
 - **Shopping list** selects the to-do list that
@@ -1431,6 +1431,8 @@ The tab has 6 sections:
 - **Problem sensor sync** has the sync switch and the exclusions for entities and
   devices and areas and labels. The exclusions apply only when the sync is on.
 - **Companions** lists the integrations that work with Home Keeper.
+- **Import and export** saves your data to a file and reads a file back. See
+  [Import and export](#import-and-export).
 
 ![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](docs/images/17-panel-settings.png)
 
@@ -1516,6 +1518,127 @@ Delete button. On a phone the row stacks, and the buttons take a line of their o
 
 
 
+## Import and export
+
+Home Keeper reads and writes its data as one file. Use it to move to another Home
+Assistant, or to keep a copy of your own. Use it also to bring in records you keep
+in a spreadsheet or an old app.
+
+**Settings → Import and export** has both halves.
+
+- **Export** saves every task and appliance, with the history, as a JSON file.
+- **Import** reads such a file. Paste it, or choose it from disk, then press
+  **Preview**. Preview reports what would change and writes nothing. **Import** stays
+  off until a preview of that exact text comes back clean.
+
+Both halves are also actions, so a script or an automation can call them:
+`home_keeper.export_data` and `home_keeper.import_data`. Both are admin-only.
+
+### The file
+
+An export is also a worked example. The file it writes is the file import reads, so
+one export shows you the whole format:
+
+```yaml
+home_keeper:
+  format: 1
+
+appliances:
+  - external_id: furnace
+    name: Furnace
+    area: Basement
+    manufacturer: Carrier
+    model: 59TP6A
+    serial_number: "1234-5678"
+    cost: 4200
+    parts:
+      - name: Filter
+        part_number: FILXXFCC0021
+        type: consumable
+        stock: 2
+        reorder_at: 1
+
+tasks:
+  - external_id: furnace-filter
+    name: Replace furnace filter
+    appliance: furnace
+    interval: 3
+    unit: months
+    notes: MERV 13 only.
+    history:
+      - completed_at: "2026-03-04"
+        note: Used a MERV 13
+        cost: 24.50
+      - completed_at: "2025-12-01"
+    skips:
+      - skipped_at: "2025-09-01"
+        note: Away
+```
+
+**A record takes the same fields as the action that creates it.** A `tasks` record is
+an `add_task` payload. An `appliances` record is an `add_asset` payload. The
+[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#actions)
+lists every field of both, so it documents the file as well.
+
+A record also takes these fields:
+
+| Field | Applies to | What it does |
+| --- | --- | --- |
+| `external_id` | both | Your own name for the record. See below. |
+| `area` | both | An area name. A stated `area_id` wins. |
+| `appliance` | tasks | Which appliance the task belongs to, by `external_id`, name, or id. A stated `device_id` wins, if that device is on this Home Assistant. |
+| `history` | tasks | Past completions. Each entry needs `completed_at`, and can add `note`, `cost`, `who`, `photo`. |
+| `skips` | tasks | Past skips. Each entry needs `skipped_at`. |
+| `archived` | appliances | `true` for an archived appliance. |
+
+Dates can be a plain `2026-03-04` or a full timestamp. History is read in date order,
+whatever order you write it in.
+
+### How a record finds its match
+
+Import creates a record, or updates the one it already has. It decides which in 3
+steps, and stops at the first that matches:
+
+1. **`id`**, Home Keeper's own id. Every export includes it, so re-importing an
+   export updates the same records.
+2. **`external_id`**, the name you choose. Set this one in a file you write
+   yourself, because it makes a second run update the same records instead of making
+   a copy of everything.
+3. **`name`**, an exact match first, then one that ignores case and spaces.
+
+Home Keeper creates a record that matches nothing. When a name matches 2 records you
+get an error that names both, because Home Keeper does not guess which one you meant.
+To create every record and match nothing, pass `match: none` to
+`home_keeper.import_data`.
+
+An update only changes the fields the file states. Fields it leaves out keep the
+value they have.
+
+### What the file does not hold
+
+The export says so in its own `home_keeper` block. The preview reports anything in a
+file that Home Keeper did not read.
+
+- **Uploaded manuals and receipts.** A JSON document has no room for a file, so
+  upload those again after an import. A link to a document is only text, so it stays.
+- **Tasks that another part of Home Keeper owns**, such as a wear part's replacement
+  reminder, a buy reminder, a problem-sensor mirror, or a recipe's task. Home Keeper
+  builds these again from the appliance and its parts, which the file does include.
+- **Tasks that another integration owns.**
+- **Settings, profiles, notifications and recipes.** These stay in the config entry.
+
+### Ask an assistant to write one
+
+The format is meant to be easy to generate. Export what you have, then hand the file
+to an assistant along with the records you want to add. A photo of a spreadsheet
+works. So does a page of notes. Ask for the same shape, with an `external_id` on
+every record, and for one JSON document back. Paste the answer into the Import
+box and press **Preview** first: it checks every record and reports each problem with
+the path to it, so you can fix the file and try again. Nothing is written until the
+preview is clean.
+
+![Settings, Import and export, with a preview of what an import would change](docs/images/60-panel-transfer.png)
+
 ## Services
 
 Home Keeper exposes every data action as a Home Assistant service. This is useful
@@ -1544,6 +1667,9 @@ lists all of them with their fields.
   `add_asset_document`, `update_asset_document`, and `remove_asset_document`
   attach, rename, or detach a manual, a warranty, or a receipt. A file uploads
   from the panel. `list_assets` and `export_inventory` return a response.
+- **Import and export**: `home_keeper.export_data` returns every task and appliance
+  as one document. `home_keeper.import_data` reads one back. Both return a response.
+  See [Import and export](#import-and-export).
 
 ### Use a name instead of an id
 

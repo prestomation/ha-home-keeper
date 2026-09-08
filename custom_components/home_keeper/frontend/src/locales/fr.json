@@ -350,6 +350,7 @@
   "settings.companions_none": "Aucun détecté pour l'instant",
   "settings.notifications_none": "Aucune notification pour l'instant",
   "settings.profiles_none": "Aucun profil pour l'instant",
+  "settings.transfer_summary": "Enregistrer un fichier, ou en lire un",
   "todo_sync.chip": "Synchronisé avec {name}",
   "todo_sync.entity_id": "Liste de tâches",
   "todo_sync.group": "Synchroniser avec une liste de tâches",

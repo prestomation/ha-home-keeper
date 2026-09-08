@@ -875,6 +875,23 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     await page.waitForTimeout(BEAT * 2);
   }
 
+  // 7a. Import and export — the last stop on the rail. A document goes into the box
+  //     and Preview answers before anything is written: what it would add, how much
+  //     history rides along, and anything wrong with the file.
+  await panel.locator('.hk-rail-link[data-section="transfer"]').click();
+  await expect(panel.locator('#hk-transfer')).toBeVisible();
+  await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
+    (el as HTMLTextAreaElement & { value: string }).value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, `{\n  \"home_keeper\": { \"format\": 1 },\n  \"tasks\": [\n    {\n      \"external_id\": \"dishwasher-filter\",\n      \"name\": \"Clean the dishwasher filter\",\n      \"interval\": 1,\n      \"unit\": \"months\",\n      \"history\": [{ \"completed_at\": \"2026-05-02\" }]\n    }\n  ]\n}`);
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('#transfer-preview').click();
+  await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+
   // 7b. Notifications, opened rather than passed. How a notification lands on the
   //     phone is set here — the channel it arrives on and how loudly — and Test
   //     sends it now, so the answer comes back on the phone instead of at the next
@@ -1011,6 +1028,20 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('#settings-back').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
+
+  //    Then Import and export: a document pasted in, and the preview that says what
+  //    importing it would change before anything is written.
+  await panel.locator('.hk-index-row[data-section="transfer"]').click();
+  await expect(panel.locator('#hk-transfer')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
+    (el as HTMLTextAreaElement & { value: string }).value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, `{\n  \"home_keeper\": { \"format\": 1 },\n  \"tasks\": [\n    {\n      \"external_id\": \"dishwasher-filter\",\n      \"name\": \"Clean the dishwasher filter\",\n      \"interval\": 1,\n      \"unit\": \"months\",\n      \"history\": [{ \"completed_at\": \"2026-05-02\" }]\n    }\n  ]\n}`);
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('#transfer-preview').click();
+  await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
 }
 
 const TOURS: Tour[] = [

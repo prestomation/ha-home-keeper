@@ -350,6 +350,7 @@
   "settings.companions_none": "Cap detectat encara",
   "settings.notifications_none": "Cap notificació encara",
   "settings.profiles_none": "Cap perfil encara",
+  "settings.transfer_summary": "Desar un fitxer, o llegir-ne un",
   "todo_sync.chip": "Se sincronitza amb {name}",
   "todo_sync.entity_id": "Llista de tasques",
   "todo_sync.group": "Sincronitza amb una llista de tasques",

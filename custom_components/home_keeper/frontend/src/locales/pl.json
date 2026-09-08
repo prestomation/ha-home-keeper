@@ -359,6 +359,7 @@
   "settings.companions_none": "Jeszcze nie wykryto",
   "settings.notifications_none": "Brak powiadomień",
   "settings.profiles_none": "Brak profili",
+  "settings.transfer_summary": "Zapisz plik albo wczytaj plik",
   "todo_sync.chip": "Synchronizuje się z {name}",
   "todo_sync.entity_id": "Lista zadań",
   "todo_sync.group": "Synchronizuj z listą zadań",

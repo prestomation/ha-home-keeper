@@ -308,3 +308,12 @@ its `task_id` (those task events carry `device_id: null`).
   `source`, `origin`, and `completed_at`, nothing changes for you.
 - Home Keeper never inspects `source`; use it (and the `origin` echo on completions) to
   recognise and de-dupe your own tasks. See [INTEGRATING.md](INTEGRATING.md).
+- **An import fires one event per record, never one per completion.** A document read
+  by `home_keeper.import_data` can hold years of history, and that history is a record
+  of a decade rather than a decade of things happening now. So a backfilled completion
+  fires no `home_keeper_task_completed`. The history is folded onto the
+  task before it reaches the store, and the record arrives as a single
+  `home_keeper_task_created` or `home_keeper_task_updated` like any other write. An
+  update whose only change is added history still fires, with `completions` among its
+  `changed_fields`. If you mirror completions, read them from the task's history on
+  that event rather than counting completion events.

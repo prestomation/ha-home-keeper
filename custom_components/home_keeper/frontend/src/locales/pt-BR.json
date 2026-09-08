@@ -350,6 +350,7 @@
   "settings.companions_none": "Nenhuma detectada ainda",
   "settings.notifications_none": "Ainda não há notificações",
   "settings.profiles_none": "Ainda não há perfis",
+  "settings.transfer_summary": "Salvar um arquivo ou ler um",
   "todo_sync.chip": "Sincroniza com {name}",
   "todo_sync.entity_id": "Lista de tarefas",
   "todo_sync.group": "Sincronizar com uma lista de tarefas",

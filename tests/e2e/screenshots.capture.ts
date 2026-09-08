@@ -1515,6 +1515,23 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/21-panel-companions.png`, fullPage: true });
 
+  // 60. Settings → Import and export — the whole surface at once: the Export button
+  // that saves everything to one file, the box a document is pasted into, and a
+  // preview of what importing it would change. The preview is the shot's point: it
+  // is what stands between a generated file and the store, so it has to show its
+  // verdict and its counts rather than an empty box.
+  await openPanel(page);
+  await panel.locator('#tab-settings').click();
+  await expect(panel.locator('#hk-transfer')).toBeVisible();
+  await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
+    (el as HTMLTextAreaElement & { value: string }).value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, `{\n  \"home_keeper\": { \"format\": 1 },\n  \"appliances\": [\n    { \"external_id\": \"dishwasher\", \"name\": \"Kitchen dishwasher\", \"manufacturer\": \"Bosch\" }\n  ],\n  \"tasks\": [\n    {\n      \"external_id\": \"dishwasher-filter\",\n      \"name\": \"Clean the dishwasher filter\",\n      \"appliance\": \"dishwasher\",\n      \"interval\": 1,\n      \"unit\": \"months\",\n      \"history\": [{ \"completed_at\": \"2026-05-02\" }]\n    }\n  ]\n}`);
+  await panel.locator('#transfer-preview').click();
+  await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: `${OUT}/60-panel-transfer.png`, fullPage: true });
+
   // 17c. Settings → Profiles → "My chores" → its **Sync to a to-do list** group: the
   // to-do list this profile's tasks are synced onto ("Family chores", the seeded
   // local_todo list standing in for a Todoist project), plus what a change over there
@@ -1656,6 +1673,22 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-settings-backbar')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/51-panel-mobile-settings-section.png` });
+
+  // 60b. Import and export on a phone. Below 700px the section opens on its own with
+  // the back bar, and the two action rows wrap so each button keeps a full tap
+  // target rather than being squeezed onto one line beside its neighbour.
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="transfer"]').click();
+  await expect(panel.locator('#hk-transfer')).toBeVisible();
+  await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
+    (el as HTMLTextAreaElement & { value: string }).value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, `{\n  \"home_keeper\": { \"format\": 1 },\n  \"appliances\": [\n    { \"external_id\": \"dishwasher\", \"name\": \"Kitchen dishwasher\", \"manufacturer\": \"Bosch\" }\n  ],\n  \"tasks\": [\n    {\n      \"external_id\": \"dishwasher-filter\",\n      \"name\": \"Clean the dishwasher filter\",\n      \"appliance\": \"dishwasher\",\n      \"interval\": 1,\n      \"unit\": \"months\",\n      \"history\": [{ \"completed_at\": \"2026-05-02\" }]\n    }\n  ]\n}`);
+  await panel.locator('#transfer-preview').click();
+  await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/60b-panel-mobile-transfer.png` });
 
   await page.setViewportSize(DESKTOP);
 });

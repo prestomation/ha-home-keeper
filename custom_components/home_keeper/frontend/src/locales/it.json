@@ -350,6 +350,7 @@
   "settings.companions_none": "Nessuna rilevata finora",
   "settings.notifications_none": "Ancora nessuna notifica",
   "settings.profiles_none": "Ancora nessun profilo",
+  "settings.transfer_summary": "Salvare un file o leggerne uno",
   "todo_sync.chip": "Sincronizzato con {name}",
   "todo_sync.entity_id": "Lista attività",
   "todo_sync.group": "Sincronizza con una lista attività",

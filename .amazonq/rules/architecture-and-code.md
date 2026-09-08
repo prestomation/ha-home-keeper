@@ -470,6 +470,54 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   `remove_asset_document`; upload stays HTTP-only, same reasoning (no binary bytes in
   a service call).
 
+## Data portability: a new field travels, or says why it does not
+
+- **`transfer.py` is the portable document** — one JSON shape that `export_data`
+  writes and `import_data` reads. Symmetry is the point: an export is also a worked
+  example of the format, which is what makes "show an assistant your export and ask
+  for twelve more like it" a complete instruction.
+- **A record's fields are the service's fields.** A `tasks` record is an `add_task`
+  payload plus a few document-only keys (`external_id`, `appliance`, `area`,
+  `history`, `skips`); an `appliances` record is an `add_asset` payload. So
+  `services.yaml` — and the generated API reference — documents the format for free,
+  and `tests/unit/test_transfer_coverage.py` fails when the two drift apart.
+- **Derive, never restate.** The export names the fields it *excludes*
+  (`EXCLUDED_TASK_KEYS` / `EXCLUDED_ASSET_KEYS`), each with a reason, and passes
+  everything else through. Import feeds a record straight back into
+  `models.normalize_fields` / `assets.normalize_fields`, which already know every
+  field. **A new persisted field on a task or an appliance therefore needs no change
+  to `transfer.py`** — and a hand-maintained allowlist would have been stale within
+  two releases. Excluding a field is one line *plus a reason*, which the coverage
+  test requires.
+- **A new field is not done until it round-trips.** `tests/unit/test_transfer_roundtrip.py`
+  builds a maximal record, sends it out and back, and compares field for field. It
+  needs no enumeration and no source parsing: a field that fails to travel shows up
+  as a dict diff naming the key. Run it when you add a field; when it goes red, either
+  make the field travel or exclude it with a reason.
+- **A new storage section is a decision, not an oversight.**
+  `test_transfer_coverage.py` `ast`-parses `store._save` and fails when a new
+  top-level key appears in neither the document's sections nor `EXCLUDED_STORE_KEYS`.
+  That table is a decision record — `problem_notes`, `shopping_items` and
+  `todo_list_items` are bookkeeping that means nothing on another install;
+  `declarative_companions` is deferred to a later `recipes:` section, not dropped.
+- **The primary key is a three-step ladder: `id`, then `external_id`, then `name`.**
+  First hit wins, the steps are independent (a stated id that names nothing is a
+  *create*, never a fall-through to a name match that would overwrite an unrelated
+  record), and ambiguity raises rather than guessing — the same rule the `*_id`
+  service fields follow, and for the same reason. `external_id` is the author's own
+  key, and it is what makes a re-run of a migration script update rather than
+  duplicate.
+- **An import validates everything before writing anything.** `plan_import` is pure
+  and touches nothing; one `error` problem means the store is untouched. That is what
+  makes a non-dry-run import safe to point at a generated file, and it gives whoever
+  generated it a fix-and-retry loop with a path on every problem.
+- **Forward compatibility is a named warning, never a silent drop.** An unknown field
+  or section is reported and the import proceeds — an older Home Keeper must read a
+  newer document — but it is *named*, because a field nobody read is data that did not
+  arrive. A newer `format` is a hard error.
+- **Backfilled history fires no completion event.** See "Events are the observation
+  surface" below and `docs/EVENTS.md`.
+
 ## Events are the observation surface — fire one for every state change
 - **Every observable state change fires a documented `home_keeper_<noun>_<verb>` bus
   event**, built by a **pure function in `events.py`** (no HA imports) so the test fake

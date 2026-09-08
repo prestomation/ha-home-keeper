@@ -359,6 +359,7 @@
   "settings.companions_none": "Zatím nic nezjištěno",
   "settings.notifications_none": "Zatím žádná oznámení",
   "settings.profiles_none": "Zatím žádné profily",
+  "settings.transfer_summary": "Uložit soubor nebo nějaký načíst",
   "todo_sync.chip": "Synchronizuje se se seznamem {name}",
   "todo_sync.entity_id": "Seznam úkolů",
   "todo_sync.group": "Synchronizovat se seznamem úkolů",

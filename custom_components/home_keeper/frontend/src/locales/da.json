@@ -341,6 +341,7 @@
   "settings.companions_none": "Ingen fundet endnu",
   "settings.notifications_none": "Ingen notifikationer endnu",
   "settings.profiles_none": "Ingen profiler endnu",
+  "settings.transfer_summary": "Gem en fil, eller læs en",
   "todo_sync.chip": "Synkroniseres med {name}",
   "todo_sync.entity_id": "Opgaveliste",
   "todo_sync.group": "Synkronisér med en opgaveliste",

@@ -359,6 +359,7 @@
   "settings.companions_none": "Пока не обнаружено",
   "settings.notifications_none": "Уведомлений пока нет",
   "settings.profiles_none": "Профилей пока нет",
+  "settings.transfer_summary": "Сохранить файл или прочитать файл",
   "todo_sync.chip": "Синхронизируется со списком {name}",
   "todo_sync.entity_id": "Список дел",
   "todo_sync.group": "Синхронизировать со списком дел",

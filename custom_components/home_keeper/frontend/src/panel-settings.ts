@@ -458,6 +458,10 @@ function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): str
   if (id === 'hk-profiles') return t('settings.profiles_none');
   if (id === 'hk-notifications') return t('settings.notifications_none');
   if (id === 'hk-companions') return t('settings.companions_none');
+  // This one holds no setting at all — it is two actions. The index still owes the
+  // reader a line saying what is behind the row, which on a phone is the only thing
+  // that says so before you open it.
+  if (id === 'hk-transfer') return t('settings.transfer_summary');
   return '';
 }
 

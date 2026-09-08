@@ -676,11 +676,7 @@ def plan_import(
         if entry is None:
             continue
         planned.append(entry)
-        planned_assets[entry.record_id] = (
-            entry.payload
-            if entry.action == "create"
-            else {**assets[entry.record_id], **entry.payload}
-        )
+        planned_assets[entry.record_id] = entry.payload
         for ref in (record.get("external_id"), record.get("name")):
             if ref:
                 asset_refs.setdefault(str(ref), entry.record_id)
@@ -858,7 +854,11 @@ def _plan_asset(
                 str(merged.get("name") or ""),
                 "update",
                 matched_by,
-                payload,
+                # The *merged record*, never the updates that made it. The applier
+                # writes a payload into the store as-is, so handing it a bare updates
+                # mapping would replace a whole appliance with a fragment that has no
+                # id — and the next device reconcile would trip over it.
+                merged,
             )
         built = assets_model.build_asset(payload, now=now)
     except assets_model.AssetValidationError as err:

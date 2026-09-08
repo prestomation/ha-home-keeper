@@ -64,7 +64,9 @@ async def async_import_document(
         tasks=coord.store.get_tasks(),
         assets=coord.store.get_assets(),
         area_ids={area.name: area.id for area in ar.async_get(hass).async_list_areas()},
-        device_ids=frozenset(registry.devices),
+        # The registry's ids, not its entries: a stated device_id is only kept
+        # when the device really is on this install.
+        device_ids=frozenset(registry.devices.keys()),
         match=data.get("match", "auto"),
         now=dt_util.now(),
     )

@@ -480,3 +480,67 @@ def test_the_json_form_is_something_a_person_can_read():
     assert text.startswith("{\n")
     assert text.endswith("\n")
     assert '"name": "Furnace filter"' in text
+
+
+# ── Every planned payload is a whole record ──────────────────────────────────
+
+
+@pytest.mark.parametrize("section", ["tasks", "appliances"])
+def test_a_planned_payload_is_always_a_complete_record(section):
+    """The applier writes a payload into the store verbatim, so a fragment corrupts it.
+
+    An update is built by merging, and it is the *merged record* that must be planned
+    — never the updates that produced it. Handing the applier a bare updates mapping
+    replaced a whole appliance with a fragment that had no ``id``, and the next device
+    reconcile tripped over it (``KeyError: 'id'``). Nothing in the plan's own shape
+    said that was wrong, so this asks the question directly, for both sections and for
+    both actions.
+    """
+    stored_task = _task(external_id="k")
+    stored_asset = tr.assets_model.build_asset(
+        {"name": "Furnace", "external_id": "k"}, now=NOW
+    )
+    document = _doc(
+        tasks=[
+            {"external_id": "k", "name": "Updated task"},
+            {"external_id": "fresh-task", "name": "New task"},
+        ],
+        appliances=[
+            {"external_id": "k", "name": "Updated appliance"},
+            {"external_id": "fresh-appliance", "name": "New appliance"},
+        ],
+    )
+    plan = _plan(
+        document,
+        tasks={stored_task["id"]: stored_task},
+        assets={stored_asset["id"]: stored_asset},
+    )
+    assert plan.ok, _errors(plan)
+    planned = plan.for_section(section)
+    assert {r.action for r in planned} == {"create", "update"}
+    for record in planned:
+        # The id the store will file it under has to be *in* the record, or the
+        # record and its key disagree the moment anything reads the store back.
+        assert record.payload.get("id") == record.record_id, record.action
+        assert record.payload.get("name"), record.action
+        assert "created" in record.payload, record.action
+
+
+def test_an_appliance_update_keeps_the_fields_the_document_left_out():
+    stored = tr.assets_model.build_asset(
+        {
+            "name": "Furnace",
+            "external_id": "furnace",
+            "manufacturer": "Carrier",
+            "serial_number": "1234",
+        },
+        now=NOW,
+    )
+    plan = _plan(
+        _doc(appliances=[{"external_id": "furnace", "name": "Furnace (renamed)"}]),
+        assets={stored["id"]: stored},
+    )
+    payload = plan.records[0].payload
+    assert payload["name"] == "Furnace (renamed)"
+    assert payload["manufacturer"] == "Carrier"
+    assert payload["serial_number"] == "1234"

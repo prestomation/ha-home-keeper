@@ -4,7 +4,7 @@ import { DESKTOP, PHONE } from '../viewports';
 
 /**
  * Settings on a narrow screen is a section index that opens one section at a time — a
- * screen with no room for a rail beside six expanded sections has no room for the six
+ * screen with no room for a rail beside the expanded sections has no room for the
  * sections either.
  *
  * The split is entirely CSS: all three parts (rail, index, sections) are rendered at
@@ -32,7 +32,7 @@ test.describe('Home Keeper panel — Settings on a narrow screen', { tag: '@narr
 
     // One row per section, and the rail they replace is not on screen.
     const rows = panel.locator('.hk-index-row');
-    await expect(rows).toHaveCount(7);
+    await expect(rows).toHaveCount(8);
     await expect(panel.locator('.hk-settings-rail')).toBeHidden();
     // The row states the section's current value, so the index answers "is the sync
     // on" without opening anything — the job the rail does on a wide screen.
@@ -100,7 +100,7 @@ test.describe('Home Keeper panel — Settings on a narrow screen', { tag: '@narr
   test('an unknown section falls back to the index rather than a blank page', async ({ page }) => {
     await page.goto('/home-keeper/settings/nonsense');
     const panel = page.locator('home-keeper-panel').first();
-    await expect(panel.locator('.hk-index-row')).toHaveCount(7);
+    await expect(panel.locator('.hk-index-row')).toHaveCount(8);
   });
 
 });

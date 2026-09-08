@@ -341,6 +341,7 @@
   "settings.companions_none": "Noch keine erkannt",
   "settings.notifications_none": "Noch keine Benachrichtigungen",
   "settings.profiles_none": "Noch keine Profile",
+  "settings.transfer_summary": "Eine Datei sichern oder eine lesen",
   "todo_sync.chip": "Abgleich mit {name}",
   "todo_sync.entity_id": "To-do-Liste",
   "todo_sync.group": "Mit einer To-do-Liste abgleichen",

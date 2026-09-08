@@ -398,6 +398,14 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   for the service: add the service first (with a `services.yaml` entry and
   `strings.json` localization parity), and have any websocket command delegate to
   the same store method. See `.amazonq/rules/architecture-and-code.md`.
+- **A new persisted field is not done until it round-trips.** The import/export
+  document (`transfer.py`) exports what it does not exclude, so a field added to
+  `models.build_task` or `assets.build_asset` travels in both directions for free —
+  and `tests/unit/test_transfer_roundtrip.py` is what proves it did. When that test
+  goes red, either make the field travel or name it in the matching `EXCLUDED_*`
+  table with a reason. A new *storage section* is caught by
+  `test_transfer_coverage.py` instead. See `.amazonq/rules/architecture-and-code.md`
+  → "Data portability".
 - **Fire a `home_keeper_<noun>_<verb>` event for every state change.** Built by a pure
   builder in `events.py`, fired at the `store.py` chokepoint (including the non-CRUD
   mutation paths), edge-triggered for transitions (`transitions.py` + the coordinator,

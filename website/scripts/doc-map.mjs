@@ -56,6 +56,7 @@ export const USER_SECTIONS = [
   {h: 'Notifications (actionable reminders on your phone)', slug: 'notifications', title: 'Notifications', label: 'Notifications', group: 'views'},
   {h: 'Dashboard task card', slug: 'dashboard-card', title: 'Dashboard card', label: 'Dashboard card', group: 'views'},
   {h: 'Settings', slug: 'settings', title: 'Settings', group: 'views'},
+  {h: 'Import and export', slug: 'import-export', title: 'Import and export', label: 'Import and export', group: 'automation'},
   {h: 'Services', slug: 'services', title: 'Services', group: 'automation'},
   {h: 'Events & automations', slug: 'events', title: 'Events & automations', label: 'Events', group: 'automation'},
   {h: 'Integrations', slug: 'integrations', title: 'Integrations', group: 'automation'},
@@ -146,6 +147,8 @@ export const ANCHOR_ROUTES = {
   // The Settings section links across to the to-do list sync section (→ todo-sync page).
   '#send-tasks-to-your-to-do-lists': '/docs/guide/todo-sync',
   '#dashboard-task-card': '/docs/guide/dashboard-card',
+  // Settings and Services both point at the import/export section (→ its own page).
+  '#import-and-export': '/docs/guide/import-export',
   '#snooze-and-skip': '/docs/guide/snooze-and-skip',
   // The Notifications section links across to the events section (→ events page).
   '#events--automations': '/docs/guide/events',
