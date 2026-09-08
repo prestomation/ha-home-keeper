@@ -66,8 +66,14 @@ jobs:
       - name: Install
         working-directory: website
         run: |
-          pip install PyYAML homeassistant voluptuous-openapi Babel
+          pip install PyYAML homeassistant Babel
           npm ci
+
+      - name: Report and verify the Home Assistant version being used
+        run: python ci/check-ha-version.py
+
+      - name: Install the schema generator's converter, as Home Assistant pins it
+        run: bash ci/install-schema-deps.sh
 
       - name: Extract version
         id: version

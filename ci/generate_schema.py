@@ -72,6 +72,18 @@ def load_component() -> Any:
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
     try:
+        # Home Assistant must be imported FIRST, before anything pulls in voluptuous.
+        # Since 2026.3 its package ``__init__`` calls ``install_as_voluptuous()`` to put
+        # probatio in voluptuous's place, and it warns when something imported
+        # voluptuous already: references then resolve to two different ``Schema``
+        # classes, and ``voluptuous_openapi``'s ``schema in TYPES_MAP`` raises
+        # ``TypeError: unhashable type: 'Schema'`` on the wrong one. The component's own
+        # first third-party import is ``import voluptuous as vol``, which under Home
+        # Assistant is harmless (Home Assistant loaded itself long before) and here is
+        # not — so this line is load-bearing, not tidying. CI found it; a local Home
+        # Assistant old enough to still use voluptuous cannot.
+        import homeassistant  # noqa: F401
+
         import custom_components.home_keeper as component
     except ImportError as err:  # pragma: no cover - a setup problem, not a code path
         raise SystemExit(

@@ -47,7 +47,11 @@ jobs:
       # PR, rather than in the path-filtered docs workflow: a change to
       # models.build_task can drift the schema without touching a docs path.
       - name: Install the schema gate's own dependencies
-        run: pip install pytest PyYAML jsonschema voluptuous-openapi
+        # voluptuous-openapi goes in under Home Assistant's constraints, because the
+        # version is Home Assistant's to choose — see ci/install-schema-deps.sh.
+        run: |
+          pip install pytest PyYAML jsonschema
+          bash ci/install-schema-deps.sh
       - name: Published document schema matches the code
         run: python -m pytest tests/unit/test_generate_schema.py -v
 

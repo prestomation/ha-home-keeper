@@ -47,7 +47,8 @@
           "home"
         ],
         "completion_detail": "optional",
-        "completion_required_fields": []
+        "completion_required_fields": [],
+        "skips": []
       },
       "25f086ad-91ce-4ca4-8f05-73b443565479": {
         "id": "25f086ad-91ce-4ca4-8f05-73b443565479",
@@ -56,7 +57,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "8bd73ec4947e9257112074a41eba3a02",
+        "device_id": "1e7beb8aadf01309b8448a2e119f6bd3",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -80,7 +81,8 @@
           }
         },
         "completion_detail": "none",
-        "completion_required_fields": []
+        "completion_required_fields": [],
+        "active_season": null
       },
       "96e74181-ebe2-4b4c-97d0-781fc952924f": {
         "id": "96e74181-ebe2-4b4c-97d0-781fc952924f",
@@ -166,7 +168,10 @@
             "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
             "entry_id": "56656a41-c3a1-4db7-9adf-d1b0fb9e0c23"
           }
-        ]
+        ],
+        "active_season": null,
+        "tag_id": null,
+        "require_tag_scan": false
       },
       "a5d646cc-ab00-471f-b945-73dda6080ddb": {
         "id": "a5d646cc-ab00-471f-b945-73dda6080ddb",
@@ -297,7 +302,8 @@
         ],
         "completion_detail": "none",
         "completion_required_fields": [],
-        "tag_id": null
+        "tag_id": null,
+        "active_season": null
       },
       "b61a0b0e-6838-46a9-89d5-7090f8b4aa35": {
         "id": "b61a0b0e-6838-46a9-89d5-7090f8b4aa35",
@@ -433,14 +439,15 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "8bd73ec4947e9257112074a41eba3a02",
+        "device_id": "1e7beb8aadf01309b8448a2e119f6bd3",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
         "completion_required_fields": [],
         "interval": 36,
         "unit": "months",
-        "next_due": "2026-06-27T17:47:36.205398-04:00"
+        "next_due": "2026-06-27T17:47:36.205398-04:00",
+        "active_season": null
       },
       "49528fb6-c37d-4ddb-8402-4decc73eecee": {
         "id": "49528fb6-c37d-4ddb-8402-4decc73eecee",
@@ -554,7 +561,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "8bd73ec4947e9257112074a41eba3a02",
+        "device_id": "1e7beb8aadf01309b8448a2e119f6bd3",
         "identifiers": [
           [
             "home_keeper",
@@ -723,7 +730,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "949cc478c2c1de22b6502da9228eb343",
+        "device_id": "1017b46861aeaf9c336afa8f02b409bc",
         "identifiers": [
           [
             "home_keeper",
@@ -748,7 +755,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "e074eadf852156936f534ed2a35b9d9f",
+        "device_id": "0cab11ac130c7c301f875d5d9074c1bc",
         "identifiers": [
           [
             "home_keeper",
@@ -774,6 +781,7 @@
       "binary_sensor.sump_pump_problem": "Reset the pump breaker in the garage panel, then prime it. Spare float switch: part #SFS-200 in the utility drawer."
     },
     "shopping_items": {},
+    "declarative_companions": {},
     "todo_list_items": {}
   }
 }
