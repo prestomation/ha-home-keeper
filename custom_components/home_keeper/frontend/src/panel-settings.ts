@@ -43,6 +43,7 @@ import {
 } from './forms';
 import { t, tn } from './i18n';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
+import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { COMPANIONS_DOCS_URL, DOCS_URL } from './panel-icons';
 import type {
@@ -894,12 +895,13 @@ async function persistOptionList(
   key: OptionListKey,
   list: Profile[] | Notification[],
   render: boolean,
-  expandLast = false,
+  opts: { expandLast?: boolean; rollbackOnFailure?: boolean } = {},
 ): Promise<void> {
   if (!p._hass) return;
   const cardId = LIST_CARD_ID[key];
   const isNewest = claimSave(p, key);
   markSaving(p, cardId);
+  const previous = (p._options as HomeKeeperOptions | null)?.[key];
   p._options = { ...(p._options as HomeKeeperOptions), [key]: list };
   try {
     const merged = await api.setOptions(p._hass, {
@@ -907,7 +909,7 @@ async function persistOptionList(
     } as Partial<HomeKeeperOptions>);
     // Stale answer: a newer save has already put its own value in `p._options`.
     if (isNewest()) p._options = merged;
-    if (expandLast) {
+    if (opts.expandLast) {
       // Read the row out of **this** save's own answer rather than `p._options`. They
       // are the same list in the ordinary case, but two adds in quick succession are
       // not: the second answer holds both new rows, so the first add would expand the
@@ -921,11 +923,22 @@ async function persistOptionList(
     markSettled(p, cardId, true);
   } catch (err) {
     markSettled(p, cardId, false);
-    // The optimistic write above stands. The user keeps what they typed and sees the
-    // backend's own message, and the next save of this list carries the value again —
-    // a retry rather than a silent revert. Rolling back here would take the text out
-    // of the field under them, which is worse for the common case (a transient
-    // failure) than re-sending it.
+    // A rejected *delete* is the one failure the rule below gets wrong. There is no
+    // typed text to keep, and the optimistic write already took the row off screen, so
+    // leaving it in place makes the panel say a row is gone that the backend still
+    // holds — until something else reloads. Put it back. The isNewest() guard is there
+    // for the same reason the success path has one: a newer save has already written
+    // its own list, and restoring this snapshot over it would bring back a row that
+    // save removed. Without the render the restored row stays off screen.
+    if (opts.rollbackOnFailure && isNewest() && previous) {
+      p._options = { ...(p._options as HomeKeeperOptions), [key]: previous };
+      if (render) p._render();
+    }
+    // Otherwise the optimistic write stands. The user keeps what they typed and sees
+    // the backend's own message, and the next save of this list carries the value
+    // again — a retry rather than a silent revert. Rolling back there would take the
+    // text out of the field under them, which is worse for the common case (a
+    // transient failure) than re-sending it.
     toast(p, String((err as { message?: string })?.message || err));
   }
 }
@@ -1013,7 +1026,7 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
       if (open) p._itemExpanded.add(profile.id);
       else p._itemExpanded.delete(profile.id);
     },
-    onDelete: () => void deleteProfile(p, profile.id),
+    onDelete: () => confirmDeleteProfile(p, profile),
     fill: (body, nameSpan) => {
       // The filter form and the sync group are two `ha-form`s editing one profile, and
       // both save through the same debounce key. Each keeps the other half in a closure
@@ -1181,7 +1194,38 @@ function addProfile(p: PanelHost): Promise<void> {
     // carry the defaults the backend normalizer would fill in.
     sync: { entity_id: '', two_way: true, vanish_as_completed: true },
   };
-  return persistOptionList(p, 'profiles', [...(p._options?.profiles ?? []), blank], true, true);
+  return persistOptionList(p, 'profiles', [...(p._options?.profiles ?? []), blank], true, {
+    expandLast: true,
+  });
+}
+
+/** The notifications that would be left with no profile if *profileId* went.
+ *
+ *  This repeats `options.profile_removals_in_use` in the backend, which is the gate
+ *  that actually refuses the save. Kept here so the panel does not offer a Delete
+ *  whose only outcome is an error — the same reason `card-filter.ts` repeats
+ *  `profiles.matches_filter`. That one needs a shared fixture to stay in step; this
+ *  one is a single id comparison, so a fixture would cost more than it protects. */
+function notificationsUsingProfile(p: PanelHost, profileId: string): Notification[] {
+  return (p._options?.notifications ?? []).filter((n) => n.profile_id === profileId);
+}
+
+/** Ask before deleting a profile, or say why it cannot be deleted. */
+function confirmDeleteProfile(p: PanelHost, profile: Profile): void {
+  const blockers = notificationsUsingProfile(p, profile.id);
+  if (blockers.length) {
+    openBlockedDialog(
+      p,
+      t('confirm.profileInUseTitle', { name: profile.name }),
+      t('confirm.profileInUseBody', {
+        notifications: blockers.map((n) => n.name).join(', '),
+      }),
+    );
+    return;
+  }
+  openConfirmDialog(p, t('confirm.deleteProfile', { name: profile.name }), () => {
+    void deleteProfile(p, profile.id);
+  });
 }
 
 function deleteProfile(p: PanelHost, id: string): Promise<void> {
@@ -1189,7 +1233,9 @@ function deleteProfile(p: PanelHost, id: string): Promise<void> {
   p._itemExpanded.delete(syncKey(id));
   p._settingsSectionCollapsed.delete(syncKey(id));
   const next = (p._options?.profiles ?? []).filter((x) => x.id !== id);
-  return persistOptionList(p, 'profiles', next, true);
+  // A refused save has to put the row back: the pre-check above can be out of date
+  // when a second admin binds a notification to this profile in the meantime.
+  return persistOptionList(p, 'profiles', next, true, { rollbackOnFailure: true });
 }
 
 // ── notifications ───────────────────────────────────────────────────────────
@@ -1409,14 +1455,14 @@ function addNotification(p: PanelHost): Promise<void> {
     'notifications',
     [...(p._options?.notifications ?? []), blank],
     true,
-    true,
+    { expandLast: true },
   );
 }
 
 function deleteNotification(p: PanelHost, id: string): Promise<void> {
   p._itemExpanded.delete(id);
   const next = (p._options?.notifications ?? []).filter((n) => n.id !== id);
-  return persistOptionList(p, 'notifications', next, true);
+  return persistOptionList(p, 'notifications', next, true, { rollbackOnFailure: true });
 }
 
 // ── companions ──────────────────────────────────────────────────────────────

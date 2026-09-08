@@ -1034,6 +1034,9 @@
     },
     "declarative_companion_not_found": {
       "message": "Deklarativní společník nebyl nalezen: {spec_id}"
+    },
+    "profile_in_use": {
+      "message": "Home Keeper nemůže odstranit tyto profily: {profiles}. Tato oznámení je používají: {notifications}. Změňte nebo odstraňte každé oznámení a poté uložte znovu."
     }
   }
 }

@@ -1,5 +1,5 @@
 import { test, expect, Locator, Page } from '@playwright/test';
-import { openAppliance, openPanel } from './helpers';
+import { openAppliance, openPanel, openSettingsSection } from './helpers';
 import { ASSET, TASK } from '../fixture-ids';
 
 /**
@@ -219,6 +219,53 @@ test.describe('Home Keeper panel — phone layout', { tag: '@phone' }, () => {
     // The spacer only pushes Done rightwards on a single-line row; the grid has a
     // column for that, so the spacer must not take a line of its own.
     expect(find('hk-row-spacer').display).toBe('none');
+  });
+
+  test('a companion row keeps its buttons on the screen', async ({ page }) => {
+    // Held on the desktop's single line, the chips beside the name came out of their
+    // box and covered Edit, and Delete went past the right edge with nothing to
+    // scroll. A screenshot showed it for months and nothing failed, so this measures
+    // it: the buttons are under the text rather than beside it, and both are inside
+    // the screen.
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await openSettingsSection(panel, 'companions');
+    await expect(panel.locator('#hk-companions')).toBeVisible();
+
+    const rows = panel.locator('#hk-companions .hk-companion');
+    await expect(rows.first()).toBeVisible();
+    const count = await rows.count();
+    expect(count, 'no companion rows to measure').toBeGreaterThan(0);
+
+    const { width: viewportWidth } = viewportOf(page);
+    expect(await horizontalOverflow(panel, '#hk-companions')).toBeLessThanOrEqual(0);
+
+    for (let i = 0; i < count; i += 1) {
+      const row = rows.nth(i);
+      const nameBox = await row.locator('.hk-companion-name').boundingBox();
+      const actionsBox = await row.locator('.hk-companion-actions').boundingBox();
+      expect(nameBox, `row ${i} has no name`).toBeTruthy();
+      expect(actionsBox, `row ${i} has no actions`).toBeTruthy();
+
+      // Below the text, not beside it — which is what stops the chips reaching it.
+      expect(actionsBox!.y, `row ${i} actions sit beside the name`).toBeGreaterThanOrEqual(
+        nameBox!.y + nameBox!.height - 1,
+      );
+
+      // And every button is on the screen and big enough to press.
+      const tap = Number.parseFloat(await token(panel, '--hk-tap'));
+      const buttons = row.locator('.hk-companion-actions ha-button');
+      const buttonCount = await buttons.count();
+      expect(buttonCount, `row ${i} has no buttons`).toBeGreaterThan(0);
+      for (let b = 0; b < buttonCount; b += 1) {
+        const box = (await buttons.nth(b).boundingBox())!;
+        expect(box.x, `row ${i} button ${b} starts off the left edge`).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width, `row ${i} button ${b} runs off the right edge`)
+          .toBeLessThanOrEqual(viewportWidth + 1);
+        expect(box.height, `row ${i} button ${b} is under the tap target`)
+          .toBeGreaterThanOrEqual(tap - 1);
+      }
+    }
   });
 });
 

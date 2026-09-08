@@ -507,7 +507,15 @@ export const STYLES = `
   }
   .hk-companion-ic { color: var(--state-icon-color, var(--primary-text-color)); flex: 0 0 auto; }
   .hk-companion-body { flex: 1 1 auto; min-width: 0; }
-  .hk-companion-name { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+  /* The name, its status chip and the preset badge take as many lines as they need.
+     An ha-assist-chip does not become smaller than its label, and a preset badge reads
+     "Preset: " plus the preset id, so on one line it left the box and covered the
+     buttons beside it. This holds at every width: the Settings column is also narrow
+     below 1000px. */
+  .hk-companion-name {
+    display: flex; align-items: center; gap: 8px; font-weight: 500;
+    flex-wrap: wrap; row-gap: 4px; overflow-wrap: anywhere;
+  }
   .hk-companion-desc {
     color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4; margin-top: 2px;
   }
@@ -1653,6 +1661,29 @@ export const STYLES = `
     .hk-card-row:not(.hk-row-task) { display: flex; flex-wrap: wrap; row-gap: 6px; }
     .hk-row-asset > .grow { flex: 1 1 100%; }
     .hk-row-asset .hk-chips, .hk-row-asset .hk-status { flex: 0 1 auto; }
+    /* A companion row becomes a two-column grid on a phone: the icon beside what the
+       companion is, and the buttons on a line of their own below. Side by side, the
+       buttons keep their full width and the body gives up all of its own — but an
+       ha-assist-chip does not become smaller than its label, so the status and preset
+       chips came out of the body box and covered Edit, and Delete went past the right
+       edge with no way to scroll to it. A full-width action row also makes the buttons
+       large enough for a thumb, which they were not while they shared 390px with a
+       name. This applies to every companion row: a suggested companion has three
+       buttons, so it overflowed first. */
+    .hk-companion {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-areas: "ic body" "actions actions";
+      column-gap: 12px; row-gap: 8px;
+      align-items: start;
+    }
+    .hk-companion-ic { grid-area: ic; }
+    .hk-companion-body { grid-area: body; }
+    /* The action row is a grid area, so it has a width to wrap against. The flex-wrap
+       this rule always carried could not do anything while the row was one flex line. */
+    .hk-companion-actions { grid-area: actions; justify-content: flex-end; gap: 8px; }
+    /* Thumb-sized again on a phone, the same as the task row above. */
+    .hk-companion-actions ha-button { --ha-button-height: var(--hk-tap); }
   }
 
   /* ── Wide: both lists lay their parts on fixed rails ───────────────────────

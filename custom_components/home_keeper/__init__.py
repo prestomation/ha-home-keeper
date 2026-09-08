@@ -1501,7 +1501,20 @@ def _register_services(hass: HomeAssistant) -> None:
         # reserves for admins. Mirrors ``ws_set_options``'s ``require_admin``.
         await _verify_admin(call)
         coord = _coordinator()
-        await options.async_set_options(hass, coord.entry, dict(call.data))
+        try:
+            await options.async_set_options(hass, coord.entry, dict(call.data))
+        except options.ProfileInUseError as err:
+            # Bad input, not a failure: the call removes a profile that a notification
+            # in the same saved document still names. Send both lists so the message
+            # says which profile and which notifications.
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="profile_in_use",
+                translation_placeholders={
+                    "profiles": err.profiles,
+                    "notifications": err.notifications,
+                },
+            ) from err
 
     async def handle_register_companion(call: ServiceCall) -> dict[str, Any]:
         """Record a companion integration that works with Home Keeper.

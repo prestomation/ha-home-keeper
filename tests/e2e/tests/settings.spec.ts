@@ -338,6 +338,100 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     }
   });
 
+  test('a profile a notification uses cannot be deleted, and the panel names it', async ({
+    page,
+  }) => {
+    // Deleting the profile used to succeed and take the notification down with it: the
+    // notification kept the id, found no profile behind it and sent nothing, with
+    // nothing on screen to say so. Now the backend refuses the save, and the panel says
+    // which notification is in the way rather than offering a button that can only
+    // produce an error.
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: 'e2e_guard_used',
+          name: 'Held profile',
+          filter: { status: 'all', labels: [], areas: [], devices: [] },
+        },
+        {
+          id: 'e2e_guard_free',
+          name: 'Free profile',
+          filter: { status: 'all', labels: [], areas: [], devices: [] },
+        },
+      ],
+      notifications: [
+        {
+          id: 'e2e_guard_notify',
+          name: 'Bin day',
+          profile_id: 'e2e_guard_used',
+          targets: [],
+          actions: ['complete'],
+          style: 'walk',
+          snooze_hours: 24,
+          channel: '',
+          urgency: 'normal',
+          auto: { overdue: false, due_soon: false },
+        },
+      ],
+    });
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      await settleToasts(page);
+      await openSettingsSection(panel, 'profiles');
+      const card = panel.locator('#hk-profiles');
+      await expect(card).toBeVisible();
+
+      const rowFor = (name: string) =>
+        card.locator('.hk-item-card').filter({ hasText: name }).first();
+      const openRow = async (name: string) => {
+        const header = rowFor(name).locator('.hk-item-header');
+        if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+      };
+
+      // The held profile: blocked, and the notification is named.
+      await openRow('Held profile');
+      await rowFor('Held profile').locator('.hk-notify-delete').click();
+      const scrim = page.locator('.hk-confirm-scrim');
+      await expect(scrim).toBeVisible();
+      await expect(scrim).toContainText('Bin day');
+      await expect(scrim.locator('ha-button')).toHaveCount(1);
+      await scrim.locator('ha-button').click();
+      await expect(scrim).toBeHidden();
+
+      // Nothing was sent, so the profile is still there.
+      expect(
+        await page.evaluate(async () => {
+          const hass = (document.querySelector('home-assistant') as any).hass;
+          const res = await hass.callWS({ type: 'home_keeper/get_options' });
+          return res.options.profiles.map((p: any) => p.id);
+        }),
+      ).toContain('e2e_guard_used');
+
+      // The free profile: asked for first, then deleted.
+      await openRow('Free profile');
+      await rowFor('Free profile').locator('.hk-notify-delete').click();
+      await expect(scrim).toBeVisible();
+      await scrim.locator('ha-button', { hasText: 'Delete' }).click();
+      await expect
+        .poll(
+          () =>
+            page.evaluate(async () => {
+              const hass = (document.querySelector('home-assistant') as any).hass;
+              const res = await hass.callWS({ type: 'home_keeper/get_options' });
+              return res.options.profiles.map((p: any) => p.id);
+            }),
+          { timeout: 15_000 },
+        )
+        .toEqual(['e2e_guard_used']);
+
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
+    }
+  });
+
   test('the problem-sensor toggle explains what clears a synced task', async ({ page }) => {
     // The consequences of the toggle aren't guessable from its label: such a task
     // clears only when its source integration resolves the problem, so its reminders

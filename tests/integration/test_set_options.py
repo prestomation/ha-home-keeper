@@ -9,7 +9,7 @@ the problem-sensor reconcile end to end.
 
 import time
 
-from conftest import call_service
+from conftest import HA_URL, call_service
 
 SENSOR = "binary_sensor.sump_pump_problem"
 
@@ -147,3 +147,74 @@ def test_device_exclusion_does_not_drop_deviceless_sensors(ha):
         {"problem_sensor_exclude_devices": []},
     )
     assert _synced_present(ha), "clearing the device exclusion should leave the task"
+
+
+def _profile_ids(ha) -> list[str]:
+    """The stored profiles, over the one service that reads them back."""
+    resp = call_service(ha, "home_keeper", "list_profiles", {}, return_response=True)
+    return [p["id"] for p in resp.get("service_response", resp)["profiles"]]
+
+
+_GUARD_PROFILE = {
+    "id": "it_guard_profile",
+    "name": "Bins",
+    "filter": {"status": "all", "labels": [], "areas": [], "devices": []},
+}
+_GUARD_NOTIFICATION = {
+    "id": "it_guard_notify",
+    "name": "Bin day",
+    "profile_id": "it_guard_profile",
+    "targets": [],
+    "actions": ["complete"],
+    "style": "walk",
+    "snooze_hours": 24,
+    "channel": "",
+    "urgency": "normal",
+    "auto": {"overdue": False, "due_soon": False},
+}
+
+
+def test_set_options_refuses_to_strand_a_notification(ha):
+    """Removing a profile a surviving notification names is rejected, not written.
+
+    The unit tier pins the predicate; this proves the refusal reaches a real service
+    caller, through the real config entry, with the stored options left alone.
+    """
+    call_service(
+        ha,
+        "home_keeper",
+        "set_options",
+        {"profiles": [_GUARD_PROFILE], "notifications": [_GUARD_NOTIFICATION]},
+    )
+    try:
+        resp = ha.post(
+            f"{HA_URL}/api/services/home_keeper/set_options",
+            json={"profiles": []},
+        )
+        assert resp.status_code >= 400, (
+            f"expected the save to be refused, got {resp.status_code}"
+        )
+        # The profile survived, so the notification still has something behind its id.
+        assert _profile_ids(ha) == ["it_guard_profile"]
+    finally:
+        call_service(
+            ha, "home_keeper", "set_options", {"profiles": [], "notifications": []}
+        )
+
+
+def test_set_options_allows_deleting_a_profile_with_its_notifications(ha):
+    """One call carrying both empty lists is the supported way to clear a profile.
+
+    Read from the *merged* document rather than the stored one, so a notification the
+    same save removes cannot block it. Three e2e specs tear down exactly this way.
+    """
+    call_service(
+        ha,
+        "home_keeper",
+        "set_options",
+        {"profiles": [_GUARD_PROFILE], "notifications": [_GUARD_NOTIFICATION]},
+    )
+    call_service(
+        ha, "home_keeper", "set_options", {"profiles": [], "notifications": []}
+    )
+    assert _profile_ids(ha) == []

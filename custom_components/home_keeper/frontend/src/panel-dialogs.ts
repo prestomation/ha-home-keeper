@@ -156,12 +156,25 @@ export function openConfirmDialog(p: PanelHost, label: string, onConfirm: () => 
   // Drop any prior scrim (and its keydown listener) before opening a new one, so a
   // second open — or a stale scrim — can't orphan the earlier overlay + handler.
   teardownOverlay(p);
-  p._confirmDelete = { open: true, label, onConfirm };
+  p._confirmDelete = { open: true, label, body: t('confirm.cannotUndo'), onConfirm };
+  renderConfirmDeleteDialog(p);
+}
+
+/**
+ * The same scrim, with the destructive button taken away: a heading, a reason, and
+ * Close. For an action the backend will refuse, where offering Delete would be a
+ * button whose only outcome is an error. `onConfirm` is null, which is what
+ * `renderConfirmDeleteDialog` reads to drop the Delete button and to label the one
+ * remaining button Close — there is nothing here to cancel.
+ */
+export function openBlockedDialog(p: PanelHost, label: string, body: string): void {
+  teardownOverlay(p);
+  p._confirmDelete = { open: true, label, body, onConfirm: null };
   renderConfirmDeleteDialog(p);
 }
 
 function closeConfirmDialog(p: PanelHost): void {
-  p._confirmDelete = { open: false, label: '', onConfirm: null };
+  p._confirmDelete = { open: false, label: '', body: '', onConfirm: null };
   teardownOverlay(p);
   // Opening the confirmation took the drawer's Escape handler away, so that one
   // Escape could not close both overlays at once. Give it back: without this, a
@@ -171,7 +184,7 @@ function closeConfirmDialog(p: PanelHost): void {
 }
 
 function renderConfirmDeleteDialog(p: PanelHost): void {
-  const { label, onConfirm } = p._confirmDelete;
+  const { label, body, onConfirm } = p._confirmDelete;
 
   // Appended to document.body so position:fixed works correctly outside the
   // shadow DOM stacking context.
@@ -195,7 +208,7 @@ function renderConfirmDeleteDialog(p: PanelHost): void {
 
   const para = document.createElement('p');
   para.style.cssText = 'margin:0 0 24px;color:var(--secondary-text-color,#666)';
-  para.textContent = t('confirm.cannotUndo');
+  para.textContent = body;
 
   const row = document.createElement('div');
   row.style.cssText = 'display:flex;justify-content:flex-end;gap:8px';
@@ -212,32 +225,35 @@ function renderConfirmDeleteDialog(p: PanelHost): void {
     closeConfirmDialog(p);
   };
 
+  // Cancel when there is a Delete beside it, Close when this dialog only reports
+  // something. A blocked action has nothing to cancel: the save never started.
   const cancel = document.createElement('ha-button');
   setBtnWeight(cancel, 'tertiary');
-  cancel.textContent = t('btn.cancel');
+  cancel.textContent = onConfirm ? t('btn.cancel') : t('btn.close');
   cancel.addEventListener('click', close);
-
-  // The one surface in the panel whose whole reason to exist is the destruction, so
-  // the one place Delete carries a solid fill. Its red comes from `variant`, which
-  // resolves against Home Assistant's document-level theme — this scrim is appended
-  // to document.body, where the panel's own `:host` tokens do not reach.
-  const del = document.createElement('ha-button');
-  setBtnWeight(del, 'danger-primary');
-  del.textContent = t('btn.delete');
-  del.addEventListener('click', () => {
-    onConfirm?.();
-    closeConfirmDialog(p);
-    // Re-render after the mutation: the confirm callbacks (metadata/part row
-    // deletion) only mutate state, and neither this handler nor
-    // closeConfirmDialog rendered — so a deleted row stayed visible, and its
-    // siblings' value-changed closures kept stale render-time indices that wrote
-    // into the now-shifted array and corrupted the wrong entry. Rebuilding the form
-    // with fresh indices fixes both.
-    p._render();
-  });
-
   row.appendChild(cancel);
-  row.appendChild(del);
+
+  if (onConfirm) {
+    // The one surface in the panel whose whole reason to exist is the destruction, so
+    // the one place Delete carries a solid fill. Its red comes from `variant`, which
+    // resolves against Home Assistant's document-level theme — this scrim is appended
+    // to document.body, where the panel's own `:host` tokens do not reach.
+    const del = document.createElement('ha-button');
+    setBtnWeight(del, 'danger-primary');
+    del.textContent = t('btn.delete');
+    del.addEventListener('click', () => {
+      onConfirm();
+      closeConfirmDialog(p);
+      // Re-render after the mutation: the confirm callbacks (metadata/part row
+      // deletion) only mutate state, and neither this handler nor
+      // closeConfirmDialog rendered — so a deleted row stayed visible, and its
+      // siblings' value-changed closures kept stale render-time indices that wrote
+      // into the now-shifted array and corrupted the wrong entry. Rebuilding the form
+      // with fresh indices fixes both.
+      p._render();
+    });
+    row.appendChild(del);
+  }
   modal.appendChild(h2);
   modal.appendChild(para);
   modal.appendChild(row);

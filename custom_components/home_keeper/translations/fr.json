@@ -1034,6 +1034,9 @@
     },
     "declarative_companion_not_found": {
       "message": "Companion déclaratif introuvable : {spec_id}"
+    },
+    "profile_in_use": {
+      "message": "Home Keeper ne peut pas supprimer ces profils : {profiles}. Ces notifications les utilisent : {notifications}. Modifiez ou supprimez chaque notification, puis enregistrez à nouveau."
     }
   }
 }

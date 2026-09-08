@@ -161,6 +161,16 @@ def _with_coordinator(
                     "invalid_asset",
                     error=str(err),
                 )
+            except options.ProfileInUseError as err:
+                _err(
+                    hass,
+                    connection,
+                    msg,
+                    "profile_in_use",
+                    "profile_in_use",
+                    profiles=err.profiles,
+                    notifications=err.notifications,
+                )
 
         return wrapped
 

@@ -1034,6 +1034,9 @@
     },
     "declarative_companion_not_found": {
       "message": "Deklaratiivista kumppania ei löytynyt: {spec_id}"
+    },
+    "profile_in_use": {
+      "message": "Home Keeper ei voi poistaa näitä profiileja: {profiles}. Nämä ilmoitukset käyttävät niitä: {notifications}. Muuta tai poista jokainen ilmoitus ja tallenna sitten uudelleen."
     }
   }
 }

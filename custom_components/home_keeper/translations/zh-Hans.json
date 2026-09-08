@@ -1034,6 +1034,9 @@
     },
     "declarative_companion_not_found": {
       "message": "未找到声明式搭档：{spec_id}"
+    },
+    "profile_in_use": {
+      "message": "Home Keeper 无法删除这些配置文件：{profiles}。以下通知正在使用它们：{notifications}。请更改或删除每条通知，然后重新保存。"
     }
   }
 }

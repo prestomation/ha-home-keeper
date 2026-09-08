@@ -6,6 +6,18 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.22.0b5]
+
+### Changed
+
+- **Profile deletion guard.** Home Keeper asks you to confirm before it deletes a
+  profile. A profile that a notification uses cannot be deleted at all.
+
+### Fixed
+
+- **Phone companion rows.** A companion row on a phone puts its buttons on a line of
+  their own. Edit and Delete no longer go past the edge of the screen.
+
 ## [0.22.0b4]
 
 ### Added

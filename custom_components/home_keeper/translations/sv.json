@@ -1034,6 +1034,9 @@
     },
     "declarative_companion_not_found": {
       "message": "Deklarativ companion hittades inte: {spec_id}"
+    },
+    "profile_in_use": {
+      "message": "Home Keeper kan inte ta bort dessa profiler: {profiles}. Dessa aviseringar använder dem: {notifications}. Ändra eller ta bort varje avisering och spara sedan igen."
     }
   }
 }

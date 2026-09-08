@@ -97,8 +97,15 @@ export interface PanelHost extends HTMLElement {
   _completion: CompletionDialogState;
   /** The companion integrations the Settings tab lists. */
   _companions: Companion[];
-  /** The destructive-action confirmation's state. */
-  _confirmDelete: { open: boolean; label: string; onConfirm: (() => void) | null };
+  /** The destructive-action confirmation's state. `body` is the line under the
+   *  heading, usually "This cannot be undone"; a null `onConfirm` makes it the
+   *  blocked-action dialog, which reports and offers only Close. */
+  _confirmDelete: {
+    open: boolean;
+    label: string;
+    body: string;
+    onConfirm: (() => void) | null;
+  };
   /** The document keydown (Escape) handler bound while the confirmation is open, held
    *  as a field so an unmount mid-dialog can remove it. */
   _confirmOnKey: ((e: KeyboardEvent) => void) | null;

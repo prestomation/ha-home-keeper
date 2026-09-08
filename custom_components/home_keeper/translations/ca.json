@@ -1034,6 +1034,9 @@
     },
     "declarative_companion_not_found": {
       "message": "No s'ha trobat cap companion declaratiu: {spec_id}"
+    },
+    "profile_in_use": {
+      "message": "Home Keeper no pot suprimir aquests perfils: {profiles}. Aquestes notificacions els utilitzen: {notifications}. Canvia o suprimeix cada notificació i torna a desar."
     }
   }
 }

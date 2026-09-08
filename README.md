@@ -965,6 +965,9 @@ A Profile is used in 4 places:
 - The **Profile** dropdown on the **Tasks** tab filters the task list in the panel.
 - The **Filter by profile** option in the card editor filters the dashboard card.
 
+Home Keeper does not delete a Profile that a notification uses. Point those
+notifications at a different Profile first. You can also delete them.
+
 ### Status tiers
 
 The **Include** setting has 3 tiers. Each tier includes the tiers before it:
