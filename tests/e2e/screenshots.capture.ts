@@ -1657,5 +1657,32 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/51-panel-mobile-settings-section.png` });
 
+  // 22b. One notification open on a phone. This is where the pair that #313 confused
+  // has to read: the line under the profile picker naming what that profile sends, and
+  // the Triggers group saying that a trigger sets the moment rather than the contents.
+  // Below 700px the two sit one under the other in a single column, and the scope line
+  // wraps, so the desktop shot documents neither.
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="notifications"]').click();
+  await expect(panel.locator('#hk-notifications')).toBeVisible();
+  await panel.locator('#hk-notifications .hk-item-header').first().click();
+  const scopeLine = panel.locator('#hk-notifications .hk-notify-scope').first();
+  const triggerGroup = panel.locator('#hk-notifications .hk-indent').first();
+  await expect(scopeLine).toBeVisible();
+  await expect(triggerGroup).toBeVisible();
+  // Two shots, and viewport shots rather than element shots. The card is far taller
+  // than the phone, so the two halves of #313 cannot share a frame: the scope line is
+  // at the top of the row and the triggers are at the bottom. An element-scoped
+  // capture would fit both, but the bottom tab bar is `position: fixed` and bakes
+  // itself across the middle of the card, hiding a field behind it.
+  await scopeLine.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/22b-panel-mobile-notify-scope.png` });
+
+  await triggerGroup.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/22c-panel-mobile-notify-triggers.png` });
+
   await page.setViewportSize(DESKTOP);
 });

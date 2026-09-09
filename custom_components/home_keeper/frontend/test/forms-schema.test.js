@@ -14,8 +14,12 @@ import {
   metadataSchema,
   notifyFormData,
   notifyFormToNotification,
+  notificationDeliverySchema,
+  notificationProfileSchema,
   notificationSchema,
+  notificationTriggerSchema,
   pickFormData,
+  profileScopeKey,
   problemSyncExclusionsSchema,
   problemSyncSchema,
   partBaseSchema,
@@ -38,6 +42,7 @@ import {
   toProfileSync,
 } from '../src/forms.ts';
 import { setLanguage } from '../src/i18n.ts';
+import { LOCALES } from '../src/locales/index.ts';
 
 // `taskSchema` decides which fields the edit form offers, and the notification
 // round-trip decides what a delivery actually does. Both are pure structure
@@ -798,6 +803,84 @@ describe('notificationSchema', () => {
     const field = notificationSchema([], []).find((f) => f.name === 'channel');
     expect(field.selector).toEqual({ text: {} });
     expect(field.required).toBeUndefined();
+  });
+});
+
+// The notification editor renders three forms rather than one, so it can put text
+// between them: what the chosen profile selects goes under the profile picker, and the
+// two triggers get a heading saying that a trigger decides *when* rather than *what*
+// (#313). The panel merges the three back together on every save, so a field that
+// slipped out of all three halves would stop saving without anything else failing.
+describe('notificationSchema is its three parts, in order', () => {
+  const profiles = [{ id: 'p1', name: 'Overdue' }];
+
+  it('concatenates the profile, delivery and trigger halves', () => {
+    expect(notificationSchema(['mobile_app_a'], profiles)).toEqual([
+      ...notificationProfileSchema(profiles),
+      ...notificationDeliverySchema(['mobile_app_a']),
+      ...notificationTriggerSchema(),
+    ]);
+  });
+
+  it('splits the fields so each half owns a distinct, complete set', () => {
+    expect(names(notificationProfileSchema(profiles))).toEqual(['name', 'profile_id']);
+    expect(names(notificationDeliverySchema(['mobile_app_a']))).toEqual([
+      'targets',
+      'actions',
+      'style',
+      'channel',
+      'urgency',
+      'icon',
+      'color',
+      'snooze_hours',
+    ]);
+    expect(names(notificationTriggerSchema())).toEqual(['auto_overdue', 'auto_due_soon']);
+  });
+
+  it('puts both required fields in the half the panel renders first', () => {
+    // A row whose name or profile were split off would open on optional fields and
+    // bury the two the user has to answer.
+    expect(notificationProfileSchema(profiles).filter((f) => f.required).map((f) => f.name)).toEqual(
+      ['name', 'profile_id'],
+    );
+    expect(notificationDeliverySchema([]).some((f) => f.required)).toBe(false);
+    expect(notificationTriggerSchema().some((f) => f.required)).toBe(false);
+  });
+
+  it('makes both triggers switches', () => {
+    for (const field of notificationTriggerSchema()) {
+      expect(field.selector).toEqual({ boolean: {} });
+    }
+  });
+});
+
+// The sentence under the profile picker naming what that profile selects. It is the
+// answer to #313: the reporter read the delivery's own "when overdue" trigger as this,
+// and got a digest of tasks due months out.
+describe('profileScopeKey', () => {
+  it('names each stored status', () => {
+    expect(profileScopeKey({ status: 'overdue' })).toBe('notify.scope.overdue');
+    expect(profileScopeKey({ status: 'due_soon' })).toBe('notify.scope.due_soon');
+    expect(profileScopeKey({ status: 'all' })).toBe('notify.scope.all');
+  });
+
+  it('falls back to overdue for a missing, empty or unknown status', () => {
+    // The same default `profileFormToProfile` and the backend's `normalize_filter`
+    // apply, so the line never claims a wider scope than the profile actually has.
+    expect(profileScopeKey(undefined)).toBe('notify.scope.overdue');
+    expect(profileScopeKey({})).toBe('notify.scope.overdue');
+    expect(profileScopeKey({ status: '' })).toBe('notify.scope.overdue');
+    expect(profileScopeKey({ status: 'none' })).toBe('notify.scope.overdue');
+    expect(profileScopeKey({ status: 'everything' })).toBe('notify.scope.overdue');
+  });
+
+  it('names a key the English table actually has', () => {
+    // The key is built from a template literal, so the parity suite's "every literal
+    // t() key exists" scan cannot see it. Assert it here instead, or a typo in the
+    // prefix would render the raw key at the user.
+    for (const status of ['overdue', 'due_soon', 'all']) {
+      expect(LOCALES.en[profileScopeKey({ status })]).toBeTypeOf('string');
+    }
   });
 });
 

@@ -563,6 +563,25 @@ export const STYLES = `
   }
   .hk-item-actions { display: flex; justify-content: flex-end; gap: 8px; }
   .hk-notify-add { margin-top: 12px; }
+  /* What the chosen profile selects, stated under the profile picker, and the way to
+     go and change it. Sized and coloured like an ha-form helper so it reads as one,
+     and allowed to wrap on a phone rather than pushing the link off the row. */
+  .hk-notify-scope {
+    color: var(--hk-ink-2); font-size: 0.8rem; line-height: 1.4;
+    margin: -8px 0 14px; padding-inline: 2px;
+  }
+  .hk-notify-scope:empty { display: none; }
+  .hk-notify-trigger-docs {
+    color: var(--hk-ink-2); font-size: 0.78rem; line-height: 1.4; margin-top: 4px;
+  }
+  /* A button that reads as a link. The Edit affordance navigates within the panel
+     rather than following an href, so it has to be a button for the keyboard and for
+     screen readers, and only looks like the anchor beside it. */
+  .hk-linkish {
+    background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+    color: var(--hk-accent); text-decoration: underline;
+  }
+  .hk-linkish:focus-visible { outline: 2px solid var(--hk-accent); outline-offset: 2px; }
   /* Collapsible settings section headers (Profiles, Notifications). */
   .hk-section-header {
     display: flex; align-items: center; gap: 8px; cursor: pointer;

@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [Unreleased]
+
+### Fixed
+
+- **Notification triggers.** A notification now states which tasks its profile
+  selects. The 2 automatic switches are grouped as Triggers, which set the moment a
+  notification is sent rather than its contents. (Fixes #313)
+
 ## [0.22.0] - 2026-09-08
 
 ### Added

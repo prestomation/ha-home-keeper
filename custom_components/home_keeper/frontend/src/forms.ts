@@ -7,6 +7,7 @@ import type {
   MetadataEntry,
   Notification,
   NotifyAction,
+  NotifyFilter,
   NotifyStatus,
   NotifyStyle,
   NotifyUrgency,
@@ -1929,10 +1930,41 @@ export function rgbToHex(value: unknown): string {
 }
 
 /**
- * The `ha-form` schema for one **notification** (delivery). *targets* is the live
- * `mobile_app_*` list; *profiles* populates the profile dropdown (what tasks to send).
+ * What the profile *filt* selects, as the `notify.scope.*` key naming it.
+ *
+ * The notification editor states this under its profile picker, because the field
+ * that decides a notification's contents is the profile's `status` and lives in
+ * another card entirely. A user read the delivery's own "Auto-send when overdue" as
+ * that field and got a digest of tasks due months out (#313).
+ *
+ * Defaults to `overdue` for a missing or unrecognized value, matching
+ * `profileFormToProfile` above and `profiles.normalize_filter` on the backend.
+ */
+export function profileScopeKey(filter: NotifyFilter | undefined): string {
+  const status = filter?.status;
+  return `notify.scope.${NOTIFY_STATUSES.includes(status as NotifyStatus) ? status : 'overdue'}`;
+}
+
+/**
+ * The `ha-form` schema for one **notification** (delivery), in the order the panel
+ * renders it. *targets* is the live `mobile_app_*` list; *profiles* populates the
+ * profile dropdown (what tasks to send).
+ *
+ * The panel builds this as three forms rather than one, so it can put text between
+ * them: what the chosen profile selects goes under the profile picker, and the two
+ * automatic triggers get their own heading at the end. This composed schema stays the
+ * single statement of the whole field set.
  */
 export function notificationSchema(targets: string[], profiles: Profile[]): FormField[] {
+  return [
+    ...notificationProfileSchema(profiles),
+    ...notificationDeliverySchema(targets),
+    ...notificationTriggerSchema(),
+  ];
+}
+
+/** What this notification is called, and which profile chooses the tasks it sends. */
+export function notificationProfileSchema(profiles: Profile[]): FormField[] {
   return [
     { name: 'name', required: true, selector: selText() },
     {
@@ -1940,6 +1972,12 @@ export function notificationSchema(targets: string[], profiles: Profile[]): Form
       required: true,
       selector: selSelect(profiles.map((p) => ({ value: p.id, label: p.name }))),
     },
+  ];
+}
+
+/** Where the notification goes and how it lands on the phone. */
+export function notificationDeliverySchema(targets: string[]): FormField[] {
+  return [
     {
       name: 'targets',
       selector: selSelect(
@@ -1957,6 +1995,17 @@ export function notificationSchema(targets: string[], profiles: Profile[]): Form
     { name: 'icon', selector: selIcon() },
     { name: 'color', selector: selColorRgb() },
     { name: 'snooze_hours', selector: selNumber(1) },
+  ];
+}
+
+/**
+ * The two switches that send this notification without an automation, split out of
+ * `notificationSchema` so the panel can head them "Triggers" and say what a trigger
+ * does. Each one fires on a *crossing*: `async_send_auto` sends once when a task in
+ * the profile becomes overdue or due soon, and never decides which tasks go in.
+ */
+export function notificationTriggerSchema(): FormField[] {
+  return [
     { name: 'auto_overdue', selector: selBool() },
     { name: 'auto_due_soon', selector: selBool() },
   ];

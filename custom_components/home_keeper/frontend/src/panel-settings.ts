@@ -26,14 +26,18 @@ import { profileHasAnyTask } from './card-filter';
 import {
   companionOptions,
   generalSchema,
-  notificationSchema,
+  notificationDeliverySchema,
+  notificationProfileSchema,
+  notificationTriggerSchema,
   notifyFormData,
   notifyFormToNotification,
+  pickFormData,
   problemSyncExclusionsSchema,
   problemSyncToggleSchema,
   profileFormData,
   profileFormToProfile,
   profileSchema,
+  profileScopeKey,
   profileSyncSchema,
   shoppingSchema,
   skipSnoozeFlags,
@@ -45,7 +49,7 @@ import { t, tn } from './i18n';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
-import { COMPANIONS_DOCS_URL, DOCS_URL } from './panel-icons';
+import { COMPANIONS_DOCS_URL, DOCS_URL, NOTIFY_AUTOMATION_DOCS_URL } from './panel-icons';
 import type {
   Companion,
   HomeKeeperOptions,
@@ -1332,46 +1336,193 @@ function notificationEditor(
     },
     onDelete: () => void deleteNotification(p, notification.id),
     fill: (body, nameSpan, repaint) => {
+      // Three forms editing one notification, so the panel can put text between them:
+      // what the chosen profile selects belongs under the profile picker, and the two
+      // triggers belong under a heading that says what a trigger does (#313). Each
+      // form keeps the other two halves in a closure, so whichever fires last still
+      // writes the whole notification — the same arrangement `profileEditor` uses.
+      const profileSchema = notificationProfileSchema(profiles);
+      const deliverySchema = notificationDeliverySchema(p._notifyTargets);
+      const triggerSchema = notificationTriggerSchema();
+      const seed = notifyFormData(notification);
+      let profileData = pickFormData(seed, profileSchema);
+      let deliveryData = pickFormData(seed, deliverySchema);
+      let triggerData = pickFormData(seed, triggerSchema);
+      // Each form is authoritative for its own fields and no others, so the order the
+      // three merge in cannot matter. Picking by schema rather than trusting the event
+      // keeps a stray key out of the rebuild — the same reason the seeds are narrowed.
+      const save = (): void => {
+        current = notifyFormToNotification(notification.id, {
+          ...pickFormData(profileData, profileSchema),
+          ...pickFormData(deliveryData, deliverySchema),
+          ...pickFormData(triggerData, triggerSchema),
+        });
+        persistDebounced(p, 'notifications', notification.id, () => listWith(current));
+      };
+
+      const labelling = {
+        computeLabel: (s: { name: string }): string => {
+          if (s.name === 'name') return t('field.name');
+          if (s.name === 'profile_id') return t('notify.profile');
+          return t('notify.' + s.name);
+        },
+        // Both fields do something the field name cannot say. A channel is
+        // Android's word and means nothing on an iPhone. Its sound and Do Not
+        // Disturb settings belong to the phone once the channel exists, so a later
+        // urgency change does not move a channel that already exists. Critical
+        // needs a permission on iOS.
+        computeHelper: (s: { name: string }): string => {
+          // The look pair is not self-evident and the chip cannot say it: Android
+          // draws the icon only in the status bar, and ignores the color outright
+          // from 12 on. Both facts are about the phone, not about this form.
+          if (s.name === 'icon') return t('notify.icon_help');
+          if (s.name === 'color') return t('notify.color_help');
+          if (s.name === 'channel') return t('notify.channel_help');
+          if (s.name === 'urgency') return t('notify.urgency_help');
+          return '';
+        },
+      };
+
+      const scope = notifyScopeLine(p, () => String(profileData.profile_id ?? ''));
       body.appendChild(
         p._makeForm(
-          notificationSchema(p._notifyTargets, profiles),
-          notifyFormData(notification),
+          profileSchema,
+          profileData,
           (value) => {
+            profileData = value;
             if (typeof value.name === 'string') nameSpan.textContent = value.name;
-            current = notifyFormToNotification(notification.id, value);
-            // Picking a different profile changes which of the two test cards is the
-            // live one. Nothing else repaints the row — the save below runs with
-            // `render: false`, and a later `set hass` only pushes into `_liveHassEls`
-            // — so the footer is refreshed here, beside the name span above.
+            // `save` first: the footer reads `current`, so repainting before the
+            // rebuild would state the profile this row had a moment ago.
+            save();
+            // Picking a different profile changes what this notification sends, and
+            // which of the two test cards is the live one. Nothing else repaints the
+            // row — the save above runs with `render: false`, and a later `set hass`
+            // only pushes into `_liveHassEls` — so both are refreshed here.
+            scope.repaint();
             repaint();
-            persistDebounced(p, 'notifications', notification.id, () => listWith(current));
           },
-          {
-            computeLabel: (s) => {
-              if (s.name === 'name') return t('field.name');
-              if (s.name === 'profile_id') return t('notify.profile');
-              return t('notify.' + s.name);
-            },
-            // Both fields do something the field name cannot say. A channel is
-            // Android's word and means nothing on an iPhone. Its sound and Do Not
-            // Disturb settings belong to the phone once the channel exists, so a later
-            // urgency change does not move a channel that already exists. Critical
-            // needs a permission on iOS.
-            computeHelper: (s) => {
-              // The look pair is not self-evident and the chip cannot say it: Android
-              // draws the icon only in the status bar, and ignores the color outright
-              // from 12 on. Both facts are about the phone, not about this form.
-              if (s.name === 'icon') return t('notify.icon_help');
-              if (s.name === 'color') return t('notify.color_help');
-              if (s.name === 'channel') return t('notify.channel_help');
-              if (s.name === 'urgency') return t('notify.urgency_help');
-              return '';
-            },
-          },
+          labelling,
         ),
+      );
+      body.appendChild(scope.el);
+      body.appendChild(
+        p._makeForm(deliverySchema, deliveryData, (value) => {
+          deliveryData = value;
+          save();
+        }, labelling),
+      );
+      body.appendChild(
+        notifyTriggerGroup(p, triggerSchema, triggerData, (value) => {
+          triggerData = value;
+          save();
+        }, labelling),
       );
     },
   });
+}
+
+/**
+ * The line under the profile picker naming what that profile selects, and the way to
+ * go and change it.
+ *
+ * The profile is read out of `p._options` on every repaint rather than from the list
+ * captured when the row rendered, so a filter edited in the Profiles card above is
+ * picked up without a reload. A notification whose profile was deleted has nothing to
+ * describe, and the line renders empty rather than guessing.
+ */
+function notifyScopeLine(
+  p: PanelHost,
+  profileId: () => string,
+): { el: HTMLElement; repaint: () => void } {
+  const el = document.createElement('div');
+  el.className = 'hk-notify-scope';
+  const repaint = (): void => {
+    const profile = (p._options?.profiles ?? []).find((x) => x.id === profileId());
+    if (!profile) {
+      el.textContent = '';
+      return;
+    }
+    const text = t('notify.profile_scope', {
+      profile: profile.name,
+      scope: t(profileScopeKey(profile.filter)),
+    });
+    el.innerHTML =
+      `<span>${escapeHTML(text)}</span> ` +
+      `<button type="button" class="hk-linkish">${escapeHTML(t('notify.profile_edit'))}</button>`;
+    el.querySelector('button')?.addEventListener('click', () => openProfile(p, profile.id));
+  };
+  repaint();
+  return { el, repaint };
+}
+
+/**
+ * Open the Profiles card at *profileId*, expanded, from the notification that uses it.
+ *
+ * The Profiles card is re-rendered before the navigation, not after: moving between
+ * two Settings sections takes the `_patchSettingsSection` path, which deliberately
+ * leaves the cards standing, so the newly expanded row would otherwise stay folded
+ * until something else repainted it.
+ *
+ * The navigation *replaces*, the way the rail's own entries do. Both cards are on one
+ * page and this is a lateral step along it, not a drill-in. Pushing costs the page:
+ * Home Assistant treats the new history entry as a fresh panel navigation and builds
+ * a new element, which folds every row again — including the one just opened.
+ */
+function openProfile(p: PanelHost, profileId: string): void {
+  // Both the section and the row can be folded, and the link has to reveal the
+  // profile either way. Folding the section again is the reader's own choice to make
+  // afterwards, so it is cleared rather than restored.
+  p._settingsSectionCollapsed.delete('profiles');
+  p._itemExpanded.add(profileId);
+  // Emptied first. `renderProfiles` appends its card, which costs nothing on a full
+  // render because the host is new each time — but this call is out of band, and
+  // appending a second card would leave the folded original in front of it, under the
+  // same id.
+  const host = p.shadowRoot?.getElementById('hk-profiles-host');
+  if (host) {
+    host.replaceChildren();
+    renderProfiles(p, host);
+  }
+  p._navigate({ view: 'settings', detail: null, section: 'profiles' }, true);
+  const card = p.shadowRoot?.getElementById('hk-profiles');
+  if (card && typeof card.scrollIntoView === 'function') {
+    card.scrollIntoView({ block: 'start', behavior: p._scrollBehavior() });
+  }
+}
+
+/**
+ * The two automatic triggers, under a heading saying what a trigger decides.
+ *
+ * Indented behind a rule with an eyebrow, the treatment the panel already gives a
+ * dependent group. The caption is the whole point of the group: a user read
+ * "Auto-send when overdue" as the filter that chooses the tasks, and got a digest of
+ * tasks due months out (#313). The profile chooses the tasks; these choose the moment.
+ */
+function notifyTriggerGroup(
+  p: PanelHost,
+  schema: FormField[],
+  data: Record<string, unknown>,
+  onChange: (value: Record<string, unknown>) => void,
+  labelling: {
+    computeLabel: (s: { name: string }) => string;
+    computeHelper?: (s: { name: string }) => string;
+  },
+): HTMLElement {
+  const indent = document.createElement('div');
+  indent.className = 'hk-indent';
+  const body = document.createElement('div');
+  body.className = 'hk-indent-body';
+  const head = document.createElement('div');
+  head.className = 'hk-indent-head';
+  head.innerHTML =
+    `<span class="hk-eyebrow accent">${escapeHTML(t('notify.triggers_heading'))}</span>` +
+    `<span class="hk-indent-note">${escapeHTML(t('notify.triggers_help'))}</span>`;
+  const docs = document.createElement('div');
+  docs.className = 'hk-notify-trigger-docs';
+  docs.innerHTML = t('notify.triggers_docs', { url: NOTIFY_AUTOMATION_DOCS_URL });
+  body.append(head, p._makeForm(schema, data, onChange, labelling), docs);
+  indent.appendChild(body);
+  return indent;
 }
 
 /**

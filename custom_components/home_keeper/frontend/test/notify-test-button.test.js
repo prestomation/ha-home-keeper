@@ -121,7 +121,13 @@ async function mountSettings(hass) {
 const row = (panel) => panel.shadowRoot.querySelector('#hk-notifications .hk-item-card');
 const testBtn = (panel) => row(panel).querySelector('.hk-notify-test');
 const altBtn = (panel) => row(panel).querySelector('.hk-notify-test-alt');
-const form = (panel) => row(panel).querySelector('.hk-item-body > ha-form');
+/** The `ha-form` in the row that owns *field*.
+ *
+ *  A notification row is three forms: the profile picker, the delivery fields, and the
+ *  triggers under their own heading. Each is seeded with only its own fields, so an
+ *  edit goes to the form that owns it. Found by which seed carries the key. */
+const formFor = (panel, field) =>
+  [...row(panel).querySelectorAll('ha-form')].find((f) => f.data && field in f.data);
 const serviceCalls = (calls) => calls.filter((c) => c.type === 'call_service');
 
 /** Collect the panel's toasts. `toast()` fires HA's own `hass-notification` event
@@ -175,9 +181,10 @@ describe('Settings → Notifications — the Test button', () => {
     // sitting in the debounce would send the *previous* channel and report success.
     const { hass, calls, options } = makeHass();
     const panel = await mountSettings(hass);
-    form(panel).dispatchEvent(
+    const delivery = formFor(panel, 'channel');
+    delivery.dispatchEvent(
       new CustomEvent('value-changed', {
-        detail: { value: { ...NOTIFICATION, channel: 'Medication', urgency: 'critical' } },
+        detail: { value: { ...delivery.data, channel: 'Medication', urgency: 'critical' } },
       }),
     );
     testBtn(panel).click();
@@ -335,9 +342,10 @@ describe('Settings → Notifications — the Test button', () => {
       ...panel._options.profiles,
       { ...PROFILE, id: 'p2', name: 'Nothing', filter: { ...PROFILE.filter, devices: ['nope'] } },
     ];
-    form(panel).dispatchEvent(
+    const picker = formFor(panel, 'profile_id');
+    picker.dispatchEvent(
       new CustomEvent('value-changed', {
-        detail: { value: { ...NOTIFICATION, profile_id: 'p2' } },
+        detail: { value: { ...picker.data, profile_id: 'p2' } },
       }),
     );
     await waitFor(() => altBtn(panel).textContent === 'Test a task');
