@@ -20,11 +20,11 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import hk_api_surface as api_surface
-import pytest
+import required_deps
 
 _ROOT = Path(__file__).resolve().parents[2]
 
-pytest.importorskip("yaml", reason="PyYAML parses services.yaml")
+required_deps.require("yaml", reason="the generator reads services.yaml")
 
 
 def _load_generator():

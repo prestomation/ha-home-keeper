@@ -24,12 +24,15 @@ from zoneinfo import ZoneInfo
 
 import hk_recurrence as r
 import pytest
+import required_deps
 
-pytest.importorskip("hypothesis", reason="property-based tests need hypothesis")
+required_deps.require(
+    "hypothesis", reason="the property-based tests draw their inputs with it"
+)
 
-import property_strategies as ps
-from hypothesis import assume, example, given
-from hypothesis import strategies as st
+import property_strategies as ps  # noqa: E402  (after the dependency check, on purpose)
+from hypothesis import assume, example, given  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
 
 pytestmark = pytest.mark.property
 

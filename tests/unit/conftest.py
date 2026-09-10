@@ -38,6 +38,8 @@ from __future__ import annotations
 
 import os
 
+import pytest
+
 try:
     from hypothesis import HealthCheck, Phase, settings
 except ImportError:  # pragma: no cover - exercised by the bare-pytest install
@@ -78,3 +80,28 @@ else:
         ],
     )
     settings.load_profile(os.environ.get("HK_HYPOTHESIS_PROFILE", "dev"))
+
+
+def pytest_sessionstart(session) -> None:
+    """Stop the run when a package the project installs is missing.
+
+    The per-file ``required_deps.require`` calls catch the files that name a
+    package. This catches the rest: a test that uses Babel through the code it
+    tests names nothing, so a missing install changes what the suite covers
+    without a word. ``HK_ALLOW_MISSING_DEPS=1`` turns this off, for a bare
+    ``pip install pytest`` run of the pure-logic tests.
+    """
+    import required_deps
+
+    if os.environ.get("HK_ALLOW_MISSING_DEPS"):
+        return
+    missing = required_deps.missing_required()
+    if missing:
+        names = ", ".join(missing)
+        raise pytest.UsageError(
+            f"these test dependencies are not installed: {names}. "
+            "requirements-test.txt lists them, and ci/install-deps.sh and "
+            "ci/setup-ci-deps.sh install them, so the suite would cover less "
+            "than CI does. Run 'bash ci/setup-ci-deps.sh', or set "
+            "HK_ALLOW_MISSING_DEPS=1 to run what is installed."
+        )

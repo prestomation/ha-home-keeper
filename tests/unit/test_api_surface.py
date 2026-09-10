@@ -38,6 +38,7 @@ import hk_const as const
 import hk_events as events
 import hk_transitions as transitions
 import pytest
+import required_deps
 
 _COMPONENT = Path(__file__).resolve().parents[2] / "custom_components" / "home_keeper"
 _INIT_TREE = ast.parse((_COMPONENT / "__init__.py").read_text(encoding="utf-8"))
@@ -229,7 +230,11 @@ def test_admin_only_services_verify_admin() -> None:
 
 def test_services_yaml_matches_model() -> None:
     """``services.yaml`` describes exactly the modelled services."""
-    yaml = pytest.importorskip("yaml", reason="PyYAML parses services.yaml")
+    yaml = required_deps.require(
+        "yaml",
+        reason="the API-surface gate reads services.yaml",
+        allow_module_level=False,
+    )
     described = set(
         yaml.safe_load((_COMPONENT / "services.yaml").read_text(encoding="utf-8"))
     )
@@ -263,7 +268,11 @@ def test_service_fields_match_between_yaml_and_strings() -> None:
     description from ``strings.json``, so a field present in one and missing from
     the other renders half-blank.
     """
-    yaml = pytest.importorskip("yaml", reason="PyYAML parses services.yaml")
+    yaml = required_deps.require(
+        "yaml",
+        reason="the API-surface gate reads services.yaml",
+        allow_module_level=False,
+    )
     described = yaml.safe_load((_COMPONENT / "services.yaml").read_text("utf-8"))
     localized = _STRINGS["services"]
     mismatched = {}

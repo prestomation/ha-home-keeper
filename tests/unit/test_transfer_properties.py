@@ -20,12 +20,15 @@ from datetime import datetime, timedelta, timezone
 
 import hk_transfer as tr
 import pytest
+import required_deps
 
-pytest.importorskip("hypothesis", reason="property-based tests need hypothesis")
+required_deps.require(
+    "hypothesis", reason="the property-based tests draw their inputs with it"
+)
 
-import property_strategies as ps
-from hypothesis import given, settings
-from hypothesis import strategies as st
+import property_strategies as ps  # noqa: E402  (after the dependency check, on purpose)
+from hypothesis import given, settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
 
 pytestmark = pytest.mark.property
 

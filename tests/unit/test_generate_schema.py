@@ -32,6 +32,7 @@ from pathlib import Path
 
 import hk_transfer as tr
 import pytest
+import required_deps
 
 if not os.environ.get("HK_SCHEMA_GATE"):
     pytest.skip(
@@ -40,8 +41,16 @@ if not os.environ.get("HK_SCHEMA_GATE"):
         allow_module_level=True,
     )
 
-pytest.importorskip("voluptuous_openapi", reason="the converter")
-jsonschema = pytest.importorskip("jsonschema", reason="nothing validates without it")
+required_deps.require(
+    "voluptuous_openapi",
+    reason="it converts the service schemas",
+    installed_by="ci/install-schema-deps.sh",
+)
+jsonschema = required_deps.require(
+    "jsonschema",
+    reason="nothing validates the published schema without it",
+    installed_by="ci/install-schema-deps.sh",
+)
 
 from transfer_records import (  # noqa: E402  (after the skips, on purpose)
     AREA_NAMES,
@@ -75,7 +84,11 @@ def validator(schema: dict):
 
 
 def _service_fields(name: str) -> set[str]:
-    yaml = pytest.importorskip("yaml", reason="the field list lives in services.yaml")
+    yaml = required_deps.require(
+        "yaml",
+        reason="the field list lives in services.yaml",
+        allow_module_level=False,
+    )
     document = yaml.safe_load((COMPONENT / "services.yaml").read_text(encoding="utf-8"))
     return set(document[name].get("fields", {}))
 
