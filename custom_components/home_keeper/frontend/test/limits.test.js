@@ -9,10 +9,38 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_IMPORT_BYTES,
   MAX_IMPORT_WS_BYTES,
   importFitsWebsocket,
   importFrameBytes,
 } from '../src/limits.ts';
+
+describe('the two ceilings', () => {
+  // Both numbers reach a user: the panel refuses at one and its message names the
+  // other. `tests/unit/test_upload_limit_parity.py` pins them against const.py; these
+  // pin the values the panel actually renders, which that test cannot see.
+  it('refuses at aiohttp own 4 MiB websocket default', () => {
+    expect(MAX_IMPORT_WS_BYTES).toBe(4 * 1024 * 1024);
+  });
+
+  it('names the service 8 MiB ceiling', () => {
+    expect(MAX_IMPORT_BYTES).toBe(8 * 1024 * 1024);
+  });
+
+  it('keeps the panel ceiling below the service one', () => {
+    // The message tells a reader to take a document the panel refused to the service.
+    // If these ever crossed, it would be sending them somewhere smaller.
+    expect(MAX_IMPORT_WS_BYTES).toBeLessThan(MAX_IMPORT_BYTES);
+  });
+
+  it('states both as a whole number of megabytes', () => {
+    // Each is divided by 1024*1024 for the message, so a fractional value would be
+    // rendered as a number that is not the one enforced.
+    for (const bytes of [MAX_IMPORT_WS_BYTES, MAX_IMPORT_BYTES]) {
+      expect(bytes % (1024 * 1024)).toBe(0);
+    }
+  });
+});
 
 describe('importFrameBytes', () => {
   it('counts the encoded document, not the raw string', () => {
