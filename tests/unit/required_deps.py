@@ -49,6 +49,11 @@ def _installed_by_ci() -> set[str]:
         line = line.split("#", 1)[0].strip()
         if not line:
             continue
+        # "-r other.txt" and "-e ." name a file, not a package. Nothing here
+        # imports one, and reading it as a package name would fail the run for
+        # a package that does not exist.
+        if line.startswith("-"):
+            continue
         name = re.split(r"[<>=!~\[; ]", line, maxsplit=1)[0].strip()
         if name:
             names.add(name.lower())

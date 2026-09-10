@@ -45,3 +45,15 @@ def test_optional_skips_only_for_a_package_the_project_holds_back():
 
 def test_nothing_the_project_installs_is_missing():
     assert required_deps.missing_required() == []
+
+
+def test_an_option_line_is_not_read_as_a_package(monkeypatch, tmp_path):
+    """An option line names a file, and a file is not a package."""
+    listing = tmp_path / "requirements-test.txt"
+    listing.write_text(
+        "-r base.txt\n-e .\n# a comment\nBabel\nhypothesis>=6 ; python_version>'3.9'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(required_deps, "_REQUIREMENTS", listing)
+    assert required_deps._installed_by_ci() == {"babel", "hypothesis"}
+    assert required_deps.missing_required() == []
