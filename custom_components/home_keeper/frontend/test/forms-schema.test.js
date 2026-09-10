@@ -2235,7 +2235,7 @@ describe('taskFormIsEmpty', () => {
   });
 
   it('is true only when the companion claims every field the kind offers', () => {
-    expect(taskFormIsEmpty(managed(TRIGGERED_FIELDS))).toBe(true);
+    expect(taskFormIsEmpty(managed(TRIGGERED_FIELDS), [], [], [])).toBe(true);
   });
 
   it('is false while one field is left unclaimed', () => {
@@ -2249,21 +2249,23 @@ describe('taskFormIsEmpty', () => {
     const unconditional = TRIGGERED_FIELDS.filter((f) => f !== 'card_links');
     for (const kept of unconditional) {
       const locked = TRIGGERED_FIELDS.filter((f) => f !== kept);
-      expect(taskFormIsEmpty(managed(locked)), `${kept} left editable`).toBe(false);
+      expect(taskFormIsEmpty(managed(locked), [], [], []), `${kept} left editable`).toBe(false);
     }
   });
 
   it('is false for the shape a glue actually ships', () => {
     // Battery Notes and Pawsistant claim what they write, not everything, so their
     // tasks keep an edit form and the guard never fires for them.
-    expect(taskFormIsEmpty(managed(['name', 'notes', 'device_id', 'recurrence_type']))).toBe(
-      false,
-    );
+    expect(
+      taskFormIsEmpty(managed(['name', 'notes', 'device_id', 'recurrence_type']), [], [], []),
+    ).toBe(false);
   });
 
   it('is false for a task nobody manages', () => {
-    expect(taskFormIsEmpty({ id: 't1', recurrence_type: 'triggered' })).toBe(false);
-    expect(taskFormIsEmpty({ id: 't1', recurrence_type: 'floating', interval: 3 })).toBe(false);
+    expect(taskFormIsEmpty({ id: 't1', recurrence_type: 'triggered' }, [], [], [])).toBe(false);
+    expect(
+      taskFormIsEmpty({ id: 't1', recurrence_type: 'floating', interval: 3 }, [], [], []),
+    ).toBe(false);
   });
 
   it('is false when only some sections are empty', () => {
@@ -2272,7 +2274,7 @@ describe('taskFormIsEmpty', () => {
     const sections = taskSchemaSections(managed(['name', 'notes']));
     expect(sections.filter((s) => !s.fields.length).length).toBeGreaterThan(0);
     expect(sections.filter((s) => s.fields.length).length).toBeGreaterThan(0);
-    expect(taskFormIsEmpty(managed(['name', 'notes']))).toBe(false);
+    expect(taskFormIsEmpty(managed(['name', 'notes']), [], [], [])).toBe(false);
   });
 
   it('counts the pickers that only appear when there is something to pick', () => {
@@ -2281,7 +2283,7 @@ describe('taskFormIsEmpty', () => {
     // asked with the same lists the form is built from.
     const locked = TRIGGERED_FIELDS.filter((f) => f !== 'card_links');
     const links = [{ value: 'a1:d1', label: 'Manual' }];
-    expect(taskFormIsEmpty(managed(locked), [], links)).toBe(false);
-    expect(taskFormIsEmpty(managed(locked), [], [])).toBe(true);
+    expect(taskFormIsEmpty(managed(locked), [], links, [])).toBe(false);
+    expect(taskFormIsEmpty(managed(locked), [], [], [])).toBe(true);
   });
 });

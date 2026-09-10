@@ -720,12 +720,18 @@ export function taskSchema(
  * `locked_fields`: which fields a task kind offers is this module's answer to give, and
  * a guard that worked it out separately would be free to disagree with the form it
  * guards.
+ *
+ * Every list is required, unlike on {@link taskSchema}. Two of them decide whether a
+ * field exists at all — the consumable picker and the card-links picker appear only
+ * when there is something to pick — so a caller that let one default to empty would be
+ * asking about a shorter form than the one the drawer is about to build, and could
+ * withhold Edit from a task that still had a picker to offer.
  */
 export function taskFormIsEmpty(
   task: Partial<Task>,
-  consumables: { value: string; label: string }[] = [],
-  links: { value: string; label: string }[] = [],
-  tags: { value: string; label: string }[] = [],
+  consumables: { value: string; label: string }[],
+  links: { value: string; label: string }[],
+  tags: { value: string; label: string }[],
 ): boolean {
   return taskSchemaSections(task, consumables, links, tags).every((s) => !s.fields.length);
 }
