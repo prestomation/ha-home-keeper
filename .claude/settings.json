@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "nohup bash ci/setup-browser-env.sh >/tmp/setup-browser-env.log 2>&1 & disown; echo 'Home Keeper: preparing Docker + Playwright Chromium in the background (see /tmp/setup-browser-env.log). Run e2e with: bash ci/e2e-up.sh'"
+            "command": "nohup bash ci/setup-ci-deps.sh >/tmp/setup-ci-deps.log 2>&1 & disown; echo 'Home Keeper: installing the CI dependencies in the background (see /tmp/setup-ci-deps.log). This includes Docker and Playwright Chromium. Run e2e with: bash ci/e2e-up.sh'"
           }
         ]
       }
