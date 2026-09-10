@@ -73,9 +73,21 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # One run at a time. The SessionStart hook starts this in the background, so two
 # sessions can open together and fight over .venv, node_modules and $BIN_DIR.
 # mkdir is atomic, which is what makes it a lock.
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  log "Another run holds $LOCK_DIR. Stopping. Remove that directory if no run is live."
-  exit 0
+take_lock() { mkdir "$LOCK_DIR" 2>/dev/null && echo $$ >"$LOCK_DIR/pid"; }
+if ! take_lock; then
+  # A kill -9 or a container restart leaves the directory behind. Without this
+  # the next session would skip the setup quietly and for good.
+  holder="$(cat "$LOCK_DIR/pid" 2>/dev/null)"
+  if [ -n "$holder" ] && kill -0 "$holder" 2>/dev/null; then
+    log "Run $holder holds $LOCK_DIR. Stopping."
+    exit 0
+  fi
+  log "Taking the lock at $LOCK_DIR from run ${holder:-unknown}, which is gone."
+  rm -rf "$LOCK_DIR"
+  if ! take_lock; then
+    log "Could not take $LOCK_DIR. Stopping."
+    exit 0
+  fi
 fi
 trap 'rm -rf "$LOCK_DIR"' EXIT INT TERM
 
@@ -219,7 +231,7 @@ fi
 # --- Vale: the prose lint --------------------------------------------------
 # lint.yml runs the vale action. This is the local equivalent from AGENTS.md.
 vale_is_pinned() {
-  have vale && vale --version 2>/dev/null | grep -qF "$VALE_VERSION"
+  have vale && vale --version 2>/dev/null | grep -qE "(^| )$(printf %s "$VALE_VERSION" | sed 's/\./\\./g')( |$)"
 }
 if [ "$SKIP_VALE" = 1 ]; then
   log "SKIP    vale (SKIP_VALE=1)"
