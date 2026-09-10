@@ -394,6 +394,31 @@ def normalize_tag_id(value: Any) -> str | None:
     return value.strip() or None
 
 
+def _reject_boolean(value: Any, field: str) -> Any:
+    """Refuse a boolean where text belongs, instead of storing its repr.
+
+    YAML 1.1 reads a bare ``no``, ``yes``, ``on`` and ``off`` as a boolean, and the
+    import document's loader keeps that resolver on purpose: ``enabled: no`` is what a
+    reader of Home Assistant YAML expects, and ``archived`` and ``require_tag_scan``
+    are real booleans. The cost landed on the text fields, where ``str()`` turned the
+    value into Python's own repr — a task written ``name: no`` was stored as
+    ``"False"``, silently, on the one import meant to carry it.
+
+    The published JSON Schema has always typed these fields ``string``, so this makes
+    the code agree with the contract it already publishes rather than narrowing it.
+
+    ``isinstance``, not a truth test: ``False`` has to be caught as surely as ``True``.
+    A number is still coerced, because an unquoted ``part_number: 4711`` is an ordinary
+    thing to write and means exactly what it looks like.
+    """
+    if isinstance(value, bool):
+        raise TaskValidationError(
+            f"{field} must be text. YAML reads a bare yes, no, on and off as true or "
+            "false, so put quotation marks around the value."
+        )
+    return value
+
+
 def normalize_external_id(value: Any) -> str:
     """Normalize the caller's stable key for a task or an appliance.
 
@@ -409,7 +434,7 @@ def normalize_external_id(value: Any) -> str:
     """
     if value is None:
         return ""
-    text = str(value).strip()
+    text = str(_reject_boolean(value, "external_id")).strip()
     if len(text) > MAX_EXTERNAL_ID_LEN:
         raise TaskValidationError(
             f"external_id must be at most {MAX_EXTERNAL_ID_LEN} characters"
@@ -571,7 +596,7 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
     caller passes Home Assistant's configured tz, e.g. ``dt_util.now().tzinfo``);
     if omitted, the system local tz is used as a fallback.
     """
-    name = str(_require(data, "name")).strip()
+    name = str(_reject_boolean(_require(data, "name"), "name")).strip()
     if not name:
         raise TaskValidationError("name must not be empty")
 
@@ -587,7 +612,7 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         "name": name,
         # ``str(None)`` would store the literal "None"; coalesce to "" so an explicit
         # ``notes: null`` (reachable via the websocket updates dict) clears the field.
-        "notes": str(data.get("notes") or ""),
+        "notes": str(_reject_boolean(data.get("notes"), "notes") or ""),
         "recurrence_type": rec_type,
         "device_id": data.get("device_id") or None,
         "area_id": data.get("area_id") or None,

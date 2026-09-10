@@ -265,7 +265,7 @@ def _normalize_document_entry(raw: Any) -> dict:
     kind = raw.get("kind", "link")
     if kind not in DOCUMENT_KINDS:
         raise AssetValidationError(f"invalid document kind: {kind!r}")
-    name = str(raw.get("name", "")).strip()
+    name = str(_reject_boolean(raw.get("name"), "document name") or "").strip()
     if len(name) > _MAX_DOC_NAME_LEN:
         raise AssetValidationError("document name is too long")
     entry: dict[str, Any] = {
@@ -482,7 +482,7 @@ def _normalize_stock_unit(value: Any) -> str:
     """
     if value in (None, ""):
         return ""
-    text = str(value).strip()
+    text = str(_reject_boolean(value, "stock_unit")).strip()
     if len(text) > _MAX_UNIT_LEN:
         raise AssetValidationError(
             f"stock_unit must be at most {_MAX_UNIT_LEN} characters"
@@ -506,7 +506,7 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
     """
     if not isinstance(raw, dict):
         raise AssetValidationError("each part must be an object")
-    name = str(raw.get("name", "")).strip()
+    name = str(_reject_boolean(raw.get("name"), "part name") or "").strip()
     if not name:
         raise AssetValidationError("part name must not be empty")
     ptype = raw.get("type", PART_CONSUMABLE)
@@ -516,12 +516,14 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
     part: dict[str, Any] = {
         "id": str(raw.get("id") or uuid.uuid4()),
         "name": name,
-        "part_number": str(raw.get("part_number", "")).strip(),
+        "part_number": str(
+            _reject_boolean(raw.get("part_number"), "part_number") or ""
+        ).strip(),
         "type": ptype,
-        "vendor": str(raw.get("vendor", "")).strip(),
+        "vendor": str(_reject_boolean(raw.get("vendor"), "vendor") or "").strip(),
         "cost": _normalize_cost(raw.get("cost")),
         "url": _normalize_http_url(raw.get("url"), "part url"),
-        "notes": str(raw.get("notes", "")).strip(),
+        "notes": str(_reject_boolean(raw.get("notes"), "part notes") or "").strip(),
         # Replacement cadence (only meaningful for wear items — drives a task).
         "replace_interval": _normalize_interval(raw.get("replace_interval")),
         "replace_unit": None,
@@ -906,7 +908,7 @@ def normalize_fields(data: dict, *, today: date | None = None) -> dict:
 
     if kind == ASSET_KIND_VIRTUAL:
         # We own this device, so a name is required (it titles the device page).
-        name = str(_require(data, "name")).strip()
+        name = str(_reject_boolean(_require(data, "name"), "name")).strip()
         if not name:
             raise AssetValidationError("name must not be empty")
         fields["name"] = name
@@ -914,12 +916,12 @@ def normalize_fields(data: dict, *, today: date | None = None) -> dict:
         fields["parent_asset_id"] = data.get("parent_asset_id") or None
     else:  # ASSET_KIND_EXISTING — metadata attached to someone else's device.
         # The device supplies its own name; we only need to know which device.
-        fields["name"] = str(data.get("name", "")).strip()
+        fields["name"] = str(_reject_boolean(data.get("name"), "name") or "").strip()
         fields["device_id"] = _require(data, "device_id")
         fields["parent_asset_id"] = None
 
     for key in _ALL_TEXT_FIELDS:
-        value = data.get(key)
+        value = _reject_boolean(data.get(key), key)
         fields[key] = str(value).strip() if value not in (None, "") else ""
 
     fields["documents"] = _normalize_documents(data.get("documents"))
@@ -935,6 +937,25 @@ def normalize_fields(data: dict, *, today: date | None = None) -> dict:
     return fields
 
 
+def _reject_boolean(value: Any, field: str) -> Any:
+    """Refuse a boolean where text belongs, instead of storing its repr.
+
+    The appliance twin of ``models._reject_boolean`` — same rule, its own exception
+    type, written out here because ``assets`` and ``models`` are independent siblings.
+
+    YAML 1.1 reads a bare ``no``, ``yes``, ``on`` and ``off`` as a boolean, and the
+    import document's loader keeps that resolver so ``archived: no`` reads the way a
+    writer of Home Assistant YAML expects. The cost landed on the text fields, where
+    ``str()`` stored Python's repr instead: ``part_number: no`` became ``"False"``.
+    """
+    if isinstance(value, bool):
+        raise AssetValidationError(
+            f"{field} must be text. YAML reads a bare yes, no, on and off as true or "
+            "false, so put quotation marks around the value."
+        )
+    return value
+
+
 def normalize_external_id(value: Any) -> str:
     """Normalize the caller's stable key for an appliance.
 
@@ -947,7 +968,7 @@ def normalize_external_id(value: Any) -> str:
     """
     if value is None:
         return ""
-    text = str(value).strip()
+    text = str(_reject_boolean(value, "external_id")).strip()
     if len(text) > MAX_EXTERNAL_ID_LEN:
         raise AssetValidationError(
             f"external_id must be at most {MAX_EXTERNAL_ID_LEN} characters"

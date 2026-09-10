@@ -193,6 +193,29 @@ _ENVELOPE = {"home_keeper": {"format": 1}}
         # code — which is why additionalProperties is left open at both levels.
         ({**_ENVELOPE, "tasks": [{"name": "A", "whatever": 1}]}, True, "unknown field"),
         ({**_ENVELOPE, "recipes": []}, True, "unknown section"),
+        # A YAML boolean in a text field. The schema has always typed `name` as a
+        # string, so it refused this from the first day; `plan_import` used to accept
+        # it and store `str(False)`, which is the word "False". That made it an
+        # unlisted divergence rather than agreement, and the damage was silent — a
+        # task written `name: no` imported clean and landed called False.
+        (
+            {**_ENVELOPE, "tasks": [{"name": False}]},
+            False,
+            "a name is text, not a bool",
+        ),
+        (
+            {**_ENVELOPE, "appliances": [{"name": "A", "manufacturer": False}]},
+            False,
+            "an appliance's text fields are text too",
+        ),
+        # The other half of the split, and why the document's loader keeps YAML's
+        # boolean resolver: `enabled` really is a boolean, so `enabled: no` has to
+        # reach both the schema and the importer as false.
+        (
+            {**_ENVELOPE, "tasks": [{"name": "A", "enabled": False}]},
+            True,
+            "a boolean field takes a boolean",
+        ),
     ],
 )
 def test_the_schema_and_the_importer_agree_on_these(validator, document, accepted, why):

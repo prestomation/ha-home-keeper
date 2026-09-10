@@ -1606,9 +1606,10 @@ read, then ignores it.
 Dates can be a plain `2026-03-04` or a full timestamp. History is read in date order,
 whatever order you write it in.
 
-If you write a file by hand, put quotation marks around a value such as `no`, `on` or
-`NO`. Without them YAML reads the value as true or false. Indent with spaces, because
-YAML does not accept a tab.
+If you write a file by hand, put quotation marks around a text value such as `no`,
+`on` or `NO`. Home Keeper reports an error and names the field if you forget. Add
+quotation marks and import the file again. Indent with spaces, because YAML does not
+accept a tab.
 
 A JSON file also imports, because YAML accepts JSON. Indent it with spaces.
 

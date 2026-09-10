@@ -1613,3 +1613,108 @@ def test_a_tab_indent_still_reports_a_line_and_a_column():
     plan = _plan("home_keeper:\n\tformat: 1\n")
     assert not plan.ok
     assert plan.problems[0].path == "line 2, column 1"
+
+
+# ── A YAML boolean is not text ───────────────────────────────────────────────
+#
+# Found in a browser: a task written `name: no` imported clean and landed called
+# "False". YAML 1.1 reads a bare no/yes/on/off as a boolean and the document's loader
+# keeps that resolver on purpose (`enabled: no` has to mean false), so the fix belongs
+# on the text fields, where `str()` was storing Python's repr. The published JSON
+# Schema has always typed these `string`, so this is the code catching up with the
+# contract rather than a new rule.
+
+
+@pytest.mark.parametrize("written", ["no", "yes", "on", "off", "true", "false"])
+def test_a_bare_yaml_boolean_is_refused_as_a_task_name(written):
+    plan = _plan(f"home_keeper:\n  format: 1\ntasks:\n  - name: {written}\n")
+    assert not plan.ok
+    assert plan.records == ()
+    assert "name must be text" in _errors(plan)[0]
+    # The message teaches the fix, because the file looks right to the person who
+    # wrote it.
+    assert "quotation marks" in _errors(plan)[0]
+
+
+def test_the_same_word_in_quotation_marks_is_an_ordinary_name():
+    plan = _plan('home_keeper:\n  format: 1\ntasks:\n  - name: "no"\n')
+    assert plan.ok
+    assert plan.records[0].payload["name"] == "no"
+
+
+def test_a_task_name_is_never_stored_as_a_python_repr():
+    # The specific damage: `str(False)` is "False", and that is what used to land.
+    plan = _plan(_doc(tasks=[{"name": False}]))
+    assert not plan.ok
+    assert plan.records == ()
+
+
+@pytest.mark.parametrize("field", ["notes", "external_id"])
+def test_a_boolean_is_refused_in_the_other_task_text_fields(field):
+    plan = _plan(_doc(tasks=[{"name": "T", field: False}]))
+    assert not plan.ok
+    assert f"{field} must be text" in _errors(plan)[0]
+
+
+@pytest.mark.parametrize(
+    "field", ["name", "manufacturer", "model", "serial_number", "notes", "external_id"]
+)
+def test_a_boolean_is_refused_in_the_appliance_text_fields(field):
+    record = {"name": "A"}
+    record[field] = False
+    plan = _plan(_doc(appliances=[record]))
+    assert not plan.ok
+    assert "must be text" in _errors(plan)[0]
+
+
+@pytest.mark.parametrize("field", ["name", "part_number", "vendor", "notes"])
+def test_a_boolean_is_refused_inside_a_part(field):
+    part = {"name": "Filter"}
+    part[field] = False
+    plan = _plan(_doc(appliances=[{"name": "A", "parts": [part]}]))
+    assert not plan.ok
+    assert "must be text" in _errors(plan)[0]
+
+
+@pytest.mark.parametrize(
+    ("field", "written"), [("enabled", "no"), ("require_tag_scan", "no")]
+)
+def test_a_real_boolean_field_still_reads_a_bare_word(field, written):
+    # The other half, and the reason the loader keeps YAML's boolean resolver: these
+    # fields *are* booleans, and `enabled: no` is what a writer of Home Assistant YAML
+    # expects. A fix that dropped the resolver would have broken these instead.
+    plan = _plan(
+        f"home_keeper:\n  format: 1\ntasks:\n  - name: T\n    {field}: {written}\n"
+    )
+    assert plan.ok, _errors(plan)
+
+
+def test_an_appliance_still_reads_a_bare_archived_word():
+    plan = _plan(
+        "home_keeper:\n  format: 1\nappliances:\n  - name: A\n    archived: yes\n"
+    )
+    assert plan.ok, _errors(plan)
+    assert plan.records[0].payload["archived_at"]
+
+
+def test_a_number_is_still_coerced_to_text():
+    # Only booleans are refused. An unquoted `part_number: 4711` is an ordinary thing
+    # to write and means what it looks like, so it keeps working.
+    plan = _plan(
+        "home_keeper:\n  format: 1\nappliances:\n"
+        "  - name: A\n    parts: [{name: Filter, part_number: 4711}]\n"
+    )
+    assert plan.ok, _errors(plan)
+    assert plan.records[0].payload["parts"][0]["part_number"] == "4711"
+
+
+def test_an_exported_document_round_trips_a_name_that_looks_like_a_boolean():
+    # The exporter quotes such a value, so Home Keeper's own file never trips the new
+    # rule. This is the assertion that keeps that true.
+    task = _task(name="no")
+    document = tr.build_document([task], [], area_names={}, now=NOW)
+    text = tr.document_to_yaml(document)
+    assert "name: 'no'" in text
+    plan = _plan(text)
+    assert plan.ok, _errors(plan)
+    assert plan.records[0].payload["name"] == "no"
