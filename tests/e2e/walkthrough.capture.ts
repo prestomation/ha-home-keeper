@@ -924,7 +924,8 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   const openNotifyRow = async (): Promise<void> => {
     const header = notifyRow.locator('> .hk-item-header');
     if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
-    await expect(notifyRow.locator('.hk-item-body ha-form')).toBeVisible();
+    // The row holds three forms since #314 split the editor, so pick the first one.
+    await expect(notifyRow.locator('.hk-item-body ha-form').first()).toBeVisible();
   };
   await openNotifyRow();
   await page.waitForTimeout(BEAT * 2);
@@ -938,7 +939,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //     so the closed list says what each one is about without opening anything — the
   //     one view an expanded editor cannot show, because only 1 row fits.
   await notifyCard.locator('.hk-item-card > .hk-item-header').first().click();
-  await expect(notifyRow.locator('.hk-item-body ha-form')).toBeHidden();
+  await expect(notifyRow.locator('.hk-item-body ha-form').first()).toBeHidden();
   await notifyCard.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT * 3);
 
