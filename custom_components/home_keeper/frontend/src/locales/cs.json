@@ -338,6 +338,7 @@
   "history.usageShortest": "Nejkratší interval",
   "history.usageLongest": "Nejdelší interval",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "Všechna pole tohoto úkolu nastavuje {name}.",
   "managed.deleteBlocked": "Smažte v {name}",
   "managed.deleteFromRecipe": "Upravte nebo smažte recepturu „{name}“",
   "managed.fieldLocked": "Nastaveno integrací {name}",

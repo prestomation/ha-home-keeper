@@ -330,6 +330,7 @@
   "history.usageShortest": "Intervalo más corto",
   "history.usageLongest": "Intervalo más largo",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "{name} define todos los campos de esta tarea.",
   "managed.deleteBlocked": "Eliminar desde {name} en su lugar",
   "managed.deleteFromRecipe": "Editar o eliminar la receta «{name}» en su lugar",
   "managed.fieldLocked": "Definido por {name}",

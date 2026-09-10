@@ -330,6 +330,7 @@
   "history.usageShortest": "Intervallo più corto",
   "history.usageLongest": "Intervallo più lungo",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "{name} imposta tutti i campi di questa attività.",
   "managed.deleteBlocked": "Elimina invece da {name}",
   "managed.deleteFromRecipe": "Modifica o elimina invece la ricetta «{name}»",
   "managed.fieldLocked": "Impostato da {name}",

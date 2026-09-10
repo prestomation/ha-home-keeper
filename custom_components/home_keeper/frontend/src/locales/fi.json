@@ -322,6 +322,7 @@
   "history.usageShortest": "Lyhyin väli",
   "history.usageLongest": "Pisin väli",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "{name} määrittää tämän tehtävän kaikki kentät.",
   "managed.deleteBlocked": "Poista sen sijaan kohteesta {name}",
   "managed.deleteFromRecipe": "Muokkaa reseptiä ”{name}” tai poista se",
   "managed.fieldLocked": "Asettanut {name}",

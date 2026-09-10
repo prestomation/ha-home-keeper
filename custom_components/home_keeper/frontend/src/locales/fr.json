@@ -330,6 +330,7 @@
   "history.usageShortest": "Intervalle mini",
   "history.usageLongest": "Intervalle maxi",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "{name} définit tous les champs de cette tâche.",
   "managed.deleteBlocked": "Supprimer plutôt depuis {name}",
   "managed.deleteFromRecipe": "Modifier ou supprimer plutôt la recette « {name} »",
   "managed.fieldLocked": "Défini par {name}",

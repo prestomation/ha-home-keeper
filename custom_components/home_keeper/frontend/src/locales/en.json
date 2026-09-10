@@ -322,6 +322,7 @@
   "history.usageShortest": "Shortest interval",
   "history.usageLongest": "Longest interval",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "{name} sets every field on this task.",
   "managed.deleteBlocked": "Delete from {name} instead",
   "managed.deleteFromRecipe": "Edit or delete the “{name}” recipe instead",
   "managed.fieldLocked": "Set by {name}",

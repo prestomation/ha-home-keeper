@@ -301,7 +301,7 @@ await hass.services.async_call(
 | Field | Effect |
 |---|---|
 | `display_name` | Shows a **"Managed by {name}"** chip on every task card and detail page. |
-| `locked_fields` | Those fields are **removed from the edit form**. User edits are silently ignored by `update_task`. |
+| `locked_fields` | Those fields are **removed from the edit form**. User edits are silently ignored by `update_task`. Lock every field the form offers and there is nothing left to edit, so the task page **withholds Edit** and names your integration instead. |
 | `config_entry_id` | If the entry is unloaded, the chip becomes **"Integration offline"** (orphan detection). Also enables an **"Edit in {name}"** deep link on the detail page. |
 | `completion_prompt` | A short hint shown near the **Done** button so users know a completion triggers an action in your integration. |
 | `deletion_protected` | Replaces the **Delete** button with "Delete from {name} instead." The `delete_task` service also rejects the call with a descriptive error, **but only while your integration is still loaded** (see cleanup below). **Requires `config_entry_id`**. `add_task` rejects a protected task without one. |

@@ -372,7 +372,13 @@
           "icon": "mdi:battery-alert",
           "locked_fields": [
             "name",
-            "device_id"
+            "notes",
+            "device_id",
+            "area_id",
+            "tag_id",
+            "require_tag_scan",
+            "labels",
+            "card_links"
           ],
           "completion_prompt": "Mark battery as replaced?",
           "deletion_protected": true,

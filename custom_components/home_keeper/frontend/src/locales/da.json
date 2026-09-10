@@ -322,6 +322,7 @@
   "history.usageShortest": "Korteste interval",
   "history.usageLongest": "Længste interval",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "{name} fastsætter alle felter på denne opgave.",
   "managed.deleteBlocked": "Slet i {name} i stedet",
   "managed.deleteFromRecipe": "Rediger eller slet opskriften »{name}« i stedet",
   "managed.fieldLocked": "Indstillet af {name}",

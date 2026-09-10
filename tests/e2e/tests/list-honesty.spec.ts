@@ -131,6 +131,33 @@ test.describe('Home Keeper panel — the list tells the truth about what it show
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
+  test('a task whose companion locks every field says so where Edit was', async ({ page }) => {
+    // `managed_by.locked_fields` strips each named field from the edit form. A
+    // companion that claims the lot leaves the form with no rows at all, and Edit
+    // became a button that opened an empty drawer. The page withholds it and names the
+    // owner — the same courtesy the source-owned case above gets.
+    //
+    // Delete stays withheld on its own account (deletion_protected).
+    //
+    // No `.d-open-in` assertion here: the seeded glue tasks record Home Keeper's own
+    // `home_keeper_test_entry`, and the deep link is suppressed for Home Keeper's
+    // domain by design. `test/managed-fully-locked.test.js` covers the link with a
+    // config entry that really belongs to the glue.
+    const errors = trackPanelErrors(page);
+    await page.goto(`/home-keeper/tasks/${TASK.thermostatBattery}`, {
+      waitUntil: 'domcontentloaded',
+    });
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.waitFor({ state: 'attached', timeout: 45_000 });
+
+    await expect(panel.locator('.d-edit')).toHaveCount(0);
+    await expect(panel.locator('.hk-detail-actions .hk-managed-info').first()).toBeVisible();
+    await expect(panel.locator('.hk-detail-actions')).toContainText('sets every field');
+    await expect(panel.locator('.d-dup-blocked')).toBeVisible();
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
   test('both lists put a chip on the same rail, and an appliance row still says what it holds', async ({
     page,
   }) => {

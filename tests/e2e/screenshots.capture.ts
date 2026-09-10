@@ -347,6 +347,23 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
 
+  // 1h2. The same kind of task, but its companion claims every field the edit form
+  // offers. Nothing is left to edit, so the page withholds Edit and names the owner
+  // where the button was — beside the greyed Duplicate, the delete-blocked caption and
+  // the deep link into the integration that does own those fields.
+  // Dormant, so it lives in the collapsed Monitored section rather than the open list.
+  const monitoredManagedDesktop = panel.locator(
+    'details.hk-group[data-group-key="status:monitored"]',
+  );
+  await expandGroup(monitoredManagedDesktop);
+  await openRow(page, panel, `.detail-open[data-detail-id="${TASK.thermostatBattery}"]`);
+  await expect(panel.locator('.hk-detail-actions')).toContainText('sets every field');
+  await expect(panel.locator('.d-edit')).toHaveCount(0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/61-panel-fully-managed-task.png`, fullPage: true });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
   // 1h3. Usage-meter task detail with a time backstop. The seeded "Replace printer
   // nozzle" task meters `sensor.demo_printer_hours` (a fixed 780 h) against a
   // baseline of 660 with a 300 h target, so it renders a deterministic "120 of 300 h
@@ -1685,6 +1702,19 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   );
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/48c-panel-mobile-usage-intervals.png` });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+
+  // 61b. The fully managed task's page on a phone. The action row is where this
+  // differs: below 700px the captions that stand in for Edit and Delete wrap onto
+  // lines of their own instead of sitting beside the buttons, so the desktop shot
+  // does not show whether the two of them read as one paragraph or two.
+  const monitoredManaged = panel.locator('details.hk-group[data-group-key="status:monitored"]');
+  await expandGroup(monitoredManaged);
+  await openRow(page, panel, `.detail-open[data-detail-id="${TASK.thermostatBattery}"]`);
+  await expect(panel.locator('.hk-detail-actions')).toContainText('sets every field');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/61b-panel-mobile-fully-managed-task.png` });
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#hk-list')).toBeVisible();
 

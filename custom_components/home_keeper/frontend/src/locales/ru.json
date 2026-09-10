@@ -338,6 +338,7 @@
   "history.usageShortest": "Наименьший интервал",
   "history.usageLongest": "Наибольший интервал",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "Все поля этой задачи задаёт {name}.",
   "managed.deleteBlocked": "Вместо этого удалите из {name}",
   "managed.deleteFromRecipe": "Вместо этого отредактируйте или удалите рецепт «{name}»",
   "managed.fieldLocked": "Задано {name}",

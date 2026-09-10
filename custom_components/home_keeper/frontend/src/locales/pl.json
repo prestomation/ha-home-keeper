@@ -338,6 +338,7 @@
   "history.usageShortest": "Najkrótszy interwał",
   "history.usageLongest": "Najdłuższy interwał",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "Wszystkie pola tego zadania ustawia {name}.",
   "managed.deleteBlocked": "Zamiast tego usuń z {name}",
   "managed.deleteFromRecipe": "Zamiast tego edytuj lub usuń recepturę „{name}”",
   "managed.fieldLocked": "Ustawione przez {name}",

@@ -322,6 +322,7 @@
   "history.usageShortest": "Kortste interval",
   "history.usageLongest": "Langste interval",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "{name} bepaalt alle velden van deze taak.",
   "managed.deleteBlocked": "Verwijder in plaats daarvan in {name}",
   "managed.deleteFromRecipe": "Bewerk of verwijder het recept „{name}“ in plaats daarvan",
   "managed.fieldLocked": "Ingesteld door {name}",

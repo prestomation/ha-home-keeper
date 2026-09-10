@@ -330,6 +330,7 @@
   "history.usageShortest": "Interval més curt",
   "history.usageLongest": "Interval més llarg",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "{name} defineix tots els camps d'aquesta tasca.",
   "managed.deleteBlocked": "Elimina-la des de {name}",
   "managed.deleteFromRecipe": "Edita o elimina la recepta «{name}»",
   "managed.fieldLocked": "Definit per {name}",

@@ -151,7 +151,7 @@ function assetsForDevice(p: PanelHost, deviceId?: string | null): Asset[] {
  * appliance's — so the list stays short and unambiguous. Empty when the task has no
  * device, or its appliance has no consumables (the picker then hides).
  */
-function consumableOptions(p: PanelHost, task: Partial<Task>): { value: string; label: string }[] {
+export function consumableOptions(p: PanelHost, task: Partial<Task>): { value: string; label: string }[] {
   const assets = assetsForDevice(p, task.device_id);
   const multi = assets.length > 1; // disambiguate by appliance only when needed
   const options: { value: string; label: string }[] = [];
@@ -176,7 +176,7 @@ function consumableOptions(p: PanelHost, task: Partial<Task>): { value: string; 
  * pairs live (a file opens via a signed URL minted on click). Empty (the picker
  * then hides) when the task touches no appliance or none of them carry a document.
  */
-function documentOptions(p: PanelHost, task: Partial<Task>): { value: string; label: string }[] {
+export function documentOptions(p: PanelHost, task: Partial<Task>): { value: string; label: string }[] {
   const assets = assetsForTask(task, p._assets);
   const multi = assets.length > 1; // disambiguate by appliance only when needed
   const options: { value: string; label: string }[] = [];

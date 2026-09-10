@@ -322,6 +322,7 @@
   "history.usageShortest": "Kürzestes Intervall",
   "history.usageLongest": "Längstes Intervall",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "{name} legt alle Felder dieser Aufgabe fest.",
   "managed.deleteBlocked": "Stattdessen in {name} löschen",
   "managed.deleteFromRecipe": "Stattdessen das Rezept „{name}“ bearbeiten oder löschen",
   "managed.fieldLocked": "Festgelegt von {name}",

@@ -709,6 +709,27 @@ export function taskSchema(
   return taskSchemaSections(task, consumables, links, tags).flatMap((s) => s.fields);
 }
 
+/**
+ * Whether the task form would open with no fields in it at all.
+ *
+ * A `managed_by` block strips its `locked_fields` from every section above, so a
+ * companion that claims the whole task leaves a form with nothing to edit — and an
+ * Edit button that opens an empty drawer. The task page asks this before it draws one.
+ *
+ * Built on {@link taskSchemaSections} rather than on a second reading of
+ * `locked_fields`: which fields a task kind offers is this module's answer to give, and
+ * a guard that worked it out separately would be free to disagree with the form it
+ * guards.
+ */
+export function taskFormIsEmpty(
+  task: Partial<Task>,
+  consumables: { value: string; label: string }[] = [],
+  links: { value: string; label: string }[] = [],
+  tags: { value: string; label: string }[] = [],
+): boolean {
+  return taskSchemaSections(task, consumables, links, tags).every((s) => !s.fields.length);
+}
+
 /** Map a task onto the `ha-form` data object (selector-shaped values). */
 export function taskFormData(task: Partial<Task>): Record<string, unknown> {
   // The edit state spreads flat `sensor_*` fields onto the task as the user edits;

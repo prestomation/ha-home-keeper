@@ -322,6 +322,7 @@
   "history.usageShortest": "最短间隔",
   "history.usageLongest": "最长间隔",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "此任务的所有字段均由 {name} 设置。",
   "managed.deleteBlocked": "请改为从 {name} 中删除",
   "managed.deleteFromRecipe": "请改为编辑或删除配方“{name}”",
   "managed.fieldLocked": "由 {name} 设置",

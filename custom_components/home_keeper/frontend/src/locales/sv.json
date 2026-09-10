@@ -322,6 +322,7 @@
   "history.usageShortest": "Kortaste intervall",
   "history.usageLongest": "Längsta intervall",
   "managed.completionHint": "{prompt}",
+  "managed.allLocked": "{name} anger alla fält i den här uppgiften.",
   "managed.deleteBlocked": "Ta bort i {name} i stället",
   "managed.deleteFromRecipe": "Redigera eller ta bort receptet ”{name}” i stället",
   "managed.fieldLocked": "Inställt av {name}",

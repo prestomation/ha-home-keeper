@@ -43,7 +43,8 @@ import {
   MDI_WEAR,
 } from './panel-icons';
 import { assetAncestry } from './panel-lists';
-import { consumableLinkLabel } from './panel-task-form';
+import { consumableLinkLabel, consumableOptions, documentOptions } from './panel-task-form';
+import { taskFormIsEmpty } from './forms';
 import type { Asset, Part, Task } from './types';
 import {
   ASSET_TABS,
@@ -322,7 +323,22 @@ function taskDetail(p: PanelHost, task: Task): string {
   // sourceOwned caption above doesn't carry.
   manage = `${dupBtn}${recipeBtn}${manage}`;
   if (!sourceOwned) {
-    const editBtn = `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
+    // A companion declares what it owns through `managed_by.locked_fields`, and the
+    // form drops every one of them. Claim the lot and the drawer opens with no rows in
+    // it, which is a button that does nothing — so withhold Edit and say who owns the
+    // task instead. Only for a managed task: without a `managed_by` there is nobody to
+    // name, and an empty form would be a bug elsewhere rather than an owner's choice.
+    //
+    // Still withheld when the owner is orphaned. `locked_fields` is stored on the task,
+    // so the form stays empty whether or not the integration is still loaded; Delete
+    // comes back on its own below, which is the cleanup path an orphan needs.
+    const fullyLocked =
+      !!mb && taskFormIsEmpty(task, consumableOptions(p, task), documentOptions(p, task), p._tags);
+    const editBtn = fullyLocked
+      ? `<span class="hk-managed-info">${escapeHTML(
+          t('managed.allLocked', { name: mb.display_name }),
+        )}</span>`
+      : `<ha-button ${btnAttrs('secondary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
     // Deletion protection only holds while the owner is present. Once orphaned
     // (owner uninstalled/disabled), the Delete button returns so the user can
     // clean the task up — otherwise "delete it from X instead" points nowhere.

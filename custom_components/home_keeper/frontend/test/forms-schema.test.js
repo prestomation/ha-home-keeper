@@ -37,6 +37,7 @@ import {
   shoppingSchema,
   structuredDetailsSchema,
   taskFormData,
+  taskFormIsEmpty,
   taskSchema,
   taskSchemaSections,
   toProfileSync,
@@ -2208,5 +2209,79 @@ describe('mergePartForm — every field is guarded by its own key', () => {
       create_buy_task: false,
       restock_quantity: null,
     });
+  });
+});
+
+// The guard the task page asks before it draws Edit. A companion declares what it owns
+// through `managed_by.locked_fields`, and every section above drops those fields — so a
+// companion that claims the whole task leaves a form with nothing in it.
+describe('taskFormIsEmpty', () => {
+  const TRIGGERED_FIELDS = [
+    'name',
+    'notes',
+    'device_id',
+    'area_id',
+    'tag_id',
+    'require_tag_scan',
+    'labels',
+    'card_links',
+  ];
+
+  const managed = (lockedFields) => ({
+    id: 't1',
+    name: 'Replace battery: Thermostat',
+    recurrence_type: 'triggered',
+    managed_by: { integration: 'x', display_name: 'X', locked_fields: lockedFields },
+  });
+
+  it('is true only when the companion claims every field the kind offers', () => {
+    expect(taskFormIsEmpty(managed(TRIGGERED_FIELDS))).toBe(true);
+  });
+
+  it('is false while one field is left unclaimed', () => {
+    // Drop each field in turn: any single survivor is a form worth opening, so the
+    // guard must not fire. This is what stops the predicate degrading into "is this
+    // task managed at all".
+    //
+    // `card_links` is excluded because it is conditional — with no documents on offer
+    // the form omits it whether it is locked or not, so unlocking it here changes
+    // nothing. The picker case below covers it with a document present.
+    const unconditional = TRIGGERED_FIELDS.filter((f) => f !== 'card_links');
+    for (const kept of unconditional) {
+      const locked = TRIGGERED_FIELDS.filter((f) => f !== kept);
+      expect(taskFormIsEmpty(managed(locked)), `${kept} left editable`).toBe(false);
+    }
+  });
+
+  it('is false for the shape a glue actually ships', () => {
+    // Battery Notes and Pawsistant claim what they write, not everything, so their
+    // tasks keep an edit form and the guard never fires for them.
+    expect(taskFormIsEmpty(managed(['name', 'notes', 'device_id', 'recurrence_type']))).toBe(
+      false,
+    );
+  });
+
+  it('is false for a task nobody manages', () => {
+    expect(taskFormIsEmpty({ id: 't1', recurrence_type: 'triggered' })).toBe(false);
+    expect(taskFormIsEmpty({ id: 't1', recurrence_type: 'floating', interval: 3 })).toBe(false);
+  });
+
+  it('is false when only some sections are empty', () => {
+    // A triggered task has 2 sections. Empty just the first: `every` must see the
+    // second still has fields. `some` in its place would call this empty.
+    const sections = taskSchemaSections(managed(['name', 'notes']));
+    expect(sections.filter((s) => !s.fields.length).length).toBeGreaterThan(0);
+    expect(sections.filter((s) => s.fields.length).length).toBeGreaterThan(0);
+    expect(taskFormIsEmpty(managed(['name', 'notes']))).toBe(false);
+  });
+
+  it('counts the pickers that only appear when there is something to pick', () => {
+    // `card_links` is offered only when the appliance has documents. A task that locks
+    // everything else still has a form when one is on offer, so the guard has to be
+    // asked with the same lists the form is built from.
+    const locked = TRIGGERED_FIELDS.filter((f) => f !== 'card_links');
+    const links = [{ value: 'a1:d1', label: 'Manual' }];
+    expect(taskFormIsEmpty(managed(locked), [], links)).toBe(false);
+    expect(taskFormIsEmpty(managed(locked), [], [])).toBe(true);
   });
 });
