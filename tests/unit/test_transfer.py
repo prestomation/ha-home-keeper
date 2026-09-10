@@ -1630,10 +1630,13 @@ def test_a_bare_yaml_boolean_is_refused_as_a_task_name(written):
     plan = _plan(f"home_keeper:\n  format: 1\ntasks:\n  - name: {written}\n")
     assert not plan.ok
     assert plan.records == ()
-    assert "name must be text" in _errors(plan)[0]
-    # The message teaches the fix, because the file looks right to the person who
-    # wrote it.
-    assert "quotation marks" in _errors(plan)[0]
+    # The whole sentence. It has to name the field *and* teach the fix, because the
+    # file looks right to the person who wrote it: half a message is a message that
+    # sends them back to the same line with nothing new to try.
+    assert _errors(plan) == [
+        "name must be text. YAML reads a bare yes, no, on and off as true or false, "
+        "so put quotation marks around the value."
+    ]
 
 
 def test_the_same_word_in_quotation_marks_is_an_ordinary_name():
@@ -1664,7 +1667,11 @@ def test_a_boolean_is_refused_in_the_appliance_text_fields(field):
     record[field] = False
     plan = _plan(_doc(appliances=[record]))
     assert not plan.ok
-    assert "must be text" in _errors(plan)[0]
+    # `assets` carries its own copy of the guard, so its message is pinned separately.
+    assert _errors(plan) == [
+        f"{field} must be text. YAML reads a bare yes, no, on and off as true or "
+        "false, so put quotation marks around the value."
+    ]
 
 
 @pytest.mark.parametrize("field", ["name", "part_number", "vendor", "notes"])
