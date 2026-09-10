@@ -10,7 +10,9 @@
 # Usage:
 #   bash ci/setup-ci-deps.sh                  # install what is missing
 #   FORCE=1 bash ci/setup-ci-deps.sh          # install everything again
-#   SKIP_BROWSER=1 bash ci/setup-ci-deps.sh   # do not touch Docker or Playwright
+#
+# Each part can be left alone on its own:
+#   SKIP_PYTHON=1  SKIP_NPM=1  SKIP_VALE=1  SKIP_FFMPEG=1  SKIP_BROWSER=1
 #
 # The Python packages go in .venv (git ignores it). Activate it before you run the
 # Python lanes: source .venv/bin/activate
@@ -20,14 +22,44 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 
 FORCE="${FORCE:-0}"
+SKIP_PYTHON="${SKIP_PYTHON:-0}"
+SKIP_NPM="${SKIP_NPM:-0}"
+SKIP_VALE="${SKIP_VALE:-0}"
+SKIP_FFMPEG="${SKIP_FFMPEG:-0}"
 SKIP_BROWSER="${SKIP_BROWSER:-0}"
-VALE_VERSION="${VALE_VERSION:-3.9.1}"
-MUTMUT_VERSION="${MUTMUT_VERSION:-3.7.0}"
 BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
+LOCK_DIR="${LOCK_DIR:-${TMPDIR:-/tmp}/ha-home-keeper-setup-ci-deps.lock}"
+
+# CI pins the vale binary in its own action, and AGENTS.md says a local vale can
+# miss what CI reports. So this version is the local one, and there is no CI pin
+# to read it from. The ai-tells style package needs no pin here: .vale.ini holds
+# the release URL, and "vale sync" reads it.
+VALE_VERSION="${VALE_VERSION:-3.9.1}"
+
+# Read the pins that CI already holds, so this script cannot go stale on its own.
+read_pin() {  # read_pin <file> <regex with one group> <fallback>
+  local value=""
+  [ -f "$1" ] && value="$(grep -oPm1 "$2" "$1" 2>/dev/null | tail -1)"
+  echo "${value:-$3}"
+}
+# mutation.yml: "pip install mutmut==3.7.0"
+MUTMUT_VERSION="${MUTMUT_VERSION:-$(read_pin .github/workflows/mutation.yml 'mutmut==\K[0-9.]+' 3.7.0)}"
+# pyproject.toml: [tool.mypy] python_version, which tracks the Home Assistant floor.
+PY_FLOOR="${PY_FLOOR:-$(read_pin pyproject.toml 'python_version\s*=\s*"\K[0-9.]+' 3.14)}"
+
 VENV="${VENV:-$ROOT/.venv}"
-PY_FLOOR="${PY_FLOOR:-3.14}"
+# rm -rf runs on this path, so refuse anything that is not inside the repository.
+case "$VENV" in
+  "$ROOT"/?*) ;;
+  *) echo "[setup-ci-deps] VENV must be a path inside $ROOT. Got: '$VENV'" >&2; exit 2 ;;
+esac
+
 # Newest first. CI runs the floor; this machine often can only run an older one.
-PY_CANDIDATES="${PY_CANDIDATES:-$PY_FLOOR 3.13 3.12}"
+if [ -n "${PY_CANDIDATES:-}" ]; then
+  read -r -a PY_CANDIDATES <<<"$PY_CANDIDATES"
+else
+  PY_CANDIDATES=("$PY_FLOOR" 3.13 3.12)
+fi
 
 INSTALLED=(); SKIPPED=(); FAILED=()
 
@@ -38,7 +70,17 @@ fail() { FAILED+=("$1");    log "FAILED  $1"; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# One run at a time. The SessionStart hook starts this in the background, so two
+# sessions can open together and fight over .venv, node_modules and $BIN_DIR.
+# mkdir is atomic, which is what makes it a lock.
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  log "Another run holds $LOCK_DIR. Stopping. Remove that directory if no run is live."
+  exit 0
+fi
+trap 'rm -rf "$LOCK_DIR"' EXIT INT TERM
 
+
+if [ "$SKIP_PYTHON" = 1 ]; then log "SKIP    the Python packages (SKIP_PYTHON=1)"; else
 # --- Python: the project virtual environment ------------------------------
 # Home Assistant sets a Python floor (see ci/check-ha-version.py) that the system
 # interpreter is usually below. pip then goes back quietly to a Home Assistant
@@ -86,7 +128,7 @@ if [ -x "$VENV/bin/python" ] && venv_smoke; then
   VENV_PY="$("$VENV/bin/python" -V 2>&1)"
   skip ".venv ($VENV_PY)"
 else
-  for pyspec in $PY_CANDIDATES; do
+  for pyspec in "${PY_CANDIDATES[@]}"; do
     if have uv; then
       uv python install "$pyspec" >/dev/null 2>&1 || true
     elif ! have "python$pyspec"; then
@@ -101,7 +143,7 @@ else
     fi
     log "        Python $pyspec cannot run the Home Assistant fixtures. Trying the next one."
   done
-  [ -n "$VENV_PY" ] || fail ".venv (no candidate Python ran the unit tests: $PY_CANDIDATES)"
+  [ -n "$VENV_PY" ] || fail ".venv (no candidate Python ran the unit tests: ${PY_CANDIDATES[*]})"
 fi
 
 if [ -x "$VENV/bin/python" ]; then
@@ -142,19 +184,30 @@ if [ -x "$VENV/bin/python" ]; then
   fi
 fi
 
+fi  # SKIP_PYTHON
+
 # --- Node: one npm project for each lane -----------------------------------
 # root = vitest and Stryker, frontend = the panel build, tests/e2e = Playwright,
 # website = the Docusaurus docs site.
 npm_project() {
   local dir="$1" label="$2"
   [ -f "$dir/package.json" ] || { log "SKIP    $label (no package.json)"; return; }
-  if [ "$FORCE" = 0 ] && [ -d "$dir/node_modules" ]; then skip "$label"; return; fi
+  if [ "$FORCE" = 0 ] && [ -d "$dir/node_modules" ]; then
+    # A lock file newer than the install means node_modules is behind it.
+    if [ -f "$dir/package-lock.json" ] && [ "$dir/package-lock.json" -nt "$dir/node_modules" ]; then
+      log "        $label is behind $dir/package-lock.json. Installing again."
+    else
+      skip "$label"; return
+    fi
+  fi
   log "Installing $label npm packages..."
   local cmd=(npm ci --no-audit --no-fund)
   [ -f "$dir/package-lock.json" ] || cmd=(npm install --no-audit --no-fund)
   (cd "$dir" && "${cmd[@]}") >/dev/null 2>&1 && ok "$label" || fail "$label"
 }
-if have npm; then
+if [ "$SKIP_NPM" = 1 ]; then
+  log "SKIP    the npm packages (SKIP_NPM=1)"
+elif have npm; then
   npm_project "." "npm (root)"
   npm_project "custom_components/home_keeper/frontend" "npm (panel frontend)"
   npm_project "tests/e2e" "npm (e2e)"
@@ -165,8 +218,13 @@ fi
 
 # --- Vale: the prose lint --------------------------------------------------
 # lint.yml runs the vale action. This is the local equivalent from AGENTS.md.
-if [ "$FORCE" = 0 ] && have vale; then
-  skip "vale"
+vale_is_pinned() {
+  have vale && vale --version 2>/dev/null | grep -qF "$VALE_VERSION"
+}
+if [ "$SKIP_VALE" = 1 ]; then
+  log "SKIP    vale (SKIP_VALE=1)"
+elif [ "$FORCE" = 0 ] && vale_is_pinned; then
+  skip "vale $VALE_VERSION"
 else
   log "Installing vale $VALE_VERSION..."
   arch="$(uname -m)"
@@ -179,15 +237,17 @@ else
     tmp="$(mktemp -d)"
     if curl -fsSL "$url" -o "$tmp/vale.tar.gz" && tar -xzf "$tmp/vale.tar.gz" -C "$tmp" vale; then
       install -m 0755 "$tmp/vale" "$BIN_DIR/vale" && ok "vale $VALE_VERSION" || fail "vale"
+      rm -rf "$tmp"
     else
       fail "vale (the download failed: $url)"
+      log "        The partial download stays in $tmp for you to look at."
     fi
-    rm -rf "$tmp"
   fi
 fi
-# The pinned ai-tells package that .vale.ini declares.
-if have vale || [ -x "$BIN_DIR/vale" ]; then
-  if [ "$FORCE" = 0 ] && [ -d styles/ai-tells ]; then
+# The ai-tells package that .vale.ini declares.
+if [ "$SKIP_VALE" != 1 ] && { have vale || [ -x "$BIN_DIR/vale" ]; }; then
+  # A directory alone is not proof: an interrupted sync leaves an empty one.
+  if [ "$FORCE" = 0 ] && [ -n "$(ls -A styles/ai-tells 2>/dev/null)" ]; then
     skip "vale styles (ai-tells)"
   else
     log "Getting the vale styles..."
@@ -198,7 +258,9 @@ fi
 
 # --- ffmpeg: the walkthrough video capture ---------------------------------
 # ci/capture-video.sh changes the Playwright recording to a gif and an mp4.
-if [ "$FORCE" = 0 ] && have ffmpeg; then
+if [ "$SKIP_FFMPEG" = 1 ]; then
+  log "SKIP    ffmpeg (SKIP_FFMPEG=1)"
+elif [ "$FORCE" = 0 ] && have ffmpeg; then
   skip "ffmpeg"
 else
   log "Installing ffmpeg..."
@@ -241,4 +303,7 @@ case ":$PATH:" in
   *) log "NOTE: put $BIN_DIR in PATH to use the installed tools." ;;
 esac
 log "Done."
+# No step stops the run, but the exit status still says whether one failed, so a
+# caller that wants to know does not have to read the log.
+[ "${#FAILED[@]}" -eq 0 ] || exit 1
 exit 0

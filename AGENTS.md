@@ -536,10 +536,17 @@ can stop the script: it always prints a summary of what it installed, skipped an
 failed.
 
 ```bash
-bash ci/setup-ci-deps.sh                  # install what is missing
-FORCE=1 bash ci/setup-ci-deps.sh          # install everything again
-SKIP_BROWSER=1 bash ci/setup-ci-deps.sh   # leave Docker and Playwright alone
+bash ci/setup-ci-deps.sh          # install what is missing
+FORCE=1 bash ci/setup-ci-deps.sh  # install everything again
+# Leave one part alone:
+SKIP_PYTHON=1  SKIP_NPM=1  SKIP_VALE=1  SKIP_FFMPEG=1  SKIP_BROWSER=1
 ```
+
+Only one run can hold the lock directory, because the hook starts the script in
+the background and two sessions can open together. A second run says so and stops.
+The exit status is 1 when a step failed, so a caller does not have to read the log.
+The `mutmut` pin comes from `mutation.yml` and the Python floor from `pyproject.toml`,
+so the script cannot go stale on its own when CI moves a pin.
 
 **The Python packages go in `.venv`** (git ignores it), not in the system Python.
 Activate it before you run a Python lane: `source .venv/bin/activate`. The script
