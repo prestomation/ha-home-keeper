@@ -22,7 +22,7 @@ from pathlib import Path
 
 import hk_transfer as tr
 import pytest
-import required_deps
+import yaml
 
 _COMPONENT = Path(__file__).resolve().parents[2] / "custom_components" / "home_keeper"
 
@@ -101,11 +101,6 @@ def test_the_document_accepts_every_field_its_service_takes(service, known, extr
     reference document the format for free. A service field the importer silently
     drops turns that sentence into a lie the moment somebody trusts it.
     """
-    yaml = required_deps.require(
-        "yaml",
-        reason="the field list lives in services.yaml",
-        allow_module_level=False,
-    )
     services = yaml.safe_load(
         (_COMPONENT / "services.yaml").read_text(encoding="utf-8")
     )

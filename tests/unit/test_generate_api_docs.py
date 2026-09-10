@@ -20,11 +20,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import hk_api_surface as api_surface
-import required_deps
+
+# The generator parses services.yaml. PyYAML is in requirements-test.txt, so a
+# missing one is a broken environment: let the ImportError stop the run rather
+# than skipping the gate quietly.
+import yaml  # noqa: F401
 
 _ROOT = Path(__file__).resolve().parents[2]
-
-required_deps.require("yaml", reason="the generator reads services.yaml")
 
 
 def _load_generator():

@@ -129,15 +129,14 @@
     import/export document, which `transfer.py` writes and reads; `Babel` for the
     locale checks; `hypothesis` for the property-based tests below; `jsonschema` for
     the published-schema gate.
-  - **A missing dependency fails the run.** Everything `requirements-test.txt` names
-    must import: `tests/unit/required_deps.py` fails the tests of a file that needs
-    one, and a session check in `tests/unit/conftest.py` stops the run before it
-    starts. A skip looks the same as a lane that does not cover the code, so #309
-    shipped red with `hypothesis` missing and two files silent. `jsonschema` and
-    `voluptuous-openapi` stay out of that list on purpose (see below), so they skip
-    the schema gate when it is not opted in — and fail it when `HK_SCHEMA_GATE` is
-    set. `HK_ALLOW_MISSING_DEPS=1` gives the old skipping behaviour back for a bare
-    `pip install pytest` run.
+  - **A missing dependency fails the run; it never skips it.** Every package
+    `requirements-test.txt` names is imported plainly, so a missing one is an
+    ImportError at collection. A skip reads as "this lane does not cover that", so a
+    broken environment looked the same as a deliberate exclusion: #309 shipped red
+    with `hypothesis` missing and two files silent. `importorskip` stays for
+    `homeassistant` and `voluptuous`, which a bare install really does not have.
+    `test_generate_schema.py` imports `jsonschema` and `voluptuous_openapi` plainly
+    too, after its `HK_SCHEMA_GATE` skip: the gate says the lane opted in.
   - **The published-schema gate runs only where `HK_SCHEMA_GATE` is set**, which is
     `lint.yml`'s **mypy** job. `tests/unit/test_generate_schema.py` builds the schema
     from the integration's own voluptuous service schemas, so it needs a Home Assistant

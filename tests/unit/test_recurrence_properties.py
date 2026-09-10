@@ -23,16 +23,10 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import hk_recurrence as r
+import property_strategies as ps
 import pytest
-import required_deps
-
-required_deps.require(
-    "hypothesis", reason="the property-based tests draw their inputs with it"
-)
-
-import property_strategies as ps  # noqa: E402  (after the dependency check, on purpose)
-from hypothesis import assume, example, given  # noqa: E402
-from hypothesis import strategies as st  # noqa: E402
+from hypothesis import assume, example, given
+from hypothesis import strategies as st
 
 pytestmark = pytest.mark.property
 

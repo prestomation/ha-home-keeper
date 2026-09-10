@@ -19,16 +19,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import hk_transfer as tr
+import property_strategies as ps
 import pytest
-import required_deps
-
-required_deps.require(
-    "hypothesis", reason="the property-based tests draw their inputs with it"
-)
-
-import property_strategies as ps  # noqa: E402  (after the dependency check, on purpose)
-from hypothesis import given, settings  # noqa: E402
-from hypothesis import strategies as st  # noqa: E402
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 pytestmark = pytest.mark.property
 
