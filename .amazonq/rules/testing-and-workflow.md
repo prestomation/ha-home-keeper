@@ -159,7 +159,10 @@
   `ci/install-deps.sh` and `ci/setup-ci-deps.sh` (the session hook) install them all,
   so a missing one is a broken environment rather than a smaller suite. A skip reads
   as "this lane does not cover that", which is why #309 shipped a red pull request:
-  `hypothesis` was not installed and two files went quiet. `pytest.importorskip` is
+  `hypothesis` was not installed and two files went quiet. It costs most for the
+  property tests, because the mutation gate scores them rather than deselecting them:
+  a quiet skip takes away the tests that kill the mutants the example-based ones
+  miss. `pytest.importorskip` is
   right only for a package a lane really may not have — `homeassistant` and
   `voluptuous`. Do not add a guard that reads the requirements file and checks the
   whole list at session start: the mypy job installs its own three packages and
