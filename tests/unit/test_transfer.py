@@ -1350,6 +1350,81 @@ def test_three_records_sharing_one_external_id_all_say_so():
     assert "of 3 records" in _errors(plan)[0]
 
 
+def test_a_shared_key_is_allowed_when_every_record_states_its_own_id():
+    """The exemption, and why it exists.
+
+    A store can already hold two tasks under one ``external_id`` — nothing upstream
+    makes the key unique. An export writes an ``id`` on every record, so re-importing
+    one matches on step 1 and never reaches the key. Refusing the group outright made
+    that export impossible to import, which breaks restoring a backup. Found by
+    ``test_transfer_properties.py``, which generated exactly that store.
+    """
+    plan = _plan(
+        _doc(
+            tasks=[
+                {
+                    "id": "0198e7c0-0000-4000-8000-00000000000a",
+                    "name": "A",
+                    "external_id": "k",
+                },
+                {
+                    "id": "0198e7c0-0000-4000-8000-00000000000b",
+                    "name": "B",
+                    "external_id": "k",
+                },
+            ]
+        )
+    )
+    assert plan.ok, _errors(plan)
+    assert [r.record_id for r in plan.records] == [
+        "0198e7c0-0000-4000-8000-00000000000a",
+        "0198e7c0-0000-4000-8000-00000000000b",
+    ]
+
+
+def test_one_record_without_an_id_is_enough_to_refuse_the_group():
+    # The mixed case: the record with an id would be found again, the one without it
+    # would not, so the group still has a member that falls through to the key.
+    plan = _plan(
+        _doc(
+            tasks=[
+                {
+                    "id": "0198e7c0-0000-4000-8000-00000000000a",
+                    "name": "A",
+                    "external_id": "k",
+                },
+                {"name": "B", "external_id": "k"},
+            ]
+        )
+    )
+    assert not plan.ok
+    assert '"k" is the external_id of 2 records' in _errors(plan)[0]
+
+
+def test_an_id_that_is_not_a_uuid_does_not_earn_the_exemption():
+    # `_claim_id` only keeps a stated id when it is a well-formed uuid; anything else
+    # gets a fresh one the document does not carry, so the key is the only way back.
+    plan = _plan(
+        _doc(
+            tasks=[
+                {"id": "not-a-uuid", "name": "A", "external_id": "k"},
+                {"id": "also-not", "name": "B", "external_id": "k"},
+            ]
+        )
+    )
+    assert not plan.ok
+
+
+def test_an_export_of_a_store_with_a_shared_key_still_imports():
+    # The property, said as a case: two stored tasks under one key, out and back.
+    first = _task(external_id="k")
+    second = _task(name="Second", external_id="k")
+    document = tr.build_document([first, second], [], area_names={}, now=NOW)
+    plan = _plan(tr.document_to_yaml(document))
+    assert plan.ok, _errors(plan)
+    assert len(plan.records) == 2
+
+
 def test_two_separate_collisions_are_both_reported():
     # Four records, two clashing pairs. The scan has to carry on past the first pair:
     # stopping there would report half the document and leave the rest to fail on the

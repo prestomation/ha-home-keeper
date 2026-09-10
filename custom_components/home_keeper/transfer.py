@@ -884,7 +884,7 @@ def plan_import(
 
     # Both post-passes need the whole section decided before they can see anything:
     # one collision and one loop each look like an ordinary record on its own.
-    if clashed := _colliding_external_ids(planned, "appliances", problems):
+    if clashed := _colliding_external_ids(planned, "appliances", doc_assets, problems):
         planned = [r for r in planned if r.record_id not in clashed]
         planned_assets = {k: v for k, v in planned_assets.items() if k not in clashed}
         asset_refs = {k: v for k, v in asset_refs.items() if v not in clashed}
@@ -917,7 +917,7 @@ def plan_import(
         completions += counted[0]
         skips += counted[1]
 
-    if clashed := _colliding_external_ids(planned, "tasks", problems):
+    if clashed := _colliding_external_ids(planned, "tasks", doc_tasks, problems):
         planned = [r for r in planned if r.record_id not in clashed]
 
     return ImportPlan(
@@ -929,7 +929,10 @@ def plan_import(
 
 
 def _colliding_external_ids(
-    planned: list[PlannedRecord], section: str, problems: list[Problem]
+    planned: list[PlannedRecord],
+    section: str,
+    raw: list[dict[str, Any]],
+    problems: list[Problem],
 ) -> set[str]:
     """Record ids to drop because two records in one document claim one key.
 
@@ -948,6 +951,18 @@ def _colliding_external_ids(
 
     Checked against the plan rather than the text, so it sees the key a record arrives
     with *and* the key it inherits from the stored record it matched.
+
+    **Only when the key is what a later run would have to match on.** A shared key is
+    harmless while every record in the group also states its own ``id``, because the
+    ladder tries the id first and never reaches step 2. That is not a corner case: an
+    export writes an ``id`` on every record, and a store is free to hold two tasks
+    with one ``external_id`` already (nothing upstream makes it unique). Refusing the
+    group outright made an export of such a store impossible to import again, which
+    broke restoring a backup — the one job this format exists for. A property test
+    caught it, having generated exactly that store.
+
+    So the rule is the damage rather than the shape: refuse when at least one record
+    in the group would fall through to the key, and leave the rest alone.
     """
     by_key: dict[str, list[PlannedRecord]] = {}
     for record in planned:
@@ -956,6 +971,11 @@ def _colliding_external_ids(
     dropped: set[str] = set()
     for key, group in by_key.items():
         if len(group) < 2:
+            continue
+        # A stated uuid is what `_claim_id` keeps, so it is also what a re-run matches
+        # on. Anything else (absent, or not a uuid) is replaced by a fresh id the
+        # document does not carry, leaving `external_id` as the only way back.
+        if all(_is_uuid(raw[r.index].get("id")) for r in group):
             continue
         where = ", ".join(f"{section}[{r.index}]" for r in group)
         for record in group:

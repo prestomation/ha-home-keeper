@@ -661,5 +661,5 @@
   "part.low": "Low",
   "part.reorderAt": "Reorder at {n}",
   "toast.stockSet": "Stock set to {n}",
-  "transfer.tooLarge": "This document is larger than the panel's {mb} MB limit. Split it into smaller files, or use the home_keeper.import_data service for documents up to {max} MB."
+  "transfer.tooLarge": "This document is over the panel's {mb} MB limit. Split it into smaller files, or use the home_keeper.import_data service for documents up to {max} MB."
 }
