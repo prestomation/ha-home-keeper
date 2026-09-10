@@ -52,3 +52,4 @@ mutants/
 stryker.log
 reports/
 .venv/
+.setup-ci-deps.lock/

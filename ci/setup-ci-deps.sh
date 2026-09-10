@@ -28,7 +28,8 @@ SKIP_VALE="${SKIP_VALE:-0}"
 SKIP_FFMPEG="${SKIP_FFMPEG:-0}"
 SKIP_BROWSER="${SKIP_BROWSER:-0}"
 BIN_DIR="${BIN_DIR:-$HOME/.local/bin}"
-LOCK_DIR="${LOCK_DIR:-${TMPDIR:-/tmp}/ha-home-keeper-setup-ci-deps.lock}"
+# The lock lives in the repository, so two checkouts of it do not share one.
+LOCK_DIR="${LOCK_DIR:-$ROOT/.setup-ci-deps.lock}"
 
 # CI pins the vale binary in its own action, and AGENTS.md says a local vale can
 # miss what CI reports. So this version is the local one, and there is no CI pin
@@ -37,22 +38,58 @@ LOCK_DIR="${LOCK_DIR:-${TMPDIR:-/tmp}/ha-home-keeper-setup-ci-deps.lock}"
 VALE_VERSION="${VALE_VERSION:-3.9.1}"
 
 # Read the pins that CI already holds, so this script cannot go stale on its own.
-read_pin() {  # read_pin <file> <regex with one group> <fallback>
-  local value=""
-  [ -f "$1" ] && value="$(grep -oPm1 "$2" "$1" 2>/dev/null | tail -1)"
-  echo "${value:-$3}"
-}
-# mutation.yml: "pip install mutmut==3.7.0"
-MUTMUT_VERSION="${MUTMUT_VERSION:-$(read_pin .github/workflows/mutation.yml 'mutmut==\K[0-9.]+' 3.7.0)}"
-# pyproject.toml: [tool.mypy] python_version, which tracks the Home Assistant floor.
-PY_FLOOR="${PY_FLOOR:-$(read_pin pyproject.toml 'python_version\s*=\s*"\K[0-9.]+' 3.14)}"
+# sed and awk only: grep -oP is GNU, and this script also runs on macOS.
+# These run in a command substitution, which is a subshell, so a note goes to
+# stderr rather than to an array the parent would never see.
+pin_note() { echo "[setup-ci-deps] NOTE: $1" >&2; }
 
-VENV="${VENV:-$ROOT/.venv}"
-# rm -rf runs on this path, so refuse anything that is not inside the repository.
-case "$VENV" in
-  "$ROOT"/?*) ;;
-  *) echo "[setup-ci-deps] VENV must be a path inside $ROOT. Got: '$VENV'" >&2; exit 2 ;;
+# mutation.yml holds the mutmut pin, as "pip install mutmut==3.7.0".
+read_mutmut_pin() {
+  local f=".github/workflows/mutation.yml" v=""
+  [ -f "$f" ] && v="$(sed -n 's/.*[^#]*mutmut==\([0-9][0-9.]*\).*/\1/p' "$f" | head -1)"
+  if [ -z "$v" ]; then
+    pin_note "no mutmut pin found in $f. Using $1."
+    v="$1"
+  fi
+  echo "$v"
+}
+# pyproject.toml holds the Python floor, as python_version under [tool.mypy].
+# Read it from that table only: another table can carry the same key.
+read_py_floor() {
+  local f="pyproject.toml" v=""
+  [ -f "$f" ] && v="$(awk '
+    /^\[/ { in_mypy = ($0 ~ /^\[tool\.mypy\]/); next }
+    in_mypy && /^[[:space:]]*python_version[[:space:]]*=/ {
+      gsub(/.*=[[:space:]]*"?|"[[:space:]]*$|[[:space:]]*$/, ""); print; exit
+    }' "$f")"
+  if [ -z "$v" ]; then
+    pin_note "no python_version under [tool.mypy] in $f. Using $1."
+    v="$1"
+  fi
+  echo "$v"
+}
+MUTMUT_VERSION="${MUTMUT_VERSION:-$(read_mutmut_pin 3.7.0)}"
+PY_FLOOR="${PY_FLOOR:-$(read_py_floor 3.14)}"
+
+# rm -rf runs on this path, so resolve it first and then refuse anything that is
+# not inside the repository. A text test alone passes $ROOT/../elsewhere.
+VENV_RAW="${VENV:-$ROOT/.venv}"
+case "$VENV_RAW" in /*) ;; *) VENV_RAW="$ROOT/$VENV_RAW" ;; esac
+have_cmd() { command -v "$1" >/dev/null 2>&1; }
+abs_path() {  # resolve . .. and symlinks, whether or not the path exists yet
+  if have_cmd realpath; then
+    realpath -m "$1" 2>/dev/null && return
+  fi
+  python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1" 2>/dev/null
+}
+VENV="$(abs_path "$VENV_RAW")"
+ROOT_REAL="$(abs_path "$ROOT")"
+case "${VENV%/}/" in
+  "$ROOT_REAL"/?*/) ;;
+  *) echo "[setup-ci-deps] VENV must resolve to a path inside $ROOT_REAL. Got: '$VENV'" >&2
+     exit 2 ;;
 esac
+VENV="${VENV%/}"
 
 # Newest first. CI runs the floor; this machine often can only run an older one.
 if [ -n "${PY_CANDIDATES:-}" ]; then
@@ -61,7 +98,7 @@ else
   PY_CANDIDATES=("$PY_FLOOR" 3.13 3.12)
 fi
 
-INSTALLED=(); SKIPPED=(); FAILED=()
+INSTALLED=(); SKIPPED=(); FAILED=(); WARNINGS=()
 
 log()  { echo "[setup-ci-deps] $*"; }
 skip() { SKIPPED+=("$1");   log "SKIP    $1 (already installed)"; }
@@ -117,6 +154,14 @@ venv_smoke() {
   "$VENV/bin/python" -m pytest "$SMOKE_TEST" -q -p no:cacheprovider >/dev/null 2>&1
 }
 SMOKE_TEST="${SMOKE_TEST:-tests/unit/test_coordinator_purge.py}"
+# A renamed or deleted file would fail every candidate and leave no .venv at all.
+if [ ! -f "$SMOKE_TEST" ]; then
+  fallback="$(ls tests/unit/test_*.py 2>/dev/null | head -1)"
+  if [ -n "$fallback" ]; then
+    log "NOTE: $SMOKE_TEST is gone. Using $fallback to test the interpreter."
+    SMOKE_TEST="$fallback"
+  fi
+fi
 
 make_venv() {
   local pyspec="$1"
@@ -189,6 +234,7 @@ if [ -x "$VENV/bin/python" ]; then
   # AGENTS.md: pip goes back quietly to an old Home Assistant when the
   # interpreter is below the floor. Report that. Do not let it pass unnoticed.
   if vpyhas homeassistant && ! "$VENV/bin/python" ci/check-ha-version.py >/dev/null 2>&1; then
+    WARNINGS+=("The Home Assistant in .venv is older than the newest release. No interpreter here meets the floor of $PY_FLOOR, so mypy and the Home Assistant unit lane test an older API than CI does.")
     log "WARNING: the Home Assistant in .venv is older than the newest release,"
     log "         because no interpreter here meets the Home Assistant floor of"
     log "         $PY_FLOOR. mypy and the Home Assistant unit lane thus test an older"
@@ -206,7 +252,11 @@ npm_project() {
   [ -f "$dir/package.json" ] || { log "SKIP    $label (no package.json)"; return; }
   if [ "$FORCE" = 0 ] && [ -d "$dir/node_modules" ]; then
     # A lock file newer than the install means node_modules is behind it.
-    if [ -f "$dir/package-lock.json" ] && [ "$dir/package-lock.json" -nt "$dir/node_modules" ]; then
+    # npm writes node_modules/.package-lock.json on each install, so it is the
+    # mtime that tracks the install rather than the directory's own.
+    local marker="$dir/node_modules/.package-lock.json"
+    [ -f "$marker" ] || marker="$dir/node_modules"
+    if [ -f "$dir/package-lock.json" ] && [ "$dir/package-lock.json" -nt "$marker" ]; then
       log "        $label is behind $dir/package-lock.json. Installing again."
     else
       skip "$label"; return
@@ -300,6 +350,7 @@ fi
 
 # --- The summary -----------------------------------------------------------
 echo
+for note in ${WARNINGS[@]+"${WARNINGS[@]}"}; do log "WARNING: $note"; done
 log "Installed: ${#INSTALLED[@]}  Skipped: ${#SKIPPED[@]}  Failed: ${#FAILED[@]}"
 [ "${#INSTALLED[@]}" -gt 0 ] && log "  installed: ${INSTALLED[*]}"
 [ "${#SKIPPED[@]}"   -gt 0 ] && log "  skipped:   ${SKIPPED[*]}"
