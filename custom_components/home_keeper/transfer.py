@@ -571,8 +571,13 @@ def parse_document(text: str) -> Any:
         mark = getattr(err, "problem_mark", None)
         detail = getattr(err, "problem", None) or "the file could not be read"
         # PyYAML counts from zero; a person's editor counts from one.
+        # The message carries PyYAML's own complaint and stops. It used to append
+        # "Check the indentation.", which is good advice for exactly one class of
+        # failure and wrong for the rest: an anchor refusal read "a Home Keeper
+        # document cannot use an anchor or an alias. Check the indentation." and sent
+        # the reader to look at the one thing that was fine.
         raise DocumentSyntaxError(
-            f"this file is not valid YAML: {detail}. Check the indentation.",
+            f"this file is not valid YAML: {detail}.",
             line=mark.line + 1 if mark is not None else None,
             column=mark.column + 1 if mark is not None else None,
         ) from err
@@ -801,7 +806,21 @@ def plan_import(
             )
         )
     declared = envelope.get("format", TRANSFER_FORMAT)
-    if not isinstance(declared, int) or declared > TRANSFER_FORMAT:
+    # ``bool`` is an ``int`` in Python, and YAML 1.1 reads a bare ``yes`` as one — so
+    # ``format: yes`` arrived as ``True``, which is ``1``, and passed for format 1.
+    if isinstance(declared, bool) or not isinstance(declared, int):
+        # A separate message, because the advice is different. "Update Home Keeper"
+        # answers a document from a later version; it answers nothing for a value that
+        # is not a version at all, which is the one a hand-written file produces.
+        return ImportPlan(
+            problems=(
+                _bad(
+                    f"this document declares format {declared!r}, which is not a "
+                    f"format number. Write `format: {TRANSFER_FORMAT}`."
+                ),
+            )
+        )
+    if declared > TRANSFER_FORMAT:
         return ImportPlan(
             problems=(
                 _bad(
@@ -863,6 +882,13 @@ def plan_import(
             if ref:
                 asset_refs.setdefault(str(ref), entry.record_id)
 
+    # Both post-passes need the whole section decided before they can see anything:
+    # one collision and one loop each look like an ordinary record on its own.
+    if clashed := _colliding_external_ids(planned, "appliances", problems):
+        planned = [r for r in planned if r.record_id not in clashed]
+        planned_assets = {k: v for k, v in planned_assets.items() if k not in clashed}
+        asset_refs = {k: v for k, v in asset_refs.items() if v not in clashed}
+
     # Only now, with every parent link in the document decided, can a loop be seen.
     if looped := _looping_parents(planned, assets, problems):
         planned = [r for r in planned if r.record_id not in looped]
@@ -891,12 +917,62 @@ def plan_import(
         completions += counted[0]
         skips += counted[1]
 
+    if clashed := _colliding_external_ids(planned, "tasks", problems):
+        planned = [r for r in planned if r.record_id not in clashed]
+
     return ImportPlan(
         records=tuple(planned),
         problems=tuple(problems),
         completions=completions,
         skips=skips,
     )
+
+
+def _colliding_external_ids(
+    planned: list[PlannedRecord], section: str, problems: list[Problem]
+) -> set[str]:
+    """Record ids to drop because two records in one document claim one key.
+
+    ``external_id`` is the author's own primary key, and the reason a migration script
+    can be run twice: step 2 of the ladder matches on it so the second run *updates*.
+    That promise only holds while the key is unique, and nothing else enforces it —
+    :attr:`_Matcher.claimed` stops two records upserting onto the same *stored* record,
+    but two records that are both new, or one update beside one create, each looked
+    harmless alone and wrote two records carrying one key.
+
+    The cost landed on the *next* run rather than this one, which is what made it worth
+    catching here: with two stored records answering to the key, every later import of
+    that document failed with "matches several tasks" and could not be repaired by
+    re-running it. So a collision is an error, not a warning — the document is asking
+    for one record twice, and the document is what has to say which.
+
+    Checked against the plan rather than the text, so it sees the key a record arrives
+    with *and* the key it inherits from the stored record it matched.
+    """
+    by_key: dict[str, list[PlannedRecord]] = {}
+    for record in planned:
+        if record.section == section and record.external_id:
+            by_key.setdefault(record.external_id, []).append(record)
+    dropped: set[str] = set()
+    for key, group in by_key.items():
+        if len(group) < 2:
+            continue
+        where = ", ".join(f"{section}[{r.index}]" for r in group)
+        for record in group:
+            problems.append(
+                Problem(
+                    section=section,
+                    index=record.index,
+                    path=f"{section}[{record.index}].external_id",
+                    message=(
+                        f'"{key}" is the external_id of {len(group)} records in this '
+                        f"document ({where}). An external_id names one record, so "
+                        "give each of these one of its own."
+                    ),
+                )
+            )
+            dropped.add(record.record_id)
+    return dropped
 
 
 def _bad(message: str) -> Problem:
@@ -964,8 +1040,24 @@ def _warn_unknown(
         )
 
 
-def _resolve_area(record: dict[str, Any], areas: dict[str, str]) -> str | None:
-    """The record's area id: a stated ``area_id`` first, then ``area`` by name."""
+def _resolve_area(
+    record: dict[str, Any],
+    areas: dict[str, str],
+    *,
+    section: str,
+    index: int,
+    problems: list[Problem],
+) -> str | None:
+    """The record's area id: a stated ``area_id`` first, then ``area`` by name.
+
+    A name that matches no area on this install is kept verbatim, because the panel
+    falls back to showing an unknown area id as its own text and the author's word for
+    the room is better text than nothing. But it is *named*, the way an unresolvable
+    ``device_id`` is: the record reads as filed under that area in the panel while Home
+    Assistant has no such area, so nothing scoped to areas outside Home Keeper — an
+    automation, a dashboard filter — will ever see it. Saying so is the difference
+    between a migration the reader can finish and one that looks complete.
+    """
     if area_id := record.get("area_id"):
         return str(area_id)
     key = record.get("area")
@@ -977,6 +1069,18 @@ def _resolve_area(record: dict[str, Any], areas: dict[str, str]) -> str | None:
     for name, area_id in areas.items():
         if name.strip().casefold() == key.strip().casefold():
             return area_id
+    problems.append(
+        Problem(
+            section=section,
+            index=index,
+            path=f"{section}[{index}].area",
+            message=(
+                f'no area called "{key}" exists here, so the record keeps the name as '
+                "written. Create the area and set it again to attach it."
+            ),
+            severity="warning",
+        )
+    )
     return key
 
 
@@ -1014,7 +1118,11 @@ def _plan_asset(
         problems=problems,
     )
     payload = {k: v for k, v in record.items() if k not in ("area", "archived", "id")}
-    if (area_id := _resolve_area(record, areas)) is not None:
+    if (
+        area_id := _resolve_area(
+            record, areas, section="appliances", index=index, problems=problems
+        )
+    ) is not None:
         payload["area_id"] = area_id
     # A subdevice names its parent the same readable way a task names its appliance,
     # and against the same two places: this document first, then the store. Without
@@ -1144,7 +1252,11 @@ def _plan_task(
         for k, v in record.items()
         if k not in ("area", "appliance", "history", "skips", "id")
     }
-    if (area_id := _resolve_area(record, areas)) is not None:
+    if (
+        area_id := _resolve_area(
+            record, areas, section="tasks", index=index, problems=problems
+        )
+    ) is not None:
         payload["area_id"] = area_id
     # A task attaches to an *appliance*, but stores the appliance's device id — which
     # is this install's id and means nothing on another one. So a stated device_id is
@@ -1186,8 +1298,24 @@ def _plan_task(
             )
         )
 
-    history = _entries(record, "history", "completed_at", "tasks", index, problems)
-    skip_entries = _entries(record, "skips", "skipped_at", "tasks", index, problems)
+    history = _entries(
+        record,
+        "history",
+        "completed_at",
+        "tasks",
+        index,
+        problems,
+        allowed=COMPLETION_ENTRY_FIELDS,
+    )
+    skip_entries = _entries(
+        record,
+        "skips",
+        "skipped_at",
+        "tasks",
+        index,
+        problems,
+        allowed=SKIP_ENTRY_FIELDS,
+    )
 
     try:
         matched, matched_by = (None, None) if match == "none" else matcher.match(record)
@@ -1362,8 +1490,18 @@ def _entries(
     section: str,
     index: int,
     problems: list[Problem],
+    *,
+    allowed: list[str],
 ) -> list[dict[str, Any]]:
-    """A record's history/skip list, with malformed entries reported and dropped."""
+    """A record's history/skip list, with malformed entries reported and dropped.
+
+    An entry's unrecognized keys are *named*, the same way a record's are. They are
+    still dropped — ``models.normalize_completion_metadata`` keeps only the fields it
+    knows — but silence here was the one place the document broke its own promise that
+    "a field nobody read is data that did not arrive, and it is named". A migration
+    writing ``notes`` for ``note``, or ``price`` for ``cost``, lost a whole column of
+    a spreadsheet with nothing said, on the one import that was meant to carry it.
+    """
     raw = record.get(key)
     if raw is None:
         return []
@@ -1395,5 +1533,18 @@ def _entries(
                 )
             )
             continue
+        for unknown in sorted(set(entry) - {when_key} - set(allowed)):
+            problems.append(
+                Problem(
+                    section=section,
+                    index=index,
+                    path=f"{path}.{unknown}",
+                    message=(
+                        f'"{unknown}" is not a field this version of Home Keeper '
+                        "reads, so it was ignored"
+                    ),
+                    severity="warning",
+                )
+            )
         out.append(entry)
     return out

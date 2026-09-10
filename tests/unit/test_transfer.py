@@ -1257,3 +1257,359 @@ def test_a_parent_can_be_named_by_the_stored_appliances_id():
         assets={stored["id"]: stored},
     )
     assert plan.records[0].payload["parent_asset_id"] == stored["id"]
+
+
+# ── One external_id names one record ─────────────────────────────────────────
+#
+# Found by exploratory testing: each of these imported cleanly, and the damage only
+# showed on the *next* run of the same document, where two stored records answered to
+# one key and every import failed with "matches several" until somebody edited the
+# store by hand. ``external_id`` exists so a migration script can be run twice, so the
+# run that breaks the second run is the one to refuse.
+
+
+def test_two_new_tasks_cannot_claim_one_external_id():
+    plan = _plan(
+        _doc(
+            tasks=[
+                {"name": "A", "external_id": "same"},
+                {"name": "B", "external_id": "same"},
+            ]
+        )
+    )
+    assert not plan.ok
+    assert plan.records == ()
+    assert len(_errors(plan)) == 2
+    # The whole message, because every part of it is the fix: the key, both places,
+    # and the rule that explains why either one is wrong.
+    assert _errors(plan)[0] == (
+        '"same" is the external_id of 2 records in this document (tasks[0], '
+        "tasks[1]). An external_id names one record, so give each of these one of "
+        "its own."
+    )
+    assert {p.path for p in plan.problems} == {
+        "tasks[0].external_id",
+        "tasks[1].external_id",
+    }
+    # The section and the index are what the panel groups a problem row by.
+    assert {p.section for p in plan.problems} == {"tasks"}
+    assert sorted(p.index for p in plan.problems) == [0, 1]
+
+
+def test_a_second_record_cannot_claim_the_external_id_of_the_one_just_updated():
+    # The subtler half: record 0 upserts onto the stored task by its key, and record 1
+    # is a *create* carrying the same key. Neither looks wrong on its own, and the
+    # result is the same pair of records sharing one key.
+    stored = _task(external_id="k")
+    plan = _plan(
+        _doc(
+            tasks=[
+                {"name": "First", "external_id": "k"},
+                {"name": "Second", "external_id": "k"},
+            ]
+        ),
+        tasks={stored["id"]: stored},
+    )
+    assert not plan.ok
+    assert plan.records == ()
+
+
+def test_two_new_appliances_cannot_claim_one_external_id():
+    plan = _plan(
+        _doc(
+            appliances=[
+                {"name": "A", "external_id": "same"},
+                {"name": "B", "external_id": "same"},
+            ]
+        )
+    )
+    assert not plan.ok
+    assert plan.records == ()
+    assert '"same" is the external_id of 2 records' in _errors(plan)[0]
+
+
+def test_a_clashing_appliance_takes_its_children_out_of_the_plan_with_it():
+    # A dropped appliance must not leave a task or a child pointing at it, the same way
+    # a looping parent does not.
+    plan = _plan(
+        _doc(
+            appliances=[
+                {"name": "A", "external_id": "dup"},
+                {"name": "B", "external_id": "dup"},
+            ],
+            tasks=[{"name": "T", "appliance": "dup"}],
+        )
+    )
+    assert not plan.ok
+    assert [r.section for r in plan.records] == []
+
+
+def test_three_records_sharing_one_external_id_all_say_so():
+    plan = _plan(_doc(tasks=[{"name": n, "external_id": "s"} for n in ("A", "B", "C")]))
+    assert len(_errors(plan)) == 3
+    assert "of 3 records" in _errors(plan)[0]
+
+
+def test_two_separate_collisions_are_both_reported():
+    # Four records, two clashing pairs. The scan has to carry on past the first pair:
+    # stopping there would report half the document and leave the rest to fail on the
+    # next run, which is the failure this check exists to end.
+    plan = _plan(
+        _doc(
+            tasks=[
+                {"name": "A", "external_id": "one"},
+                {"name": "B", "external_id": "one"},
+                {"name": "C", "external_id": "two"},
+                {"name": "D", "external_id": "two"},
+            ]
+        )
+    )
+    assert not plan.ok
+    assert len(_errors(plan)) == 4
+    assert {p.path for p in plan.problems} == {
+        f"tasks[{i}].external_id" for i in range(4)
+    }
+    assert sum('"two"' in m for m in _errors(plan)) == 2
+
+
+def test_distinct_external_ids_are_left_alone():
+    plan = _plan(
+        _doc(
+            tasks=[{"name": "A", "external_id": "a"}, {"name": "B", "external_id": "b"}]
+        )
+    )
+    assert plan.ok
+    assert len(plan.records) == 2
+    assert plan.problems == ()
+
+
+def test_records_with_no_external_id_are_not_a_collision():
+    # The empty key is the common case — two unrelated records both omitting it must
+    # not read as two records claiming "".
+    plan = _plan(_doc(tasks=[{"name": "A"}, {"name": "B"}]))
+    assert plan.ok
+    assert len(plan.records) == 2
+
+
+def test_one_record_per_external_id_survives_a_second_import():
+    # The property the check exists to protect: run the same document twice and the
+    # second run updates rather than failing.
+    document = _doc(tasks=[{"name": "A", "external_id": "a"}])
+    first = _plan(document)
+    stored = {r.record_id: r.payload for r in first.records}
+    second = _plan(document, tasks=stored)
+    assert second.ok
+    assert [r.action for r in second.records] == ["update"]
+    assert second.records[0].matched_by == "external_id"
+
+
+# ── A dropped field inside a history entry is named too ──────────────────────
+
+
+def test_an_unknown_key_in_a_history_entry_is_a_named_warning():
+    # The record-level rule applied one level down. A spreadsheet migration writing
+    # `notes` for `note` used to lose the column in silence, on the one import whose
+    # whole purpose was to carry it.
+    plan = _plan(
+        _doc(
+            tasks=[
+                {
+                    "name": "T",
+                    "history": [{"completed_at": "2026-03-04", "notes": "MERV 13"}],
+                }
+            ]
+        )
+    )
+    assert plan.ok
+    assert _errors(plan) == []
+    assert _warnings(plan) == [
+        '"notes" is not a field this version of Home Keeper reads, so it was ignored'
+    ]
+    assert plan.problems[0].path == "tasks[0].history[0].notes"
+    assert plan.problems[0].section == "tasks"
+    assert plan.problems[0].index == 0
+    # And the entry still lands — it is a warning, not a rejection.
+    assert plan.records[0].payload["completions"][0].get("note") is None
+    assert len(plan.records[0].payload["completions"]) == 1
+
+
+def test_an_unknown_key_in_a_skip_entry_is_a_named_warning():
+    plan = _plan(
+        _doc(
+            tasks=[
+                {"name": "T", "skips": [{"skipped_at": "2026-03-04", "reason": "Away"}]}
+            ]
+        )
+    )
+    assert plan.ok
+    assert plan.problems[0].path == "tasks[0].skips[0].reason"
+
+
+def test_the_documented_history_fields_draw_no_warning():
+    plan = _plan(
+        _doc(
+            tasks=[
+                {
+                    "name": "T",
+                    "history": [
+                        {
+                            "completed_at": "2026-03-04",
+                            "note": "MERV 13",
+                            "cost": 24.5,
+                            "who": "person.me",
+                        }
+                    ],
+                }
+            ]
+        )
+    )
+    assert plan.ok
+    assert plan.problems == ()
+
+
+def test_every_entry_with_an_unknown_key_is_named_not_just_the_first():
+    plan = _plan(
+        _doc(
+            tasks=[
+                {
+                    "name": "T",
+                    "history": [
+                        {"completed_at": "2026-03-04", "notes": "a"},
+                        {"completed_at": "2026-04-04", "price": 1},
+                    ],
+                }
+            ]
+        )
+    )
+    assert plan.ok
+    assert [p.path for p in plan.problems] == [
+        "tasks[0].history[0].notes",
+        "tasks[0].history[1].price",
+    ]
+    assert len(plan.records[0].payload["completions"]) == 2
+
+
+def test_a_malformed_entry_names_itself_and_lets_the_next_one_be_checked_too():
+    # Two bad entries, and the second must be reported as well — the loop moves on
+    # from a rejected entry rather than abandoning the list.
+    plan = _plan(
+        _doc(
+            tasks=[
+                {
+                    "name": "T",
+                    "history": [
+                        {"completed_at": "last spring"},
+                        {"completed_at": ""},
+                        {"completed_at": "2026-04-04", "bogus": 1},
+                    ],
+                }
+            ]
+        )
+    )
+    assert not plan.ok
+    assert _errors(plan) == [
+        '"last spring" is not a date. Use 2026-03-04, or a full timestamp.',
+        'each entry needs a "completed_at" date',
+    ]
+    assert [p.section for p in plan.problems] == ["tasks"] * 3
+    assert [p.index for p in plan.problems] == [0, 0, 0]
+    # And the third entry was still reached, so the scan did not stop at the first.
+    assert _warnings(plan) == [
+        '"bogus" is not a field this version of Home Keeper reads, so it was ignored'
+    ]
+
+
+def test_the_position_of_the_offending_entry_is_in_the_path():
+    plan = _plan(
+        _doc(
+            tasks=[
+                {
+                    "name": "T",
+                    "history": [
+                        {"completed_at": "2026-03-04"},
+                        {"completed_at": "2026-04-04", "bogus": 1},
+                    ],
+                }
+            ]
+        )
+    )
+    assert plan.problems[0].path == "tasks[0].history[1].bogus"
+
+
+# ── An area nobody has is reported, not assumed ──────────────────────────────
+
+
+def test_an_area_name_that_matches_nothing_is_a_named_warning():
+    # The name is still kept — the panel shows an unknown area id as its own text, so
+    # the author's word for the room beats nothing. But the record is not attached to
+    # any Home Assistant area, and only the warning says so.
+    plan = _plan(_doc(tasks=[{"name": "T", "area": "Attic"}]), area_ids={})
+    assert plan.ok
+    assert plan.records[0].payload["area_id"] == "Attic"
+    assert _warnings(plan) == [
+        'no area called "Attic" exists here, so the record keeps the name as '
+        "written. Create the area and set it again to attach it."
+    ]
+    assert plan.problems[0].path == "tasks[0].area"
+    assert plan.problems[0].section == "tasks"
+    assert plan.problems[0].index == 0
+
+
+def test_an_area_that_resolves_draws_no_warning():
+    plan = _plan(
+        _doc(tasks=[{"name": "T", "area": "  basement "}]),
+        area_ids={"Basement": "area_base"},
+    )
+    assert plan.ok
+    assert plan.records[0].payload["area_id"] == "area_base"
+    assert plan.problems == ()
+
+
+def test_an_appliance_reports_an_unresolvable_area_the_same_way():
+    plan = _plan(_doc(appliances=[{"name": "A", "area": "Attic"}]), area_ids={})
+    assert plan.ok
+    assert plan.problems[0].path == "appliances[0].area"
+    assert plan.problems[0].section == "appliances"
+    assert plan.problems[0].index == 0
+
+
+def test_a_stated_area_id_is_taken_on_trust_with_no_warning():
+    # An `area_id` is an id, not a name: it is not looked up, so there is nothing to
+    # report. This keeps a same-install re-import silent.
+    plan = _plan(_doc(tasks=[{"name": "T", "area_id": "area_base"}]), area_ids={})
+    assert plan.ok
+    assert plan.problems == ()
+
+
+# ── The envelope, and what a syntax error says ───────────────────────────────
+
+
+def test_a_format_that_is_not_a_number_says_what_to_write_instead():
+    # `format: yes` is a YAML 1.1 boolean, and a bool is an int in Python, so `True`
+    # used to pass for format 1. It is also not answered by "Update Home Keeper".
+    plan = _plan({"home_keeper": {"format": True}, "tasks": [{"name": "T"}]})
+    assert not plan.ok
+    assert "is not a format number" in _errors(plan)[0]
+    assert "Update Home Keeper" not in _errors(plan)[0]
+
+
+def test_a_bare_yes_as_the_format_is_refused_through_the_parser_too():
+    plan = _plan("home_keeper:\n  format: yes\n")
+    assert not plan.ok
+    assert "is not a format number" in _errors(plan)[0]
+
+
+def test_an_alias_is_refused_without_advice_about_indentation():
+    # The message used to end "Check the indentation." whatever the failure was, which
+    # sent the reader of an anchor refusal to look at the one thing that was fine.
+    plan = _plan("home_keeper: &a\n  format: 1\ntasks: *a\n")
+    assert not plan.ok
+    message = _errors(plan)[0]
+    assert "cannot use an anchor or an alias" in message
+    assert "indentation" not in message
+
+
+def test_a_tab_indent_still_reports_a_line_and_a_column():
+    plan = _plan("home_keeper:\n\tformat: 1\n")
+    assert not plan.ok
+    assert plan.problems[0].path == "line 2, column 1"

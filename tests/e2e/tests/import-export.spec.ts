@@ -148,4 +148,83 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
+
+  test('a dropped history field is named in the preview, and the import still runs', async ({
+    page,
+  }, testInfo) => {
+    // A warning has to be *visible*, not merely returned. The card sorts errors above
+    // warnings and draws both, and a field nobody read is data that did not arrive —
+    // so a spreadsheet migration writing `notes` for `note` must say so here rather
+    // than losing the column in silence.
+    const tag = `${testInfo.project.name}-${Date.now().toString(36)}`;
+    const taskName = `E2E warned ${tag}`;
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    await openSettingsSection(panel, 'transfer');
+    await typeDocument(
+      panel,
+      [
+        'home_keeper:',
+        '  format: 1',
+        'tasks:',
+        `  - name: ${taskName}`,
+        '    interval: 6',
+        '    unit: months',
+        '    history:',
+        '      - completed_at: 2025-04-01',
+        '        notes: Imported from a spreadsheet',
+        '',
+      ].join('\n'),
+    );
+    await panel.locator('#transfer-preview').click();
+
+    const problems = panel.locator('.hk-transfer-problems');
+    await expect(problems).toBeVisible();
+    await expect(problems).toContainText('tasks[0].history[0].notes');
+    await expect(problems.locator('li.warning')).toHaveCount(1);
+    await expect(problems.locator('li.error')).toHaveCount(0);
+    // A warning is not a refusal: the preview is clean enough to import.
+    await expect(panel.locator('#transfer-import')).not.toHaveAttribute('disabled', '');
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('two records claiming one external_id are refused, naming both', async ({
+    page,
+  }) => {
+    // The collision that used to import cleanly and break every later run of the same
+    // document. It is an error, so Import stays shut.
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+
+    await openSettingsSection(panel, 'transfer');
+    await typeDocument(
+      panel,
+      [
+        'home_keeper:',
+        '  format: 1',
+        'tasks:',
+        '  - name: E2E clash one',
+        '    external_id: e2e-clash',
+        '    interval: 1',
+        '    unit: months',
+        '  - name: E2E clash two',
+        '    external_id: e2e-clash',
+        '    interval: 1',
+        '    unit: months',
+        '',
+      ].join('\n'),
+    );
+    await panel.locator('#transfer-preview').click();
+
+    const problems = panel.locator('.hk-transfer-problems');
+    await expect(problems).toContainText('tasks[0], tasks[1]');
+    await expect(problems.locator('li.error')).toHaveCount(2);
+    await expect(panel.locator('#transfer-import')).toHaveAttribute('disabled', '');
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
 });
