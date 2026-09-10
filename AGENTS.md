@@ -113,6 +113,17 @@
   it yourself before committing — the subagent drafts, you are still responsible for what
   ships. Commit messages, PR bodies and code comments are *not* user-facing text and stay
   inline.
+- **A plan starts with the CHANGELOG entry it will ship.** Write the proposed bullet
+  first, at the top of the plan, before the design and the file list. One bullet is the
+  whole change in 3 sentences, so a bullet that will not come out cleanly is telling you
+  the scope is wrong, not that the budget is too small. The text in the plan is a draft:
+  the shipped bullet is still redrafted by the subagent above.
+- **A UI change with a subjective visual choice starts with an artifact.** When there is
+  more than one reasonable way to draw a change — where a summary sits, how loud a value
+  reads, which block a figure belongs in — publish an artifact that mocks up the options
+  and agree on one before you write the plan. Draw them in the panel's own tokens, at
+  desktop **and** phone width, with the real markup rather than a sketch, so the choice is
+  made against what will ship. A change with one obvious rendering does not need this.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only `pip install pytest PyYAML`: `pytest tests/unit -v`.
     (`PyYAML` is for the API-surface gate below, which reads `services.yaml`; without

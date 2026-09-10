@@ -1034,6 +1034,9 @@
     },
     "declarative_companion_not_found": {
       "message": "Companion declarativo não encontrado: {spec_id}"
+    },
+    "profile_in_use": {
+      "message": "O Home Keeper não pode excluir estes perfis: {profiles}. Estas notificações os utilizam: {notifications}. Altere ou exclua cada notificação e salve novamente."
     }
   }
 }

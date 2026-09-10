@@ -1034,6 +1034,9 @@
     },
     "declarative_companion_not_found": {
       "message": "Deklarativ companion ikke funnet: {spec_id}"
+    },
+    "profile_in_use": {
+      "message": "Home Keeper kan ikke slette disse profilene: {profiles}. Disse varslene bruker dem: {notifications}. Endre eller slett hvert varsel, og lagre deretter på nytt."
     }
   }
 }

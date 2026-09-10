@@ -33,6 +33,13 @@ export const COMPANIONS_DOCS_URL =
 export const SENSOR_DOCS_URL =
   'https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks';
 
+// User Guide section showing automations that send a notification on criteria the two
+// built-in triggers cannot express (time of day, presence, a repeat until the task is
+// done). Linked from the Triggers group, which is where a user asks for them.
+// Generated from README.md's "Automation examples" heading under "Notifications".
+export const NOTIFY_AUTOMATION_DOCS_URL =
+  'https://prestomation.github.io/ha-home-keeper/docs/guide/notifications#automation-examples';
+
 // The User Guide itself — linked from the Settings rail's foot, next to the version,
 // so "where do I read about this?" is answered from the page that raises the question.
 export const DOCS_URL = 'https://prestomation.github.io/ha-home-keeper/docs/guide/';

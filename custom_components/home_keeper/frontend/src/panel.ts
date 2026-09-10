@@ -146,9 +146,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     onSnooze: (task) => openSnooze(this, task),
     onSkip: (task) => openSkip(this, task),
   });
-  _confirmDelete: { open: boolean; label: string; onConfirm: (() => void) | null } = {
+  _confirmDelete: {
+    open: boolean;
+    label: string;
+    body: string;
+    onConfirm: (() => void) | null;
+  } = {
     open: false,
     label: '',
+    body: '',
     onConfirm: null,
   };
   // Body-level scrim for the delete confirmation overlay.

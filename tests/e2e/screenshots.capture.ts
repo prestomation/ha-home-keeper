@@ -381,11 +381,18 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 48. The same page's history, now carrying the meter reading each completion was
   // logged at (#235) — the number a mileage- or hours-based service actually turns
-  // on. Assert the chip as well as photographing it: #221 sat in plain sight in a
+  // on — and, beside it, the usage since the completion before (#305). The three
+  // seeded services at 120, 375 and 660 h make that +255 h and then +285 h, so the
+  // strip above the list reads a different figure in each of its four cells.
+  // Assert them as well as photographing them: #221 sat in plain sight in a
   // committed screenshot for months because nothing tested what the picture showed.
   await openTaskTab(panel, 'history');
   const usageHistoryRow = panel.locator('.hk-hist-list li').first();
   await expect(usageHistoryRow.locator('.hk-hist-chips')).toContainText('at 660 h');
+  await expect(usageHistoryRow.locator('.hk-hist-delta')).toHaveText('+285 h');
+  await expect(panel.locator('.hk-hist-usage > div')).toHaveCount(4);
+  await expect(panel.locator('.hk-hist-usage')).toContainText('Last interval');
+  await expect(panel.locator('.hk-hist-usage')).toContainText('270 h');
   await usageHistoryRow.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await page.screenshot({
@@ -1689,6 +1696,24 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('.hk-search-clear').click();
   await expect(panel.locator('.hk-search-input')).toHaveValue('');
 
+  // 48c. The metered history on a phone. The interval strip is the phone-specific
+  // half of #305: below 700px its four figures wrap to two rows rather than sitting
+  // on one, and the delta rides the chips line, which already wraps, instead of the
+  // date row, which does not.
+  await panel.locator('#mtab-tasks').click();
+  const monitoredPhone = panel.locator('details.hk-group[data-group-key="status:monitored"]');
+  await expandGroup(monitoredPhone);
+  await openRow(page, panel, `.detail-open[data-detail-id="${TASK.nozzleUsage}"]`);
+  await openTaskTab(panel, 'history');
+  await expect(panel.locator('.hk-hist-usage > div')).toHaveCount(4);
+  await expect(panel.locator('.hk-hist-list li').first().locator('.hk-hist-delta')).toHaveText(
+    '+285 h',
+  );
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/48c-panel-mobile-usage-intervals.png` });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+
   await panel.locator('#mtab-settings').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await page.waitForTimeout(600);
@@ -1699,6 +1724,33 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-settings-backbar')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/51-panel-mobile-settings-section.png` });
+
+  // 22b. One notification open on a phone. This is where the pair that #313 confused
+  // has to read: the line under the profile picker naming what that profile sends, and
+  // the Triggers group saying that a trigger sets the moment rather than the contents.
+  // Below 700px the two sit one under the other in a single column, and the scope line
+  // wraps, so the desktop shot documents neither.
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="notifications"]').click();
+  await expect(panel.locator('#hk-notifications')).toBeVisible();
+  await panel.locator('#hk-notifications .hk-item-header').first().click();
+  const scopeLine = panel.locator('#hk-notifications .hk-notify-scope').first();
+  const triggerGroup = panel.locator('#hk-notifications .hk-indent').first();
+  await expect(scopeLine).toBeVisible();
+  await expect(triggerGroup).toBeVisible();
+  // Two shots, and viewport shots rather than element shots. The card is far taller
+  // than the phone, so the two halves of #313 cannot share a frame: the scope line is
+  // at the top of the row and the triggers are at the bottom. An element-scoped
+  // capture would fit both, but the bottom tab bar is `position: fixed` and bakes
+  // itself across the middle of the card, hiding a field behind it.
+  await scopeLine.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/22b-panel-mobile-notify-scope.png` });
+
+  await triggerGroup.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/22c-panel-mobile-notify-triggers.png` });
 
   await page.setViewportSize(DESKTOP);
 });

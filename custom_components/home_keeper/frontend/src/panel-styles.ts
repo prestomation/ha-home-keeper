@@ -509,7 +509,15 @@ export const STYLES = `
   }
   .hk-companion-ic { color: var(--state-icon-color, var(--primary-text-color)); flex: 0 0 auto; }
   .hk-companion-body { flex: 1 1 auto; min-width: 0; }
-  .hk-companion-name { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+  /* The name, its status chip and the preset badge take as many lines as they need.
+     An ha-assist-chip does not become smaller than its label, and a preset badge reads
+     "Preset: " plus the preset id, so on one line it left the box and covered the
+     buttons beside it. This holds at every width: the Settings column is also narrow
+     below 1000px. */
+  .hk-companion-name {
+    display: flex; align-items: center; gap: 8px; font-weight: 500;
+    flex-wrap: wrap; row-gap: 4px; overflow-wrap: anywhere;
+  }
   .hk-companion-desc {
     color: var(--secondary-text-color); font-size: 0.9rem; line-height: 1.4; margin-top: 2px;
   }
@@ -561,6 +569,25 @@ export const STYLES = `
      dashboard card's editor renders the same groups from the same module and the two
      must not drift into looking like different controls. */
   ${GROUP_EDITOR_CSS}
+  /* What the chosen profile selects, stated under the profile picker, and the way to
+     go and change it. Sized and coloured like an ha-form helper so it reads as one,
+     and allowed to wrap on a phone rather than pushing the link off the row. */
+  .hk-notify-scope {
+    color: var(--hk-ink-2); font-size: 0.8rem; line-height: 1.4;
+    margin: -8px 0 14px; padding-inline: 2px;
+  }
+  .hk-notify-scope:empty { display: none; }
+  .hk-notify-trigger-docs {
+    color: var(--hk-ink-2); font-size: 0.78rem; line-height: 1.4; margin-top: 4px;
+  }
+  /* A button that reads as a link. The Edit affordance navigates within the panel
+     rather than following an href, so it has to be a button for the keyboard and for
+     screen readers, and only looks like the anchor beside it. */
+  .hk-linkish {
+    background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+    color: var(--hk-accent); text-decoration: underline;
+  }
+  .hk-linkish:focus-visible { outline: 2px solid var(--hk-accent); outline-offset: 2px; }
   /* Collapsible settings section headers (Profiles, Notifications). */
   .hk-section-header {
     display: flex; align-items: center; gap: 8px; cursor: pointer;
@@ -1431,6 +1458,16 @@ export const STYLES = `
     color: var(--secondary-text-color); border: 1px solid var(--divider-color);
     border-radius: 10px; padding: 1px 8px;
   }
+  /* The four figures a metered task's history opens with: how much use each past
+     service interval ran. Stacked label over value, not inline, because four of them
+     wrap on a phone and an inline "Shortest 13,700 km" splits across the wrap. */
+  .hk-hist-usage {
+    display: flex; flex-wrap: wrap; gap: 4px 18px;
+    margin-bottom: 10px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--divider-color);
+  }
+  .hk-hist-usage > div { display: flex; flex-direction: column; }
+  .hk-hist-usage .v { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
   ul.hk-hist-list { list-style: none; margin: 0; padding: 0; }
   ul.hk-hist-list li {
     padding: 2px 0; border-bottom: 1px solid var(--divider-color);
@@ -1466,6 +1503,9 @@ export const STYLES = `
     margin: 0 0 6px 2px;
   }
   .hk-hist-chips { color: var(--secondary-text-color); font-size: 0.85rem; }
+  /* The usage since the previous completion. It sits among the muted chips, so it
+     takes the accent ink to separate the derived figure from the recorded one. */
+  .hk-hist-delta { color: var(--hk-accent-ink); font-weight: 500; }
   /* Notes render as Markdown (a block), so give one its own full-width line under
      the cost/who chips rather than letting it share the flex row. */
   .hk-hist-note { font-size: 0.9rem; flex: 1 1 100%; min-width: 0; }
@@ -1559,6 +1599,11 @@ export const STYLES = `
 
   @media (max-width: 700px) {
     ha-tab-group { display: none; }
+    /* Four figures do not fit across a 390px card. Left to wrap on their own widths
+       they come out 3 and 1, which reads as one figure left over; a half-width floor
+       makes it 2 and 2, so the strip stays a block rather than a ragged line. */
+    .hk-hist-usage { gap: 6px 12px; }
+    .hk-hist-usage > div { flex: 1 1 calc(50% - 12px); min-width: calc(50% - 12px); }
     .hk-bottombar {
       display: flex;
       position: fixed; inset-inline: 0; bottom: 0; z-index: 4;
@@ -1641,6 +1686,32 @@ export const STYLES = `
     .hk-card-row:not(.hk-row-task) { display: flex; flex-wrap: wrap; row-gap: 6px; }
     .hk-row-asset > .grow { flex: 1 1 100%; }
     .hk-row-asset .hk-chips, .hk-row-asset .hk-status { flex: 0 1 auto; }
+    /* A companion row becomes a two-column grid on a phone: the icon beside what the
+       companion is, and the buttons on a line of their own below. Side by side, the
+       buttons keep their full width and the body gives up all of its own — but an
+       ha-assist-chip does not become smaller than its label, so the status and preset
+       chips came out of the body box and covered Edit, and Delete went past the right
+       edge with no way to scroll to it. A full-width action row also makes the buttons
+       large enough for a thumb, which they were not while they shared 390px with a
+       name. This applies to every companion row: a suggested companion has three
+       buttons, so it overflowed first. */
+    .hk-companion {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-areas: "ic body" "actions actions";
+      column-gap: 12px; row-gap: 8px;
+      align-items: start;
+    }
+    /* The flex declarations these three carry in the base rule above are inert here —
+       a grid parent ignores them — but they stay, because the same classes lay the row
+       out as a flex line above 700px. Do not read them as live rules for this block. */
+    .hk-companion-ic { grid-area: ic; }
+    .hk-companion-body { grid-area: body; }
+    /* The action row is a grid area, so it has a width to wrap against. The flex-wrap
+       this rule always carried could not do anything while the row was one flex line. */
+    .hk-companion-actions { grid-area: actions; justify-content: flex-end; gap: 8px; }
+    /* Thumb-sized again on a phone, the same as the task row above. */
+    .hk-companion-actions ha-button { --ha-button-height: var(--hk-tap); }
   }
 
   /* ── Wide: both lists lay their parts on fixed rails ───────────────────────

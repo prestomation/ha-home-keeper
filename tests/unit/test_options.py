@@ -379,3 +379,165 @@ def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
         "problem_sensor_exclude_labels": [],
         "dismissed_companions": [],
     }
+
+
+# ------------------------------------------------- the profile-in-use write guard
+
+
+def _opts(profiles: list[Any], notifications: list[Any]) -> dict[str, Any]:
+    """A normalized options document holding just the two lists the guard reads."""
+    return opts.current_options(
+        _entry(
+            {const.OPTION_PROFILES: profiles, const.OPTION_NOTIFICATIONS: notifications}
+        )
+    )
+
+
+_P1 = {"id": "p1", "name": "My chores", "filter": {"status": "overdue"}}
+_P2 = {"id": "p2", "name": "Garden", "filter": {"status": "all"}}
+_N_ON_P1 = {"id": "n1", "name": "Walk", "profile_id": "p1", "targets": []}
+_N_ON_P2 = {"id": "n2", "name": "Weekend", "profile_id": "p2", "targets": []}
+
+
+def test_removing_a_profile_a_notification_names_is_blocked() -> None:
+    """The whole point: the save that would leave the notification with nothing.
+
+    ``notifier._notification_profile`` reads a dangling ``profile_id`` back as "send
+    nothing", so this save used to succeed and quietly stop the notification. The
+    result names both sides, because the message has to say which profile and which
+    notification.
+    """
+    base = _opts([_P1], [_N_ON_P1])
+    merged = _opts([], [_N_ON_P1])
+    assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
+
+
+def test_removing_a_profile_with_its_notifications_in_one_save_is_allowed() -> None:
+    """Deleting both together is the *supported* way to get rid of a profile.
+
+    The references are read out of ``merged``, never ``base`` — a notification the
+    same save removes cannot be stranded by it. Three e2e specs tear down with
+    exactly this call, so reading ``base`` here would break them.
+    """
+    base = _opts([_P1], [_N_ON_P1])
+    merged = _opts([], [])
+    assert opts.profile_removals_in_use(base, merged) == []
+
+
+def test_a_save_that_does_not_send_profiles_removes_nothing() -> None:
+    """``_normalize`` carries the stored list over, so nothing is missing from it."""
+    base = _opts([_P1], [_N_ON_P1])
+    merged = opts._normalize({const.OPTION_SYNC_PROBLEM_SENSORS: True}, base)
+    assert opts.profile_removals_in_use(base, merged) == []
+
+
+def test_renaming_a_profile_is_not_a_removal() -> None:
+    """Ids are matched; names are only reported. A rename keeps the id."""
+    base = _opts([_P1], [_N_ON_P1])
+    merged = _opts([{**_P1, "name": "House chores"}], [_N_ON_P1])
+    assert opts.profile_removals_in_use(base, merged) == []
+
+
+def test_a_profile_id_that_already_dangles_does_not_block_an_unrelated_save() -> None:
+    """The state is designed, documented and reachable, so it must stay writable.
+
+    A notification can already name a profile that is not there — options restored
+    from a backup, or a service call that wrote notifications alone. That document
+    has to keep saving, or the person can never edit their way out of it. Only a
+    profile *this save* removes counts.
+    """
+    base = _opts([_P1], [_N_ON_P1, {"id": "n3", "name": "Ghost", "profile_id": "gone"}])
+    merged = opts._normalize({const.OPTION_SYNC_PROBLEM_SENSORS: True}, base)
+    assert opts.profile_removals_in_use(base, merged) == []
+
+
+def test_a_notification_with_no_profile_is_never_a_blocker() -> None:
+    """``profile_id: None`` means "every due task", so it names no profile."""
+    base = _opts(
+        [_P1], [{"id": "n1", "name": "All", "profile_id": None, "targets": []}]
+    )
+    merged = _opts([], [{"id": "n1", "name": "All", "profile_id": None, "targets": []}])
+    assert opts.profile_removals_in_use(base, merged) == []
+
+
+def test_removing_one_profile_of_two_reports_only_that_one() -> None:
+    """A notification on a profile the save keeps is not in the way."""
+    base = _opts([_P1, _P2], [_N_ON_P1, _N_ON_P2])
+    merged = _opts([_P2], [_N_ON_P1, _N_ON_P2])
+    assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
+
+
+def test_every_blocking_notification_is_reported_in_list_order() -> None:
+    """Two notifications on one removed profile both belong in the message."""
+    second = {"id": "n2", "name": "Evening", "profile_id": "p1", "targets": []}
+    base = _opts([_P1], [_N_ON_P1, second])
+    merged = _opts([], [_N_ON_P1, second])
+    assert opts.profile_removals_in_use(base, merged) == [
+        ("My chores", "Walk"),
+        ("My chores", "Evening"),
+    ]
+
+
+def test_the_error_joins_and_de_duplicates_both_sides() -> None:
+    """Both callers fill in the same two placeholders from these attributes.
+
+    The profile name appears once however many notifications hold it, because the
+    message reads "profile X is used by A, B", not "X, X". Both sides are joined the
+    same way, so one save that clears two held profiles still reads as a list.
+    """
+    err = opts.ProfileInUseError([("My chores", "Walk"), ("My chores", "Evening")])
+    assert err.profiles == "My chores"
+    assert err.notifications == "Walk, Evening"
+
+    two = opts.ProfileInUseError([("My chores", "Walk"), ("Garden", "Weekend")])
+    assert two.profiles == "My chores, Garden"
+    assert two.notifications == "Walk, Weekend"
+    # The exception's own text carries both, for a log line or an unhandled raise —
+    # the translated message the two callers build is separate from this.
+    assert str(two) == "My chores, Garden: Walk, Weekend"
+
+
+def test_removing_two_held_profiles_at_once_reports_both() -> None:
+    """One save can clear several profiles, and each blocker belongs in the message."""
+    base = _opts([_P1, _P2], [_N_ON_P1, _N_ON_P2])
+    merged = _opts([], [_N_ON_P1, _N_ON_P2])
+    assert opts.profile_removals_in_use(base, merged) == [
+        ("My chores", "Walk"),
+        ("Garden", "Weekend"),
+    ]
+
+
+def test_adding_a_profile_in_the_same_save_is_not_a_removal() -> None:
+    """A profile only *merged* has was never in the before-set, so it drops out.
+
+    Renaming by delete-and-add is the shape this has to get right: the new row is not
+    a removal, and the old row still is.
+    """
+    base = _opts([_P1], [_N_ON_P1])
+    merged = _opts([_P2], [_N_ON_P1])
+    assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
+
+
+def test_a_profile_sent_without_an_id_reads_as_a_removal() -> None:
+    """``normalize_profile`` mints a fresh uuid when ``id`` is missing.
+
+    So a hand-written service call that re-sends its profiles without their ids reads
+    as remove-then-add, and is refused. This narrows the ``set_options`` contract, and
+    it is the case that used to strand the notification silently.
+    """
+    base = _opts([_P1], [_N_ON_P1])
+    merged = _opts([{"name": "My chores", "filter": {"status": "overdue"}}], [_N_ON_P1])
+    assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
+
+
+def test_the_options_flow_cannot_remove_a_profile() -> None:
+    """``profiles`` is not in ``FLOW_OPTIONS``, so the Configure dialog never sends it.
+
+    That is why the guard lives on ``async_set_options`` alone: a flow submission
+    cannot reach it.
+    """
+    assert const.OPTION_PROFILES not in opts.FLOW_OPTIONS
+    base = opts.current_options(_entry(_FULL))
+    merged = opts.merge_flow_input(_entry(_FULL), _SUBMISSION)
+    assert merged[const.OPTION_PROFILES] == base[const.OPTION_PROFILES]
+    assert opts.profile_removals_in_use(base, merged) == []

@@ -42,6 +42,7 @@ absent — entity never sends.
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -241,6 +242,86 @@ def baseline_after_delete(
         (c for c in task.get("completions", []) if c.get("ts") == latest_ts), None
     )
     return (True, (latest or {}).get("reading"))
+
+
+def usage_intervals(task: dict[str, Any]) -> list[float]:
+    """The usage recorded between consecutive completions of *task*, oldest first.
+
+    A usage task logs the meter reading at each completion, so the difference between
+    two consecutive readings is the usage that service interval ran: an oil change
+    logged at 134,800 km and then at 150,200 km ran 15,400 km. Returns an empty list
+    when fewer than two completions carry a reading.
+
+    Only completions count. A skip also resets the meter, but it is the record of work
+    that was *not* done, so an interval that spans one is still one service interval
+    and is reported whole. This matches the panel, where a skip never counts toward
+    the completion tally or the cadence.
+
+    Entries are ordered by parsed timestamp, not by position: ``completions`` keeps
+    insertion order, so a back-dated completion sits at the end of the list, and a
+    store that has seen a timezone change can hold mixed offsets.
+
+    A negative difference is dropped, because the meter was reset or replaced between
+    the two completions (see :func:`evaluate_usage`) and there is no usage figure to
+    report. A zero difference is kept: two completions at the same reading are 0 units
+    apart, which is a real answer.
+    """
+    dated: list[tuple[datetime, float]] = []
+    for entry in task.get("completions", []):
+        raw_reading = entry.get("reading")
+        if isinstance(raw_reading, bool) or not isinstance(raw_reading, (int, float)):
+            continue
+        reading = float(raw_reading)
+        if not math.isfinite(reading):
+            continue
+        raw_ts = entry.get("ts")
+        if not raw_ts:
+            continue
+        try:
+            when = recurrence._parse(raw_ts)
+        except ValueError:
+            continue
+        # Here for the type checker only: ``_parse`` returns ``None`` just for a
+        # ``None`` input, which the falsy guard above already skipped.
+        if when is None:  # pragma: no cover, no mutate - unreachable
+            continue  # pragma: no mutate - already required a truthy stamp
+        # A stamp with no UTC offset cannot be ordered against one that has one:
+        # Python refuses to compare the two at all, which would raise out of the
+        # entity's attributes, and the panel's JavaScript would silently read it as
+        # the viewer's own zone. Neither is an answer, so both sides drop it. Nothing
+        # Home Keeper writes is offset-free; hand-edited storage can be.
+        if when.tzinfo is None:
+            continue
+        dated.append((when, reading))
+    dated.sort(key=lambda pair: pair[0])
+    gaps = [dated[i][1] - dated[i - 1][1] for i in range(1, len(dated))]
+    return [gap for gap in gaps if gap >= 0]
+
+
+def usage_interval_stats(task: dict[str, Any]) -> dict[str, float]:
+    """Summary figures over :func:`usage_intervals`, or ``{}`` when there are none.
+
+    ``last`` is the most recent interval, ``average`` is the mean, and ``shortest``
+    and ``longest`` are the range. Together they answer "did this one run short?",
+    which a list of readings alone does not.
+
+    Empty for a task that is not a usage meter, so a caller does not check the mode
+    itself. A ``threshold`` task records a reading too, but that reading is a
+    measurement (airflow at 58%) and not a meter that only climbs, so the difference
+    between two of them is not usage.
+    """
+    cfg = sensor_config(task)
+    if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
+        return {}
+    intervals = usage_intervals(task)
+    if not intervals:
+        return {}
+    return {
+        "last": intervals[-1],
+        "average": sum(intervals) / len(intervals),
+        "shortest": min(intervals),
+        "longest": max(intervals),
+    }
 
 
 def evaluate_usage(

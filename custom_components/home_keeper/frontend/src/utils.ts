@@ -340,6 +340,22 @@ export function formatQuantity(value: number, unit?: string | null): string {
 }
 
 /**
+ * A meter reading as text, in the viewer's language, with the meter's unit appended.
+ *
+ * An odometer is the case that matters: `163900` is hard to read and `163,900 km` is
+ * not, and the grouping separator is a comma in English and a point in German, so the
+ * language has to reach the formatter. One decimal at most, the same resolution
+ * `round1` keeps, because a maintenance interval does not need more.
+ */
+export function formatReading(value: number, unit?: string | null, lang?: string): string {
+  const text = new Intl.NumberFormat(lang || undefined, {
+    maximumFractionDigits: 1,
+  }).format(value);
+  const label = (unit || '').trim();
+  return label ? `${text} ${label}` : text;
+}
+
+/**
  * The step a part's stock moves in: a whole spare, or a fine step once the part
  * deals in fractions — it has a unit, or any of its quantities is fractional. The
  * same rule as the device page's `number` entity (`number.py` `native_step`), so
@@ -383,6 +399,19 @@ export function taskRecordsReading(task: Partial<Task> | null | undefined): bool
   if (!task.sensor) return false;
   const mode = task.sensor.mode ?? 'usage';
   return mode === 'usage' || mode === 'threshold';
+}
+
+/**
+ * Whether `task`'s history reports the usage between its completions.
+ *
+ * A usage meter only, and narrower than `taskRecordsReading` on purpose: a `threshold`
+ * task logs a reading too, but that reading is a measurement (airflow at 58%) and not a
+ * meter that only climbs, so the difference between two of them is not usage. Lives
+ * here beside the other mode predicates rather than in the renderer, so the panel and
+ * its tests ask the same question.
+ */
+export function showsUsageIntervals(task: Partial<Task> | null | undefined): boolean {
+  return task?.recurrence_type === 'sensor' && task.sensor?.mode === 'usage';
 }
 
 /**
@@ -1042,6 +1071,88 @@ export function completionStats(completions?: { ts: string }[]): CompletionStats
   if (dates.length >= 2) {
     const spanMs = dates[0].getTime() - dates[dates.length - 1].getTime();
     stats.avgIntervalDays = Math.round(spanMs / (dates.length - 1) / 86_400_000);
+  }
+  return stats;
+}
+
+/**
+ * How much a meter advanced between completions, per row and in summary.
+ *
+ * `byTs` holds each completion's own interval, keyed by that completion's `ts`, so a
+ * row renderer looks up its own figure without re-deriving the list. The oldest
+ * completion has no predecessor and so no entry. The four summary figures are absent
+ * until there are two readings to subtract.
+ */
+export interface UsageIntervalStats {
+  byTs: Map<string, number>;
+  /** How many intervals the summary is computed over. */
+  count: number;
+  /** The most recent interval. */
+  last?: number;
+  average?: number;
+  shortest?: number;
+  longest?: number;
+}
+
+/** A `Z` or a `±HH:MM` / `±HHMM` tail — the shapes Home Assistant writes. */
+// Stryker disable next-line Regex: equivalent — dropping the anchor only admits text
+// carrying an offset somewhere other than the end, and `new Date` answers NaN for all
+// of it, so the parse filter below rejects it either way.
+const TS_HAS_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+/**
+ * The usage between consecutive completions — "the last oil change ran 15,400 km".
+ *
+ * Mirrors `sensor_tasks.usage_intervals` / `usage_interval_stats` on the backend, which
+ * publishes the same four figures as attributes; both exist so the panel can render the
+ * history without a round trip, and both are the one place the rule is written down.
+ *
+ * Entries are ordered by parsed timestamp, not by position: `completions` keeps
+ * insertion order, so a back-dated completion sits at the end of the list. A negative
+ * difference is dropped, because the meter was reset or replaced between the two
+ * completions and there is no usage figure to report; a zero difference is kept, since
+ * two completions at the same reading really are 0 units apart.
+ *
+ * Skips are not passed in. A skip resets the meter too, but it records work that was
+ * *not* done, so an interval spanning one is still a single service interval — the same
+ * rule that keeps a skip out of the completion tally and the cadence.
+ */
+export function usageIntervalStats(
+  completions?: { ts: string; reading?: number }[],
+): UsageIntervalStats {
+  // Stryker disable next-line ArrayDeclaration: equivalent — the stand-in entry the
+  // mutator puts in the empty fallback has no numeric `reading`, so the filter below
+  // drops it and the result is the same empty list either way.
+  const dated = (completions || [])
+    // `Number.isFinite` does not coerce, so that one call is the whole reading guard: a
+    // string reading, a boolean, `undefined`, `NaN` and `Infinity` all answer false.
+    // (The backend needs an explicit `isinstance` beside it, because `float()` there
+    // *would* coerce the string and `True` really is an `int`.)
+    //
+    // The stamp has to carry a UTC offset. `new Date` reads an offset-free stamp as the
+    // viewer's own zone, so the same history would order differently in Berlin and in
+    // Seattle, and the backend refuses to compare it against an offset-bearing one at
+    // all. Neither is an answer, so both sides drop it.
+    .filter((c) => Number.isFinite(c.reading) && TS_HAS_OFFSET.test(c.ts))
+    .map((c) => ({ ts: c.ts, at: new Date(c.ts).getTime(), reading: c.reading as number }))
+    // The offset test above reads the tail, not the whole stamp, so text that merely
+    // ends in one still has to be parsed before it can be ordered.
+    .filter((c) => !Number.isNaN(c.at))
+    .sort((a, b) => a.at - b.at);
+  const byTs = new Map<string, number>();
+  const gaps: number[] = [];
+  for (let i = 1; i < dated.length; i += 1) {
+    const gap = dated[i].reading - dated[i - 1].reading;
+    if (gap < 0) continue;
+    byTs.set(dated[i].ts, gap);
+    gaps.push(gap);
+  }
+  const stats: UsageIntervalStats = { byTs, count: gaps.length };
+  if (gaps.length) {
+    stats.last = gaps[gaps.length - 1];
+    stats.average = gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length;
+    stats.shortest = Math.min(...gaps);
+    stats.longest = Math.max(...gaps);
   }
   return stats;
 }

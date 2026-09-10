@@ -628,13 +628,22 @@ time half continues while the sensor is unavailable.
 go". The unit label is prefilled from the sensor and can be changed. The same
 figures are attributes of the task's next-due sensor entity: `usage_consumed`,
 `usage_remaining`, `usage_percent`, `usage_target`, `usage_unit`,
-`usage_baseline`, `backstop_due`, and `last_completion_reading`. The entity exists
-only for a task attached to a device.
+`usage_baseline`, `backstop_due`, and `last_completion_reading`. The entity also
+reports the usage between completions: `usage_last_interval`, `usage_avg_interval`,
+`usage_min_interval`, and `usage_max_interval`. These 4 attributes are absent until
+2 completions record a reading. The entity exists only for a task attached to a
+device.
 
 **History.** A completion of a sensor task records the sensor reading with the
 note and cost and photo. Each history row shows the reading and the reading can be
-edited. The reading on the most recent completion is the meter anchor, so an edit
-to it moves the anchor. An older row is a log entry only.
+edited. The row also shows the usage since the previous completion, such as
+"+15,400 km". The reading on the most recent completion is the meter anchor, so an
+edit to it moves the anchor. An older row is a log entry only.
+
+Above the history list, Home Keeper shows the last interval and the average. It
+also shows the shortest and the longest. If there is only 1 interval, Home Keeper
+shows that interval alone. A meter reset makes one reading lower than the reading
+before it, and Home Keeper leaves that pair out.
 
 The completion dialog prefills the reading from the sensor. To back-date a
 completion, set **Completed at** and type the reading from that date.
@@ -956,6 +965,11 @@ A Profile is used in 4 places:
 - The **Profile** dropdown on the **Tasks** tab filters the task list in the panel.
 - The **Filter by profile** option in the card editor filters the dashboard card.
 
+Home Keeper does not delete a Profile that a notification uses. Point those
+notifications at a different Profile first. You can also delete them.
+
+![The panel refusing to delete a Profile, and naming the notification that uses it](docs/images/58-panel-profile-delete-blocked.png)
+
 ### Status tiers
 
 The **Include** setting has 3 tiers. Each tier includes the tiers before it:
@@ -1155,8 +1169,9 @@ tasks from their own profile. The buttons act on the task in Home Keeper:
 Configure notifications in **Settings → Notifications**. Each notification has these
 fields:
 
-- **Profile**: the [Profile](#profiles-saved-filters-you-reuse-everywhere) that
-  selects the tasks. All due tasks are included if no profile is set.
+- **Profile**: the [Profile](#profiles-saved-filters-you-reuse-everywhere) whose
+  Include field selects which tasks the notification contains. All due tasks are
+  included if no profile is set.
 - **Send to**: one or more `mobile_app_*` companion-app devices selected from a
   list. Only these devices and `persistent_notification` are supported as targets.
   Other notify services are not supported.
@@ -1169,8 +1184,9 @@ fields:
   applies. See [Channels and urgency](#channels-and-urgency).
 - **Notification icon** and **Accent color**: how the notification looks on the
   phone. See [Icons and colors](#icons-and-colors).
-- **Auto-send**: send the notification when a matching task becomes overdue or
-  due soon.
+- **Triggers**: send the notification when a task in the profile becomes overdue
+  or due soon. A trigger sets only when the notification is sent, not which
+  tasks it contains.
 
 Press **Test** on a notification to send it now. Home Keeper saves the notification
 first, then calls `home_keeper.notify` for it, so the phone receives the delivery the
@@ -1250,10 +1266,10 @@ language.
 
 ### Automations
 
-With **Auto-send** on, a notification is sent when a task in the profile becomes
-overdue or due soon. Use a Home Assistant automation for more control over when
-notifications are sent. Send only when a person is at home, or send during a "Chore
-time" calendar event.
+With **Send when overdue** or **Send when due soon** on, a notification is sent
+when a task in the profile becomes overdue or due soon. Use a Home Assistant
+automation for more control over when notifications are sent. Send only when a
+person is at home, or send during a "Chore time" calendar event.
 
 The `home_keeper.notify` service sends a notification from an automation. Set
 `notification:` to a saved notification or `profile:` to a saved Profile. Set
@@ -1338,7 +1354,7 @@ Each automation sends the same notification, so the phone replaces the previous 
 instead of adding a second. The next run of the automation finds no due task after
 the task is complete, and the notifications stop.
 
-![The Settings → Notifications card with a notification on the Chores channel at High urgency, and a Test button beside Delete](docs/images/22-panel-notifications.png)
+![The Settings → Notifications card with a notification on the Chores channel at High urgency, the scope of its profile under the Profile picker, and the 2 switches under Triggers](docs/images/22-panel-notifications.png)
 
 
 ## Dashboard task card
@@ -1522,6 +1538,13 @@ warning shows above 50 matches. A recipe cannot match more than 500 entities. Se
 ![The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right](docs/images/21d-panel-declarative-add-dialog.png)
 
 ![The page of a task a recipe made, with an Edit recipe button and no Done button while the task is monitored](docs/images/21e-panel-declarative-task-detail.png)
+
+Each recipe gets a row under **Settings → Companions** with an Edit button and a
+Delete button. On a phone the row stacks, and the buttons take a line of their own.
+
+![A recipe row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete](docs/images/21h-panel-declarative-row-actions.png)
+
+![The same recipe row on a phone, with Edit and Delete on a line under the name](docs/images/21i-panel-mobile-recipe-row.png)
 
 
 

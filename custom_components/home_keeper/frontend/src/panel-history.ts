@@ -22,14 +22,17 @@ import {
   escapeHTML,
   formatCost,
   formatDate,
+  formatReading,
   isSafeImageUrl,
   personName,
   readingUnit,
   relativeDay,
-  round1,
+  showsUsageIntervals,
   tasksForAsset,
   toast,
+  usageIntervalStats,
 } from './utils';
+import type { UsageIntervalStats } from './utils';
 
 /**
  * Completion groups for the detail page's history section. For a task: its own
@@ -204,10 +207,11 @@ function historyGroup(p: PanelHost, group: HistoryGroup, showHead: boolean): str
   const editTask = !group.archived ? group.taskId : undefined;
   // The unit for any meter readings in this group, resolved once rather than per
   // row. An archived group has no live task, so its rows show a bare number.
-  const unit = readingUnit(
-    group.taskId ? p._tasks.find((x) => x.id === group.taskId) : undefined,
-    p._hass,
-  );
+  const task = group.taskId ? p._tasks.find((x) => x.id === group.taskId) : undefined;
+  const unit = readingUnit(task, p._hass);
+  // An archived group has no live task to ask, so it keeps the bare readings it has
+  // always shown.
+  const usage = showsUsageIntervals(task) ? usageIntervalStats(group.completions) : undefined;
   const items = comps
     .map(({ entry: c, kind }) => {
       const d = new Date(c.ts);
@@ -239,11 +243,40 @@ function historyGroup(p: PanelHost, group: HistoryGroup, showHead: boolean): str
             <span class="when">${escapeHTML(relativeDay(d))}</span>
             <span class="hk-hist-actions">${moveBtn}${editBtn}${delBtn}</span>
           </div>
-          ${completionMeta(p, c, unit)}
+          ${completionMeta(p, c, unit, p._lang(), skip ? undefined : usage?.byTs.get(c.ts))}
         </li>`;
     })
     .join('');
-  return `<div class="hk-hist-group">${head}<ul class="hk-hist-list">${items}</ul></div>`;
+  return `<div class="hk-hist-group">${head}${usageStrip(usage, unit, p._lang())}<ul class="hk-hist-list">${items}</ul></div>`;
+}
+
+/**
+ * The four summary figures above a metered task's history, or nothing.
+ *
+ * Nothing when the task is not a usage meter or has no interval yet. With exactly one
+ * interval the strip carries **Last** alone: the average, the shortest and the longest
+ * of a single number are all that same number, and printing it four times says less
+ * than printing it once.
+ */
+function usageStrip(
+  usage: UsageIntervalStats | undefined,
+  unit: string,
+  lang?: string,
+): string {
+  if (!usage || !usage.count) return '';
+  const figure = (label: string, value: number): string =>
+    `<div><span class="hk-eyebrow">${escapeHTML(label)}</span><span class="v">${escapeHTML(
+      formatReading(value, unit, lang),
+    )}</span></div>`;
+  const cells = [figure(t('history.usageLast'), usage.last as number)];
+  if (usage.count > 1) {
+    cells.push(
+      figure(t('history.usageAverage'), usage.average as number),
+      figure(t('history.usageShortest'), usage.shortest as number),
+      figure(t('history.usageLongest'), usage.longest as number),
+    );
+  }
+  return `<div class="hk-hist-usage">${cells.join('')}</div>`;
 }
 
 /**
@@ -252,19 +285,31 @@ function historyGroup(p: PanelHost, group: HistoryGroup, showHead: boolean): str
  * `unit` is resolved once per history group by the caller rather than looked up
  * here: a `Completion` is a bare history entry and knows nothing about the sensor
  * it came from, and an archived group has no live task to ask at all (its rows then
- * show a bare number, which is still the figure that matters).
+ * show a bare number, which is still the figure that matters). `interval` is the same
+ * arrangement for the usage since the previous completion, which a single entry cannot
+ * know either.
  */
-function completionMeta(p: PanelHost, c: Completion, unit = ''): string {
+function completionMeta(
+  p: PanelHost,
+  c: Completion,
+  unit = '',
+  lang?: string,
+  interval?: number,
+): string {
   const bits: string[] = [];
   // The meter reading leads: on a usage task it is the number the whole task is
   // measured in, and it is what the cost/who chips are context for.
   if (c.reading != null)
     bits.push(
-      escapeHTML(
-        t('completion.reading', {
-          reading: `${round1(c.reading)}${unit ? ` ${unit}` : ''}`,
-        }),
-      ),
+      escapeHTML(t('completion.reading', { reading: formatReading(c.reading, unit, lang) })),
+    );
+  // The usage since the previous completion, beside the reading it is derived from, so
+  // the two reconcile as the reader goes down the list.
+  if (interval != null)
+    bits.push(
+      `<span class="hk-hist-delta">${escapeHTML(
+        t('completion.usageInterval', { value: formatReading(interval, unit, lang) }),
+      )}</span>`,
     );
   if (c.cost != null) bits.push(escapeHTML(formatCost(p._hass, c.cost)));
   if (c.who) bits.push(escapeHTML(t('completion.by', { who: personName(p._hass, c.who) })));

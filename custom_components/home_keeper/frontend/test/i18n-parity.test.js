@@ -22,6 +22,9 @@ const INTENTIONALLY_IDENTICAL = new Set([
   'managed.completionHint',
   // Two placeholders and a comma: "every 2 months after completion, April 1–September 30".
   'recurrence.season',
+  // A signed number: "+15,400 km". The value carries the digits and the unit, and the
+  // sign reads the same in every language the panel ships.
+  'completion.usageInterval',
 ]);
 
 // Per-locale cognates / loanwords whose translation is genuinely identical to
@@ -36,6 +39,9 @@ const INTENTIONALLY_IDENTICAL = new Set([
 // "Normaal", "Normalne", "Normální", "Normaali"). `notify.test` is "Test" in Danish
 // and Norwegian, which take the English noun unchanged (the others inflect or
 // translate it: "Testen", "Tester", "Probar", "Testaa", "Otestovat").
+// `notify.triggers_heading` is "Triggers" in Dutch, which already keeps the English
+// loanword for this concept elsewhere in the same table ("Trigger",
+// "Triggermodus"); a native coinage here would disagree with the rest of the panel.
 // The declarative.companions.* namespace adds several universal loanwords
 // ("Preset:" appears literally in several Romance languages; the German panel
 // keeps "Name"; French uses "Description" as a cognate; Dutch keeps "Trigger"
@@ -60,7 +66,7 @@ const COGNATE_IDENTICAL = {
   fr: ['completion.photo', 'detail.id', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'section.notes', 'settings.exclusions', 'tab.documents'],
   it: ['detail.id', 'field.area_id', 'field.doc_url', 'group.area', 'opt.meta.link'],
   nb: ['detail.id', 'field.doc_url', 'field.kind', 'field.sensor_entity_id', 'field.type', 'group.status', 'notify.opt.normal', 'notify.test', 'opt.month.11', 'opt.month.4', 'opt.month.8', 'opt.month.9'],
-  nl: ['detail.about', 'detail.id', 'field.doc_url', 'field.kind', 'field.label', 'field.model', 'field.sensor_entity_id', 'field.type', 'group.status', 'opt.meta.link', 'opt.month.11', 'opt.month.12', 'opt.month.4', 'opt.month.9', 'recurrence.unit.week.one', 'section.later'],
+  nl: ['detail.about', 'detail.id', 'field.doc_url', 'field.kind', 'field.label', 'field.model', 'field.sensor_entity_id', 'field.type', 'group.status', 'notify.triggers_heading', 'opt.meta.link', 'opt.month.11', 'opt.month.12', 'opt.month.4', 'opt.month.9', 'recurrence.unit.week.one', 'section.later'],
   pl: ['field.doc_url', 'field.model', 'group.status', 'opt.meta.link'],
   'pt-BR': ['detail.id', 'field.doc_url', 'field.sensor_entity_id', 'group.status', 'notify.opt.normal', 'opt.meta.link'],
   ru: ['detail.id', 'field.doc_url'],

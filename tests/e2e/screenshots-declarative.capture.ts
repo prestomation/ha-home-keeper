@@ -218,3 +218,69 @@ test('capture a declarative-companion task page', async ({ page }) => {
     await callService('home_keeper', 'delete_declarative_companion', { id: specId });
   }
 });
+
+/**
+ * The recipe row in Settings → Companions, at both widths (the phone-layout fix).
+ *
+ * The row is the surface the maintainer reported: below 700px it kept the desktop's
+ * single-line layout, the status and preset chips came out of their box over the Edit
+ * button, and Delete went past the right edge with nothing to scroll. Seeded from a
+ * *preset* on purpose — `preset_id` is what puts the long "Preset: device_pulse"
+ * badge on the name line, which is the chip that did the covering.
+ *
+ * Both shots come from here rather than the main capture because only this file
+ * creates a recipe, and it deletes it again so the container is left as it was found.
+ * `tests/responsive-layout.spec.ts` asserts the layout; these only photograph it.
+ */
+test('capture the declarative recipe row at both widths', async ({ page }) => {
+  const created = await callService(
+    'home_keeper',
+    'add_declarative_companion',
+    {
+      name: 'Device Pulse',
+      preset_id: 'device_pulse',
+      selection: { domain: 'binary_sensor', device_class: 'battery' },
+      trigger: { mode: 'availability', for_seconds: 3600, clear_on_recover: true },
+      task_template: { name_template: 'Check on {{ device_name or friendly_name }}' },
+    },
+    true,
+  );
+  const specId = created.companion.id as string;
+
+  try {
+    const panel = page.locator('home-keeper-panel').first();
+
+    // 21h. The desktop row, where Edit and Delete sit beside the text. Shot as the
+    // Companions card: the Settings page around it is four cards of other settings.
+    await openPanel(page);
+    await openSettingsSection(panel, 'companions');
+    const companions = panel.locator('#hk-companions');
+    await expect(companions).toBeVisible();
+    const row = companions.locator('.hk-decl-row').first();
+    await expect(row).toBeVisible();
+    await expect(row.locator('.hk-decl-preset-chip')).toBeVisible();
+    await expect(row.locator('.hk-decl-edit')).toBeVisible();
+    await expect(row.locator('.hk-decl-delete')).toBeVisible();
+    await centre(row);
+    await page.waitForTimeout(500);
+    await companions.screenshot({ path: `${OUT}/21h-panel-declarative-row-actions.png` });
+
+    // 21i. The same row on a phone. The buttons take a line of their own under the
+    // name, and both are on the screen at a size a thumb can hit.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openPanel(page);
+    await openSettingsSection(panel, 'companions');
+    await expect(companions).toBeVisible();
+    const phoneRow = companions.locator('.hk-decl-row').first();
+    await expect(phoneRow.locator('.hk-decl-delete')).toBeVisible();
+    // Scroll to the *buttons*, not the row: the row's own top is on screen while its
+    // action line is still under the bottom tab bar, which is exactly the half of the
+    // fix the shot exists to show.
+    await phoneRow.locator('.hk-companion-actions').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${OUT}/21i-panel-mobile-recipe-row.png` });
+    await page.setViewportSize({ width: 1280, height: 720 });
+  } finally {
+    await callService('home_keeper', 'delete_declarative_companion', { id: specId });
+  }
+});

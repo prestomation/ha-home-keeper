@@ -226,6 +226,74 @@ def merge_flow_input(entry: ConfigEntry, user_input: dict[str, Any]) -> dict[str
     return _normalize(submitted, current_options(entry))
 
 
+class ProfileInUseError(ValueError):
+    """A save removes a profile that a surviving notification still names.
+
+    A notification points at a profile by ``profile_id`` to say which tasks it sends.
+    Delete the profile and the notification keeps the id but finds nothing behind it,
+    so ``notifier`` sends nothing and the person who made the notification gets no
+    signal. This is raised in place of that silence.
+
+    A ``ValueError`` subclass, the same as ``models.TaskValidationError`` and
+    ``assets.AssetValidationError``: this module stays free of Home Assistant imports
+    at run time, so it cannot raise ``ServiceValidationError`` itself. The two callers
+    of :func:`async_set_options` each convert it. The joined, de-duplicated strings are
+    attributes so both callers fill in the same translation placeholders and neither
+    builds a message of its own.
+    """
+
+    def __init__(self, blocked: list[tuple[str, str]]) -> None:
+        self.profiles = ", ".join(dict.fromkeys(name for name, _ in blocked))
+        self.notifications = ", ".join(dict.fromkeys(name for _, name in blocked))
+        super().__init__(f"{self.profiles}: {self.notifications}")
+
+
+def profile_removals_in_use(
+    base: dict[str, Any], merged: dict[str, Any]
+) -> list[tuple[str, str]]:
+    """Pairs of (profile name, notification name) that *merged* would strand.
+
+    The question is not "which notifications use profile X" but "which profiles does
+    **this save** remove, and does a notification that **survives the same save** still
+    name one". That is a before-and-after question, which is why it lives here rather
+    than in ``profiles.py`` (deliberately decoupled from notifications) or in
+    ``notifications.py`` (which sees one list, at one moment).
+
+    Four reads carry the behaviour:
+
+    - what **existed** comes from *base*, what **survives** from *merged*, so a save
+      that sends no ``profiles`` key removes nothing and can never block
+    - the references come from ***merged*'s** notifications, never *base*'s, so one
+      save that deletes a profile together with its notifications is allowed
+    - only ids this save removes are candidates, so an options document that already
+      holds a dangling ``profile_id`` still reads and writes — that state is designed
+      (``notifier._notification_profile``), documented, and reachable from a backup
+    - ids are matched, names are only reported, so a rename is not a removal
+
+    Both arguments are **normalized** documents — ``current_options`` and
+    ``_normalize`` are the only two things that produce them, and both hold every
+    option key and give every profile an ``id`` and a ``name`` (see
+    ``profiles.normalize_profile``). So this indexes rather than defending: a missing
+    key here is a bug in the caller, and a ``KeyError`` says so instead of quietly
+    returning "nothing is in the way" and writing the save through.
+    """
+    removed = {profile["id"]: profile["name"] for profile in base[OPTION_PROFILES]}
+    for profile in merged[OPTION_PROFILES]:
+        removed.pop(profile["id"], None)
+    blocked: list[tuple[str, str]] = []
+    for notification in merged[OPTION_NOTIFICATIONS]:
+        # ``profile_id`` is None for a notification that covers every due task. That
+        # is a **valid** value, not malformed input, and it has to fall through: such
+        # a notification names no profile, so no profile removal can strand it. The
+        # lookup handles it because every key here is a string, so None never matches.
+        # Do not "harden" this into a string check — that would make a None read as a
+        # blocker. ``test_a_notification_with_no_profile_is_never_a_blocker`` pins it.
+        profile_name = removed.get(notification["profile_id"])
+        if profile_name is not None:
+            blocked.append((profile_name, notification["name"]))
+    return blocked
+
+
 async def async_set_options(
     hass: HomeAssistant, entry: ConfigEntry, updates: dict[str, Any]
 ) -> dict[str, Any]:
@@ -246,6 +314,13 @@ async def async_set_options(
     if merged == base:
         # No effective change — nothing to persist, and no reload to await.
         return merged
+    if blocked := profile_removals_in_use(base, merged):
+        # Before the write, so a refused save changes nothing, and after the
+        # short-circuit above, because a save that changes nothing removes nothing.
+        # The guard is on this write path only: ``_normalize`` and ``current_options``
+        # are also the **read** path, and an options document that already holds a
+        # dangling ``profile_id`` has to keep reading back.
+        raise ProfileInUseError(blocked)
     _CALLER_RELOADING.add(entry.entry_id)
     try:
         hass.config_entries.async_update_entry(entry, options=merged)

@@ -27,14 +27,18 @@ import {
   companionOptions,
   editorGroups,
   generalSchema,
-  notificationSchema,
+  notificationDeliverySchema,
+  notificationProfileSchema,
+  notificationTriggerSchema,
   notifyFormData,
   notifyFormToNotification,
+  pickFormData,
   problemSyncExclusionsSchema,
   problemSyncToggleSchema,
   profileFormToProfile,
   profileHeadData,
   profileHeadSchema,
+  profileScopeKey,
   profileSyncSchema,
   shoppingSchema,
   skipSnoozeFlags,
@@ -45,8 +49,9 @@ import {
 import { renderGroupsEditor } from './group-editor';
 import { t, tn } from './i18n';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
+import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
-import { COMPANIONS_DOCS_URL, DOCS_URL } from './panel-icons';
+import { COMPANIONS_DOCS_URL, DOCS_URL, NOTIFY_AUTOMATION_DOCS_URL } from './panel-icons';
 import type {
   Companion,
   HomeKeeperOptions,
@@ -896,12 +901,13 @@ async function persistOptionList(
   key: OptionListKey,
   list: Profile[] | Notification[],
   render: boolean,
-  expandLast = false,
+  opts: { expandLast?: boolean; rollbackOnFailure?: boolean } = {},
 ): Promise<void> {
   if (!p._hass) return;
   const cardId = LIST_CARD_ID[key];
   const isNewest = claimSave(p, key);
   markSaving(p, cardId);
+  const previous = (p._options as HomeKeeperOptions | null)?.[key];
   p._options = { ...(p._options as HomeKeeperOptions), [key]: list };
   try {
     const merged = await api.setOptions(p._hass, {
@@ -909,7 +915,7 @@ async function persistOptionList(
     } as Partial<HomeKeeperOptions>);
     // Stale answer: a newer save has already put its own value in `p._options`.
     if (isNewest()) p._options = merged;
-    if (expandLast) {
+    if (opts.expandLast) {
       // Read the row out of **this** save's own answer rather than `p._options`. They
       // are the same list in the ordinary case, but two adds in quick succession are
       // not: the second answer holds both new rows, so the first add would expand the
@@ -923,11 +929,22 @@ async function persistOptionList(
     markSettled(p, cardId, true);
   } catch (err) {
     markSettled(p, cardId, false);
-    // The optimistic write above stands. The user keeps what they typed and sees the
-    // backend's own message, and the next save of this list carries the value again —
-    // a retry rather than a silent revert. Rolling back here would take the text out
-    // of the field under them, which is worse for the common case (a transient
-    // failure) than re-sending it.
+    // A rejected *delete* is the one failure the rule below gets wrong. There is no
+    // typed text to keep, and the optimistic write already took the row off screen, so
+    // leaving it in place makes the panel say a row is gone that the backend still
+    // holds — until something else reloads. Put it back. The isNewest() guard is there
+    // for the same reason the success path has one: a newer save has already written
+    // its own list, and restoring this snapshot over it would bring back a row that
+    // save removed. Without the render the restored row stays off screen.
+    if (opts.rollbackOnFailure && isNewest() && previous) {
+      p._options = { ...(p._options as HomeKeeperOptions), [key]: previous };
+      if (render) p._render();
+    }
+    // Otherwise the optimistic write stands. The user keeps what they typed and sees
+    // the backend's own message, and the next save of this list carries the value
+    // again — a retry rather than a silent revert. Rolling back there would take the
+    // text out of the field under them, which is worse for the common case (a
+    // transient failure) than re-sending it.
     toast(p, String((err as { message?: string })?.message || err));
   }
 }
@@ -1016,7 +1033,7 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
       if (open) p._itemExpanded.add(profile.id);
       else p._itemExpanded.delete(profile.id);
     },
-    onDelete: () => void deleteProfile(p, profile.id),
+    onDelete: () => confirmDeleteProfile(p, profile),
     fill: (body, nameSpan) => {
       // The head form, the group forms and the sync group are several `ha-form`s
       // editing one profile, and they all save through the same debounce key. Each
@@ -1201,7 +1218,38 @@ function addProfile(p: PanelHost): Promise<void> {
     // carry the defaults the backend normalizer would fill in.
     sync: { entity_id: '', two_way: true, vanish_as_completed: true },
   };
-  return persistOptionList(p, 'profiles', [...(p._options?.profiles ?? []), blank], true, true);
+  return persistOptionList(p, 'profiles', [...(p._options?.profiles ?? []), blank], true, {
+    expandLast: true,
+  });
+}
+
+/** The notifications that would be left with no profile if *profileId* went.
+ *
+ *  This repeats `options.profile_removals_in_use` in the backend, which is the gate
+ *  that actually refuses the save. Kept here so the panel does not offer a Delete
+ *  whose only outcome is an error — the same reason `card-filter.ts` repeats
+ *  `profiles.matches_filter`. That one needs a shared fixture to stay in step; this
+ *  one is a single id comparison, so a fixture would cost more than it protects. */
+function notificationsUsingProfile(p: PanelHost, profileId: string): Notification[] {
+  return (p._options?.notifications ?? []).filter((n) => n.profile_id === profileId);
+}
+
+/** Ask before deleting a profile, or say why it cannot be deleted. */
+function confirmDeleteProfile(p: PanelHost, profile: Profile): void {
+  const blockers = notificationsUsingProfile(p, profile.id);
+  if (blockers.length) {
+    openBlockedDialog(
+      p,
+      t('confirm.profileInUseTitle', { name: profile.name }),
+      t('confirm.profileInUseBody', {
+        notifications: blockers.map((n) => n.name).join(', '),
+      }),
+    );
+    return;
+  }
+  openConfirmDialog(p, t('confirm.deleteProfile', { name: profile.name }), () => {
+    void deleteProfile(p, profile.id);
+  });
 }
 
 function deleteProfile(p: PanelHost, id: string): Promise<void> {
@@ -1209,7 +1257,9 @@ function deleteProfile(p: PanelHost, id: string): Promise<void> {
   p._itemExpanded.delete(syncKey(id));
   p._settingsSectionCollapsed.delete(syncKey(id));
   const next = (p._options?.profiles ?? []).filter((x) => x.id !== id);
-  return persistOptionList(p, 'profiles', next, true);
+  // A refused save has to put the row back: the pre-check above can be out of date
+  // when a second admin binds a notification to this profile in the meantime.
+  return persistOptionList(p, 'profiles', next, true, { rollbackOnFailure: true });
 }
 
 // ── notifications ───────────────────────────────────────────────────────────
@@ -1306,46 +1356,193 @@ function notificationEditor(
     },
     onDelete: () => void deleteNotification(p, notification.id),
     fill: (body, nameSpan, repaint) => {
+      // Three forms editing one notification, so the panel can put text between them:
+      // what the chosen profile selects belongs under the profile picker, and the two
+      // triggers belong under a heading that says what a trigger does (#313). Each
+      // form keeps the other two halves in a closure, so whichever fires last still
+      // writes the whole notification — the same arrangement `profileEditor` uses.
+      const profileSchema = notificationProfileSchema(profiles);
+      const deliverySchema = notificationDeliverySchema(p._notifyTargets);
+      const triggerSchema = notificationTriggerSchema();
+      const seed = notifyFormData(notification);
+      let profileData = pickFormData(seed, profileSchema);
+      let deliveryData = pickFormData(seed, deliverySchema);
+      let triggerData = pickFormData(seed, triggerSchema);
+      // Each form is authoritative for its own fields and no others, so the order the
+      // three merge in cannot matter. Picking by schema rather than trusting the event
+      // keeps a stray key out of the rebuild — the same reason the seeds are narrowed.
+      const save = (): void => {
+        current = notifyFormToNotification(notification.id, {
+          ...pickFormData(profileData, profileSchema),
+          ...pickFormData(deliveryData, deliverySchema),
+          ...pickFormData(triggerData, triggerSchema),
+        });
+        persistDebounced(p, 'notifications', notification.id, () => listWith(current));
+      };
+
+      const labelling = {
+        computeLabel: (s: { name: string }): string => {
+          if (s.name === 'name') return t('field.name');
+          if (s.name === 'profile_id') return t('notify.profile');
+          return t('notify.' + s.name);
+        },
+        // Both fields do something the field name cannot say. A channel is
+        // Android's word and means nothing on an iPhone. Its sound and Do Not
+        // Disturb settings belong to the phone once the channel exists, so a later
+        // urgency change does not move a channel that already exists. Critical
+        // needs a permission on iOS.
+        computeHelper: (s: { name: string }): string => {
+          // The look pair is not self-evident and the chip cannot say it: Android
+          // draws the icon only in the status bar, and ignores the color outright
+          // from 12 on. Both facts are about the phone, not about this form.
+          if (s.name === 'icon') return t('notify.icon_help');
+          if (s.name === 'color') return t('notify.color_help');
+          if (s.name === 'channel') return t('notify.channel_help');
+          if (s.name === 'urgency') return t('notify.urgency_help');
+          return '';
+        },
+      };
+
+      const scope = notifyScopeLine(p, () => String(profileData.profile_id ?? ''));
       body.appendChild(
         p._makeForm(
-          notificationSchema(p._notifyTargets, profiles),
-          notifyFormData(notification),
+          profileSchema,
+          profileData,
           (value) => {
+            profileData = value;
             if (typeof value.name === 'string') nameSpan.textContent = value.name;
-            current = notifyFormToNotification(notification.id, value);
-            // Picking a different profile changes which of the two test cards is the
-            // live one. Nothing else repaints the row — the save below runs with
-            // `render: false`, and a later `set hass` only pushes into `_liveHassEls`
-            // — so the footer is refreshed here, beside the name span above.
+            // `save` first: the footer reads `current`, so repainting before the
+            // rebuild would state the profile this row had a moment ago.
+            save();
+            // Picking a different profile changes what this notification sends, and
+            // which of the two test cards is the live one. Nothing else repaints the
+            // row — the save above runs with `render: false`, and a later `set hass`
+            // only pushes into `_liveHassEls` — so both are refreshed here.
+            scope.repaint();
             repaint();
-            persistDebounced(p, 'notifications', notification.id, () => listWith(current));
           },
-          {
-            computeLabel: (s) => {
-              if (s.name === 'name') return t('field.name');
-              if (s.name === 'profile_id') return t('notify.profile');
-              return t('notify.' + s.name);
-            },
-            // Both fields do something the field name cannot say. A channel is
-            // Android's word and means nothing on an iPhone. Its sound and Do Not
-            // Disturb settings belong to the phone once the channel exists, so a later
-            // urgency change does not move a channel that already exists. Critical
-            // needs a permission on iOS.
-            computeHelper: (s) => {
-              // The look pair is not self-evident and the chip cannot say it: Android
-              // draws the icon only in the status bar, and ignores the color outright
-              // from 12 on. Both facts are about the phone, not about this form.
-              if (s.name === 'icon') return t('notify.icon_help');
-              if (s.name === 'color') return t('notify.color_help');
-              if (s.name === 'channel') return t('notify.channel_help');
-              if (s.name === 'urgency') return t('notify.urgency_help');
-              return '';
-            },
-          },
+          labelling,
         ),
+      );
+      body.appendChild(scope.el);
+      body.appendChild(
+        p._makeForm(deliverySchema, deliveryData, (value) => {
+          deliveryData = value;
+          save();
+        }, labelling),
+      );
+      body.appendChild(
+        notifyTriggerGroup(p, triggerSchema, triggerData, (value) => {
+          triggerData = value;
+          save();
+        }, labelling),
       );
     },
   });
+}
+
+/**
+ * The line under the profile picker naming what that profile selects, and the way to
+ * go and change it.
+ *
+ * The profile is read out of `p._options` on every repaint rather than from the list
+ * captured when the row rendered, so a filter edited in the Profiles card above is
+ * picked up without a reload. A notification whose profile was deleted has nothing to
+ * describe, and the line renders empty rather than guessing.
+ */
+function notifyScopeLine(
+  p: PanelHost,
+  profileId: () => string,
+): { el: HTMLElement; repaint: () => void } {
+  const el = document.createElement('div');
+  el.className = 'hk-notify-scope';
+  const repaint = (): void => {
+    const profile = (p._options?.profiles ?? []).find((x) => x.id === profileId());
+    if (!profile) {
+      el.textContent = '';
+      return;
+    }
+    const text = t('notify.profile_scope', {
+      profile: profile.name,
+      scope: t(profileScopeKey(profile.filter)),
+    });
+    el.innerHTML =
+      `<span>${escapeHTML(text)}</span> ` +
+      `<button type="button" class="hk-linkish">${escapeHTML(t('notify.profile_edit'))}</button>`;
+    el.querySelector('button')?.addEventListener('click', () => openProfile(p, profile.id));
+  };
+  repaint();
+  return { el, repaint };
+}
+
+/**
+ * Open the Profiles card at *profileId*, expanded, from the notification that uses it.
+ *
+ * The Profiles card is re-rendered before the navigation, not after: moving between
+ * two Settings sections takes the `_patchSettingsSection` path, which deliberately
+ * leaves the cards standing, so the newly expanded row would otherwise stay folded
+ * until something else repainted it.
+ *
+ * The navigation *replaces*, the way the rail's own entries do. Both cards are on one
+ * page and this is a lateral step along it, not a drill-in. Pushing costs the page:
+ * Home Assistant treats the new history entry as a fresh panel navigation and builds
+ * a new element, which folds every row again — including the one just opened.
+ */
+function openProfile(p: PanelHost, profileId: string): void {
+  // Both the section and the row can be folded, and the link has to reveal the
+  // profile either way. Folding the section again is the reader's own choice to make
+  // afterwards, so it is cleared rather than restored.
+  p._settingsSectionCollapsed.delete('profiles');
+  p._itemExpanded.add(profileId);
+  // Emptied first. `renderProfiles` appends its card, which costs nothing on a full
+  // render because the host is new each time — but this call is out of band, and
+  // appending a second card would leave the folded original in front of it, under the
+  // same id.
+  const host = p.shadowRoot?.getElementById('hk-profiles-host');
+  if (host) {
+    host.replaceChildren();
+    renderProfiles(p, host);
+  }
+  p._navigate({ view: 'settings', detail: null, section: 'profiles' }, true);
+  const card = p.shadowRoot?.getElementById('hk-profiles');
+  if (card && typeof card.scrollIntoView === 'function') {
+    card.scrollIntoView({ block: 'start', behavior: p._scrollBehavior() });
+  }
+}
+
+/**
+ * The two automatic triggers, under a heading saying what a trigger decides.
+ *
+ * Indented behind a rule with an eyebrow, the treatment the panel already gives a
+ * dependent group. The caption is the whole point of the group: a user read
+ * "Auto-send when overdue" as the filter that chooses the tasks, and got a digest of
+ * tasks due months out (#313). The profile chooses the tasks; these choose the moment.
+ */
+function notifyTriggerGroup(
+  p: PanelHost,
+  schema: FormField[],
+  data: Record<string, unknown>,
+  onChange: (value: Record<string, unknown>) => void,
+  labelling: {
+    computeLabel: (s: { name: string }) => string;
+    computeHelper?: (s: { name: string }) => string;
+  },
+): HTMLElement {
+  const indent = document.createElement('div');
+  indent.className = 'hk-indent';
+  const body = document.createElement('div');
+  body.className = 'hk-indent-body';
+  const head = document.createElement('div');
+  head.className = 'hk-indent-head';
+  head.innerHTML =
+    `<span class="hk-eyebrow accent">${escapeHTML(t('notify.triggers_heading'))}</span>` +
+    `<span class="hk-indent-note">${escapeHTML(t('notify.triggers_help'))}</span>`;
+  const docs = document.createElement('div');
+  docs.className = 'hk-notify-trigger-docs';
+  docs.innerHTML = t('notify.triggers_docs', { url: NOTIFY_AUTOMATION_DOCS_URL });
+  body.append(head, p._makeForm(schema, data, onChange, labelling), docs);
+  indent.appendChild(body);
+  return indent;
 }
 
 /**
@@ -1429,14 +1626,14 @@ function addNotification(p: PanelHost): Promise<void> {
     'notifications',
     [...(p._options?.notifications ?? []), blank],
     true,
-    true,
+    { expandLast: true },
   );
 }
 
 function deleteNotification(p: PanelHost, id: string): Promise<void> {
   p._itemExpanded.delete(id);
   const next = (p._options?.notifications ?? []).filter((n) => n.id !== id);
-  return persistOptionList(p, 'notifications', next, true);
+  return persistOptionList(p, 'notifications', next, true, { rollbackOnFailure: true });
 }
 
 // ── companions ──────────────────────────────────────────────────────────────

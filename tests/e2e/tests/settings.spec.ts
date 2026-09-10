@@ -207,10 +207,13 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       const openRow = async (): Promise<void> => {
         const header = row.locator('> .hk-item-header');
         if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
-        await expect(row.locator('.hk-item-body ha-form')).toBeVisible();
+        await expect(row.locator('.hk-item-body ha-form').first()).toBeVisible();
       };
       await openRow();
-      const form = row.locator('.hk-item-body ha-form').first();
+      // A notification row is 3 forms, not 1: the profile picker, the delivery fields,
+      // and the 2 triggers inside their own indented group. Only the direct children
+      // of the body are the first 2, in that order, so the delivery half is `nth(1)`.
+      const form = row.locator('.hk-item-body > ha-form').nth(1);
       await expect(form).toBeVisible();
 
       // Both controls are drawn, under the labels the locale file gives them.
@@ -329,18 +332,19 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       const openRow = async (): Promise<void> => {
         const header = row.locator('> .hk-item-header');
         if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
-        await expect(row.locator('.hk-item-body ha-form')).toBeVisible();
+        await expect(row.locator('.hk-item-body ha-form').first()).toBeVisible();
       };
       await openRow();
-      const form = row.locator('.hk-item-body ha-form').first();
+      // The delivery half of the row's 3 forms — see the note in the test above.
+      const form = row.locator('.hk-item-body > ha-form').nth(1);
 
       // Type a channel and let the per-keystroke debounce settle. The assertion is on
       // *stored* options, not on the field: a value that only lives in the form is
       // exactly the failure the reporter saw on the phone.
-      // Name and channel are the form's only two text fields, in that order. Asserted
-      // by its label rather than taken on trust, so a reordered schema fails here
-      // instead of quietly typing into Name.
-      const channelField = form.locator('ha-selector-text').nth(1);
+      // Channel is the delivery half's only text field. Asserted by its label rather
+      // than taken on trust, so a reordered schema fails here instead of quietly
+      // typing into another field.
+      const channelField = form.locator('ha-selector-text').first();
       await expect(channelField).toContainText('Notification channel');
       await channelField.locator('input').fill('Trash');
       await expect
@@ -450,6 +454,102 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     }
   });
 
+  test('a profile a notification uses cannot be deleted, and the panel names it', async ({
+    page,
+  }) => {
+    // Deleting the profile used to succeed and take the notification down with it: the
+    // notification kept the id, found no profile behind it and sent nothing, with
+    // nothing on screen to say so. Now the backend refuses the save, and the panel says
+    // which notification is in the way rather than offering a button that can only
+    // produce an error.
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: 'e2e_guard_used',
+          name: 'Held profile',
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
+        },
+        {
+          id: 'e2e_guard_free',
+          name: 'Free profile',
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
+        },
+      ],
+      notifications: [
+        {
+          id: 'e2e_guard_notify',
+          name: 'Bin day',
+          profile_id: 'e2e_guard_used',
+          targets: [],
+          actions: ['complete'],
+          style: 'walk',
+          snooze_hours: 24,
+          channel: '',
+          urgency: 'normal',
+          auto: { overdue: false, due_soon: false },
+        },
+      ],
+    });
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      await settleToasts(page);
+      await openSettingsSection(panel, 'profiles');
+      const card = panel.locator('#hk-profiles');
+      await expect(card).toBeVisible();
+
+      const rowFor = (name: string) =>
+        card.locator('.hk-item-card').filter({ hasText: name }).first();
+      const openRow = async (name: string) => {
+        // A profile row contains a *second* `.hk-item-card` — the sync group — so
+        // take this row's own header rather than both.
+        const header = rowFor(name).locator('> .hk-item-header');
+        if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+      };
+
+      // The held profile: blocked, and the notification is named.
+      await openRow('Held profile');
+      await rowFor('Held profile').locator('> .hk-item-body .hk-notify-delete').click();
+      const scrim = page.locator('.hk-confirm-scrim');
+      await expect(scrim).toBeVisible();
+      await expect(scrim).toContainText('Bin day');
+      await expect(scrim.locator('ha-button')).toHaveCount(1);
+      await scrim.locator('ha-button').click();
+      await expect(scrim).toBeHidden();
+
+      // Nothing was sent, so the profile is still there.
+      expect(
+        await page.evaluate(async () => {
+          const hass = (document.querySelector('home-assistant') as any).hass;
+          const res = await hass.callWS({ type: 'home_keeper/get_options' });
+          return res.options.profiles.map((p: any) => p.id);
+        }),
+      ).toContain('e2e_guard_used');
+
+      // The free profile: asked for first, then deleted.
+      await openRow('Free profile');
+      await rowFor('Free profile').locator('> .hk-item-body .hk-notify-delete').click();
+      await expect(scrim).toBeVisible();
+      await scrim.locator('ha-button', { hasText: 'Delete' }).click();
+      await expect
+        .poll(
+          () =>
+            page.evaluate(async () => {
+              const hass = (document.querySelector('home-assistant') as any).hass;
+              const res = await hass.callWS({ type: 'home_keeper/get_options' });
+              return res.options.profiles.map((p: any) => p.id);
+            }),
+          { timeout: 15_000 },
+        )
+        .toEqual(['e2e_guard_used']);
+
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
+    }
+  });
+
   test('the problem-sensor toggle explains what clears a synced task', async ({ page }) => {
     // The consequences of the toggle aren't guessable from its label: such a task
     // clears only when its source integration resolves the problem, so its reminders
@@ -461,6 +561,80 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     await expect(card.locator('ha-form').first()).toBeVisible();
     await expect(card).toContainText(/clears only when the source integration/i);
     await expect(card).toContainText(/offer Snooze in place of Mark done/i);
+  });
+
+  test('a notification says what its profile sends, and heads its switches Triggers', async ({
+    page,
+  }) => {
+    // #313. The reporter turned on "Auto-send when overdue" and received a digest of
+    // tasks that were not due for months. The switch only starts the notification; the
+    // tasks come from the profile's Include field, in the card above. Both halves of
+    // the answer are asserted here, against the real panel, because a screenshot
+    // cannot tell a rendered sentence from a missing one.
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: 'e2e_scope_profile',
+          name: 'Everything',
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
+        },
+      ],
+      notifications: [
+        {
+          id: 'e2e_scope',
+          name: 'Walk my chores',
+          profile_id: 'e2e_scope_profile',
+          targets: [],
+          actions: ['complete'],
+          style: 'digest',
+          snooze_hours: 24,
+          channel: 'Chores',
+          urgency: 'normal',
+          auto: { overdue: true, due_soon: false },
+        },
+      ],
+    });
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      await settleToasts(page);
+      await openSettingsSection(panel, 'notifications');
+      const row = panel.locator('#hk-notifications .hk-item-card').first();
+      const header = row.locator('> .hk-item-header');
+      if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+      await expect(row.locator('.hk-item-body ha-form').first()).toBeVisible();
+
+      // The profile is set to every scheduled task, so the line under the picker says
+      // so in words. This is the sentence that answers the report.
+      const scope = row.locator('.hk-notify-scope');
+      await expect(scope).toContainText('Everything includes every scheduled task.');
+      await expect(scope.locator('button')).toHaveText('Edit this profile');
+
+      // The 2 switches sit under a heading that says which half they are.
+      const triggers = row.locator('.hk-indent').first();
+      await expect(triggers.locator('.hk-eyebrow')).toHaveText('Triggers');
+      await expect(triggers).toContainText(/Profiles determine which tasks/i);
+      await expect(triggers).toContainText(/Triggers determine when/i);
+      await expect(triggers).toContainText('Send when overdue');
+      await expect(triggers).toContainText('Send when due soon');
+      // …and the way out to a trigger the 2 switches cannot express.
+      await expect(triggers.locator('a')).toHaveAttribute(
+        'href',
+        /\/docs\/guide\/notifications#automation-examples$/,
+      );
+
+      // The link opens the profile it names, expanded, in the card above.
+      await scope.locator('button').click();
+      await expect.poll(() => page.url()).toContain('/home-keeper/settings/profiles');
+      await expect(
+        panel.locator('#hk-profiles .hk-item-card').first().locator('.hk-item-body ha-form').first(),
+      ).toBeVisible();
+
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await callService('home_keeper', 'set_options', { notifications: [], profiles: [] });
+    }
   });
 });
 
