@@ -1679,6 +1679,33 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/51-panel-mobile-settings-section.png` });
 
+  // 22b. One notification open on a phone. This is where the pair that #313 confused
+  // has to read: the line under the profile picker naming what that profile sends, and
+  // the Triggers group saying that a trigger sets the moment rather than the contents.
+  // Below 700px the two sit one under the other in a single column, and the scope line
+  // wraps, so the desktop shot documents neither.
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="notifications"]').click();
+  await expect(panel.locator('#hk-notifications')).toBeVisible();
+  await panel.locator('#hk-notifications .hk-item-header').first().click();
+  const scopeLine = panel.locator('#hk-notifications .hk-notify-scope').first();
+  const triggerGroup = panel.locator('#hk-notifications .hk-indent').first();
+  await expect(scopeLine).toBeVisible();
+  await expect(triggerGroup).toBeVisible();
+  // Two shots, and viewport shots rather than element shots. The card is far taller
+  // than the phone, so the two halves of #313 cannot share a frame: the scope line is
+  // at the top of the row and the triggers are at the bottom. An element-scoped
+  // capture would fit both, but the bottom tab bar is `position: fixed` and bakes
+  // itself across the middle of the card, hiding a field behind it.
+  await scopeLine.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/22b-panel-mobile-notify-scope.png` });
+
+  await triggerGroup.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/22c-panel-mobile-notify-triggers.png` });
+
   // 60b. Import and export on a phone. Below 700px the section opens on its own with
   // the back bar, and the two action rows wrap so each button keeps a full tap
   // target rather than being squeezed onto one line beside its neighbour.
@@ -1692,9 +1719,6 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   }, `home_keeper:\n  format: 1\nappliances:\n  - external_id: dishwasher\n    name: Kitchen dishwasher\n    manufacturer: Bosch\ntasks:\n  - external_id: dishwasher-filter\n    name: Clean the dishwasher filter\n    appliance: dishwasher\n    interval: 1\n    unit: months\n    history:\n      - completed_at: 2026-05-02\n`);
   await panel.locator('#transfer-preview').click();
   await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
-  // Scroll the action row into frame. The two buttons taking a row of their own,
-  // with full tap targets, is the phone-specific half of this card — a shot that
-  // cuts them off documents none of it.
   // Wheel the actions into frame rather than `scrollIntoViewIfNeeded`, which does
   // nothing here: the panel sits inside Home Assistant's own scroller, so the
   // element is "in view" of a container that is itself scrolled to the top. The two

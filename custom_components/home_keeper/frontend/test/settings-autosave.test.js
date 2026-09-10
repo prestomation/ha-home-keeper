@@ -139,7 +139,16 @@ async function mountSettings(hass) {
 }
 
 const rows = (panel) => [...panel.shadowRoot.querySelectorAll('#hk-notifications .hk-item-card')];
-const formOf = (row) => row.querySelector('.hk-item-body > ha-form');
+
+/** The `ha-form` in *row* that owns *field*.
+ *
+ *  A notification row is three forms, not one: the profile picker, the delivery
+ *  fields, and the triggers under their own heading. Each is seeded with only its own
+ *  fields and is authoritative for only those, so an edit has to go to the form that
+ *  owns it. Found by which seed carries the key, so the split can move without this
+ *  helper naming an index. */
+const formFor = (row, field) =>
+  [...row.querySelectorAll('ha-form')].find((f) => f.data && field in f.data);
 
 /** What the Notifications card is currently saying about itself, or '' before it has
  *  ever saved. This replaced a toast, so it is the only success feedback there is. */
@@ -149,10 +158,12 @@ const status = (panel, cardId = 'hk-notifications') =>
 /** Edit one row the way `ha-form` does — the whole form value, one field changed. */
 function edit(panel, index, patch) {
   const row = rows(panel)[index];
-  const form = formOf(row);
-  form.dispatchEvent(
-    new CustomEvent('value-changed', { detail: { value: { ...form.data, ...patch } } }),
-  );
+  for (const [field, value] of Object.entries(patch)) {
+    const form = formFor(row, field);
+    form.dispatchEvent(
+      new CustomEvent('value-changed', { detail: { value: { ...form.data, [field]: value } } }),
+    );
+  }
 }
 
 describe('Settings → Notifications — autosave across rows', () => {

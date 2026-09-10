@@ -1153,8 +1153,9 @@ tasks from their own profile. The buttons act on the task in Home Keeper:
 Configure notifications in **Settings → Notifications**. Each notification has these
 fields:
 
-- **Profile**: the [Profile](#profiles-saved-filters-you-reuse-everywhere) that
-  selects the tasks. All due tasks are included if no profile is set.
+- **Profile**: the [Profile](#profiles-saved-filters-you-reuse-everywhere) whose
+  Include field selects which tasks the notification contains. All due tasks are
+  included if no profile is set.
 - **Send to**: one or more `mobile_app_*` companion-app devices selected from a
   list. Only these devices and `persistent_notification` are supported as targets.
   Other notify services are not supported.
@@ -1167,8 +1168,9 @@ fields:
   applies. See [Channels and urgency](#channels-and-urgency).
 - **Notification icon** and **Accent color**: how the notification looks on the
   phone. See [Icons and colors](#icons-and-colors).
-- **Auto-send**: send the notification when a matching task becomes overdue or
-  due soon.
+- **Triggers**: send the notification when a task in the profile becomes overdue
+  or due soon. A trigger sets only when the notification is sent, not which
+  tasks it contains.
 
 Press **Test** on a notification to send it now. Home Keeper saves the notification
 first, then calls `home_keeper.notify` for it, so the phone receives the delivery the
@@ -1248,10 +1250,10 @@ language.
 
 ### Automations
 
-With **Auto-send** on, a notification is sent when a task in the profile becomes
-overdue or due soon. Use a Home Assistant automation for more control over when
-notifications are sent. Send only when a person is at home, or send during a "Chore
-time" calendar event.
+With **Send when overdue** or **Send when due soon** on, a notification is sent
+when a task in the profile becomes overdue or due soon. Use a Home Assistant
+automation for more control over when notifications are sent. Send only when a
+person is at home, or send during a "Chore time" calendar event.
 
 The `home_keeper.notify` service sends a notification from an automation. Set
 `notification:` to a saved notification or `profile:` to a saved Profile. Set
@@ -1336,7 +1338,7 @@ Each automation sends the same notification, so the phone replaces the previous 
 instead of adding a second. The next run of the automation finds no due task after
 the task is complete, and the notifications stop.
 
-![The Settings → Notifications card with a notification on the Chores channel at High urgency, and a Test button beside Delete](docs/images/22-panel-notifications.png)
+![The Settings → Notifications card with a notification on the Chores channel at High urgency, the scope of its profile under the Profile picker, and the 2 switches under Triggers](docs/images/22-panel-notifications.png)
 
 
 ## Dashboard task card

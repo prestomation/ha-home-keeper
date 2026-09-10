@@ -20,6 +20,12 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   choice. An import matches on it, so running a migration script twice updates your
   records instead of copying them.
 
+### Fixed
+
+- **Notification triggers.** A notification now states which tasks its profile
+  selects. The 2 automatic switches are grouped as Triggers, which set the moment a
+  notification is sent rather than its contents. (Fixes #313)
+
 ## [0.22.0] - 2026-09-08
 
 ### Added
