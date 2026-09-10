@@ -676,5 +676,6 @@
   "btn.stockInc": "Aumenta scorte",
   "part.low": "Basso",
   "part.reorderAt": "Riordina a {n}",
-  "toast.stockSet": "Scorte impostate a {n}"
+  "toast.stockSet": "Scorte impostate a {n}",
+  "transfer.tooLarge": "Questo documento è più grande del limite di {mb} MB del pannello. Dividilo in file più piccoli, oppure usa il servizio home_keeper.import_data per documenti fino a {max} MB."
 }

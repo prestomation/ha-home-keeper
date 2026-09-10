@@ -660,5 +660,6 @@
   "btn.stockInc": "增加库存",
   "part.low": "低",
   "part.reorderAt": "补货阈值：{n}",
-  "toast.stockSet": "库存已设为{n}"
+  "toast.stockSet": "库存已设为{n}",
+  "transfer.tooLarge": "此文档超过面板 {mb} MB 的上限。请将其拆分为更小的文件，或使用 home_keeper.import_data 服务导入最多 {max} MB 的文档。"
 }

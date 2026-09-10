@@ -676,5 +676,6 @@
   "btn.stockInc": "Aumentar estoque",
   "part.low": "Baixo",
   "part.reorderAt": "Reabastecer em {n}",
-  "toast.stockSet": "Estoque definido para {n}"
+  "toast.stockSet": "Estoque definido para {n}",
+  "transfer.tooLarge": "Este documento está acima do limite de {mb} MB do painel. Divida-o em arquivos menores, ou use o serviço home_keeper.import_data para documentos de até {max} MB."
 }

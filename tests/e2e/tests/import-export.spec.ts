@@ -191,6 +191,54 @@ test.describe('Home Keeper panel — Import and export', { tag: '@responsive' },
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
+  test('a document too large for the websocket is refused in the browser', async ({
+    page,
+  }) => {
+    // Home Assistant does not answer a frame past aiohttp's 4 MiB default — it closes
+    // the connection ("Decompressed message exceeds size limit 4194304"). So this is
+    // the one case the panel has to decide by itself, and the assertion that matters
+    // is that no call goes out: a send here costs the user their link to Home
+    // Assistant and tells them only to try again, which cannot work.
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    const sent: string[] = [];
+    page.on('websocket', (ws) =>
+      ws.on('framesent', (f) => {
+        const body = typeof f.payload === 'string' ? f.payload : f.payload.toString();
+        if (body.includes('home_keeper/import_data')) sent.push(body.slice(0, 80));
+      }),
+    );
+
+    await openSettingsSection(panel, 'transfer');
+    await typeDocument(
+      panel,
+      ['home_keeper:', '  format: 1', 'tasks:', '  - name: E2E oversized',
+        '    interval: 1', '    unit: days',
+        `    notes: "${'y'.repeat(5 * 1024 * 1024)}"`].join('\n'),
+    );
+    await panel.locator('#transfer-preview').click();
+
+    const alert = panel.locator('#hk-transfer ha-alert[alert-type="error"]').first();
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText('4');
+    await expect(panel.locator('#transfer-import')).toHaveAttribute('disabled', '');
+    expect(sent, 'the oversized document must never reach the socket').toEqual([]);
+    // The connection is still up, which is the whole point of not sending it.
+    await expect(panel.locator('#hk-transfer')).toBeVisible();
+
+    // And a document that fits still goes through on the same card.
+    await typeDocument(
+      panel,
+      ['home_keeper:', '  format: 1', 'tasks:', '  - name: E2E fits',
+        '    interval: 1', '    unit: days', ''].join('\n'),
+    );
+    await panel.locator('#transfer-preview').click();
+    await expect(panel.locator('.hk-transfer-counts')).toBeVisible();
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
   test('two records claiming one external_id are refused, naming both', async ({
     page,
   }) => {

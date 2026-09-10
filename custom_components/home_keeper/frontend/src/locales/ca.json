@@ -676,5 +676,6 @@
   "btn.stockInc": "Augmenta estoc",
   "part.low": "Baix",
   "part.reorderAt": "Reabastir a {n}",
-  "toast.stockSet": "Estoc establert a {n}"
+  "toast.stockSet": "Estoc establert a {n}",
+  "transfer.tooLarge": "Aquest document és més gran que el límit de {mb} MB del tauler. Divideix-lo en fitxers més petits, o utilitza el servei home_keeper.import_data per a documents de fins a {max} MB."
 }

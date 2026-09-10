@@ -10,6 +10,7 @@ import {
   type HaFormElement,
 } from './forms';
 import { setLanguage, t } from './i18n';
+import { MAX_IMPORT_BYTES, MAX_IMPORT_WS_BYTES, importFitsWebsocket } from './limits';
 import {
   createPreview,
   ensureMarkdown,
@@ -1397,6 +1398,23 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   private async _transferCall(dryRun: boolean): Promise<void> {
     if (!this._hass || this._transfer.busy) return;
     this._transfer.error = '';
+    // Refuse an oversized document here rather than sending it. Home Assistant does
+    // not raise on a frame past aiohttp's 4 MiB default — it closes the connection
+    // ("Decompressed message exceeds size limit"), so the panel loses its link to
+    // Home Assistant and the only thing left to show is a generic failure. Pressing
+    // the button again drops the connection again. The backend's own 8 MiB ceiling
+    // and its "split the migration" message sit on the far side of a socket the
+    // document cannot cross, so this is the one place a useful answer can be given.
+    if (!importFitsWebsocket(this._transfer.text)) {
+      this._transfer.report = null;
+      this._transfer.error = t('transfer.tooLarge', {
+        mb: MAX_IMPORT_WS_BYTES / (1024 * 1024),
+        // The service's ceiling, which is the larger one the message points at.
+        max: MAX_IMPORT_BYTES / (1024 * 1024),
+      });
+      this._render();
+      return;
+    }
     this._transfer.busy = true;
     this._render();
     try {

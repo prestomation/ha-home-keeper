@@ -692,5 +692,6 @@
   "btn.stockInc": "Zwiększ zapas",
   "part.low": "Niski",
   "part.reorderAt": "Zamów przy {n}",
-  "toast.stockSet": "Ustawiono zapas na {n}"
+  "toast.stockSet": "Ustawiono zapas na {n}",
+  "transfer.tooLarge": "Ten dokument jest większy niż limit {mb} MB panelu. Podziel go na mniejsze pliki, lub użyj usługi home_keeper.import_data dla dokumentów do {max} MB."
 }

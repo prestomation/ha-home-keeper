@@ -63,9 +63,27 @@ MAX_IMPORT_RECORDS = 2000
 # The largest import document Home Keeper reads, in bytes. Checked before the parser
 # runs, because the parser is what a huge file attacks: ``MAX_IMPORT_RECORDS`` counts
 # records, and a document is already expanded in memory by the time there are records
-# to count. 8 MiB holds a very large migration and stays under Home Assistant's own
-# websocket message limit.
+# to count. 8 MiB holds a very large migration.
+#
+# This is the ceiling on the *service* (``home_keeper.import_data``), which is the
+# path a script or an automation takes. The panel cannot reach it — see
+# ``MAX_IMPORT_WS_BYTES``.
 MAX_IMPORT_BYTES = 8 * 1024 * 1024
+
+# The largest websocket frame Home Assistant will accept, in bytes.
+#
+# Home Assistant builds its ``WebSocketResponse`` without passing ``max_msg_size``, so
+# aiohttp's own 4 MiB default applies, and the check is on the *decompressed* frame.
+# Going over it does not fail the command: aiohttp raises during the read, and Home
+# Assistant closes the whole connection with "Decompressed message exceeds size limit
+# 4194304". The panel therefore loses its link to Home Assistant rather than getting an
+# answer, which is why the size has to be caught in the browser before the send.
+#
+# It is half of ``MAX_IMPORT_BYTES`` on purpose, and the two are not interchangeable: a
+# document between the two sizes imports through the service and cannot be pasted into
+# the panel. ``frontend/src/limits.ts`` mirrors this and
+# ``tests/unit/test_upload_limit_parity.py`` fails the build if the two drift.
+MAX_IMPORT_WS_BYTES = 4 * 1024 * 1024
 
 # The format version of the import/export document. Bumped only when the meaning of
 # an existing key changes — adding a section or a field is additive and does not.

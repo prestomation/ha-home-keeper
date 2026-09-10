@@ -676,5 +676,6 @@
   "btn.stockInc": "Aumentar existencias",
   "part.low": "Bajo",
   "part.reorderAt": "Reordenar en {n}",
-  "toast.stockSet": "Existencias establecidas en {n}"
+  "toast.stockSet": "Existencias establecidas en {n}",
+  "transfer.tooLarge": "Este documento es más grande que el límite de {mb} MB del panel. Divídelo en archivos más pequeños, o usa el servicio home_keeper.import_data para documentos de hasta {max} MB."
 }

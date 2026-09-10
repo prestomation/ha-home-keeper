@@ -1648,6 +1648,19 @@ on the way back in.
 - **Tasks created by companions.**
 - **Settings, profiles, notifications and recipes.** These stay in the config entry.
 
+### How big a file can be
+
+The panel and the service each hold their own limit.
+
+| Path | Limit | Reason |
+| --- | --- | --- |
+| Paste or choose a file in the panel | 4 MB | Home Assistant's own limit on a websocket message. Home Keeper cannot raise it. |
+| Call the `home_keeper.import_data` service | 8 MB | Home Keeper's own limit on that service. |
+
+A file between 4 MB and 8 MB must go through `home_keeper.import_data`. A file
+over 8 MB must go in as several files. Each of `tasks` and `appliances` also
+holds at most 2000 records.
+
 ### Ask an AI agent to write one
 
 The format is meant to be easy to generate. Export what you have, then give the file

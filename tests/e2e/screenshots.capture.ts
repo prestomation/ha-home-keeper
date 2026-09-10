@@ -1537,6 +1537,26 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(300);
   await panel.locator('#hk-transfer').screenshot({ path: `${OUT}/60-panel-transfer.png` });
 
+  // 60c. The refusal for a document too large to import from the panel. Worth its own
+  // shot because it is the one refusal the browser decides by itself: Home Assistant
+  // closes the connection on a frame past its websocket limit rather than answering,
+  // so before this check the card could only say "something went wrong" and pressing
+  // the button again dropped the connection again. The message has to name the size
+  // and the way in that still works.
+  await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
+    (el as HTMLTextAreaElement & { value: string }).value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, `home_keeper:\n  format: 1\ntasks:\n  - name: Ten years of boiler service\n    interval: 1\n    unit: months\n    notes: "${'y'.repeat(5 * 1024 * 1024)}"\n`);
+  await panel.locator('#transfer-preview').click();
+  await expect(panel.locator('#hk-transfer ha-alert[alert-type="error"]')).toBeVisible();
+  await page.waitForTimeout(400);
+  await panel.locator('#hk-transfer').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
+  await panel
+    .locator('#hk-transfer')
+    .screenshot({ path: `${OUT}/60c-panel-transfer-too-large.png` });
+
   // 17c. Settings → Profiles → "My chores" → its **Sync to a to-do list** group: the
   // to-do list this profile's tasks are synced onto ("Family chores", the seeded
   // local_todo list standing in for a Todoist project), plus what a change over there
@@ -1730,6 +1750,20 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60b-panel-mobile-transfer.png` });
+
+  // 60d. The same refusal on a phone. The message is two sentences and names an
+  // action id, so this is where it either wraps inside the card or pushes the layout
+  // sideways — which the desktop shot cannot show.
+  await panel.locator('#transfer-text').evaluate((el: HTMLElement, value: string) => {
+    (el as HTMLTextAreaElement & { value: string }).value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, `home_keeper:\n  format: 1\ntasks:\n  - name: Ten years of boiler service\n    interval: 1\n    unit: months\n    notes: "${'y'.repeat(5 * 1024 * 1024)}"\n`);
+  await panel.locator('#transfer-preview').click();
+  const tooLarge = panel.locator('#hk-transfer ha-alert[alert-type="error"]');
+  await expect(tooLarge).toBeVisible();
+  await tooLarge.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/60d-panel-mobile-transfer-too-large.png` });
 
   await page.setViewportSize(DESKTOP);
 });

@@ -1756,7 +1756,15 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
 
   const state = p._transfer;
   const busy = state.busy;
-  const ready = !!state.report?.ok && !!state.text.trim();
+  // A *preview* of this exact text is what licenses Import, so the report has to be
+  // a dry run as well as clean. A finished import leaves a clean report behind too,
+  // and treating that as permission left Import live afterwards: a second press
+  // silently ran the whole document again. That is harmless for a document keyed by
+  // id or external_id, which upserts — but a document carrying two records of the
+  // same name creates both on the first press and then cannot tell them apart on the
+  // second, so the reward for pressing a lit button twice was an ambiguity error
+  // about records the first press had just made.
+  const ready = !!state.report?.ok && !!state.report?.dry_run && !!state.text.trim();
 
   inner.innerHTML = [
     `<div class="hk-form-title">${escapeHTML(t('transfer.heading'))}</div>`,
@@ -1785,7 +1793,9 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
     ` helper="${escapeHTML(t('transfer.documentHelp'))}"`,
     `${busy ? ' disabled' : ''}></ha-textarea>`,
     state.error
-      ? `<ha-alert alert-type="error">${escapeHTML(state.error)}</ha-alert>`
+      ? `<ha-alert class="hk-transfer-error" alert-type="error">${escapeHTML(
+          state.error,
+        )}</ha-alert>`
       : '',
     reportBlock(state.report),
     `<div class="hk-transfer-actions">`,
@@ -1887,6 +1897,11 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
       if (preview) preview.toggleAttribute('disabled', !text.value.trim());
       if (run) run.setAttribute('disabled', '');
       root.querySelector('.hk-transfer-report')?.remove();
+      // The error alert is a sibling of the report, not part of it, so it needs
+      // taking down by name. Leaving it up outlived its text: a refusal for a
+      // document too large stayed on screen while the reader pasted a smaller one,
+      // still saying the file was too big.
+      root.querySelector('.hk-transfer-error')?.remove();
     });
   }
 

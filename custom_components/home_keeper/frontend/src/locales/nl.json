@@ -660,5 +660,6 @@
   "btn.stockInc": "Voorraad verhogen",
   "part.low": "Laag",
   "part.reorderAt": "Bijbestellen bij {n}",
-  "toast.stockSet": "Voorraad ingesteld op {n}"
+  "toast.stockSet": "Voorraad ingesteld op {n}",
+  "transfer.tooLarge": "Dit document is groter dan de limiet van {mb} MB van het paneel. Splits het op in kleinere bestanden, of gebruik de service home_keeper.import_data voor documenten tot {max} MB."
 }

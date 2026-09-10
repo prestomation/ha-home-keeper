@@ -1,0 +1,62 @@
+/**
+ * The import ceiling the panel enforces before it sends anything.
+ *
+ * Home Assistant closes the websocket on a frame past aiohttp's 4 MiB default rather
+ * than answering, so this measurement is the last point at which a useful message can
+ * be produced. It has to measure the *encoded* frame: a document is escaped on its
+ * way into JSON, so the raw string is always the smaller number and checking it would
+ * wave through files the socket then refuses.
+ */
+import { describe, expect, it } from 'vitest';
+import {
+  MAX_IMPORT_WS_BYTES,
+  importFitsWebsocket,
+  importFrameBytes,
+} from '../src/limits.ts';
+
+describe('importFrameBytes', () => {
+  it('counts the encoded document, not the raw string', () => {
+    // Two quotes for the JSON string, plus the two characters themselves.
+    expect(importFrameBytes('ab')).toBe(4 + 128);
+  });
+
+  it('charges two bytes for a newline, because JSON escapes it', () => {
+    expect(importFrameBytes('\n') - importFrameBytes('a')).toBe(1);
+  });
+
+  it('charges a quotation mark as an escape', () => {
+    expect(importFrameBytes('"') - importFrameBytes('a')).toBe(1);
+  });
+
+  it('counts UTF-8 bytes rather than UTF-16 code units', () => {
+    // A CJK character is 3 bytes in UTF-8 and one code unit in JavaScript, so a
+    // length-based count would undercount a translated document by two thirds.
+    expect(importFrameBytes('\u66f4') - importFrameBytes('a')).toBe(2);
+  });
+});
+
+describe('importFitsWebsocket', () => {
+  it('accepts an ordinary document', () => {
+    expect(importFitsWebsocket('home_keeper:\n  format: 1\n')).toBe(true);
+  });
+
+  it('refuses a document past the ceiling', () => {
+    expect(importFitsWebsocket('x'.repeat(MAX_IMPORT_WS_BYTES))).toBe(false);
+  });
+
+  it('is decided on the encoded size, so a file of newlines is refused early', () => {
+    // Half the ceiling in newlines encodes to the whole ceiling. A raw-length check
+    // would call this comfortably within budget and then lose the connection.
+    const raw = '\n'.repeat(MAX_IMPORT_WS_BYTES / 2);
+    expect(raw.length).toBeLessThan(MAX_IMPORT_WS_BYTES);
+    expect(importFitsWebsocket(raw)).toBe(false);
+  });
+
+  it('draws the line at the ceiling itself', () => {
+    // The largest document that fits, and one byte more.
+    const fits = 'x'.repeat(MAX_IMPORT_WS_BYTES - 2 - 128);
+    expect(importFrameBytes(fits)).toBe(MAX_IMPORT_WS_BYTES);
+    expect(importFitsWebsocket(fits)).toBe(true);
+    expect(importFitsWebsocket(`${fits}x`)).toBe(false);
+  });
+});

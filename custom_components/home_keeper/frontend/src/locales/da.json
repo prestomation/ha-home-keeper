@@ -660,5 +660,6 @@
   "btn.stockInc": "Øg lager",
   "part.low": "Lavt",
   "part.reorderAt": "Bestil ved {n}",
-  "toast.stockSet": "Lager sat til {n}"
+  "toast.stockSet": "Lager sat til {n}",
+  "transfer.tooLarge": "Dette dokument er større end grænsen på {mb} MB for panelet. Del det op i mindre filer, eller brug tjenesten home_keeper.import_data til dokumenter op til {max} MB."
 }

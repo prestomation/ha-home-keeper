@@ -660,5 +660,6 @@
   "btn.stockInc": "Bestand erhöhen",
   "part.low": "Niedrig",
   "part.reorderAt": "Nachbestellen bei {n}",
-  "toast.stockSet": "Bestand auf {n} gesetzt"
+  "toast.stockSet": "Bestand auf {n} gesetzt",
+  "transfer.tooLarge": "Dieses Dokument ist größer als das Limit von {mb} MB für das Panel. Teile es in kleinere Dateien auf, oder verwende den Dienst home_keeper.import_data für Dokumente bis {max} MB."
 }

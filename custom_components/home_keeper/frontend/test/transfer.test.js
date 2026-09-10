@@ -288,11 +288,79 @@ describe('Settings — Import and export', () => {
     expect(after).toBeGreaterThan(before);
   });
 
+  it('takes the error message down as soon as the document is edited', async () => {
+    // The error alert is drawn beside the report rather than inside it, so the
+    // handler that clears the report has to clear this too. It did not, and the
+    // message outlived its text: a refusal stayed on screen, still describing a
+    // document the reader had already replaced.
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    await type(panel, 'x'.repeat(5 * 1024 * 1024));
+    await panel._previewImport();
+    expect(panel.shadowRoot.querySelector('.hk-transfer-error')).toBeTruthy();
+    await type(panel, '{"home_keeper":{"format":1}}');
+    expect(panel.shadowRoot.querySelector('.hk-transfer-error')).toBe(null);
+    expect(panel._transfer.error).toBe('');
+  });
+
+  it('shuts Import once the import has run, so it cannot be applied twice', async () => {
+    // The report left behind by a finished import is not a preview. Pressing a still
+    // lit Import ran the document a second time, and a document holding two records
+    // of one name then failed on the ambiguity the first press had created.
+    const { hass } = makeHass({ ...OK_REPORT, dry_run: false });
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    await panel._runImport();
+    expect(panel._transfer.report?.ok).toBe(true);
+    expect(buttons(panel.shadowRoot).run.hasAttribute('disabled')).toBe(true);
+    // Preview stays available, so the way forward is to look again first.
+    expect(buttons(panel.shadowRoot).preview.hasAttribute('disabled')).toBe(false);
+  });
+
   it('asks the backend for the export when Export is pressed', async () => {
     const { hass, calls } = makeHass();
     const panel = await mount(hass);
     await panel._exportData();
     expect(calls.some((c) => c.type === 'home_keeper/export_data')).toBe(true);
+  });
+
+  // ── The websocket ceiling ─────────────────────────────────────────────────
+  //
+  // Found by pasting a 5 MB document into the running panel. Home Assistant does not
+  // fail the command past aiohttp's 4 MiB default: it closes the connection
+  // ("Decompressed message exceeds size limit 4194304"), so the card could only show
+  // a generic failure, and pressing the button again dropped the connection again.
+  // The backend's own 8 MiB message sits on the far side of a socket the document
+  // cannot cross.
+
+  it('refuses a document too large for the websocket, without sending it', async () => {
+    const { hass, calls } = makeHass();
+    const panel = await mount(hass);
+    await type(panel, 'x'.repeat(5 * 1024 * 1024));
+    await panel._previewImport();
+    expect(calls.some((c) => c.type === 'home_keeper/import_data')).toBe(false);
+    const alert = panel.shadowRoot.querySelector('#hk-transfer ha-alert');
+    expect(alert?.getAttribute('alert-type')).toBe('error');
+    // The number in the message is the panel's ceiling, not the backend's 8.
+    expect(alert.textContent).toContain('4');
+    expect(panel._transfer.report).toBe(null);
+  });
+
+  it('holds Import shut after refusing an oversized document', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    await type(panel, 'x'.repeat(5 * 1024 * 1024));
+    await panel._previewImport();
+    expect(buttons(panel.shadowRoot).run.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('sends a document that fits', async () => {
+    // The other side of the boundary: the guard must not refuse an ordinary file.
+    const { hass, calls } = makeHass();
+    const panel = await mount(hass);
+    await type(panel, '{"home_keeper":{"format":1}}');
+    await panel._previewImport();
+    expect(calls.some((c) => c.type === 'home_keeper/import_data')).toBe(true);
   });
 
   it('saves the export as a YAML file', async () => {

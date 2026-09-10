@@ -692,5 +692,6 @@
   "btn.stockInc": "Zvýšit zásobu",
   "part.low": "Nízká",
   "part.reorderAt": "Objednat při {n}",
-  "toast.stockSet": "Zásoba nastavena na {n}"
+  "toast.stockSet": "Zásoba nastavena na {n}",
+  "transfer.tooLarge": "Tento dokument je větší než limit panelu {mb} MB. Rozdělte ho na menší soubory, nebo použijte službu home_keeper.import_data pro dokumenty do {max} MB."
 }

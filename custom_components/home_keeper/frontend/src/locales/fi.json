@@ -660,5 +660,6 @@
   "btn.stockInc": "Lisää varastoa",
   "part.low": "Vähissä",
   "part.reorderAt": "Tilausraja: {n}",
-  "toast.stockSet": "Varasto asetettu arvoon {n}"
+  "toast.stockSet": "Varasto asetettu arvoon {n}",
+  "transfer.tooLarge": "Tämä asiakirja on suurempi kuin paneelin {mb} MB:n raja. Jaa se pienempiin tiedostoihin, tai käytä palvelua home_keeper.import_data enintään {max} MB:n asiakirjoille."
 }
