@@ -7,11 +7,12 @@ import {
   cardLinksFromTokens,
   consumableLinkToken,
   daysInMonth,
+  editorGroups,
+  groupFormData,
   haDateTimeToIso,
   isoToHaDateTime,
-  profileFormData,
   profileFormToProfile,
-  profileSchema,
+  profileHeadData,
   skipSnoozeFlags,
   skipSnoozeSchema,
   seasonCount,
@@ -29,7 +30,9 @@ import {
   selSelect,
   selText,
   taskFormSchemaKey,
+  toFilterGroup,
 } from '../src/forms.ts';
+import { emptyGroup } from '../src/card-filter.ts';
 import { setLanguage } from '../src/i18n.ts';
 
 // `forms.ts` is the panel's whole edit surface: selector factories that decide
@@ -348,90 +351,51 @@ describe('cardLinkTokens / cardLinksFromTokens', () => {
 });
 
 describe('profile form round-trip', () => {
+  // A profile is edited as three pieces — the head (name + status), the filter groups,
+  // and the sync block — because they are three forms on screen. Every case here is
+  // about one of them surviving a save driven by another.
+  const group = {
+    // The group's own display name — not the profile's, which the head form owns.
+    name: 'The garage',
+    labels: ['l1'],
+    labels_match: 'any',
+    areas: ['a1'],
+    devices: ['d1'],
+    companions: ['battery_notes'],
+    exclude_labels: ['l2'],
+    exclude_areas: ['a2'],
+    exclude_devices: ['d2'],
+    exclude_companions: ['dog_glue'],
+    exclude_shopping: true,
+  };
   const profile = {
     id: 'p1',
     name: 'Overdue in the garage',
     sync: { entity_id: 'todo.family', two_way: false, vanish_as_completed: true },
-    filter: {
-      status: 'overdue',
-      labels: ['l1'],
-      areas: ['a1'],
-      devices: ['d1'],
-      companions: ['battery_notes'],
-      exclude_labels: ['l2'],
-      exclude_areas: ['a2'],
-      exclude_devices: ['d2'],
-      exclude_companions: ['dog_glue'],
-      exclude_shopping: true,
-    },
+    filter: { status: 'overdue', groups: [group] },
   };
 
-  it('flattens a profile for ha-form', () => {
-    expect(profileFormData(profile)).toEqual({
-      name: 'Overdue in the garage',
-      status: 'overdue',
+  it('seeds the head form from the profile name and status alone', () => {
+    // The head form must not carry a filter field: a second labels picker above the
+    // groups would be a second, competing place to say the same thing.
+    expect(profileHeadData(profile)).toEqual({ name: 'Overdue in the garage', status: 'overdue' });
+  });
+
+  it('reads a profile saved without a filter as overdue', () => {
+    expect(profileHeadData({ id: 'p1', name: 'Old' }).status).toBe('overdue');
+  });
+
+  it('seeds a group form from every one of its fields', () => {
+    expect(groupFormData(group)).toEqual(group);
+  });
+
+  it('fills in every field a stored group is missing', () => {
+    // The form is seeded from this, so a missing key must arrive as its default rather
+    // than as `undefined` — an undefined switch reads as off but saves as nothing.
+    expect(groupFormData({ labels: ['l1'] })).toEqual({
+      name: '',
       labels: ['l1'],
-      areas: ['a1'],
-      devices: ['d1'],
-      companions: ['battery_notes'],
-      exclude_labels: ['l2'],
-      exclude_areas: ['a2'],
-      exclude_devices: ['d2'],
-      exclude_companions: ['dog_glue'],
-      exclude_shopping: true,
-    });
-  });
-
-  it('shows the shopping switch off for a profile saved before it existed', () => {
-    // The form is seeded from this, so a default of `true` here would turn the
-    // exclusion on for every old profile the moment someone opened it to rename.
-    const older = { ...profile, filter: { ...profile.filter } };
-    delete older.filter.exclude_shopping;
-    expect(profileFormData(older).exclude_shopping).toBe(false);
-  });
-
-  it('leaves the sync block out of the filter form', () => {
-    // The sync fields live in their own group, so the filter form must not carry
-    // them — an `entity_id` row here would be a second, competing picker.
-    const keys = Object.keys(profileFormData(profile));
-    expect(keys).not.toContain('sync');
-    expect(keys).not.toContain('entity_id');
-  });
-
-  it('rebuilds the nested profile, keeping the id', () => {
-    expect(profileFormToProfile('p1', profileFormData(profile), profile.sync)).toEqual(profile);
-  });
-
-  it("carries the profile's sync block through a filter-only edit", () => {
-    // The filter form never renders the sync fields, so a rename that dropped them
-    // would silently switch a configured to-do list sync off.
-    const renamed = profileFormToProfile('p1', { name: 'Renamed' }, profile.sync);
-    expect(renamed.sync).toEqual(profile.sync);
-  });
-
-  it('treats a profile with no sync block as sync-off, both switches on', () => {
-    // A profile saved before the field existed: the backend normalizer fills these
-    // in as on, and reading them as off would flip two-way sync behind the user.
-    expect(profileFormToProfile('p1', { name: 'x' }).sync).toEqual({
-      entity_id: '',
-      two_way: true,
-      vanish_as_completed: true,
-    });
-  });
-
-  it('trims the name and falls back to a default when blank', () => {
-    expect(profileFormToProfile('p1', { name: '  Trimmed  ' }).name).toBe('Trimmed');
-    for (const blank of ['', '   ', undefined, null]) {
-      expect(profileFormToProfile('p1', { name: blank }).name).toBeTruthy();
-      expect(profileFormToProfile('p1', { name: blank }).name).not.toBe('undefined');
-    }
-  });
-
-  it('defaults the status to overdue and coerces list fields to arrays', () => {
-    const rebuilt = profileFormToProfile('p1', { name: 'x' });
-    expect(rebuilt.filter).toEqual({
-      status: 'overdue',
-      labels: [],
+      labels_match: 'any',
       areas: [],
       devices: [],
       companions: [],
@@ -443,67 +407,178 @@ describe('profile form round-trip', () => {
     });
   });
 
+  it('copies rather than aliasing the group it was given', () => {
+    // The form owns its data object; writing through it into the stored group would
+    // edit a profile nobody saved.
+    const seeded = groupFormData(group);
+    seeded.labels.push('l9');
+    expect(group.labels).toEqual(['l1']);
+  });
+
+  it('leaves the sync block out of the group form', () => {
+    // The sync fields live in their own group, so no filter form may carry them —
+    // an `entity_id` row here would be a second, competing picker.
+    const keys = Object.keys(groupFormData(group));
+    expect(keys).not.toContain('sync');
+    expect(keys).not.toContain('entity_id');
+    expect(Object.keys(profileHeadData(profile))).not.toContain('entity_id');
+  });
+
+  it('rebuilds the nested profile, keeping the id', () => {
+    expect(
+      profileFormToProfile('p1', profileHeadData(profile), [groupFormData(group)], profile.sync),
+    ).toEqual(profile);
+  });
+
+  it("carries the profile's sync block and groups through a rename", () => {
+    // The head form never renders the other two, so a rename that dropped them would
+    // silently switch a configured to-do list sync off and empty the filter.
+    const renamed = profileFormToProfile('p1', { name: 'Renamed' }, [group], profile.sync);
+    expect(renamed.sync).toEqual(profile.sync);
+    expect(renamed.filter.groups).toEqual([group]);
+  });
+
+  it('treats a profile with no sync block as sync-off, both switches on', () => {
+    // A profile saved before the field existed: the backend normalizer fills these
+    // in as on, and reading them as off would flip two-way sync behind the user.
+    expect(profileFormToProfile('p1', { name: 'x' }, []).sync).toEqual({
+      entity_id: '',
+      two_way: true,
+      vanish_as_completed: true,
+    });
+  });
+
+  it('trims the name and falls back to a default when blank', () => {
+    expect(profileFormToProfile('p1', { name: '  Trimmed  ' }, []).name).toBe('Trimmed');
+    // The exact fallback, not merely "something truthy": a missing name must read as
+    // the translated default, never as the string "undefined" or a stray placeholder.
+    for (const blank of ['', '   ', undefined, null]) {
+      expect(profileFormToProfile('p1', { name: blank }, []).name).toBe('Tasks');
+    }
+  });
+
+  it('defaults the status to overdue', () => {
+    expect(profileFormToProfile('p1', { name: 'x' }, []).filter.status).toBe('overdue');
+    expect(profileFormToProfile('p1', { name: 'x', status: 'all' }, []).filter.status).toBe('all');
+  });
+
+  it('never saves a profile with no group at all', () => {
+    // A profile with an empty group list has nowhere to put the next rule, and one
+    // empty group is how "everything" is spelled.
+    const rebuilt = profileFormToProfile('p1', { name: 'x' }, []);
+    expect(rebuilt.filter.groups).toEqual([emptyGroup()]);
+  });
+
+  it('saves every group it was given, in order', () => {
+    const rebuilt = profileFormToProfile('p1', { name: 'x' }, [
+      { labels: ['dog'] },
+      { areas: ['garage'] },
+    ]);
+    expect(rebuilt.filter.groups).toHaveLength(2);
+    expect(rebuilt.filter.groups[0].labels).toEqual(['dog']);
+    expect(rebuilt.filter.groups[1].areas).toEqual(['garage']);
+    // Each is a full group, so nothing downstream has to re-decide what a gap means.
+    expect(rebuilt.filter.groups[0]).toEqual({ ...emptyGroup(), labels: ['dog'] });
+  });
+});
+
+describe('toFilterGroup', () => {
+  // The tolerant normalizer every group passes through: from stored options, from an
+  // `ha-form` value, from a hand-written YAML card config. A surprising value here is
+  // a filter that silently selects the wrong tasks, so each shape is pinned.
+
+  it('fills in an entirely empty group', () => {
+    expect(toFilterGroup({})).toEqual(emptyGroup());
+  });
+
+  it('answers an empty group for anything that is not an object', () => {
+    for (const raw of [undefined, null, 'nope', 42, true]) {
+      expect(toFilterGroup(raw)).toEqual(emptyGroup());
+    }
+  });
+
+  it('drops a list field that arrived as a bare string', () => {
+    // `'dog'` is not `['dog']`: spreading a string would filter on three one-letter
+    // label ids, which matches nothing and explains nothing.
+    const g = toFilterGroup({ labels: 'dog', exclude_areas: 'garage' });
+    expect(g.labels).toEqual([]);
+    expect(g.exclude_areas).toEqual([]);
+  });
+
+  it('stringifies list members that arrive as non-strings', () => {
+    const g = toFilterGroup({ labels: [1, 2], exclude_labels: [3], devices: [null] });
+    expect(g.labels).toEqual(['1', '2']);
+    expect(g.exclude_labels).toEqual(['3']);
+    expect(g.devices).toEqual(['null']);
+  });
+
+  it('clamps labels_match to any unless it is exactly "all"', () => {
+    // `any` matches more, so a bad value can never quietly empty a profile.
+    expect(toFilterGroup({ labels_match: 'all' }).labels_match).toBe('all');
+    for (const bad of ['any', 'ALL', 'every', '', 0, undefined, null, true]) {
+      expect(toFilterGroup({ labels_match: bad }).labels_match).toBe('any');
+    }
+  });
+
   it('reads exclude_shopping as off unless the switch is on', () => {
     // Off is the default a profile saved before the switch existed must read back
     // as: an inverted or truthy-coerced read here would quietly empty a digest of
     // its buy reminders for every household that never asked.
     for (const value of [undefined, null, false, '', 0]) {
-      expect(
-        profileFormToProfile('p1', { name: 'x', exclude_shopping: value }).filter
-          .exclude_shopping,
-      ).toBe(false);
+      expect(toFilterGroup({ exclude_shopping: value }).exclude_shopping).toBe(false);
     }
-    expect(
-      profileFormToProfile('p1', { name: 'x', exclude_shopping: true }).filter
-        .exclude_shopping,
-    ).toBe(true);
+    expect(toFilterGroup({ exclude_shopping: true }).exclude_shopping).toBe(true);
   });
 
-  it('offers the shopping exclusion as a switch, after the id pickers', () => {
-    // It excludes by kind, not by id, so it cannot be a picker like its siblings.
-    const names = profileSchema().map((f) => f.name);
-    expect(names.indexOf('exclude_shopping')).toBe(names.length - 1);
-    expect(names.indexOf('exclude_shopping')).toBeGreaterThan(names.indexOf('exclude_devices'));
-    const field = profileSchema().find((f) => f.name === 'exclude_shopping');
-    expect(field.selector).toEqual({ boolean: {} });
+  it('keeps no key the group does not own', () => {
+    // A stray key from an older shape must not ride along into the saved profile,
+    // where the matcher would never read it and the next reader would trust it.
+    const g = toFilterGroup({ status: 'all', filter: {}, sync: {}, labels: ['dog'] });
+    expect(Object.keys(g).sort()).toEqual(Object.keys(emptyGroup()).sort());
   });
 
-  it('stringifies list members that arrive as non-strings', () => {
-    const rebuilt = profileFormToProfile('p1', {
-      name: 'x',
-      labels: [1, 2],
-      areas: 'nope',
-      exclude_labels: [3],
-      exclude_devices: 'nope',
-    });
-    expect(rebuilt.filter.labels).toEqual(['1', '2']);
-    expect(rebuilt.filter.areas).toEqual([]);
-    expect(rebuilt.filter.exclude_labels).toEqual(['3']);
-    expect(rebuilt.filter.exclude_devices).toEqual([]);
+  it('trims the group name', () => {
+    // The name heads the folded row. Leading space would indent the heading, and a
+    // name of nothing but spaces would hide the "Group N" fallback behind blank text.
+    expect(toFilterGroup({ name: '  The dog  ' }).name).toBe('The dog');
+    expect(toFilterGroup({ name: '   ' }).name).toBe('');
+    expect(toFilterGroup({ name: 'The dog' }).name).toBe('The dog');
   });
 
-  it('describes every profile field in the schema', () => {
-    // The exclude_* rows follow the include rows, so the form reads as "these, minus
-    // these" top to bottom.
-    expect(profileSchema().map((f) => f.name)).toEqual([
-      'name',
-      'status',
-      'labels',
-      'areas',
-      'devices',
-      'exclude_labels',
-      'exclude_areas',
-      'exclude_devices',
-      'exclude_shopping',
-    ]);
-    expect(profileSchema()[0].required).toBe(true);
+  it('reads a missing or non-string name as empty', () => {
+    // Anything but a string falls back to '' rather than being stringified: a group
+    // headed `[object Object]` says less than "Group 2" does.
+    expect(toFilterGroup({}).name).toBe('');
+    for (const bad of [undefined, null, 42, true, ['x'], { s: 1 }]) {
+      expect(toFilterGroup({ name: bad }).name).toBe('');
+    }
   });
 
-  it('offers the exclude rows the same multi-pickers as their include twins', () => {
-    const by = Object.fromEntries(profileSchema().map((f) => [f.name, f.selector]));
-    expect(by.exclude_labels).toEqual(by.labels);
-    expect(by.exclude_areas).toEqual(by.areas);
-    expect(by.exclude_devices).toEqual(by.devices);
+  it('names the group first, where the form shows it', () => {
+    expect(Object.keys(toFilterGroup({}))[0]).toBe('name');
+  });
+});
+
+describe('editorGroups', () => {
+  it('normalizes each stored group', () => {
+    const groups = editorGroups({ groups: [{ labels: ['dog'] }, {}] });
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toEqual({ ...emptyGroup(), labels: ['dog'] });
+    expect(groups[1]).toEqual(emptyGroup());
+  });
+
+  it('always yields at least one group to type into', () => {
+    // An empty group selects everything, so seeding one changes nothing about what
+    // the profile matches — and the editor is never a blank space with an Add button.
+    for (const filter of [undefined, null, {}, { groups: [] }, { status: 'all' }]) {
+      expect(editorGroups(filter)).toEqual([emptyGroup()]);
+    }
+  });
+
+  it('hands back groups the caller can edit without touching the profile', () => {
+    const stored = { groups: [{ labels: ['dog'] }] };
+    editorGroups(stored)[0].labels.push('cat');
+    expect(stored.groups[0].labels).toEqual(['dog']);
   });
 });
 

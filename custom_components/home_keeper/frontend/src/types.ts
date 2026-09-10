@@ -1,3 +1,9 @@
+import type { FilterGroup } from './card-filter';
+
+/** One group of a profile's saved filter. Declared with the matcher that reads it and
+ *  re-exported here, so a profile's stored shape has exactly one definition. */
+export type { FilterGroup };
+
 // `triggered` is a condition-driven task with no schedule: its `next_due` is its
 // state (absent/null = dormant, a timestamp = armed/due-now). Owned by another
 // integration; rendered read-only in the panel. See docs/INTEGRATING.md.
@@ -427,24 +433,20 @@ export interface NotifyRun {
   sent: string | null;
 }
 
-/** Which tasks a profile surfaces (a saved filter). */
+/**
+ * Which tasks a profile surfaces (a saved filter): one status window for the whole
+ * profile, then the groups it ORs together.
+ *
+ * `FilterGroup` is declared beside the matcher that reads it (`card-filter.ts`) and
+ * re-exported here, so the shape a profile is stored in and the shape the matcher takes
+ * are one declaration and cannot drift.
+ */
 export interface NotifyFilter {
-  labels: string[];
-  areas: string[];
-  devices: string[];
-  /** Integration domains from a task's `managed_by.integration` — the companion that
-   *  owns it. A task no integration claims has none, so it is never selected here and
-   *  never dropped by `exclude_companions`. */
-  companions: string[];
-  /** Ids that disqualify a task even when it cleared the include lists above. */
-  exclude_labels: string[];
-  exclude_areas: string[];
-  exclude_devices: string[];
-  exclude_companions: string[];
-  /** Drop the auto-created "Buy {part}" reminders — by kind, since they carry no
-   *  id of their own to exclude. */
-  exclude_shopping: boolean;
   status: NotifyStatus;
+  /** At least one, and a stored profile always carries one. A task is in the profile
+   *  when any **active** group takes it — see `card-filter.groupActive`, which is what
+   *  keeps an untouched group from widening the profile back to everything. */
+  groups: FilterGroup[];
 }
 
 /** Where a profile's tasks are synced: one external `todo.*` list kept in step

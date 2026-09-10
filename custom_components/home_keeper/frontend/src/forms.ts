@@ -1,8 +1,10 @@
+import { emptyGroup } from './card-filter';
 import { t } from './i18n';
 import { formatQuantity, normalizeIcon, recurrenceSummary, round1 } from './utils';
 import type {
   Asset,
   Companion,
+  FilterGroup,
   Hass,
   MetadataEntry,
   Notification,
@@ -1828,7 +1830,33 @@ export function companionOptions(companions: Companion[], tasks: Task[]): Compan
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
-export function profileSchema(companions: CompanionOption[] = []): FormField[] {
+/**
+ * The `ha-form` schema for a profile's **head**: what it is called, and the status
+ * window every one of its groups is read under.
+ *
+ * These two are the profile itself rather than part of any one rule, which is why they
+ * are their own small form above the groups. Everything that selects tasks lives in
+ * `filterGroupSchema`.
+ */
+export function profileHeadSchema(): FormField[] {
+  return [
+    { name: 'name', required: true, selector: selText() },
+    { name: 'status', selector: selSelect(notifyOptions(NOTIFY_STATUSES)) },
+  ];
+}
+
+/**
+ * The `ha-form` schema for one **filter group**: the include lists, then the
+ * `exclude_*` lists that subtract from them — so a group reads as "these, minus these"
+ * top to bottom.
+ *
+ * `labels_match` sits directly under `labels` because it says how that one field is
+ * read; a task needs any of the chosen labels by default, or all of them.
+ *
+ * `name` comes first: it is what the group's collapsed row is headed with, so it is
+ * read before any filter under it.
+ */
+export function filterGroupSchema(companions: CompanionOption[] = []): FormField[] {
   // Home Assistant has no companion selector, so the include/exclude pair is a
   // multi-select over *companionOptions* — the integrations this install can actually
   // filter by. Both fields drop out when there are none, rather than showing a picker
@@ -1840,9 +1868,17 @@ export function profileSchema(companions: CompanionOption[] = []): FormField[] {
       ]
     : [];
   return [
-    { name: 'name', required: true, selector: selText() },
-    { name: 'status', selector: selSelect(notifyOptions(NOTIFY_STATUSES)) },
+    // Optional, and display-only: an unnamed group is still headed "Group N", and the
+    // name never reaches `groupMatches`.
+    { name: 'name', selector: selText() },
     { name: 'labels', selector: selLabel(true) },
+    {
+      name: 'labels_match',
+      selector: selSelect([
+        { value: 'any', label: t('notify.opt.labels_any') },
+        { value: 'all', label: t('notify.opt.labels_all') },
+      ]),
+    },
     { name: 'areas', selector: selArea(true) },
     { name: 'devices', selector: selDevice(true) },
     ...(companionFields.length ? [companionFields[0]] : []),
@@ -1856,50 +1892,87 @@ export function profileSchema(companions: CompanionOption[] = []): FormField[] {
   ];
 }
 
-/** Flatten a profile to the (flat) `ha-form` data the schema expects. */
-export function profileFormData(p: Profile): Record<string, unknown> {
+/** Seed the head form from a profile: its name and its status window. */
+export function profileHeadData(p: Profile): Record<string, unknown> {
+  return { name: p.name, status: p.filter?.status ?? 'overdue' };
+}
+
+/** Seed one group's form. A group is already flat, so this is a copy — made through
+ *  `toFilterGroup` so a stored group missing a key still seeds every field. */
+export function groupFormData(group: Partial<FilterGroup>): Record<string, unknown> {
+  return { ...toFilterGroup(group) };
+}
+
+/**
+ * Normalize anything that claims to be a group — a stored one, an `ha-form` value, a
+ * key that arrived as the wrong type — into a full `FilterGroup`.
+ *
+ * Deliberately tolerant rather than validating: a group is read from stored options
+ * the user's other surfaces also write, and the cost of a surprising value is a filter
+ * that silently selects the wrong tasks. Every list becomes a list of strings, the
+ * label mode falls back to `any` (the mode that matches more, so a bad value cannot
+ * quietly empty a profile), and the switch is a boolean.
+ *
+ * `name` is trimmed, and anything that is not a string becomes `''`. It is display
+ * text, so a group that arrives with a number or an object there is shown under its
+ * "Group N" fallback rather than under `[object Object]`.
+ */
+export function toFilterGroup(raw: unknown): FilterGroup {
+  const g = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof FilterGroup, unknown>>;
   return {
-    name: p.name,
-    status: p.filter.status,
-    labels: p.filter.labels,
-    areas: p.filter.areas,
-    devices: p.filter.devices,
-    companions: p.filter.companions,
-    exclude_labels: p.filter.exclude_labels,
-    exclude_areas: p.filter.exclude_areas,
-    exclude_devices: p.filter.exclude_devices,
-    exclude_companions: p.filter.exclude_companions,
-    exclude_shopping: p.filter.exclude_shopping ?? false,
+    name: typeof g.name === 'string' ? g.name.trim() : '',
+    labels: strList(g.labels),
+    labels_match: g.labels_match === 'all' ? 'all' : 'any',
+    areas: strList(g.areas),
+    devices: strList(g.devices),
+    companions: strList(g.companions),
+    exclude_labels: strList(g.exclude_labels),
+    exclude_areas: strList(g.exclude_areas),
+    exclude_devices: strList(g.exclude_devices),
+    exclude_companions: strList(g.exclude_companions),
+    exclude_shopping: Boolean(g.exclude_shopping),
   };
 }
 
 /**
- * Rebuild a profile (nested filter) from the flat form data, keeping *id*.
+ * The groups an editor renders for *filter* — always at least one.
  *
- * The profile form doesn't render the sync fields — they live in their own group —
- * so *sync* carries the profile's existing block through. Omitting it would wipe a
- * configured to-do list the moment somebody renamed the profile.
+ * A profile with no groups at all still needs a row to type into, and an empty group
+ * selects everything, so seeding one changes nothing about what the profile matches.
+ */
+export function editorGroups(filter?: { groups?: unknown[] } | null): FilterGroup[] {
+  // Stryker disable next-line ArrayDeclaration: equivalent — anything a non-empty
+  // fallback could hold normalizes to an empty group, which is exactly the single
+  // group the `length ? … : [emptyGroup()]` below yields for the same input.
+  const groups = (filter?.groups ?? []).map(toFilterGroup);
+  return groups.length ? groups : [emptyGroup()];
+}
+
+/**
+ * Rebuild a profile from its editor's three pieces — the head form, the group forms,
+ * and the sync block — keeping *id*.
+ *
+ * None of the three renders the others' fields, so each is carried through here rather
+ * than read back off the form that owns it. Omitting *sync* would wipe a configured
+ * to-do list the moment somebody renamed the profile; rebuilding from the head alone
+ * would wipe the groups.
  */
 export function profileFormToProfile(
   id: string,
-  data: Record<string, unknown>,
+  head: Record<string, unknown>,
+  groups: unknown[],
   sync?: SyncLike,
 ): Profile {
+  const built = groups.map(toFilterGroup);
   return {
     id,
-    name: String(data.name ?? '').trim() || t('profile.defaultName'),
+    name: String(head.name ?? '').trim() || t('profile.defaultName'),
     sync: toProfileSync(sync),
     filter: {
-      status: (data.status as NotifyStatus) ?? 'overdue',
-      labels: strList(data.labels),
-      areas: strList(data.areas),
-      devices: strList(data.devices),
-      companions: strList(data.companions),
-      exclude_labels: strList(data.exclude_labels),
-      exclude_areas: strList(data.exclude_areas),
-      exclude_devices: strList(data.exclude_devices),
-      exclude_companions: strList(data.exclude_companions),
-      exclude_shopping: Boolean(data.exclude_shopping),
+      status: (head.status as NotifyStatus) ?? 'overdue',
+      // Never saved empty: a profile with no group has nowhere to put the next rule,
+      // and one empty group is what "everything" is spelled as.
+      groups: built.length ? built : [emptyGroup()],
     },
   };
 }

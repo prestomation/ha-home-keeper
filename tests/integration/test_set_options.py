@@ -158,7 +158,7 @@ def _profile_ids(ha) -> list[str]:
 _GUARD_PROFILE = {
     "id": "it_guard_profile",
     "name": "Bins",
-    "filter": {"status": "all", "labels": [], "areas": [], "devices": []},
+    "filter": {"status": "all", "groups": [{"labels": [], "areas": [], "devices": []}]},
 }
 _GUARD_NOTIFICATION = {
     "id": "it_guard_notify",

@@ -955,8 +955,8 @@ with the appliance.
 ## Profiles (saved filters you reuse everywhere)
 
 Home Keeper supports saving a filter as a **Profile**. A Profile has a status tier and
-optional **label**, **area**, **device**, and **companion** filters. Create and edit
-Profiles in **Settings → Profiles**.
+one or more groups of **label**, **area**, **device**, and **companion** filters. Create
+and edit Profiles in **Settings → Profiles**.
 
 A Profile is used in 4 places:
 
@@ -980,14 +980,29 @@ The **Include** setting has 3 tiers. Each tier includes the tiers before it:
 
 ### How filters combine
 
-A filter can hold more than one value, and Home Keeper matches a task with any one of
-them. A **Labels** filter set to `urgent` and `safety` selects tasks with either label. A
-Profile with values in more than one filter shows only the tasks that match every one of
-them. Each filter you set makes the result smaller. It never makes the result larger.
+A Profile holds one or more groups of filters. The Profile selects a task that
+matches any one group.
 
-> **A Profile with values in both Labels and Companions does not show both groups
-> together.** It shows only the tasks that match both filters. To combine 2 groups of
-> tasks, put both values in one filter. An example is 2 labels in **Labels**.
+Inside a group, a task must match every filter that has a value. A group's **Labels**,
+**Areas**, **Devices**, and **Companions** filters combine this way. Each group also
+has its own **Label match** setting. **Any selected label** matches a task with at
+least one of the listed labels. **All selected labels** matches a task only if it has
+every listed label.
+
+For a kids' chore list, add a group with `kids` in **Labels** and the garage in
+**Exclude areas**. Select **Add another group**, then add a second group with `dog` in
+**Labels** and the yard in **Areas**. The first field in a group is an optional **Group
+name**. Each group is a collapsible row that shows its name and a summary of its
+filters. Only one group is open at a time. The Profile selects a `kids` task outside the
+garage and a `dog` task in the yard.
+
+![Profile with 2 filter groups](docs/images/profile-filter-groups.png)
+
+For vet prep, set **Label match** to **All selected labels** on one group and select
+`dog` and `vet` in **Labels**. The Profile selects only a task that has both labels.
+
+An empty group is ignored if another group has a value. If every group is empty, the
+Profile selects every task in its **Include** tier.
 
 ### Filter by companion
 
@@ -1014,20 +1029,21 @@ task. A companion that is only a suggestion is not listed, because it owns no ta
 
 ### Exclusions
 
-**Exclude labels**, **Exclude areas**, **Exclude devices**, and **Exclude companions**
-remove tasks from the Profile. An exclusion takes precedence over the include filters. Nothing is removed
-if the exclusion is empty. This is useful for a Profile of all tasks except the tasks with one
-label, such as `professional`.
+Each group has its own **Exclude labels**, **Exclude areas**, **Exclude devices**, and
+**Exclude companions** filters. An exclusion removes a task from its group, and it
+takes precedence over the group's include filters. Nothing is removed if the exclusion
+is empty. The kids' chore list above excludes the garage from the `kids` group this
+way.
 
 Exclusions apply to inherited labels and areas. A task that has the `professional`
 label through its device or its area is also excluded.
 
 **Exclude shopping** removes every auto-created
-["Buy {part}"](#auto-create-a-buy-task-when-a-part-runs-low) task from the Profile. It
-is a switch and not a picker. A buy task has only the label and the area of its
-appliance, so a picker cannot select it. The switch is off by default, so an existing
-Profile includes the buy tasks until you turn it on. Use it to limit a spoken
-notification digest to the maintenance tasks.
+["Buy {part}"](#auto-create-a-buy-task-when-a-part-runs-low) task from its group. It is
+a switch and not a picker. A buy task has only the label and the area of its appliance,
+so a picker cannot select it. The switch is off by default, so an existing Profile
+includes the buy tasks until you turn it on. Use it to limit a spoken notification
+digest to the maintenance tasks.
 
 ### Synced problem sensors
 
@@ -1358,8 +1374,9 @@ Editing and deletion of a task are supported only in the panel.
 
 The card editor has these options:
 
-- Filter by status, area, device, label, recurrence type, a "due within N days"
-  window, or a saved [Profile](#profiles-saved-filters-you-reuse-everywhere).
+- Filter by status, recurrence type, a "due within N days" window, a saved
+  [Profile](#profiles-saved-filters-you-reuse-everywhere), or one or more groups of
+  label, area, device, and companion filters.
 - Sort and group the tasks, and limit the number of rows.
 - Select what each row shows.
 - **Hide card when empty** removes the card from the dashboard when the filter matches
@@ -1396,8 +1413,10 @@ the label or if its attached device or area has the label.
    `home_keeper.add_task` and `home_keeper.update_task` services also set labels.
 2. Optional. Apply the same labels to devices or appliances in **Settings → Devices**
    to include all their tasks.
-3. In the card editor, set **Limit to labels**. With more than 1 label, set the
-   **Any/All** match mode.
+3. In the card editor, add a group and select the labels in **Labels**. With more than
+   1 label, set **Label match**. Select **Add another group** for a second group. An
+   existing card with the old label setting still works, and the card editor moves it
+   into a group on its next save.
 4. Optional. Enable **Show labels** to show each task's labels on its row.
 
 ![Home Keeper card filtered to the "dog" label, showing label chips on each row](docs/images/card-label-filter.png)
@@ -1420,6 +1439,27 @@ The **Settings** tab in the panel edits the integration options. The form matche
 Home Assistant options flow and saves each change immediately. The same options are
 available in the options flow under **Settings → Devices & services → Configure** and
 through the `home_keeper.set_options` service.
+
+A Profile's filter is a list of one or more groups. `home_keeper.set_options` writes
+each Profile's filter as `filter.groups`, and `home_keeper.list_profiles` returns it
+the same way. The service refuses the old flat filter keys with an error. This example
+sets a Profile with 2 groups, one for `kids` tasks outside the garage and one for
+`dog` tasks in the yard.
+
+```yaml
+action: home_keeper.set_options
+data:
+  profiles:
+    - id: kids_chores
+      name: Kids' chores
+      filter:
+        status: all
+        groups:
+          - labels: [kids]
+            exclude_areas: [garage]
+          - labels: [dog]
+            areas: [yard]
+```
 
 The tab has 6 sections:
 

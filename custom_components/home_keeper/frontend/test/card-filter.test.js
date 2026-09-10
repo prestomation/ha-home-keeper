@@ -8,6 +8,7 @@ import {
   bucketByKey,
   filterTasks,
   groupTasks,
+  liftLegacyCardConfig,
   matchesQuery,
   normalizeSearch,
   profileMatches,
@@ -296,28 +297,15 @@ describe('filterTasks', () => {
     expect(ids).toEqual(['db', 'ub']);
   });
 
-  it('filters by area, resolving a task to its device area', () => {
-    const devices = { dev1: { id: 'dev1', area_id: 'kitchen' } };
-    const inKitchenDirect = task({ id: 'k1', area_id: 'kitchen', next_due: new Date(NOW + DAY).toISOString() });
-    const inKitchenViaDevice = task({ id: 'k2', device_id: 'dev1', next_due: new Date(NOW + DAY).toISOString() });
-    const elsewhere = task({ id: 'k3', area_id: 'garage', next_due: new Date(NOW + DAY).toISOString() });
-    const ids = filterTasks(
-      [inKitchenDirect, inKitchenViaDevice, elsewhere],
-      { type: '', areas: ['kitchen'] },
-      devices,
-      NOW,
-    )
-      .map((t) => t.id)
-      .sort();
-    expect(ids).toEqual(['k1', 'k2']);
-  });
-
   it('filters by recurrence type', () => {
     const ids = filterTasks(all, { type: '', recurrence_types: ['triggered'] }, {}, NOW).map((t) => t.id);
     expect(ids).toEqual(['m']);
   });
 
-  describe('label filter', () => {
+  // The card selects with the same filter groups a profile does: an OR of groups,
+  // each an AND of its own include lists minus its own exclusions. These cases are the
+  // card's side of that — `card-filter-profile.test.js` owns `groupMatches` itself.
+  describe('filter groups', () => {
     const due = (over) => task({ next_due: new Date(NOW + DAY).toISOString(), ...over });
     const tagged = due({ id: 'tg', labels: ['dog'] });
     const viaDevice = due({ id: 'vd', device_id: 'dev1' });
@@ -326,39 +314,234 @@ describe('filterTasks', () => {
     const devices = { dev1: { id: 'dev1', labels: ['dog'] } };
     const areas = { yard: { area_id: 'yard', name: 'Yard', labels: ['dog'] } };
     const list = [tagged, viaDevice, viaArea, untagged];
-
-    it("matches a task's own label, plus labels via its device and effective area", () => {
-      const ids = filterTasks(list, { type: '', labels: ['dog'] }, devices, NOW, areas)
+    const ids = (config, devs = {}, ars = {}) =>
+      filterTasks(list, config, devs, NOW, ars)
         .map((t) => t.id)
         .sort();
-      expect(ids).toEqual(['tg', 'va', 'vd']);
+
+    it("matches a group's labels on the task, its device and its effective area", () => {
+      expect(ids({ type: '', groups: [{ labels: ['dog'] }] }, devices, areas)).toEqual([
+        'tg',
+        'va',
+        'vd',
+      ]);
     });
 
-    it('defaults to ANY: a task with one of several configured labels survives', () => {
-      const ids = filterTasks(
-        [due({ id: 'a', labels: ['dog'] }), due({ id: 'b', labels: ['car'] }), untagged],
-        { type: '', labels: ['dog', 'car'] },
+    it('defaults to ANY: one of the group\'s labels is enough', () => {
+      const list2 = [due({ id: 'a', labels: ['dog'] }), due({ id: 'b', labels: ['car'] }), untagged];
+      const got = filterTasks(list2, { type: '', groups: [{ labels: ['dog', 'car'] }] }, {}, NOW, {})
+        .map((t) => t.id)
+        .sort();
+      expect(got).toEqual(['a', 'b']);
+    });
+
+    it('labels_match=all requires every label in that group', () => {
+      const both = due({ id: 'both', labels: ['dog', 'vet'] });
+      const one = due({ id: 'one', labels: ['dog'] });
+      const got = filterTasks(
+        [both, one],
+        { type: '', groups: [{ labels: ['dog', 'vet'], labels_match: 'all' }] },
+        {},
+        NOW,
+        {},
+      ).map((t) => t.id);
+      expect(got).toEqual(['both']);
+    });
+
+    it('ORs two groups: a task in either one survives', () => {
+      const dogJob = due({ id: 'dog', labels: ['dog'] });
+      const garageJob = due({ id: 'gar', area_id: 'garage' });
+      const neither = due({ id: 'no' });
+      const got = filterTasks(
+        [dogJob, garageJob, neither],
+        { type: '', groups: [{ labels: ['dog'] }, { areas: ['garage'] }] },
         {},
         NOW,
         {},
       )
         .map((t) => t.id)
         .sort();
-      expect(ids).toEqual(['a', 'b']);
+      expect(got).toEqual(['dog', 'gar']);
     });
 
-    it('label_match=all requires every configured label', () => {
-      const both = due({ id: 'both', labels: ['dog', 'vet'] });
-      const one = due({ id: 'one', labels: ['dog'] });
-      const ids = filterTasks(
-        [both, one],
-        { type: '', labels: ['dog', 'vet'], label_match: 'all' },
+    it("subtracts a group's own exclusions from its own includes", () => {
+      const inside = due({ id: 'in', labels: ['dog'], area_id: 'yard' });
+      const excluded = due({ id: 'ex', labels: ['dog'], area_id: 'garage' });
+      const got = filterTasks(
+        [inside, excluded],
+        { type: '', groups: [{ labels: ['dog'], exclude_areas: ['garage'] }] },
         {},
         NOW,
         {},
       ).map((t) => t.id);
-      expect(ids).toEqual(['both']);
+      expect(got).toEqual(['in']);
     });
+
+    it('resolves a group area through the task\'s device', () => {
+      const devs = { dev1: { id: 'dev1', area_id: 'kitchen' } };
+      const direct = due({ id: 'k1', area_id: 'kitchen' });
+      const throughDevice = due({ id: 'k2', device_id: 'dev1' });
+      const elsewhere = due({ id: 'k3', area_id: 'garage' });
+      const got = filterTasks(
+        [direct, throughDevice, elsewhere],
+        { type: '', groups: [{ areas: ['kitchen'] }] },
+        devs,
+        NOW,
+        {},
+      )
+        .map((t) => t.id)
+        .sort();
+      expect(got).toEqual(['k1', 'k2']);
+    });
+
+    it('filters by device when the group names one', () => {
+      const got = filterTasks(list, { type: '', groups: [{ devices: ['dev1'] }] }, devices, NOW, {})
+        .map((t) => t.id)
+        .sort();
+      expect(got).toEqual(['vd']);
+    });
+
+    it('gates nothing when the card has no groups', () => {
+      expect(ids({ type: '' }, devices, areas)).toEqual(['tg', 'ut', 'va', 'vd']);
+    });
+
+    // An empty group is what the editor seeds a new group with. Dropping it before the
+    // OR is what keeps "add a group, fill it in later" from emptying the card — and
+    // keeps the group beside it doing the selecting.
+    it('ignores a group that constrains nothing', () => {
+      expect(ids({ type: '', groups: [{}] }, devices, areas)).toEqual(['tg', 'ut', 'va', 'vd']);
+      expect(ids({ type: '', groups: [{}, { labels: ['dog'] }] }, devices, areas)).toEqual([
+        'tg',
+        'va',
+        'vd',
+      ]);
+    });
+
+    it('still applies the card\'s own status gate to every group', () => {
+      const overdueDog = task({ id: 'od', labels: ['dog'], next_due: new Date(NOW - DAY).toISOString() });
+      const got = filterTasks(
+        [overdueDog, tagged],
+        { type: '', filter: 'overdue', groups: [{ labels: ['dog'] }] },
+        {},
+        NOW,
+        {},
+      ).map((t) => t.id);
+      expect(got).toEqual(['od']);
+    });
+  });
+});
+
+// The pre-groups card config — flat `labels`/`areas`/`devices` — read as one group.
+// Silent and permanent: a card cannot rewrite the dashboard holding it, so every load
+// lifts the stored config again (see `liftLegacyCardConfig`).
+describe('liftLegacyCardConfig', () => {
+  const base = { type: 'custom:home-keeper-card', filter: 'all' };
+
+  it('lifts labels + label_match: all into one group', () => {
+    const lifted = liftLegacyCardConfig({ ...base, labels: ['dog', 'vet'], label_match: 'all' });
+    expect(lifted.groups).toEqual([
+      {
+        // A lifted group has no name: the old config had nowhere to write one, and
+        // the editor heads an unnamed group "Group 1".
+        name: '',
+        labels: ['dog', 'vet'],
+        labels_match: 'all',
+        areas: [],
+        devices: [],
+        companions: [],
+        exclude_labels: [],
+        exclude_areas: [],
+        exclude_devices: [],
+        exclude_companions: [],
+        exclude_shopping: false,
+      },
+    ]);
+    expect(lifted.filter).toBe('all');
+    expect('labels' in lifted).toBe(false);
+    expect('label_match' in lifted).toBe(false);
+  });
+
+  it('defaults a missing label_match to any', () => {
+    const lifted = liftLegacyCardConfig({ ...base, labels: ['dog'] });
+    expect(lifted.groups[0].labels_match).toBe('any');
+  });
+
+  it('gives the lifted group an empty name', () => {
+    // Not `undefined`: the key has to be there, or the group's form seeds its name
+    // box from nothing and the first keystroke reads as a change nobody made.
+    for (const legacy of [{ labels: ['dog'] }, { areas: ['kitchen'] }, { devices: ['d1'] }]) {
+      const lifted = liftLegacyCardConfig({ ...base, ...legacy });
+      expect(lifted.groups[0].name).toBe('');
+      expect('name' in lifted.groups[0]).toBe(true);
+    }
+  });
+
+  it('reads any label_match other than "all" as any', () => {
+    const lifted = liftLegacyCardConfig({ ...base, labels: ['dog'], label_match: 'any' });
+    expect(lifted.groups[0].labels_match).toBe('any');
+  });
+
+  it('lifts areas alone', () => {
+    const lifted = liftLegacyCardConfig({ ...base, areas: ['kitchen'] });
+    expect(lifted.groups).toHaveLength(1);
+    expect(lifted.groups[0].areas).toEqual(['kitchen']);
+    expect(lifted.groups[0].labels).toEqual([]);
+    expect(lifted.groups[0].devices).toEqual([]);
+    expect('areas' in lifted).toBe(false);
+  });
+
+  it('lifts devices alone', () => {
+    const lifted = liftLegacyCardConfig({ ...base, devices: ['dev1'] });
+    expect(lifted.groups[0].devices).toEqual(['dev1']);
+    expect(lifted.groups[0].areas).toEqual([]);
+    expect('devices' in lifted).toBe(false);
+  });
+
+  // All three were ANDed by the old card, which is exactly what one group means.
+  it('lifts all three legacy lists into the same group', () => {
+    const lifted = liftLegacyCardConfig({
+      ...base,
+      labels: ['dog'],
+      areas: ['yard'],
+      devices: ['dev1'],
+    });
+    expect(lifted.groups).toHaveLength(1);
+    expect(lifted.groups[0]).toMatchObject({
+      labels: ['dog'],
+      areas: ['yard'],
+      devices: ['dev1'],
+    });
+  });
+
+  it('keeps existing groups and drops the stray legacy keys beside them', () => {
+    const groups = [{ labels: ['car'] }];
+    const lifted = liftLegacyCardConfig({ ...base, groups, labels: ['dog'], areas: ['yard'] });
+    expect(lifted.groups).toBe(groups);
+    expect('labels' in lifted).toBe(false);
+    expect('areas' in lifted).toBe(false);
+  });
+
+  it('keeps an explicitly empty groups list rather than rebuilding it', () => {
+    const lifted = liftLegacyCardConfig({ ...base, groups: [], labels: ['dog'] });
+    expect(lifted.groups).toEqual([]);
+  });
+
+  it('emits no groups key when there is nothing to lift', () => {
+    const lifted = liftLegacyCardConfig({ ...base, labels: [], areas: [], devices: [] });
+    expect('groups' in lifted).toBe(false);
+    expect(lifted).toEqual(base);
+  });
+
+  it('emits no groups key for a config that never had the legacy fields', () => {
+    expect(liftLegacyCardConfig({ ...base })).toEqual(base);
+  });
+
+  it('never mutates the config it was handed', () => {
+    const config = { ...base, labels: ['dog'], label_match: 'all', areas: ['yard'] };
+    const before = JSON.parse(JSON.stringify(config));
+    const lifted = liftLegacyCardConfig(config);
+    lifted.groups[0].labels.push('cat');
+    expect(config).toEqual(before);
   });
 });
 
@@ -509,7 +692,12 @@ describe('groupTasks (area fallback)', () => {
 });
 
 describe('profileMatches (saved-filter predicate)', () => {
-  const F = (over = {}) => ({ status: 'overdue', labels: [], areas: [], devices: [], ...over });
+  // A filter is a status window plus the groups it ORs; everything these cases set
+  // beside `status` belongs to the one group they need (#291).
+  const F = ({ status = 'overdue', ...group } = {}) => ({
+    status,
+    groups: [{ labels: [], areas: [], devices: [], ...group }],
+  });
 
   it('honors status: overdue / due_soon / all', () => {
     expect(profileMatches(overdue, F({ status: 'overdue' }), {}, {}, NOW)).toBe(true);

@@ -3,7 +3,8 @@ import {
   MAX_SEASON_WINDOWS,
   assetIdentitySchema,
   companionOptions,
-  profileSchema,
+  filterGroupSchema,
+  profileHeadSchema,
   buildTaskPayload,
   duplicateTaskSeed,
   formRecurrenceSummary,
@@ -1844,18 +1845,95 @@ describe('companionOptions', () => {
   });
 });
 
-describe('profileSchema companions fields', () => {
+describe('profileHeadSchema', () => {
+  it('holds the profile itself and nothing that selects tasks', () => {
+    // Name and status are the profile; everything that picks tasks lives in a group,
+    // so a filter field up here would be a second place to say the same thing.
+    expect(profileHeadSchema().map((f) => f.name)).toEqual(['name', 'status']);
+    expect(profileHeadSchema()[0].required).toBe(true);
+  });
+
+  it('offers the three status windows as one dropdown', () => {
+    const status = profileHeadSchema().find((f) => f.name === 'status');
+    expect(status.selector.select.multiple).toBe(false);
+    expect(status.selector.select.options.map((o) => o.value)).toEqual([
+      'all',
+      'overdue',
+      'due_soon',
+    ]);
+  });
+});
+
+describe('filterGroupSchema', () => {
   const options = [{ value: 'battery_notes', label: 'Battery Notes' }];
 
-  it('omits both fields when nothing can be filtered by', () => {
+  it('reads as "these, minus these" top to bottom, under the group name', () => {
+    // The exclude_* rows follow the include rows they subtract from. The group carries
+    // no status — that belongs to the profile above it — but it does carry its own
+    // display name, which heads its folded row and so comes first.
+    expect(filterGroupSchema().map((f) => f.name)).toEqual([
+      'name',
+      'labels',
+      'labels_match',
+      'areas',
+      'devices',
+      'exclude_labels',
+      'exclude_areas',
+      'exclude_devices',
+      'exclude_shopping',
+    ]);
+  });
+
+  it('offers the group name as a plain text box, first and not required', () => {
+    // First, because it is what the folded row is headed with. Optional, because an
+    // unnamed group is headed "Group N" and filters just the same.
+    const field = filterGroupSchema(options)[0];
+    expect(field.name).toBe('name');
+    expect(field.selector).toEqual({ text: {} });
+    expect(field.required).toBeUndefined();
+  });
+
+  it('puts the label mode directly under the labels it governs', () => {
+    // It says how one field is read, so it is meaningless anywhere else in the list.
+    const names = filterGroupSchema().map((f) => f.name);
+    expect(names.indexOf('labels_match')).toBe(names.indexOf('labels') + 1);
+  });
+
+  it('offers the label mode as a two-value dropdown', () => {
+    const field = filterGroupSchema().find((f) => f.name === 'labels_match');
+    expect(field.selector.select.multiple).toBe(false);
+    expect(field.selector.select.options).toEqual([
+      { value: 'any', label: 'Any selected label' },
+      { value: 'all', label: 'All selected labels' },
+    ]);
+  });
+
+  it('offers the exclude rows the same multi-pickers as their include twins', () => {
+    const by = Object.fromEntries(filterGroupSchema().map((f) => [f.name, f.selector]));
+    expect(by.exclude_labels).toEqual(by.labels);
+    expect(by.exclude_areas).toEqual(by.areas);
+    expect(by.exclude_devices).toEqual(by.devices);
+  });
+
+  it('offers the shopping exclusion as a switch, after the id pickers', () => {
+    // It excludes by kind, not by id, so it cannot be a picker like its siblings.
+    const names = filterGroupSchema().map((f) => f.name);
+    expect(names.indexOf('exclude_shopping')).toBe(names.length - 1);
+    expect(names.indexOf('exclude_shopping')).toBeGreaterThan(names.indexOf('exclude_devices'));
+    expect(filterGroupSchema().find((f) => f.name === 'exclude_shopping').selector).toEqual({
+      boolean: {},
+    });
+  });
+
+  it('omits both companion fields when nothing can be filtered by', () => {
     // An install with no companions would otherwise show two empty pickers.
-    const names = profileSchema([]).map((f) => f.name);
+    const names = filterGroupSchema([]).map((f) => f.name);
     expect(names).not.toContain('companions');
     expect(names).not.toContain('exclude_companions');
   });
 
-  it('places each field beside its own kind', () => {
-    const names = profileSchema(options).map((f) => f.name);
+  it('places each companion field beside its own kind', () => {
+    const names = filterGroupSchema(options).map((f) => f.name);
     expect(names.indexOf('companions')).toBe(names.indexOf('devices') + 1);
     expect(names.indexOf('exclude_companions')).toBe(names.indexOf('exclude_devices') + 1);
   });
@@ -1864,7 +1942,7 @@ describe('profileSchema companions fields', () => {
     // Both have to be multi-select. A single-value exclude field would silently cap a
     // profile at excluding one integration.
     for (const name of ['companions', 'exclude_companions']) {
-      const field = profileSchema(options).find((f) => f.name === name);
+      const field = filterGroupSchema(options).find((f) => f.name === name);
       expect(field.selector.select.multiple).toBe(true);
       expect(field.selector.select.options).toEqual(options);
     }

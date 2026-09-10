@@ -24,6 +24,7 @@ from . import (
     manuals,
     notifier,
     options,
+    profiles,
 )
 from .assets import AssetValidationError, card_projection
 from .backend_i18n import resolve_exception
@@ -1074,10 +1075,27 @@ async def ws_get_options(
     )
 
 
+def _profiles_use_groups(value: Any) -> Any:
+    """Refuse a profile whose ``filter`` still carries the pre-groups keys.
+
+    The same guard the ``home_keeper.set_options`` service applies, from the same pure
+    rule, so the panel and an automation get the same answer. It sits in the command
+    schema, which makes a legacy write fail as ``invalid_format`` with this message
+    rather than saving a filter no matcher reads.
+    """
+    try:
+        return profiles.check_profiles_use_groups(value)
+    except ValueError as err:
+        raise vol.Invalid(str(err)) from err
+
+
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "home_keeper/set_options",
-        vol.Required("options"): dict,
+        vol.Required("options"): vol.Schema(
+            {vol.Optional(OPTION_PROFILES): vol.All(list, _profiles_use_groups)},
+            extra=vol.ALLOW_EXTRA,
+        ),
     }
 )
 @websocket_api.require_admin

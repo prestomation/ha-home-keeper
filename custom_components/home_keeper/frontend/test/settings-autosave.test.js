@@ -22,15 +22,8 @@ afterEach(() => {
 const PROFILE = {
   id: 'p1',
   name: 'Everything',
-  filter: {
-    status: 'all',
-    labels: [],
-    areas: [],
-    devices: [],
-    exclude_labels: [],
-    exclude_areas: [],
-    exclude_devices: [],
-  },
+  // One empty group: it constrains nothing, so this profile is "everything".
+  filter: { status: 'all', groups: [{ labels: [], labels_match: 'any', areas: [], devices: [] }] },
   sync: { entity_id: '', two_way: true, vanish_as_completed: true },
 };
 
@@ -384,5 +377,44 @@ describe('Settings → Profiles — autosave across rows', () => {
       'Everything renamed',
       'Downstairs renamed',
     ]);
+  });
+
+  it('keeps a rename and an edit in the second group made in quick succession', async () => {
+    // A profile is now several forms — the head, one per filter group — all saving
+    // through one debounce key, so the last of them to fire decides what is written.
+    // Each has to carry the others with it, or the half the user typed first is lost
+    // exactly as a second row's edit used to be (#255).
+    const grouped = {
+      ...PROFILE,
+      filter: {
+        status: 'all',
+        groups: [{ labels: ['dog'] }, { labels: [], labels_match: 'any', areas: ['garage'] }],
+      },
+    };
+    const { hass, options } = makeHass([notification('n1', 'Bins')]);
+    options.profiles = [grouped];
+    const panel = await mountSettings(hass);
+
+    const row = panel.shadowRoot.querySelector('#hk-profiles .hk-item-card');
+    const groups = [...row.querySelectorAll('.hk-filter-groups .hk-filter-group')];
+    expect(groups).toHaveLength(2);
+    const secondForm = groups[1].querySelector('ha-form');
+    const head = row.querySelector('.hk-item-body > ha-form');
+
+    secondForm.dispatchEvent(
+      new CustomEvent('value-changed', {
+        detail: { value: { ...secondForm.data, areas: ['garage', 'shed'] } },
+      }),
+    );
+    head.dispatchEvent(
+      new CustomEvent('value-changed', {
+        detail: { value: { ...head.data, name: 'Dog or garage' } },
+      }),
+    );
+
+    await waitFor(() => options.profiles[0].name === 'Dog or garage');
+    expect(options.profiles[0].filter.groups[1].areas).toEqual(['garage', 'shed']);
+    // ...and the group nobody touched is still there.
+    expect(options.profiles[0].filter.groups[0].labels).toEqual(['dog']);
   });
 });

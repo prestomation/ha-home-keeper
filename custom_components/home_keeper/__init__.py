@@ -516,6 +516,22 @@ NOTIFY_SCHEMA = vol.Schema(
     }
 )
 
+
+def _profiles_use_groups(value: Any) -> Any:
+    """Refuse a profile whose ``filter`` still carries the pre-groups keys.
+
+    The flat include/exclude lists are not read anywhere any more, so a write that
+    still sends them would save a filter selecting the profile's whole status tier
+    without saying so. ``profiles.check_profiles_use_groups`` holds the rule (pure, and
+    shared with the panel's websocket command); this wrapper only turns its
+    ``ValueError`` into the ``vol.Invalid`` a service schema reports.
+    """
+    try:
+        return profiles.check_profiles_use_groups(value)
+    except ValueError as err:
+        raise vol.Invalid(str(err)) from err
+
+
 # Integration-wide options, also editable from the panel's Settings tab and the
 # options flow. Every field is optional so an automation can flip just one (e.g.
 # turn syncing off) without restating the exclusion lists. See options.py.
@@ -551,7 +567,7 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         # Profiles (saved filters, each carrying the to-do list it syncs onto) and
         # notifications (delivery) — the panel saves each whole list; normalization
         # happens in the matching profiles/notifications.normalize_* helper.
-        vol.Optional(OPTION_PROFILES): list,
+        vol.Optional(OPTION_PROFILES): vol.All(list, _profiles_use_groups),
         vol.Optional(OPTION_NOTIFICATIONS): list,
     }
 )
@@ -559,6 +575,38 @@ SET_OPTIONS_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the integration (config-entry only)."""
+    return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Bring an older config entry up to the current version.
+
+    Home Assistant calls this before setup for every entry whose ``version`` is below
+    ``HomeKeeperConfigFlow.VERSION``, and refuses to load an entry stored *above* it.
+
+    **v1 -> v2: a profile's filter carries groups.** This is a *major* version bump, not
+    a minor one, because the change is not backward compatible: the flat
+    ``labels``/``areas``/``devices``/``companions`` and ``exclude_*`` keys are read
+    nowhere any more. An older Home Keeper reading a v2 filter would see no include
+    lists at all and widen every profile to its whole status tier — which, for a profile
+    that syncs onto a to-do list, means pushing every task in the house onto that list.
+    A major version makes a downgrade refuse to load instead, which is the honest
+    failure.
+
+    The conversion itself is pure (``profiles.migrate_options_v1``) and idempotent, so
+    it is safe to run again on an entry that was already converted.
+    """
+    if entry.version == 1:
+        options_v2 = profiles.migrate_options_v1(dict(entry.options))
+        hass.config_entries.async_update_entry(entry, options=options_v2, version=2)
+        _LOGGER.info(
+            "Migrated Home Keeper options to version 2: %s profile filter(s) now use "
+            "filter groups",
+            len(options_v2.get(OPTION_PROFILES) or []),
+        )
+    # A newer entry is never downgraded here: Home Assistant refuses to set up an entry
+    # whose version is above the flow's, so returning True keeps this function about
+    # the one direction it can handle.
     return True
 
 

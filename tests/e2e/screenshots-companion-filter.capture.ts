@@ -53,7 +53,7 @@ test.beforeAll(async () => {
       {
         id: 'shot-battery-tasks',
         name: 'Battery tasks',
-        filter: { status: 'all', companions: ['battery_notes'] },
+        filter: { status: 'all', groups: [{ companions: ['battery_notes'] }] },
       },
     ],
   });

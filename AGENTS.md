@@ -475,7 +475,7 @@ bash ci/test-mutation-frontend.sh --all
   `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
   `problem_tasks`, `inventory`, `profiles`, `documents`, `events`, `transitions`,
   `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
-  `card-filter`, `documents`, `markdown`, `i18n`, `limits`). `options.py` counts as
+  `card-filter`, `group-editor`, `documents`, `markdown`, `i18n`, `limits`, `defer`). `options.py` counts as
   pure because its Home Assistant imports are `TYPE_CHECKING`-only. Excluded on
   purpose: everything else importing Home Assistant
   (only the Docker tiers cover it — far too slow to run once per mutant),

@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { HomeKeeperCard } from '../src/card.ts';
+import { HomeKeeperCard, HomeKeeperCardEditor } from '../src/card.ts';
 
 // The card waits for HA's lazy components before first paint and renders them.
 // Register lightweight stand-ins so `whenDefined` resolves and the markup is
@@ -19,6 +19,9 @@ beforeAll(() => {
   }
   if (!customElements.get('home-keeper-card')) {
     customElements.define('home-keeper-card', HomeKeeperCard);
+  }
+  if (!customElements.get('home-keeper-card-editor')) {
+    customElements.define('home-keeper-card-editor', HomeKeeperCardEditor);
   }
 });
 
@@ -105,7 +108,10 @@ describe('HomeKeeperCard load states', () => {
 
 describe('HomeKeeperCard hide_when_empty', () => {
   it('stays visible and shows the "no match" alert by default', async () => {
-    const card = makeCard({ type: 'custom:home-keeper-card', labels: ['no-such-label'] });
+    const card = makeCard({
+      type: 'custom:home-keeper-card',
+      groups: [{ labels: ['no-such-label'] }],
+    });
     card.hass = { callWS: async () => ({ tasks: sampleTasks }), language: 'en' };
 
     const shown = await waitFor(() => sr(card)?.querySelector('.hk-empty'));
@@ -115,6 +121,8 @@ describe('HomeKeeperCard hide_when_empty', () => {
 
   it('hides the whole card when configured and nothing matches, and reappears once a task matches', async () => {
     let tasks = [];
+    // Deliberately the *legacy* spelling: this is the end-to-end proof that a card
+    // stored before filter groups existed still selects the same tasks.
     const card = makeCard({
       type: 'custom:home-keeper-card',
       labels: ['no-such-label'],
@@ -496,5 +504,224 @@ describe('HomeKeeperCard NFC tag binding (issue #211)', () => {
     sr(card).querySelector('.hk-done').click();
     await new Promise((r) => setTimeout(r, 50));
     expect(navigations).toEqual([]);
+  });
+});
+
+// The pre-groups card config, lifted on every load (`liftLegacyCardConfig`). Nothing
+// writes the lift back — a card cannot rewrite the dashboard holding it — so the card
+// and its editor both lift, and neither ever holds a legacy key. The lift function's
+// own cases are in `card-filter.test.js`; these are the two surfaces that call it.
+describe('HomeKeeperCard legacy config lift', () => {
+  const lift = (config) => makeCard({ type: 'custom:home-keeper-card', ...config })._config;
+
+  it('lifts labels + label_match into one group', () => {
+    const config = lift({ labels: ['dog', 'vet'], label_match: 'all' });
+    expect(config.groups).toHaveLength(1);
+    expect(config.groups[0].labels).toEqual(['dog', 'vet']);
+    expect(config.groups[0].labels_match).toBe('all');
+    expect('labels' in config).toBe(false);
+    expect('label_match' in config).toBe(false);
+  });
+
+  it('defaults a missing label_match to any', () => {
+    expect(lift({ labels: ['dog'] }).groups[0].labels_match).toBe('any');
+  });
+
+  it('lifts areas', () => {
+    const config = lift({ areas: ['kitchen'] });
+    expect(config.groups[0].areas).toEqual(['kitchen']);
+    expect('areas' in config).toBe(false);
+  });
+
+  it('lifts devices', () => {
+    const config = lift({ devices: ['dev1'] });
+    expect(config.groups[0].devices).toEqual(['dev1']);
+    expect('devices' in config).toBe(false);
+  });
+
+  it('keeps a config that already has groups, dropping stray legacy keys', () => {
+    const config = lift({ groups: [{ labels: ['car'] }], labels: ['dog'], areas: ['yard'] });
+    expect(config.groups).toEqual([{ labels: ['car'] }]);
+    expect('labels' in config).toBe(false);
+    expect('areas' in config).toBe(false);
+  });
+
+  it('adds no groups key to a card that filters by neither', () => {
+    const config = lift({ filter: 'overdue' });
+    expect('groups' in config).toBe(false);
+  });
+
+  it('filters by the lifted group, not by the dropped keys', async () => {
+    const card = makeCard({ type: 'custom:home-keeper-card', labels: ['dog'] });
+    const dogTask = { ...sampleTasks[0], id: 'dog', name: 'Walk the dog', labels: ['dog'] };
+    card.hass = {
+      callWS: async () => ({ tasks: [...sampleTasks, dogTask] }),
+      language: 'en',
+    };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(sr(card).querySelectorAll('.hk-row')).toHaveLength(1);
+    expect(sr(card).textContent).toContain('Walk the dog');
+  });
+
+  // A profile is the whole selection when one is chosen: it replaces the groups rather
+  // than narrowing them, exactly as it replaced the old flat lists.
+  it('ignores the card groups when a profile is set', async () => {
+    const card = makeCard({
+      type: 'custom:home-keeper-card',
+      profile: 'p1',
+      groups: [{ labels: ['no-such-label'] }],
+    });
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: sampleTasks };
+        if (msg.type === 'home_keeper/get_profiles') {
+          return { profiles: [{ id: 'p1', name: 'Everything', filter: { status: 'all', groups: [] } }] };
+        }
+        return {};
+      },
+    };
+
+    const shown = await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(shown, "the profile's tasks show, not the card group's").toBe(true);
+    expect(sr(card).textContent).toContain('Replace filter');
+  });
+});
+
+// The card's GUI editor. Its groups are the shared `renderGroupsEditor` — the same one
+// the panel's profile rows use — so what is checked here is the wiring: what the editor
+// holds after a lift, and what it reports back to Lovelace.
+describe('HomeKeeperCardEditor filter groups', () => {
+  function makeEditor(config = { type: 'custom:home-keeper-card' }) {
+    const editor = document.createElement('home-keeper-card-editor');
+    editor.setConfig(config);
+    document.body.appendChild(editor);
+    const emitted = [];
+    editor.addEventListener('config-changed', (e) => emitted.push(e.detail.config));
+    return { editor, emitted, root: editor.shadowRoot };
+  }
+
+  const groupCards = (root) => root.querySelectorAll('.hk-filter-group');
+  const addBtn = (root) => root.querySelector('.hk-filter-group-add');
+
+  it('renders just the add button for a card with no groups', () => {
+    const { root, emitted } = makeEditor();
+    expect(groupCards(root)).toHaveLength(0);
+    expect(addBtn(root)).toBeTruthy();
+    // An untouched editor writes nothing: no empty group is invented for the config.
+    expect(emitted).toEqual([]);
+  });
+
+  it('drops the legacy fields from the schema it renders', () => {
+    const { root } = makeEditor();
+    // This editor has no groups, so every form on it is one of the two config forms —
+    // the four legacy pickers are gone from both, and only a group offers them now.
+    const names = [...root.querySelectorAll('ha-form')].flatMap((f) =>
+      (f.schema ?? []).flatMap((field) => [field.name, ...(field.schema ?? []).map((x) => x.name)]),
+    );
+    for (const gone of ['labels', 'label_match', 'areas', 'devices']) {
+      expect(names, `${gone} should be gone`).not.toContain(gone);
+    }
+    expect(names).toContain('profile');
+    expect(names).toContain('recurrence_types');
+    expect(names).toContain('hide_when_empty');
+  });
+
+  it('seeds a group from the config and labels its fields in English', () => {
+    const { root } = makeEditor({ type: 'custom:home-keeper-card', groups: [{ labels: ['dog'] }] });
+    expect(groupCards(root)).toHaveLength(1);
+    const form = groupCards(root)[0].querySelector('ha-form');
+    expect(form.data.labels).toEqual(['dog']);
+    expect(form.data.labels_match).toBe('any');
+    expect(form.computeLabel({ name: 'exclude_shopping' })).toBe('Exclude shopping');
+    expect(form.computeLabel({ name: 'labels' })).toBe('Labels');
+  });
+
+  it('adds one empty group when the add button is pressed', () => {
+    const { root, emitted } = makeEditor();
+    addBtn(root).click();
+
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].groups).toHaveLength(1);
+    expect(emitted[0].groups[0].labels).toEqual([]);
+    expect(emitted[0].groups[0].exclude_shopping).toBe(false);
+    expect(groupCards(root)).toHaveLength(1);
+  });
+
+  it('reports an edit inside a group as the whole config', () => {
+    const { root, emitted } = makeEditor({ type: 'custom:home-keeper-card', groups: [{}] });
+    const form = groupCards(root)[0].querySelector('ha-form');
+    form.dispatchEvent(
+      new CustomEvent('value-changed', {
+        detail: { value: { ...form.data, areas: ['garage'] } },
+      }),
+    );
+
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].groups[0].areas).toEqual(['garage']);
+    expect(emitted[0].type).toBe('custom:home-keeper-card');
+  });
+
+  // The whole point of lifting in the editor too: one switch flipped on an old card
+  // saves it in the current spelling, with nothing left of the four legacy keys.
+  it('emits a lifted config with no legacy keys after any edit', () => {
+    const { root, emitted } = makeEditor({
+      type: 'custom:home-keeper-card',
+      labels: ['dog'],
+      label_match: 'all',
+      areas: ['yard'],
+      devices: ['dev1'],
+    });
+    // The lift reaches the group editor: the old lists are showing as one group.
+    expect(groupCards(root)).toHaveLength(1);
+
+    const head = root.querySelector('ha-form');
+    head.dispatchEvent(
+      new CustomEvent('value-changed', { detail: { value: { ...head.data, title: 'Dog jobs' } } }),
+    );
+
+    expect(emitted).toHaveLength(1);
+    const config = emitted[0];
+    expect(config.title).toBe('Dog jobs');
+    expect(config.groups).toHaveLength(1);
+    expect(config.groups[0]).toMatchObject({
+      labels: ['dog'],
+      labels_match: 'all',
+      areas: ['yard'],
+      devices: ['dev1'],
+    });
+    for (const key of ['labels', 'label_match', 'areas', 'devices']) {
+      expect(key in config, `${key} should be gone`).toBe(false);
+    }
+  });
+
+  // A group's pickers are `ha-form`s: rebuilding them on every keystroke elsewhere in
+  // the editor would flicker them, and would drop whatever the user had open.
+  it('leaves the group forms standing when a config field changes', () => {
+    const { root } = makeEditor({ type: 'custom:home-keeper-card', groups: [{ labels: ['dog'] }] });
+    const groupForm = groupCards(root)[0].querySelector('ha-form');
+    const head = root.querySelector('ha-form');
+    head.dispatchEvent(
+      new CustomEvent('value-changed', { detail: { value: { ...head.data, title: 'Dog' } } }),
+    );
+
+    expect(groupCards(root)[0].querySelector('ha-form')).toBe(groupForm);
+    expect(groupForm.data.labels).toEqual(['dog']);
+  });
+
+  // Two forms edit one config, so each has to be re-seeded when the other changes —
+  // otherwise the next edit reports the config as it was before the previous one.
+  it('keeps an added group when a later edit lands in the config form', () => {
+    const { root, emitted } = makeEditor();
+    addBtn(root).click();
+    const head = root.querySelector('ha-form');
+    head.dispatchEvent(
+      new CustomEvent('value-changed', { detail: { value: { ...head.data, title: 'Kept' } } }),
+    );
+
+    const config = emitted.at(-1);
+    expect(config.title).toBe('Kept');
+    expect(config.groups).toHaveLength(1);
   });
 });

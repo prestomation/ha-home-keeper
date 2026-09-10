@@ -475,7 +475,11 @@ def test_a_profile_selects_the_tasks_it_would_select_in_a_notification(enricher)
     hass = _FakeHass({LIST: []})
     store = _FakeStore(tasks={T1: _task(device_id="dev1")})
     enricher.inherited[T1] = ["dog"]
-    _sync(hass, store, synced=[_synced_profile(filt={"labels": ["dog"]})])
+    _sync(
+        hass,
+        store,
+        synced=[_synced_profile(filt={"groups": [{"labels": ["dog"]}]})],
+    )
     assert enricher.calls == [[_task(device_id="dev1")]]  # handed the raw task…
     assert _services(hass, "add_item") == [
         {"entity_id": LIST, "item": NAME, "due_date": DUE}

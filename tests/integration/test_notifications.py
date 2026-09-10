@@ -67,7 +67,10 @@ def test_notify_service_and_action_completes(ha, ha_token):
                 {
                     "id": "testprofile",
                     "name": "Test",
-                    "filter": {"status": "overdue", "labels": [label]},
+                    "filter": {
+                        "status": "overdue",
+                        "groups": [{"labels": [label]}],
+                    },
                 }
             ],
             "notifications": [
@@ -195,7 +198,10 @@ def _seed_due_soon_task(ha, label, notification_ids):
                 {
                     "id": "dueprofile",
                     "name": "Due soon",
-                    "filter": {"status": "due_soon", "labels": [label]},
+                    "filter": {
+                        "status": "due_soon",
+                        "groups": [{"labels": [label]}],
+                    },
                 }
             ],
             "notifications": [
@@ -354,7 +360,10 @@ def test_notify_persistent_notification_is_localized(ha, ha_token):
                 {
                     "id": "i18n_testprofile",
                     "name": "i18n test",
-                    "filter": {"status": "overdue", "labels": [label]},
+                    "filter": {
+                        "status": "overdue",
+                        "groups": [{"labels": [label]}],
+                    },
                 }
             ],
         },
@@ -438,23 +447,23 @@ def test_notify_profile_exclusions_skip_matching_tasks(ha):
                         "name": "Without a call-out",
                         "filter": {
                             "status": "overdue",
-                            "labels": [label],
-                            "exclude_labels": [pro],
+                            "groups": [{"labels": [label], "exclude_labels": [pro]}],
                         },
                     }
                 ],
             },
         )
 
-        # The stored profile kept the exclusion (normalize_filter didn't drop the key).
+        # The stored profile kept the exclusion (normalize_group didn't drop the key).
         resp = call_service(
             ha, "home_keeper", "list_profiles", {}, return_response=True
         )
         stored = resp.get("service_response", resp)["profiles"]
         saved = next(p for p in stored if p["id"] == "excludeprofile")
-        assert saved["filter"]["exclude_labels"] == [pro]
-        assert saved["filter"]["exclude_areas"] == []
-        assert saved["filter"]["exclude_devices"] == []
+        (group,) = saved["filter"]["groups"]
+        assert group["exclude_labels"] == [pro]
+        assert group["exclude_areas"] == []
+        assert group["exclude_devices"] == []
 
         # Both tasks are overdue and carry the include label, but only one survives.
         resp = call_service(

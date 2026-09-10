@@ -13,15 +13,8 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-const FILTER = {
-  status: 'overdue',
-  labels: [],
-  areas: [],
-  devices: [],
-  exclude_labels: [],
-  exclude_areas: [],
-  exclude_devices: [],
-};
+// One empty group is what a profile that selects everything looks like.
+const FILTER = { status: 'overdue', groups: [{ labels: [], areas: [], devices: [] }] };
 
 const SYNCED = {
   id: 'p1',
@@ -98,7 +91,9 @@ async function mountSettings(hass) {
 const rows = (panel) => [...panel.shadowRoot.querySelectorAll('#hk-profiles .hk-item-card')];
 const groupOf = (row) => row.querySelector('.hk-sync-group');
 const syncForm = (row) => groupOf(row).querySelector('ha-form');
-const filterForm = (row) => row.querySelector('.hk-item-body > ha-form');
+/** The profile's head form — name and status. The group forms sit inside
+ *  `.hk-filter-groups`, so only the head is a direct child of the body. */
+const headForm = (row) => row.querySelector('.hk-item-body > ha-form');
 const emit = (form, value) =>
   form.dispatchEvent(new CustomEvent('value-changed', { detail: { value } }));
 
@@ -118,13 +113,13 @@ describe('Settings tab — the profile sync group', () => {
   });
 
   it("sits below the profile's filters and above its Delete button", async () => {
-    // Reading order is the design: what the profile selects, then where that goes,
-    // then the destructive action last.
+    // Reading order is the design: what the profile is, then what it selects, then
+    // where that goes, then the destructive action last.
     const { hass } = makeHass({ profiles: [SYNCED] });
     const panel = await mountSettings(hass);
     const body = rows(panel)[0].querySelector('.hk-item-body');
     const kinds = [...body.children].map((el) => el.className || el.tagName.toLowerCase());
-    expect(kinds).toEqual(['ha-form', 'hk-sync-group', 'hk-item-actions']);
+    expect(kinds).toEqual(['ha-form', 'hk-filter-groups', 'hk-sync-group', 'hk-item-actions']);
     // Delete lives in that last footer row, and a profile has nothing beside it —
     // Test is a notification action, so a profile row must not grow one.
     const actions = body.querySelector('.hk-item-actions');
@@ -324,7 +319,7 @@ describe('Settings tab — the profile sync group', () => {
     // them — a rename must not silently switch a running sync off.
     const { hass, calls } = makeHass({ profiles: [SYNCED] });
     const panel = await mountSettings(hass);
-    emit(filterForm(rows(panel)[0]), { name: 'Renamed', status: 'all' });
+    emit(headForm(rows(panel)[0]), { name: 'Renamed', status: 'all' });
     await waitFor(() => calls.lastSetOptions);
     expect(calls.lastSetOptions.profiles[0].name).toBe('Renamed');
     expect(calls.lastSetOptions.profiles[0].sync).toEqual(SYNCED.sync);
@@ -336,7 +331,7 @@ describe('Settings tab — the profile sync group', () => {
     const { hass, calls } = makeHass({ profiles: [SYNCED] });
     const panel = await mountSettings(hass);
     const row = rows(panel)[0];
-    emit(filterForm(row), { name: 'Renamed', status: 'all' });
+    emit(headForm(row), { name: 'Renamed', status: 'all' });
     emit(syncForm(row), { entity_id: 'todo.other', two_way: false, vanish_as_completed: false });
     await waitFor(() => calls.lastSetOptions);
     expect(calls.lastSetOptions.profiles[0].name).toBe('Renamed');

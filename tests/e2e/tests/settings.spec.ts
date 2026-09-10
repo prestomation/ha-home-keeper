@@ -43,6 +43,118 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
+  test('a profile edits its filter groups, and Add another group saves a third', async ({
+    page,
+  }) => {
+    // A profile selects a task matching *any one* of its groups, so the editor has to
+    // draw one block per group with the operator between them — and adding a group has
+    // to reach stored options, not just the form. The screenshot of this surface
+    // cannot tell a rendered group from a missing one, and cannot tell a saved group
+    // from one that only ever lived in the browser.
+    const profileId = 'e2e_groups_profile';
+    await callService('home_keeper', 'set_options', {
+      profiles: [
+        {
+          id: profileId,
+          name: 'Household jobs or the dog',
+          filter: {
+            status: 'all',
+            groups: [
+              { name: 'Household jobs', labels: ['home'], labels_match: 'any' },
+              { name: 'The dog', labels: ['dog'], labels_match: 'any' },
+            ],
+          },
+        },
+      ],
+    });
+    try {
+      const errors = trackPanelErrors(page);
+      await openPanel(page);
+      const panel = page.locator('home-keeper-panel').first();
+      await settleToasts(page);
+      await openSettingsSection(panel, 'profiles');
+      const card = panel.locator('#hk-profiles');
+      await expect(card).toBeVisible();
+
+      // Rows collapse by default. Guarded rather than a bare click, because Home
+      // Assistant replaces the custom-panel element a few seconds after a page
+      // settles and a fresh panel folds every row again.
+      const row = card.locator('.hk-item-card').first();
+      const openRow = async (): Promise<void> => {
+        const header = row.locator('> .hk-item-header');
+        if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+        await expect(row.locator('.hk-filter-groups .hk-filter-group').first()).toBeVisible();
+      };
+      await openRow();
+
+      // Two groups, one operator between them. The divider is what says the groups
+      // are OR-ed; a stack of blocks with no divider reads as one long AND.
+      await expect(row.locator('.hk-filter-group')).toHaveCount(2);
+      await expect(row.locator('.hk-filter-or')).toHaveCount(1);
+      // …and each group carries its own Delete, which a lone group must not have.
+      // Counted, not seen: a group is a folded `details` now, so both Deletes sit in
+      // closed bodies until a row is opened. Asserting they are *visible* here would
+      // fail on a working editor, and asserting they exist is what this line was ever
+      // about — the lone-group case is the one that must draw none.
+      await expect(row.locator('.hk-filter-group-delete')).toHaveCount(2);
+
+      // A folded group is read from its summary, so the name the profile stored has to
+      // be on it. Both rows are folded at this point: a list of 2+ groups starts that
+      // way, and only a lone group opens itself.
+      const groupOne = row.locator('.hk-filter-group[data-group="0"]');
+      const groupTwo = row.locator('.hk-filter-group[data-group="1"]');
+      await expect(groupOne.locator('.hk-filter-group-name')).toHaveText('Household jobs');
+      await expect(groupTwo.locator('.hk-filter-group-name')).toHaveText('The dog');
+      // The name is not the whole summary. Beside it the row says what the group
+      // selects, so a reader can tell two named groups apart by their rules and not
+      // only by what somebody called them.
+      await expect(groupOne.locator('.hk-filter-group-sum')).toHaveText(/Labels 1/);
+
+      // One group open at a time. Opening the second has to close the first, or the
+      // accordion is just a stack of forms that each need shutting by hand — which is
+      // the layout this replaced.
+      await groupOne.locator('> summary').click();
+      await expect(groupOne).toHaveJSProperty('open', true);
+      await expect(groupTwo).toHaveJSProperty('open', false);
+      await groupTwo.locator('> summary').click();
+      await expect(groupTwo).toHaveJSProperty('open', true);
+      await expect(groupOne).toHaveJSProperty('open', false);
+      // The open row shows its form. `open` alone would pass on a body that renders
+      // nothing, which is what a broken summary/body split looks like.
+      await expect(groupTwo.locator('ha-form')).toBeVisible();
+
+      // Adding a group is a save, not a redraw.
+      await openRow();
+      await row.locator(`#hk-profile-${profileId}-group-add`).click();
+      await expect(row.locator('.hk-filter-group')).toHaveCount(3);
+      await expect(row.locator('.hk-filter-or')).toHaveCount(2);
+      await expect
+        .poll(
+          async () => {
+            const resp = await callService('home_keeper', 'list_profiles', {}, true);
+            const saved = resp.profiles.find((x: { id: string }) => x.id === profileId);
+            return saved?.filter?.groups?.length ?? 0;
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(3);
+
+      // The two groups the profile was seeded with survived the add, in order — the
+      // failure a third form appended over the top of the list would hide.
+      const saved = (await callService('home_keeper', 'list_profiles', {}, true)).profiles.find(
+        (x: { id: string }) => x.id === profileId,
+      );
+      expect(saved.filter.groups.map((g: { labels: string[] }) => g.labels)).toEqual([
+        ['home'],
+        ['dog'],
+        [],
+      ]);
+
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await callService('home_keeper', 'set_options', { profiles: [] });
+    }
+  });
 
   test('a notification exposes its channel and urgency, and says what they do', async ({
     page,
@@ -57,7 +169,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
         {
           id: 'e2e_notify_profile',
           name: 'Everything',
-          filter: { status: 'all', labels: [], areas: [], devices: [] },
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
         },
       ],
       notifications: [
@@ -189,7 +301,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
         {
           id: 'e2e_send_profile',
           name: 'Everything',
-          filter: { status: 'all', labels: [], areas: [], devices: [] },
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
         },
       ],
       notifications: [
@@ -287,7 +399,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
         {
           id: 'e2e_two_profile',
           name: 'Everything',
-          filter: { status: 'all', labels: [], areas: [], devices: [] },
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
         },
       ],
       notifications: ['Bins', 'Medication'].map((name, i) => ({
@@ -355,12 +467,12 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
         {
           id: 'e2e_guard_used',
           name: 'Held profile',
-          filter: { status: 'all', labels: [], areas: [], devices: [] },
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
         },
         {
           id: 'e2e_guard_free',
           name: 'Free profile',
-          filter: { status: 'all', labels: [], areas: [], devices: [] },
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
         },
       ],
       notifications: [
@@ -464,7 +576,7 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
         {
           id: 'e2e_scope_profile',
           name: 'Everything',
-          filter: { status: 'all', labels: [], areas: [], devices: [] },
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
         },
       ],
       notifications: [

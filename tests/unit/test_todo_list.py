@@ -248,7 +248,9 @@ def test_desired_by_sync_takes_its_timing_from_the_profiles_own_status():
 
 
 def test_desired_by_sync_applies_a_profiles_other_filters_too():
-    synced = [_synced_profile(filt={"status": "all", "areas": ["kitchen"]})]
+    synced = [
+        _synced_profile(filt={"status": "all", "groups": [{"areas": ["kitchen"]}]})
+    ]
     tasks = [_task("in", area_id="kitchen"), _task("out", area_id="garage")]
     assert sorted(tm.desired_by_sync(synced, tasks, now=NOW)[M1]) == ["in"]
 

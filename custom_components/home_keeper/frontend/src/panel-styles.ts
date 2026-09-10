@@ -1,10 +1,12 @@
 /**
  * The panel's stylesheet — one `<style>` block, adopted whole by `_render` into the
- * shadow root. It is pure text with a single interpolation (`TASK_CARD_INLINE_CHIPS`,
- * declared here because the chip-overflow rules are written in terms of it), so it
+ * shadow root. It is pure text with two interpolations (`TASK_CARD_INLINE_CHIPS`,
+ * declared here because the chip-overflow rules are written in terms of it, and the
+ * filter-group rules, which belong to the module both editors render them from), so it
  * lives in its own module rather than as 1,300 lines wedged between the panel's
  * imports and its class.
  */
+import { GROUP_EDITOR_CSS } from './group-editor';
 
 /** How many descriptive chips a list row shows beside the task name before the rest
  *  collapse into a "+n". Two keeps the title line readable at any width; the hidden
@@ -563,6 +565,10 @@ export const STYLES = `
   }
   .hk-item-actions { display: flex; justify-content: flex-end; gap: 8px; }
   .hk-notify-add { margin-top: 12px; }
+  /* A profile's filter groups. Interpolated rather than written out here, because the
+     dashboard card's editor renders the same groups from the same module and the two
+     must not drift into looking like different controls. */
+  ${GROUP_EDITOR_CSS}
   /* What the chosen profile selects, stated under the profile picker, and the way to
      go and change it. Sized and coloured like an ha-form helper so it reads as one,
      and allowed to wrap on a phone rather than pushing the link off the row. */
