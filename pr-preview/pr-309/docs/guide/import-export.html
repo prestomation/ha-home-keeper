@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.1">
 <title data-rh="true">Import and export | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-309/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-309/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-309/docs/guide/import-export"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Import and export | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper reads and writes its data as one file. Use it to move to another Home"><meta data-rh="true" property="og:description" content="Home Keeper reads and writes its data as one file. Use it to move to another Home"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-309/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-309/docs/guide/import-export"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-309/docs/guide/import-export" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-309/docs/guide/import-export" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Import and export","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-309/docs/guide/import-export"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-309/assets/css/styles.12814b72.css">
-<script src="/ha-home-keeper/pr-preview/pr-309/assets/js/runtime~main.bc5b3ecc.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-309/assets/js/runtime~main.aa4fc32f.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-309/assets/js/main.8d229092.js" defer="defer"></script>
 </head>
 <body>
@@ -87,9 +87,10 @@ schema from the code, so it always matches the version you run.</p>
 read, then ignores it.</p>
 <p>Dates can be a plain <code>2026-03-04</code> or a full timestamp. History is read in date order,
 whatever order you write it in.</p>
-<p>If you write a file by hand, put quotation marks around a value such as <code>no</code>, <code>on</code> or
-<code>NO</code>. Without them YAML reads the value as true or false. Indent with spaces, because
-YAML does not accept a tab.</p>
+<p>If you write a file by hand, put quotation marks around a text value such as <code>no</code>,
+<code>on</code> or <code>NO</code>. Home Keeper reports an error and names the field if you forget. Add
+quotation marks and import the file again. Indent with spaces, because YAML does not
+accept a tab.</p>
 <p>A JSON file also imports, because YAML accepts JSON. Indent it with spaces.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="how-a-record-finds-its-match">How a record finds its match<a href="#how-a-record-finds-its-match" class="hash-link" aria-label="Direct link to How a record finds its match" title="Direct link to How a record finds its match" translate="no">​</a></h3>
 <p>Import creates a record, or updates the one it already has. It decides which in 3
