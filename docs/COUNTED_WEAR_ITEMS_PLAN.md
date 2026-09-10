@@ -40,14 +40,23 @@ The issue dialogue moved the target twice, and both moves made the work smaller.
 2. The reporter then withdrew the request for Home Keeper to own a counter: *"perhaps
    Home Keeper doesn't even need to implement its own counter logic."*
 
-So Home Keeper stores no counter. **A use is a completion**, and
-`home_keeper.complete_task` is already the "this happened" API — reachable from an
-automation, a script, an NFC tag scan, the Done button, the per-task `button` entity,
-the to-do list and a notification action. The count is the length of a list the store
-already keeps, and each entry already carries a timestamp, a note, a cost, a photo and
-who.
+So **a use is a completion**, and `home_keeper.complete_task` is already the "this
+happened" API — reachable from an automation, a script, an NFC tag scan, the Done
+button, the per-task `button` entity, the to-do list and a notification action. The
+count is derived from a list the store already keeps, and each entry already carries a
+timestamp, a note, a cost, a photo and who.
 
-**No new service. No new entity. No new stored number. No new event.**
+**Be accurate about what this avoids.** Home Keeper still owns and persists the
+counting state: the use task's `completions[]` *is* the count, the trim rule in §3
+exists to keep that state correct, and `uses_since_replacement` is counting logic we
+write and maintain. Measured in bytes this is more storage than an integer, not less.
+What the design avoids is a new **numeric field, entity, service and event**, and the
+`counter` helper the user would otherwise create and wire themselves.
+
+It is also not quite the reporter's proposal. They suggested Home Keeper lean on an HA
+`counter`; this design does its own counting and represents it as a log instead. The
+agreement is on the outcome — no counter object for the user to manage — not on the
+mechanism.
 
 Mockups: `docs/mockups/306-*.png`.
 
