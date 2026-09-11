@@ -1,5 +1,25 @@
 {
   "outputStyle": "Concise",
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Code_Remote__archive_session",
+      "mcp__Claude_Code_Remote__create_trigger",
+      "mcp__Claude_Code_Remote__delete_trigger",
+      "mcp__Claude_Code_Remote__list_triggers",
+      "mcp__Claude_Code_Remote__send_later",
+      "mcp__Claude_Code_Remote__subscribe_pr_activity",
+      "mcp__Claude_Code_Remote__unsubscribe_pr_activity",
+      "mcp__claude-code-remote__archive_session",
+      "mcp__claude-code-remote__create_trigger",
+      "mcp__claude-code-remote__delete_trigger",
+      "mcp__claude-code-remote__list_triggers",
+      "mcp__claude-code-remote__send_later",
+      "mcp__claude-code-remote__subscribe_pr_activity",
+      "mcp__claude-code-remote__unsubscribe_pr_activity",
+      "mcp__github__subscribe_pr_activity",
+      "mcp__github__unsubscribe_pr_activity"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {

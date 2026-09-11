@@ -530,3 +530,37 @@ class TestMultiWindowSeason:
         }
         r.skip_occurrence(task, now=dt(2026, 10, 1))
         assert task["next_due"] == dt(2027, 4, 1).isoformat()
+
+
+def test_a_season_regrid_holds_the_local_hour_across_dst():
+    """The season re-grid runs its own ``next_fixed_occurrence``, so it needs a probe
+    in the same zone as the schedule or the clamped date reads at the stored offset's
+    wall clock instead of the local one.
+
+    It gets one by construction rather than by being told: ``_clamp_season`` is only
+    ever handed a ``next_due`` that came *out* of the grid, so the season start it
+    derives inherits that zone. This pins that chain — a reviewer flagged it as safe
+    but subtle, and nothing else asserts on it.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo("America/New_York")
+    # Stored the way every anchor is: serialized, so offset-only on reload.
+    stored = datetime(2026, 6, 1, 9, tzinfo=zone).isoformat()
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": stored,
+        # A winter-only season, so a summer "now" has to clamp forward across the
+        # autumn transition to reach it.
+        "active_season": [{"start": "12-01", "end": "02-28"}],
+    }
+    now = datetime(2026, 6, 13, 10, tzinfo=zone)
+    due = datetime.fromisoformat(r.compute_next_due(task, now=now).isoformat())
+    local = due.astimezone(zone)
+    assert (local.hour, local.minute) == (9, 0), (
+        f"season-clamped occurrence drifted to {local.isoformat()}"
+    )
+    assert (local.month, local.day) == (12, 1)

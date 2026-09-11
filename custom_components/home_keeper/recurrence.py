@@ -245,6 +245,31 @@ def _fast_forward(
     return add_months(occ, jump * interval)
 
 
+def _regrid(anchor: datetime, probe: datetime) -> datetime:
+    """*anchor* re-homed into *probe*'s timezone, so stepping keeps local wall time.
+
+    A schedule promises a wall clock: "every day at 10:00" means 10:00 on the kitchen
+    clock, on both sides of a daylight-saving transition. :func:`_step` delivers that
+    — but only while the anchor carries a real zone, because ``dt + timedelta`` holds
+    the *tzinfo it is given*. A fixed UTC offset is a tzinfo too, and holding one of
+    those across a transition is what makes a 10:00 task read 09:00 every autumn.
+
+    Storage is what strips the zone. An ISO string carries an offset and not a zone
+    identity, so ``ZoneInfo("America/Los_Angeles")`` is written as ``-07:00`` and
+    reloads as ``timezone(timedelta(hours=-7))``. Every anchor therefore comes back
+    from the store offset-only, no matter how it was written — which is why writing it
+    differently cannot fix this and re-homing on the way in has to.
+
+    *probe* is the caller's clock (``after`` here, ``start`` in
+    :func:`expand_fixed_occurrences`), which in this integration is always derived
+    from ``dt_util.now()`` and so carries Home Assistant's configured zone. Re-homing
+    keeps the instant and swaps the tzinfo, so an anchor stored as ``17:00+00:00``,
+    ``10:00-07:00`` or naive-turned-``10:00-07:00`` all resolve to the same 10:00
+    local and all hold it through the transition.
+    """
+    return anchor.astimezone(probe.tzinfo)
+
+
 def next_fixed_occurrence(
     anchor: datetime,
     freq: str,
@@ -254,12 +279,13 @@ def next_fixed_occurrence(
 ) -> datetime:
     """Smallest occurrence strictly greater than *after* for a fixed schedule.
 
-    Occurrences start at *anchor* and repeat every *interval* of *freq*,
-    preserving the anchor's time-of-day. If *after* precedes the anchor, the
-    anchor itself is returned.
+    Occurrences start at *anchor* and repeat every *interval* of *freq*, preserving
+    the anchor's time-of-day **as read in *after*'s timezone** (see :func:`_regrid`).
+    If *after* precedes the anchor, the anchor itself is returned.
     """
     if interval < 1:
         raise ValueError(f"interval must be >= 1, got {interval}")
+    anchor = _regrid(anchor, after)
     if anchor > after:
         return anchor
     occ = _fast_forward(anchor, freq, interval, after)
@@ -286,10 +312,14 @@ def expand_fixed_occurrences(
 ) -> list[datetime]:
     """All fixed occurrences within the half-open range ``[start, end)``.
 
+    Occurrences read at the anchor's time-of-day in *start*'s timezone, the same rule
+    :func:`next_fixed_occurrence` follows (see :func:`_regrid`).
+
     Bounded by ``MAX_EXPAND_ITERATIONS`` to guard against runaway loops.
     """
     if start >= end:
         return []
+    anchor = _regrid(anchor, start)
     occurrences: list[datetime] = []
     # Find the first occurrence at or after *start* — fast-forward close first so a
     # far-past anchor doesn't exhaust the iteration cap before reaching the window.
@@ -376,6 +406,48 @@ def _record_entry(history: Iterable[dict], entry: dict) -> list[dict]:
     return entries
 
 
+def _advance_fixed_schedule(task: dict, *, now: datetime) -> str:
+    """The ``next_due`` a fixed task moves to once its occurrence is dealt with.
+
+    Shared by :func:`apply_completion` and :func:`skip_occurrence`, because completing
+    an occurrence and skipping it move the schedule in exactly the same way — only the
+    log each one writes is different.
+
+    The schedule advances past ``max(now, next_due)``, and both halves earn their keep:
+
+    * **Past ``next_due``**, because the occurrence the task is *showing* is the one
+      the user just dealt with. Advancing past ``now`` alone hands that occurrence
+      straight back whenever the task is completed before its time of day: a task
+      anchored at 10:00 and marked done at 09:00 stayed due at 10:00 today, so the
+      completion read as though it had done nothing (#331). An anchor late in the
+      evening was unusable that way for nearly the whole day.
+    * **Past ``now``**, because an overdue task must not crawl the grid one missed
+      occurrence per press. A daily task last due a fortnight ago lands on the next
+      occurrence after today, collapsing the fortnight into a single step.
+
+    A task with no ``next_due`` has no occurrence on the board, so *now* is the whole
+    answer. ``models.build_task`` reaches this state on purpose: a ``last_completed``
+    seed is recorded as a completion *before* the schedule is ever computed.
+
+    This is deliberately not what :func:`compute_next_due` does. That function derives
+    a due date from a task's own state with no memory of where the schedule already
+    stood, which is what makes it the right tool for *rewinding* one (see
+    :func:`remove_completion`) and the wrong tool for advancing it.
+    """
+    anchor = _parse(task["anchor"])
+    assert anchor is not None
+    current = _parse(task.get("next_due"))
+    # ``current`` comes off a stored ISO string, so it carries a bare offset; re-home
+    # it before ``max`` so the winner always hands ``next_fixed_occurrence`` a probe in
+    # Home Assistant's zone (see ``_regrid``). Comparison itself is instant-based and
+    # would be correct either way — it is the *tzinfo of the winner* that matters.
+    after = max(now, current.astimezone(now.tzinfo)) if current is not None else now
+    return _clamp_season(
+        next_fixed_occurrence(anchor, task["freq"], int(task["interval"]), after=after),
+        task,
+    ).isoformat()
+
+
 def apply_completion(
     task: dict,
     completed_at: datetime,
@@ -396,8 +468,9 @@ def apply_completion(
     Records the completion in history (capped) and recomputes ``next_due``:
 
     * floating  -> measured from ``completed_at`` (the clock resets)
-    * fixed     -> the next scheduled occurrence after ``now`` (schedule-driven;
-      completion only marks the occurrence done)
+    * fixed     -> the next scheduled occurrence after the one the task was showing
+      (schedule-driven; the completion marks that occurrence done rather than
+      restarting a clock — see :func:`_advance_fixed_schedule`)
     * triggered -> ``next_due = None`` (dormant): completing a condition-driven
       task *clears* the condition rather than rescheduling it, so it leaves every
       time surface until the owner re-arms it. History is still recorded, so the
@@ -426,14 +499,7 @@ def apply_completion(
             task,
         ).isoformat()
     elif rec_type == REC_FIXED:
-        anchor = _parse(task["anchor"])
-        assert anchor is not None
-        task["next_due"] = _clamp_season(
-            next_fixed_occurrence(
-                anchor, task["freq"], int(task["interval"]), after=now
-            ),
-            task,
-        ).isoformat()
+        task["next_due"] = _advance_fixed_schedule(task, now=now)
     elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR):
         # A one-off is permanently complete; a triggered task clears its condition; a
         # sensor task's crossing has been actioned (and its meter reset by the store,
@@ -467,9 +533,10 @@ def skip_occurrence(task: dict, *, now: datetime, metadata: dict | None = None) 
 
     * floating  -> ``now + interval·unit`` (a fresh interval from now; the next
       completion still measures from *its* ``completed_at``).
-    * fixed     -> the next scheduled occurrence strictly after ``max(now, next_due)``.
-      An upcoming task advances exactly one occurrence; an overdue task jumps to the
-      next occurrence after *now*, collapsing any already-missed occurrences rather than
+    * fixed     -> the next scheduled occurrence strictly after ``max(now, next_due)``,
+      exactly as a completion advances it (:func:`_advance_fixed_schedule`). An
+      upcoming task advances exactly one occurrence; an overdue task jumps to the next
+      occurrence after *now*, collapsing any already-missed occurrences rather than
       taking one skip per missed period.
     * one-off / triggered / sensor -> dormant (``next_due = None``): there is no "next"
       occurrence to advance to, so skipping clears it from every time surface (a
@@ -487,16 +554,7 @@ def skip_occurrence(task: dict, *, now: datetime, metadata: dict | None = None) 
             add_interval(now, int(task["interval"]), task["unit"]), task
         ).isoformat()
     elif rec_type == REC_FIXED:
-        anchor = _parse(task["anchor"])
-        assert anchor is not None
-        current = _parse(task.get("next_due"))
-        after = max(now, current) if current is not None else now
-        task["next_due"] = _clamp_season(
-            next_fixed_occurrence(
-                anchor, task["freq"], int(task["interval"]), after=after
-            ),
-            task,
-        ).isoformat()
+        task["next_due"] = _advance_fixed_schedule(task, now=now)
     elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR):
         task["next_due"] = None
     else:
@@ -620,6 +678,13 @@ def move_completion(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> d
     replaces it (the same same-instant dedup ``apply_completion`` does); the moved
     entry's metadata wins and the entry it collided with is discarded.
 
+    Triggered/sensor tasks' ``next_due`` is left untouched, and so is a **fixed**
+    task's: its due date is schedule state that completing or skipping already moved
+    on (:func:`_advance_fixed_schedule`), not a value derived from the log, so
+    recomputing it from the anchor here would rewind the task onto an occurrence it
+    has already dealt with. Only :func:`remove_completion` rewinds, because an undo is
+    meant to.
+
     Both the removal and the re-insertion happen *before* ``last_completed``/
     ``next_due`` are re-derived — re-deriving in between (as if this were
     ``remove_completion`` followed by a separate insert) would misfire for a one-off
@@ -665,7 +730,7 @@ def move_completion(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> d
         # (see above), so a one-off always stays dormant post-move — it only
         # re-arms via remove_completion, which can genuinely empty history.
         task["next_due"] = None
-    elif rec_type not in (REC_TRIGGERED, REC_SENSOR):
+    elif rec_type not in (REC_TRIGGERED, REC_SENSOR, REC_FIXED):
         task["next_due"] = compute_next_due(task, now=now).isoformat()
     return task
 

@@ -44,6 +44,7 @@ from .const import (
     COMPLETION_ENTRY_FIELDS,
     MAX_IMPORT_BYTES,
     MAX_IMPORT_RECORDS,
+    REC_FIXED,
     SKIP_ENTRY_FIELDS,
     TASK_SOURCE_BUY,
     TASK_SOURCE_DECLARATIVE_COMPANION,
@@ -664,8 +665,12 @@ def apply_history(
     it was serviced seven years ago and, past 500 entries, would keep the oldest half
     of the log instead of the newest.
 
-    Completions replay through the live recurrence math, so the final one computes
-    ``next_due`` exactly as it would have. Skips are *logged* in place
+    Completions replay through the live recurrence math, so a floating task's final one
+    computes ``next_due`` exactly as it would have. A **fixed** task's schedule is
+    restated from its anchor afterwards instead: a live completion advances it past the
+    occurrence it was showing, which replayed once per entry would put an imported task
+    as many occurrences into the future as it carries history. Skips are *logged* in
+    place
     (``recurrence.record_skip``) without moving the due date: a skip from 2019 says an
     occurrence was passed over then, and running its schedule math against today's
     clock would invent a date nobody ever saw.
@@ -698,6 +703,15 @@ def apply_history(
             recurrence.apply_completion(task, when, now=now, metadata=metadata)
         else:
             recurrence.record_skip(task, when, metadata=metadata)
+    if history and task.get("recurrence_type") == REC_FIXED:
+        # A completion moves a fixed task one occurrence on — it clears the occurrence
+        # the task is showing. Right for a press today, wrong for a replay: a decade of
+        # imported history would walk the schedule a decade into the future, one step
+        # per entry. ``EXCLUDED_TASK_KEYS`` already says ``next_due`` is derived rather
+        # than carried, so restate it from the anchor once the fold is done. Guarded on
+        # *history* so an import carrying none cannot snap a stored (e.g. snoozed) due
+        # date back onto the grid.
+        task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
     return len(history), len(skips)
 
 

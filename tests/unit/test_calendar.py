@@ -306,3 +306,25 @@ def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
     assert _entity({"t_fixed": task}).event is None
     # One call to find the first occurrence, then one per bounded step.
     assert steps == 6
+
+
+def test_collect_events_keeps_the_local_hour_across_a_dst_transition():
+    """The calendar projects the anchor grid itself, so it drifts wherever the engine
+    does. A stored anchor is offset-only (an ISO string has no zone identity), and
+    Home Assistant hands ``async_get_events`` a window already through
+    ``dt_util.as_local`` — so the window is what tells the grid which zone to hold.
+    Without that, a 09:00 task would list at 08:00 for half the year and disagree with
+    its own to-do entity.
+    """
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo("America/New_York")
+    stored = datetime(2026, 6, 1, 9, tzinfo=zone).isoformat()
+    entity = _entity({"t_fixed": _fixed_task(datetime.fromisoformat(stored))})
+
+    # A window on the far side of the autumn transition, in the zone HA would pass.
+    start = datetime(2026, 11, 5, 0, tzinfo=zone)
+    end = datetime(2026, 11, 7, 0, tzinfo=zone)
+    hours = {e.start.astimezone(zone).hour for e in entity._collect_events(start, end)}
+
+    assert hours == {9}, f"occurrences drifted off 09:00 local: {sorted(hours)}"
