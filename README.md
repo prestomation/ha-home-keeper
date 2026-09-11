@@ -40,7 +40,7 @@
 | custom\_components/home\_keeper/problem\_tasks.py               |       65 |        2 |       26 |        1 |     97% |   200-201 |
 | custom\_components/home\_keeper/profiles.py                     |       91 |        1 |       42 |        1 |     98% |       125 |
 | custom\_components/home\_keeper/reconcile.py                    |      121 |        0 |       70 |        1 |     99% | 295-\>293 |
-| custom\_components/home\_keeper/recurrence.py                   |      320 |        7 |      150 |        7 |     97% |195, 262, 273, 302, 353, 446, 796 |
+| custom\_components/home\_keeper/recurrence.py                   |      324 |        7 |      150 |        7 |     97% |195, 287, 299, 332, 383, 512, 861 |
 | custom\_components/home\_keeper/resolve.py                      |       50 |        0 |       16 |        0 |    100% |           |
 | custom\_components/home\_keeper/sensor.py                       |      122 |      122 |       36 |        0 |      0% |    13-239 |
 | custom\_components/home\_keeper/sensor\_tasks.py                |      169 |        3 |       70 |        4 |     97% |134, 167-\>162, 186, 192 |
@@ -55,11 +55,11 @@
 | custom\_components/home\_keeper/todo\_list.py                   |      229 |        0 |       96 |        0 |    100% |           |
 | custom\_components/home\_keeper/todo\_list\_sync.py             |      127 |        2 |       52 |        2 |     98% |  187, 201 |
 | custom\_components/home\_keeper/todo\_sync\_driver.py           |       96 |        4 |       22 |        3 |     94% |119, 199-\>205, 225-226, 259 |
-| custom\_components/home\_keeper/transfer.py                     |      491 |        9 |      198 |        5 |     98% |237-246, 403-\>410, 625, 644, 1090-\>1089, 1206-\>1209 |
+| custom\_components/home\_keeper/transfer.py                     |      493 |        9 |      200 |        5 |     98% |238-247, 404-\>411, 626, 645, 1104-\>1103, 1220-\>1223 |
 | custom\_components/home\_keeper/transfer\_runner.py             |       43 |       43 |       14 |        0 |      0% |    13-141 |
 | custom\_components/home\_keeper/transitions.py                  |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py               |      545 |      545 |       70 |        0 |      0% |    8-1443 |
-| **TOTAL**                                                       | **8309** | **3672** | **2886** |   **99** | **57%** |           |
+| **TOTAL**                                                       | **8315** | **3672** | **2888** |   **99** | **57%** |           |
 
 
 ## Setup coverage badge
