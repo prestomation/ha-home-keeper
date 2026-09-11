@@ -167,6 +167,14 @@
   running fails instead. The gate runs the generator as a *subprocess*, because
   `tests/conftest.py` installs stub parent packages so the pure core loads without Home
   Assistant and promises nothing imports the real package in-process.
+- **A check no pull request runs needs its inputs shared with one that does.**
+  `ha-beta.yml` is a nightly and gates nothing, so its mypy lane first runs on `main`,
+  after the merge. Its dependency list was a second copy of `lint.yml`'s, and #309
+  added `types-PyYAML` to the copy a PR executes. The nightly went red for
+  `Library stubs not installed for "yaml"` and filed #320 against a Home Assistant
+  that was fine. Both lanes and `ci/setup-ci-deps.sh` now install from
+  `requirements-typing.txt`, which is the only place a mypy dependency is named. Name
+  a new stub package there.
 - **A missing test dependency fails the run; it never skips it quietly.** Every
   package `requirements-test.txt` names is imported plainly — `import hypothesis`,
   `import yaml` — so a missing one raises at collection and the run goes red.

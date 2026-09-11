@@ -176,7 +176,7 @@ jobs:
       # The cheapest early warning there is: upstream deprecations and signature
       # changes surface as type errors well before they surface as broken behaviour.
       - name: Install pre-release Home Assistant
-        run: pip install --pre mypy homeassistant Babel
+        run: pip install --pre -r requirements-typing.txt
 
       # Not `continue-on-error`: for *this* job the version under test is the whole
       # point, so a stale resolve is a real failure rather than a lost diagnostic.

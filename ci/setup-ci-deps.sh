@@ -139,6 +139,9 @@ if [ "$SKIP_PYTHON" = 1 ]; then log "SKIP    the Python packages (SKIP_PYTHON=1)
 VENV_PY=""
 vpyhas() { [ -x "$VENV/bin/python" ] && "$VENV/bin/python" -c "import $1" >/dev/null 2>&1; }
 vhas()   { [ -x "$VENV/bin/$1" ]; }
+# A stub package has no importable module of its own, so ask the metadata instead.
+vdisthas() { [ -x "$VENV/bin/python" ] && "$VENV/bin/python" -c \
+  "import importlib.metadata as m; m.version('$1')" >/dev/null 2>&1; }
 vpip() {
   if have uv; then
     uv pip install --quiet --python "$VENV/bin/python" "$@"
@@ -204,21 +207,22 @@ else
 fi
 
 if [ -x "$VENV/bin/python" ]; then
-  # lint.yml: ruff check, ruff format --check, then mypy with Home Assistant.
-  for tool in ruff mypy; do
-    if [ "$FORCE" = 0 ] && vhas "$tool"; then skip "$tool"; else
-      log "Installing $tool..."
-      vpip "$tool" && ok "$tool" || fail "$tool"
-    fi
-  done
+  # lint.yml: ruff check, then ruff format --check.
+  if [ "$FORCE" = 0 ] && vhas ruff; then skip "ruff"; else
+    log "Installing ruff..."
+    vpip ruff && ok "ruff" || fail "ruff"
+  fi
 
-  # mypy in lint.yml types against Home Assistant itself. The fixtures package
-  # above normally brings it, so this only fills a gap.
-  if [ "$FORCE" = 0 ] && vpyhas homeassistant; then
-    skip "homeassistant"
+  # lint.yml: mypy with Home Assistant. Both mypy lanes read requirements-typing.txt,
+  # so the local run checks what CI checks -- stub packages included. Installing a
+  # bare mypy here left `mypy custom_components/home_keeper` reporting the missing
+  # yaml stubs, which reads as a broken machine rather than a real error.
+  if [ "$FORCE" = 0 ] && vhas mypy && vpyhas homeassistant && vdisthas types-PyYAML; then
+    skip "requirements-typing.txt"
   else
-    log "Installing homeassistant..."
-    vpip homeassistant && ok "homeassistant" || fail "homeassistant"
+    log "Installing requirements-typing.txt..."
+    vpip -r requirements-typing.txt && ok "requirements-typing.txt" \
+      || fail "requirements-typing.txt"
   fi
 
   # mutation.yml pins this version of mutmut. Keep the pin.

@@ -31,12 +31,11 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      # Install Home Assistant so its own types resolve — strict typing against the
-      # real HA API is the Platinum quality-scale gate (quality_scale.yaml). Also
-      # install the integration's own runtime requirements (manifest.json) so their
-      # imports resolve too.
+      # requirements-typing.txt is the one list of what a mypy lane installs, and
+      # says why each entry is there. The nightly lane in ha-beta.yml reads the same
+      # file, because a list copied into a workflow no PR runs drifts unnoticed.
       - name: Install mypy + Home Assistant + integration requirements
-        run: pip install mypy homeassistant Babel types-PyYAML
+        run: pip install -r requirements-typing.txt
       - name: Report and verify the Home Assistant version being checked
         run: python ci/check-ha-version.py
       - name: Mypy (strict typing)

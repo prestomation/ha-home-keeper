@@ -648,9 +648,15 @@ the Home Assistant unit lane then test an older API than CI does.
   (`manifest.json` `quality_scale`; per-rule ledger in
   `custom_components/home_keeper/quality_scale.yaml`). `lint.yml` runs `mypy` against
   the integration with Home Assistant installed — keep it error-free, and run it
-  locally (`pip install mypy homeassistant && mypy custom_components/home_keeper`)
+  locally (`pip install -r requirements-typing.txt && mypy custom_components/home_keeper`)
   before pushing. User-facing exceptions must be localized (translation keys under
   `strings.json` → `exceptions`); see `.amazonq/rules/`.
+- **`requirements-typing.txt` is the only place a mypy dependency is named.**
+  `lint.yml`, `ha-beta.yml` and `ci/setup-ci-deps.sh` all install from it. A new
+  third-party import needs its stub package added there, or mypy fails with
+  `Library stubs not installed`. Adding it to one workflow is what broke the nightly
+  in #320: `ha-beta.yml` runs on a schedule, so no PR executes its mypy lane, and a
+  list that drifts there stays green through review and goes red on `main`.
 
 ## CI
 
@@ -666,7 +672,9 @@ the Home Assistant unit lane then test an older API than CI does.
 - `e2e.yml` — Docker + Playwright; uploads the Playwright report on failure.
 - `ha-beta.yml` — **nightly early warning**, gates nothing. Runs integration, e2e and
   the upgrade suite against `HA_TAG=beta`, plus mypy against a pre-release HA, and
-  files/updates a single `ha-beta-regression` issue on failure.
+  files/updates a single `ha-beta-regression` issue on failure. **No PR runs it**, so
+  every input it needs comes from a file a PR lane reads too — see
+  `requirements-typing.txt` above.
 - `pytest_coverage.yml` + `post_coverage_to_pr.yml` — coverage comment on PRs.
 - `release.yml` — PR-merge-driven release (see RELEASE.md). Its `notify-issues` job
   tells every issue the version fixes which release carries the fix, and closes them

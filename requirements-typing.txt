@@ -1,0 +1,15 @@
+# What every mypy lane installs. lint.yml (the gate on each PR), ha-beta.yml (the
+# nightly against a pre-release Home Assistant) and ci/setup-ci-deps.sh (the local
+# .venv) all read this file. Name a new dependency here, never in one workflow: the
+# nightly lane runs on a schedule, so a list that drifts there stays green through
+# every PR and goes red on main. That is how #320 shipped.
+#
+# A third-party import that ships no types needs its stub package in this file.
+mypy
+# Home Assistant itself, so its own types resolve. Strict typing against the real
+# Home Assistant API is the Platinum quality-scale gate (quality_scale.yaml).
+homeassistant
+# The integration's own runtime requirements (manifest.json), so their imports resolve.
+Babel
+# transfer.py imports yaml inside _yaml_pair().
+types-PyYAML
