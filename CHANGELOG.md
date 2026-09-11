@@ -6,6 +6,31 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.23.0] - 2026-09-11
+
+### Added
+
+- **[Import and export](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  Settings has a new *Import and export* card that saves every task and appliance to
+  one YAML file, and reads one back. Move to a new Home Assistant, or bring years of
+  history in from another system. (Fixes #308)
+- **[Published document schema](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export#the-file).**
+  The import and export format has a JSON Schema on the documentation site. Every
+  export names it, so an editor checks the file and completes the field names as you
+  write.
+- **[External IDs](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export#how-a-record-finds-its-match).**
+  Give a task or an appliance an `external_id` of your choice. An import matches on
+  it, so running a migration script twice updates your records instead of copying
+  them.
+
+### Fixed
+
+- **Notification triggers.** A notification now states which tasks its profile
+  selects. The 2 automatic switches are grouped as Triggers, which set the moment a
+  notification is sent rather than its contents. (Fixes #313)
+- **Fully managed tasks.** A task whose companion sets every field no longer shows
+  Edit. The page names the companion instead.
+
 ## [0.23.0b2]
 
 ### Fixed

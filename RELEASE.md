@@ -36,6 +36,36 @@ the GitHub release automatically. No manual `git tag` step.
 3. **HACS picks it up** via `hacs.json` (`zip_release: true`, `filename:
    home_keeper.zip`).
 
+### Link the docs from every feature bullet
+
+An `### Added` bullet writes its bold lead as a Markdown link to the page that
+documents the feature:
+
+```markdown
+- **[Import and export](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  Settings has a new *Import and export* card that saves every task and appliance to
+  one YAML file, and reads one back.
+```
+
+- **Why the lead.** `summarize()` in `ci/release-issues.py` quotes only the bold lead
+  into the comment the issue reporter gets, so a linked lead carries the docs link
+  into that comment too. A link also costs nothing against the three-sentence bullet
+  budget.
+- **Use the absolute site URL.** The bullet is read on GitHub and in the release body,
+  not only in the repository, so a relative path does not resolve.
+- **Finding the URL.** A User Guide page is
+  `https://prestomation.github.io/ha-home-keeper/docs/guide/<slug>`, where `<slug>` is
+  the README section's `USER_SECTIONS` entry in `website/scripts/doc-map.mjs`. A
+  deeper anchor is that page plus the heading slug. A Developer Guide page is
+  `https://prestomation.github.io/ha-home-keeper/developer/<name>`, from `DOC_ROUTES`
+  in the same file.
+- **A new page 404s until the release ships, and that is correct.**
+  `docs-deploy.yml` publishes the site when a stable GitHub Release is published, so
+  the page and the bullet that links it go live in the same step. Check the shape of
+  the URL against a page that already exists rather than the new one.
+- `### Fixed` and `### Changed` bullets may link the same way when a page covers the
+  change. They do not have to.
+
 ## Issue notifications
 
 An issue closes when its fix **ships**, not when its PR merges. A merged PR is not in
