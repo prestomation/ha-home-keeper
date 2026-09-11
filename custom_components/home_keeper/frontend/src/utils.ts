@@ -721,9 +721,28 @@ export function statusChipHtml(
   hass?: Hass,
   opts: { elapsed?: boolean; now?: Date } = {},
 ): string {
+  const { label, cls } = statusInfo(task, hass, opts);
+  return `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
+}
+
+/** The plain-text equivalent of `statusChipHtml`'s label, with no markup — for an
+ *  `aria-label` or anywhere else a chip's color can't stand in for its meaning. */
+export function statusText(
+  task: Task,
+  hass?: Hass,
+  opts: { elapsed?: boolean; now?: Date } = {},
+): string {
+  return statusInfo(task, hass, opts).label;
+}
+
+/** The label and chip class `statusChipHtml`/`statusText` share, so the two can never
+ *  disagree about what a task's status says. */
+function statusInfo(
+  task: Task,
+  hass?: Hass,
+  opts: { elapsed?: boolean; now?: Date } = {},
+): { label: string; cls: string } {
   const now = opts.now ?? new Date();
-  const chip = (label: string, cls = '') =>
-    `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
   // "Low stock" answers an *open* reminder. A reminder that was bought while the part
   // stayed under its reorder point keeps its row — the reconciler only retires it once
   // the stock is back up — and that row belongs to the Completed section, which is
@@ -732,13 +751,13 @@ export function statusChipHtml(
   // Completed must not carry a chip arguing it is still outstanding.
   const boughtAlready =
     task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-  if (isBuyTask(task) && !boughtAlready) return chip(t('chip.lowStock'), 'hk-shopping');
-  if (!isOverdue(task, now)) return chip(dueLabel(task, now, hass));
+  if (isBuyTask(task) && !boughtAlready) return { label: t('chip.lowStock'), cls: 'hk-shopping' };
+  if (!isOverdue(task, now)) return { label: dueLabel(task, now, hass), cls: '' };
   const days = task.next_due
     ? Math.floor((now.getTime() - new Date(task.next_due).getTime()) / 86_400_000)
     : 0;
   const label = opts.elapsed && days >= 1 ? tn('due.overdue_by', days) : t('chip.overdue');
-  return chip(label, 'hk-overdue');
+  return { label, cls: 'hk-overdue' };
 }
 
 /**

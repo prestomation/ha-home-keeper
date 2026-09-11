@@ -32,6 +32,14 @@ export interface DeclarativeDialogState {
 /** What the inline notes editor on a detail page is currently editing. */
 export type NoteTarget = { kind: 'task' | 'asset'; id: string };
 
+/** The minimal task grid's quick-actions popup (Done / Skip / Snooze / View
+ *  details) — a tap on a minimal card opens this; a press-and-hold opens the
+ *  task's detail page directly instead (see `panel-lists.ts`). */
+export interface QuickActionsState {
+  open: boolean;
+  task: Task | null;
+}
+
 export interface EditState {
   open: boolean;
   task: Partial<Task> | null;

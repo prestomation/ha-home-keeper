@@ -50,6 +50,7 @@ import {
   showsUsageIntervals,
   sortedCompletions,
   statusChipHtml,
+  statusText,
   taskRecordsReading,
   assetForTask,
   assetsForTask,
@@ -509,6 +510,26 @@ describe('statusChipHtml', () => {
     );
     expect(html).toContain('&quot; onload=&quot;x');
     expect(html).not.toContain('" onload="x');
+  });
+});
+
+describe('statusText', () => {
+  // The plain-text sibling `statusChipHtml` wraps into a chip — used for an
+  // aria-label, where a colored chip can't stand in for its meaning. Same cases,
+  // read as the bare label rather than parsed out of the chip's markup.
+  const now = new Date('2026-06-13T12:00:00Z');
+  const buy = {
+    recurrence_type: 'one-off',
+    next_due: '2026-06-10T12:00:00Z',
+    source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+  };
+
+  it('agrees with statusChipHtml on every case', () => {
+    expect(statusText(buy, undefined, { now })).toBe('Low stock');
+    const late = { next_due: '2026-06-10T12:00:00Z' };
+    expect(statusText(late, undefined, { now })).toBe('Overdue');
+    expect(statusText(late, undefined, { now, elapsed: true })).toBe('3 days overdue');
+    expect(statusText({ next_due: '2026-06-14T12:00:00Z' }, undefined, { now })).toBe('tomorrow');
   });
 });
 

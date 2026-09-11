@@ -228,6 +228,23 @@ these tasks and shows the owner when pressed. This applies to:
 
 ![A task's page with Duplicate beside Edit, and the create form open in the drawer prefilled with a copy](docs/images/56-panel-task-duplicate-drawer.png)
 
+### Minimal layout
+
+Turn on **Minimal layout** in **Settings → General** to show the task list as a
+compact, 2-column grid instead of rows. Each card shows only the task's name and its
+status. The setting is per-user, so it follows you to another browser or device
+without changing the layout for anyone else who opens the panel.
+
+![The Settings tab's General card with the Minimal layout switch turned on](docs/images/59-panel-settings-minimal-layout.png)
+
+![The task list as a 2-column grid, each card showing only a name and a status](docs/images/59b-panel-task-minimal-grid.png)
+
+Tap a card to open a popup with **Done**, **Skip**, **Snooze**, and **View details**.
+Press and hold a card to open its detail page directly, the same page a row opens on
+the standard list.
+
+![The quick-actions popup open over a minimal-layout card, listing Done, Skip, Snooze, and View details](docs/images/59c-panel-task-minimal-actions.png)
+
 
 
 
@@ -1423,7 +1440,8 @@ through the `home_keeper.set_options` service.
 
 The tab has 7 sections:
 
-- **General** sets how long completed one-off tasks are kept.
+- **General** sets how long completed one-off tasks are kept, and has the per-user
+  [Minimal layout](#minimal-layout) switch.
 - **Shopping list** selects the to-do list that
   [buy reminders are synced to](#send-buy-reminders-to-your-shopping-list).
 - **Profiles** holds the saved filters. See

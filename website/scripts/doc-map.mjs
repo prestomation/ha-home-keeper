@@ -142,6 +142,9 @@ export const ANCHOR_ROUTES = {
   '#notes-are-markdown': '/docs/guide/markdown-notes',
   // The "Companions" subsection lives under the Settings section (→ settings page).
   '#companions': '/docs/guide/settings#companions',
+  // The Settings section's General bullet links across to the "Minimal layout"
+  // subsection, which lives under Getting around the panel (→ panel page).
+  '#minimal-layout': '/docs/guide/panel#minimal-layout',
   '#notifications-actionable-reminders-on-your-phone': '/docs/guide/notifications',
   '#profiles-saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
   // The Settings section links across to the to-do list sync section (→ todo-sync page).

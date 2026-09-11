@@ -42,6 +42,7 @@ import {
   openPart,
   openSettingsSection,
   openTaskTab,
+  setMinimalLayout,
 } from './tests/helpers';
 import { ASSET, PART, TASK } from './fixture-ids';
 import { DESKTOP, PHONE, Viewport } from './viewports';
@@ -196,6 +197,26 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT * 3);
   await panel.locator('.hk-search-clear').click();
   await expect(searchBox).toHaveValue('');
+  await page.waitForTimeout(BEAT);
+
+  // 1f. Minimal layout (Settings → General) — a compact 2-column grid, tap for
+  //     quick actions, press and hold for details.
+  await setMinimalLayout(page, true);
+  await openPanel(page);
+  await expect(panel.locator('.hk-minimal-grid').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  const minimalCard = panel.locator('.hk-card-minimal').first();
+  await minimalCard.click();
+  // Not `expect(dialog).toBeVisible()`: the `ha-dialog` host is a zero-size
+  // wrapper (its content renders through an internal, slotted `wa-dialog`), so
+  // every dialog check in this file asserts on a descendant instead.
+  await expect(page.locator('ha-dialog[open] .hk-quick-row').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
+  await setMinimalLayout(page, false);
+  await openPanel(page);
+  await expect(panel.locator('.hk-card-minimal')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
   // 2. Open a task's detail page — full schedule, notes, completion history, and

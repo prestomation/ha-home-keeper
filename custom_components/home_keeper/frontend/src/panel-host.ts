@@ -36,6 +36,7 @@ import type {
   GroupBy,
   MoveCompletionDialogState,
   NoteTarget,
+  QuickActionsState,
   TaskFilter,
   TransferState,
 } from './panel-types';
@@ -188,6 +189,9 @@ export interface PanelHost extends HTMLElement {
       computeHelper?: (s: { name: string }) => string;
     },
   ): HaFormElement;
+  /** Whether the task dashboard shows the minimal 2-column grid instead of the
+   *  standard list (see `_setMinimalLayout`). */
+  _minimalLayout: boolean;
   /** Navigate within the panel; `replace` for a lateral move that Back should skip. */
   _navigate(loc: PanelLocation, replace?: boolean): void;
   /** A detail page's Notes card contents — rendered Markdown, or the inline editor. */
@@ -228,6 +232,8 @@ export interface PanelHost extends HTMLElement {
   /** The text both lists filter on ('' = no text filter). Session-only: it is not
    *  persisted, so every panel load starts with the whole list. */
   _query: string;
+  /** The minimal task grid's quick-actions popup state. */
+  _quickActions: QuickActionsState;
   /** Reload every collection from the backend and re-render. */
   _refresh(): Promise<void>;
   /** Reload every collection from the backend *without* re-rendering — for a save that
@@ -249,6 +255,8 @@ export interface PanelHost extends HTMLElement {
   _setAssetView(value: AssetView): void;
   _setFilter(value: TaskFilter): void;
   _setGroupBy(value: GroupBy): void;
+  /** Switch the task dashboard between the standard list and the minimal grid. */
+  _setMinimalLayout(value: boolean): void;
   _setProfile(value: string): void;
   /** Set the text filter. Patches the list in place instead of re-rendering, because
    *  a rebuilt shadow tree replaces the box the reader is typing in. */

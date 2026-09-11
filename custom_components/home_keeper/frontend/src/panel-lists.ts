@@ -30,7 +30,8 @@ import {
   renderGroups,
   scopeMatches,
 } from './panel-controls';
-import { deferMenu } from './panel-defer';
+import { makeDialog } from './dialogs';
+import { deferMenu, openSkip, openSnooze, verbsFor } from './panel-defer';
 import type { PanelHost } from './panel-host';
 import { TASK_CARD_INLINE_CHIPS } from './panel-styles';
 import { LS_TREE_COLLAPSED } from './panel-types';
@@ -49,10 +50,17 @@ import {
   isOverdue,
   recurrenceSummary,
   scanRequired,
+  setBtnWeight,
   statusChipHtml,
+  statusText,
   toast,
   type AssetTreeEntry,
 } from './utils';
+
+/** A press held at least this long counts as a long-press (opens the task's
+ *  details) rather than a tap (opens the quick-actions popup) — same threshold
+ *  the dashboard card uses for its own press-and-hold (see `card.ts`). */
+const MINIMAL_LONG_PRESS_MS = 500;
 
 /** One-time orientation banner that explains the kinds of tasks a newcomer will see
  *  mixed in the list. Dismissed permanently, server-side per-user (see
@@ -118,8 +126,12 @@ export function tasksList(p: PanelHost): string {
           )}</ha-button>`;
     return `${intro}<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}${showAll}</ha-alert>`;
   }
-  return `${intro}${orphanBanner(p)}${renderGroups(p, groupTasks(p, tasks, now), (task) =>
-    taskCard(p, task),
+  const renderItem = p._minimalLayout ? (task: Task) => taskCardMinimal(p, task) : (task: Task) => taskCard(p, task);
+  return `${intro}${orphanBanner(p)}${renderGroups(
+    p,
+    groupTasks(p, tasks, now),
+    renderItem,
+    p._minimalLayout ? 'hk-minimal-grid' : '',
   )}`;
 }
 
@@ -317,6 +329,142 @@ function taskCard(p: PanelHost, task: Task): string {
       </ha-card>`;
 }
 
+/**
+ * The minimal task grid's card: the name (one line, ellipsis) and the status pill,
+ * nothing else. A tap opens the quick-actions popup (`renderQuickActions`); a
+ * press-and-hold opens the detail page directly, the same page the standard
+ * list's row opens on a plain click — see `wireMinimalGrid`.
+ */
+function taskCardMinimal(p: PanelHost, task: Task): string {
+  // No overdue left-rail here (unlike the standard row): the status pill alone
+  // carries that, so a card stays a plain, evenly-rounded grid tile.
+  const statusChip = statusChipHtml(task, p._hass, { elapsed: true });
+  const aria = escapeHTML(
+    t('tasks.minimalCardAria', { name: task.name, status: statusText(task, p._hass, { elapsed: true }) }),
+  );
+  return `
+      <ha-card class="hk-card hk-card-minimal" data-id="${escapeHTML(
+        task.id,
+      )}" role="button" tabindex="0" aria-label="${aria}">
+        <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
+        <div class="hk-status">${statusChip}</div>
+      </ha-card>`;
+}
+
+/** Open the minimal grid's quick-actions popup for *task*. */
+export function openQuickActions(p: PanelHost, task: Task): void {
+  p._quickActions = { open: true, task };
+  p._render();
+}
+
+/** Close the quick-actions popup. */
+export function closeQuickActions(p: PanelHost): void {
+  p._quickActions = { open: false, task: null };
+  p._render();
+}
+
+/**
+ * Build the quick-actions popup into *host*: Mark done / Skip / Snooze / View
+ * details, in that order — the same verbs and guards the standard row's Done
+ * split button and `.detail-open` already use, so the minimal card never offers
+ * an action the row wouldn't.
+ */
+export function renderQuickActions(p: PanelHost, host: HTMLElement): void {
+  const task = p._quickActions.task;
+  if (!task) return;
+  const { dialog, body, footer, mount } = makeDialog(task.name, () => {
+    if (p._quickActions.open) closeQuickActions(p);
+  });
+  body.classList.add('hk-quick-actions');
+
+  const row = (icon: string, label: string, onClick: () => void): void => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'hk-quick-row';
+    btn.innerHTML = `<ha-icon icon="${escapeHTML(icon)}"></ha-icon><span>${escapeHTML(label)}</span>`;
+    btn.addEventListener('click', () => {
+      closeQuickActions(p);
+      onClick();
+    });
+    body.appendChild(btn);
+  };
+
+  // Same guards as the row's Done: hidden for a task with nothing to complete,
+  // an explain-on-tap for one whose source clears it or that is scan-locked.
+  const dormant = isMonitoredDormant(task);
+  const completedOneOff =
+    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  if (!dormant && !completedOneOff) {
+    const blocked = Boolean(task.managed_by?.completion_blocked) || scanRequired(task);
+    row('mdi:check-circle-outline', t('btn.done'), () => {
+      if (blocked) p._notifyBlocked(task);
+      else void p._complete(task);
+    });
+  }
+  const verbs = verbsFor(p, task);
+  if (verbs.skip) row('mdi:skip-next-outline', t('btn.skip'), () => openSkip(p, task));
+  if (verbs.snooze) row('mdi:clock-outline', t('btn.snooze'), () => openSnooze(p, task));
+  row('mdi:open-in-new', t('btn.viewDetails'), () => p._openDetail('task', task.id));
+
+  const cancel = document.createElement('ha-button');
+  cancel.setAttribute('slot', 'secondaryAction');
+  setBtnWeight(cancel, 'tertiary');
+  cancel.textContent = t('btn.cancel');
+  cancel.addEventListener('click', () => closeQuickActions(p));
+  footer.appendChild(cancel);
+
+  mount();
+  host.appendChild(dialog);
+}
+
+/**
+ * Wire the minimal grid's cards: a tap opens the quick-actions popup, a
+ * press-and-hold (or a mouse click-and-hold) opens the task's detail page
+ * instead. Mirrors the dashboard card's own press-and-hold timing and the
+ * pointer-event set it cancels on (`card.ts`) — no `pointermove` cancel, since a
+ * finger never holds perfectly still, and a real scroll sends `pointercancel`.
+ */
+export function wireMinimalGrid(p: PanelHost, root: ParentNode): void {
+  root.querySelectorAll<HTMLElement>('.hk-card-minimal').forEach((card) => {
+    let timer: number | undefined;
+    let longPressed = false;
+    const cancelTimer = (): void => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = undefined;
+      card.classList.remove('hk-pressing');
+    };
+    card.addEventListener('pointerdown', () => {
+      longPressed = false;
+      card.classList.add('hk-pressing');
+      timer = window.setTimeout(() => {
+        longPressed = true;
+        card.classList.remove('hk-pressing');
+        const task = p._tasks.find((x) => x.id === card.dataset.id);
+        if (task) p._openDetail('task', task.id);
+      }, MINIMAL_LONG_PRESS_MS);
+    });
+    for (const evt of ['pointerup', 'pointerleave', 'pointercancel']) {
+      card.addEventListener(evt, cancelTimer);
+    }
+    const activate = (): void => {
+      if (longPressed) {
+        longPressed = false;
+        return;
+      }
+      const task = p._tasks.find((x) => x.id === card.dataset.id);
+      if (task) openQuickActions(p, task);
+    };
+    card.addEventListener('click', activate);
+    card.addEventListener('keydown', (e) => {
+      const key = (e as KeyboardEvent).key;
+      if (key === 'Enter' || key === ' ') {
+        e.preventDefault();
+        activate();
+      }
+    });
+  });
+}
+
 function assetCard(p: PanelHost, x: Asset, depth = 0, isLast = false, toggleId = ''): string {
   const kindChip =
     x.kind === 'virtual'
@@ -459,6 +607,7 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
     );
     // One caret per row, each resolving its own task.
     p._wireDeferMenus(root);
+    if (p._minimalLayout) wireMinimalGrid(p, root);
     root.querySelectorAll<HTMLElement>('.hk-intro-dismiss').forEach((b) =>
       b.addEventListener('click', () => {
         p._introDismissed = true;

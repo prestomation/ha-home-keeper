@@ -165,6 +165,27 @@ export async function setIntroDismissed(hass: Hass): Promise<void> {
   });
 }
 
+const MINIMAL_LAYOUT_KEY = 'home_keeper_minimal_layout';
+
+/** Whether the current user has switched the task dashboard to the minimal 2-column
+ *  grid — stored the same way as `getIntroDismissed`, so it follows the user across
+ *  browsers/devices rather than being pinned to one. */
+export async function getMinimalLayout(hass: Hass): Promise<boolean> {
+  const res = await hass.callWS<{ value: boolean | null }>({
+    type: 'frontend/get_user_data',
+    key: MINIMAL_LAYOUT_KEY,
+  });
+  return res.value === true;
+}
+
+export async function setMinimalLayout(hass: Hass, value: boolean): Promise<void> {
+  await hass.callWS({
+    type: 'frontend/set_user_data',
+    key: MINIMAL_LAYOUT_KEY,
+    value,
+  });
+}
+
 export async function addTask(hass: Hass, task: Partial<Task>): Promise<Task> {
   const res = await hass.callWS<{ task: Task }>({
     type: 'home_keeper/add_task',

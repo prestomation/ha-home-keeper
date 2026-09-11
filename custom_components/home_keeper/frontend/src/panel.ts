@@ -35,7 +35,7 @@ import {
 } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { REQUIRED_COMPONENTS } from './panel-icons';
-import { assetsList, tasksList, wireLists } from './panel-lists';
+import { assetsList, renderQuickActions, tasksList, wireLists } from './panel-lists';
 import {
   settingsBackbar,
   settingsIndex,
@@ -62,6 +62,7 @@ import {
   type GroupBy,
   type MoveCompletionDialogState,
   type NoteTarget,
+  type QuickActionsState,
   type TaskFilter,
   type TransferState,
 } from './panel-types';
@@ -142,6 +143,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   };
   _snooze: SnoozeState = emptySnoozeState();
   _skip: SkipState = emptySkipState();
+  _quickActions: QuickActionsState = { open: false, task: null };
   // The open deferral menu and the document handlers dismissing it. One at a time:
   // opening a second closes the first, so this never holds a stale pair.
   private readonly _deferMenus = new DeferMenus({
@@ -252,6 +254,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // Whether the current user has dismissed the first-run intro banner — loaded from
   // HA's per-user frontend data store in `_reload` (see `_introCard`).
   _introDismissed = false;
+  // Whether the current user has switched the task dashboard to the minimal
+  // 2-column grid — same per-user store as `_introDismissed`, but read/write (see
+  // `_setMinimalLayout`) rather than write-once.
+  _minimalLayout = false;
   // In-flight refresh, shared by overlapping callers. Both `set hass` (first update)
   // and `_init` gate on `!this._loaded`, and `_loaded` only flips true after the awaited
   // reload — so without coalescing they can pass the check and run two concurrent full
@@ -623,6 +629,21 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (!this._applyQuery()) this._render();
   }
 
+  /** Switch the task dashboard between the standard list and the minimal 2-column
+   *  grid. Optimistic: flips the state and re-renders immediately, then persists
+   *  best-effort — a failed save just means the choice doesn't follow to another
+   *  device, not that it silently reverts here. */
+  _setMinimalLayout(value: boolean): void {
+    if (this._minimalLayout === value) return;
+    this._minimalLayout = value;
+    this._render();
+    if (this._hass) {
+      void api.setMinimalLayout(this._hass, value).catch(() => {
+        // best-effort — see above.
+      });
+    }
+  }
+
   /** Pick a saved Profile to drive the task-list filter (''/none clears it). */
   _setProfile(value: string): void {
     if (this._profile === value) return;
@@ -746,6 +767,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         companions,
         declarativeCompanions,
         introDismissed,
+        minimalLayout,
         tags,
       ] = await Promise.all([
         api.getTasks(this._hass),
@@ -759,6 +781,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
           [] as DeclarativeCompanion[],
         ),
         this._soft(api.getIntroDismissed(this._hass), false),
+        this._soft(api.getMinimalLayout(this._hass), this._minimalLayout),
         // Best-effort: the tag registry is a convenience for the picker and the
         // chip label, never a precondition for the panel loading.
         this._soft(api.getTags(this._hass), [] as { value: string; label: string }[]),
@@ -773,6 +796,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._companions = companions ?? [];
       this._declarativeCompanions = declarativeCompanions ?? [];
       this._introDismissed = introDismissed;
+      this._minimalLayout = minimalLayout;
       this._tags = tags;
       // Drop a remembered Profile filter that no longer exists (deleted since), so the
       // Tasks-tab dropdown and the stored id can't disagree.
@@ -1919,6 +1943,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (dialogHost && this._moveCompletion.open) renderMoveCompletionDialog(this, dialogHost);
     if (dialogHost && this._snooze.open) renderSnooze(this, dialogHost);
     if (dialogHost && this._skip.open) renderSkip(this, dialogHost);
+    if (dialogHost && this._quickActions.open) renderQuickActions(this, dialogHost);
     if (dialogHost && this._declDialog.open) renderDeclarativeDialog(this, dialogHost);
     // renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 

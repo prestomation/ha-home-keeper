@@ -106,6 +106,33 @@ export async function todoSummaries(): Promise<string[]> {
 }
 
 /**
+ * Set the per-user minimal-layout preference directly through the live `hass`,
+ * the same server-side per-user store `frontend/set_user_data` backs (see the
+ * panel's `api.ts`). The e2e suite shares one HA container and one authenticated
+ * user across every spec and capture harness, so anything that turns this on
+ * must always turn it back off — this is what both do, without going through
+ * the Settings UI (which would fail if the panel has since navigated away from
+ * the switch).
+ *
+ * Requires a page that has already loaded some HA view at least once — `hass`
+ * lives on the `<home-assistant>` element, which a brand-new blank page has not
+ * mounted yet. Throws rather than silently no-op-ing if it isn't there, since a
+ * swallowed failure here means the layout was never actually toggled and every
+ * assertion after it fails somewhere confusing instead.
+ */
+export async function setMinimalLayout(page: Page, value: boolean): Promise<void> {
+  await page.evaluate(async (v) => {
+    const hass = (
+      document.querySelector('home-assistant') as unknown as {
+        hass?: { callWS: (m: unknown) => Promise<unknown> };
+      }
+    )?.hass;
+    if (!hass) throw new Error('setMinimalLayout: no `hass` yet — open an HA page first');
+    await hass.callWS({ type: 'frontend/set_user_data', key: 'home_keeper_minimal_layout', value: v });
+  }, value);
+}
+
+/**
  * Navigate to the Home Keeper panel and wait for the custom element to upgrade.
  * The element renders into its shadow root, so we wait for it to be attached.
  */

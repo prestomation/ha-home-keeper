@@ -407,9 +407,15 @@ export function renderGroups<T>(
   p: PanelHost,
   groups: Group<T>[],
   renderItem: (item: T) => string,
+  // Applied to each group's item container (and the ungrouped fallback below) —
+  // the minimal task grid uses this to lay a group's cards out as a 2-column
+  // grid instead of the default stacked rows. Every other caller leaves it unset.
+  itemsClass = '',
 ): string {
   if (groups.length === 1 && !groups[0].label) {
-    return groups[0].items.map(renderItem).join('');
+    return itemsClass
+      ? `<div class="${escapeHTML(itemsClass)}">${groups[0].items.map(renderItem).join('')}</div>`
+      : groups[0].items.map(renderItem).join('');
   }
   return groups
     .map((g) => {
@@ -432,7 +438,7 @@ export function renderGroups<T>(
             <span class="hk-group-rule" aria-hidden="true"></span>
             <span class="hk-group-toggle" aria-hidden="true"></span>
           </summary>
-          <div class="hk-group-body">${g.items.map(renderItem).join('')}</div>
+          <div class="hk-group-body${itemsClass ? ` ${escapeHTML(itemsClass)}` : ''}">${g.items.map(renderItem).join('')}</div>
         </details>`;
     })
     .join('');

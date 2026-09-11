@@ -291,16 +291,20 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
     allow_skip: true,
   };
   // General — settings independent of any single feature (e.g. one-off retention).
-  host.appendChild(
-    settingsCard(
-      p,
-      'hk-settings-general',
-      'settings.general_heading',
-      'settings.general_help',
-      generalSchema(),
-      opts,
-    ),
+  const generalCard = settingsCard(
+    p,
+    'hk-settings-general',
+    'settings.general_heading',
+    'settings.general_help',
+    generalSchema(),
+    opts,
   );
+  // The minimal-layout switch is a per-user browser preference (see `api.ts`'s
+  // `getMinimalLayout`/`setMinimalLayout`), not an integration option, so it rides
+  // beside the General card's `ha-form` rather than being one of its fields —
+  // there is no `HomeKeeperOptions` key for it to autosave through.
+  generalCard.querySelector('.hk-form-inner')?.appendChild(minimalLayoutRow(p));
+  host.appendChild(generalCard);
   // Shopping list — where auto-buy reminders are mirrored.
   host.appendChild(
     settingsCard(
@@ -348,6 +352,29 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
       opts,
     ),
   );
+}
+
+/**
+ * The "Minimal layout" switch appended to the General card. A plain `ha-switch`
+ * rather than an `ha-form` field: it is stored per-user via `api.setMinimalLayout`
+ * (HA's own frontend user-data, the same mechanism the intro banner's dismissal
+ * uses), not through the autosaving options form the rest of the card is built
+ * from.
+ */
+function minimalLayoutRow(p: PanelHost): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'hk-switch-row';
+  row.innerHTML = `
+      <div class="hk-switch-row-text">
+        <div class="hk-switch-row-label">${escapeHTML(t('settings.minimal_layout'))}</div>
+        <div class="hk-switch-row-help">${escapeHTML(t('settings.minimal_layout_help'))}</div>
+      </div>`;
+  const sw = document.createElement('ha-switch') as HTMLElement & { checked: boolean };
+  sw.checked = p._minimalLayout;
+  sw.setAttribute('aria-label', t('settings.minimal_layout'));
+  sw.addEventListener('change', () => p._setMinimalLayout(sw.checked));
+  row.appendChild(sw);
+  return row;
 }
 
 /** Build one autosaving Settings card: a titled `ha-card` wrapping an `ha-form`
