@@ -1800,3 +1800,50 @@ def test_an_exported_document_round_trips_a_name_that_looks_like_a_boolean():
     plan = _plan(text)
     assert plan.ok, _errors(plan)
     assert plan.records[0].payload["name"] == "no"
+
+
+def test_replaying_history_does_not_walk_a_fixed_schedule_forward():
+    # A completion moves a fixed task one occurrence on, which is right for a press
+    # today and wrong for a replay: three imported completions would otherwise land the
+    # task three days into the future. ``next_due`` is excluded from the document
+    # because it is derived, so the import restates it from the anchor.
+    doc = _doc(
+        tasks=[
+            {
+                "name": "Bin day",
+                "recurrence_type": "fixed",
+                "freq": "DAILY",
+                "interval": 1,
+                # Later in the day than NOW, so the schedule is the shape that drifts.
+                "anchor": "2026-06-13T18:00:00-04:00",
+                "history": [
+                    {"completed_at": "2026-06-10T18:00:00-04:00"},
+                    {"completed_at": "2026-06-11T18:00:00-04:00"},
+                    {"completed_at": "2026-06-12T18:00:00-04:00"},
+                ],
+            }
+        ]
+    )
+    task = _plan(doc).records[0].payload
+    assert task["next_due"] == "2026-06-13T18:00:00-04:00"
+    assert len(task["completions"]) == 3
+
+
+def test_an_import_with_no_history_leaves_a_fixed_task_where_it_was():
+    # Only a replayed completion can drag the schedule. With none in the document the
+    # stored due date stands, so a snoozed task stays snoozed through an import.
+    stored = _task(
+        name="Bin day",
+        recurrence_type="fixed",
+        freq="DAILY",
+        interval=1,
+        anchor="2026-06-13T18:00:00-04:00",
+    )
+    stored["next_due"] = "2026-06-20T18:00:00-04:00"  # snoozed a week out
+    plan = _plan(
+        _doc(tasks=[{"name": "Bin day", "notes": "Green bin"}]),
+        tasks={stored["id"]: stored},
+    )
+    (record,) = plan.records
+    assert record.action == "update"
+    assert record.payload["next_due"] == "2026-06-20T18:00:00-04:00"

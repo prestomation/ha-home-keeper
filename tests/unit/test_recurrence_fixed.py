@@ -176,3 +176,140 @@ def test_remove_completion_keeps_fixed_schedule():
     assert task["last_completed"] is None
     # Fixed schedule is independent of completions: next occurrence after now.
     assert task["next_due"] == datetime(2026, 6, 14, 8, tzinfo=tz).isoformat()
+
+
+def test_completing_before_the_time_of_day_moves_to_the_next_occurrence():
+    # Regression (#331): a DAILY task anchored at 10:00 and marked done at 09:00 used
+    # to stay due at 10:00 *today*. The schedule advanced past ``now``, which is still
+    # before the occurrence the task was showing, so it landed straight back on that
+    # occurrence and the completion read as though it had done nothing. An anchor late
+    # in the evening was unusable this way for nearly the whole day.
+    anchor = dt(2026, 9, 8, 10)
+    now = dt(2026, 9, 8, 9)
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": anchor.isoformat(),
+        "next_due": anchor.isoformat(),
+        "completions": [],
+    }
+    r.apply_completion(task, now, now=now)
+    assert task["next_due"] == dt(2026, 9, 9, 10).isoformat()
+    assert task["last_completed"] == now.isoformat()
+
+
+def test_completing_an_overdue_fixed_task_collapses_the_missed_occurrences():
+    # The other half of ``max(now, next_due)``: a long-overdue task lands on the next
+    # occurrence after *now* rather than crawling the grid one missed occurrence per
+    # completion. The completion twin of
+    # ``test_skip_fixed_overdue_advances_to_next_future_occurrence``.
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": dt(2026, 1, 1, 8).isoformat(),
+        "next_due": dt(2026, 6, 10, 8).isoformat(),  # several days overdue
+        "completions": [],
+    }
+    now = dt(2026, 6, 13, 9)
+    r.apply_completion(task, now, now=now)
+    assert task["next_due"] == dt(2026, 6, 14, 8).isoformat()
+
+
+def test_completing_an_upcoming_fixed_task_advances_exactly_one_occurrence():
+    # An occurrence still ahead of ``now`` advances by exactly one step, never more.
+    # This is what pins ``max`` rather than ``min``: taking the smaller operand here
+    # would hand back the occurrence the task is already showing.
+    anchor = dt(2026, 6, 18, 8)
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "WEEKLY",
+        "anchor": anchor.isoformat(),
+        "next_due": anchor.isoformat(),
+        "completions": [],
+    }
+    now = dt(2026, 6, 13, 9)
+    r.apply_completion(task, now, now=now)
+    assert task["next_due"] == dt(2026, 6, 25, 8).isoformat()
+
+
+def test_completing_a_fixed_task_with_no_due_date_advances_from_now():
+    # ``models.build_task`` records a ``last_completed`` seed *before* it computes the
+    # schedule, so the task reaching ``apply_completion`` carries no ``next_due`` at
+    # all. There is no occurrence on the board to clear, so *now* is the whole answer.
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": dt(2026, 1, 1, 8).isoformat(),
+        "completions": [],
+    }
+    now = dt(2026, 6, 13, 9)
+    r.apply_completion(task, now, now=now)
+    assert task["next_due"] == dt(2026, 6, 14, 8).isoformat()
+
+
+def test_undoing_a_completion_puts_the_cleared_occurrence_back():
+    # The asymmetry with ``move_completion``: an undo is *meant* to rewind, so
+    # ``remove_completion`` recomputes from the anchor and today's occurrence returns
+    # to every time surface.
+    anchor = dt(2026, 9, 8, 10)
+    now = dt(2026, 9, 8, 9)
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": anchor.isoformat(),
+        "next_due": anchor.isoformat(),
+        "completions": [],
+    }
+    r.apply_completion(task, now, now=now)
+    assert task["next_due"] == dt(2026, 9, 9, 10).isoformat()
+    r.remove_completion(task, now.isoformat(), now=now)
+    assert task["next_due"] == anchor.isoformat()
+    assert task["last_completed"] is None
+
+
+def test_a_schedule_keeps_its_local_hour_across_dst_after_a_storage_round_trip():
+    # Regression: an ISO string carries an *offset*, not a zone identity, so whatever
+    # tzinfo the anchor had when it was written, it reloads as a fixed offset —
+    # ``fromisoformat("...-07:00").tzinfo`` is ``timezone(timedelta(hours=-7))``, not
+    # ``ZoneInfo``. ``_step`` then holds that offset's wall clock, and a 10:00 task
+    # reads 09:00 once the zone leaves DST.
+    #
+    # ``test_r5a`` proves ``_step`` keeps local wall time, but only for a live
+    # ``ZoneInfo`` anchor — the shape storage can never hand back. This pins the shape
+    # production actually produces.
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo("America/Los_Angeles")
+    stored = datetime(2026, 9, 8, 10, tzinfo=zone).isoformat()
+    anchor = datetime.fromisoformat(stored)  # the reload, offset-only
+
+    after_dst_ends = datetime(2026, 11, 5, 9, tzinfo=zone)
+    nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=after_dst_ends)
+
+    local = nxt.astimezone(zone)
+    assert (local.hour, local.minute) == (10, 0), (
+        f"stored {stored} reloaded as {anchor.tzinfo!r} and drifted to "
+        f"{local.isoformat()}"
+    )
+
+
+def test_a_utc_anchor_still_schedules_at_the_hour_the_user_chose():
+    # The shape every panel-created task already carries: the browser converted the
+    # user's 10:00 to UTC before sending it. Read back in the user's zone it is still
+    # their 10:00, and it has to stay their 10:00 after the clock changes.
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo("America/Los_Angeles")
+    anchor = datetime.fromisoformat("2026-09-08T17:00:00+00:00")  # 10:00 PDT
+
+    for probe, label in (
+        (datetime(2026, 9, 8, 9, tzinfo=zone), "same day, before the occurrence"),
+        (datetime(2026, 11, 5, 9, tzinfo=zone), "after DST ends"),
+    ):
+        nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=probe).astimezone(zone)
+        assert (nxt.hour, nxt.minute) == (10, 0), f"{label}: got {nxt.isoformat()}"

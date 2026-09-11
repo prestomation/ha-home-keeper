@@ -240,3 +240,33 @@ def test_move_completion_one_off_with_other_completions_stays_dormant():
     )
     assert out["next_due"] is None
     assert out["last_completed"] == second.isoformat()
+
+
+def test_move_completion_fixed_keeps_an_advanced_due_date():
+    # A fixed task's next_due is schedule state that completing or skipping already
+    # moved on — not a value derived from the log. Re-timestamping an entry must not
+    # recompute it from the anchor: that rewinds the task onto the occurrence it has
+    # just dealt with and puts it back on today's list (#331).
+    now = dt(2026, 9, 8, 9)
+    anchor = dt(2026, 9, 8, 10)
+    advanced = dt(2026, 9, 9, 10)
+    logged = dt(2026, 9, 8, 9)
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "DAILY",
+        "anchor": anchor.isoformat(),
+        "last_completed": logged.isoformat(),
+        "next_due": advanced.isoformat(),
+        "completions": [{"ts": logged.isoformat()}],
+    }
+    out = r.move_completion(
+        task, logged.isoformat(), dt(2026, 9, 8, 8).isoformat(), now=now
+    )
+    assert out["next_due"] == advanced.isoformat()
+    assert out["last_completed"] == dt(2026, 9, 8, 8).isoformat()
+    # The recomputed answer is today's occurrence — the one already completed. This is
+    # what makes the assertion above a gate rather than a coincidence, unlike
+    # ``test_move_completion_fixed_stays_schedule_driven``, whose fixture has the two
+    # agreeing.
+    assert r.compute_next_due(out, now=now).isoformat() == anchor.isoformat()

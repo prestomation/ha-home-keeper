@@ -87,8 +87,10 @@ A task has a name, notes, an optional attached device, and a recurrence:
   completion. An example is a fridge filter every 1 month after the last
   completion. Each completion resets the interval. A missed task stays overdue and
   does not roll forward.
-- Fixed, shown as **Repeats on a fixed schedule** in the form, is an anchored calendar schedule
-  that is independent of completions. An example is medicine every day at 8am.
+- Fixed, shown as **Repeats on a fixed schedule** in the form, is an anchored calendar schedule.
+  An example is medicine every day at 8am. A completion moves the task to the next
+  occurrence on the schedule. The dates that follow do not move, and they keep the same
+  time of day when the clocks change.
 - One-off, shown as **Just once** in the form, runs one time. See
   [One-off tasks](#one-off-do-once-tasks) below.
 - Triggered is monitored and condition-driven, with no schedule. See below.

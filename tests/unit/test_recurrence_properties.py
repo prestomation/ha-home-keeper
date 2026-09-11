@@ -22,6 +22,7 @@ import itertools
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import hk_models as models
 import hk_recurrence as r
 import property_strategies as ps
 import pytest
@@ -315,3 +316,73 @@ def test_r7_a_floating_schedule_always_moves_forward(
     """
     due = r.compute_floating_next_due(last_completed, interval, unit, now=now)
     assert due > last_completed
+
+
+@given(
+    anchor=ps.zoned_datetimes(),
+    freq=st.sampled_from(["DAILY", "WEEKLY", "MONTHLY"]),
+    interval=st.integers(1, 12),
+)
+def test_r5c_a_schedule_survives_the_round_trip_through_storage(anchor, freq, interval):
+    """R5c. R5a still holds once the anchor has been through the store.
+
+    R5a proves `_step` keeps local wall time — for a live `ZoneInfo` anchor. Nothing
+    in the store is one. An ISO string carries an *offset* and not a zone identity, so
+    a `ZoneInfo("America/Los_Angeles")` anchor is written `-07:00` and reloads as
+    `timezone(timedelta(hours=-7))`, and holding *that* across a transition is what
+    made a 10:00 task read 09:00 every autumn.
+
+    So this is R5a over the shape production actually produces: serialize, reload,
+    and only then expand. It is the property the original pair missed by testing the
+    engine with an input the engine never receives.
+
+    Kills the `_regrid` call in `expand_fixed_occurrences` and, through the shared
+    helper, in `next_fixed_occurrence`.
+    """
+    reloaded = datetime.fromisoformat(anchor.isoformat())
+    end = anchor + timedelta(days=400)
+    for occurrence in r.expand_fixed_occurrences(reloaded, freq, interval, anchor, end):
+        local = occurrence.astimezone(anchor.tzinfo)
+        assert (local.hour, local.minute) == (anchor.hour, anchor.minute), (
+            f"anchor={anchor.isoformat()} freq={freq} interval={interval}: "
+            f"{occurrence.isoformat()} reads at a different clock time"
+        )
+
+
+@given(
+    anchor=ps.aware_datetimes(min_year=2020, max_year=2030),
+    freq=st.sampled_from(["DAILY", "WEEKLY", "MONTHLY"]),
+    interval=st.integers(1, 12),
+    now=ps.aware_datetimes(min_year=2024, max_year=2030),
+    logged_seconds_ago=st.integers(0, 3 * 86_400),
+)
+def test_r7_completing_a_fixed_task_always_clears_the_occurrence_it_showed(
+    anchor, freq, interval, now, logged_seconds_ago
+):
+    """R7. A completed fixed task never keeps the due date it was showing.
+
+    What #331 reported is exactly "next_due came back unchanged", and whether it bites
+    depends on where `now` falls between two occurrences — the one thing a literal
+    example fixes and a generator does not. The timestamp the completion carries is
+    drawn independently and never appears in the assertion, which also pins that a
+    fixed schedule ignores *when* the work was logged.
+
+    Kills the `max(now, current)` -> `min(...)` mutant in `_advance_fixed_schedule`
+    (min returns `now`, whose next occurrence is the one already on the board) and the
+    `is not None` -> `is None` mutant (`max(datetime, None)` raises).
+    """
+    task = models.build_task(
+        {
+            "name": "p",
+            "recurrence_type": "fixed",
+            "freq": freq,
+            "interval": interval,
+            "anchor": anchor.isoformat(),
+        },
+        now=now,
+    )
+    before = datetime.fromisoformat(task["next_due"])
+    r.apply_completion(task, now - timedelta(seconds=logged_seconds_ago), now=now)
+    after = datetime.fromisoformat(task["next_due"])
+    assert after > before, f"{freq}/{interval} anchored {anchor}: stayed at {before}"
+    assert after > now

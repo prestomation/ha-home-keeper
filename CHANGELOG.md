@@ -6,6 +6,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.24.0b1]
+
+### Fixed
+
+- **Fixed schedules.** A task on a fixed schedule now moves to its next occurrence when
+  you mark it done. A task due later in the same day used to stay due today.
+  (Fixes #331)
+- **Daylight saving time.** A fixed schedule now keeps its time of day when the clocks
+  change. A task set for 10am used to move to 9am each autumn.
+
 ## [0.23.0] - 2026-09-11
 
 ### Added

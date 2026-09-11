@@ -536,3 +536,78 @@ def test_renaming_task_updates_device_entity_name(ha):
         )
     finally:
         call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+
+
+def test_completing_a_fixed_task_before_its_time_of_day_moves_it_on(ha):
+    """Regression (#331): the end-to-end shape the reporter saw.
+
+    Anchored an hour ahead, so the completion lands *before* the occurrence the task
+    is showing — the window in which the due date used to come back unchanged while
+    the completion was still logged.
+    """
+    from datetime import datetime, timedelta
+
+    anchor = datetime.now().astimezone() + timedelta(hours=1)
+    name = "Test fixed completion probe"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": name,
+            "recurrence_type": "fixed",
+            "interval": 1,
+            "freq": "DAILY",
+            "anchor": anchor.isoformat(),
+        },
+    )
+    task_id = next(t["id"] for t in _list_tasks(ha) if t["name"] == name)
+    try:
+        before = next(t for t in _list_tasks(ha) if t["id"] == task_id)["next_due"]
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+        after = next(t for t in _list_tasks(ha) if t["id"] == task_id)
+        assert after["next_due"] != before, "next_due did not move (#331)"
+        assert datetime.fromisoformat(after["next_due"]) == datetime.fromisoformat(
+            before
+        ) + timedelta(days=1)
+        assert len(after["completions"]) == 1
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
+
+
+def test_a_utc_anchor_schedules_at_the_local_hour_it_names(ha):
+    """A UTC-spelled anchor — what the panel sends — must resolve to the local hour the
+    user chose, not to the UTC one.
+
+    The DST half of this is only provable against a clock the test cannot move, so the
+    travelling-across-a-transition case lives in
+    ``tests/unit/test_recurrence_fixed.py`` and property R5c. What this pins is the
+    wiring: that the value leaving the service reads at the intended wall clock once it
+    has been through storage and back.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    anchor = datetime.now().astimezone() + timedelta(hours=1)
+    name = "Test fixed utc anchor probe"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": name,
+            "recurrence_type": "fixed",
+            "interval": 1,
+            "freq": "DAILY",
+            # Same instant, spelled in UTC — what the panel sends today.
+            "anchor": anchor.astimezone(UTC).isoformat(),
+        },
+    )
+    task_id = next(t["id"] for t in _list_tasks(ha) if t["name"] == name)
+    try:
+        task = next(t for t in _list_tasks(ha) if t["id"] == task_id)
+        due = datetime.fromisoformat(task["next_due"]).astimezone()
+        assert (due.hour, due.minute) == (anchor.hour, anchor.minute), (
+            f"anchored {anchor.isoformat()} but next_due reads {due.isoformat()}"
+        )
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task_id})
