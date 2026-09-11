@@ -80,10 +80,16 @@
   — and a deeper anchor is that page plus the heading slug. Link the nearest page that
   says what the feature does, not the repository README and not a `docs/*_PLAN.md`.
   A `### Fixed` or `### Changed` bullet may link the same way when a page covers it,
-  and does not have to. **A link to a page that a release adds is a 404 until that
-  release publishes**, which is correct: `docs-deploy.yml` deploys the site on stable
-  release publication, so the page and the link go live together. Check the shape of
-  an existing URL rather than the new one.
+  and does not have to. **A link to a page the release itself adds resolves only when a
+  _stable_ ships**, because `deploy-docs` in `release.yml` is gated on
+  `prerelease == 'false'` and a beta never republishes the site. Write the link in the
+  feature PR anyway, since that is when the author knows which page documents the
+  feature and the stable cut rolls the bullet up unchanged — but the bullet ships first
+  in a `## [X.Y.ZbN]` section whose link 404s for beta testers until the stable
+  publishes. That is the cost of pinning the site to the latest stable, not an
+  oversight. Prefer an existing page when one already covers the feature, and check the
+  shape of a URL that is already live, because nothing validates these links and a typo
+  404s forever.
 - **Credit an outside contributor in the bullet for their change.** End the bullet
   with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
   not count against the three-sentence budget. An outside contributor is anyone
