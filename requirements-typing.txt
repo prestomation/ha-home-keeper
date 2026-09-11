@@ -4,12 +4,15 @@
 # nightly lane runs on a schedule, so a list that drifts there stays green through
 # every PR and goes red on main. That is how #320 shipped.
 #
-# A third-party import that ships no types needs its stub package in this file.
+# Entries come in two kinds. A package the integration imports goes in so its own
+# types resolve, which works when the package ships them (a py.typed marker). One
+# that ships none needs its stub distribution instead, named `types-<package>`, or
+# mypy stops on `Library stubs not installed`.
 mypy
-# Home Assistant itself, so its own types resolve. Strict typing against the real
-# Home Assistant API is the Platinum quality-scale gate (quality_scale.yaml).
+# Home Assistant itself. Strict typing against the real Home Assistant API is the
+# Platinum quality-scale gate (quality_scale.yaml).
 homeassistant
-# The integration's own runtime requirements (manifest.json), so their imports resolve.
+# A runtime requirement in manifest.json. It ships its own types.
 Babel
-# transfer.py imports yaml inside _yaml_pair().
+# The stub kind: PyYAML ships none, and transfer.py imports yaml in _yaml_pair().
 types-PyYAML
