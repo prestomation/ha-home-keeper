@@ -187,6 +187,26 @@ def test_a_boolean_carried_count_is_refused():
         _counted(carried_uses=True)
 
 
+@pytest.mark.parametrize(
+    ("stated", "kept"),
+    [
+        (0, 0),  # a stated zero, which is not the same input as an absent key
+        ("24", 24),  # the text a YAML file holds, matching _PART_SCHEMA's Coerce(int)
+        (24.5, 24),  # a fraction of a use is not a use
+        (24.999, 24),
+    ],
+)
+def test_a_carried_count_takes_the_shapes_a_hand_written_file_holds(stated, kept):
+    """Coerced, and truncated toward zero, like every other whole-number part field.
+
+    Worth stating rather than leaving to ``int()``: a file written by hand or by an
+    assistant is the case this field exists for, and `"24"` is what YAML gives for a
+    quoted number. Truncation is the same rule ``replace_also_every.interval`` uses,
+    so a count never lands between 2 uses.
+    """
+    assert _counted(carried_uses=stated)["carried_uses"] == kept
+
+
 # ── the predicates ────────────────────────────────────────────────────────────
 def test_part_counts_uses():
     assert assets.part_counts_uses(_counted()) is True
