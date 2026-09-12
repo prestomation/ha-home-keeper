@@ -105,6 +105,14 @@
   regenerated comment shows it. Capture is a **hard** gate: a failed capture fails
   the check, so a broken tour cannot merge behind a green run. Run
   `ci/capture-video.sh` locally to debug the tour before pushing.
+  - **A beat added is a budget re-measured.** The desktop walk is a fixed sequence of
+    pauses, so its wall clock only grows, and `timeout` in `walkthrough.config.ts` is
+    the only thing bounding it (`actionTimeout` bounds actions, not
+    `page.waitForTimeout`). #321 added beats and left the number alone, cutting the
+    margin from ~40% to ~15%; the tour then timed out on a change that touched no
+    panel code. Measure with `--timeout=600000 --reporter=list`, read the duration
+    reported rather than the cap it died at, and set the budget to that plus ~40%.
+    Suspect the margin before suspecting CI.
 - **Document new major features in `docs/guide/` in the same change** — add a brief
   section covering the **use cases** (what problem it solves) and a little about
   **how it's used**, with **screenshot(s)** (capture via the Playwright harness,

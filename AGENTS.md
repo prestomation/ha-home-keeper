@@ -359,6 +359,16 @@
     `tests/e2e/walkthrough.capture.ts` to step through it (deliberate `BEAT` pauses so
     the motion reads well) **in the same PR**, then confirm the regenerated comment
     shows it. (Pure bug-fix / styling / copy PRs don't need to touch the tour.)
+  - **Adding a beat means re-measuring the tour's budget.** The desktop walk is a
+    fixed sequence of pauses, so its wall clock only ever grows, and `timeout` in
+    `tests/e2e/walkthrough.config.ts` is the only thing that bounds it. #321 added
+    the counted wear item beats and left the number alone, which cut the margin from
+    ~40% to ~15%; the tour then began timing out on luck, and went red on a change
+    that touched no panel code at all. Measure with
+    `npx playwright test --config=walkthrough.config.ts --timeout=600000
+    --reporter=list` and read the duration it *reports*, never the cap it died at,
+    then set the budget to that plus ~40%. A timeout here means suspect the margin
+    first.
   - **Capture is a _hard_ gate.** A failed capture fails the check, so the PR does
     not merge until the tour runs clean. A flaky run still posts a "capture failed"
     note with a logs link and pushing again re-runs it, but the red check is what
