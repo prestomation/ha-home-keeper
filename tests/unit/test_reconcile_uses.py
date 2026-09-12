@@ -9,6 +9,7 @@ reconciler and the pure settle step directly, with no Home Assistant runtime.
 from datetime import UTC, datetime, timedelta, timezone
 
 import hk_reconcile as rc
+import hk_recurrence as recurrence
 import pytest
 
 TZ = timezone(timedelta(hours=-4))
@@ -560,3 +561,48 @@ def test_the_trim_never_sees_the_carry():
     _uses(roles2["use"], 80)
     trimmed2 = rc.trim_use_completions(roles2["use"], roles2["replace"], cap=cap)
     assert (trimmed, with_carry) == (trimmed2, len(roles2["use"]["completions"]))
+
+
+def test_undoing_a_replacement_brings_the_carried_count_back():
+    """The carry revives when the completion that retired it is deleted, and should.
+
+    The question this pins: ``counted_uses`` adds the carry only while
+    :func:`cycle_start` is None, and deleting a replacement task's only completion
+    through the history dialog puts it back to None. So the carry returns.
+
+    That is right, not a leak. Deleting the completion says the replacement never
+    happened, so the cycle it started never happened either — and the honest count is
+    the one the part arrived with plus everything recorded since. The alternative,
+    a carry that expires on first contact and never returns, would silently lose 24
+    wears the moment a household corrected a mistaken Done.
+    """
+    part = _counted_part(carried_uses=24)
+    assets = {"a1": _asset(parts=[part])}
+    tasks, _ = _reconcile(assets)
+    roles = _by_role(tasks)
+    use, replace = roles["use"], roles["replace"]
+
+    assert rc.counted_uses(use, replace, part) == 24
+    recurrence.apply_completion(replace, NOW, now=NOW)
+    assert rc.counted_uses(use, replace, part) == 0
+
+    _uses(use, 30, start=NOW + timedelta(hours=1))
+    assert rc.counted_uses(use, replace, part) == 30
+
+    recurrence.remove_completion(replace, replace["completions"][0]["ts"], now=NOW)
+    assert rc.cycle_start(replace) is None
+    assert rc.counted_uses(use, replace, part) == 54
+
+
+def test_deleting_the_skip_that_retired_the_carry_brings_it_back_too():
+    """A skip starts a cycle, so undoing one undoes that cycle, symmetrically."""
+    part = _counted_part(carried_uses=24)
+    assets = {"a1": _asset(parts=[part])}
+    tasks, _ = _reconcile(assets)
+    roles = _by_role(tasks)
+    use, replace = roles["use"], roles["replace"]
+
+    _skip(replace, NOW)
+    assert rc.counted_uses(use, replace, part) == 0
+    replace["skips"] = []
+    assert rc.counted_uses(use, replace, part) == 24
