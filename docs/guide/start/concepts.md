@@ -22,7 +22,7 @@ such as a fridge, furnace, or water heater. See
 [Appliances & virtual devices](../appliances/appliances.md).
 
 The panel is admin-only. This includes appliances and settings and profiles and
-notifications and the inventory export. The to-do list, the calendar, the
+notifications and the appliance report. The to-do list, the calendar, the
 device-page buttons, and the dashboard card are available to every user. See
 [the security model](../../SECURITY.md) for what a non-admin user can read.
 

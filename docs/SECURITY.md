@@ -36,7 +36,7 @@ panel uses, and the matching `home_keeper.*` service.
 | Appliance documents and part files | `add_asset_document`, `update_asset_document`, `remove_asset_document`, `remove_part_file` |
 | Spare-part stock adjustments | `adjust_part_stock` |
 | Settings, profiles and notification delivery | `set_options` |
-| The home-inventory export (costs, serials, value totals) | `export_inventory` |
+| The appliance report (costs, serials, value totals) | `export_appliance_report` |
 | Data export and import (every task, note, serial and cost) | `export_data`, `import_data` |
 
 Home Keeper creates a Home Assistant device for each appliance, and removes

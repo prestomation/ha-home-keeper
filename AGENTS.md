@@ -501,7 +501,7 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
 ## Conventions
 
 - **Expose every data action as a `home_keeper.*` service.** Any operation that
-  mutates or exports Home Keeper data — task/asset CRUD, exports (inventory),
+  mutates or exports Home Keeper data — task/asset CRUD, exports (the appliance report),
   stock adjustments, and anything new — must ship as a Home Assistant **service**
   for general interoperability (automations, scripts, voice, other integrations).
   A panel **websocket command** is only a UI optimization and is never a substitute
@@ -591,7 +591,7 @@ bash ci/test-mutation-frontend.sh --all
   `only_mutate` in `[tool.mutmut]` (pyproject.toml) and `mutate` in
   `stryker.conf.json`. It holds the pure Python core (`recurrence`, `models`,
   `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
-  `problem_tasks`, `inventory`, `profiles`, `documents`, `events`, `transitions`,
+  `problem_tasks`, `appliance_report`, `profiles`, `documents`, `events`, `transitions`,
   `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
   `card-filter`, `documents`, `markdown`, `i18n`, `limits`). `options.py` counts as
   pure because its Home Assistant imports are `TYPE_CHECKING`-only. Excluded on
