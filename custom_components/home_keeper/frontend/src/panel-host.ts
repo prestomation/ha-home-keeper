@@ -140,9 +140,9 @@ export interface PanelHost extends HTMLElement {
   _edit: EditState;
   /** config entry id -> integration domain, for resolving device brand logos. */
   _entryDomains: Record<string, string>;
-  /** Download the appliance inventory (the appliance list's Export action). */
-  _exportInventory(): Promise<void>;
-  /** Save every task and appliance as one JSON file (Settings -> Import and export). */
+  /** Download the appliance report (Settings -> Import and export). */
+  _exportApplianceReport(): Promise<void>;
+  /** Save every task and appliance as one YAML file (Settings -> Import and export). */
   _exportData(): Promise<void>;
   /** The import card's state: the pasted or picked document text, the last preview,
    *  and whether a call is in flight. */

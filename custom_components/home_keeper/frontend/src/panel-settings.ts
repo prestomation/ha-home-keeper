@@ -502,7 +502,7 @@ function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): str
   if (id === 'hk-profiles') return t('settings.profiles_none');
   if (id === 'hk-notifications') return t('settings.notifications_none');
   if (id === 'hk-companions') return t('settings.companions_none');
-  // This one holds no setting at all — it is two actions. The index still owes the
+  // This one holds no setting at all — it is three actions. The index still owes the
   // reader a line saying what is behind the row, which on a phone is the only thing
   // that says so before you open it.
   if (id === 'hk-transfer') return t('settings.transfer_summary');
@@ -1774,7 +1774,8 @@ function wireCompanions(p: PanelHost, root: HTMLElement): void {
 }
 
 /**
- * Settings -> Import and export: save everything to one file, and read one back.
+ * Settings -> Import and export: save everything to one file, read one back, and
+ * export the appliance report.
  *
  * The import half is deliberately two steps. An import writes tasks and appliances
  * wholesale, and the file is often one somebody generated rather than typed, so the
@@ -1841,6 +1842,18 @@ function renderTransfer(p: PanelHost, host: HTMLElement): void {
     `${busy || !ready ? ' disabled' : ''}>`,
     `${escapeHTML(t('btn.importData'))}</ha-button>`,
     `</div>`,
+
+    // The third export on this card, and the one that is not a backup. It sits
+    // here rather than on the Appliances tab because the question it answers
+    // ("give me a file of my data") is the question this whole card answers, and
+    // because the difference between it and the export above only reads when the
+    // two are side by side. Its blurb is doing that work, so it gets a group of
+    // its own rather than a third button on somebody else's row.
+    `<div class="hk-transfer-group">${escapeHTML(t('transfer.reportHeading'))}</div>`,
+    `<div class="hk-settings-intro">${escapeHTML(t('transfer.reportHelp'))}</div>`,
+    `<div class="hk-transfer-actions">`,
+    `<ha-button id="transfer-report" ${btnAttrs('secondary')}>`,
+    `${escapeHTML(t('btn.exportApplianceReport'))}</ha-button></div>`,
   ].join('');
 
   card.appendChild(inner);
@@ -1906,6 +1919,9 @@ function reportBlock(report: ImportReport | null): string {
 function wireTransfer(p: PanelHost, root: HTMLElement): void {
   root.querySelector('#transfer-export')?.addEventListener('click', () => {
     void p._exportData();
+  });
+  root.querySelector('#transfer-report')?.addEventListener('click', () => {
+    void p._exportApplianceReport();
   });
   root.querySelector('#transfer-preview')?.addEventListener('click', () => {
     void p._previewImport();

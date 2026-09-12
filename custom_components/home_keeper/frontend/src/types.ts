@@ -364,23 +364,24 @@ export interface Part {
   restock_quantity?: number | null;
 }
 
-/** One appliance row in the insurance/home-inventory export. */
-export interface InventoryRow {
+/** One appliance row in the appliance report. */
+export interface ApplianceReportRow {
   id: string;
   name: string;
   kind: AssetKind;
   area?: string | null;
   manufacturer: string;
   model: string;
+  serial_number: string;
   cost?: number | null;
   spares_value: number;
   part_count: number;
-  // Free-form metadata flattened to "label: value; …" for the export.
+  // Free-form metadata flattened to "label: value; …" for the report.
   details: string;
 }
 
-export interface Inventory {
-  assets: InventoryRow[];
+export interface ApplianceReport {
+  assets: ApplianceReportRow[];
   totals: {
     asset_count: number;
     total_cost: number;
@@ -404,7 +405,7 @@ export interface TaskHistoryEntry {
 
 /** An appliance/asset: a virtual device we own, or metadata on an existing one.
  *  Only the fields that wire into Home Assistant stay structured (manufacturer /
- *  model -> device card, cost -> inventory value); all other descriptive/temporal
+ *  model -> device card, cost -> report value); all other descriptive/temporal
  *  facts live in the free-form `metadata` list, and manuals/warranties/receipts in
  *  the `documents` list. */
 export interface Asset {
