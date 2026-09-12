@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Antecipar tarefa",
+      "description": "Antecipa para hoje a data de vencimento de uma tarefa, independentemente de sua recorrência periódica, sem registrar uma conclusão ou alterar a recorrência.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa a antecipar. O nome também funciona. O painel mostra o id."
+        },
+        "origin": {
+          "name": "Origem",
+          "description": "Marcador opcional de formato livre repassado no evento home_keeper_task_due_today_set, para que uma integração contribuinte possa reconhecer e ignorar a antecipação que ela acionou (prevenção de laço). O Home Keeper não o interpreta."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Vincular tarefa a um consumível",
       "description": "Vincula uma tarefa a um consumível/peça de um aparelho para que concluí-la consuma uma reserva do estoque e dispare um evento de estoque baixo no limite de reposição. Omita asset_id e part_id para remover o vínculo.",

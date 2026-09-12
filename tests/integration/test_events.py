@@ -329,6 +329,70 @@ def test_snooze_and_skip_events(ha, ha_token):
     call_service(ha, "home_keeper", "delete_task", {"task_id": created_id["id"]})
 
 
+def test_due_today_event(ha, ha_token):
+    """set_due_today fires its event and moves next_due to now without
+    completing — the mirror of snooze_task moving it into the future instead.
+    """
+    created_id = {}
+
+    def setup_task():
+        resp = call_service(
+            ha,
+            "home_keeper",
+            "add_task",
+            {
+                "name": "Pull forward test task",
+                "recurrence_type": "floating",
+                "interval": 7,
+                "unit": "days",
+            },
+            return_response=True,
+        )
+        body = resp.get("service_response", resp)
+        created_id["id"] = body["task_id"]
+        # A never-completed floating task is already due now; complete it once so
+        # next_due lands a full interval in the future — the case due today is
+        # actually for ("I want to do this today, not on its usual date").
+        call_service(ha, "home_keeper", "complete_task", {"task_id": created_id["id"]})
+
+    setup_task()
+
+    before = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    before_body = before.get("service_response", before)
+    before_task = next(t for t in before_body["tasks"] if t["id"] == created_id["id"])
+    assert before_task["completions"]
+    future_next_due = before_task["next_due"]
+
+    def set_due_today():
+        call_service(
+            ha,
+            "home_keeper",
+            "set_due_today",
+            {"task_id": created_id["id"], "origin": "test-suite"},
+        )
+
+    pulled = _by_type(
+        _run(ha_token, ["home_keeper_task_due_today_set"], set_due_today, expected=1)
+    )
+    assert "home_keeper_task_due_today_set" in pulled
+    payload = pulled["home_keeper_task_due_today_set"][0]
+    assert payload["task_id"] == created_id["id"]
+    assert payload["origin"] == "test-suite"
+    # Pulled to now, not to the interval's future date.
+    assert payload["next_due"] != future_next_due
+
+    after = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    after_body = after.get("service_response", after)
+    after_task = next(t for t in after_body["tasks"] if t["id"] == created_id["id"])
+    # Not a completion: the completion log and last_completed are exactly as they
+    # were before the due-today — only next_due moved.
+    assert after_task["completions"] == before_task["completions"]
+    assert after_task["last_completed"] == before_task["last_completed"]
+    assert after_task["next_due"] == payload["next_due"]
+
+    call_service(ha, "home_keeper", "delete_task", {"task_id": created_id["id"]})
+
+
 def test_stock_transition_events(ha, ha_token):
     """A part driven low -> out -> restocked fires one event per crossing."""
     ids = {}

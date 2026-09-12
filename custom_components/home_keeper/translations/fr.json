@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Avancer la tâche",
+      "description": "Avance la date d'échéance d'une tâche à maintenant, indépendamment de sa périodicité, sans enregistrer d'achèvement ni modifier sa récurrence.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'identifiant de la tâche à avancer. Son nom fonctionne aussi. Le panneau affiche l'id."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marqueur libre facultatif renvoyé dans l'événement home_keeper_task_due_today_set, afin qu'une intégration contributrice puisse reconnaître et ignorer l'avancement qu'elle a déclenché (prévention des boucles). Home Keeper ne l'interprète pas."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Lier la tâche à un consommable",
       "description": "Lie une tâche à un consommable/pièce d'un appareil afin que sa réalisation consomme une pièce de rechange du stock et déclenche un événement de stock bas au seuil de réapprovisionnement. Omettez asset_id et part_id pour supprimer le lien.",

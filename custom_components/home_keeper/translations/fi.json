@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Aikaista tehtävää",
+      "description": "Siirtää tehtävän eräpäivän tähän hetkeen sen toistuvasta aikataulusta riippumatta, kirjaamatta suoritusta tai muuttamatta sen toistoa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Aikaistettavan tehtävän tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "origin": {
+          "name": "Alkuperä",
+          "description": "Valinnainen vapaamuotoinen merkintä, joka toistetaan home_keeper_task_due_today_set-tapahtumassa, jotta osallistuva integraatio voi tunnistaa ja ohittaa laukaisemansa aikaistamisen (silmukan esto). Home Keeper ei tulkitse sitä."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Linkitä tehtävä kulutustarvikkeeseen",
       "description": "Linkittää tehtävän laitteen kulutustarvikkeeseen/osaan niin, että sen valmiiksi merkitseminen kuluttaa yhden varaosan varastosta ja laukaisee vähäisen varaston tapahtuman tilausrajalla. Jätä asset_id ja part_id pois poistaaksesi linkin.",

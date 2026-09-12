@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Tidigarelägg uppgift",
+      "description": "Flyttar en uppgifts förfallodatum till idag, oberoende av dess periodiska schema, utan att registrera ett slutförande eller ändra dess upprepning.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som ska tidigareläggas. Namnet fungerar också. Panelen visar id:t."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Valfri fritextmarkör som återges i händelsen home_keeper_task_due_today_set, så att en bidragande integration kan känna igen och ignorera den tidigareläggning den utlöste (loopförebyggande). Home Keeper tolkar den inte."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Länka uppgift till en förbrukningsvara",
       "description": "Länkar en uppgift till en förbrukningsvara/del på en apparat så att slutförandet förbrukar en reservdel från lagret och utlöser en händelse om lågt lager vid beställningsgränsen. Utelämna asset_id och part_id för att ta bort länken.",

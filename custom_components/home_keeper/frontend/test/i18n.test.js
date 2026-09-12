@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getLanguage, setLanguage, t, tn } from '../src/i18n.ts';
+import { getLanguage, setLanguage, t, tlist, tn } from '../src/i18n.ts';
 import { DEFAULT_LOCALE, LOCALES } from '../src/locales/index.ts';
 
 // Behavioural tests for the i18n module. The translation-quality gates (locale
@@ -61,6 +61,31 @@ describe('tn() pluralization', () => {
     setLanguage('ru');
     expect(typeof tn('asset.parts', 11)).toBe('string');
     expect(tn('asset.parts', 11)).not.toContain('undefined');
+  });
+});
+
+describe('tlist()', () => {
+  it('joins with the active language\'s own separator and conjunction', () => {
+    setLanguage('en');
+    // CLDR's `en` is en-US, which carries the serial comma. That is the locale's
+    // own rule, and taking it from Intl rather than hand-joining is the point.
+    expect(tlist(['Snooze', 'Skip', 'Due today'])).toBe('Snooze, Skip, and Due today');
+  });
+
+  it('follows the resolved locale, not the one the module started on', () => {
+    // Load-bearing: this is what proves `setLanguage` rebuilds the formatter. Left
+    // at its module-init English value, a German panel would read "A und B" as
+    // "A and B".
+    setLanguage('de');
+    expect(tlist(['A', 'B', 'C'])).toBe('A, B und C');
+  });
+
+  it('handles the degenerate lists without a guard clause', () => {
+    // Intl.ListFormat answers these on its own. Pinned so nobody adds an `if`
+    // that only invents a mutant to kill.
+    setLanguage('en');
+    expect(tlist([])).toBe('');
+    expect(tlist(['Skip'])).toBe('Skip');
   });
 });
 

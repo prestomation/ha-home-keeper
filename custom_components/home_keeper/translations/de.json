@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Aufgabe vorziehen",
+      "description": "Setzt das Fälligkeitsdatum einer Aufgabe auf jetzt, unabhängig von ihrem periodischen Zeitplan, ohne einen Abschluss zu erfassen oder ihre Wiederholung zu ändern.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der vorzuziehenden Aufgabe. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "origin": {
+          "name": "Ursprung",
+          "description": "Optionale Freiform-Markierung, die im Ereignis home_keeper_task_due_today_set zurückgegeben wird, damit eine beitragende Integration das von ihr ausgelöste Vorziehen erkennen und ignorieren kann (Schleifenvermeidung). Home Keeper wertet sie nicht aus."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Aufgabe mit Verbrauchsmaterial verknüpfen",
       "description": "Verknüpft eine Aufgabe mit einem Verbrauchsmaterial/Teil eines Geräts, sodass beim Abschließen ein Ersatzteil aus dem Bestand verbraucht wird und beim Nachbestellschwellenwert ein Ereignis bei niedrigem Bestand ausgelöst wird. Lasse asset_id und part_id weg, um die Verknüpfung zu entfernen.",

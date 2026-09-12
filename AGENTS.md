@@ -98,7 +98,10 @@
   publishes. That is the cost of pinning the site to the latest stable, not an
   oversight. Prefer an existing page when one already covers the feature, and check the
   shape of a URL that is already live, because nothing validates these links and a typo
-  404s forever.
+  404s forever. Put the bold **outside** the
+  link, `**[Text](url).**`, never `[**Text**](url)`: `_BOLD_LEAD` in
+  `ci/release-issues.py` anchors on `^\*\*`, so the inverted form misses the bold match
+  and degrades to quoting the bullet's first sentence.
 - **Credit an outside contributor in the bullet for their change.** End the bullet
   with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
   not count against the three-sentence budget. An outside contributor is anyone

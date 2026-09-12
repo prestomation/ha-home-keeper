@@ -726,6 +726,29 @@ skip_task:
       selector:
         text:
 
+set_due_today:
+  name: Set task due today
+  description: >-
+    Move a task's due date to now, whatever its periodic schedule says. Use it for a
+    task a user wants to do today rather than on its usual date. Home Keeper records
+    no completion and does not change the recurrence, so last_completed and the
+    completion history stay as they are.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task to move. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    origin:
+      name: Origin
+      description: >-
+        Optional free-form marker echoed back in the home_keeper_task_due_today_set
+        event so a contributing integration can recognise and ignore the change it
+        triggered (loop prevention), and Home Keeper never interprets it.
+      selector:
+        text:
+
 update_skip:
   name: Update skip
   description: >-

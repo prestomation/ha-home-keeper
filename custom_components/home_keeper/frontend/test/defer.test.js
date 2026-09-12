@@ -20,6 +20,10 @@ import {
 } from '../src/defer.ts';
 import { t } from '../src/i18n.ts';
 
+// The clock is pinned so a fixture's due date cannot quietly drift past it and
+// flip what `deferVerbs` answers. `NOW` is what every call below passes.
+const NOW = new Date('2026-09-15T12:00:00Z');
+
 const task = (over = {}) => ({
   id: 't1',
   name: 'Replace filter',
@@ -28,37 +32,85 @@ const task = (over = {}) => ({
 });
 
 describe('deferVerbs', () => {
-  it('offers both verbs when nothing is configured', () => {
+  it('offers every verb when nothing is configured', () => {
     // The switches default *on*, so an install that predates them — every existing
-    // one — must read as "offer both" rather than as "both off".
-    expect(deferVerbs(task(), {})).toEqual({ snooze: true, skip: true });
+    // one — must read as "offer everything" rather than as "all off".
+    expect(deferVerbs(task(), {}, NOW)).toEqual({ snooze: true, skip: true, dueToday: true });
   });
 
   it('withdraws each verb independently when its switch is off', () => {
-    expect(deferVerbs(task(), { allow_snooze: false })).toEqual({
+    expect(deferVerbs(task(), { allow_snooze: false }, NOW)).toEqual({
       snooze: false,
       skip: true,
+      dueToday: true,
     });
-    expect(deferVerbs(task(), { allow_skip: false })).toEqual({
+    expect(deferVerbs(task(), { allow_skip: false }, NOW)).toEqual({
       snooze: true,
       skip: false,
+      dueToday: true,
+    });
+    expect(deferVerbs(task(), { allow_due_today: false }, NOW)).toEqual({
+      snooze: true,
+      skip: true,
+      dueToday: false,
     });
   });
 
-  it('offers neither verb on a dormant task', () => {
-    // No due date is nothing to defer: snooze raises in the store and skip has no
-    // occurrence to move past.
-    expect(deferVerbs(task({ next_due: null }), {})).toEqual({
+  it('offers no verb on a dormant task', () => {
+    // No due date is nothing to defer: snooze and due today raise in the store,
+    // and skip has no occurrence to move past.
+    expect(deferVerbs(task({ next_due: null }), {}, NOW)).toEqual({
       snooze: false,
       skip: false,
+      dueToday: false,
     });
   });
 
-  it('offers snooze but not skip on a completion-blocked task', () => {
+  it('offers snooze and due today but not skip on a completion-blocked task', () => {
     // The store rejects skipping a synced problem task, but a notification walk
-    // still has to be able to get past it — so snooze deliberately survives.
+    // still has to be able to get past it — so snooze (and, alongside it, due
+    // today, which asserts nothing about the problem either) deliberately
+    // survive.
     const blocked = task({ managed_by: { completion_blocked: true } });
-    expect(deferVerbs(blocked, {})).toEqual({ snooze: true, skip: false });
+    expect(deferVerbs(blocked, {}, NOW)).toEqual({
+      snooze: true,
+      skip: false,
+      dueToday: true,
+    });
+  });
+
+  it('withholds due today on a task that is already due, and only that verb', () => {
+    // Moving an overdue task's date to now pushes it *later* and drops the overdue
+    // state, which is the opposite of what the button says. Snooze and skip still
+    // apply — asserting they stay true is what pins the `&&` here, since flipping
+    // it to `||` would offer due today on everything.
+    const overdue = task({ next_due: '2026-09-01T09:00:00Z' });
+    expect(deferVerbs(overdue, {}, NOW)).toEqual({
+      snooze: true,
+      skip: true,
+      dueToday: false,
+    });
+  });
+
+  it('withholds due today at the instant the task falls due', () => {
+    // `isOverdue` is `<=`, so the boundary belongs to "already due". A mutant that
+    // relaxes it to `<` survives every other case in this file.
+    const exactly = task({ next_due: NOW.toISOString() });
+    expect(deferVerbs(exactly, {}, NOW).dueToday).toBe(false);
+  });
+
+  it('offers due today on a task due later', () => {
+    expect(deferVerbs(task({ next_due: '2026-12-01T09:00:00Z' }), {}, NOW).dueToday).toBe(
+      true,
+    );
+  });
+
+  it('reads the wall clock when no now is given', () => {
+    // The default parameter is the production path: every caller omits it.
+    const longPast = task({ next_due: '2000-01-01T00:00:00Z' });
+    expect(deferVerbs(longPast, {}).dueToday).toBe(false);
+    const longFuture = task({ next_due: '2099-01-01T00:00:00Z' });
+    expect(deferVerbs(longFuture, {}).dueToday).toBe(true);
   });
 });
 
@@ -158,6 +210,17 @@ describe('deferMenuItems', () => {
   it('is empty when neither verb is on offer', () => {
     expect(deferMenuItems({ snooze: false, skip: false })).toBe('');
   });
+
+  it('gives due today its own entry, class and icon', () => {
+    // The class is what `DeferMenus` binds the click to and what the e2e specs
+    // select on, and the icon is the only thing distinguishing the entry at a
+    // glance — so both are behaviour here, not decoration.
+    const html = deferMenuItems({ snooze: false, skip: false, dueToday: true });
+    expect(html).toContain('hk-defer-due-today');
+    expect(html).toContain('mdi:calendar-arrow-left');
+    expect(html).toContain(t('btn.dueToday'));
+    expect(html).toContain(t('defer.dueTodayHint'));
+  });
 });
 
 describe('deferSplit chrome', () => {
@@ -221,6 +284,15 @@ describe('deferRowActions', () => {
     const blocked = deferRowActions(task(), { snooze: true, skip: false });
     expect(blocked).toContain('hk-defer-snooze');
     expect(blocked).not.toContain('hk-defer-skip');
+  });
+
+  it('puts due today last, after skip and still ahead of Done', () => {
+    // Done is appended by the caller, so "last here" is "next to Done". The class
+    // is what the card's long-press wiring and the e2e specs select on.
+    const html = deferRowActions(task(), { snooze: true, skip: true, dueToday: true });
+    expect(html).toContain('hk-defer-due-today');
+    expect(html).toContain(t('btn.dueToday'));
+    expect(html.indexOf('hk-defer-skip')).toBeLessThan(html.indexOf('hk-defer-due-today'));
   });
 
   it('renders nothing when neither verb is on offer', () => {

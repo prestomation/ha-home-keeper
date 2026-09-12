@@ -69,6 +69,11 @@ const MDI_CLOCK =
   '14.92L16.25,16.15L11,13V7H12.5Z';
 const MDI_SKIP =
   'M5,5V19L16,12M18,5V19H20V5H18Z';
+// mdi:calendar-arrow-left — the row's Due today action, moving a task's due
+// date back to today.
+const MDI_DUE_TODAY =
+  'M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .89-2 2v14a2 2 0 002 2h14c1.1 0 2-.9 2-2V5a2 2' +
+  ' 0 00-2-2m0 16H5V8h14v11m-7-9v2h4v3h-4v2l-4-3.5 4-3.5Z';
 /** How long a press has to be held before the row action explains itself. */
 const LONG_PRESS_MS = 500;
 // mdi:plus — the header "add task" action.
@@ -255,6 +260,23 @@ const STYLES = `
     --mdc-icon-size: 20px;
     color: var(--secondary-text-color);
   }
+
+  /* A third deferral verb puts four 36px buttons on the row, which is 144px of a
+     card sitting in a ~330px dashboard column — enough that the name wrapped to
+     four lines and the appliance chips clipped. Below 420px the actions take a
+     line of their own instead, right-aligned so Done stays the rightmost target.
+
+     A *container* query, not a media query: a card's width comes from its
+     dashboard column, so a viewport query gets a multi-column dashboard wrong. */
+  .hk-body { container-type: inline-size; container-name: hk-card; }
+  @container hk-card (max-width: 400px) {
+    .hk-row { flex-wrap: wrap; row-gap: 4px; }
+    .hk-row .grow { flex: 1 0 100%; }
+    .hk-acts { margin-inline-start: auto; }
+  }
+  /* A dormant monitored task offers no verb and no Done. Without this the empty
+     box still takes a wrapped line and pays the row gap. */
+  .hk-acts:empty { display: none; }
   ha-icon-button.hk-row-action:hover { color: var(--primary-text-color); }
   .hk-snooze-hint { color: var(--secondary-text-color); font-size: 0.9em; margin: 8px 0 0; }
   .hk-loading { display: flex; justify-content: center; padding: 32px 0; }
@@ -620,6 +642,25 @@ export class HomeKeeperCard extends HTMLElement {
     await this._refresh();
   }
 
+  /**
+   * Pull a task's due date to today, independent of its periodic schedule.
+   *
+   * No dialog — a single tap does it, mirroring how Snooze/Skip need a dialog for
+   * their extra input but this needs none. Not a completion: last_completed and
+   * the recurrence are untouched.
+   */
+  private async _setDueToday(task: Task): Promise<void> {
+    if (!this._hass) return;
+    try {
+      await api.setDueToday(this._hass, task.id);
+    } catch (err) {
+      console.error('home-keeper-card: set due today failed', err);
+      toast(this, t('error.actionFailed'));
+      return;
+    }
+    await this._refresh();
+  }
+
   private _openCreate(): void {
     this._edit = {
       open: true,
@@ -976,6 +1017,10 @@ export class HomeKeeperCard extends HTMLElement {
      * agreed to have it answered by doing the thing.
      *
      * `title` covers a pointer hovering; this covers touch, where there is no hover.
+     *
+     * *pressKey*, when given, is the whole held message. A verb whose label and hint
+     * restate each other — "Due today", "Move the due date to today" — reads as an
+     * echo once they are joined, so it says the sentence instead.
      */
     const wireAction = (
       cls: string,
@@ -983,6 +1028,7 @@ export class HomeKeeperCard extends HTMLElement {
       labelKey: string,
       hintKey: string,
       open: (task: Task) => void,
+      pressKey?: string,
     ): void => {
       root.querySelectorAll<HTMLElement>(cls).forEach((b) => {
         (b as HTMLElement & { path?: string }).path = icon;
@@ -999,7 +1045,7 @@ export class HomeKeeperCard extends HTMLElement {
           explained = false;
           timer = window.setTimeout(() => {
             explained = true;
-            toast(this, `${t(labelKey)} — ${t(hintKey)}`);
+            toast(this, pressKey ? t(pressKey) : `${t(labelKey)} — ${t(hintKey)}`);
           }, LONG_PRESS_MS);
         });
         for (const evt of ['pointerup', 'pointerleave', 'pointercancel']) {
@@ -1025,6 +1071,14 @@ export class HomeKeeperCard extends HTMLElement {
       this._skip = { ...emptySkipState(), open: true, task };
       this._render();
     });
+    wireAction(
+      '.hk-defer-due-today',
+      MDI_DUE_TODAY,
+      'btn.dueToday',
+      'defer.dueTodayHint',
+      (task) => void this._setDueToday(task),
+      'defer.dueTodayPress',
+    );
 
     if (host && this._snooze.open) {
       renderSnoozeDialog(this._deferHost, this._snooze, host, () => {

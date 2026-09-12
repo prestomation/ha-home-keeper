@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.24.0b1"
+PANEL_VERSION = "0.24.0b2"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -140,6 +140,11 @@ EVENT_TASK_TRIGGERED = f"{DOMAIN}_task_triggered"  # a triggered task was armed
 # notification handler). See docs/EVENTS.md.
 EVENT_TASK_SNOOZED = f"{DOMAIN}_task_snoozed"  # + ``snoozed_until``
 EVENT_TASK_SKIPPED = f"{DOMAIN}_task_skipped"
+# Due today moves a task's ``next_due`` to now, the mirror image of snooze — same
+# untouched recurrence/last_completed, same re-arming of the edge-triggered events,
+# just the other direction on the calendar. Driven by the set_due_today service.
+# See docs/EVENTS.md.
+EVENT_TASK_DUE_TODAY_SET = f"{DOMAIN}_task_due_today_set"
 # Time-based transitions — fired (edge-triggered) from the coordinator. A task is
 # announced at most once per ``next_due`` value while HA is running; see
 # transitions.detect_transitions and coordinator._async_update_data.
@@ -236,6 +241,7 @@ OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
 # action and such a task can be neither completed nor skipped (#248).
 OPTION_ALLOW_SNOOZE = "allow_snooze"  # bool, default True
 OPTION_ALLOW_SKIP = "allow_skip"  # bool, default True
+OPTION_ALLOW_DUE_TODAY = "allow_due_today"  # bool, default True
 # Catalog glue domains the user dismissed from the Settings → Companions
 # "Suggested" list. A list of domain strings; dismissing only silences a
 # *suggestion* (a connected pairing is always shown). See companions.py.

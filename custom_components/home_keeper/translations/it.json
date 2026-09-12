@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Anticipa attività",
+      "description": "Anticipa a oggi la data di scadenza di un'attività, indipendentemente dalla sua pianificazione periodica, senza registrare un completamento né modificare la ricorrenza.",
+      "fields": {
+        "task_id": {
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività da anticipare. Funziona anche il suo nome. Il pannello mostra l'id."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marcatore facoltativo in formato libero restituito nell'evento home_keeper_task_due_today_set, così che un'integrazione contribuente possa riconoscere e ignorare l'anticipo che ha attivato (prevenzione dei cicli). Home Keeper non lo interpreta."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Collega l'attività a un consumabile",
       "description": "Collega un'attività a un consumabile/componente di un elettrodomestico così che completandola si consumi un ricambio dalle scorte e si attivi un evento di scorte basse alla soglia di riordino. Ometti asset_id e part_id per rimuovere il collegamento.",

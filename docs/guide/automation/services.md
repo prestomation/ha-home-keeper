@@ -12,7 +12,9 @@ lists all of them with their fields.
   changes a recorded completion's timestamp, identified by its current `old_ts`.
   `trigger_task` arms a condition-driven task. `snooze_task` defers the due date
   by `hours` without completing the task. `skip_task` advances the task to its
-  next occurrence without completing it. `set_task_consumable` links a task to an
+  next occurrence without completing it. `set_due_today` moves the due date to
+  today instead, independent of the periodic schedule, also without completing
+  it. `set_task_consumable` links a task to an
   appliance consumable, so a completion draws down its stock. Omit the ids to
   unlink. `list_tasks` returns a response.
 <!-- vale ai-tells.OverusedVocabulary = NO -->

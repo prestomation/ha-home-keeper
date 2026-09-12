@@ -20,7 +20,7 @@ export const USER_SECTIONS = [
   {slug: 'one-off-tasks', title: 'One-off tasks', label: 'One-off tasks', group: 'tasks'},
   {slug: 'markdown-notes', title: 'Markdown notes', label: 'Markdown notes', group: 'tasks'},
   {slug: 'completions', title: 'Logging completions', label: 'Completions', group: 'tasks'},
-  {slug: 'snooze-and-skip', title: 'Snooze and skip', label: 'Snooze and skip', group: 'tasks'},
+  {slug: 'snooze-and-skip', title: 'Snooze, skip and due today', label: 'Snooze, skip & due today', group: 'tasks'},
   {slug: 'nfc-tags', title: 'NFC and RFID tags', label: 'NFC and RFID tags', group: 'tasks'},
   {slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks', group: 'tasks'},
   {slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks', group: 'tasks'},

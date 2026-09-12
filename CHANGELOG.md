@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.24.0b2]
+
+### Added
+
+- **[Due today](https://prestomation.github.io/ha-home-keeper/docs/guide/snooze-and-skip).**
+  Move a task's due date to today, whatever its schedule says. Home Keeper records no
+  completion, so the recurrence is unchanged. (Fixes #312) (Thanks @joss94!)
+
 ## [0.24.0b1]
 
 ### Fixed

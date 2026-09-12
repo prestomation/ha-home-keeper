@@ -153,6 +153,7 @@ Use these names and no others for these things.
 | complete (a task) | tick off, mark done, finish, check off | |
 | snooze (a task) | postpone, defer, push back | |
 | skip (a task) | dismiss, cancel | |
+| due today (a task) | pull forward, bring forward, advance, move up | Moves the due date to today. Records no completion. "Forward" reads as *later* for a date, so it is not a name for this. |
 | due, overdue | late, past due | A task is "due" on its due date. A task past its due date is "overdue". |
 | admin | administrator, owner | |
 | user | member, household member | "non-admin user" is permitted. |

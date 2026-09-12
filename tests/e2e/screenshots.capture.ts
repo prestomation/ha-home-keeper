@@ -217,18 +217,24 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.d-note-edit')).toBeVisible();
   await openTaskTab(panel, 'schedule');
 
-  // 1b1a. The Done caret, open. Snooze and Skip are the two other answers to a due
-  // task, and neither was reachable from the panel before (#268) — they shipped as
-  // services and notification buttons only. Each carries a line saying what it does
-  // to the schedule, because the verbs alone did not say.
-  await panel.locator('.hk-detail-actions .hk-split-caret').click();
-  await expect(panel.locator('.hk-defer-menu .hk-defer-skip')).toBeVisible();
+  // 1b1a. The Done caret, open. Snooze, Skip and Pull forward are the other answers
+  // to a due task, and none was reachable from the panel before Snooze/Skip shipped
+  // (#268) — they started as services and notification buttons only. Each carries a
+  // line saying what it does to the schedule, because the verbs alone did not say.
+  // Every locator here is scoped to the detail actions: the list beside the detail
+  // renders its own split buttons, so an unscoped `.hk-defer-*` can find one of their
+  // closed menus instead of the open one — and which one it finds depends on the
+  // seeded due dates, which is a fixture edit away from silently changing.
+  const detailActions = panel.locator('.hk-detail-actions');
+  await detailActions.locator('.hk-split-caret').click();
+  await expect(detailActions.locator('.hk-defer-menu .hk-defer-skip')).toBeVisible();
+  await expect(detailActions.locator('.hk-defer-menu .hk-defer-due-today')).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/51-panel-skip-snooze-menu.png`, fullPage: true });
 
   // 1b1b. The snooze dialog, with the line resolving the chosen preset to a real date
   // — the user reads the answer rather than doing the arithmetic.
-  await panel.locator('.hk-defer-snooze').click();
+  await detailActions.locator('.hk-defer-snooze').click();
   await expect(panel.locator('ha-dialog[open] .hk-snooze-hint')).toBeVisible({
     timeout: 15_000,
   });
@@ -240,8 +246,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 1b1c. A skipped occurrence in the history, sitting between completions and marked
   // as one. The point of the shot is the pair of facts: the skip is listed, and the
   // completion tally beside it has not moved.
-  await panel.locator('.hk-detail-actions .hk-split-caret').click();
-  await panel.locator('.hk-defer-skip').click();
+  await detailActions.locator('.hk-split-caret').click();
+  await detailActions.locator('.hk-defer-skip').click();
   const skipDialog = panel.locator('ha-dialog[open]');
   await skipDialog.locator('ha-selector-text textarea').first().waitFor({
     state: 'visible',
@@ -1340,6 +1346,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     .locator('#hk-settings-shopping')
     .screenshot({ path: `${OUT}/45-panel-settings-shopping.png` });
 
+  // 17t. The Skip, snooze & pull forward card on its own — now 3 switches, Pull
+  // forward being the newest.
+  await panel.locator('#hk-settings-skipsnooze').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await panel
+    .locator('#hk-settings-skipsnooze')
+    .screenshot({ path: `${OUT}/45c-panel-settings-skipsnooze.png` });
+
   // 17a. Settings → Profiles + Notifications. A Profile is a standalone saved filter;
   // a Notification is a delivery binding that references one. Seed one of each via the
   // public set_options service so both editors render populated. "Upstairs" carries an
@@ -1728,6 +1742,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-settings-backbar')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/51-panel-mobile-settings-section.png` });
+
+  // 45d. The Skip, snooze & pull forward section on its own index page — same 3
+  // switches as the desktop card, one screen at a time like every other section here.
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="skipsnooze"]').click();
+  await expect(panel.locator('#hk-settings-skipsnooze')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/45d-panel-mobile-settings-skipsnooze.png` });
 
   // 22b. One notification open on a phone. This is where the pair that #313 confused
   // has to read: the line under the profile picker naming what that profile sends, and

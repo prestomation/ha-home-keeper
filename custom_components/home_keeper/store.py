@@ -47,6 +47,7 @@ from .const import (
     EVENT_TASK_COMPLETION_UPDATED,
     EVENT_TASK_CREATED,
     EVENT_TASK_DELETED,
+    EVENT_TASK_DUE_TODAY_SET,
     EVENT_TASK_SKIP_REMOVED,
     EVENT_TASK_SKIP_UPDATED,
     EVENT_TASK_SKIPPED,
@@ -553,6 +554,56 @@ class HomeKeeperStore:
                 existing,
                 extra={"snoozed_until": existing["next_due"], "origin": origin},
             ),
+        )
+        return existing
+
+    async def set_due_today(
+        self, task_id: str, *, origin: str | None = None
+    ) -> dict[str, Any]:
+        """Move a task's ``next_due`` to now, whatever its periodic schedule says.
+
+        The mirror image of :meth:`snooze_task`: "I want to do this today, not on its
+        usual date." Like snooze, this touches *only* ``next_due`` — recurrence,
+        ``last_completed`` and the completion history are untouched, so no completion
+        is recorded and the recurrence rule is unchanged. Because ``next_due``
+        changes, the coordinator re-arms the edge-triggered overdue/due-soon events
+        for the new (immediate) date. Rejects a **dormant** task
+        (``next_due is None``) — there's no scheduled due date to move.
+        Fires ``home_keeper_task_due_today_set``.
+
+        It does **not** promise the later schedule is unaffected, and snooze does not
+        either. A floating task measures from its last completion, so completing it
+        on the earlier date starts the next interval from there: the schedule shifts
+        earlier, permanently, which is the point of asking for it today.
+
+        Like ``snooze_task`` (and unlike ``complete_task``/``skip_task``), this
+        **accepts a synced problem-sensor task**: it asserts nothing about the
+        problem being resolved, only that the reminder should land now rather than
+        on its own schedule, so it survives the sync the same way a snooze does.
+
+        The panel and the card additionally withhold the action on a task that is
+        already due or overdue (see ``deferVerbs``). That is a UI rule, not a store
+        one: a service caller may still move such a task, which only pushes its due
+        date later.
+        """
+        existing = self._tasks.get(task_id)
+        if existing is None:
+            raise KeyError(task_id)
+        if existing.get("next_due") is None:
+            # A dormant task (a completed one-off, or a condition/sensor task not yet
+            # armed) has no scheduled due date to move; see snooze_task's identical
+            # guard, which this mirrors.
+            raise models.TaskValidationError(
+                "This task is dormant (no due date) — due today only moves a task "
+                "that is currently scheduled. Re-arm it instead (undo a "
+                "completion, or wait for its condition/sensor)."
+            )
+        existing["next_due"] = dt_util.now().isoformat()
+        await self._save()
+        _LOGGER.debug("Set task %s due now (%s)", task_id, existing["next_due"])
+        self._hass.bus.async_fire(
+            EVENT_TASK_DUE_TODAY_SET,
+            events.task_event_data(existing, extra={"origin": origin}),
         )
         return existing
 

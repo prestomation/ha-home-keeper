@@ -221,17 +221,24 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
-  // 2a1. Snooze and skip, the two answers to a due task that are not "done". They
-  //      hang off a caret beside Done rather than sitting next to it, so the tour
-  //      opens the menu, lingers on the line each entry carries, then shows the
-  //      snooze dialog resolving its preset to a real date. Escape out of both so
-  //      the seeded schedule is left where the later beats expect it.
+  // 2a1. Snooze and skip, the answers to a due task that are not "done". They hang
+  //      off a caret beside Done rather than sitting next to it, so the tour opens
+  //      the menu, lingers on the line each entry carries, then shows the snooze
+  //      dialog resolving its preset to a real date. Escape out of both so the
+  //      seeded schedule is left where the later beats expect it.
+  //      This task is overdue, so the menu holds 2 entries and not 3: due today is
+  //      withheld on a task that is already due, because there is no due date to
+  //      bring nearer. The dashboard card at step 8a carries the verb on this tour,
+  //      on the rows of the tasks due in the future, and the phone tour opens the
+  //      same menu on one of those tasks at its step 4. Neither costs this tour a
+  //      navigation: the desktop walk is the long one, and its budget is thin.
   //      Every locator here is scoped to the detail actions: the list beside the
   //      detail renders its own split buttons, so an unscoped `.hk-defer-snooze`
   //      finds one of their closed menus instead of the open one.
   const detailActions = panel.locator('.hk-detail-actions');
   await detailActions.locator('.hk-split-caret').click();
   await expect(detailActions.locator('.hk-defer-menu .hk-defer-skip')).toBeVisible();
+  await expect(detailActions.locator('.hk-defer-menu .hk-defer-due-today')).toHaveCount(0);
   await page.waitForTimeout(BEAT * 2);
   await detailActions.locator('.hk-defer-snooze').click();
   await expect(panel.locator('ha-dialog[open] .hk-snooze-hint')).toBeVisible();
@@ -933,12 +940,15 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await openDashboard(page);
   await page.waitForTimeout(BEAT * 2);
 
-  // 8a. Snooze and skip reach the dashboard too, and here they are simply on the
-  //     row: a caret beside a same-sized icon button had nothing to lean on. Open
-  //     the snooze dialog so the tour shows the preset resolving to a real date,
-  //     then Escape out so the closing shot frames the cards.
+  // 8a. Snooze, skip and due today reach the dashboard too, and here they are
+  //     simply on the row: a caret beside a same-sized icon button had nothing to
+  //     lean on. Open the snooze dialog so the tour shows the preset resolving to a
+  //     real date, then Escape out so the closing shot frames the cards.
+  //     Due today is on the rows of the tasks due in the future, so the card shows
+  //     the verb the detail menu withholds on an overdue task.
   const hkCard = page.locator('home-keeper-card').first();
   await expect(hkCard.locator('.hk-defer-snooze').first()).toBeVisible({ timeout: 40_000 });
+  await expect(hkCard.locator('.hk-defer-due-today').first()).toBeVisible();
   await page.waitForTimeout(BEAT);
   await hkCard.locator('.hk-defer-snooze').first().click();
   await expect(page.locator('ha-dialog[open] .hk-snooze-hint').first()).toBeVisible();
@@ -1014,9 +1024,26 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   // 4. A task detail is a page of its own — Schedule, Notes and History as tabs,
   //    so the history is one tap rather than a screen of scrolling — and Back
   //    returns to the list.
-  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  //    The furnace filter is the walked task here because it is due in the future,
+  //    which is the state that offers all 3 defer verbs: step 2a1 showed the menu
+  //    on an overdue task, where due today is withheld, so this beat is where the
+  //    third entry appears. Due today has no dialog of its own — it moves the date
+  //    on the tap — so the open menu is the only place the tour can show it.
+  await panel.locator(`.detail-open[data-detail-id="${TASK.furnaceFilter}"]`).click();
   await expect(panel.locator('#back-btn')).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
+  const phoneFutureActions = panel.locator('.hk-detail-actions');
+  await expect(phoneFutureActions.locator('.hk-split-caret')).toBeVisible();
+  await phoneFutureActions.locator('.hk-split-caret').click();
+  await expect(
+    phoneFutureActions.locator('.hk-defer-menu .hk-defer-due-today'),
+  ).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await page.keyboard.press('Escape');
+  await expect(
+    phoneFutureActions.locator('.hk-defer-menu .hk-defer-due-today'),
+  ).toBeHidden();
+  await page.waitForTimeout(BEAT);
   await openTaskTab(panel, 'history');
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('#back-btn').click();

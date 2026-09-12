@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Adelantar tarea",
+      "description": "Adelanta a hoy la fecha de vencimiento de una tarea, independientemente de su periodicidad, sin registrar una finalización ni modificar su recurrencia.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea que se va a adelantar. Su nombre también funciona. El panel muestra el id."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador de formato libre opcional que se devuelve en el evento home_keeper_task_due_today_set, para que una integración contribuyente pueda reconocer e ignorar el adelanto que ella misma desencadenó (prevención de bucles). Home Keeper no lo interpreta."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Vincular tarea a un consumible",
       "description": "Vincula una tarea a un consumible/pieza de un electrodoméstico para que al completarla se consuma un repuesto del stock y se dispare un evento de stock bajo en el umbral de reposición. Omite asset_id y part_id para quitar el vínculo.",

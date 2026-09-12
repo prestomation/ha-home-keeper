@@ -13,6 +13,16 @@ const fallback: Table = LOCALES[DEFAULT_LOCALE];
 let current: Table = fallback;
 let currentLang: string = DEFAULT_LOCALE;
 let plural: Intl.PluralRules = new Intl.PluralRules(DEFAULT_LOCALE);
+// `Intl.ListFormat` needs the ES2021 lib, which is why `tsconfig.json` asks for it
+// while `target` stays ES2020: `lib` only says what the runtime is known to have,
+// and a built-in method is never downlevelled. That file is strict JSON, not JSONC
+// — hassfest parses it and a `//` comment fails the `test` job — so the reason
+// lives here.
+//
+// No options object: "long"/"conjunction" are already the defaults, so passing
+// them would add a literal that mutates to `{}` with identical behaviour — an
+// equivalent mutant no assertion can kill.
+let list: Intl.ListFormat = new Intl.ListFormat(DEFAULT_LOCALE);
 
 /** Resolve an HA language code (e.g. "en-GB", "pt-BR", "zh-Hans") to a table. */
 function resolve(lang: string): { table: Table; tag: string } {
@@ -36,8 +46,10 @@ export function setLanguage(lang?: string): void {
   currentLang = tag;
   try {
     plural = new Intl.PluralRules(tag);
+    list = new Intl.ListFormat(tag);
   } catch {
     plural = new Intl.PluralRules(DEFAULT_LOCALE);
+    list = new Intl.ListFormat(DEFAULT_LOCALE);
   }
 }
 
@@ -57,6 +69,19 @@ function interpolate(tmpl: string, params?: Record<string, string | number>): st
 export function t(key: string, params?: Record<string, string | number>): string {
   const tmpl = current[key] ?? fallback[key] ?? key;
   return interpolate(tmpl, params);
+}
+
+/**
+ * Join *items* as prose in the active language: "a", "a and b", "a, b and c".
+ *
+ * For a sentence that names a variable set of things, where enumerating every
+ * outcome as its own string does not scale — three switches would need eight.
+ * `Intl.ListFormat` knows each language's separator and conjunction, which a
+ * hand-rolled join does not. It answers '' for an empty list on its own, so
+ * there is no guard clause here to add a mutant nothing would kill.
+ */
+export function tlist(items: string[]): string {
+  return list.format(items);
 }
 
 /**
