@@ -1824,9 +1824,23 @@ export function mergePartForm(prev: Part, value: Record<string, unknown>): Part 
     const on = has('also_every_on')
       ? Boolean(value.also_every_on)
       : next.replace_also_every != null;
+    // Each candidate is taken only when it is a whole number of 1 or more. `??` is
+    // not enough on its own: an emptied box sends `''` and `Number('')` is 0, and a
+    // typed 0 survives `??` as itself — either way the backend refuses the value
+    // (`assets._normalize_replace_also_every`) and the **whole appliance save** fails
+    // over one field the user can reach by clearing a box. The task form guards its
+    // own backstop the same way.
+    const backstopInterval = (raw: unknown): number | null => {
+      if (raw == null || raw === '') return null;
+      const n = Number(raw);
+      return Number.isInteger(n) && n >= 1 ? n : null;
+    };
     next.replace_also_every = on
       ? {
-          interval: Number(value.also_every_interval ?? next.replace_also_every?.interval ?? 1),
+          interval:
+            backstopInterval(value.also_every_interval) ??
+            backstopInterval(next.replace_also_every?.interval) ??
+            1,
           unit: (value.also_every_unit as Unit) ?? next.replace_also_every?.unit ?? 'months',
         }
       : null;

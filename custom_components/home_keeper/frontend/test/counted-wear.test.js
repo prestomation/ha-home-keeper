@@ -502,3 +502,129 @@ describe('partFormData — the counting seeds', () => {
     expect(partFormData({ name: 'x', type: 'wear', action: 'sharpen' }).action).toBe('sharpen');
   });
 });
+
+describe('usesSinceReplacement — a skip restarts the cycle', () => {
+  const skipAt = (ts) => ({ skips: [{ ts }] });
+
+  it('restarts the count after a skip, the way the backend does', () => {
+    const task = useTask({ completions: uses(25) });
+    const skipped = replaceTask(skipAt(new Date(NOW).toISOString()));
+    expect(usesSinceReplacement(task, skipped)).toBe(0);
+  });
+
+  it('counts the uses recorded after the skip', () => {
+    const task = useTask({
+      completions: [...uses(25, NOW - 86_400_000), ...uses(2)],
+    });
+    const skipped = replaceTask(skipAt(new Date(NOW - 2 * 3_600_000).toISOString()));
+    expect(usesSinceReplacement(task, skipped)).toBe(2);
+  });
+
+  it('takes the later of the completion and the skip', () => {
+    const task = useTask({ completions: uses(4) });
+    const both = replaceTask({
+      last_completed: new Date(NOW).toISOString(),
+      skips: [{ ts: new Date(NOW - 10 * 86_400_000).toISOString() }],
+    });
+    expect(usesSinceReplacement(task, both)).toBe(0);
+  });
+
+  it('ignores an unparseable skip rather than restarting on it', () => {
+    const task = useTask({ completions: uses(3) });
+    expect(usesSinceReplacement(task, replaceTask(skipAt('not-a-date')))).toBe(3);
+  });
+
+  it('drops an unparseable use once the cycle has a marker, matching the backend', () => {
+    // `reconcile._sortable` sorts an unreadable row oldest, so it is never later than
+    // the marker. The panel used to count it and read 1 above the backend.
+    const task = useTask({ completions: [{ ts: 'not-a-date' }, ...uses(2)] });
+    const replaced = replaceTask({ last_completed: new Date(NOW - 86_400_000).toISOString() });
+    expect(usesSinceReplacement(task, replaced)).toBe(2);
+  });
+});
+
+describe('countedProgress — a manual part link is not the replacement half', () => {
+  it('skips a manually linked task and reads the real replacement half', () => {
+    // `set_task_consumable` lets any task point at any part, so a user-owned task can
+    // sit on a counted wear part. The backend excludes it from both of its lookups.
+    const task = useTask({ completions: uses(3) });
+    const manual = {
+      id: 'man1',
+      name: 'Wash the jacket',
+      recurrence_type: 'floating',
+      next_due: null,
+      completions: [],
+      last_completed: new Date(NOW - 60_000).toISOString(),
+      source: { part: { asset_id: 'a1', part_id: 'p1', manual: true } },
+    };
+    expect(countedProgress(task, [asset()], [manual, task, replaceTask()])).toEqual({
+      count: 3,
+      target: 25,
+      noun: 'wears',
+    });
+  });
+});
+
+describe('the dashboard card keeps a use task', () => {
+  it('gives the counted bucket a section when grouping by status', async () => {
+    const { groupTasks } = await import('../src/card-filter.ts');
+    const task = useTask({ completions: uses(3) });
+    const groups = groupTasks([task], 'status', {}, {}, NOW);
+    expect(groups.flatMap((g) => g.items).map((x) => x.id)).toEqual(['use1']);
+  });
+
+  it('does not apply a due-date horizon to the counted filter', async () => {
+    const { filterTasks } = await import('../src/card-filter.ts');
+    const task = useTask({ completions: uses(3) });
+    const kept = filterTasks([task], { filter: 'counted', horizon_days: 30 }, {}, NOW, {});
+    expect(kept.map((x) => x.id)).toEqual(['use1']);
+  });
+});
+
+describe('the part time backstop never sends an interval the store refuses', () => {
+  const counted = {
+    id: 'p1',
+    name: 'DWR',
+    type: 'wear',
+    replace_interval: 25,
+    replace_unit: 'uses',
+    replace_also_every: { interval: 12, unit: 'months' },
+  };
+
+  it('keeps the stored interval when the box is cleared', () => {
+    // `Number('')` is 0, and `assets._normalize_replace_also_every` refuses it — so
+    // the whole appliance save used to fail because one box was emptied.
+    const next = mergePartForm(counted, {
+      also_every_on: true,
+      also_every_interval: '',
+      also_every_unit: 'months',
+    });
+    expect(next.replace_also_every).toEqual({ interval: 12, unit: 'months' });
+  });
+
+  it('keeps the stored interval when a 0 is typed', () => {
+    const next = mergePartForm(counted, {
+      also_every_on: true,
+      also_every_interval: 0,
+      also_every_unit: 'months',
+    });
+    expect(next.replace_also_every).toEqual({ interval: 12, unit: 'months' });
+  });
+
+  it('falls back to 1 when there is nothing stored either', () => {
+    const next = mergePartForm(
+      { ...counted, replace_also_every: null },
+      { also_every_on: true, also_every_interval: 0, also_every_unit: 'weeks' },
+    );
+    expect(next.replace_also_every).toEqual({ interval: 1, unit: 'weeks' });
+  });
+
+  it('still takes a real number', () => {
+    const next = mergePartForm(counted, {
+      also_every_on: true,
+      also_every_interval: 18,
+      also_every_unit: 'months',
+    });
+    expect(next.replace_also_every).toEqual({ interval: 18, unit: 'months' });
+  });
+});

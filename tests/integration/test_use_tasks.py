@@ -249,3 +249,52 @@ def test_the_time_backstop_arms_without_any_use(ha):
         tries=30,
     )
     assert armed, "the time backstop did not arm the replacement task"
+
+
+def test_skipping_the_replacement_restarts_the_count_and_it_stays_dormant(ha):
+    """Skip must hold, and only this tier can see that it does.
+
+    The settle step runs on every coordinator refresh, and ``skip_task`` asks for one.
+    So a skip that did not restart the count re-armed the task seconds later and fired
+    a fresh ``home_keeper_task_triggered`` — a pure test sees the arming decision, but
+    only this tier sees the loop it sits in. Same failure as #268 on a usage meter.
+    """
+    _asset, use_task, replace_task = _counted_appliance(ha, "Skipped jacket", target=2)
+    for _ in range(2):
+        _complete(ha, use_task["id"])
+        time.sleep(1)
+    assert _find(
+        lambda: _tasks(ha),
+        lambda task: task["id"] == replace_task["id"] and task["next_due"] is not None,
+    )
+    call_service(ha, "home_keeper", "skip_task", {"task_id": replace_task["id"]})
+    # Long enough for several refreshes, since the bounce took about 2 seconds.
+    for _ in range(10):
+        time.sleep(1)
+        assert _reload(ha, replace_task["id"])["next_due"] is None, (
+            "the skipped replacement task re-armed itself"
+        )
+    # The skip is logged, and the completion history is untouched.
+    assert len(_reload(ha, replace_task["id"])["skips"]) == 1
+    assert len(_reload(ha, use_task["id"])["completions"]) == 2
+
+
+def test_the_count_runs_again_after_a_skip(ha):
+    """A skip starts the next cycle; it does not switch the counting off."""
+    _asset, use_task, replace_task = _counted_appliance(ha, "Resumed jacket", target=2)
+    for _ in range(2):
+        _complete(ha, use_task["id"])
+        time.sleep(1)
+    assert _find(
+        lambda: _tasks(ha),
+        lambda task: task["id"] == replace_task["id"] and task["next_due"] is not None,
+    )
+    call_service(ha, "home_keeper", "skip_task", {"task_id": replace_task["id"]})
+    time.sleep(2)
+    for _ in range(2):
+        _complete(ha, use_task["id"])
+        time.sleep(1)
+    assert _find(
+        lambda: _tasks(ha),
+        lambda task: task["id"] == replace_task["id"] and task["next_due"] is not None,
+    ), "the replacement task did not arm again after a skip and 2 more uses"

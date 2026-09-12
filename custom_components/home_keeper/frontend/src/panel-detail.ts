@@ -55,6 +55,7 @@ import {
   btnAttrs,
   copyText,
   deviceName,
+  dueLabel,
   escapeHTML,
   formatDate,
   formatDateTime,
@@ -387,7 +388,10 @@ function taskDetail(p: PanelHost, task: Task): string {
       ? t('form.task.completedOn', { date: formatDateTime(task.last_completed, p._lang()) })
       : task.next_due
         ? formatDateTime(task.next_due, p._lang())
-        : t('due.none');
+        : // A use task has no due date and never will, so "-" reads as a date that is
+          // missing. `dueLabel` answers "Counting" for exactly this case, which is what
+          // every list row already shows — the detail page said something else.
+          dueLabel(task, undefined, p._hass);
   // Nothing to mark done while the task is monitored — its owner or the sensor
   // watcher arms it when the condition fires (a battery goes low, a device stops
   // answering) — or once a one-off is already completed. A completion-blocked task

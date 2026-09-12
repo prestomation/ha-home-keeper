@@ -416,6 +416,25 @@ def _record_entry(history: Iterable[dict], entry: dict) -> list[dict]:
     return entries
 
 
+def _is_occurrence(task: dict, anchor: datetime, moment: datetime) -> bool:
+    """Whether *moment* is one of the schedule's own occurrences.
+
+    Asked for exactly one instant per call, so it is answered by asking the grid for
+    the occurrence after the moment before *moment*: a date on the grid is its own
+    answer. An off-grid date belongs to a snooze or a due-today rather than to the
+    schedule, and :func:`_advance_fixed_schedule` must not move the schedule past it.
+
+    A season is not consulted. ``_clamp_season`` only ever returns a grid occurrence,
+    so a clamped ``next_due`` passes here, and a raw grid date that the season would
+    reject is still a date the schedule owns.
+    """
+    probe = moment - timedelta(microseconds=1)
+    return (
+        next_fixed_occurrence(anchor, task["freq"], int(task["interval"]), after=probe)
+        == moment
+    )
+
+
 def _advance_fixed_schedule(task: dict, *, now: datetime) -> str:
     """The ``next_due`` a fixed task moves to once its occurrence is dealt with.
 
@@ -451,7 +470,17 @@ def _advance_fixed_schedule(task: dict, *, now: datetime) -> str:
     # it before ``max`` so the winner always hands ``next_fixed_occurrence`` a probe in
     # Home Assistant's zone (see ``_regrid``). Comparison itself is instant-based and
     # would be correct either way — it is the *tzinfo of the winner* that matters.
-    after = max(now, current.astimezone(now.tzinfo)) if current is not None else now
+    if current is not None:
+        current = current.astimezone(now.tzinfo)
+        # ...and only when it really is an occurrence. ``next_due`` holds a *deferred*
+        # instant after a snooze or a due-today, and neither of those is a date the
+        # user dealt with — advancing past a snooze target threw away every occurrence
+        # between the task's own one and the target, so snoozing a Monday task a week
+        # and then doing it anyway lost the Monday in between. A deferred date reads as
+        # "no occurrence on the board", which is the ``now``-only branch below.
+        if not _is_occurrence(task, anchor, current):
+            current = None
+    after = max(now, current) if current is not None else now
     return _clamp_season(
         next_fixed_occurrence(anchor, task["freq"], int(task["interval"]), after=after),
         task,

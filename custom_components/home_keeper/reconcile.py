@@ -166,24 +166,56 @@ def _sortable(value: Any) -> tuple[int, float]:
     return (1, parsed.timestamp())
 
 
+def cycle_start(replace_task: dict[str, Any]) -> str | None:
+    """When the current count cycle started, or ``None`` before it has ever started.
+
+    The later of 2 instants: the replacement task's ``last_completed``, and its most
+    recent skip. A completion is the obvious one — the part was replaced, so the next
+    count starts from zero.
+
+    A skip has to count for the same reason. ``recurrence.skip_occurrence`` leaves
+    ``last_completed`` alone by contract and sets ``next_due`` to None, which is the
+    exact state :func:`settle_use_tasks` arms from — so without the skip here the
+    task re-arms on the next coordinator tick and fires a fresh
+    ``home_keeper_task_triggered``. Skip on a counted wear item was a no-op that
+    bounced straight back. It is the same failure ``store.skip_task`` resets a usage
+    meter for (#268), and the same answer: a skip means "not this cycle", so it
+    starts the next one.
+
+    An entry that cannot be parsed is ignored rather than treated as the epoch, so
+    one bad row in a user-edited history does not restart the count.
+    """
+    best: str | None = None
+    best_key = (0, 0.0)
+    candidates = [replace_task.get("last_completed")]
+    candidates += [entry.get("ts") for entry in replace_task.get("skips") or []]
+    for value in candidates:
+        if not value:
+            continue
+        key = _sortable(value)
+        if key[0] and key > best_key:
+            best, best_key = str(value), key
+    return best
+
+
 def uses_since_replacement(
     use_task: dict[str, Any], replace_task: dict[str, Any]
 ) -> int:
-    """How many uses have been recorded since the part was last replaced.
+    """How many uses have been recorded since the current cycle started.
 
     The count *is* the use task's completion log, filtered to the entries later than
-    the replacement task's ``last_completed``. There is no stored counter, and so
-    nothing to keep in sync: completing the replacement task moves ``last_completed``
-    forward and the next count starts from zero by construction.
+    :func:`cycle_start`. There is no stored counter, and so nothing to keep in sync:
+    completing or skipping the replacement task moves the marker forward and the next
+    count starts from zero by construction.
 
-    A replacement task that has never been completed counts every entry, which is
-    right for a part in its first cycle.
+    A replacement task that has never been completed or skipped counts every entry,
+    which is right for a part in its first cycle.
     """
     completions = use_task.get("completions") or []
-    since = _parse_ts(replace_task.get("last_completed"))
+    since = cycle_start(replace_task)
     if since is None:
         return len(completions)
-    marker = _sortable(replace_task.get("last_completed"))
+    marker = _sortable(since)
     return sum(1 for entry in completions if _sortable(entry.get("ts")) > marker)
 
 
@@ -196,17 +228,17 @@ def replacement_backstop_due(
     """When a counted wear item's time backstop comes due, or ``None`` if it has none.
 
     "Every 25 wears, **or** every 12 months, whichever comes first." The backstop
-    measures from the same instant the count does — the last replacement — so one
-    completion resets both halves and they can never disagree about which cycle they
-    are in. While there has been no replacement it falls back to the part's recorded
-    ``last_replaced`` and then to the task's ``created``, which is the ladder
+    measures from the same instant the count does — :func:`cycle_start` — so one
+    completion or skip resets both halves and they can never disagree about which
+    cycle they are in. While the cycle has never started it falls back to the part's
+    recorded ``last_replaced`` and then to the task's ``created``, which is the ladder
     ``sensor_tasks.backstop_due`` already walks for a usage task.
     """
     backstop = part_replace_backstop(part)
     if backstop is None:
         return None
     raw = (
-        replace_task.get("last_completed")
+        cycle_start(replace_task)
         or qualify_iso(part.get("last_replaced"), tz)
         or replace_task.get("created")
     )
@@ -310,13 +342,18 @@ def settle_use_tasks(
     hygiene with no event of its own — the caller persists when ``trimmed`` is true.
 
     A replacement task that is already armed is left alone, so a household that lets
-    the count run past the target does not get a fresh event on every tick.
+    the count run past the target does not get a fresh event on every tick. A
+    **disabled** one is left alone too, matching ``sensor_watcher``, its twin for
+    usage tasks: arming it would fire ``home_keeper_task_triggered`` at a device
+    trigger nobody asked for, and leave it overdue the moment it is re-enabled.
     """
     to_arm: list[str] = []
     trimmed = False
     for _asset, part, use_task, replace_task in counted_part_pairs(assets, tasks):
-        if replace_task.get("next_due") is None and replacement_is_due(
-            part, use_task, replace_task, now=now
+        if (
+            replace_task.get("next_due") is None
+            and replace_task.get("enabled", True)
+            and replacement_is_due(part, use_task, replace_task, now=now)
         ):
             to_arm.append(replace_task["id"])
         if trim_use_completions(use_task, replace_task, cap=use_retention_cap(part)):

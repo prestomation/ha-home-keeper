@@ -387,3 +387,80 @@ def test_is_use_task_reads_both_the_type_and_the_role():
 def test_an_absent_role_reads_as_replace(task):
     """The whole migration: a task written before counted wear items keeps identity."""
     assert rc.part_role(task) == "replace"
+
+
+# ── skip restarts the cycle ───────────────────────────────────────────────────
+def _skip(task, when):
+    """Log a skip at *when*, the way ``recurrence.skip_occurrence`` does."""
+    task.setdefault("skips", []).append({"ts": when.isoformat()})
+    task["next_due"] = None
+
+
+def test_a_skipped_replacement_is_not_armed_again():
+    """Skip means "not this cycle", so it must restart the count.
+
+    ``skip_occurrence`` leaves ``last_completed`` alone by contract and sets
+    ``next_due`` to None, which is exactly the state ``settle_use_tasks`` arms from.
+    Without the skip in the marker the task re-arms on the next coordinator tick and
+    fires a fresh ``home_keeper_task_triggered``, so Skip is a no-op that bounces
+    straight back. This is #268 in a new place.
+    """
+    assets, tasks, roles = _pair(uses=25)
+    to_arm, _ = rc.settle_use_tasks(assets, tasks, now=NOW)
+    assert to_arm == [roles["replace"]["id"]]
+    _skip(roles["replace"], NOW)
+    to_arm, _ = rc.settle_use_tasks(assets, tasks, now=NOW + timedelta(minutes=5))
+    assert to_arm == []
+
+
+def test_a_skip_restarts_the_count_from_zero():
+    _assets, _tasks, roles = _pair(uses=25)
+    _skip(roles["replace"], NOW)
+    assert rc.uses_since_replacement(roles["use"], roles["replace"]) == 0
+
+
+def test_uses_recorded_after_a_skip_count_again():
+    _assets, _tasks, roles = _pair(uses=25)
+    _skip(roles["replace"], NOW)
+    _complete(roles["use"], NOW + timedelta(hours=1))
+    assert rc.uses_since_replacement(roles["use"], roles["replace"]) == 1
+
+
+def test_a_skip_restarts_the_time_backstop():
+    """The backstop measures from the same instant the count does."""
+    part = _counted_part(replace_also_every={"interval": 12, "unit": "months"})
+    assets, tasks, roles = _pair(
+        part=part, uses=2, replaced_at=NOW - timedelta(days=400)
+    )
+    _skip(roles["replace"], NOW)
+    to_arm, _ = rc.settle_use_tasks(assets, tasks, now=NOW + timedelta(minutes=5))
+    assert to_arm == []
+
+
+def test_a_completion_later_than_the_skip_still_marks_the_cycle():
+    """The marker is the newer of the 2, so replacing after a skip wins."""
+    _assets, _tasks, roles = _pair(uses=25)
+    _skip(roles["replace"], NOW - timedelta(days=2))
+    roles["replace"]["last_completed"] = NOW.isoformat()
+    _complete(roles["use"], NOW + timedelta(hours=1))
+    assert rc.uses_since_replacement(roles["use"], roles["replace"]) == 1
+
+
+def test_an_unparseable_skip_does_not_take_the_count_down():
+    """A skip log travels through import and is user-editable, like a completion."""
+    _assets, _tasks, roles = _pair(uses=25)
+    roles["replace"]["skips"] = [{"ts": "not-a-date"}]
+    assert rc.uses_since_replacement(roles["use"], roles["replace"]) == 25
+
+
+def test_a_disabled_replacement_task_is_not_armed():
+    """Its twin the sensor watcher reads ``enabled``; this step must too.
+
+    Arming a disabled task fires ``home_keeper_task_triggered`` at a device trigger
+    nobody asked for, and leaves the task armed and overdue the moment it is
+    re-enabled.
+    """
+    assets, tasks, roles = _pair(uses=25)
+    roles["replace"]["enabled"] = False
+    to_arm, _ = rc.settle_use_tasks(assets, tasks, now=NOW)
+    assert to_arm == []

@@ -13,6 +13,13 @@ set -euo pipefail
 # these 210 tests into SocketBlockedError with only the wrong name here, so running
 # the integration tier the way AGENTS.md prescribes was impossible. `-p no:` for a
 # plugin that is not installed is a no-op, so naming both is free.
+#
+# Turning pytest-socket off is still not enough on its own. The block is applied by
+# an autouse fixture in `pytest_homeassistant_custom_component.plugins`, which calls
+# `pytest_socket.disable_socket` itself, so the whole tier stayed red locally with
+# only the 2 names above. That plugin's pytest11 entry point is `homeassistant`, and
+# this lane wants none of it — it drives a real container over HTTP rather than an
+# in-process Home Assistant.
 cd tests/integration
 python -m pytest . -v --tb=short --override-ini="asyncio_mode=auto" \
-  -p no:socket -p no:pytest_socket
+  -p no:socket -p no:pytest_socket -p no:homeassistant

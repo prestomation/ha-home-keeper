@@ -491,10 +491,13 @@ export function filterTasks(
   const recTypes = config.recurrence_types?.length ? new Set(config.recurrence_types) : null;
   const filter = config.filter ?? 'all';
   const horizon = Math.max(0, Number(config.horizon_days) || 0);
-  // The horizon is an "upcoming dated window"; it's meaningless for the
-  // explicitly-undated `no_due` filter, so skip it there (else the list is
-  // always empty — undated tasks have no date to fall within the window).
-  const horizonCutoff = horizon > 0 && filter !== 'no_due' && filter !== 'shopping' ? now + horizon * DAY_MS : 0;
+  // The horizon is an "upcoming dated window"; it's meaningless for the filters that
+  // select undated tasks, so skip it there (else the list is always empty — an
+  // undated task has no date to fall within the window). `counted` is one of them: a
+  // use task carries no due date for its whole life.
+  const undatedFilters: CardFilter[] = ['no_due', 'shopping', 'counted'];
+  const horizonCutoff =
+    horizon > 0 && !undatedFilters.includes(filter) ? now + horizon * DAY_MS : 0;
 
   return tasks.filter((task) => {
     if (!config.show_disabled && task.enabled === false) return false;
@@ -561,6 +564,11 @@ export interface Group<T = Task> {
 const STATUS_ORDER: { bucket: StatusBucket; labelKey: string }[] = [
   { bucket: 'overdue', labelKey: 'chip.overdue' },
   { bucket: 'shopping', labelKey: 'filter.shopping' },
+  // A counted wear item's use task buckets as `counted`, so the card needs the row:
+  // `groupTasks` builds its sections from this table alone, and a bucket with no row
+  // here matches nothing and drops the task. Placed where the panel's own table
+  // places it (`panel-controls.ts`), among the sections you act on.
+  { bucket: 'counted', labelKey: 'filter.counted' },
   { bucket: 'today', labelKey: 'due.today' },
   { bucket: 'soon', labelKey: 'filter.soon' },
   { bucket: 'later', labelKey: 'section.later' },
