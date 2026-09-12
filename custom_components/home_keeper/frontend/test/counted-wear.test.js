@@ -534,6 +534,23 @@ describe('usesSinceReplacement — a skip restarts the cycle', () => {
     expect(usesSinceReplacement(task, replaceTask(skipAt('not-a-date')))).toBe(3);
   });
 
+  it('takes the newest of several skips', () => {
+    const task = useTask({ completions: uses(4) });
+    const skipped = replaceTask({
+      skips: [
+        { ts: new Date(NOW - 30 * 86_400_000).toISOString() },
+        { ts: new Date(NOW).toISOString() },
+        { ts: new Date(NOW - 10 * 86_400_000).toISOString() },
+      ],
+    });
+    expect(usesSinceReplacement(task, skipped)).toBe(0);
+  });
+
+  it('reads a null completion as no marker at all', () => {
+    const task = useTask({ completions: uses(3) });
+    expect(usesSinceReplacement(task, replaceTask({ last_completed: null }))).toBe(3);
+  });
+
   it('drops an unparseable use once the cycle has a marker, matching the backend', () => {
     // `reconcile._sortable` sorts an unreadable row oldest, so it is never later than
     // the marker. The panel used to count it and read 1 above the backend.
@@ -563,6 +580,25 @@ describe('countedProgress — a manual part link is not the replacement half', (
       noun: 'wears',
     });
   });
+
+  it('walks past a task whose source names no part', () => {
+    // A task with a `source` of another kind sits in the same array, so the lookup
+    // has to read through a missing `part` rather than off it.
+    const task = useTask({ completions: uses(3) });
+    const other = {
+      id: 'other1',
+      name: 'Something else',
+      recurrence_type: 'floating',
+      next_due: null,
+      completions: [],
+      source: {},
+    };
+    expect(countedProgress(task, [asset()], [other, task, replaceTask()])).toEqual({
+      count: 3,
+      target: 25,
+      noun: 'wears',
+    });
+  });
 });
 
 describe('the dashboard card keeps a use task', () => {
@@ -571,6 +607,15 @@ describe('the dashboard card keeps a use task', () => {
     const task = useTask({ completions: uses(3) });
     const groups = groupTasks([task], 'status', {}, {}, NOW);
     expect(groups.flatMap((g) => g.items).map((x) => x.id)).toEqual(['use1']);
+  });
+
+  it('heads that section with the same word the filter pill uses', async () => {
+    const { groupTasks } = await import('../src/card-filter.ts');
+    const task = useTask({ completions: uses(3) });
+    const section = groupTasks([task], 'status', {}, {}, NOW).find(
+      (g) => g.key === 'status:counted',
+    );
+    expect(section.label).toBe('Counted');
   });
 
   it('does not apply a due-date horizon to the counted filter', async () => {
@@ -626,5 +671,29 @@ describe('the part time backstop never sends an interval the store refuses', () 
       also_every_unit: 'months',
     });
     expect(next.replace_also_every).toEqual({ interval: 18, unit: 'months' });
+  });
+
+  it('takes 1, which is the smallest interval the store accepts', () => {
+    const next = mergePartForm(counted, {
+      also_every_on: true,
+      also_every_interval: 1,
+      also_every_unit: 'months',
+    });
+    expect(next.replace_also_every).toEqual({ interval: 1, unit: 'months' });
+  });
+
+  it.each([
+    ['a negative', -5],
+    ['a fraction', 1.5],
+    ['a word', 'soon'],
+    ['null', null],
+    ['undefined', undefined],
+  ])('keeps the stored interval for %s', (_label, raw) => {
+    const next = mergePartForm(counted, {
+      also_every_on: true,
+      also_every_interval: raw,
+      also_every_unit: 'months',
+    });
+    expect(next.replace_also_every).toEqual({ interval: 12, unit: 'months' });
   });
 });

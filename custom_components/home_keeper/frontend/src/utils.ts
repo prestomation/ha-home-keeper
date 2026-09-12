@@ -693,18 +693,16 @@ export function useProgress(count: number, target: number): number {
  * `NaN` when the cycle has never started, or when no entry can be parsed.
  */
 function cycleStart(replaceTask?: Task): number {
-  const candidates = [
-    replaceTask?.last_completed,
-    ...(replaceTask?.skips ?? []).map((entry) => entry.ts),
-  ];
-  let best = Number.NaN;
-  for (const value of candidates) {
-    if (!value) continue;
-    const at = new Date(value).getTime();
-    if (Number.isNaN(at)) continue;
-    if (Number.isNaN(best) || at > best) best = at;
-  }
-  return best;
+  // Stryker disable next-line ArrayDeclaration: the fallback only feeds `.map`, so a
+  // seeded array yields an entry with no `ts` and is dropped by the filter anyway.
+  const skips = replaceTask?.skips ?? [];
+  const stamps = [replaceTask?.last_completed, ...skips.map((entry) => entry.ts)]
+    // `?? ''` rather than a falsy guard, so a missing value and an unreadable one take
+    // the same road out: `new Date('')` is an Invalid Date, and so is `new Date` of
+    // any string that is not a timestamp.
+    .map((value) => new Date(value ?? '').getTime())
+    .filter((at) => !Number.isNaN(at));
+  return stamps.length ? Math.max(...stamps) : Number.NaN;
 }
 
 /**

@@ -1830,8 +1830,10 @@ export function mergePartForm(prev: Part, value: Record<string, unknown>): Part 
     // (`assets._normalize_replace_also_every`) and the **whole appliance save** fails
     // over one field the user can reach by clearing a box. The task form guards its
     // own backstop the same way.
+    // One test covers every way the box can be wrong: `Number` reads null, `''` and
+    // `[]` as 0, undefined and any non-numeric string as NaN, and each of those fails
+    // this. So does a typed 0, a negative, and a fraction.
     const backstopInterval = (raw: unknown): number | null => {
-      if (raw == null || raw === '') return null;
       const n = Number(raw);
       return Number.isInteger(n) && n >= 1 ? n : null;
     };
