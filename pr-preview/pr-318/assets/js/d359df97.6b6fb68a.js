@@ -1,1 +1,0 @@
-"use strict";(globalThis.webpackChunkhome_keeper_docs=globalThis.webpackChunkhome_keeper_docs||[]).push([[496],{4724(e){e.exports=JSON.parse('{"name":"docusaurus-plugin-content-docs","id":"developer"}')}}]);
