@@ -5,6 +5,7 @@ import { mergePartForm, partCountsUses, partDependentSchema, partFormData } from
 import {
   countedProgress,
   dueLabel,
+  isMonitoredDormant,
   isUseTask,
   recurrenceSummary,
   statusChipHtml,
@@ -104,6 +105,16 @@ describe('statusBucket', () => {
 
   it('leaves the dormant replacement task Monitored', () => {
     expect(statusBucket(replaceTask(), NOW)).toBe('monitored');
+  });
+
+  // The 2 rules disagree on purpose, so pin it. `statusBucket` decides which *section*
+  // a row files under, and the task really is waiting on a count — it belongs under
+  // Monitored. `isMonitoredDormant` decides whether Done is offered, and an early
+  // renewal is real work. A future reader finding one true and the other false should
+  // find this test rather than "fix" the pair into agreement.
+  it('keeps the dormant replacement under Monitored even though it offers Done', () => {
+    expect(statusBucket(replaceTask(), NOW)).toBe('monitored');
+    expect(isMonitoredDormant(replaceTask())).toBe(false);
   });
 
   it('puts the armed replacement task in Overdue like any other armed task', () => {
