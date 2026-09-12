@@ -1,7 +1,5 @@
 # Notifications
 
-<!-- vale ai-tells.OverusedVocabulary = YES -->
-
 Home Keeper supports sending a mobile-app notification for due tasks, with the
 action buttons **Mark done**, **Snooze**, **Skip**, and **Open**. This is useful
 for completing a task from the phone lock screen and for sending each user the

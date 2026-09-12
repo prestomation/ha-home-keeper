@@ -1,8 +1,11 @@
-// Shared, pure mapping data + helpers describing how the canonical Markdown
-// sources map onto the generated Docusaurus pages. Imported by both
-// `sync-docs.mjs` (which renders the pages) and `changed-pages.mjs` (which maps
-// a PR's changed files back to the pages they affect). Keep it side-effect free
-// so it can be imported anywhere, including unit tests.
+// Shared mapping data + helpers describing how the canonical Markdown sources map
+// onto the generated Docusaurus pages. Imported by both `sync-docs.mjs` (which
+// renders the pages) and `changed-pages.mjs` (which maps a PR's changed files back
+// to the pages they affect). Keep it side-effect free at import time so it can be
+// imported anywhere, including unit tests. `guideFilesOnDisk()` reads the
+// filesystem, but only when called.
+import {readdirSync} from 'node:fs';
+import {posix} from 'node:path';
 
 // Ordered set of User Guide pages. Each entry names one authored file at
 // `docs/guide/<group>/<slug>.md`; the array order sets the sidebar position.
@@ -61,6 +64,24 @@ export function guideFile(spec) {
 // The route a User Guide page is served at.
 export function guideRoute(spec) {
   return `/docs/guide/${spec.slug}`;
+}
+
+/**
+ * Every authored guide file, relative to `repoRoot`, in POSIX form and sorted.
+ *
+ * Hand-rolled rather than `readdir(…, {recursive: true})`, which needs Node 20.1,
+ * or `Dirent.parentPath`, which needs Node 21.4 — `website/package.json` declares
+ * `engines.node >= 18`. The generator and `tests/frontend/doc-anchors.test.js` both
+ * call this, so the drift guard cannot pass in the test and fail in the build.
+ */
+export function guideFilesOnDisk(repoRoot, dir = 'docs/guide') {
+  const files = [];
+  for (const entry of readdirSync(posix.join(repoRoot, dir), {withFileTypes: true})) {
+    const rel = posix.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...guideFilesOnDisk(repoRoot, rel));
+    else if (entry.name.endsWith('.md')) files.push(rel);
+  }
+  return files.sort();
 }
 
 // Authored guide file -> the route its page is served at, so a relative link

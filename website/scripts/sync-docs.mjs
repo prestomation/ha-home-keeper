@@ -17,7 +17,7 @@
 // renders the API reference into website/developer/api.md from the integration
 // itself. `npm run sync` runs it after this script, because buildDeveloperGuide()
 // clears that directory first.
-import {readFile, writeFile, mkdir, rm, readdir} from 'node:fs/promises';
+import {readFile, writeFile, mkdir, rm} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {posix} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -28,6 +28,7 @@ import {
   GUIDE_GROUPS,
   guideFile,
   guideFileDrift,
+  guideFilesOnDisk,
   DEV_DOCS,
 } from './doc-map.mjs';
 
@@ -109,18 +110,8 @@ function frontmatter({title, label, position, slug}) {
 // User Guide — one authored file per page under docs/guide/
 // ---------------------------------------------------------------------------
 
-// Every `docs/guide/**/*.md` on disk, relative to the repository root.
-async function guideFilesOnDisk() {
-  const root = resolve(repo, 'docs', 'guide');
-  const entries = await readdir(root, {recursive: true, withFileTypes: true});
-  return entries
-    .filter((e) => e.isFile() && e.name.endsWith('.md'))
-    .map((e) => posix.join(posix.relative(repo, e.parentPath ?? e.path), e.name))
-    .sort();
-}
-
 async function buildUserGuide() {
-  const {unlisted, missing} = guideFileDrift(await guideFilesOnDisk());
+  const {unlisted, missing} = guideFileDrift(guideFilesOnDisk(repo));
   if (unlisted.length) {
     throw new Error(
       `[sync-docs] guide files missing from USER_SECTIONS in doc-map.mjs: ` +

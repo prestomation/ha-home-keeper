@@ -69,4 +69,3 @@ events and is not exposed as a `todo` entity.
 
 ![A synced task with its due date on a to-do list card](../../images/48-todo-sync-synced-task.png)
 
-<!-- vale ai-tells.OverusedVocabulary = NO -->
