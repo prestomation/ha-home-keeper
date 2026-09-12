@@ -228,8 +228,10 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //      seeded schedule is left where the later beats expect it.
   //      This task is overdue, so the menu holds 2 entries and not 3: due today is
   //      withheld on a task that is already due, because there is no due date to
-  //      bring nearer. Step 4 opens the same menu on a task due in the future,
-  //      which is where the third entry is demonstrated.
+  //      bring nearer. The dashboard card at step 8a carries the verb on this tour,
+  //      on the rows of the tasks due in the future, and the phone tour opens the
+  //      same menu on one of those tasks at its step 4. Neither costs this tour a
+  //      navigation: the desktop walk is the long one, and its budget is thin.
   //      Every locator here is scoped to the detail actions: the list beside the
   //      detail renders its own split buttons, so an unscoped `.hk-defer-snooze`
   //      finds one of their closed menus instead of the open one.
@@ -277,26 +279,6 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('#hk-form')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
-  await panel.locator('#back-btn').click();
-  await expect(panel.locator('#add-btn')).toBeVisible();
-  await page.waitForTimeout(BEAT);
-
-  // 2a3b. Due today, the third entry in that menu, on a task that is due in the
-  //       future. The water filter above is overdue, so its menu holds 2 entries:
-  //       there is no due date to bring nearer. The furnace filter is months out,
-  //       which is the state the verb is for — "I have noticed the thing now, and I
-  //       am not waiting for its date". It has no dialog of its own, because the tap
-  //       moves the date, so the open menu is where the tour shows it. Escape out
-  //       and go back, leaving the seeded schedule where the later beats expect it.
-  await panel.locator(`.detail-open[data-detail-id="${TASK.furnaceFilter}"]`).click();
-  const futureActions = panel.locator('.hk-detail-actions');
-  await expect(futureActions.locator('.hk-split-caret')).toBeVisible();
-  await futureActions.locator('.hk-split-caret').click();
-  await expect(futureActions.locator('.hk-defer-menu .hk-defer-due-today')).toBeVisible();
-  await page.waitForTimeout(BEAT * 3);
-  await page.keyboard.press('Escape');
-  await expect(futureActions.locator('.hk-defer-menu .hk-defer-due-today')).toBeHidden();
-  await page.waitForTimeout(BEAT);
   await panel.locator('#back-btn').click();
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(BEAT);
