@@ -827,6 +827,31 @@ def test_availability_dormant_missing_never_arms():
 # ── the fingerprint that retires carried edge state ─────────────────────────
 
 
+def test_the_fingerprint_reads_the_keys_that_state_the_condition():
+    # Stated as a value, not as a comparison between two fingerprints: 2 sides of a
+    # comparison move together, so a fingerprint that read the wrong key — or read
+    # them in another order — would still agree with itself.
+    task = _threshold(">", 90)
+    task["sensor"]["attribute"] = "damp"
+    assert s.condition_fingerprint(task) == (
+        "sensor.humidity",
+        "damp",
+        "threshold",
+        ">",
+        90,
+        None,
+    )
+    tank = _state("on")
+    assert s.condition_fingerprint(tank) == (
+        "binary_sensor.vacuum_water_tank_low",
+        None,
+        "state",
+        None,
+        None,
+        "on",
+    )
+
+
 def test_the_fingerprint_changes_with_every_part_of_the_condition():
     # Carried edge state is an answer about one condition. Change the condition and
     # the answer is about a question nobody is asking, so the watcher starts over.
