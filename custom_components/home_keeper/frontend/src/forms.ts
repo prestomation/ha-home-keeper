@@ -1905,12 +1905,30 @@ export function partSummaryLine(part: Part): string {
     );
     // The backstop reads as a second clause on the same line, because "every 25 uses"
     // alone is a different promise from "every 25 uses or every 12 months".
-    const also = part.replace_also_every;
-    if (partCountsUses(part) && also) {
-      bits.push(t('part.orEvery', { n: also.interval, unit: t(`opt.unit.${also.unit}`) }));
-    }
+    const backstop = partBackstopLabel(part);
+    if (backstop) bits.push(backstop);
   }
   return bits.join(' · ');
+}
+
+/**
+ * A counted wear item's time backstop as its own clause ("or every 12 months"), or
+ * `''` when the part has none.
+ *
+ * Shared by the part editor's collapsed summary and the appliance page's part row, so
+ * the 2 surfaces say the same thing in the same words — the row used to name only the
+ * count, which left a part whose backstop had already fired reading "0 of 10 runs"
+ * against an empty meter while its task sat in Overdue, with nothing to explain why.
+ *
+ * Reads `partCountsUses` rather than the raw field on purpose. Only a counted part can
+ * carry a backstop, and switching one back to months leaves the stored object behind
+ * until the backend's next write clears it — so the clause has to stop being said
+ * immediately, rather than promising a limit that no longer applies.
+ */
+export function partBackstopLabel(part: Part): string {
+  const also = part.replace_also_every;
+  if (!partCountsUses(part) || !also) return '';
+  return t('part.orEvery', { n: also.interval, unit: t(`opt.unit.${also.unit}`) });
 }
 
 // ── profiles (saved filters) & notifications (delivery) ─────────────────────

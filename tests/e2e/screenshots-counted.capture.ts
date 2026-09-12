@@ -4,7 +4,7 @@
  *   SHOT_DIR=../../docs/images npx playwright test screenshots-counted.capture.ts \
  *     --config=screenshots-counted.config.ts
  *
- * Covers the 5 changed surfaces, desktop and phone:
+ * Covers the 7 changed surfaces, desktop and phone:
  *  61 / 61c.  The Tasks list Counted section, and its scope pill. A use task has no
  *             due date, so the "17 of 25 wears" chip is the only thing on the row.
  *  62 / 62c.  The part editor with the unit set to uses, which is what reveals the
@@ -14,6 +14,9 @@
  *             dash, because a use task has no due date and never will.
  *  65 / 65c.  The dashboard card grouped by status, where the Counted section holds
  *             the use tasks the card used to drop.
+ *  66 / 66c.  The replacement task's page, which now offers Done while the task is
+ *             still counting — renewing early is real work and restarts the count.
+ *  67 / 67c.  The same task's row in the Monitored section, with its quick Done.
  *
  * Its own file rather than steps inside `screenshots.capture.ts` for the reason the
  * NFC and card captures have theirs: that walk photographs ~60 surfaces in one
@@ -79,6 +82,25 @@ async function captureGroupedCard(
   await page.screenshot({ path, clip: box, fullPage: true });
 }
 
+/**
+ * Open the task list ungrouped and scroll the replacement task's row into frame.
+ *
+ * Ungrouped on purpose: grouped by status the row is folded inside the collapsed
+ * Monitored section, and a shot of a closed accordion documents nothing.
+ */
+async function openMonitoredRow(
+  page: import('@playwright/test').Page,
+  panel: import('@playwright/test').Locator,
+): Promise<void> {
+  await page.evaluate(() => localStorage.setItem('home-keeper.groupBy', 'none'));
+  await page.goto('/home-keeper/tasks', { waitUntil: 'domcontentloaded' });
+  await panel.waitFor({ state: 'attached', timeout: 45_000 });
+  const row = panel.locator(`ha-card.hk-card[data-id="${TASK.renewDwr}"]`);
+  await expect(row).toBeVisible();
+  await expect(row.locator('.done-btn')).toBeVisible();
+  await row.scrollIntoViewIfNeeded();
+}
+
 test('capture counted wear items', async ({ page }) => {
   // ── 61. The Counted section and its pill ────────────────────────────────────
   await openPanel(page);
@@ -133,6 +155,8 @@ test('capture counted wear items', async ({ page }) => {
   await panel.waitFor({ state: 'attached', timeout: 45_000 });
   await panel.locator('.hk-subtab[data-tab="parts"]').click();
   await expect(panel.locator('.hk-use-meter').first()).toBeVisible();
+  // Both limits, or the shot is documenting the bug rather than the fix.
+  await expect(panel.locator('.hk-part-cadence')).toContainText('or every 12 months');
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/63-panel-counted-part-row.png`, fullPage: true });
 
@@ -149,6 +173,28 @@ test('capture counted wear items', async ({ page }) => {
 
   // ── 65. The dashboard card's Counted section ────────────────────────────────
   await captureGroupedCard(page, `${OUT}/65-card-counted-section.png`, 1280);
+
+  // ── 66. The replacement task's page, with the Done it used to withhold ──────
+  await page.goto(`/home-keeper/tasks/${TASK.renewDwr}`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await panel.waitFor({ state: 'attached', timeout: 45_000 });
+  await expect(panel.locator('.d-done')).toBeVisible();
+  await page.waitForTimeout(400);
+  // Not fullPage: this page is short, and fullPage pads it out to the sidebar's height
+  // with 1300px of empty ground that documents nothing.
+  await page.screenshot({ path: `${OUT}/66-panel-counted-replacement-page.png` });
+
+  // ── 67. The same task's list row, in the Monitored section ──────────────────
+  //
+  // Tall viewport rather than fullPage, for the same reason: the list ends well above
+  // the sidebar's full height. The 2 Battery Notes rows above the DWR one are the
+  // control this shot is worth taking for — they are monitored-dormant too, and they
+  // still have no Done.
+  await page.setViewportSize({ width: 1280, height: 1340 });
+  await openMonitoredRow(page, panel);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/67-panel-counted-replacement-row.png` });
 
   // ── The phone layout, which is a different layout and not a narrower one ─────
   await page.setViewportSize(PHONE);
@@ -193,6 +239,7 @@ test('capture counted wear items', async ({ page }) => {
   await panel.waitFor({ state: 'attached', timeout: 45_000 });
   await panel.locator('.hk-subtab[data-tab="parts"]').click();
   await expect(panel.locator('.hk-use-meter').first()).toBeVisible();
+  await expect(panel.locator('.hk-part-cadence')).toContainText('or every 12 months');
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/63c-panel-mobile-counted-part-row.png` });
 
@@ -209,4 +256,19 @@ test('capture counted wear items', async ({ page }) => {
 
   // 65c. The grouped card on a phone, where a row stacks and its actions take a line.
   await captureGroupedCard(page, `${OUT}/65c-card-mobile-counted-section.png`, PHONE.width);
+
+  // 66c. The replacement task's page on a phone.
+  await page.setViewportSize(PHONE);
+  await page.goto(`/home-keeper/tasks/${TASK.renewDwr}`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await panel.waitFor({ state: 'attached', timeout: 45_000 });
+  await expect(panel.locator('.d-done')).toBeVisible();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/66c-panel-mobile-counted-replacement-page.png` });
+
+  // 67c. Its row on a phone, where the row stacks and Done takes its own line.
+  await openMonitoredRow(page, panel);
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/67c-panel-mobile-counted-replacement-row.png` });
 });

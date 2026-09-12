@@ -27,6 +27,7 @@ import {
   partDependentSchema,
   partFormData,
   partSchema,
+  partBackstopLabel,
   partSummaryLine,
   problemSyncToggleSchema,
   profileSyncSchema,
@@ -2147,6 +2148,78 @@ describe('partSummaryLine', () => {
     expect(partSummaryLine({ name: 'Valve', type: 'consumable' })).toBe('');
     // An interval without a unit is not a schedule.
     expect(partSummaryLine({ name: 'Valve', type: 'wear', replace_interval: 36 })).toBe('');
+  });
+});
+
+describe('partSummaryLine — the backstop clause', () => {
+  it('reads the 2 limits as 2 clauses, because 1 alone is a different promise', () => {
+    expect(
+      partSummaryLine({
+        name: 'DWR',
+        type: 'wear',
+        replace_interval: 25,
+        replace_unit: 'uses',
+        replace_also_every: { interval: 12, unit: 'months' },
+      }),
+    ).toBe('Every 25 uses · or every 12 months');
+  });
+
+  it('says only the interval for a time-measured part', () => {
+    expect(
+      partSummaryLine({
+        name: 'Anode',
+        type: 'wear',
+        replace_interval: 12,
+        replace_unit: 'months',
+        replace_also_every: { interval: 6, unit: 'months' },
+      }),
+    ).toBe('Every 12 months');
+  });
+});
+
+describe('partBackstopLabel', () => {
+  const counted = (over = {}) => ({
+    name: 'DWR',
+    type: 'wear',
+    replace_interval: 25,
+    replace_unit: 'uses',
+    ...over,
+  });
+
+  it('names the time backstop as its own clause', () => {
+    expect(
+      partBackstopLabel(counted({ replace_also_every: { interval: 12, unit: 'months' } })),
+    ).toBe('or every 12 months');
+  });
+
+  it('says nothing for a counted part with no backstop', () => {
+    expect(partBackstopLabel(counted())).toBe('');
+    expect(partBackstopLabel(counted({ replace_also_every: null }))).toBe('');
+  });
+
+  // Switching a part back to months leaves the stored object behind, and the backend
+  // clears it on the next write — so the row must stop saying it immediately, rather
+  // than promising a limit that no longer applies.
+  it('says nothing for a time-measured part carrying a stale backstop', () => {
+    expect(
+      partBackstopLabel(
+        counted({
+          replace_unit: 'months',
+          replace_interval: 12,
+          replace_also_every: { interval: 6, unit: 'months' },
+        }),
+      ),
+    ).toBe('');
+  });
+
+  it('says nothing for a consumable', () => {
+    expect(
+      partBackstopLabel({
+        name: 'Filter',
+        type: 'consumable',
+        replace_also_every: { interval: 6, unit: 'months' },
+      }),
+    ).toBe('');
   });
 });
 
