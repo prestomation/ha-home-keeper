@@ -416,8 +416,11 @@ class SensorTaskWatcher:
                 if await self._evaluate_usage(tid, task, reading=reading, now=now):
                     changed_any = True
             else:
-                if reading is None:
-                    continue  # unavailable / non-numeric — never arm on bad data
+                # A missing reading is handled inside the evaluator, like the state
+                # mode's missing state: it never arms on bad data, and it ends a
+                # pending hold. Skipping it here left the crossing and its timer in
+                # place, so the seconds an entity spent unreadable counted toward the
+                # hold (#336).
                 if await self._evaluate_threshold(tid, task, reading=reading, now=now):
                     changed_any = True
         # Drop edge state for tasks that no longer exist so it can't leak. A task that
@@ -453,7 +456,7 @@ class SensorTaskWatcher:
         return False
 
     async def _evaluate_threshold(
-        self, tid: str, task: dict[str, Any], *, reading: float, now: Any
+        self, tid: str, task: dict[str, Any], *, reading: float | None, now: Any
     ) -> bool:
         return await self._apply_edge(
             tid,

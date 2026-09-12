@@ -39,6 +39,10 @@ On the task form, select **Based on a sensor** and select the sensor and a mode:
   before the task arms. An optional attribute is treated as unavailable when it
   is missing. This mode clears the task by default when the entity recovers.
 
+A hold counts only the time the entity reported the condition. If the entity stops
+reporting, the hold stops. It starts again when the entity reports the condition
+again.
+
 An armed sensor task behaves like any other task. It is on the to-do list and the
 calendar. It sets the device's overdue sensor and fires the
 `home_keeper_task_overdue` event.

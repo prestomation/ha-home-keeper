@@ -743,6 +743,60 @@ def test_an_availability_hold_completes_while_the_entity_stays_away(ha):
         _set_meter(ha, 0)  # brings the entity back
 
 
+def test_a_hold_starts_again_after_the_entity_stops_reporting(ha):
+    """A gap in the readings must not be banked as hold time (#336).
+
+    The reporter kept the Device Pulse recipe's hour-long hold, and the task opened
+    anyway each time the monitored entity reached the trigger state for a minute. The
+    watcher skipped a task whose entity had no reading, so the crossing that started
+    the hold survived the whole blackout: the entity came back over the threshold, the
+    hold read as long spent, and the task armed at once.
+    """
+    _set_meter(ha, 10)
+    task_id = _add_sensor_task(
+        ha,
+        {
+            "entity_id": METER,
+            "mode": "threshold",
+            "comparison": ">",
+            "value": 50,
+            "for_seconds": HOLD_SECONDS,
+            "clear_on_recover": True,
+        },
+    )
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+
+        # A crossing, then the entity stops reporting before the hold is up.
+        _set_meter(ha, 100)
+        time.sleep(4)
+        _force_unavailable(ha, METER)
+        time.sleep(HOLD_SECONDS + 8)
+        assert _require_task(ha, task_id)["next_due"] is None, (
+            "an unreadable entity must never arm a task"
+        )
+
+        # It comes back over the threshold. That is a fresh crossing, so the hold
+        # runs from here — the blackout bought it nothing.
+        _set_meter(ha, 100)
+        time.sleep(6)
+        assert _require_task(ha, task_id)["next_due"] is None, (
+            "armed on the return: the blackout was banked as hold time"
+        )
+
+        # The hold still completes on its own once the reading really does hold.
+        armed = _poll_task(
+            ha,
+            task_id,
+            lambda t: t.get("next_due") is not None,
+            timeout=HOLD_SECONDS + 25,
+        )
+        assert armed["next_due"] is not None
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)
+
+
 # ── an explicit starting reading, and the reading recorded on completion (#235) ──
 
 
