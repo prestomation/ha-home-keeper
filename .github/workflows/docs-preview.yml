@@ -7,7 +7,6 @@ on:
       - 'website/**'
       # Canonical doc sources: the site content is generated from these, so a
       # change here changes the rendered pages (see website/scripts/sync-docs.mjs).
-      - 'README.md'
       - 'CHANGELOG.md'
       - 'docs/**'
       # The API reference page is generated from the integration itself
@@ -105,11 +104,7 @@ jobs:
         run: |
           # Files this PR changed (three-dot: since divergence from base).
           git diff --name-only "$BASE_SHA"...HEAD > /tmp/changed.txt
-          # Base version of the README so section-level changes can be detected.
-          git show "$BASE_SHA:README.md" > /tmp/readme-base.md 2>/dev/null || true
           CHANGED_FILES="$(cat /tmp/changed.txt)" \
-          README_BASE=/tmp/readme-base.md \
-          README_HEAD=README.md \
             node website/scripts/changed-pages.mjs > /tmp/changed-pages.md
           if grep -q '^- \[' /tmp/changed-pages.md; then
             echo "has_pages=true" >> "$GITHUB_OUTPUT"

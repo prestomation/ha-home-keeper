@@ -4,65 +4,41 @@
 // a PR's changed files back to the pages they affect). Keep it side-effect free
 // so it can be imported anywhere, including unit tests.
 
-// Split Markdown into a preamble and `## ` sections, ignoring fenced code.
-export function splitByH2(md) {
-  const lines = md.split('\n');
-  const preamble = [];
-  const sections = [];
-  let current = null;
-  let inFence = false;
-  let fence = '';
-  for (const line of lines) {
-    const fenceMatch = line.match(/^(```|~~~)/);
-    if (fenceMatch) {
-      if (!inFence) {
-        inFence = true;
-        fence = fenceMatch[1];
-      } else if (line.startsWith(fence)) {
-        inFence = false;
-      }
-    }
-    const h2 = !inFence && line.match(/^## (.+)$/);
-    if (h2) {
-      current = {title: h2[1].trim(), body: []};
-      sections.push(current);
-    } else if (current) {
-      current.body.push(line);
-    } else {
-      preamble.push(line);
-    }
-  }
-  return {preamble: preamble.join('\n'), sections};
-}
-
-// Ordered set of README sections to publish. Every README `## ` section must be
-// either in this list or in UNPUBLISHED_SECTIONS below; `sync-docs.mjs` fails the
-// build otherwise, so a new section cannot silently stay off the site.
+// Ordered set of User Guide pages. Each entry names one authored file at
+// `docs/guide/<group>/<slug>.md`; the array order sets the sidebar position.
+// Every file under `docs/guide/` must have an entry here and every entry must have
+// a file: `sync-docs.mjs` fails the build otherwise, so a new page cannot silently
+// stay off the site and a listed page cannot silently vanish.
 export const USER_SECTIONS = [
-  {h: 'Features at a glance', slug: 'features', title: 'Features', label: 'Features', group: 'start'},
-  {h: 'Installation', slug: 'installation', title: 'Installation', group: 'start'},
-  {h: 'Concepts', slug: 'concepts', title: 'Core concepts', label: 'Concepts', group: 'start'},
-  {h: 'Getting around the panel', slug: 'panel', title: 'The panel', label: 'The panel', group: 'start'},
-  {h: 'One-off (do-once) tasks', slug: 'one-off-tasks', title: 'One-off tasks', label: 'One-off tasks', group: 'tasks'},
-  {h: 'Notes are Markdown', slug: 'markdown-notes', title: 'Markdown notes', label: 'Markdown notes', group: 'tasks'},
-  {h: 'Logging completions (note, cost, photo, who)', slug: 'completions', title: 'Logging completions', label: 'Completions', group: 'tasks'},
-  {h: 'Snooze and skip', slug: 'snooze-and-skip', title: 'Snooze and skip', label: 'Snooze and skip', group: 'tasks'},
-  {h: 'Complete tasks with NFC/RFID tags', slug: 'nfc-tags', title: 'NFC and RFID tags', label: 'NFC and RFID tags', group: 'tasks'},
-  {h: 'Condition-driven (triggered) tasks', slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks', group: 'tasks'},
-  {h: 'Sensor-based tasks (usage meters, thresholds & states)', slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks', group: 'tasks'},
-  {h: 'Appliances & virtual devices', slug: 'appliances', title: 'Appliances', label: 'Appliances', group: 'appliances'},
-  {h: 'Profiles (saved filters you reuse everywhere)', slug: 'profiles', title: 'Profiles', label: 'Profiles', group: 'views'},
-  {h: 'Send tasks to your to-do lists', slug: 'todo-sync', title: 'To-do list sync', label: 'To-do list sync', group: 'views'},
-  {h: 'Notifications (actionable reminders on your phone)', slug: 'notifications', title: 'Notifications', label: 'Notifications', group: 'views'},
-  {h: 'Dashboard task card', slug: 'dashboard-card', title: 'Dashboard card', label: 'Dashboard card', group: 'views'},
-  {h: 'Settings', slug: 'settings', title: 'Settings', group: 'views'},
-  {h: 'Import and export', slug: 'import-export', title: 'Import and export', label: 'Import and export', group: 'automation'},
-  {h: 'Services', slug: 'services', title: 'Services', group: 'automation'},
-  {h: 'Events & automations', slug: 'events', title: 'Events & automations', label: 'Events', group: 'automation'},
-  {h: 'Integrations', slug: 'integrations', title: 'Integrations', group: 'automation'},
-  {h: 'Localization', slug: 'localization', title: 'Localization', group: 'reference'},
-  {h: 'Upgrading to Home Assistant 2026.8', slug: 'migration-2026-8', title: 'Upgrading to Home Assistant 2026.8', label: 'HA 2026.8 migration', group: 'reference'},
-  {h: 'Quality scale', slug: 'quality-scale', title: 'Quality scale', group: 'reference'},
+  {slug: 'features', title: 'Features', label: 'Features', group: 'start'},
+  {slug: 'installation', title: 'Installation', group: 'start'},
+  {slug: 'concepts', title: 'Core concepts', label: 'Concepts', group: 'start'},
+  {slug: 'panel', title: 'The panel', label: 'The panel', group: 'start'},
+  {slug: 'one-off-tasks', title: 'One-off tasks', label: 'One-off tasks', group: 'tasks'},
+  {slug: 'markdown-notes', title: 'Markdown notes', label: 'Markdown notes', group: 'tasks'},
+  {slug: 'completions', title: 'Logging completions', label: 'Completions', group: 'tasks'},
+  {slug: 'snooze-and-skip', title: 'Snooze and skip', label: 'Snooze and skip', group: 'tasks'},
+  {slug: 'nfc-tags', title: 'NFC and RFID tags', label: 'NFC and RFID tags', group: 'tasks'},
+  {slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks', group: 'tasks'},
+  {slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks', group: 'tasks'},
+  {slug: 'appliances', title: 'Appliances', label: 'Appliances', group: 'appliances'},
+  {slug: 'profiles', title: 'Profiles', label: 'Profiles', group: 'views'},
+  {slug: 'todo-sync', title: 'To-do list sync', label: 'To-do list sync', group: 'views'},
+  {slug: 'notifications', title: 'Notifications', label: 'Notifications', group: 'views'},
+  {slug: 'dashboard-card', title: 'Dashboard card', label: 'Dashboard card', group: 'views'},
+  {slug: 'settings', title: 'Settings', group: 'views'},
+  {slug: 'import-export', title: 'Import and export', label: 'Import and export', group: 'automation'},
+  {slug: 'services', title: 'Services', group: 'automation'},
+  {slug: 'events', title: 'Events & automations', label: 'Events', group: 'automation'},
+  {slug: 'integrations', title: 'Integrations', group: 'automation'},
+  {slug: 'localization', title: 'Localization', group: 'reference'},
+  {
+    slug: 'migration-2026-8',
+    title: 'Upgrading to Home Assistant 2026.8',
+    label: 'HA 2026.8 migration',
+    group: 'reference',
+  },
+  {slug: 'quality-scale', title: 'Quality scale', group: 'reference'},
 ];
 
 // Sidebar categories for the User Guide, in order. Each USER_SECTIONS entry names
@@ -77,15 +53,37 @@ export const GUIDE_GROUPS = [
   {dir: 'reference', label: 'Reference'},
 ];
 
-// README sections that are deliberately not on the site. Add a section here only
-// when it makes sense in the repository alone.
-export const UNPUBLISHED_SECTIONS = ['Development'];
+// Where a User Guide page is authored, relative to the repository root.
+export function guideFile(spec) {
+  return `docs/guide/${spec.group}/${spec.slug}.md`;
+}
 
-// Every README `## ` heading that is neither published nor explicitly unpublished.
-// `sync-docs.mjs` fails the build on a non-empty result.
-export function unlistedReadmeSections(md, userSections = USER_SECTIONS, unpublished = UNPUBLISHED_SECTIONS) {
-  const known = new Set([...userSections.map((s) => s.h), ...unpublished]);
-  return splitByH2(md).sections.map((s) => s.title).filter((t) => !known.has(t));
+// The route a User Guide page is served at.
+export function guideRoute(spec) {
+  return `/docs/guide/${spec.slug}`;
+}
+
+// Authored guide file -> the route its page is served at, so a relative link
+// between two guide pages becomes an on-site link rather than a GitHub blob URL.
+export const GUIDE_ROUTES = Object.fromEntries(
+  USER_SECTIONS.map((spec) => [guideFile(spec), guideRoute(spec)]),
+);
+
+/**
+ * Disagreements between `USER_SECTIONS` and the files on disk.
+ *
+ * `files` is every `docs/guide/**\/*.md` path, relative to the repository root.
+ * Returns `{unlisted, missing}`: files with no entry, and entries with no file.
+ * `sync-docs.mjs` fails the build on either, which is what stops a new page from
+ * being written and never reaching the sidebar.
+ */
+export function guideFileDrift(files, userSections = USER_SECTIONS) {
+  const listed = new Set(userSections.map(guideFile));
+  const present = new Set(files);
+  return {
+    unlisted: files.filter((f) => !listed.has(f)),
+    missing: userSections.map(guideFile).filter((f) => !present.has(f)),
+  };
 }
 
 // Standalone canonical docs copied 1:1 into the Developer Guide. `out` is the
@@ -131,161 +129,3 @@ export const DOC_ROUTES = {
   'docs/DESIGN.md': '/developer/architecture',
   'docs/SECURITY.md': '/developer/security',
 };
-
-// README same-page anchors that now live on their own User Guide pages.
-export const ANCHOR_ROUTES = {
-  // The Features section links across to Concepts (→ concepts page).
-  '#concepts': '/docs/guide/concepts',
-  '#one-off-do-once-tasks': '/docs/guide/one-off-tasks',
-  '#sensor-based-tasks-usage-meters-thresholds--states': '/docs/guide/sensor-tasks',
-  '#appliances--virtual-devices': '/docs/guide/appliances',
-  '#notes-are-markdown': '/docs/guide/markdown-notes',
-  // The "Companions" subsection lives under the Settings section (→ settings page).
-  '#companions': '/docs/guide/settings#companions',
-  '#notifications-actionable-reminders-on-your-phone': '/docs/guide/notifications',
-  '#profiles-saved-filters-you-reuse-everywhere': '/docs/guide/profiles',
-  // The Settings section links across to the to-do list sync section (→ todo-sync page).
-  '#send-tasks-to-your-to-do-lists': '/docs/guide/todo-sync',
-  '#dashboard-task-card': '/docs/guide/dashboard-card',
-  // Settings and Services both point at the import/export section (→ its own page).
-  '#import-and-export': '/docs/guide/import-export',
-  '#snooze-and-skip': '/docs/guide/snooze-and-skip',
-  // The Notifications section links across to the events section (→ events page).
-  '#events--automations': '/docs/guide/events',
-  // The "Link a task to a consumable" subsection lives under the Sensor-based tasks
-  // section (→ sensor-tasks page); "Parts & wear items" under Appliances; and
-  // "Sync problem binary sensors" under Condition-driven tasks (→ triggered-tasks),
-  // which the Sensor-based tasks page links across to when contrasting the two.
-  '#link-a-task-to-a-consumable-auto-reorder':
-    '/docs/guide/sensor-tasks#link-a-task-to-a-consumable-auto-reorder',
-  '#parts--wear-items': '/docs/guide/appliances#parts--wear-items',
-  // Auto-buy and its shopping-list mirror are subsections of "Parts & wear items"
-  // (→ appliances page); the Settings and Events sections both link across to them.
-  '#auto-create-a-buy-task-when-a-part-runs-low':
-    '/docs/guide/appliances#auto-create-a-buy-task-when-a-part-runs-low',
-  '#send-buy-reminders-to-your-shopping-list':
-    '/docs/guide/appliances#send-buy-reminders-to-your-shopping-list',
-  // So is measured stock, which the consumable-link section (→ sensor-tasks page)
-  // points at when explaining how much a completion draws down.
-  '#stock-you-measure-rather-than-count':
-    '/docs/guide/appliances#stock-you-measure-rather-than-count',
-  '#sync-problem-binary-sensors-as-tasks':
-    '/docs/guide/triggered-tasks#sync-problem-binary-sensors-as-tasks',
-};
-
-
-// GitHub's heading-slug rules, which Docusaurus also follows: lowercase, drop
-// punctuation, turn each remaining space into a hyphen. Two spaces left behind by a
-// dropped "&" therefore become "--", which is why the real anchors read
-// `#parts--wear-items`.
-export function slugify(heading) {
-  return heading
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .trim()
-    .replace(/\s/g, '-');
-}
-
-// Drop fenced code blocks. A `](#anchor)` inside one is shown literally, never
-// linked, so it must not be mistaken for a link the site has to resolve.
-function stripFences(lines) {
-  const kept = [];
-  let inFence = false;
-  let fence = '';
-  for (const line of lines) {
-    const fenceMatch = line.match(/^(```|~~~)/);
-    if (fenceMatch) {
-      if (!inFence) {
-        inFence = true;
-        fence = fenceMatch[1];
-      } else if (line.startsWith(fence)) {
-        inFence = false;
-      }
-      continue;
-    }
-    if (!inFence) kept.push(line);
-  }
-  return kept;
-}
-
-// Every heading in `md`, paired with the `## ` section it sits under.
-//
-// Repeated headings get GitHub's disambiguating suffix: the second "Installation"
-// anchors at `#installation-1`, the third at `#installation-2`. Without that, a
-// perfectly good `](#installation-1)` link would be reported as pointing at nothing,
-// and a guard that cries wolf is a guard someone turns off.
-function headingSections(md) {
-  const {sections} = splitByH2(md);
-  const found = new Map();
-  const seen = new Map();
-  const add = (heading, sectionTitle) => {
-    const base = slugify(heading);
-    const count = seen.get(base) ?? 0;
-    seen.set(base, count + 1);
-    found.set(count === 0 ? base : `${base}-${count}`, sectionTitle);
-  };
-  for (const section of sections) {
-    add(section.title, section.title);
-    for (const line of stripFences(section.body)) {
-      const heading = line.match(/^#{3,6} (.+)$/);
-      if (heading) add(heading[1].trim(), section.title);
-    }
-  }
-  return found;
-}
-
-// Every `#anchor` a section's prose points at. Inline `[text](#a)` is the form the
-// README actually uses; reference definitions (`[ref]: #a`) and raw `<a href="#a">`
-// are checked too, so the guard doesn't quietly ignore a link written another way.
-// A link split across a newline is the one form still missed.
-function anchorsIn(prose) {
-  const patterns = [
-    /\]\((#[^)\s]+)\)/g, // [text](#anchor)
-    /^\s*\[[^\]]+\]:\s*(#\S+)/gm, // [ref]: #anchor
-    /<a\s[^>]*href=["'](#[^"']+)["']/gi, // <a href="#anchor">
-  ];
-  return patterns.flatMap((re) => [...prose.matchAll(re)].map((m) => m[1]));
-}
-
-/**
- * README same-page anchors the generated site would break on.
- *
- * The User Guide splits README by `## ` section, so a `](#some-heading)` link only
- * survives when its target heading is in the *same* section — otherwise the anchor
- * lands on the wrong page and Docusaurus fails the build on a broken link, unless
- * `ANCHOR_ROUTES` redirects it. That failure only ever shows up in a full site build,
- * which is a slow way to learn you forgot a one-line map entry.
- *
- * Returns `{anchor, from, reason}` for each problem: `unknown` when no heading in
- * README matches at all, `cross-section` when the link leaves its own page with no
- * route. Anchors in sections the guide doesn't publish are ignored — they never
- * reach the site, and so is anything inside a fenced code block.
- *
- * This narrows the window, it does not close it, and the Docusaurus build stays the
- * backstop for two known holes. A link whose `](` and `#anchor` sit on different
- * lines slips past (see :func:`anchorsIn`). And repeat-heading numbering is counted
- * across the whole README, the way GitHub numbers it — but the guide splits into a
- * page per section, so two same-named headings in *different* sections are each the
- * only one on their own page and lose the suffix there. A same-section repeat, the
- * case where the link has to survive on one page, numbers identically both ways.
- */
-export function unroutedReadmeAnchors(md, anchorRoutes) {
-  const published = new Set(USER_SECTIONS.map((s) => s.h));
-  const owners = headingSections(md);
-  const {sections} = splitByH2(md);
-  const issues = [];
-  for (const section of sections) {
-    if (!published.has(section.title)) continue;
-    const prose = stripFences(section.body).join('\n');
-    for (const anchor of anchorsIn(prose)) {
-      if (anchorRoutes[anchor]) continue;
-      const owner = owners.get(anchor.slice(1));
-      if (owner === undefined) {
-        issues.push({anchor, from: section.title, reason: 'unknown'});
-      } else if (owner !== section.title) {
-        issues.push({anchor, from: section.title, reason: 'cross-section'});
-      }
-    }
-  }
-  return issues;
-}

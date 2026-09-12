@@ -126,7 +126,7 @@
   when the PR closes (see RELEASE.md → "Preview releases"). Bug-fix-only /
   developer-only PRs don't need it.
 - **Know which text a user reads, and hold it to the house rules.** `CHANGELOG.md`
-  bullets, `README.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml`
+  bullets, `README.md`, `docs/guide/**/*.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml`
   descriptions and the frontend locale are all read by users, so each one has to
   satisfy the STE100 rules in `.amazonq/rules/writing-style.md`, the three-sentence
   CHANGELOG budget, the `(Fixes #N)` placement, and the vale AI-tells style. Read the
@@ -210,7 +210,7 @@
   run-before-you-push loop; run it when you touch the mutable surface.
 - **User-facing prose is linted for AI-tell phrasing.** `lint.yml`'s `vale` job runs
   the [vale-ai-tells](https://github.com/tbhb/vale-ai-tells) Vale style (pinned in
-  `.vale.ini`) over `README.md`, `CHANGELOG.md`, the canonical `docs/*.md` (not the
+  `.vale.ini`) over `README.md`, `CHANGELOG.md`, `docs/guide/**/*.md`, the canonical `docs/*.md` (not the
   scratch `*_PLAN.md`/research docs), `website/docs/intro.md`, `strings.json`,
   `services.yaml`, and the English frontend locale (`locales/en.json`), catching
   things like "delve", "it's important to note", em-dash overuse, and other
@@ -369,13 +369,17 @@
     clean. (The only path that inline-*plays* an mp4 is a drag-and-drop
     `user-attachments` upload, which CI can't produce — so the gif still carries the
     motion and the mp4 is a link.)
-- **Always document new major features in `README.md` in the same change.** Add a
-  brief section with the **use cases** (what problem it solves) and a little about
-  **how it's used**, and include **screenshot(s)** (same Playwright capture, committed
-  under `docs/images/`, embedded with a relative `docs/images/…` path). A headline
-  feature isn't done until the README shows it. (The moving walkthrough is **not** in
-  the README — it's the per-PR CI comment described above; the README stays on
-  committed screenshots.)
+- **Always document new major features in `docs/guide/` in the same change.** Add a
+  section to the page that covers the feature, or a new page, with the **use cases**
+  (what problem it solves) and a little about **how it's used**, and include
+  **screenshot(s)** (same Playwright capture, committed under `docs/images/`, embedded
+  with a relative `../../images/…` path). A new page also needs a `USER_SECTIONS`
+  entry in `website/scripts/doc-map.mjs`, or the site build fails. A headline feature
+  isn't done until the User Guide shows it. **`README.md` is not the place for it** —
+  it is the repository front page (what Home Keeper is, user quotes, installation, a
+  link to the site) and it stays short. (The moving walkthrough is **not** committed
+  anywhere — it's the per-PR CI comment described above; the guide stays on committed
+  screenshots.)
 - **Plans and PRs must list one-way doors.** A one-way door is a design choice
   that is hard to reverse once users depend on it: the name, shape, or format of
   a field in a service call, an event payload, storage, an entity attribute, or
@@ -446,16 +450,18 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
 - **Docs site:** `website/` is a Docusaurus site deployed to GitHub Pages
   (https://prestomation.github.io/ha-home-keeper/). It has a **User Guide** and a
   **Developer Guide** (the `docs/INTEGRATING.md` equivalent). **The content pages are
-  generated, not authored** — `website/scripts/sync-docs.mjs` splits `README.md` into
-  the User Guide (`website/docs/guide/`, gitignored) and copies `docs/INTEGRATING.md` /
+  generated, not authored** — `website/scripts/sync-docs.mjs` renders the User Guide
+  (`website/docs/guide/`, gitignored) from `docs/guide/**/*.md`, one authored file per
+  page, and copies `docs/INTEGRATING.md` /
   `docs/GLUE_INTEGRATIONS.md` / `docs/EVENTS.md` / `docs/DESIGN.md` into the Developer
-  Guide (`website/developer/`, gitignored), rewriting links/images. **Edit the canonical sources (`README.md`,
-  `docs/*.md`), never the generated trees.** Every README `## ` section must be in
-  `USER_SECTIONS` or `UNPUBLISHED_SECTIONS` in `website/scripts/doc-map.mjs`.
-  `sync-docs.mjs` fails the site build on an unlisted section, and
-  `tests/frontend/doc-anchors.test.js` fails first, so a new section cannot stay off
-  the site by accident. `README.md` therefore stays the
-  comprehensive user doc (it's the source) — don't "slim" it. Screenshots are likewise
+  Guide (`website/developer/`, gitignored), rewriting links/images. **Edit the canonical sources (`docs/guide/**/*.md`,
+  `docs/*.md`), never the generated trees.** Every file under `docs/guide/` must have a
+  `USER_SECTIONS` entry in `website/scripts/doc-map.mjs`, and every entry must name a
+  file that exists. `sync-docs.mjs` fails the site build on either, and
+  `tests/frontend/doc-anchors.test.js` fails first, so a new page cannot stay off
+  the site by accident. `docs/guide/` is therefore the
+  comprehensive user doc; `README.md` is the repository front page and stays short.
+  Screenshots are likewise
   not duplicated: `website/scripts/sync-assets.mjs` mirrors `docs/images/` into the
   static tree, so `docs/images/` stays the single home for screenshots and the
   UI-screenshots gate is unchanged. Both run via `npm run sync` (wired into

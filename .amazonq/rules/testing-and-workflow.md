@@ -7,7 +7,7 @@
   merge.
 - Update `CHANGELOG.md` for every user-facing change before a release.
 - **User-facing text is held to the house rules**: `CHANGELOG.md` bullets,
-  `README.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml` descriptions
+  `README.md`, `docs/guide/**/*.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml` descriptions
   and the frontend locale. Each must satisfy the STE100 rules, the three-sentence
   CHANGELOG budget and the vale AI-tells style. Read the surrounding section for voice
   before you add to it. Commit messages, PR bodies and code comments are not
@@ -83,12 +83,15 @@
   `walkthrough.capture.ts` for a new surface in the same PR and confirm the
   regenerated comment shows it; capture is a soft gate (a flaky run posts a failure
   note, doesn't block). Run `ci/capture-video.sh` locally only to debug the tour.
-- **Document new major features in `README.md` in the same change** — add a brief
+- **Document new major features in `docs/guide/` in the same change** — add a brief
   section covering the **use cases** (what problem it solves) and a little about
   **how it's used**, with **screenshot(s)** (capture via the Playwright harness,
-  commit under `docs/images/`, embed in the README with a relative `docs/images/…`
-  path). A new headline feature isn't "done" until the README shows it. (The moving
-  walkthrough is **not** committed to the README — it's the per-PR CI comment above.)
+  commit under `docs/images/`, embed in the guide page with a relative
+  `../../images/…` path). A new page needs a `USER_SECTIONS` entry in
+  `website/scripts/doc-map.mjs`. A new headline feature isn't "done" until the User
+  Guide shows it. `README.md` is the repository front page (what Home Keeper is, user
+  quotes, installation, a link to the site) and stays short. (The moving walkthrough
+  is **not** committed anywhere — it's the per-PR CI comment above.)
 - **Plans and PRs must list one-way doors.** A one-way door is a design choice
   that is hard to reverse once users depend on it: the name, shape, or format of
   a field in a service call, an event payload, storage, an entity attribute, or

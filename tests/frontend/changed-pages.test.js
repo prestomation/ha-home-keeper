@@ -1,63 +1,15 @@
 import {describe, it, expect} from 'vitest';
 import {
   COMMENT_MARKER,
-  readmeChangedHeadings,
   pagesForChanges,
   renderComment,
 } from '../../website/scripts/changed-pages.mjs';
 import {DEV_DOCS, DOC_ROUTES} from '../../website/scripts/doc-map.mjs';
 
-const README = `# Home Keeper
-
-Intro preamble paragraph.
-
-## Features at a glance
-
-Feature list here.
-
-## Settings
-
-Settings body.
-
-## Development
-
-Contributor-only notes.
-`;
-
-describe('readmeChangedHeadings', () => {
-  it('flags only the section whose body changed', () => {
-    const head = README.replace('Settings body.', 'Settings body, edited.');
-    expect(readmeChangedHeadings(README, head)).toEqual(['Settings']);
-  });
-
-  it('flags a newly added section', () => {
-    const head = README + '\n## Localization\n\nNew section.\n';
-    expect(readmeChangedHeadings(README, head)).toEqual(['Localization']);
-  });
-
-  it('ignores changes confined to the preamble', () => {
-    const head = README.replace('Intro preamble paragraph.', 'Different intro.');
-    expect(readmeChangedHeadings(README, head)).toEqual([]);
-  });
-
-  it('returns nothing when the body is identical', () => {
-    expect(readmeChangedHeadings(README, README)).toEqual([]);
-  });
-
-  it('treats every section as changed when there is no base', () => {
-    expect(readmeChangedHeadings('', README)).toEqual([
-      'Features at a glance',
-      'Settings',
-      'Development',
-    ]);
-  });
-});
-
 describe('pagesForChanges', () => {
-  it('maps changed README sections to their User Guide routes in sidebar order', () => {
+  it('maps changed guide files to their User Guide routes in sidebar order', () => {
     const pages = pagesForChanges({
-      changedFiles: ['README.md'],
-      changedReadmeHeadings: ['Settings', 'Features at a glance'],
+      changedFiles: ['docs/guide/views/settings.md', 'docs/guide/start/features.md'],
     });
     expect(pages).toEqual([
       {title: 'Features', route: '/docs/guide/features'},
@@ -65,12 +17,8 @@ describe('pagesForChanges', () => {
     ]);
   });
 
-  it('does not link README sections that are not published (e.g. Development)', () => {
-    const pages = pagesForChanges({
-      changedFiles: ['README.md'],
-      changedReadmeHeadings: ['Development'],
-    });
-    expect(pages).toEqual([]);
+  it('links no page for the README, which is no longer on the site', () => {
+    expect(pagesForChanges({changedFiles: ['README.md']})).toEqual([]);
   });
 
   it('maps developer docs, changelog and hand-authored pages', () => {

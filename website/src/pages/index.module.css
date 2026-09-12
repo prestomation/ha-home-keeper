@@ -37,7 +37,85 @@
   padding: 1rem 1.5rem;
 }
 
+/* Quote band. Colours come from Infima tokens so dark mode follows for free. */
+.quotes {
+  background: var(--ifm-color-emphasis-100);
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  padding: 3rem 0;
+}
+
+.quotesHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.quotesHeader h2 {
+  font-size: 1.6rem;
+  margin-bottom: 0.25rem;
+}
+
+.quotesHeader p {
+  margin: 0;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.quoteGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.quoteCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+}
+
+.quoteCard blockquote {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.quoteCard blockquote::before {
+  content: '\201C';
+  color: var(--ifm-color-primary);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 0;
+  vertical-align: -0.25em;
+  margin-right: 0.1em;
+}
+
+.quoteCard figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: auto;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.quoteWho {
+  font-weight: 500;
+  color: var(--ifm-font-color-base);
+}
+
 @media screen and (max-width: 996px) {
+  .quoteGrid {
+    grid-template-columns: 1fr;
+  }
+
+
   .heroBanner {
     padding: 3rem 1rem;
   }
