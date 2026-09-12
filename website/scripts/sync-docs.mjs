@@ -1,7 +1,7 @@
 // Generates Docusaurus pages from the canonical Markdown sources so docs are
 // authored once and never duplicated:
 //
-//   README.md            -> website/docs/guide/*.md   (User Guide, split by ## section)
+//   docs/guide/**/*.md   -> website/docs/guide/**/*.md (User Guide, one file per page)
 //   CHANGELOG.md         -> website/docs/release-notes.md
 //   docs/INTEGRATING.md  -> website/developer/integrating.md
 //   docs/GLUE_INTEGRATIONS.md -> website/developer/glue-integrations.md
@@ -22,12 +22,13 @@ import {dirname, resolve} from 'node:path';
 import {posix} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {
-  ANCHOR_ROUTES,
   DOC_ROUTES,
-  splitByH2,
+  GUIDE_ROUTES,
   USER_SECTIONS,
   GUIDE_GROUPS,
-  unlistedReadmeSections,
+  guideFile,
+  guideFileDrift,
+  guideFilesOnDisk,
   DEV_DOCS,
 } from './doc-map.mjs';
 
@@ -67,9 +68,10 @@ function rewriteLinks(md, sourceDir) {
       return whole;
     }
 
-    // Pure same-page anchor -> the page that section became (or leave as-is).
+    // A same-page anchor stays as it is: a guide page is one authored file, so
+    // its own headings are on its own page.
     if (path === '') {
-      return ANCHOR_ROUTES[hash] ? `](${ANCHOR_ROUTES[hash]})` : whole;
+      return whole;
     }
 
     // Resolve the relative target to a repo-root-relative path.
@@ -81,9 +83,10 @@ function rewriteLinks(md, sourceDir) {
       return `](/img/screenshots/${img[1]})`;
     }
 
-    // A doc that has a site route.
-    if (DOC_ROUTES[rel]) {
-      return `](${DOC_ROUTES[rel]}${hash})`;
+    // Another User Guide page, or a canonical doc with a site route.
+    const route = GUIDE_ROUTES[rel] ?? DOC_ROUTES[rel];
+    if (route) {
+      return `](${route}${hash})`;
     }
 
     // Anything else in the repo -> an absolute GitHub link.
@@ -104,20 +107,23 @@ function frontmatter({title, label, position, slug}) {
 }
 
 // ---------------------------------------------------------------------------
-// User Guide — README.md split by section
+// User Guide — one authored file per page under docs/guide/
 // ---------------------------------------------------------------------------
 
 async function buildUserGuide() {
-  const md = await readFile(resolve(repo, 'README.md'), 'utf8');
-  const unlisted = unlistedReadmeSections(md);
+  const {unlisted, missing} = guideFileDrift(guideFilesOnDisk(repo));
   if (unlisted.length) {
     throw new Error(
-      `[sync-docs] README sections missing from USER_SECTIONS or UNPUBLISHED_SECTIONS ` +
-        `in doc-map.mjs: ${unlisted.map((t) => JSON.stringify(t)).join(', ')}`,
+      `[sync-docs] guide files missing from USER_SECTIONS in doc-map.mjs: ` +
+        `${unlisted.map((f) => JSON.stringify(f)).join(', ')}`,
     );
   }
-  const {sections} = splitByH2(md);
-  const byTitle = new Map(sections.map((s) => [s.title, s]));
+  if (missing.length) {
+    throw new Error(
+      `[sync-docs] USER_SECTIONS names guide files that do not exist: ` +
+        `${missing.map((f) => JSON.stringify(f)).join(', ')}`,
+    );
+  }
   const outDir = resolve(website, 'docs', 'guide');
   await rm(outDir, {recursive: true, force: true});
   await mkdir(outDir, {recursive: true});
@@ -134,15 +140,15 @@ async function buildUserGuide() {
   }
   let position = 0;
   for (const spec of USER_SECTIONS) {
-    const section = byTitle.get(spec.h);
-    if (!section) {
-      throw new Error(`[sync-docs] README section not found: "${spec.h}"`);
-    }
     if (!groupDirs.has(spec.group)) {
-      throw new Error(`[sync-docs] unknown group "${spec.group}" for "${spec.h}"`);
+      throw new Error(`[sync-docs] unknown group "${spec.group}" for "${spec.slug}"`);
     }
     position += 1;
-    const body = rewriteLinks(section.body.join('\n'), '').trim();
+    const file = guideFile(spec);
+    const raw = await readFile(resolve(repo, file), 'utf8');
+    // Drop the leading H1 — the frontmatter title renders it.
+    const withoutH1 = raw.replace(/^#\s+.+\n+/, '');
+    const body = rewriteLinks(withoutH1, posix.dirname(file)).trim();
     const page =
       frontmatter({title: spec.title, label: spec.label, position, slug: `/guide/${spec.slug}`}) +
       body +

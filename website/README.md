@@ -18,7 +18,7 @@ generates them from the repo's canonical Markdown and rewrites links/images:
 
 | Source (canonical) | Generated (gitignored) |
 |---|---|
-| `README.md` (split by `##` section) | `website/docs/guide/*.md` (User Guide) |
+| `docs/guide/**/*.md` (one file per page) | `website/docs/guide/**/*.md` (User Guide) |
 | `CHANGELOG.md` | `website/docs/release-notes.md` |
 | `docs/INTEGRATING.md` | `website/developer/integrating.md` |
 | `docs/GLUE_INTEGRATIONS.md` | `website/developer/glue-integrations.md` |
@@ -34,14 +34,15 @@ own dialogs read from one string. `npm run sync` runs it after `sync-docs.mjs`, 
 clears that directory first, and it needs Python with `PyYAML` on the machine doing
 the build.
 
-So to change the docs, **edit `README.md` or `docs/*.md`** — never the generated
-trees (`website/docs/guide/`, `website/developer/`), which are wiped and rebuilt on
-every `npm run sync`. To change the API reference, edit the integration. The only
-hand-authored pages in `website/` are the landing page (`src/pages/index.tsx`) and
-the User Guide intro (`docs/intro.md`).
+So to change the docs, **edit `docs/guide/**/*.md` or `docs/*.md`** — never the
+generated trees (`website/docs/guide/`, `website/developer/`), which are wiped and
+rebuilt on every `npm run sync`. To change the API reference, edit the integration.
+The only hand-authored pages in `website/` are the landing page (`src/pages/index.tsx`)
+and the User Guide intro (`docs/intro.md`).
 
-`README.md` is the source for the whole User Guide, so it stays the comprehensive
-user doc — don't slim it down to a stub.
+`docs/guide/` is the comprehensive user doc. `README.md` is the repository's front
+page only: what Home Keeper is, what users say about it, how to install it, and a
+link to the site. New feature documentation goes in `docs/guide/`, not the README.
 
 ## Local development
 
@@ -78,12 +79,12 @@ harness.
     Pass a `ref` input (e.g. `v0.7.0`) to pin the build to a release tag; omit it to
     build from the branch HEAD.
 - **`docs-preview.yml`** — on pull requests (that touch `website/**` or the canonical
-  doc sources `README.md` / `CHANGELOG.md` / `docs/**`), builds a preview and publishes
+  doc sources `CHANGELOG.md` / `docs/**`), builds a preview and publishes
   it under `pr-preview/pr-<n>/` on the `gh-pages` branch, posting a sticky comment with
   the preview URL. It posts a **second** sticky comment listing deep links to just the
   doc pages the PR changed — `scripts/changed-pages.mjs` maps the changed sources to
-  their generated routes (README is section-granular, so only the User Guide pages whose
-  `##` section changed are linked), reusing the source→page mapping in
+  their generated routes (one source file is one page, so only the User Guide pages the
+  PR actually touched are linked), reusing the source→page mapping in
   `scripts/doc-map.mjs` so it never drifts from `sync-docs.mjs`. Previews are torn down
   when the PR closes.
 

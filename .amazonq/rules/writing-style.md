@@ -3,7 +3,7 @@
 All English text in this project follows **ASD-STE100 Simplified Technical English**
 (STE). This applies to:
 
-- User documentation: `README.md`, `CHANGELOG.md`, the canonical `docs/*.md`,
+- User documentation: `README.md`, `CHANGELOG.md`, `docs/guide/**/*.md`, the canonical `docs/*.md`,
   `website/docs/intro.md`.
 - User-facing strings: `strings.json`, `services.yaml`, the English frontend locale
   (`locales/en.json`), log messages, and exception text.

@@ -6,9 +6,12 @@ name: Walkthrough video — PR preview
 # Pages), so they embed in the comment without bloating the repo's git history. The
 # preview is re-published on each push and removed when the PR closes.
 #
-# Capture is a *soft* gate (continue-on-error): a flaky Playwright run posts a
-# "capture failed" note rather than blocking the PR. The reviewable artifact is the
-# comment, not anything in the diff — if a UI change alters the tour, update
+# Capture is a *hard* gate. The capture step itself keeps continue-on-error so the
+# log dump, the cleanup and the sticky comment all still run and say what went wrong;
+# the final step then fails the check. Before that, a failed capture reported the job
+# as green and left only a warning comment, and the tour sat broken across several
+# PRs with every check passing. The reviewable artifact is the comment, not anything
+# in the diff — if a UI change alters the tour, update
 # tests/e2e/walkthrough.capture.ts so this regenerates correctly.
 
 on:
@@ -197,7 +200,7 @@ jobs:
                 marker,
                 '### 🎥 Panel walkthrough',
                 '',
-                `⚠️ The walkthrough capture failed for this push — see the [run logs](${process.env.RUN_URL}). This is a soft gate and does not block the PR; pushing again re-runs it.`,
+                `⚠️ The walkthrough capture failed for this push — see the [run logs](${process.env.RUN_URL}). This check is red until the tour runs clean: fix the tour, or push again if it was a flake.`,
               ].join('\n');
             }
 
@@ -208,3 +211,22 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number: n, body });
             }
+
+      # The capture step above keeps `continue-on-error` so every diagnostic still
+      # runs: the Home Assistant log dump, the container cleanup, and the sticky
+      # comment that says what failed. This step is what turns a failed capture into
+      # a red check, so "all checks green" cannot mean "the tour is broken".
+      #
+      # A cancelled run is excluded for the same reason the sticky comment excludes
+      # it: this job's concurrency group cancels in-progress runs, and a superseded
+      # run must not report a failure for a capture nothing was wrong with.
+      #
+      # This reads `outcome == 'failure'`, so it only fires when the capture actually
+      # ran and failed. Give the capture step an `if:` of its own and a skip makes
+      # `outcome` 'skipped', which passes this gate silently — the exact hole the gate
+      # exists to close. Gate on the skip too if the capture ever becomes conditional.
+      - name: Fail the check when the capture failed
+        if: ${{ !cancelled() && github.event.action != 'closed' && steps.capture.outcome == 'failure' }}
+        run: |
+          echo "::error::The walkthrough capture failed. See the sticky PR comment and the Playwright output above."
+          exit 1
