@@ -106,13 +106,20 @@
   the check, so a broken tour cannot merge behind a green run. Run
   `ci/capture-video.sh` locally to debug the tour before pushing.
   - **A beat added is a budget re-measured.** The desktop walk is a fixed sequence of
-    pauses, so its wall clock only grows, and `timeout` in `walkthrough.config.ts` is
-    the only thing bounding it (`actionTimeout` bounds actions, not
-    `page.waitForTimeout`). #321 added beats and left the number alone, cutting the
-    margin from ~40% to ~15%; the tour then timed out on a change that touched no
-    panel code. Measure with `--timeout=600000 --reporter=list`, read the duration
+    pauses, so its wall clock only grows. 6 feature PRs edited the tour after #298
+    measured it — 32 beats, ~29s — and none moved `timeout` in
+    `walkthrough.config.ts`, so the margin fell from ~40% to ~15% and the tour timed
+    out on a change that touched no panel code. It is nobody's regression and
+    everybody's. Measure with `--timeout=600000 --reporter=list`, read the duration
     reported rather than the cap it died at, and set the budget to that plus ~40%.
-    Suspect the margin before suspecting CI.
+    Suspect the margin before suspecting CI, and past ~360s shorten the tour instead.
+  - **Cap every call that can fail to return; the test budget is the last resort.**
+    A `waitForTimeout` cannot hang — it is a fixed duration — so whatever eats a whole
+    budget is a call that never returns. Playwright leaves both caps off by default:
+    `actionTimeout` covers click/fill, `navigationTimeout` covers `page.goto`, and
+    neither is set in `playwright.config.ts`. The walkthrough sets both, so a stuck
+    step costs 20-30s and names itself instead of costing 15 minutes over 3 retries
+    and reporting as a timeout on the whole tour.
 - **Document new major features in `docs/guide/` in the same change** — add a brief
   section covering the **use cases** (what problem it solves) and a little about
   **how it's used**, with **screenshot(s)** (capture via the Playwright harness,
