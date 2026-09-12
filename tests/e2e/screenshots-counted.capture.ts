@@ -265,10 +265,10 @@ test('capture counted wear items', async ({ page }) => {
   await panel.waitFor({ state: 'attached', timeout: 45_000 });
   await expect(panel.locator('.d-done')).toBeVisible();
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/66c-panel-mobile-counted-replacement-page.png` });
+  await page.screenshot({ path: `${OUT}/66c-panel-mobile-renew-task-page.png` });
 
   // 67c. Its row on a phone, where the row stacks and Done takes its own line.
   await openMonitoredRow(page, panel);
   await page.waitForTimeout(500);
-  await page.screenshot({ path: `${OUT}/67c-panel-mobile-counted-replacement-row.png` });
+  await page.screenshot({ path: `${OUT}/67c-panel-mobile-renew-task-row.png` });
 });
