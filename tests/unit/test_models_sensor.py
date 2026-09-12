@@ -481,6 +481,26 @@ def test_usage_accepts_an_empty_hold_or_a_cleared_switch(field, value):
     assert field not in binding
 
 
+def test_usage_reads_an_empty_box_as_an_absent_one():
+    # A form sends "" for a box nobody filled in. A target is required, so an empty
+    # one is the same as no target; an empty starting reading and an empty backstop
+    # simply are not there.
+    with raises_exactly(m.TaskValidationError, "sensor.target must be a number"):
+        m.normalize_sensor({"entity_id": "sensor.x", "mode": "usage", "target": ""})
+    binding = m.normalize_sensor(
+        {
+            "entity_id": "sensor.x",
+            "mode": "usage",
+            "target": 500,
+            "baseline": "",
+            "also_every": "",
+        }
+    )
+    assert "baseline" not in binding
+    assert "also_every" not in binding
+    assert "combinator" not in binding
+
+
 @pytest.mark.parametrize("field", ["also_every", "combinator", "unit", "target"])
 def test_threshold_still_rejects_usage_only_fields(field):
     with raises_exactly(
