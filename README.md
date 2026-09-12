@@ -39,8 +39,8 @@
 | custom\_components/home\_keeper/problem\_sync.py                |      113 |      113 |       40 |        0 |      0% |    10-219 |
 | custom\_components/home\_keeper/problem\_tasks.py               |       65 |        2 |       26 |        1 |     97% |   200-201 |
 | custom\_components/home\_keeper/profiles.py                     |       91 |        1 |       42 |        1 |     98% |       125 |
-| custom\_components/home\_keeper/reconcile.py                    |      235 |        8 |      130 |        9 |     95% |148-149, 163, 165, 215, 217, 277-\>275, 284, 291, 543-\>551, 616-\>614 |
-| custom\_components/home\_keeper/recurrence.py                   |      326 |        7 |      152 |        7 |     97% |196, 288, 300, 333, 393, 529, 881 |
+| custom\_components/home\_keeper/reconcile.py                    |      247 |        6 |      136 |        9 |     96% |145, 165, 247, 249, 309-\>307, 316, 323, 580-\>588, 653-\>651 |
+| custom\_components/home\_keeper/recurrence.py                   |      333 |        7 |      156 |        7 |     97% |196, 288, 300, 333, 393, 558, 910 |
 | custom\_components/home\_keeper/resolve.py                      |       50 |        0 |       16 |        0 |    100% |           |
 | custom\_components/home\_keeper/sensor.py                       |      122 |      122 |       36 |        0 |      0% |    13-239 |
 | custom\_components/home\_keeper/sensor\_tasks.py                |      169 |        3 |       70 |        4 |     97% |134, 167-\>162, 186, 192 |
@@ -59,7 +59,7 @@
 | custom\_components/home\_keeper/transfer\_runner.py             |       43 |       43 |       14 |        0 |      0% |    13-141 |
 | custom\_components/home\_keeper/transitions.py                  |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py               |      563 |      563 |       72 |        0 |      0% |    8-1472 |
-| **TOTAL**                                                       | **8568** | **3734** | **2994** |  **111** | **58%** |           |
+| **TOTAL**                                                       | **8587** | **3732** | **3004** |  **111** | **58%** |           |
 
 
 ## Setup coverage badge
