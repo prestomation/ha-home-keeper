@@ -8,7 +8,16 @@
   name per thing, and no idiom. The full rules and the project glossary are in
   `.amazonq/rules/writing-style.md`. Read that file before you write any prose.
 - **Never push directly to main.** Always use a feature branch and open a PR.
-- Wait for CI (tests, HACS validation, code review) and approval before merging.
+- **Every check must be green before a merge, and approval on top of that.** No
+  exceptions and no "that one is unrelated": a failure the change did not cause is
+  still the change's to clear, so fix it, or land the fix first and merge it in.
+  Never merge on a red run, and never on one still going.
+- **A check that reports success is not proof the thing it checks passed.** A step
+  carrying `continue-on-error` reports green whatever happens, so read what it
+  produced as well as its colour — the walkthrough's sticky comment, the coverage
+  comment, the preview links. The walkthrough tour sat broken across several PRs
+  exactly this way: every check green, every capture failing. When a soft gate can
+  hide a real failure, **make it a hard gate** rather than learning to read past it.
 - **Always squash merge PRs.**
 - **CHANGELOG.md** — update for every user-facing change before tagging a release.
   Developer-only changes (CI config, AGENTS.md, IDEAS.md) don't need entries.
@@ -347,10 +356,11 @@
     `tests/e2e/walkthrough.capture.ts` to step through it (deliberate `BEAT` pauses so
     the motion reads well) **in the same PR**, then confirm the regenerated comment
     shows it. (Pure bug-fix / styling / copy PRs don't need to touch the tour.)
-  - **Capture is a _soft_ gate.** A flaky Playwright run posts a "capture failed" note
-    (with a logs link) instead of blocking the PR; pushing again re-runs it. If the
-    comment is missing or stale, check the `walkthrough-preview.yml` run — don't
-    hand-commit a video to work around it.
+  - **Capture is a _hard_ gate.** A failed capture fails the check, so the PR does
+    not merge until the tour runs clean. A flaky run still posts a "capture failed"
+    note with a logs link and pushing again re-runs it, but the red check is what
+    stops it being ignored. Debug the tour locally (below) rather than re-pushing and
+    hoping, and never hand-commit a video to work around it.
   - **Run it locally to debug the tour** (the harness still works standalone). From the
     repo root, with ffmpeg on PATH:
     ```bash

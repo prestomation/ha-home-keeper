@@ -5,6 +5,13 @@
   for the rules and the glossary. It covers docs, strings, comments, and PR text.
 - Never push directly to `main`. Work on a feature branch and open a PR; squash
   merge.
+- **Every check green before a merge.** A failure the change did not cause is still
+  the change's to clear: fix it, or land the fix first and merge it in. Never merge
+  on a red run, or on one still going.
+- **A check that reports success is not proof it passed.** A `continue-on-error`
+  step is green whatever happens, so read the artifact it produced as well as its
+  colour. The walkthrough tour stayed broken across several PRs this way. Turn a
+  soft gate that can hide a real failure into a hard one.
 - Update `CHANGELOG.md` for every user-facing change before a release.
 - **User-facing text is held to the house rules**: `CHANGELOG.md` bullets,
   `README.md`, `docs/guide/**/*.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml` descriptions
@@ -81,8 +88,9 @@
   PR comment** embedding the gif with an mp4 link. `docs/videos/` is gitignored, so
   there's zero git bloat. The author's gate is *editing the tour*: extend
   `walkthrough.capture.ts` for a new surface in the same PR and confirm the
-  regenerated comment shows it; capture is a soft gate (a flaky run posts a failure
-  note, doesn't block). Run `ci/capture-video.sh` locally only to debug the tour.
+  regenerated comment shows it. Capture is a **hard** gate: a failed capture fails
+  the check, so a broken tour cannot merge behind a green run. Run
+  `ci/capture-video.sh` locally to debug the tour before pushing.
 - **Document new major features in `docs/guide/` in the same change** — add a brief
   section covering the **use cases** (what problem it solves) and a little about
   **how it's used**, with **screenshot(s)** (capture via the Playwright harness,

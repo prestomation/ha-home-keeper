@@ -904,7 +904,11 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   const openNotifyRow = async (): Promise<void> => {
     const header = notifyRow.locator('> .hk-item-header');
     if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
-    await expect(notifyRow.locator('.hk-item-body ha-form')).toBeVisible();
+    // Three forms live in this body now — identity, delivery, and the triggers
+    // group that `notifyTriggerGroup` indents below them — so the bare descendant
+    // locator is ambiguous. This is a readiness gate ("the row opened and is
+    // rendering"), so the first one is the right one to wait on.
+    await expect(notifyRow.locator('> .hk-item-body ha-form').first()).toBeVisible();
   };
   await openNotifyRow();
   await page.waitForTimeout(BEAT * 2);
@@ -918,7 +922,9 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //     so the closed list says what each one is about without opening anything — the
   //     one view an expanded editor cannot show, because only 1 row fits.
   await notifyCard.locator('.hk-item-card > .hk-item-header').first().click();
-  await expect(notifyRow.locator('.hk-item-body ha-form')).toBeHidden();
+  // The row folded, so assert on the body itself rather than on a form inside it —
+  // there are three, and picking one of them to call hidden says less than this does.
+  await expect(notifyRow.locator('> .hk-item-body')).toBeHidden();
   await notifyCard.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT * 3);
 
@@ -988,8 +994,18 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
 
   // 3. Add opens the drawer as a sheet rising from the bottom, over a list that goes
   //    inert beneath it. Escape closes it and hands focus back to the button.
-  await panel.locator('#add-btn').click();
-  await expect(panel.locator('#hk-task-form')).toBeVisible();
+  // Home Assistant can replace the panel element under the tour, and a click that
+  // lands on the outgoing one opens nothing. Same guard as the Settings rows above:
+  // look at the result and press again rather than trusting a single click.
+  const openAddSheet = async (): Promise<void> => {
+    const form = panel.locator('#hk-task-form');
+    for (let attempt = 0; attempt < 3 && (await form.count()) === 0; attempt += 1) {
+      await panel.locator('#add-btn').click();
+      await form.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    }
+    await expect(form).toBeVisible();
+  };
+  await openAddSheet();
   await page.waitForTimeout(BEAT * 3);
   await page.keyboard.press('Escape');
   await expect(panel.locator('#hk-task-form')).toHaveCount(0);
