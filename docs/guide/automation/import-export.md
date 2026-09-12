@@ -124,6 +124,8 @@ on the way back in.
 - **Tasks that another part of Home Keeper owns**, such as a wear part's replacement
   reminder, a buy reminder, a problem-sensor mirror, or a recipe's task. Home Keeper
   builds these again from the appliance and its parts, which the file does include.
+  A counted wear item keeps its count. The count is on the part, because the 2
+  tasks that use it are not in the file.
 - **Tasks created by companions.**
 - **Settings, profiles, notifications and recipes.** These stay in the config entry.
 

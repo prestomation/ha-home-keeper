@@ -779,6 +779,21 @@ export function meterRemaining(
 }
 
 /**
+ * The figure every counted surface shows: the log since the cycle started, plus any
+ * count an import carried in on the part.
+ *
+ * The panel's mirror of `reconcile.counted_uses`. The carry applies only while the
+ * cycle has never started, which is the state a replacement task the reconciler has
+ * just minted is in — so an imported wear item reads its real count, and the first
+ * completion or skip of the replacement half retires the carry with no write.
+ */
+export function countedUses(useTask: Task, replaceTask: Task | undefined, part: Part): number {
+  const counted = usesSinceReplacement(useTask, replaceTask);
+  if (!Number.isNaN(cycleStart(replaceTask))) return counted;
+  return counted + Math.max(0, Math.trunc(Number(part.carried_uses) || 0));
+}
+
+/**
  * A counted wear item's live progress, or `null` when *task* is not a use task.
  *
  * The one lookup every surface that draws a count shares: it walks from the use task
@@ -820,7 +835,7 @@ export function countedProgress(
     );
   });
   return {
-    count: usesSinceReplacement(task, replaceTask),
+    count: countedUses(task, replaceTask, part),
     target,
     noun: (part.use_noun ?? '').trim(),
   };

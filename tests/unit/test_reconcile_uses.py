@@ -464,3 +464,99 @@ def test_a_disabled_replacement_task_is_not_armed():
     roles["replace"]["enabled"] = False
     to_arm, _ = rc.settle_use_tasks(assets, tasks, now=NOW)
     assert to_arm == []
+
+
+# ── a count carried in by an import ───────────────────────────────────────────
+def test_a_carried_count_is_added_while_the_cycle_has_never_started():
+    """The import case: the reconciler mints both halves fresh, with an empty log.
+
+    The count *is* the use task's completion log, and neither derived task travels in
+    the portable document, so a jacket at 24 of 25 wears came back at 0 of 25. The
+    carry is what the document brings instead.
+    """
+    part = _counted_part(carried_uses=24)
+    assets = {"a1": _asset(parts=[part])}
+    tasks, _ = _reconcile(assets)
+    roles = _by_role(tasks)
+    assert rc.counted_uses(roles["use"], roles["replace"], part) == 24
+
+
+def test_a_carried_count_adds_to_the_entries_recorded_here():
+    part = _counted_part(carried_uses=20)
+    assets = {"a1": _asset(parts=[part])}
+    tasks, _ = _reconcile(assets)
+    roles = _by_role(tasks)
+    _uses(roles["use"], 3)
+    assert rc.counted_uses(roles["use"], roles["replace"], part) == 23
+
+
+def test_a_carried_count_arms_the_replacement_at_the_target():
+    """The thing a user actually feels: the reminder still comes at 25."""
+    part = _counted_part(target=25, carried_uses=24)
+    assets = {"a1": _asset(parts=[part])}
+    tasks, _ = _reconcile(assets)
+    roles = _by_role(tasks)
+    to_arm, _ = rc.settle_use_tasks(assets, tasks, now=NOW)
+    assert to_arm == []
+    _uses(roles["use"], 1)
+    to_arm, _ = rc.settle_use_tasks(assets, tasks, now=NOW)
+    assert to_arm == [roles["replace"]["id"]]
+
+
+def test_a_carried_count_retires_itself_on_the_first_completion():
+    """It self-expires, which is why there is no reset anywhere.
+
+    The carry means "uses counted before this record arrived". Once the replacement
+    task has been completed here, the log on this install is the whole truth.
+    """
+    part = _counted_part(carried_uses=24)
+    assets = {"a1": _asset(parts=[part])}
+    tasks, _ = _reconcile(assets)
+    roles = _by_role(tasks)
+    roles["replace"]["last_completed"] = NOW.isoformat()
+    _complete(roles["use"], NOW + timedelta(hours=1))
+    assert rc.counted_uses(roles["use"], roles["replace"], part) == 1
+
+
+def test_a_carried_count_retires_itself_on_the_first_skip():
+    """A skip starts the next cycle too, so it retires the carry the same way."""
+    part = _counted_part(carried_uses=24)
+    assets = {"a1": _asset(parts=[part])}
+    tasks, _ = _reconcile(assets)
+    roles = _by_role(tasks)
+    _skip(roles["replace"], NOW)
+    assert rc.counted_uses(roles["use"], roles["replace"], part) == 0
+
+
+def test_a_part_with_no_carry_counts_exactly_what_it_did_before():
+    part = _counted_part()
+    assets = {"a1": _asset(parts=[part])}
+    tasks, _ = _reconcile(assets)
+    roles = _by_role(tasks)
+    _uses(roles["use"], 6)
+    assert rc.counted_uses(roles["use"], roles["replace"], part) == 6
+    assert rc.uses_since_replacement(roles["use"], roles["replace"]) == 6
+
+
+def test_the_trim_never_sees_the_carry():
+    """``trim_use_completions`` protects the live window, which is the log alone.
+
+    Routing the carry through it would inflate ``keep`` by up to 500 entries and grow
+    retention for a figure that is not in the log at all.
+    """
+    part = _counted_part(target=3, carried_uses=200)
+    assets = {"a1": _asset(parts=[part])}
+    tasks, _ = _reconcile(assets)
+    roles = _by_role(tasks)
+    _uses(roles["use"], 80)
+    cap = rc.use_retention_cap(part)
+    trimmed = rc.trim_use_completions(roles["use"], roles["replace"], cap=cap)
+    with_carry = len(roles["use"]["completions"])
+
+    plain = _counted_part(target=3)
+    assets2 = {"a1": _asset(parts=[plain])}
+    tasks2, _ = _reconcile(assets2)
+    roles2 = _by_role(tasks2)
+    _uses(roles2["use"], 80)
+    trimmed2 = rc.trim_use_completions(roles2["use"], roles2["replace"], cap=cap)
+    assert (trimmed, with_carry) == (trimmed2, len(roles2["use"]["completions"]))

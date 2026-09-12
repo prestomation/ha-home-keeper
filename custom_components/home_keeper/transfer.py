@@ -39,7 +39,7 @@ from functools import lru_cache
 from typing import Any
 
 from . import assets as assets_model
-from . import models, recurrence, resolve
+from . import models, reconcile, recurrence, resolve
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     MAX_IMPORT_BYTES,
@@ -335,7 +335,35 @@ def _task_out(
     return out
 
 
-def _asset_out(asset: dict[str, Any], *, area_names: dict[str, str]) -> dict[str, Any]:
+def _counted_uses_by_part(
+    assets: list[dict[str, Any]], tasks: list[dict[str, Any]]
+) -> dict[tuple[str, str], int]:
+    """The live count of every counted wear item, keyed by ``(asset_id, part_id)``.
+
+    The one computed value in the exporter, and a deliberate exception to this module's
+    "derive, never restate" rule. The count *is* the use task's completion log, and
+    neither derived task is portable — so restating it on the part is the only way it
+    survives the document at all. It is computed by :mod:`reconcile`, not here, so the
+    figure in the file is the same one the reminder acts on.
+    """
+    by_id = {a["id"]: a for a in assets if a.get("id")}
+    by_tid = {t["id"]: t for t in tasks if t.get("id")}
+    counts: dict[tuple[str, str], int] = {}
+    for asset, part, use_task, replace_task in reconcile.counted_part_pairs(
+        by_id, by_tid
+    ):
+        counts[(asset["id"], part["id"])] = reconcile.counted_uses(
+            use_task, replace_task, part
+        )
+    return counts
+
+
+def _asset_out(
+    asset: dict[str, Any],
+    *,
+    area_names: dict[str, str],
+    counted_uses: dict[tuple[str, str], int] | None = None,
+) -> dict[str, Any]:
     """One stored appliance as a document record, link documents only."""
     out = _strip(asset, EXCLUDED_ASSET_KEYS)
     out["id"] = asset["id"]
@@ -357,6 +385,35 @@ def _asset_out(asset: dict[str, Any], *, area_names: dict[str, str]) -> dict[str
         out["documents"] = documents
     else:
         out.pop("documents", None)
+    # Restate each counted wear item's live count on its part, and only when there is
+    # one to state, so an ordinary export stays readable. An importing install rebuilds
+    # both derived tasks empty, and this is what it counts from until the replacement
+    # task is first completed or skipped there.
+    #
+    # Copied, never written through. ``_strip`` is a shallow copy, so ``out["parts"]``
+    # is the *stored* list holding the *stored* dicts — stamping one in place wrote the
+    # export's figure into live storage, where ``_merge_parts`` then read it back on a
+    # re-import and the household's own file doubled its own count.
+    if parts := out.get("parts"):
+        counts = counted_uses or {}
+        stamped = []
+        for part in parts:
+            # The computed figure when this part has its derived pair, and whatever
+            # carry it already holds when it does not. A part mid-reconcile, or one in
+            # a hand-edited store, has no pair to count from, and dropping a carry it
+            # still holds would lose the very cycle this field exists to keep.
+            count = counts.get(
+                (asset["id"], part.get("id")), int(part.get("carried_uses") or 0)
+            )
+            part = dict(part)
+            if count:
+                part["carried_uses"] = count
+            else:
+                # A part with nothing to carry says nothing, rather than putting
+                # `carried_uses: 0` on every wear item in every file.
+                part.pop("carried_uses", None)
+            stamped.append(part)
+        out["parts"] = stamped
     return out
 
 
@@ -396,8 +453,10 @@ def build_document(
     }
     portable_assets = [a for a in assets if a.get("id")]
     if "appliances" in wanted:
+        counted = _counted_uses_by_part(portable_assets, tasks)
         document["appliances"] = [
-            _asset_out(a, area_names=names) for a in portable_assets
+            _asset_out(a, area_names=names, counted_uses=counted)
+            for a in portable_assets
         ]
         if skipped := count_file_documents(portable_assets):
             document["home_keeper"]["skipped"] = {"file_documents": skipped}

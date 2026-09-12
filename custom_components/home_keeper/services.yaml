@@ -1030,7 +1030,9 @@ add_asset:
         (max 250), Home Keeper generates a use task beside the maintenance task, and
         use_noun (the plural word for its uses) and use_task_name name them.
         replace_also_every ({interval, unit}) adds a time backstop - "every 25 uses
-        or every 12 months, whichever comes first".
+        or every 12 months, whichever comes first". carried_uses holds a count that
+        came in with an import. Home Keeper adds it to the use log until you complete
+        or skip the maintenance task.
       selector:
         object:
     parent_asset_id:
