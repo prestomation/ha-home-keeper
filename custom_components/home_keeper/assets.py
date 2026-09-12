@@ -541,8 +541,12 @@ def _normalize_carried_uses(value: Any) -> int:
     """
     if value in (None, ""):
         return 0
+    raw = _reject_boolean(value, "carried_uses")
     try:
-        carried = int(_reject_boolean(value, "carried_uses"))
+        # ``floor`` for a real number and ``int`` for the text a quoted YAML scalar
+        # gives. ``int`` alone truncates toward zero, which turned -0.5 into an
+        # acceptable 0 while -1 was refused — the same wrong file, answered 2 ways.
+        carried = math.floor(raw) if isinstance(raw, float) else int(raw)
     except (TypeError, ValueError) as err:
         raise AssetValidationError("carried_uses must be an integer") from err
     if carried < 0:

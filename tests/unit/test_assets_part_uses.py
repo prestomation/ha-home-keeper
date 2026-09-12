@@ -158,9 +158,16 @@ def test_a_carried_count_of_text_is_refused():
         _counted(carried_uses="two dozen")
 
 
-def test_a_negative_carried_count_is_refused():
+@pytest.mark.parametrize("stated", [-1, -1.5, -0.5, -0.999])
+def test_a_negative_carried_count_is_refused(stated):
+    """A fraction below zero is refused too, which needed ``floor`` over ``int``.
+
+    ``int`` truncates toward zero, so -0.5 arrived at the guard as 0 and was accepted
+    while -1 was refused. One wrong file, answered 2 ways, and the half that passed
+    said nothing at all.
+    """
     with pytest.raises(assets.AssetValidationError, match="carried_uses must be >= 0"):
-        _counted(carried_uses=-1)
+        _counted(carried_uses=stated)
 
 
 def test_a_carried_count_above_the_history_cap_is_refused():
