@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Inventar exportieren",
-      "description": "Gibt ein Hausinventar für Versicherungszwecke als Antwort zurück (eine Zeile pro Gerät plus Summen), mit einer speicherfertigen CSV-Datei unter dem Schlüssel \"csv\"."
+    "export_appliance_report": {
+      "name": "Gerätebericht exportieren",
+      "description": "Gibt den Gerätebericht als Antwort zurück (eine Zeile pro Gerät plus Summen), mit einer speicherfertigen CSV-Datei unter dem Schlüssel \"csv\"."
     },
     "export_data": {
       "name": "Daten exportieren",

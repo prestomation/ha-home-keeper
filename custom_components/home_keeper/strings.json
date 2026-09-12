@@ -475,7 +475,7 @@
         },
         "cost": {
           "name": "Cost",
-          "description": "Replacement cost (feeds the insurance inventory value rollup)."
+          "description": "Replacement cost. The appliance report totals it."
         },
         "documents": {
           "name": "Documents",
@@ -541,7 +541,7 @@
         },
         "cost": {
           "name": "Cost",
-          "description": "Replacement cost (feeds the insurance inventory value rollup)."
+          "description": "Replacement cost. The appliance report totals it."
         },
         "documents": {
           "name": "Documents",
@@ -709,9 +709,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Export inventory",
-      "description": "Return a home inventory for insurance as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
+    "export_appliance_report": {
+      "name": "Export appliance report",
+      "description": "Return the appliance report as a response (one row per appliance plus totals), with a ready-to-save CSV under the \"csv\" key."
     },
     "export_data": {
       "name": "Export data",

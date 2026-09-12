@@ -17,10 +17,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
 from . import (
+    appliance_report,
     companions,
     declarative_presets,
     devices,
-    inventory,
     manuals,
     notifier,
     options,
@@ -213,7 +213,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_sign_document_url)
     websocket_api.async_register_command(hass, ws_remove_part_file)
     websocket_api.async_register_command(hass, ws_sign_part_file_url)
-    websocket_api.async_register_command(hass, ws_export_inventory)
+    websocket_api.async_register_command(hass, ws_export_appliance_report)
     websocket_api.async_register_command(hass, ws_export_data)
     websocket_api.async_register_command(hass, ws_import_data)
     websocket_api.async_register_command(hass, ws_get_options)
@@ -692,7 +692,7 @@ async def ws_get_assets(
     Not ``require_admin``: the dashboard card is a usage surface open to every
     household member and it reads appliance data to resolve a task's card links. So
     a non-admin gets :func:`assets.card_projection` — the link-rendering subset —
-    rather than the costs and serial numbers ``export_inventory`` is gated on.
+    rather than the costs and serial numbers ``export_appliance_report`` is gated on.
     """
     assets = coord.store.list_assets()
     if not connection.user.is_admin:
@@ -1059,28 +1059,30 @@ async def ws_sign_part_file_url(
     connection.send_result(msg["id"], {"url": signed})
 
 
-@websocket_api.websocket_command({vol.Required("type"): "home_keeper/export_inventory"})
+@websocket_api.websocket_command(
+    {vol.Required("type"): "home_keeper/export_appliance_report"}
+)
 @websocket_api.require_admin
 @websocket_api.async_response
 @_with_coordinator()
-async def ws_export_inventory(
+async def ws_export_appliance_report(
     hass: HomeAssistant,
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
-    """Return the home-inventory report (for insurance) plus a ready-to-save CSV.
+    """Return the appliance report plus a ready-to-save CSV.
 
     Admin-only: the report exposes every asset's serial numbers, purchase costs and
     value totals, which a non-admin household member shouldn't be able to exfiltrate.
     """
-    report = inventory.build_inventory(
+    report = appliance_report.build_report(
         coord.store.list_assets(),
         area_names=devices.area_names(hass),
         today=dt_util.now().date(),
     )
-    csv = inventory.inventory_to_csv(report, lang=hass.config.language)
-    connection.send_result(msg["id"], {"inventory": report, "csv": csv})
+    csv = appliance_report.report_to_csv(report, lang=hass.config.language)
+    connection.send_result(msg["id"], {"report": report, "csv": csv})
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/export_data"})

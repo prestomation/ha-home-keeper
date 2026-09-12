@@ -1,9 +1,15 @@
-"""Pure home-inventory aggregation for the insurance / inventory export.
+"""Pure aggregation for the appliance report.
 
 Rolls the appliance records (and their spare parts) up into a flat report plus
 rolled-up totals — the descriptive/ownership facts an insurance claim needs
-(make/model/serial, purchase + warranty dates, replacement cost) — and renders
-the same report as CSV for download.
+(make/model/serial, replacement cost, the value of the spares on hand) — and
+renders the same report as CSV for download.
+
+This is the *report*, not the backup. ``transfer.py`` already exports every raw
+field this module reads, so what earns this one its place is the arithmetic
+(``spares_value`` per asset and the totals block) and the CSV rendering. Add a
+descriptive field to an asset and it travels through ``transfer.py`` for free;
+add one here only when the report should *total* or *print* it.
 
 Imports nothing from Home Assistant so it stays unit-testable; the websocket
 handler injects the area-name lookup and the current date.
@@ -58,13 +64,13 @@ def _metadata_details(asset: dict[str, Any]) -> str:
     return "; ".join(parts)
 
 
-def build_inventory(
+def build_report(
     assets: list[dict[str, Any]],
     *,
     area_names: dict[str, str] | None = None,
     today: date | None = None,
 ) -> dict[str, Any]:
-    """Return a flat inventory report: one row per appliance plus rolled-up totals.
+    """Return a flat appliance report: one row per appliance plus rolled-up totals.
 
     ``area_names`` maps ``area_id`` -> human-readable name. Rows are sorted by name
     so the export is stable. ``today`` is accepted for signature stability but no
@@ -114,14 +120,14 @@ def build_inventory(
 # free-form descriptive facts (warranty, dates, provider…) ride in the trailing
 # Details column rather than a fixed column each.
 _CSV_COLUMNS = (
-    ("name", "inventory.csv.name"),
-    ("area", "inventory.csv.area"),
-    ("manufacturer", "inventory.csv.manufacturer"),
-    ("model", "inventory.csv.model"),
-    ("serial_number", "inventory.csv.serial_number"),
-    ("cost", "inventory.csv.cost"),
-    ("spares_value", "inventory.csv.spares_value"),
-    ("details", "inventory.csv.details"),
+    ("name", "report.csv.name"),
+    ("area", "report.csv.area"),
+    ("manufacturer", "report.csv.manufacturer"),
+    ("model", "report.csv.model"),
+    ("serial_number", "report.csv.serial_number"),
+    ("cost", "report.csv.cost"),
+    ("spares_value", "report.csv.spares_value"),
+    ("details", "report.csv.details"),
 )
 
 
@@ -141,8 +147,14 @@ def _cell(value: Any) -> str:
     return text
 
 
-def inventory_to_csv(inventory: dict[str, Any], *, lang: str = "en") -> str:
-    """Render :func:`build_inventory` output as CSV (a row per asset + a TOTAL row).
+def report_to_csv(
+    report: dict[str, Any],
+    *,
+    # Equivalent mutant: ``resolve_string`` falls back to English for any language
+    # it cannot resolve, so a mutated default behaves exactly like "en".
+    lang: str = "en",  # pragma: no mutate
+) -> str:
+    """Render :func:`build_report` output as CSV (a row per asset + a TOTAL row).
 
     Column headers and the ``TOTAL`` row label are localized to *lang* (the
     caller's ``hass.config.language``) via ``backend_strings/<lang>.json`` — this
@@ -153,13 +165,13 @@ def inventory_to_csv(inventory: dict[str, Any], *, lang: str = "en") -> str:
     writer = csv.writer(buf)
     headers = [resolve_string(lang, key) for _key, key in _CSV_COLUMNS]
     writer.writerow(headers)
-    for row in inventory.get("assets", []):
+    for row in report.get("assets", []):
         writer.writerow([_cell(row.get(key)) for key, _header_key in _CSV_COLUMNS])
-    totals = inventory.get("totals", {})
+    totals = report.get("totals", {})
     # Blank spacer, then a TOTAL row with the totals placed under their own columns.
     keys = [key for key, _header_key in _CSV_COLUMNS]
     total_row = [""] * len(_CSV_COLUMNS)
-    total_row[0] = resolve_string(lang, "inventory.csv.total")
+    total_row[0] = resolve_string(lang, "report.csv.total")
     total_row[keys.index("cost")] = _cell(totals.get("total_cost"))
     total_row[keys.index("spares_value")] = _cell(totals.get("spares_value"))
     writer.writerow([])

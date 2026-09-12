@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Exportar inventari",
-      "description": "Retorna un inventari de la llar per a l'assegurança com a resposta (una fila per electrodomèstic més els totals), amb un CSV a punt per desar sota la clau \"csv\"."
+    "export_appliance_report": {
+      "name": "Exporta l'informe d'electrodomèstics",
+      "description": "Retorna l'informe d'electrodomèstics com a resposta (una fila per electrodomèstic més els totals), amb un CSV a punt per desar sota la clau \"csv\"."
     },
     "export_data": {
       "name": "Exporta les dades",

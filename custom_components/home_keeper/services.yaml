@@ -984,7 +984,7 @@ add_asset:
           multiline: true
     cost:
       name: Cost
-      description: Replacement cost (feeds the insurance inventory value rollup).
+      description: Replacement cost. The appliance report totals it.
       selector:
         number:
           min: 0
@@ -1326,12 +1326,13 @@ sign_part_file_url:
       selector:
         text:
 
-export_inventory:
-  name: Export inventory
+export_appliance_report:
+  name: Export appliance report
   description: >-
-    Return a home inventory for insurance as a response: one row per appliance
-    (make/model/serial, purchase + warranty dates, replacement cost, on-hand spares
-    value) with rolled-up totals, plus a ready-to-save CSV under the "csv" key.
+    Return the appliance report as a response: one row per appliance with the
+    make and model and serial number and replacement cost and the value of the
+    spares on hand, plus rolled-up totals and a ready-to-save CSV under the "csv"
+    key. Custom fields appear in a Details column. Admin-only.
 
 set_options:
   name: Set options

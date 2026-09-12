@@ -51,7 +51,7 @@ _PURE_MODULES = (
     "shopping",
     "problem_tasks",
     "sensor_tasks",
-    "inventory",
+    "appliance_report",
     "companions_catalog",
     "profiles",
     "notifications",

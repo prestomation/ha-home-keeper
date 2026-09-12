@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Esporta inventario",
-      "description": "Restituisce un inventario domestico per l'assicurazione come risposta (una riga per elettrodomestico più i totali), con un CSV pronto da salvare sotto la chiave «csv»."
+    "export_appliance_report": {
+      "name": "Esporta il rapporto sugli elettrodomestici",
+      "description": "Restituisce il rapporto sugli elettrodomestici come risposta (una riga per elettrodomestico più i totali), con un CSV pronto da salvare sotto la chiave «csv»."
     },
     "export_data": {
       "name": "Esporta i dati",

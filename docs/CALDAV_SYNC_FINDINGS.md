@@ -166,7 +166,7 @@ if item is None:
     if entry.get("uid") and sync["two_way"] and sync["vanish_as_completed"]:
         plan.complete.append(CompleteOp(key, task_id))
         settled.add(key)
-    continue          # <- key never written to plan.tracked
+    continue  # <- key never written to plan.tracked
 ```
 
 With no uid the entry is simply dropped — deliberately, per the module docstring: *"an

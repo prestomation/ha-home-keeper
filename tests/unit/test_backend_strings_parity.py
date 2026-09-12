@@ -1,7 +1,7 @@
 """Quality guardrails for the backend_strings/<lang>.json bundle.
 
 A handful of backend-generated strings (the problem-sensor sync's completion
-prompt, a companion catalog suggestion's description, the inventory CSV headers)
+prompt, a companion catalog suggestion's description, the appliance report CSV headers)
 have no home in strings.json — hassfest validates that tree against a fixed set of
 categories and these aren't exceptions, so they're bundled as flat dotted-key
 ``backend_strings/<lang>.json`` files instead (the same convention
@@ -36,20 +36,17 @@ _TOKEN_RE = re.compile(r"\{(\w+)\}")
 # translated. Applies to every locale.
 _BRAND_IDENTICAL: frozenset[str] = frozenset({"declarative_preset.device_pulse.name"})
 _COGNATE_IDENTICAL: dict[str, frozenset[str]] = {
-    "ca": frozenset(
-        {"inventory.csv.cost", "inventory.csv.model", "inventory.csv.total"}
-    )
+    "ca": frozenset({"report.csv.cost", "report.csv.model", "report.csv.total"})
     | _BRAND_IDENTICAL,
-    "cs": frozenset({"inventory.csv.model"}) | _BRAND_IDENTICAL,
-    "da": frozenset({"inventory.csv.model"}) | _BRAND_IDENTICAL,
-    "de": frozenset({"inventory.csv.details", "inventory.csv.name"}) | _BRAND_IDENTICAL,
-    "es": frozenset({"inventory.csv.total"}) | _BRAND_IDENTICAL,
-    "fr": frozenset({"inventory.csv.total"}) | _BRAND_IDENTICAL,
-    "it": frozenset({"inventory.csv.area"}) | _BRAND_IDENTICAL,
-    "nl": frozenset({"inventory.csv.details", "inventory.csv.model"})
-    | _BRAND_IDENTICAL,
-    "pl": frozenset({"inventory.csv.model"}) | _BRAND_IDENTICAL,
-    "pt-BR": frozenset({"inventory.csv.total"}) | _BRAND_IDENTICAL,
+    "cs": frozenset({"report.csv.model"}) | _BRAND_IDENTICAL,
+    "da": frozenset({"report.csv.model"}) | _BRAND_IDENTICAL,
+    "de": frozenset({"report.csv.details", "report.csv.name"}) | _BRAND_IDENTICAL,
+    "es": frozenset({"report.csv.total"}) | _BRAND_IDENTICAL,
+    "fr": frozenset({"report.csv.total"}) | _BRAND_IDENTICAL,
+    "it": frozenset({"report.csv.area"}) | _BRAND_IDENTICAL,
+    "nl": frozenset({"report.csv.details", "report.csv.model"}) | _BRAND_IDENTICAL,
+    "pl": frozenset({"report.csv.model"}) | _BRAND_IDENTICAL,
+    "pt-BR": frozenset({"report.csv.total"}) | _BRAND_IDENTICAL,
     "fi": _BRAND_IDENTICAL,
     "nb": _BRAND_IDENTICAL,
     "ru": _BRAND_IDENTICAL,

@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Exportar inventário",
-      "description": "Retorna um inventário doméstico para seguro como resposta (uma linha por eletrodoméstico mais os totais), com um CSV pronto para salvar na chave \"csv\"."
+    "export_appliance_report": {
+      "name": "Exportar relatório de eletrodomésticos",
+      "description": "Retorna o relatório de eletrodomésticos como resposta (uma linha por eletrodoméstico mais os totais), com um CSV pronto para salvar na chave \"csv\"."
     },
     "export_data": {
       "name": "Exportar dados",

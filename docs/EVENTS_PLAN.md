@@ -211,9 +211,9 @@ Every transition event fires **once per crossing**, never on every 5-minute tick
 
   ```python
   def stock_transition(old: int, new: int, reorder_at: int | None) -> str:
-      if reorder_at is None:        # untracked part — never fires
+      if reorder_at is None:  # untracked part — never fires
           return "none"
-      if new == 0 and old > 0:      # most specific; wins over a simultaneous low crossing
+      if new == 0 and old > 0:  # most specific; wins over a simultaneous low crossing
           return "out"
       if new <= reorder_at and old > reorder_at:
           return "low"

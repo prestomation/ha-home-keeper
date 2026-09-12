@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Eksportuj inwentarz",
-      "description": "Zwraca inwentarz domowy do celów ubezpieczeniowych jako odpowiedź (jeden wiersz na urządzenie plus sumy), z gotowym do zapisania plikiem CSV pod kluczem \"csv\"."
+    "export_appliance_report": {
+      "name": "Eksportuj raport urządzeń",
+      "description": "Zwraca raport urządzeń jako odpowiedź (jeden wiersz na urządzenie plus sumy), z gotowym do zapisania plikiem CSV pod kluczem \"csv\"."
     },
     "export_data": {
       "name": "Eksportuj dane",

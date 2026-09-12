@@ -196,7 +196,7 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("update_asset_document", admin_only=True),
     ServiceSpec("sign_document_url", response="only"),
     ServiceSpec("sign_part_file_url", response="only"),
-    ServiceSpec("export_inventory", admin_only=True, response="only"),
+    ServiceSpec("export_appliance_report", admin_only=True, response="only"),
     ServiceSpec("export_data", admin_only=True, response="only"),
     ServiceSpec("import_data", admin_only=True, response="only"),
     ServiceSpec("set_options", admin_only=True),
@@ -737,7 +737,9 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     ),
     WebsocketSpec("home_keeper/sign_part_file_url", service="sign_part_file_url"),
     WebsocketSpec(
-        "home_keeper/export_inventory", admin_only=True, service="export_inventory"
+        "home_keeper/export_appliance_report",
+        admin_only=True,
+        service="export_appliance_report",
     ),
     WebsocketSpec("home_keeper/export_data", admin_only=True, service="export_data"),
     WebsocketSpec("home_keeper/import_data", admin_only=True, service="import_data"),

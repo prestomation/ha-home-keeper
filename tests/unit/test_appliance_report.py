@@ -1,6 +1,6 @@
-"""Unit tests for the pure home-inventory aggregation (insurance export).
+"""Unit tests for the pure appliance-report aggregation.
 
-These exercise ``inventory.build_inventory`` / ``inventory_to_csv`` directly — no
+These exercise ``appliance_report.build_report`` / ``report_to_csv`` directly — no
 Home Assistant runtime. Area names and "today" are injected (the websocket
 handler supplies them in production).
 """
@@ -8,7 +8,7 @@ handler supplies them in production).
 import csv
 import io
 
-import hk_inventory as inv
+import hk_appliance_report as report_mod
 import pytest
 
 
@@ -37,8 +37,8 @@ def _asset(**kw):
     return base
 
 
-def test_empty_inventory_has_zero_totals():
-    report = inv.build_inventory([])
+def test_empty_report_has_zero_totals():
+    report = report_mod.build_report([])
     assert report["assets"] == []
     assert report["totals"] == {
         "asset_count": 0,
@@ -49,7 +49,7 @@ def test_empty_inventory_has_zero_totals():
 
 
 def test_row_carries_insurance_fields_and_area_name():
-    report = inv.build_inventory(
+    report = report_mod.build_report(
         [_asset(area_id="garage")], area_names={"garage": "Garage"}
     )
     row = report["assets"][0]
@@ -64,7 +64,7 @@ def test_row_carries_insurance_fields_and_area_name():
 
 
 def test_unknown_area_id_yields_none_area():
-    report = inv.build_inventory([_asset(area_id="ghost")], area_names={})
+    report = report_mod.build_report([_asset(area_id="ghost")], area_names={})
     assert report["assets"][0]["area"] is None
 
 
@@ -77,7 +77,7 @@ def test_spares_value_is_cost_times_stock():
             {"name": "No-cost", "cost": None, "stock": 5},  # 0 (no unit cost)
         ]
     )
-    report = inv.build_inventory([asset])
+    report = report_mod.build_report([asset])
     row = report["assets"][0]
     assert row["spares_value"] == 110.0
     assert row["part_count"] == 4
@@ -92,7 +92,7 @@ def test_spares_value_counts_a_fractional_stock():
             {"name": "Line", "cost": 0.2, "stock": 12.5, "stock_unit": "m"},
         ]
     )
-    assert inv.build_inventory([asset])["assets"][0]["spares_value"] == 5.5
+    assert report_mod.build_report([asset])["assets"][0]["spares_value"] == 5.5
 
 
 def test_totals_roll_up_cost_and_spares():
@@ -100,7 +100,7 @@ def test_totals_roll_up_cost_and_spares():
         id="a1", name="A", cost=100.0, parts=[{"name": "p", "cost": 10.0, "stock": 2}]
     )
     b = _asset(id="b1", name="B", cost=50.0, parts=[])
-    report = inv.build_inventory([a, b])
+    report = report_mod.build_report([a, b])
     assert report["totals"] == {
         "asset_count": 2,
         "total_cost": 150.0,
@@ -110,16 +110,31 @@ def test_totals_roll_up_cost_and_spares():
 
 
 def test_missing_cost_treated_as_zero_not_error():
-    report = inv.build_inventory([_asset(cost=None)])
+    report = report_mod.build_report([_asset(cost=None)])
     assert report["totals"]["total_cost"] == 0.0
     assert report["assets"][0]["cost"] is None  # raw value preserved on the row
 
 
+def test_total_cost_rounds_to_cents():
+    # The asset costs elsewhere in this file are all whole cents, so nothing there
+    # tells `round(total_cost, 2)` apart from rounding to any other precision.
+    # 0.125 + 0.25 is 0.375, which is 0.38 at 2dp and 0.375 at 3dp.
+    a = _asset(id="1", name="A", cost=0.125, parts=[])
+    b = _asset(id="2", name="B", cost=0.25, parts=[])
+    report = report_mod.build_report([a, b])
+    assert report["totals"]["total_cost"] == 0.38
+    assert report["totals"]["grand_total"] == 0.38
+
+
 def test_rows_sorted_by_name_case_insensitive():
-    report = inv.build_inventory(
-        [_asset(id="1", name="zebra"), _asset(id="2", name="Apple")]
+    # "apple"/"Zebra" rather than "zebra"/"Apple": the second pair sorts the same
+    # way with or without the ``.lower()``, because every uppercase letter sorts
+    # below every lowercase one. Only a lowercase name that must come *first*
+    # proves the sort folds case.
+    report = report_mod.build_report(
+        [_asset(id="1", name="Zebra"), _asset(id="2", name="apple")]
     )
-    assert [r["name"] for r in report["assets"]] == ["Apple", "zebra"]
+    assert [r["name"] for r in report["assets"]] == ["apple", "Zebra"]
 
 
 def test_metadata_details_flattened_into_summary():
@@ -140,12 +155,12 @@ def test_metadata_details_flattened_into_summary():
             },  # dropped (no value)
         ]
     )
-    row = inv.build_inventory([asset])["assets"][0]
+    row = report_mod.build_report([asset])["assets"][0]
     assert row["details"] == "Serial: SN-9; Manual: https://ex/m.pdf"
 
 
 def test_csv_has_header_rows_and_total():
-    report = inv.build_inventory(
+    report = report_mod.build_report(
         [
             _asset(
                 id="1",
@@ -156,7 +171,7 @@ def test_csv_has_header_rows_and_total():
             _asset(id="2", name="Box", cost=50.0, parts=[]),
         ]
     )
-    text = inv.inventory_to_csv(report)
+    text = report_mod.report_to_csv(report)
     rows = list(csv.reader(io.StringIO(text)))
     header = rows[0]
     assert header[0] == "Name"
@@ -171,25 +186,27 @@ def test_csv_has_header_rows_and_total():
 
 
 def test_csv_headers_and_total_are_localized():
-    # Both export surfaces (the ``export_inventory`` service and the panel's
+    # Both export surfaces (the ``export_appliance_report`` service and the panel's
     # websocket command) pass ``hass.config.language`` through — the CSV a
     # Spanish-speaking household saves should not carry English headers.
-    report = inv.build_inventory([_asset(id="1", name="Apple", cost=100.0, parts=[])])
-    rows = list(csv.reader(io.StringIO(inv.inventory_to_csv(report, lang="es"))))
+    report = report_mod.build_report(
+        [_asset(id="1", name="Apple", cost=100.0, parts=[])]
+    )
+    rows = list(csv.reader(io.StringIO(report_mod.report_to_csv(report, lang="es"))))
     assert rows[0][0] == "Nombre"
     assert rows[-1][0] == "TOTAL"  # es.json spells the total row label the same way
     # An unknown language falls back to English rather than failing the export.
-    rows = list(csv.reader(io.StringIO(inv.inventory_to_csv(report, lang="xx"))))
+    rows = list(csv.reader(io.StringIO(report_mod.report_to_csv(report, lang="xx"))))
     assert rows[0][0] == "Name"
 
 
 def test_csv_neutralizes_formula_injection():
     # A field a spreadsheet would treat as a formula is prefixed with ' so it renders
     # as literal text (CSV/formula injection guard).
-    report = inv.build_inventory(
+    report = report_mod.build_report(
         [_asset(id="1", name='=HYPERLINK("http://evil")', manufacturer="@SUM(A1)")]
     )
-    text = inv.inventory_to_csv(report)
+    text = report_mod.report_to_csv(report)
     row = next(
         r for r in csv.reader(io.StringIO(text)) if r and r[0].endswith('evil")')
     )
@@ -208,7 +225,7 @@ def test_spares_total_does_not_drift_from_per_row_rounding():
     b = _asset(
         id="2", name="B", cost=0.0, parts=[{"name": "q", "cost": 0.005, "stock": 1}]
     )
-    report = inv.build_inventory([a, b])
+    report = report_mod.build_report([a, b])
     # Each row rounds 0.005 -> 0.01 (banker's rounding may give 0.0), but the total is
     # round(0.005 + 0.005) == 0.01 regardless.
     assert report["totals"]["spares_value"] == 0.01
@@ -219,7 +236,7 @@ def test_row_is_exactly_the_documented_shape():
     # index it by key, and an insurance export is the one artefact a user hands
     # to a third party. Asserting a handful of fields lets a renamed or dropped
     # key through, so assert the whole dict.
-    report = inv.build_inventory(
+    report = report_mod.build_report(
         [
             _asset(
                 area_id="garage",
@@ -250,7 +267,7 @@ def test_absent_text_fields_become_empty_strings_not_none():
     # A CSV cell of "None" would be visible nonsense in the export, so the row
     # coalesces missing text to "". `cost` deliberately stays None — blank is
     # meaningfully different from zero for an insurance value.
-    report = inv.build_inventory(
+    report = report_mod.build_report(
         [
             {
                 "id": "a2",
@@ -280,7 +297,7 @@ def test_absent_text_fields_become_empty_strings_not_none():
     ],
 )
 def test_spares_value_rounds_to_cents(unit_cost, stock, expected):
-    report = inv.build_inventory(
+    report = report_mod.build_report(
         [
             _asset(
                 cost=None, parts=[{"name": "Filter", "cost": unit_cost, "stock": stock}]
@@ -296,7 +313,7 @@ def test_spares_value_rounds_to_cents(unit_cost, stock, expected):
 def test_area_is_looked_up_by_id_not_carried_through():
     # The row must carry the resolved *name*; leaking the raw id into an export
     # a human reads would be a regression even though both are strings.
-    report = inv.build_inventory(
+    report = report_mod.build_report(
         [_asset(area_id="garage")], area_names={"garage": "Garage"}
     )
     assert report["assets"][0]["area"] == "Garage"

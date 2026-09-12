@@ -34,11 +34,11 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.util import dt as dt_util
 
 from . import (
+    appliance_report,
     backend_i18n,
     card,
     companions,
     devices,
-    inventory,
     manuals,
     notifications,
     notifier,
@@ -453,7 +453,7 @@ _DOCUMENT_SCHEMA = vol.Schema(
 
 # Asset (appliance) fields shared by add/update. Descriptive/temporal details live
 # in the free-form ``metadata`` list; only the fields that wire into Home Assistant
-# stay structured — ``manufacturer``/``model`` (device card) and ``cost`` (inventory
+# stay structured — ``manufacturer``/``model`` (device card) and ``cost`` (report
 # value rollup). ``documents`` is the per-asset list of manuals/links. Cost is coerced
 # to float.
 _ASSET_FIELDS: dict[Any, Any] = {
@@ -534,7 +534,7 @@ SIGN_PART_FILE_URL_SCHEMA = vol.Schema(
         vol.Required("part_id"): cv.string,
     }
 )
-EXPORT_INVENTORY_SCHEMA = vol.Schema({})
+EXPORT_APPLIANCE_REPORT_SCHEMA = vol.Schema({})
 
 # The portable document, both directions. ``document`` is deliberately a bare dict or
 # string rather than a spelled-out voluptuous shape: ``transfer.plan_import`` validates
@@ -1398,9 +1398,9 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_list_assets(call: ServiceCall) -> dict[str, Any]:
         # The service twin of ``ws_get_assets``, and gated the same way: a non-admin
         # gets the card-link projection, not the costs and serial numbers
-        # ``export_inventory`` is admin-only to protect. Without this the projection
-        # on the websocket read would be trivially side-stepped by calling the
-        # service instead.
+        # ``export_appliance_report`` is admin-only to protect. Without this the
+        # projection on the websocket read would be trivially side-stepped by
+        # calling the service instead.
         coord = _coordinator()
         assets = coord.store.list_assets()
         if not await _caller_is_admin(call):
@@ -1521,19 +1521,20 @@ def _register_services(hass: HomeAssistant) -> None:
             "expires_in": int(manuals.SERVICE_DOCUMENT_URL_TTL.total_seconds()),
         }
 
-    async def handle_export_inventory(call: ServiceCall) -> dict[str, Any]:
+    async def handle_export_appliance_report(call: ServiceCall) -> dict[str, Any]:
         # Admin-only: the report carries every asset's serial numbers, purchase costs
-        # and value totals. Mirrors ``ws_export_inventory``'s ``require_admin``.
+        # and value totals. Mirrors ``ws_export_appliance_report``'s ``require_admin``.
         await _verify_admin(call)
         coord = _coordinator()
-        report = inventory.build_inventory(
+        report = appliance_report.build_report(
             coord.store.list_assets(),
             area_names=devices.area_names(hass),
             today=dt_util.now().date(),
         )
-        # Localize the CSV like ``ws_export_inventory`` does — one export, one language.
-        csv = inventory.inventory_to_csv(report, lang=hass.config.language)
-        return {"inventory": report, "csv": csv}
+        # Localize the CSV like ``ws_export_appliance_report`` does — one report,
+        # one language.
+        csv = appliance_report.report_to_csv(report, lang=hass.config.language)
+        return {"report": report, "csv": csv}
 
     async def handle_export_data(call: ServiceCall) -> dict[str, Any]:
         # Admin-only: the document is every task, note, serial number and cost in
@@ -1771,9 +1772,9 @@ def _register_services(hass: HomeAssistant) -> None:
 
     hass.services.async_register(
         DOMAIN,
-        "export_inventory",
-        handle_export_inventory,
-        EXPORT_INVENTORY_SCHEMA,
+        "export_appliance_report",
+        handle_export_appliance_report,
+        EXPORT_APPLIANCE_REPORT_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
     hass.services.async_register(
