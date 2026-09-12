@@ -178,13 +178,27 @@ describe('HomeKeeperCard completion guard', () => {
 });
 
 describe('HomeKeeperCard monitored rows (issue #231)', () => {
-  /** Boot a card holding *tasks* and hand back its shadow root once a row paints. */
-  async function rowsFor(tasks) {
+  /** The appliance behind the counted wear item below, so a part-linked row can
+   *  resolve its part the way it does in the panel. */
+  const WEAR_ASSET = {
+    id: 'a1',
+    name: 'Rain jacket',
+    parts: [{ id: 'p1', name: 'DWR coating', type: 'wear', replace_interval: 25, replace_unit: 'uses' }],
+  };
+
+  /** Boot a card holding *tasks* and hand back its shadow root once a row paints.
+   *  Pass `assetPayload` to answer get_assets with something other than the appliance
+   *  above — `{}` is the malformed-but-resolved case the guard below is about. */
+  async function rowsFor(tasks, assetPayload = { assets: [WEAR_ASSET] }) {
     const card = makeCard();
     card.hass = {
       language: 'en',
       callWS: async (msg) =>
-        msg.type === 'home_keeper/get_tasks' ? { tasks } : {},
+        msg.type === 'home_keeper/get_tasks'
+          ? { tasks }
+          : msg.type === 'home_keeper/get_assets'
+            ? assetPayload
+            : {},
     };
     await waitFor(() => sr(card)?.querySelector('.hk-row'));
     return sr(card);
@@ -226,6 +240,65 @@ describe('HomeKeeperCard monitored rows (issue #231)', () => {
     ]);
 
     expect(root.querySelector('.hk-done')).toBeTruthy();
+  });
+
+  // A counted wear item's replacement half is the second exception, for the same
+  // reason: renewing the coating at 10 of 25 wears is real work, and Done restarts
+  // the count. The card is the third surface reading the one predicate.
+  it('keeps mark-done on a counted wear item’s dormant replacement half', async () => {
+    const root = await rowsFor([
+      {
+        id: 'rep1',
+        name: 'Renew DWR coating (Rain jacket)',
+        recurrence_type: 'triggered',
+        next_due: null,
+        completions: [],
+        source: { part: { asset_id: 'a1', part_id: 'p1' } },
+      },
+    ]);
+
+    expect(root.querySelector('.hk-done')).toBeTruthy();
+  });
+
+  // The control: `set_task_consumable` writes the same source shape, flagged manual,
+  // onto a task the user owns — and that one is still waiting on its owner.
+  it('offers no mark-done on a hand-linked task pointing at a part', async () => {
+    const root = await rowsFor([
+      {
+        id: 'man1',
+        name: 'Wash the jacket',
+        recurrence_type: 'triggered',
+        next_due: null,
+        completions: [],
+        source: { part: { asset_id: 'a1', part_id: 'p1', manual: true } },
+      },
+    ]);
+
+    expect(root.querySelector('.hk-row')).toBeTruthy();
+    expect(root.querySelector('.hk-done')).toBeNull();
+  });
+
+  // A resolved-but-empty get_assets payload is not a rejection, so the boot path's
+  // `.catch(() => [])` never fired and `_assets` held undefined behind an `Asset[]`
+  // type. `_resolvePartLink` then threw on the first task carrying a part source,
+  // which is every half of every wear item, and the whole card painted nothing.
+  it('still renders part-linked rows when the appliance payload comes back empty', async () => {
+    const root = await rowsFor(
+      [
+        {
+          id: 'rep1',
+          name: 'Renew DWR coating (Rain jacket)',
+          recurrence_type: 'triggered',
+          next_due: null,
+          completions: [],
+          source: { part: { asset_id: 'a1', part_id: 'p1' } },
+        },
+      ],
+      {},
+    );
+
+    expect(root.querySelector('.hk-row')).toBeTruthy();
+    expect(root.textContent).toContain('Renew DWR coating');
   });
 });
 

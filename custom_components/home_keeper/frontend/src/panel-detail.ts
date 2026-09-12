@@ -44,7 +44,7 @@ import {
 } from './panel-icons';
 import { assetAncestry } from './panel-lists';
 import { consumableLinkLabel, consumableOptions, documentOptions } from './panel-task-form';
-import { partCountsUses, taskFormIsEmpty } from './forms';
+import { partBackstopLabel, partCountsUses, taskFormIsEmpty } from './forms';
 import type { Asset, Part, Task } from './types';
 import {
   ASSET_TABS,
@@ -661,6 +661,14 @@ function partsSection(p: PanelHost, asset: Asset): string {
               }),
             )
           : '';
+      // "or every 12 months", beside the count rather than folded into it. A counted
+      // wear item repeats on whichever limit comes first, and a row that named only
+      // the count left a part whose backstop had already fired reading "0 of 10 runs"
+      // against an empty meter while its task sat in Overdue. Its own chip, not a
+      // longer label: an assist chip's text does not wrap, so one combined pill would
+      // run past a phone row that 2 short chips wrap cleanly inside.
+      const backstopLabel = isWear ? partBackstopLabel(part) : '';
+      const backstop = backstopLabel ? chip(backstopLabel) : '';
       const replaced = isWear
         ? chip(
             part.last_replaced
@@ -731,7 +739,7 @@ function partsSection(p: PanelHost, asset: Asset): string {
       const chipRow =
         cadence || replaced || spares || counted
           ? `<div class="hk-part-chips">
-                 <div class="hk-part-cell hk-part-cadence">${cadence}${counted}</div>
+                 <div class="hk-part-cell hk-part-cadence">${cadence}${backstop}${counted}</div>
                  <div class="hk-part-cell hk-part-replaced">${replaced}</div>
                  <div class="hk-part-cell hk-part-spares">${spares}</div>
                </div>`

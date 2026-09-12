@@ -143,6 +143,77 @@ def test_a_use_task_name_override_is_kept():
     )
 
 
+# ── the carried count ─────────────────────────────────────────────────────────
+def test_a_carried_count_is_kept():
+    assert _counted(carried_uses=24)["carried_uses"] == 24
+
+
+def test_an_absent_carried_count_is_zero():
+    assert _counted()["carried_uses"] == 0
+    assert assets.part_carried_uses(_counted()) == 0
+
+
+def test_a_carried_count_of_text_is_refused():
+    with pytest.raises(assets.AssetValidationError, match="carried_uses"):
+        _counted(carried_uses="two dozen")
+
+
+@pytest.mark.parametrize("stated", [-1, -1.5, -0.5, -0.999])
+def test_a_negative_carried_count_is_refused(stated):
+    """A fraction below zero is refused too, which needed ``floor`` over ``int``.
+
+    ``int`` truncates toward zero, so -0.5 arrived at the guard as 0 and was accepted
+    while -1 was refused. One wrong file, answered 2 ways, and the half that passed
+    said nothing at all.
+    """
+    with pytest.raises(assets.AssetValidationError, match="carried_uses must be >= 0"):
+        _counted(carried_uses=stated)
+
+
+def test_a_carried_count_above_the_history_cap_is_refused():
+    """``recurrence._record_entry`` trims every completion log to 500 on every write.
+
+    A carry above that is a figure Home Keeper could never have produced, so the file
+    that states one is wrong rather than merely large.
+    """
+    with pytest.raises(
+        assets.AssetValidationError, match="carried_uses must be <= 500"
+    ):
+        _counted(carried_uses=501)
+
+
+def test_the_history_cap_itself_is_accepted():
+    """The ceiling is MAX_COMPLETION_HISTORY, not the 250 use target: a household can
+    let a count run past its target."""
+    assert _counted(carried_uses=500)["carried_uses"] == 500
+
+
+def test_a_boolean_carried_count_is_refused():
+    """``True`` is an ``int`` in Python, so only the boolean guard refuses it."""
+    with pytest.raises(assets.AssetValidationError, match="carried_uses"):
+        _counted(carried_uses=True)
+
+
+@pytest.mark.parametrize(
+    ("stated", "kept"),
+    [
+        (0, 0),  # a stated zero, which is not the same input as an absent key
+        ("24", 24),  # the text a YAML file holds, matching _PART_SCHEMA's Coerce(int)
+        (24.5, 24),  # a fraction of a use is not a use
+        (24.999, 24),
+    ],
+)
+def test_a_carried_count_takes_the_shapes_a_hand_written_file_holds(stated, kept):
+    """Coerced, and truncated toward zero, like every other whole-number part field.
+
+    Worth stating rather than leaving to ``int()``: a file written by hand or by an
+    assistant is the case this field exists for, and `"24"` is what YAML gives for a
+    quoted number. Truncation is the same rule ``replace_also_every.interval`` uses,
+    so a count never lands between 2 uses.
+    """
+    assert _counted(carried_uses=stated)["carried_uses"] == kept
+
+
 # ── the predicates ────────────────────────────────────────────────────────────
 def test_part_counts_uses():
     assert assets.part_counts_uses(_counted()) is True

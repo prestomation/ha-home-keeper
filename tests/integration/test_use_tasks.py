@@ -298,3 +298,52 @@ def test_the_count_runs_again_after_a_skip(ha):
         lambda: _tasks(ha),
         lambda task: task["id"] == replace_task["id"] and task["next_due"] is not None,
     ), "the replacement task did not arm again after a skip and 2 more uses"
+
+
+def test_completing_the_replacement_while_dormant_restarts_the_count(ha):
+    """The early renewal: you renew the coating before the count reaches its target.
+
+    ``docs/COUNTED_WEAR_ITEMS_PLAN.md`` has always said this is allowed and simply
+    restarts the count, and ``store.complete_task`` has always accepted it — but the
+    panel withheld Done, so no user could reach it. This tier is what proves the
+    backend half really does restart the cycle rather than merely accept the call.
+    """
+    _asset, use_task, replace_task = _counted_appliance(
+        ha, "Early renew jacket", target=3
+    )
+    for _ in range(2):
+        _complete(ha, use_task["id"])
+        time.sleep(1)
+    # 2 of 3: the replacement has earned nothing yet.
+    assert _reload(ha, replace_task["id"])["next_due"] is None
+
+    _complete(ha, replace_task["id"])
+    time.sleep(2)
+    reloaded = _reload(ha, replace_task["id"])
+    assert reloaded["next_due"] is None, "an early completion must not arm it"
+    assert reloaded["last_completed"], "the cycle marker must move"
+
+    # The count restarted, so a whole fresh cycle is needed to arm it again. Asserting
+    # the re-arm rather than the figure is what separates "the cycle restarted" from
+    # "the call was accepted and nothing changed".
+    for _ in range(3):
+        _complete(ha, use_task["id"])
+        time.sleep(1)
+    assert _find(
+        lambda: _tasks(ha),
+        lambda task: task["id"] == replace_task["id"] and task["next_due"] is not None,
+    ), "3 more uses after an early renewal did not arm the replacement task"
+
+
+def test_an_early_completion_stamps_the_part(ha):
+    """The same completion records the renewal on the part, as a later one does."""
+    asset, use_task, replace_task = _counted_appliance(ha, "Stamped jacket", target=5)
+    _complete(ha, use_task["id"])
+    time.sleep(1)
+    _complete(ha, replace_task["id"])
+    time.sleep(2)
+    part = _find(
+        lambda: _assets(ha),
+        lambda a: a["id"] == asset["id"] and a["parts"][0].get("last_replaced"),
+    )
+    assert part, "an early renewal did not stamp the part's last_replaced"

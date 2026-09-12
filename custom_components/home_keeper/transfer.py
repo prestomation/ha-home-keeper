@@ -39,7 +39,7 @@ from functools import lru_cache
 from typing import Any
 
 from . import assets as assets_model
-from . import models, recurrence, resolve
+from . import models, reconcile, recurrence, resolve
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     MAX_IMPORT_BYTES,
@@ -99,6 +99,29 @@ EXCLUDED_ASSET_KEYS: tuple[tuple[str, str], ...] = (
         "them are gone, so there is nothing on the other side to attach them to",
     ),
 )
+
+EXCLUDED_PART_KEYS: tuple[tuple[str, str], ...] = (
+    (
+        "file_name",
+        "the part's single uploaded file, which a text document has no room for; "
+        "counted in the envelope's `skipped` instead, and re-uploaded by hand",
+    ),
+    ("file_content_type", "the same uploaded file, its media type"),
+    ("file_size", "the same uploaded file, its size"),
+)
+"""Keys a stored part holds that the document leaves out, and why.
+
+A part is a record inside a record, and it gets the same treatment: exported through
+:func:`_strip`, so it states only what is true of it. The parts list went past
+untouched from the first export, and a stored part holds up to ten nulls that
+``_normalize_part`` writes — which the published JSON Schema types as ``number``, so
+a real export of an ordinary wear part failed the schema Home Keeper writes for it.
+Nothing said so: the one gate that saw it reported green through the failure.
+
+These 3 are also exactly the keys ``_PART_SCHEMA`` refuses, so emitting them made
+``home_keeper.update_asset`` answer 400 for an automation replaying an export.
+``tests/unit/test_transfer_coverage.py`` holds both halves of that to account.
+"""
 
 EXCLUDED_STORE_KEYS: tuple[tuple[str, str], ...] = (
     (
@@ -335,7 +358,35 @@ def _task_out(
     return out
 
 
-def _asset_out(asset: dict[str, Any], *, area_names: dict[str, str]) -> dict[str, Any]:
+def _counted_uses_by_part(
+    assets: list[dict[str, Any]], tasks: list[dict[str, Any]]
+) -> dict[tuple[str, str], int]:
+    """The live count of every counted wear item, keyed by ``(asset_id, part_id)``.
+
+    The one computed value in the exporter, and a deliberate exception to this module's
+    "derive, never restate" rule. The count *is* the use task's completion log, and
+    neither derived task is portable — so restating it on the part is the only way it
+    survives the document at all. It is computed by :mod:`reconcile`, not here, so the
+    figure in the file is the same one the reminder acts on.
+    """
+    by_id = {a["id"]: a for a in assets if a.get("id")}
+    by_tid = {t["id"]: t for t in tasks if t.get("id")}
+    counts: dict[tuple[str, str], int] = {}
+    for asset, part, use_task, replace_task in reconcile.counted_part_pairs(
+        by_id, by_tid
+    ):
+        counts[(asset["id"], part["id"])] = reconcile.counted_uses(
+            use_task, replace_task, part
+        )
+    return counts
+
+
+def _asset_out(
+    asset: dict[str, Any],
+    *,
+    area_names: dict[str, str],
+    counted_uses: dict[tuple[str, str], int] | None = None,
+) -> dict[str, Any]:
     """One stored appliance as a document record, link documents only."""
     out = _strip(asset, EXCLUDED_ASSET_KEYS)
     out["id"] = asset["id"]
@@ -357,6 +408,37 @@ def _asset_out(asset: dict[str, Any], *, area_names: dict[str, str]) -> dict[str
         out["documents"] = documents
     else:
         out.pop("documents", None)
+    # Restate each counted wear item's live count on its part, and only when there is
+    # one to state, so an ordinary export stays readable. An importing install rebuilds
+    # both derived tasks empty, and this is what it counts from until the replacement
+    # task is first completed or skipped there.
+    #
+    # Each part goes through ``_strip`` as well, because a part is a record too. That
+    # also makes the copy this loop needs: ``_strip`` on the asset is shallow, so
+    # ``out["parts"]`` is the *stored* list holding the *stored* dicts, and stamping one
+    # in place wrote the export's figure into live storage, where ``_merge_parts`` then
+    # read it back on a re-import and the household's own file doubled its own count.
+    if parts := out.get("parts"):
+        counts = counted_uses or {}
+        stamped = []
+        for stored_part in parts:
+            # The computed figure when this part has its derived pair, and whatever
+            # carry it already holds when it does not. A part mid-reconcile, or one in
+            # a hand-edited store, has no pair to count from, and dropping a carry it
+            # still holds would lose the very cycle this field exists to keep.
+            count = counts.get(
+                (asset["id"], stored_part.get("id")),
+                int(stored_part.get("carried_uses") or 0),
+            )
+            part = _strip(stored_part, EXCLUDED_PART_KEYS)
+            if count:
+                part["carried_uses"] = count
+            else:
+                # A part with nothing to carry says nothing, rather than putting
+                # `carried_uses: 0` on every wear item in every file.
+                part.pop("carried_uses", None)
+            stamped.append(part)
+        out["parts"] = stamped
     return out
 
 
@@ -366,12 +448,21 @@ def count_file_documents(assets: list[dict[str, Any]]) -> int:
     Reported in the envelope rather than passed over in silence: a text document has no
     room for a blob, and somebody restoring onto a new install needs to know that
     three manuals are waiting to be re-uploaded, not discover it a month later.
+
+    A part's own attached file counts here too. It is lost by the same rule and left
+    behind by the same table (:data:`EXCLUDED_PART_KEYS`), so counting only the
+    appliance's documents made the figure quietly low.
     """
     return sum(
         1
         for asset in assets
         for doc in asset.get("documents") or []
         if doc.get("kind") == "file"
+    ) + sum(
+        1
+        for asset in assets
+        for part in asset.get("parts") or []
+        if part.get("file_name")
     )
 
 
@@ -396,8 +487,10 @@ def build_document(
     }
     portable_assets = [a for a in assets if a.get("id")]
     if "appliances" in wanted:
+        counted = _counted_uses_by_part(portable_assets, tasks)
         document["appliances"] = [
-            _asset_out(a, area_names=names) for a in portable_assets
+            _asset_out(a, area_names=names, counted_uses=counted)
+            for a in portable_assets
         ]
         if skipped := count_file_documents(portable_assets):
             document["home_keeper"]["skipped"] = {"file_documents": skipped}

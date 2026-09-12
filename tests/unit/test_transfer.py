@@ -1847,3 +1847,189 @@ def test_an_import_with_no_history_leaves_a_fixed_task_where_it_was():
     (record,) = plan.records
     assert record.action == "update"
     assert record.payload["next_due"] == "2026-06-20T18:00:00-04:00"
+
+
+# ── a counted wear item's count crosses the document ─────────────────────────
+def _counted_install(uses: int, *, target: int = 25):
+    """A stored appliance with a counted wear part, its 2 derived tasks, and a count.
+
+    Built through the real reconciler, so the pair is the shape a live install holds
+    rather than a second description of one.
+    """
+    asset = tr.assets_model.build_asset(
+        {
+            "name": "Rain jacket",
+            "external_id": "jacket-1",
+            "parts": [
+                {
+                    "name": "DWR coating",
+                    "type": "wear",
+                    "replace_interval": target,
+                    "replace_unit": "uses",
+                    "use_noun": "wears",
+                }
+            ],
+        },
+        now=NOW,
+    )
+    tasks, _ = tr.reconcile.reconcile_part_tasks({asset["id"]: asset}, {}, now=NOW)
+    use_task = next(t for t in tasks.values() if tr.reconcile.is_use_task(t))
+    for i in range(uses):
+        entry = {"ts": (NOW - timedelta(hours=uses - i)).isoformat()}
+        use_task.setdefault("completions", []).append(entry)
+        use_task["last_completed"] = entry["ts"]
+    return asset, list(tasks.values()), use_task
+
+
+def test_the_export_states_a_counted_wear_item_s_live_count_on_its_part():
+    asset, tasks, _ = _counted_install(24)
+    document = tr.build_document(tasks, [asset], now=NOW)
+    part = document["appliances"][0]["parts"][0]
+    assert part["carried_uses"] == 24
+    # The 2 derived tasks themselves stay out, exactly as before.
+    assert document["tasks"] == []
+
+
+def test_an_ordinary_export_says_nothing_about_a_count_it_does_not_have():
+    """Only a part with a count to state carries the key, so a file stays readable."""
+    asset, tasks, _ = _counted_install(0)
+    document = tr.build_document(tasks, [asset], now=NOW)
+    assert "carried_uses" not in document["appliances"][0]["parts"][0]
+
+
+def test_a_counted_wear_item_keeps_its_count_across_an_import():
+    """The whole point: 24 of 25 wears must not come back as 0 of 25.
+
+    The count *is* the use task's completion log, and neither derived task is
+    portable — so an import rebuilds both halves empty. Without the carry the jacket
+    silently restarted its cycle, while a months-measured part survived on
+    ``last_replaced``.
+    """
+    asset, tasks, _ = _counted_install(24)
+    document = tr.build_document(tasks, [asset], now=NOW)
+    plan = tr.plan_import(tr.document_to_yaml(document), tasks={}, assets={}, now=NOW)
+    assert plan.ok, plan.problems
+
+    (record,) = plan.for_section("appliances")
+    imported = {record.payload["id"]: record.payload}
+    fresh, _ = tr.reconcile.reconcile_part_tasks(imported, {}, now=NOW)
+    by_role = {tr.reconcile.part_role(t): t for t in fresh.values()}
+    part = record.payload["parts"][0]
+
+    # The rebuilt log really is empty; the carry is what answers.
+    assert by_role["use"]["completions"] == []
+    assert tr.reconcile.counted_uses(by_role["use"], by_role["replace"], part) == 24
+
+
+def test_the_carried_count_arms_the_replacement_on_the_importing_install():
+    """One more use after the move must still bring the reminder up."""
+    asset, tasks, _ = _counted_install(24, target=25)
+    document = tr.build_document(tasks, [asset], now=NOW)
+    plan = tr.plan_import(tr.document_to_yaml(document), tasks={}, assets={}, now=NOW)
+    (record,) = plan.for_section("appliances")
+    imported = {record.payload["id"]: record.payload}
+    fresh, _ = tr.reconcile.reconcile_part_tasks(imported, {}, now=NOW)
+    by_role = {tr.reconcile.part_role(t): t for t in fresh.values()}
+    by_role["use"]["completions"] = [{"ts": NOW.isoformat()}]
+
+    to_arm, _ = tr.reconcile.settle_use_tasks(imported, fresh, now=NOW)
+    assert to_arm == [by_role["replace"]["id"]]
+
+
+def test_a_re_import_onto_the_same_install_does_not_add_the_count_twice():
+    """The stored part keeps its own carry, because its live pair is the truth here.
+
+    ``_merge_parts`` restores it the way it restores the upload-only file keys. Without
+    that, importing a household's own export would add the document's figure to a count
+    that install already has.
+    """
+    asset, tasks, _ = _counted_install(24)
+    document = tr.build_document(tasks, [asset], now=NOW)
+    stored = {asset["id"]: asset}
+    plan = tr.plan_import(
+        tr.document_to_yaml(document),
+        tasks={t["id"]: t for t in tasks},
+        assets=stored,
+        now=NOW,
+    )
+    assert plan.ok, plan.problems
+    (record,) = plan.for_section("appliances")
+    assert record.action == "update"
+    merged = tr.assets_model.merge_update(asset, record.payload, now=NOW)
+    assert merged["parts"][0]["carried_uses"] == 0
+
+
+# ── A part is a record too, so the export treats it like one ─────────────────
+#
+# `_strip` gave the appliance and the task their readable shape, and the parts list
+# went past it untouched: `out["parts"]` is the *stored* list, so every part exported
+# every key the builder writes, including the ten it leaves null. The published JSON
+# Schema types `stock` and its neighbours as `number`, so a real export of an ordinary
+# wear part failed the schema Home Keeper publishes for it, and `update_asset` refused
+# the parts array a replay handed back.
+
+
+def _one_part(**overrides) -> dict:
+    """One exported part, from a stored appliance holding exactly one."""
+    spec = {"name": "DWR", "type": "wear", **overrides}
+    asset = tr.assets_model.build_asset(
+        {"name": "Rain jacket", "parts": [spec]}, now=NOW
+    )
+    return tr.build_document([], [asset], now=NOW)["appliances"][0]["parts"][0]
+
+
+def test_an_exported_part_states_no_empty_value():
+    """A stored part holds ten nulls and six empty strings; a document holds none.
+
+    The same promise `_strip` already made for the record above it, and the same
+    reason: an absent key and an empty one mean the same thing to `_normalize_part`,
+    so the file says only what is true of the part.
+    """
+    part = _one_part(replace_interval=25, replace_unit="uses")
+    empty = {key: value for key, value in part.items() if value in (None, "", [], {})}
+    assert not empty, f"exported with nothing to say: {sorted(empty)}"
+
+
+def test_an_exported_part_keeps_a_zero_and_a_false():
+    """Dropping the empties must not drop a stated zero: 0 in stock is a fact."""
+    part = _one_part(type="consumable", stock=0, create_buy_task=False)
+    assert part["stock"] == 0
+    assert part["create_buy_task"] is False
+
+
+def test_an_exported_part_leaves_its_uploaded_file_behind():
+    """The file itself cannot travel, so the 3 keys that name it must not either.
+
+    They are also the keys `_PART_SCHEMA` refuses, so an automation replaying an
+    exported appliance through `update_asset` got a 400 on a document Home Keeper
+    wrote itself.
+    """
+    asset = tr.assets_model.build_asset(
+        {"name": "Rain jacket", "parts": [{"name": "DWR", "type": "wear"}]}, now=NOW
+    )
+    tr.assets_model.set_part_file(
+        asset,
+        asset["parts"][0]["id"],
+        {"filename": "dwr-sheet.pdf", "content_type": "application/pdf", "size": 9124},
+    )
+    part = tr.build_document([], [asset], now=NOW)["appliances"][0]["parts"][0]
+    for key, _reason in tr.EXCLUDED_PART_KEYS:
+        assert key not in part
+
+
+def test_the_envelope_counts_a_part_s_file_as_one_left_behind():
+    """The count exists so nobody discovers the loss a month later.
+
+    A part's attached file is lost by the same rule as an appliance's uploaded
+    manual, so it is reported by the same figure.
+    """
+    asset = tr.assets_model.build_asset(
+        {"name": "Rain jacket", "parts": [{"name": "DWR", "type": "wear"}]}, now=NOW
+    )
+    tr.assets_model.set_part_file(
+        asset,
+        asset["parts"][0]["id"],
+        {"filename": "dwr-sheet.pdf", "content_type": "application/pdf", "size": 9124},
+    )
+    document = tr.build_document([], [asset], now=NOW)
+    assert document["home_keeper"]["skipped"] == {"file_documents": 1}

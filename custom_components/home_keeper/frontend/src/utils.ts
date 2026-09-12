@@ -298,14 +298,35 @@ const EDGE_SENSOR_MODES: readonly string[] = ['state', 'threshold', 'availabilit
  * `next_due_after_completion` leaves a sensor task dormant. That is #231 — a Device
  * Pulse task sat under the Monitored heading with a live Done button.
  *
- * A dormant **usage** meter is deliberately not monitored-dormant. It is counting up
- * to its target, the panel shows that countdown ("in 7000 miles"), and completing it
- * early is real work that re-anchors the meter (`store._reset_usage_baseline`) — so
- * the oil change done at 4,500 miles keeps its button.
+ * Two shapes are deliberately **not** monitored-dormant, for one shared reason: each
+ * is counting up to a target, and completing it early is real work rather than a
+ * no-op.
+ *
+ * A dormant **usage** meter. The panel shows its countdown ("in 7000 miles"), and Done
+ * re-anchors the meter (`store._reset_usage_baseline`) — so the oil change done at
+ * 4,500 miles keeps its button.
+ *
+ * A counted wear item's dormant **replacement** half. Done stamps the part's
+ * `last_replaced`, consumes a spare and moves `last_completed`, which is the instant
+ * `reconcile.cycle_start` measures the next count from — so renewing the coating at 10
+ * of 25 wears restarts the count instead of letting it climb to 31 of 25.
+ * `docs/COUNTED_WEAR_ITEMS_PLAN.md` always said early completion was allowed; only
+ * this predicate withheld it.
  */
 export function isMonitoredDormant(task: Task): boolean {
   if (task.next_due) return false;
-  if (task.recurrence_type === 'triggered') return true;
+  if (task.recurrence_type === 'triggered') {
+    // A **non-manual** `part` source on a *triggered* task identifies the counted
+    // replacement half exactly. `reconcile_part_tasks` is the only writer of one
+    // (`store.add_task` rejects the reserved namespaces, `models.merge_update` never
+    // merges `source`, and the importer refuses them), and it writes `triggered` only
+    // when the part counts uses — a time-measured part gets `floating` instead. The
+    // `manual` half is load-bearing: `store.set_task_consumable` puts that same shape
+    // on any task the user owns, including a dormant triggered one, and that task
+    // really is waiting on its owner.
+    const part = task.source?.part;
+    return !(part && !part.manual);
+  }
   // The recurrence type decides, not the presence of a binding: a task edited away
   // from `sensor` can keep a stale `sensor` block, and it is no longer condition-driven.
   if (task.recurrence_type !== 'sensor') return false;
@@ -758,6 +779,21 @@ export function meterRemaining(
 }
 
 /**
+ * The figure every counted surface shows: the log since the cycle started, plus any
+ * count an import carried in on the part.
+ *
+ * The panel's mirror of `reconcile.counted_uses`. The carry applies only while the
+ * cycle has never started, which is the state a replacement task the reconciler has
+ * just minted is in — so an imported wear item reads its real count, and the first
+ * completion or skip of the replacement half retires the carry with no write.
+ */
+export function countedUses(useTask: Task, replaceTask: Task | undefined, part: Part): number {
+  const counted = usesSinceReplacement(useTask, replaceTask);
+  if (!Number.isNaN(cycleStart(replaceTask))) return counted;
+  return counted + Math.max(0, Math.trunc(Number(part.carried_uses) || 0));
+}
+
+/**
  * A counted wear item's live progress, or `null` when *task* is not a use task.
  *
  * The one lookup every surface that draws a count shares: it walks from the use task
@@ -799,7 +835,7 @@ export function countedProgress(
     );
   });
   return {
-    count: usesSinceReplacement(task, replaceTask),
+    count: countedUses(task, replaceTask, part),
     target,
     noun: (part.use_noun ?? '').trim(),
   };

@@ -19,6 +19,7 @@ from typing import Any
 from . import models, recurrence
 from .assets import (
     part_action,
+    part_carried_uses,
     part_counts_uses,
     part_is_low,
     part_replace_backstop,
@@ -219,6 +220,30 @@ def uses_since_replacement(
     return sum(1 for entry in completions if _sortable(entry.get("ts")) > marker)
 
 
+def counted_uses(
+    use_task: dict[str, Any],
+    replace_task: dict[str, Any],
+    part: dict[str, Any],
+) -> int:
+    """The figure every surface shows: the log since the cycle started, plus any carry.
+
+    :func:`uses_since_replacement` answers for the log alone and stays that way, because
+    :func:`trim_use_completions` protects the live *window* and the carry is not in it —
+    routing the carry through the trim would inflate what it keeps for entries that do
+    not exist.
+
+    The carry applies only while :func:`cycle_start` is ``None``, which is exactly the
+    state a replacement task minted by :func:`reconcile_part_tasks` is in. So an import
+    restores the count, and the first completion or skip of the replacement half retires
+    the carry by itself. There is deliberately no reset: a reset is a write path, and a
+    write path is a thing that can go out of step with the log it is meant to track.
+    """
+    counted = uses_since_replacement(use_task, replace_task)
+    if cycle_start(replace_task) is not None:
+        return counted
+    return counted + part_carried_uses(part)
+
+
 def replacement_backstop_due(
     part: dict[str, Any],
     replace_task: dict[str, Any],
@@ -267,7 +292,7 @@ def replacement_is_due(
     floor, and a wear item does not.
     """
     target = part_use_target(part)
-    if target and uses_since_replacement(use_task, replace_task) >= target:
+    if target and counted_uses(use_task, replace_task, part) >= target:
         return True
     due = replacement_backstop_due(part, replace_task, tz=now.tzinfo)
     return due is not None and due <= now

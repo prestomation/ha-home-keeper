@@ -12,6 +12,17 @@
   step is green whatever happens, so read the artifact it produced as well as its
   colour. The walkthrough tour stayed broken across several PRs this way. Turn a
   soft gate that can hide a real failure into a hard one.
+  - **A pipeline hides a failure the same way, and looks nothing like a soft gate.**
+    `pytest … | tee log` takes `tee`'s exit status, which is 0 whatever pytest did,
+    so the step passes on a red run. The published-schema gate sat red from 0.24.0b3
+    on, with a green mypy check over it, and its own `grep -qE "[0-9]+ passed"`
+    guard matched the "23 passed" inside "1 failed, 23 passed". **Put `set -o
+    pipefail` at the top of any `run:` block that pipes a test runner**, and write
+    the guard to name what must *not* appear, not only what must.
+  - **Give an opt-in gate a sibling in the lane every PR runs.** A gate that needs
+    a dependency or a Python the default lane lacks is read by nobody the day it
+    goes red. `test_no_exported_value_is_null` in `test_transfer_coverage.py` is
+    the plain-lane sibling of the schema gate, and it names the same defect.
 - Update `CHANGELOG.md` for every user-facing change before a release.
 - **User-facing text is held to the house rules**: `CHANGELOG.md` bullets,
   `README.md`, `docs/guide/**/*.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml` descriptions
@@ -94,6 +105,23 @@
   regenerated comment shows it. Capture is a **hard** gate: a failed capture fails
   the check, so a broken tour cannot merge behind a green run. Run
   `ci/capture-video.sh` locally to debug the tour before pushing.
+  - **A beat added is a budget re-measured.** The desktop walk is a fixed sequence of
+    pauses, so its wall clock only grows. 6 feature PRs edited the tour after #298
+    measured it — 32 beats, ~29s — and none moved `timeout` in
+    `walkthrough.config.ts`, so the margin fell from ~40% to ~15% and the tour timed
+    out on a change that touched no panel code. It is nobody's regression and
+    everybody's. Measure with `--timeout=600000 --reporter=list`, read the duration
+    reported rather than the cap it died at, and set the budget to that plus ~40%.
+    Suspect the margin before suspecting CI. The cap is now 360s and that is the last
+    free raise — at 3 attempts of 6 minutes the job's 30-minute cap gives next — so the
+    next tour that outgrows it is paid for by shortening the walk.
+  - **Cap every call that can fail to return; the test budget is the last resort.**
+    A `waitForTimeout` cannot hang — it is a fixed duration — so whatever eats a whole
+    budget is a call that never returns. Playwright leaves both caps off by default:
+    `actionTimeout` covers click/fill, `navigationTimeout` covers `page.goto`, and
+    neither is set in `playwright.config.ts`. The walkthrough sets both, so a stuck
+    step costs 20-30s and names itself instead of costing 15 minutes over 3 retries
+    and reporting as a timeout on the whole tour.
 - **Document new major features in `docs/guide/` in the same change** — add a brief
   section covering the **use cases** (what problem it solves) and a little about
   **how it's used**, with **screenshot(s)** (capture via the Playwright harness,

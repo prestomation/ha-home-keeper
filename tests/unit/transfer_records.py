@@ -80,6 +80,9 @@ def _maximal_asset() -> dict:
                 "action": "renew",
                 "use_noun": "wear",
                 "use_task_name": "Wear rain jacket",
+                # A count that came in with an import. The 2 derived tasks are not
+                # portable, so this is what carries the cycle across a migration.
+                "carried_uses": 17,
                 "last_replaced": "2026-01-10",
             },
         ],

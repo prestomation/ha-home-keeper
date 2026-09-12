@@ -309,9 +309,50 @@ describe('isMonitoredDormant', () => {
     ...rest,
   });
 
+  /** A counted wear item's replacement half, as `reconcile_part_tasks` builds it:
+   *  triggered, dormant, and carrying a non-manual part source with no role. */
+  const countedReplace = (part = {}, rest = {}) => ({
+    recurrence_type: 'triggered',
+    next_due: null,
+    source: { part: { asset_id: 'a1', part_id: 'p1', ...part } },
+    ...rest,
+  });
+
   it('is true for a dormant triggered task', () => {
     expect(isMonitoredDormant({ recurrence_type: 'triggered' })).toBe(true);
     expect(isMonitoredDormant({ recurrence_type: 'triggered', next_due: null })).toBe(true);
+  });
+
+  // The second exception, for the same reason as the usage meter below: the task is
+  // counting towards a target, and Done before the target is real work. The store
+  // stamps the part's last_replaced and moves last_completed, which is the instant
+  // `reconcile.cycle_start` measures the next count from.
+  it('is false for a counted wear item’s dormant replacement half', () => {
+    expect(isMonitoredDormant(countedReplace())).toBe(false);
+  });
+
+  // `set_task_consumable` writes that same shape, flagged manual, onto any task the
+  // user owns — including a dormant triggered one, which really is waiting on its
+  // owner. The flag is what tells the 2 apart.
+  it('is true for a dormant triggered task carrying a manual consumable link', () => {
+    expect(isMonitoredDormant(countedReplace({ manual: true }))).toBe(true);
+  });
+
+  it('is true for a dormant triggered task whose source names no part', () => {
+    expect(
+      isMonitoredDormant({
+        recurrence_type: 'triggered',
+        source: { declarative_companion: { recipe_id: 'r1' } },
+      }),
+    ).toBe(true);
+    expect(isMonitoredDormant({ recurrence_type: 'triggered', source: {} })).toBe(true);
+    expect(isMonitoredDormant({ recurrence_type: 'triggered', source: null })).toBe(true);
+  });
+
+  it('is false once the replacement half is armed', () => {
+    expect(isMonitoredDormant(countedReplace({}, { next_due: '2026-06-01T00:00:00Z' }))).toBe(
+      false,
+    );
   });
 
   // #231: a Device Pulse task sat under the Monitored heading with a live Done

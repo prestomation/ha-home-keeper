@@ -4,7 +4,9 @@ import { setLanguage } from '../src/i18n.ts';
 import { mergePartForm, partCountsUses, partDependentSchema, partFormData } from '../src/forms.ts';
 import {
   countedProgress,
+  countedUses,
   dueLabel,
+  isMonitoredDormant,
   isUseTask,
   recurrenceSummary,
   statusChipHtml,
@@ -104,6 +106,16 @@ describe('statusBucket', () => {
 
   it('leaves the dormant replacement task Monitored', () => {
     expect(statusBucket(replaceTask(), NOW)).toBe('monitored');
+  });
+
+  // The 2 rules disagree on purpose, so pin it. `statusBucket` decides which *section*
+  // a row files under, and the task really is waiting on a count — it belongs under
+  // Monitored. `isMonitoredDormant` decides whether Done is offered, and an early
+  // renewal is real work. A future reader finding one true and the other false should
+  // find this test rather than "fix" the pair into agreement.
+  it('keeps the dormant replacement under Monitored even though it offers Done', () => {
+    expect(statusBucket(replaceTask(), NOW)).toBe('monitored');
+    expect(isMonitoredDormant(replaceTask())).toBe(false);
   });
 
   it('puts the armed replacement task in Overdue like any other armed task', () => {
@@ -695,5 +707,53 @@ describe('the part time backstop never sends an interval the store refuses', () 
       also_every_unit: 'months',
     });
     expect(next.replace_also_every).toEqual({ interval: 12, unit: 'months' });
+  });
+});
+
+describe('countedUses — a count carried in by an import', () => {
+  const counted = (over = {}) => ({ ...asset().parts[0], ...over });
+
+  it('adds the carry while the cycle has never started', () => {
+    const task = useTask({ completions: uses(0) });
+    expect(countedUses(task, replaceTask(), counted({ carried_uses: 24 }))).toBe(24);
+  });
+
+  it('adds the carry to the entries recorded here', () => {
+    const task = useTask({ completions: uses(3) });
+    expect(countedUses(task, replaceTask(), counted({ carried_uses: 20 }))).toBe(23);
+  });
+
+  it('retires the carry once the replacement has been completed here', () => {
+    const task = useTask({ completions: uses(2) });
+    const replaced = replaceTask({ last_completed: new Date(NOW - 86_400_000).toISOString() });
+    expect(countedUses(task, replaced, counted({ carried_uses: 24 }))).toBe(2);
+  });
+
+  it('retires the carry on a skip too, the way the backend does', () => {
+    const task = useTask({ completions: uses(2) });
+    const skipped = replaceTask({ skips: [{ ts: new Date(NOW).toISOString() }] });
+    expect(countedUses(task, skipped, counted({ carried_uses: 24 }))).toBe(0);
+  });
+
+  it('is the plain count for a part that carries nothing', () => {
+    const task = useTask({ completions: uses(6) });
+    expect(countedUses(task, replaceTask(), counted())).toBe(6);
+  });
+
+  it('ignores a carry that is not a usable number', () => {
+    const task = useTask({ completions: uses(2) });
+    for (const bad of [null, undefined, '', 'lots', -5, Number.NaN]) {
+      expect(countedUses(task, replaceTask(), counted({ carried_uses: bad }))).toBe(2);
+    }
+  });
+
+  it('reaches the chip, so the panel shows what the reminder acts on', () => {
+    const task = useTask({ completions: uses(3) });
+    const withCarry = asset({ carried_uses: 20 });
+    expect(countedProgress(task, [withCarry], [task, replaceTask()])).toEqual({
+      count: 23,
+      target: 25,
+      noun: 'wears',
+    });
   });
 });

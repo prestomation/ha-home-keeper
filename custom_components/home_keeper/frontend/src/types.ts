@@ -339,6 +339,11 @@ export interface Part {
   // generated name. Both empty means the localized "Use {asset}" and "uses".
   use_noun?: string | null;
   use_task_name?: string | null;
+  // Uses counted before this part record arrived here — an import's doing, because the
+  // use task holding the real log is not portable. Added to the log only while the
+  // replacement task has never been completed or skipped, so it retires itself. Not a
+  // form field: the panel reads it and never writes it.
+  carried_uses?: number | null;
   last_replaced?: string | null;
   // Spare-inventory tracking. `stock` is how much is on hand (drawn down when a
   // wear-part replacement or a linked task is completed); `reorder_at` is the

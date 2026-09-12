@@ -520,9 +520,15 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   `history`, `skips`); an `appliances` record is an `add_asset` payload. So
   `services.yaml` — and the generated API reference — documents the format for free,
   and `tests/unit/test_transfer_coverage.py` fails when the two drift apart.
+- **A record inside a record gets the same treatment.** A part is exported through
+  `_strip` with its own `EXCLUDED_PART_KEYS`, not passed through whole. The parts
+  list went past `_strip` untouched until 0.24.0, so every part exported all ten of
+  the nulls `_normalize_part` writes — which the published JSON Schema types as
+  `number`, and which `_PART_SCHEMA` refuses on the way back through `update_asset`.
+  A nested list of records that skips this is the same defect waiting.
 - **Derive, never restate.** The export names the fields it *excludes*
-  (`EXCLUDED_TASK_KEYS` / `EXCLUDED_ASSET_KEYS`), each with a reason, and passes
-  everything else through. Import feeds a record straight back into
+  (`EXCLUDED_TASK_KEYS` / `EXCLUDED_ASSET_KEYS` / `EXCLUDED_PART_KEYS`), each with a
+  reason, and passes everything else through. Import feeds a record straight back into
   `models.normalize_fields` / `assets.normalize_fields`, which already know every
   field. **A new persisted field on a task or an appliance therefore needs no change
   to `transfer.py`** — and a hand-maintained allowlist would have been stale within
@@ -819,12 +825,27 @@ client check is a fast path, never the enforcement.
   task and a dormant `sensor` task in an *edge* mode (`state` / `threshold` /
   `availability` — the panel's twin of `sensor_tasks.holds_edge_state`) are both
   waiting on a condition, and completing one writes a history entry and moves nothing,
-  because `recurrence.next_due_after_completion` leaves it dormant. A dormant **usage**
-  meter is the exception and keeps its Done: it is counting towards a target, and an
-  early completion re-anchors the baseline through `store._reset_usage_baseline`. Each
-  of the three surfaces used to spell the rule out for itself, and all three tested only
-  `triggered` — so every declarative-companion task shipped with a Done that did nothing
-  (#231). One predicate, in `utils.ts`, or they drift again.
+  because `recurrence.next_due_after_completion` leaves it dormant. Each of the three
+  surfaces used to spell the rule out for itself, and all three tested only `triggered`
+  — so every declarative-companion task shipped with a Done that did nothing (#231).
+  One predicate, in `utils.ts`, or they drift again.
+- **Two shapes are exceptions, for one shared reason:** each is counting towards a
+  target, so an early completion is real work rather than a no-op. A dormant **usage**
+  meter keeps its Done, because completing it re-anchors the baseline through
+  `store._reset_usage_baseline`. A counted wear item's dormant **replacement** half
+  keeps it too, because `store.complete_task` stamps the part's `last_replaced`,
+  consumes a spare and moves `last_completed` — the instant `reconcile.cycle_start`
+  measures the next count from — so renewing the coating at 10 of 25 wears restarts the
+  count instead of letting it climb past its target with no way to say it was done.
+  `docs/COUNTED_WEAR_ITEMS_PLAN.md` always said that was allowed; only this predicate
+  withheld it. The discriminator for the second is a **non-manual** `part` source on a
+  `triggered` task: `reconcile_part_tasks` is the only writer of one and gives a
+  time-measured part `floating` instead, while `store.set_task_consumable` flags a
+  hand-made link `manual`, and such a task really is waiting on its owner.
+- **`card-filter.statusBucket` is a *section* rule and deliberately does not read the
+  predicate.** A counted replacement stays filed under Monitored — it is still waiting
+  on a count — while offering Done. The two answers differ on purpose, and
+  `counted-wear.test.js` pins the pair so nobody folds them together.
 - **`clear_on_recover` decides who may press Done.** It is not only a watcher
   setting: it says who owns the task's whole lifecycle, so
   `declarative_companions.build_managed_by` reads it straight into

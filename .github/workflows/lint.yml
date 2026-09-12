@@ -56,9 +56,15 @@ jobs:
         # HK_SCHEMA_GATE opts the file in; it is unset everywhere else, so the skip
         # there is deliberate rather than accidental. The grep is what stops this
         # becoming a gate that silently never runs.
+        #
+        # `pipefail` is what stops it becoming a gate that runs and is never read.
+        # Without it the step takes `tee`'s exit status, which is always 0, and the
+        # grep below then matched the "23 passed" inside "1 failed, 23 passed" — so
+        # the schema gate reported green through a real failure from 0.24.0b3 on.
         env:
           HK_SCHEMA_GATE: "1"
         run: |
+          set -o pipefail
           python -m pytest tests/unit/test_generate_schema.py -v | tee /tmp/schema.log
           grep -qE "[0-9]+ passed" /tmp/schema.log
           if grep -qE "[0-9]+ skipped" /tmp/schema.log; then

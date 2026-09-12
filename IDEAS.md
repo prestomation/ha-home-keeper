@@ -324,6 +324,21 @@ ship rather than adding a parallel system.
   wrong first: either `in_season` should clamp the same way, or `_next_season_start`
   should skip to the next year that actually has the date. Check whether the same
   asymmetry exists anywhere else that takes an `MM-DD` boundary.
+- **Portable source-owned tasks**, for all 4 reconciler namespaces at once.
+  `transfer.is_portable_task` refuses any task carrying a reserved `source`, and
+  `_plan_task` refuses one on the way in, because a reconciler regenerates them. That
+  is right for a recipe's task and a problem-sensor mirror, and too broad for a wear
+  part's pair: `reconcile_part_tasks` keys on `(asset_id, part_id, role)` and *updates*
+  a task it finds rather than re-minting it, so an imported one would be adopted. What
+  a document cannot carry today is the **history** — a wear item's renewal log, cost,
+  note and photo, which is the record a household most wants to keep across a move.
+  `carried_uses` bought the counted cycle back as an integer; this would bring the log
+  itself. Not small: the export has to un-withhold `source` in the one module whose
+  whole design is "name what you exclude, not what you emit", a document id for
+  `source.part.asset_id` needs a planned-id remap that `asset_refs` has no equivalent
+  of (it is keyed on `external_id` and `name` only), and `_plan_task` needs its own
+  validation for a door `store.add_task` deliberately closes. Worth doing once, as a
+  designed feature, rather than one namespace at a time.
 
 ---
 

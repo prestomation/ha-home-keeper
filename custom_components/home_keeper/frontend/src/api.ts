@@ -415,7 +415,11 @@ export async function deleteArchivedCompletion(
 
 export async function getAssets(hass: Hass): Promise<Asset[]> {
   const res = await hass.callWS<{ assets: Asset[] }>({ type: 'home_keeper/get_assets' });
-  return res.assets;
+  // `?? []` because a resolved-but-empty payload is not a rejection, so the caller's
+  // `.catch(() => [])` never sees it. The card then held `undefined` behind an
+  // `Asset[]` type and `_resolvePartLink` threw on the first task carrying a part
+  // source — which is every half of every wear item — blanking the whole card.
+  return res?.assets ?? [];
 }
 
 export async function addAsset(hass: Hass, asset: Partial<Asset>): Promise<Asset> {

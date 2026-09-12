@@ -410,6 +410,12 @@ _PART_SCHEMA = vol.Schema(
                 }
             ),
         ),
+        # A count that arrived with an imported part, because the use task holding the
+        # real log is not portable. It has to be *takeable* here as well as storable:
+        # the export puts it on the part, so an automation replaying an exported
+        # appliance through update_asset hands it straight back, and a strict schema
+        # without it would refuse the very payload list_assets just produced.
+        vol.Optional("carried_uses"): vol.Coerce(int),
         # file_name/file_content_type/file_size are deliberately absent: a part's
         # attached file is upload-only (see manuals.HomeKeeperPartFileView) and must
         # never be settable through add_asset/update_asset — voluptuous rejects any

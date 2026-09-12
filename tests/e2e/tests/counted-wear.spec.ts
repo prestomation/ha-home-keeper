@@ -142,6 +142,9 @@ test.describe('Home Keeper panel — counted wear items', () => {
     await expect(meter).toHaveAttribute('aria-valuemax', String(TARGET));
     expect(Number(await meter.getAttribute('aria-valuenow'))).toBe(await currentCount());
     await expect(panel.locator('.hk-part-cadence')).toContainText('wears');
+    // A counted wear item repeats on whichever limit comes first, so the row names
+    // both. The seeded DWR coating carries a 12-month backstop beside its 25 wears.
+    await expect(panel.locator('.hk-part-cadence')).toContainText('or every 12 months');
   });
 
   test('the part editor reveals the counting fields @responsive', async ({ page }) => {

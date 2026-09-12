@@ -530,6 +530,32 @@ def _normalize_use_noun(value: Any) -> str:
     return noun
 
 
+def _normalize_carried_uses(value: Any) -> int:
+    """Validate ``carried_uses`` — a count that arrived with an imported part.
+
+    Bounded by :data:`MAX_COMPLETION_HISTORY` rather than by :data:`MAX_USE_TARGET`: a
+    household can legitimately let a count run past its target, so the target is the
+    wrong ceiling, but ``recurrence._record_entry`` trims every completion log to 500 on
+    every write — so a carry above that is a figure Home Keeper could never have
+    produced, and refusing it says so.
+    """
+    if value in (None, ""):
+        return 0
+    raw = _reject_boolean(value, "carried_uses")
+    try:
+        # ``floor`` for a real number and ``int`` for the text a quoted YAML scalar
+        # gives. ``int`` alone truncates toward zero, which turned -0.5 into an
+        # acceptable 0 while -1 was refused — the same wrong file, answered 2 ways.
+        carried = math.floor(raw) if isinstance(raw, float) else int(raw)
+    except (TypeError, ValueError) as err:
+        raise AssetValidationError("carried_uses must be an integer") from err
+    if carried < 0:
+        raise AssetValidationError("carried_uses must be >= 0")
+    if carried > MAX_COMPLETION_HISTORY:
+        raise AssetValidationError(f"carried_uses must be <= {MAX_COMPLETION_HISTORY}")
+    return carried
+
+
 def _normalize_replace_also_every(value: Any) -> dict[str, Any] | None:
     """Validate a counted wear item's optional time backstop (``{interval, unit}``).
 
@@ -619,6 +645,10 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
         "use_task_name": str(
             _reject_boolean(raw.get("use_task_name"), "use_task_name") or ""
         ).strip(),
+        # A count that arrived with an imported part, because the use task holding the
+        # real log does not travel. Written by an import and computed at export; never
+        # maintained during ordinary use. See :func:`part_carried_uses`.
+        "carried_uses": _normalize_carried_uses(raw.get("carried_uses")),
         "last_replaced": _normalize_date(raw.get("last_replaced"), "last_replaced"),
         # Spare-inventory tracking. ``stock`` is how much is on hand (drawn down when
         # a wear-part replacement or a linked task is completed); ``reorder_at`` is the
@@ -713,6 +743,14 @@ def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
     attached file is upload-only (see :func:`set_part_file`) and must never be
     settable through a generic write, so incoming values for these three keys (which
     ``_normalize_part`` never actually produces) are ignored outright.
+
+    ``carried_uses`` joins them, for a reason of its own: this part already exists here,
+    so its 2 derived tasks are live and their log is the whole truth. Taking an incoming
+    figure would **add a document's count to a count this install already has** — the
+    double count a same-install re-import would otherwise produce — and a plain parts
+    round-trip through the panel, which does not render the field, would wipe it. The
+    carry is only ever set where a part is *created*, which is the import case it exists
+    for.
     """
     by_id = {p["id"]: p for p in existing}
     merged: list[dict] = []
@@ -726,6 +764,7 @@ def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
                 "file_name": prior.get("file_name"),
                 "file_content_type": prior.get("file_content_type"),
                 "file_size": prior.get("file_size"),
+                "carried_uses": prior.get("carried_uses", 0),
             }
         merged.append(part)
     return merged
@@ -957,6 +996,21 @@ def part_counts_uses(part: dict) -> bool:
 def part_use_target(part: dict) -> int:
     """How many uses a counted wear item runs before its replacement task arms."""
     return int(part.get("replace_interval") or 0)
+
+
+def part_carried_uses(part: dict) -> int:
+    """Uses counted before this part record arrived here, and 0 for a native one.
+
+    A counted wear item's count *is* its use task's completion log, and neither derived
+    task travels in the portable document — so an import rebuilt both halves empty and a
+    jacket at 24 of 25 wears came back at 0 of 25, while a months-measured part survived
+    on ``last_replaced``. This carries the figure the log cannot.
+
+    It self-expires: :func:`reconcile.counted_uses` adds it only while the replacement
+    task has never been completed or skipped, which is the state a freshly minted one is
+    in. So there is no reset path to keep in step with anything.
+    """
+    return int(part.get("carried_uses") or 0)
 
 
 def part_use_noun(part: dict) -> str:
