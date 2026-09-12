@@ -183,6 +183,31 @@ def test_csv_has_header_rows_and_total():
     assert total[0] == "TOTAL"
     assert total[header.index("Cost")] == "150.0"
     assert total[header.index("Spares value")] == "10.0"
+    # Every other cell of that row is empty. A spreadsheet reads the row as the
+    # totals of the columns the values sit under, so a stray value in one of the
+    # descriptive columns would read as a total of names or serial numbers.
+    filled = {"TOTAL", "150.0", "10.0"}
+    assert [c for c in total if c not in filled] == [""] * (len(header) - 3)
+
+
+def test_csv_of_a_report_missing_its_sections_still_writes_a_file():
+    # ``report_to_csv`` defaults both lookups, so a caller that hands it a report
+    # without ``assets`` or ``totals`` gets headers and an empty TOTAL row rather
+    # than a TypeError halfway through writing the file.
+    rows = list(csv.reader(io.StringIO(report_mod.report_to_csv({}))))
+    assert rows[0][0] == "Name"
+    assert rows[-1][0] == "TOTAL"
+    assert rows[-1][1:] == [""] * (len(rows[0]) - 1)
+
+
+def test_an_unnamed_appliance_sorts_first_rather_than_failing():
+    # ``name`` is required on a stored asset, but the sort key defaults it anyway,
+    # and the default has to be the empty string: any other placeholder would sort
+    # the nameless row into the middle of the list by whatever letter it started.
+    report = report_mod.build_report(
+        [_asset(id="1", name="Apple"), _asset(id="2", name="")]
+    )
+    assert [r["name"] for r in report["assets"]] == ["", "Apple"]
 
 
 def test_csv_headers_and_total_are_localized():
@@ -195,6 +220,11 @@ def test_csv_headers_and_total_are_localized():
     rows = list(csv.reader(io.StringIO(report_mod.report_to_csv(report, lang="es"))))
     assert rows[0][0] == "Nombre"
     assert rows[-1][0] == "TOTAL"  # es.json spells the total row label the same way
+    # German, because it spells *both* apart from English: a language whose TOTAL
+    # label happens to match (es, fr, ca, pt-BR) cannot tell a localized total row
+    # from one that resolved the label against the wrong language.
+    rows = list(csv.reader(io.StringIO(report_mod.report_to_csv(report, lang="de"))))
+    assert rows[-1][0] == "GESAMT"
     # An unknown language falls back to English rather than failing the export.
     rows = list(csv.reader(io.StringIO(report_mod.report_to_csv(report, lang="xx"))))
     assert rows[0][0] == "Name"
@@ -214,6 +244,34 @@ def test_csv_neutralizes_formula_injection():
         "a formula-like name must be prefixed with an apostrophe"
     )
     assert row[2].startswith("'@"), "a formula-like manufacturer must be neutralized"
+
+
+@pytest.mark.parametrize("lead", ["=", "+", "-", "@", "\t", "\r"])
+def test_every_formula_lead_character_is_neutralized(lead):
+    # The guard names 6 lead characters. Only 2 of them were ever asserted on, so
+    # dropping any of the other 4 from the set went unnoticed.
+    report = report_mod.build_report([_asset(id="1", name=f"{lead}danger")])
+    assert report_mod._cell(report["assets"][0]["name"]) == f"'{lead}danger"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Water heater",
+        "zebra",
+        "1998 furnace",
+        "N/A",
+        # A real model number from the fixture above. Any letter would do, but a
+        # leading "X" is the one a widened guard is most likely to swallow, and a
+        # model number is exactly the kind of cell that starts with one.
+        "XE50",
+    ],
+)
+def test_an_ordinary_cell_is_not_quoted(text):
+    # The other half of the guard, and the half nothing asserted: widening the
+    # dangerous set to catch an ordinary name would quietly put an apostrophe in
+    # front of a value the user reads in every row of their spreadsheet.
+    assert report_mod._cell(text) == text
 
 
 def test_spares_total_does_not_drift_from_per_row_rounding():

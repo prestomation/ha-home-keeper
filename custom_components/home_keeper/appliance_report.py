@@ -105,7 +105,11 @@ def build_report(
         )
         total_cost += _num(cost)
         total_spares += raw_spares
-    rows.sort(key=lambda r: (r["name"] or "").lower())
+    # The `.upper()` mutant of this line is equivalent: the call is here to fold
+    # case, and either direction folds it consistently, so no pair of names can
+    # order differently under the two. Only the presence of a fold is observable,
+    # and `test_rows_sorted_by_name_case_insensitive` asserts on that.
+    rows.sort(key=lambda r: (r["name"] or "").lower())  # pragma: no mutate
     totals = {
         "asset_count": len(rows),
         "total_cost": round(total_cost, 2),
@@ -150,9 +154,12 @@ def _cell(value: Any) -> str:
 def report_to_csv(
     report: dict[str, Any],
     *,
-    # Equivalent mutant: ``resolve_string`` falls back to English for any language
-    # it cannot resolve, so a mutated default behaves exactly like "en".
-    lang: str = "en",  # pragma: no mutate
+    # Two mutants of this line survive on purpose, and no assertion can kill
+    # either: ``resolve_string`` falls back to English for a language it cannot
+    # resolve, so any other default string behaves exactly like "en". mutmut
+    # scores the default anyway — ``# pragma: no mutate`` does not suppress a
+    # mutant on an argument default the way it does on a statement.
+    lang: str = "en",
 ) -> str:
     """Render :func:`build_report` output as CSV (a row per asset + a TOTAL row).
 
