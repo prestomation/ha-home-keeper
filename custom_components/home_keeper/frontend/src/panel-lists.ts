@@ -49,6 +49,7 @@ import {
   isOverdue,
   recurrenceSummary,
   scanRequired,
+  countedProgress,
   statusChipHtml,
   toast,
   type AssetTreeEntry,
@@ -257,7 +258,10 @@ function taskCard(p: PanelHost, task: Task): string {
   // urgency reads at the end of the row instead of buried mid-sentence. `elapsed` is
   // the list row's alone: down a long list the count is what separates a week late
   // from an hour late, where a detail page already shows the date.
-  const statusChip = statusChipHtml(task, p._hass, { elapsed: true });
+  const statusChip = statusChipHtml(task, p._hass, {
+    elapsed: true,
+    counted: countedProgress(task, p._assets, p._tasks),
+  });
   const n = task.completions?.length ?? 0;
   // A monitored task (dormant, not due) has nothing to mark done — its owning
   // integration or the sensor watcher arms it when the condition fires; hide the

@@ -13,20 +13,36 @@ unit-tested directly (see ``tests/unit/test_reconcile.py``).
 
 from __future__ import annotations
 
-from datetime import datetime, tzinfo
+from datetime import UTC, datetime, tzinfo
 from typing import Any
 
 from . import models, recurrence
-from .assets import part_is_low, part_wants_buy_task
+from .assets import (
+    part_action,
+    part_counts_uses,
+    part_is_low,
+    part_replace_backstop,
+    part_use_target,
+    part_wants_buy_task,
+    use_retention_cap,
+)
 from .const import (
     APPLIANCE_FALLBACK_NAMES,
     BUY_TASK_NAME_TEMPLATES,
     DEFAULT_LANGUAGE,
+    PART_ACTION_REPLACE,
+    PART_ROLE_REPLACE,
+    PART_ROLE_USE,
     PART_WEAR,
+    REC_FLOATING,
     REC_ONE_OFF,
+    REC_TRIGGERED,
+    REC_USE,
     TASK_SOURCE_BUY,
     TASK_SOURCE_PART,
+    USE_TASK_NAME_TEMPLATES,
     WEAR_TASK_NAME_TEMPLATES,
+    resolve_action_task_naming,
 )
 
 # English defaults so the pure reconciler is usable (and unit-testable) without a
@@ -35,6 +51,7 @@ from .const import (
 _DEFAULT_NAME_TEMPLATE = WEAR_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 _DEFAULT_BUY_NAME_TEMPLATE = BUY_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 _DEFAULT_APPLIANCE_FALLBACK = APPLIANCE_FALLBACK_NAMES[DEFAULT_LANGUAGE]
+_DEFAULT_USE_NAME_TEMPLATE = USE_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 
 
 def part_source(task: dict[str, Any]) -> dict[str, Any] | None:
@@ -91,6 +108,222 @@ def buy_source(task: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def part_role(task: dict[str, Any]) -> str:
+    """Which half of a wear part a derived task is: ``use`` or ``replace``.
+
+    An **absent** role reads as ``replace``. That is the whole migration story for
+    counted wear items: every derived task written before they existed lacks the key
+    and keeps its identity, so the reconciler recognizes it, updates it, and never
+    orphans it as a stranger.
+    """
+    src = part_source(task)
+    if src is None:
+        return PART_ROLE_REPLACE
+    role = src.get("role")
+    return PART_ROLE_USE if role == PART_ROLE_USE else PART_ROLE_REPLACE
+
+
+def is_use_task(task: dict[str, Any]) -> bool:
+    """True when *task* is the use half of a counted wear item.
+
+    Read at the store's completion chokepoint, where it is what keeps a use from
+    consuming a spare and stamping ``last_replaced``. Checks the recurrence type as
+    well as the role, so a malformed source cannot turn an ordinary replacement task
+    into a silent no-op on stock.
+    """
+    return task.get("recurrence_type") == REC_USE and part_role(task) == PART_ROLE_USE
+
+
+def _parse_ts(value: Any) -> datetime | None:
+    """Parse a stored ISO timestamp, tolerating the malformed (returns ``None``).
+
+    Same forgiving contract as :func:`qualify_iso`: a completion log is user-editable
+    through the history dialog and travels through import, so one bad entry must not
+    take the whole count down with it.
+    """
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+    return parsed
+
+
+def _sortable(value: Any) -> tuple[int, float]:
+    """A total order over completion timestamps, unparseable ones sorting oldest.
+
+    A history that has seen a timezone change holds mixed offsets, so entries are
+    compared as instants rather than as strings. The leading flag keeps a malformed
+    entry at the bottom instead of raising, which is what makes the trim below drop it
+    first — the right outcome for a row nothing can read.
+    """
+    parsed = _parse_ts(value)
+    if parsed is None:
+        return (0, 0.0)
+    if parsed.tzinfo is None:
+        return (1, parsed.replace(tzinfo=UTC).timestamp())
+    return (1, parsed.timestamp())
+
+
+def uses_since_replacement(
+    use_task: dict[str, Any], replace_task: dict[str, Any]
+) -> int:
+    """How many uses have been recorded since the part was last replaced.
+
+    The count *is* the use task's completion log, filtered to the entries later than
+    the replacement task's ``last_completed``. There is no stored counter, and so
+    nothing to keep in sync: completing the replacement task moves ``last_completed``
+    forward and the next count starts from zero by construction.
+
+    A replacement task that has never been completed counts every entry, which is
+    right for a part in its first cycle.
+    """
+    completions = use_task.get("completions") or []
+    since = _parse_ts(replace_task.get("last_completed"))
+    if since is None:
+        return len(completions)
+    marker = _sortable(replace_task.get("last_completed"))
+    return sum(1 for entry in completions if _sortable(entry.get("ts")) > marker)
+
+
+def replacement_backstop_due(
+    part: dict[str, Any],
+    replace_task: dict[str, Any],
+    *,
+    tz: tzinfo | None,
+) -> datetime | None:
+    """When a counted wear item's time backstop comes due, or ``None`` if it has none.
+
+    "Every 25 wears, **or** every 12 months, whichever comes first." The backstop
+    measures from the same instant the count does — the last replacement — so one
+    completion resets both halves and they can never disagree about which cycle they
+    are in. While there has been no replacement it falls back to the part's recorded
+    ``last_replaced`` and then to the task's ``created``, which is the ladder
+    ``sensor_tasks.backstop_due`` already walks for a usage task.
+    """
+    backstop = part_replace_backstop(part)
+    if backstop is None:
+        return None
+    raw = (
+        replace_task.get("last_completed")
+        or qualify_iso(part.get("last_replaced"), tz)
+        or replace_task.get("created")
+    )
+    anchor = _parse_ts(raw)
+    if anchor is None:
+        return None
+    if anchor.tzinfo is None:
+        anchor = anchor.replace(tzinfo=tz) if tz is not None else anchor.astimezone()
+    return recurrence.add_interval(
+        anchor, int(backstop["interval"]), str(backstop["unit"])
+    )
+
+
+def replacement_is_due(
+    part: dict[str, Any],
+    use_task: dict[str, Any],
+    replace_task: dict[str, Any],
+    *,
+    now: datetime,
+) -> bool:
+    """True when a counted wear item has earned its replacement task.
+
+    Whichever comes first: the count reaching the target, or the optional time
+    backstop elapsing. There is deliberately no "both must be met" combinator — a
+    usage task offers one because a service interval has a real "no earlier than"
+    floor, and a wear item does not.
+    """
+    target = part_use_target(part)
+    if target and uses_since_replacement(use_task, replace_task) >= target:
+        return True
+    due = replacement_backstop_due(part, replace_task, tz=now.tzinfo)
+    return due is not None and due <= now
+
+
+def trim_use_completions(
+    use_task: dict[str, Any], replace_task: dict[str, Any], *, cap: int
+) -> bool:
+    """Trim *use_task*'s completion log to *cap*, protecting the live count.
+
+    Returns ``True`` when entries were dropped. The window the reminder depends on is
+    "uses since the last replacement", so an entry inside it is **never** trimmed even
+    when it puts the log over the cap: losing one silently lowers the count and the
+    replacement task then never comes due, with nothing on any surface to say why.
+    Every other entry is history, kept newest-first for the cadence report.
+    """
+    completions = list(use_task.get("completions") or [])
+    protected = uses_since_replacement(use_task, replace_task)
+    keep = max(cap, protected)
+    if len(completions) <= keep:
+        return False
+    completions.sort(key=lambda entry: _sortable(entry.get("ts")))
+    use_task["completions"] = completions[-keep:]
+    return True
+
+
+def counted_part_pairs(
+    assets: dict[str, dict[str, Any]], tasks: dict[str, dict[str, Any]]
+) -> list[tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]]:
+    """Every ``(asset, part, use_task, replace_task)`` a counted wear item owns.
+
+    The settle step's one lookup. A part whose pair is incomplete — mid-reconcile, or
+    a storage document edited by hand — is skipped rather than half-processed, because
+    the count is meaningless without both halves.
+    """
+    by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for task in tasks.values():
+        src = part_source(task)
+        if src and not src.get("manual"):
+            by_key[(src["asset_id"], src["part_id"], part_role(task))] = task
+
+    pairs = []
+    for asset in assets.values():
+        for part in asset.get("parts", []):
+            if not part_counts_uses(part):
+                continue
+            asset_id = asset.get("id")
+            part_id = part.get("id")
+            if not asset_id or not part_id:
+                # A record with no id cannot be the target of a task's source, so
+                # there is no pair to find. Skipped rather than looked up as
+                # ``(None, ...)``, which can only ever miss.
+                continue
+            use_task = by_key.get((asset_id, part_id, PART_ROLE_USE))
+            replace_task = by_key.get((asset_id, part_id, PART_ROLE_REPLACE))
+            if use_task is not None and replace_task is not None:
+                pairs.append((asset, part, use_task, replace_task))
+    return pairs
+
+
+def settle_use_tasks(
+    assets: dict[str, dict[str, Any]],
+    tasks: dict[str, dict[str, Any]],
+    *,
+    now: datetime,
+) -> tuple[list[str], bool]:
+    """Decide which replacement tasks to arm, and trim the use logs.
+
+    Returns ``(task_ids_to_arm, trimmed)``. Pure: it arms nothing itself, because
+    arming fires ``home_keeper_task_triggered`` and that belongs at the store's
+    chokepoint. The trim *is* applied here, in place, since it is ordinary data
+    hygiene with no event of its own — the caller persists when ``trimmed`` is true.
+
+    A replacement task that is already armed is left alone, so a household that lets
+    the count run past the target does not get a fresh event on every tick.
+    """
+    to_arm: list[str] = []
+    trimmed = False
+    for _asset, part, use_task, replace_task in counted_part_pairs(assets, tasks):
+        if replace_task.get("next_due") is None and replacement_is_due(
+            part, use_task, replace_task, now=now
+        ):
+            to_arm.append(replace_task["id"])
+        if trim_use_completions(use_task, replace_task, cap=use_retention_cap(part)):
+            trimmed = True
+    return to_arm, trimmed
+
+
 def qualify_iso(value: str | None, tz: tzinfo | None) -> str | None:
     """Parse an ISO date/datetime and return an aware ISO string (or None).
 
@@ -109,12 +342,30 @@ def qualify_iso(value: str | None, tz: tzinfo | None) -> str | None:
     return parsed.isoformat()
 
 
+def _replace_name_template(
+    part: dict[str, Any], name_template: str, language: str | None
+) -> str:
+    """The ``"<Action> {part} ({asset})"`` template for *part*.
+
+    ``replace`` returns *name_template* verbatim rather than re-resolving it. That is
+    what keeps the caller's contract ("pass me the strings") true for the default
+    action, and it is why every wear part written before actions existed generates the
+    byte-identical name it already had.
+    """
+    action = part_action(part)
+    if action == PART_ACTION_REPLACE:
+        return name_template
+    return resolve_action_task_naming(action, language)
+
+
 def reconcile_part_tasks(
     assets: dict[str, dict[str, Any]],
     tasks: dict[str, dict[str, Any]],
     *,
     name_template: str = _DEFAULT_NAME_TEMPLATE,
     appliance_fallback: str = _DEFAULT_APPLIANCE_FALLBACK,
+    use_name_template: str = _DEFAULT_USE_NAME_TEMPLATE,
+    language: str | None = None,
     now: datetime,
 ) -> tuple[dict[str, dict[str, Any]], bool]:
     """Compute the task map derived from wear parts.
@@ -130,23 +381,36 @@ def reconcile_part_tasks(
     English keeps this function pure and independently testable. Because the name is
     recomputed here on every pass, a language change is picked up as ordinary name
     drift — the existing ``before.get("name") != name`` branch rewrites it.
+
+    ``name_template`` covers the ``replace`` action only, which is what every wear part
+    used before actions existed. The other 6 actions resolve from *language* through
+    ``const.resolve_action_task_naming``, and ``use_name_template`` names the use task
+    a counted wear item generates. Both stay parameters rather than a language lookup
+    inside, so this function keeps its "pass me the strings" contract.
+
+    **A counted wear item owns 2 tasks**, so the index below is keyed by
+    ``(asset_id, part_id, role)`` rather than by the part alone. Keyed by the part, the
+    2 tasks collide, the second overwrites the first, and the orphan sweep deletes
+    whichever one lost.
     """
     result = dict(tasks)
 
-    desired: dict[tuple[str, str], tuple[dict, dict]] = {}
+    desired: dict[tuple[str, str, str], tuple[dict, dict]] = {}
     for asset in assets.values():
         for part in asset.get("parts", []):
             if part.get("type") == PART_WEAR and part.get("replace_interval"):
-                desired[(asset["id"], part["id"])] = (asset, part)
+                desired[(asset["id"], part["id"], PART_ROLE_REPLACE)] = (asset, part)
+                if part_counts_uses(part):
+                    desired[(asset["id"], part["id"], PART_ROLE_USE)] = (asset, part)
 
-    existing_by_key: dict[tuple[str, str], str] = {}
+    existing_by_key: dict[tuple[str, str, str], str] = {}
     for tid, task in result.items():
         src = part_source(task)
         # Skip manually-linked tasks: they reuse the part-source shape (to consume
         # stock on completion) but are user-owned, so the reconciler must never
         # update or orphan-delete them.
         if src and not src.get("manual"):
-            existing_by_key[(src["asset_id"], src["part_id"])] = tid
+            existing_by_key[(src["asset_id"], src["part_id"], part_role(task))] = tid
 
     changed = False
 
@@ -159,8 +423,28 @@ def reconcile_part_tasks(
 
     # Create or update the rest.
     for key, (asset, part) in desired.items():
-        name = name_template.format(
-            part=part["name"], asset=asset.get("name") or appliance_fallback
+        role = key[2]
+        asset_name = asset.get("name") or appliance_fallback
+        counted = part_counts_uses(part)
+        if role == PART_ROLE_USE:
+            # A part may name its use task outright ("Wear rain jacket"); otherwise it
+            # gets the localized "Use {asset}". The part is not named either way — the
+            # household taps this to record using the *thing*, not the component that
+            # wears out.
+            name = part.get("use_task_name") or use_name_template.format(
+                asset=asset_name
+            )
+        else:
+            name = _replace_name_template(part, name_template, language).format(
+                part=part["name"], asset=asset_name
+            )
+        # The replacement half of a counted wear item is ``triggered``: dormant until
+        # the settle step arms it, which is the existing shape for "something else
+        # decides when this is due". A time-measured part keeps its floating cadence.
+        rec_type = (
+            REC_USE
+            if role == PART_ROLE_USE
+            else (REC_TRIGGERED if counted else REC_FLOATING)
         )
         # A part's last_replaced is a date-only string; qualify it to HA's tz so the
         # derived next_due is timezone-aware. A naive next_due otherwise crashes the
@@ -169,27 +453,42 @@ def reconcile_part_tasks(
         anchored = qualify_iso(part.get("last_replaced"), now.tzinfo)
         existing_tid = existing_by_key.get(key)
         if existing_tid is None:
-            task = models.build_task(
-                {
-                    "name": name,
-                    "recurrence_type": "floating",
-                    "interval": part["replace_interval"],
-                    "unit": part["replace_unit"],
-                    "device_id": asset.get("device_id"),
-                    "area_id": asset.get("area_id"),
-                    "source": {
-                        "part": {"asset_id": asset["id"], "part_id": part["id"]}
-                    },
-                },
-                now=now,
-            )
-            # Anchor the floating clock to the recorded replacement. With no
-            # recorded replacement we leave last_completed unset (build_task's
-            # default), so the part reads as due now rather than "assumed fresh" a
-            # full interval out: an unknown replacement history is better surfaced
-            # now — the user can backdate the replacement or mark it done — than
-            # silently hidden for a cycle.
-            if anchored:
+            # ``role`` is written only for a use task. An absent role already reads
+            # as ``replace`` (see part_role), so stamping it on the replacement half
+            # would put a second shape in storage for a value that never changes
+            # meaning — and would rewrite the source of every wear part in the wild
+            # for no gain.
+            part_link: dict[str, Any] = {
+                "asset_id": asset["id"],
+                "part_id": part["id"],
+            }
+            if role == PART_ROLE_USE:
+                part_link["role"] = PART_ROLE_USE
+            payload: dict[str, Any] = {
+                "name": name,
+                "recurrence_type": rec_type,
+                "device_id": asset.get("device_id"),
+                "area_id": asset.get("area_id"),
+                "source": {"part": part_link},
+            }
+            if rec_type == REC_FLOATING:
+                payload["interval"] = part["replace_interval"]
+                payload["unit"] = part["replace_unit"]
+            task = models.build_task(payload, now=now)
+            if rec_type == REC_TRIGGERED:
+                # ``build_task`` creates a triggered task **armed**: compute_next_due
+                # returns ``now`` for it (the re-arm contract). A counted wear item
+                # has earned nothing yet, so left alone every one of them would ship
+                # overdue the moment the part is saved. Start it dormant, exactly as
+                # build_task itself does for a sensor task.
+                task["next_due"] = None
+            elif rec_type == REC_FLOATING and anchored:
+                # Anchor the floating clock to the recorded replacement. With no
+                # recorded replacement we leave last_completed unset (build_task's
+                # default), so the part reads as due now rather than "assumed fresh" a
+                # full interval out: an unknown replacement history is better surfaced
+                # now — the user can backdate the replacement or mark it done — than
+                # silently hidden for a cycle.
                 task["last_completed"] = anchored
                 task["next_due"] = recurrence.compute_next_due(
                     task, now=now
@@ -204,10 +503,16 @@ def reconcile_part_tasks(
             updates: dict[str, Any] = {}
             if before.get("name") != name:
                 updates["name"] = name
-            if before.get("interval") != part["replace_interval"]:
-                updates["interval"] = part["replace_interval"]
-            if before.get("unit") != part["replace_unit"]:
-                updates["unit"] = part["replace_unit"]
+            if before.get("recurrence_type") != rec_type:
+                # The unit was switched between time and uses (or the storage document
+                # predates counted wear items). This is a real conversion, not drift:
+                # a floating task becomes triggered and vice versa.
+                updates["recurrence_type"] = rec_type
+            if rec_type == REC_FLOATING:
+                if before.get("interval") != part["replace_interval"]:
+                    updates["interval"] = part["replace_interval"]
+                if before.get("unit") != part["replace_unit"]:
+                    updates["unit"] = part["replace_unit"]
             if before.get("device_id") != asset.get("device_id"):
                 updates["device_id"] = asset.get("device_id")
             if before.get("area_id") != asset.get("area_id"):
@@ -215,6 +520,17 @@ def reconcile_part_tasks(
             merged = (
                 models.merge_update(before, updates, now=now) if updates else before
             )
+            if (
+                rec_type == REC_TRIGGERED
+                and before.get("recurrence_type") != REC_TRIGGERED
+            ):
+                # Same trap as creation, reached the other way: ``merge_update`` arms a
+                # task converted *into* triggered, because a stale schedule date would
+                # otherwise read as armed at an arbitrary instant. Switching a part
+                # from "every 6 months" to "every 25 wears" has earned nothing, so the
+                # replacement task starts the new cycle dormant and the settle step
+                # arms it on the first target it actually reaches.
+                merged = {**merged, "next_due": None}
             # Heal a legacy timezone-naive last_completed (older builds stored a
             # date-only last_replaced verbatim, yielding a naive next_due that crashed
             # the sensors/calendar). Only re-qualify a naive value — never overwrite a
@@ -224,9 +540,14 @@ def reconcile_part_tasks(
             if healed and healed != lc:
                 merged = dict(merged)
                 merged["last_completed"] = healed
-                merged["next_due"] = recurrence.compute_next_due(
-                    merged, now=now
-                ).isoformat()
+                if rec_type == REC_FLOATING:
+                    # Only a floating task derives a due date from its last completion.
+                    # The other 2 roles are dormant by definition, and recomputing
+                    # would raise for a use task and arm a replacement task that has
+                    # earned nothing.
+                    merged["next_due"] = recurrence.compute_next_due(
+                        merged, now=now
+                    ).isoformat()
             if merged is not before:
                 result[existing_tid] = merged
                 changed = True

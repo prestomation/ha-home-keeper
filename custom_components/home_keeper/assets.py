@@ -43,10 +43,19 @@ from .const import (
     ASSET_KIND_VIRTUAL,
     ASSET_KINDS,
     DOMAIN,
+    MAX_COMPLETION_HISTORY,
     MAX_EXTERNAL_ID_LEN,
     MAX_INTERVAL,
+    MAX_USE_NOUN_LEN,
+    MAX_USE_TARGET,
+    MIN_USE_RETENTION,
+    PART_ACTION_REPLACE,
+    PART_ACTIONS,
     PART_CONSUMABLE,
+    PART_REPLACE_UNITS,
     PART_TYPES,
+    PART_WEAR,
+    UNIT_USES,
     UNITS,
 )
 
@@ -490,6 +499,71 @@ def _normalize_stock_unit(value: Any) -> str:
     return text
 
 
+def _normalize_part_action(value: Any) -> str:
+    """Validate a wear part's ``action`` — what its maintenance task is called.
+
+    An absent or empty value is ``replace``, which is the name every wear part
+    generated before actions existed. That default is the whole migration: such a part
+    resolves to the same template string it already had.
+    """
+    if value in (None, ""):
+        return PART_ACTION_REPLACE
+    action = str(_reject_boolean(value, "action")).strip()
+    if action not in PART_ACTIONS:
+        raise AssetValidationError(f"invalid part action: {action!r}")
+    return action
+
+
+def _normalize_use_noun(value: Any) -> str:
+    """Validate ``use_noun`` — what this part's uses are called, in the plural.
+
+    Plural, and free text on purpose: a household counts wears, hikes, cycles, washes
+    or brews, and no closed list covers that. The panel renders it verbatim beside the
+    count, because pluralising arbitrary text is not something a UI in 16 languages can
+    do. An empty value means the panel shows its own localized word for a use.
+    """
+    if value in (None, ""):
+        return ""
+    noun = str(_reject_boolean(value, "use_noun")).strip()
+    if len(noun) > MAX_USE_NOUN_LEN:
+        raise AssetValidationError(f"use_noun must be <= {MAX_USE_NOUN_LEN} characters")
+    return noun
+
+
+def _normalize_replace_also_every(value: Any) -> dict[str, Any] | None:
+    """Validate a counted wear item's optional time backstop (``{interval, unit}``).
+
+    "Every 25 wears, or every 12 months, whichever comes first." Same interval/unit
+    rules as a floating task's cadence and as ``sensor.also_every``, so "or every 6
+    months" means exactly what it does everywhere else in Home Keeper. ``unit`` comes
+    from :data:`UNITS`, never :data:`PART_REPLACE_UNITS`: a backstop counted in uses
+    would just be the count again.
+    """
+    if value in (None, "", {}):
+        return None
+    if not isinstance(value, dict):
+        raise AssetValidationError("replace_also_every must be an object")
+    raw_interval = value.get("interval", 1)
+    if raw_interval in (None, ""):
+        raw_interval = 1
+    try:
+        interval = int(raw_interval)
+    except (TypeError, ValueError) as err:
+        raise AssetValidationError(
+            "replace_also_every.interval must be an integer"
+        ) from err
+    if interval < 1:
+        raise AssetValidationError("replace_also_every.interval must be >= 1")
+    if interval > MAX_INTERVAL:
+        raise AssetValidationError(
+            f"replace_also_every.interval must be <= {MAX_INTERVAL}"
+        )
+    unit = value.get("unit")
+    if unit not in UNITS:
+        raise AssetValidationError(f"invalid replace_also_every.unit: {unit!r}")
+    return {"interval": interval, "unit": unit}
+
+
 def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
     """Validate and normalize a single part dict.
 
@@ -525,8 +599,26 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
         "url": _normalize_http_url(raw.get("url"), "part url"),
         "notes": str(_reject_boolean(raw.get("notes"), "part notes") or "").strip(),
         # Replacement cadence (only meaningful for wear items — drives a task).
+        # ``replace_unit`` also accepts ``uses``, which counts completions of a
+        # generated use task instead of measuring time — see part_counts_uses.
         "replace_interval": _normalize_interval(raw.get("replace_interval")),
         "replace_unit": None,
+        # The optional time backstop beside a ``uses`` target: "every 25 wears, or
+        # every 12 months, whichever comes first". Only meaningful with a ``uses``
+        # unit; validated (and cleared) below.
+        "replace_also_every": _normalize_replace_also_every(
+            raw.get("replace_also_every")
+        ),
+        # What the generated maintenance task is called. A wear item is not always
+        # replaced: a jacket is renewed, a chain is cleaned, a blade is sharpened.
+        "action": _normalize_part_action(raw.get("action")),
+        # Naming for the use task a counted wear item generates. ``use_noun`` is what
+        # 1 use is called ("wear", "hike"); ``use_task_name`` overrides the whole
+        # generated name. Both empty means the localized "Use {asset}" and "use".
+        "use_noun": _normalize_use_noun(raw.get("use_noun")),
+        "use_task_name": str(
+            _reject_boolean(raw.get("use_task_name"), "use_task_name") or ""
+        ).strip(),
         "last_replaced": _normalize_date(raw.get("last_replaced"), "last_replaced"),
         # Spare-inventory tracking. ``stock`` is how much is on hand (drawn down when
         # a wear-part replacement or a linked task is completed); ``reorder_at`` is the
@@ -555,9 +647,28 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
     }
     if part["replace_interval"] is not None:
         unit = raw.get("replace_unit") or "months"
-        if unit not in UNITS:
+        # PART_REPLACE_UNITS, never UNITS. The two lists differ by exactly ``uses``,
+        # and UNITS is also what ``models.normalize_fields`` reads for a *task's*
+        # unit — so widening UNITS here would make ``recurrence_type: "floating",
+        # unit: "uses"`` a valid task that no branch of compute_next_due can compute.
+        if unit not in PART_REPLACE_UNITS:
             raise AssetValidationError(f"invalid replace_unit: {unit!r}")
         part["replace_unit"] = unit
+        if unit == UNIT_USES and part["replace_interval"] > MAX_USE_TARGET:
+            # MAX_INTERVAL (10,000) is the wrong ceiling for a counted target.
+            # ``recurrence._record_entry`` trims every completion list to
+            # MAX_COMPLETION_HISTORY (500) on every write, blindly and long before the
+            # use-task trim rule runs — so a larger target would silently lose the
+            # entries its own count is derived from and read low forever.
+            raise AssetValidationError(
+                f"a replace_interval counted in uses must be <= {MAX_USE_TARGET}"
+            )
+    if part["replace_unit"] != UNIT_USES:
+        # A time backstop only means something beside a count. Clearing it (rather
+        # than rejecting it) keeps a part editable in either direction: switching the
+        # unit from uses back to months drops the now-meaningless field instead of
+        # failing the save with an error about a control the form just hid.
+        part["replace_also_every"] = None
     # A future "last replaced" would push the derived maintenance task far out and
     # silently hide it; it can only be a past (or today's) date.
     if part["last_replaced"] and date.fromisoformat(part["last_replaced"]) > (
@@ -825,6 +936,72 @@ def part_wants_buy_task(part: dict) -> bool:
     no notion of "low" to drive the task (see :func:`part_has_reorder`).
     """
     return bool(part.get("create_buy_task")) and part_has_reorder(part)
+
+
+def part_counts_uses(part: dict) -> bool:
+    """True when a wear part measures its interval in uses rather than in time.
+
+    Such a part generates 2 tasks instead of 1 (see ``reconcile.reconcile_part_tasks``):
+    a **use task** the household completes once per use, and a **replacement task**
+    that arms once enough uses accumulate. Every condition has to hold — a consumable
+    part with a stray ``replace_unit`` is not a counted wear item, and neither is a
+    wear part whose target was cleared.
+    """
+    return (
+        part.get("type") == PART_WEAR
+        and part.get("replace_unit") == UNIT_USES
+        and bool(part.get("replace_interval"))
+    )
+
+
+def part_use_target(part: dict) -> int:
+    """How many uses a counted wear item runs before its replacement task arms."""
+    return int(part.get("replace_interval") or 0)
+
+
+def part_use_noun(part: dict) -> str:
+    """What this part's uses are called, in the plural (``""`` when the part is silent).
+
+    Empty on purpose rather than "use": the fallback word is localized, and the panel
+    is the surface that has the viewer's language. Returning English here would put an
+    untranslated word in front of every non-English household.
+    """
+    return str(part.get("use_noun") or "").strip()
+
+
+def part_action(part: dict) -> str:
+    """Which name template a part's maintenance task uses (``replace`` by default)."""
+    action = str(part.get("action") or "").strip()
+    return action if action in PART_ACTIONS else PART_ACTION_REPLACE
+
+
+def part_replace_backstop(part: dict) -> dict[str, Any] | None:
+    """A counted wear item's ``{interval, unit}`` time backstop, or ``None``.
+
+    "Every 25 wears, **or** every 12 months, whichever comes first." Only a counted
+    wear item can carry one, so a part that measures its interval in months already
+    has its answer in ``replace_interval`` and gets ``None`` here.
+    """
+    if not part_counts_uses(part):
+        return None
+    backstop = part.get("replace_also_every")
+    return backstop if isinstance(backstop, dict) else None
+
+
+def use_retention_cap(part: dict) -> int:
+    """How many use completions to keep for *part*.
+
+    ``min(max(2 x target, MIN_USE_RETENTION), MAX_COMPLETION_HISTORY)``. The
+    load-bearing window is "uses since the last replacement", so 1 target's worth is
+    the floor of what correctness needs; 2 is what ``sensor_tasks.usage_interval_stats``
+    needs to report a cadence. Self-scaling, so a household never sets a retention
+    option. The upper clamp is the global completion cap, which
+    ``recurrence._record_entry`` applies anyway — and ``MAX_USE_TARGET`` is chosen so
+    that ``2 x target`` cannot exceed it, so the clamp never actually bites and the 2
+    rules agree everywhere.
+    """
+    target = part_use_target(part)
+    return min(max(2 * target, MIN_USE_RETENTION), MAX_COMPLETION_HISTORY)
 
 
 # Stock-change outcomes, returned by ``stock_transition`` / ``consume_part_stock`` /

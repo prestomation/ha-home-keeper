@@ -59,8 +59,15 @@ export const selText = (multiline = false): Selector => ({
  * quantity that is genuinely decimal (spare stock measured in millilitres), or the
  * field silently refuses the value the user typed.
  */
-export const selNumber = (min = 0, step?: number | 'any'): Selector => ({
-  number: step === undefined ? { min, mode: 'box' } : { min, mode: 'box', step },
+export const selNumber = (min = 0, step?: number | 'any', max?: number): Selector => ({
+  number: {
+    min,
+    mode: 'box',
+    ...(step === undefined ? {} : { step }),
+    // A counted target carries the backend's ceiling into the control itself, so the
+    // limit is met while typing rather than as a save error.
+    ...(max === undefined ? {} : { max }),
+  },
 });
 export const selBool = (): Selector => ({ boolean: {} });
 export const selDate = (): Selector => ({ date: {} });
@@ -116,6 +123,49 @@ export const selUnit = (): Selector =>
     { value: 'days', label: t('opt.unit.days') },
     { value: 'weeks', label: t('opt.unit.weeks') },
     { value: 'months', label: t('opt.unit.months') },
+  ]);
+
+/**
+ * A wear part's replacement unit: the 3 time units plus `uses`.
+ *
+ * Deliberately not `selUnit` with a 4th entry. That selector also drives a *task's*
+ * cadence, and a task can never repeat every 25 uses — the recurrence engine has no
+ * branch that could compute such a due date. The 2 lists are separate on the backend
+ * for the same reason (`PART_REPLACE_UNITS` beside `UNITS`).
+ */
+/**
+ * The largest target a wear part counted in `uses` may carry.
+ *
+ * Mirrors `const.MAX_USE_TARGET`. It is not `MAX_INTERVAL`: `recurrence._record_entry`
+ * trims every completion list to 500 blindly, so a larger target would lose the very
+ * entries its count is derived from and read low forever.
+ */
+export const MAX_USE_TARGET = 250;
+
+/** True when a part measures its interval in uses rather than in time. Mirrors
+ *  `assets.part_counts_uses`. */
+export function partCountsUses(part: Part): boolean {
+  return part.type === 'wear' && part.replace_unit === 'uses';
+}
+
+export const selPartReplaceUnit = (): Selector =>
+  selSelect([
+    { value: 'days', label: t('opt.unit.days') },
+    { value: 'weeks', label: t('opt.unit.weeks') },
+    { value: 'months', label: t('opt.unit.months') },
+    { value: 'uses', label: t('opt.unit.uses') },
+  ]);
+
+/** What a wear part's generated maintenance task is called. */
+export const selPartAction = (): Selector =>
+  selSelect([
+    { value: 'replace', label: t('opt.action.replace') },
+    { value: 'clean', label: t('opt.action.clean') },
+    { value: 'service', label: t('opt.action.service') },
+    { value: 'renew', label: t('opt.action.renew') },
+    { value: 'sharpen', label: t('opt.action.sharpen') },
+    { value: 'rotate', label: t('opt.action.rotate') },
+    { value: 'inspect', label: t('opt.action.inspect') },
   ]);
 
 function monthOptions(): { value: string; label: string }[] {
@@ -1633,10 +1683,41 @@ export function partDependentSchema(part: Part): FormField[] {
       name: '',
       type: 'grid',
       schema: [
-        { name: 'replace_interval', selector: selNumber(1) },
-        { name: 'replace_unit', selector: selUnit() },
+        {
+          name: 'replace_interval',
+          selector: selNumber(1, undefined, partCountsUses(part) ? MAX_USE_TARGET : undefined),
+        },
+        { name: 'replace_unit', selector: selPartReplaceUnit() },
       ],
     });
+    // What the generated task is called. Offered for every wear item, not only a
+    // counted one: a filter that is *cleaned* every 6 months is as real as one that
+    // is replaced every 25 uses.
+    fields.push({ name: 'action', selector: selPartAction() });
+    if (partCountsUses(part)) {
+      // Counting revealed these 3, in the order a user meets them: what one use is
+      // called (it captions the count everywhere), what the task recording a use is
+      // called, and the optional "or every N months" backstop.
+      fields.push({
+        name: '',
+        type: 'grid',
+        schema: [
+          { name: 'use_noun', selector: selText() },
+          { name: 'use_task_name', selector: selText() },
+        ],
+      });
+      fields.push({ name: 'also_every_on', selector: selBool() });
+      if (part.replace_also_every) {
+        fields.push({
+          name: '',
+          type: 'grid',
+          schema: [
+            { name: 'also_every_interval', selector: selNumber(1) },
+            { name: 'also_every_unit', selector: selUnit() },
+          ],
+        });
+      }
+    }
     // Let the user record when the part was last replaced so the derived
     // maintenance task's clock starts from the real date instead of "now".
     fields.push({ name: 'last_replaced', selector: selDate() });
@@ -1656,6 +1737,11 @@ export function partDependentKey(part: Part): string {
     part.stock != null,
     part.reorder_at != null,
     Boolean(part.create_buy_task),
+    // Switching the unit to `uses` reveals the counting fields, and turning the time
+    // backstop on reveals its interval. Without both here the form keeps the shape it
+    // was built with and the new controls never appear until something else redraws.
+    partCountsUses(part),
+    Boolean(part.replace_also_every),
   ].join(',');
 }
 
@@ -1684,6 +1770,14 @@ export function partFormData(part: Part): Record<string, unknown> {
     restock_quantity: part.restock_quantity ?? undefined,
     replace_interval: part.replace_interval ?? undefined,
     replace_unit: part.replace_unit ?? 'months',
+    action: part.action ?? 'replace',
+    use_noun: part.use_noun ?? '',
+    use_task_name: part.use_task_name ?? '',
+    // The backstop is 2 controls behind a switch, so the switch reads the presence of
+    // the stored object and the 2 fields read inside it.
+    also_every_on: part.replace_also_every != null,
+    also_every_interval: part.replace_also_every?.interval ?? 1,
+    also_every_unit: part.replace_also_every?.unit ?? 'months',
     last_replaced: part.last_replaced ?? undefined,
   };
 }
@@ -1719,6 +1813,24 @@ export function mergePartForm(prev: Part, value: Record<string, unknown>): Part 
   if (has('replace_unit')) {
     next.replace_unit = (value.replace_unit as Part['replace_unit']) ?? null;
   }
+  // `||`, not `??`: an emptied picker sends `''`, which is not null and would survive
+  // a `??`. The backend's `_normalize_part_action` reads `''` as `replace`, so keeping
+  // it here would send a value the store immediately rewrites — a needless disagreement
+  // between the 2 halves about what an empty action means.
+  if (has('action')) next.action = (value.action as Part['action']) || 'replace';
+  if (has('use_noun')) next.use_noun = str(value.use_noun).trim();
+  if (has('use_task_name')) next.use_task_name = str(value.use_task_name).trim();
+  if (has('also_every_on') || has('also_every_interval') || has('also_every_unit')) {
+    const on = has('also_every_on')
+      ? Boolean(value.also_every_on)
+      : next.replace_also_every != null;
+    next.replace_also_every = on
+      ? {
+          interval: Number(value.also_every_interval ?? next.replace_also_every?.interval ?? 1),
+          unit: (value.also_every_unit as Unit) ?? next.replace_also_every?.unit ?? 'months',
+        }
+      : null;
+  }
   // The last-replaced date is only editable for a wear item; a consumable keeps
   // whatever it had (the field is not shown, so nothing can have changed it).
   if (has('last_replaced')) next.last_replaced = value.last_replaced ? str(value.last_replaced) : null;
@@ -1728,8 +1840,30 @@ export function mergePartForm(prev: Part, value: Record<string, unknown>): Part 
   if (next.type !== 'wear') {
     next.replace_interval = null;
     next.replace_unit = null;
-  } else if (!next.replace_interval) {
-    next.replace_unit = null;
+    if (next.action) next.action = 'replace';
+  }
+  // A wear item with no interval yet **keeps** its chosen unit. It used to be
+  // cleared here, which was invisible while every unit measured time — the field
+  // re-seeds to "months" — and became a dead control the moment `uses` existed:
+  // picking it before typing a target discarded the choice, so the counting fields
+  // below it never appeared and the form looked broken. Nothing is leaked to storage
+  // by keeping it, because `assets._normalize_part` writes `replace_unit` only when
+  // `replace_interval` is set, whatever the payload says.
+  // Counting is what gives these 3 a meaning, so switching the unit back to a time
+  // unit clears them rather than leaving a stale noun on a part that counts nothing.
+  // Mirrors the backend, which clears `replace_also_every` for the same reason.
+  //
+  // Each guarded on the key already being there. Assigning unconditionally would
+  // *introduce* `use_noun: ''` onto every consumable that has never seen this form,
+  // and a merge whose contract is "one form, its own fields" must not grow a part it
+  // was not asked to touch — the store would then read a changed record for an edit
+  // that changed nothing.
+  if (!partCountsUses(next)) {
+    if (next.use_noun) next.use_noun = '';
+    if (next.use_task_name) next.use_task_name = '';
+    if (next.replace_also_every) next.replace_also_every = null;
+  } else if (next.replace_interval != null) {
+    next.replace_interval = Math.min(next.replace_interval, MAX_USE_TARGET);
   }
   return next;
 }
@@ -1753,6 +1887,12 @@ export function partSummaryLine(part: Part): string {
     bits.push(
       t('part.every', { n: part.replace_interval, unit: t(`opt.unit.${part.replace_unit}`) }),
     );
+    // The backstop reads as a second clause on the same line, because "every 25 uses"
+    // alone is a different promise from "every 25 uses or every 12 months".
+    const also = part.replace_also_every;
+    if (partCountsUses(part) && also) {
+      bits.push(t('part.orEvery', { n: also.interval, unit: t(`opt.unit.${also.unit}`) }));
+    }
   }
   return bits.join(' · ');
 }

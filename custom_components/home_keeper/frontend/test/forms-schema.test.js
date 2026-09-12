@@ -1346,22 +1346,79 @@ describe('partSchema', () => {
   it('adds the replacement schedule for a wear item only', () => {
     expect(names(partSchema(consumable))).not.toContain('replace_interval');
     const wear = partSchema({ name: 'Filter', type: 'wear' });
-    expect(names(wear).slice(-3)).toEqual(['replace_interval', 'replace_unit', 'last_replaced']);
+    expect(names(wear).slice(-4)).toEqual([
+      'replace_interval',
+      'replace_unit',
+      'action',
+      'last_replaced',
+    ]);
     // The interval and its unit share a line, in an unnamed grid like the others.
     const wearGrid = wear.filter((f) => f.type === 'grid').at(-1);
     expect(names(wearGrid.schema)).toEqual(['replace_interval', 'replace_unit']);
     expect(wearGrid.name).toBe('');
-    // Replacing "every 0 months" is not a schedule.
+    // Replacing "every 0 months" is not a schedule. No max while the unit measures
+    // time: only a counted target carries a ceiling.
     expect(selectorOf(wear, 'replace_interval')).toEqual({ number: { min: 1, mode: 'box' } });
     expect(selectorOf(wear, 'replace_unit')).toEqual(
       dropdown([
         { value: 'days', label: 'days' },
         { value: 'weeks', label: 'weeks' },
         { value: 'months', label: 'months' },
+        { value: 'uses', label: 'uses' },
+      ]),
+    );
+    // Every wear item picks what its task is called, counted or not: a filter that
+    // is *cleaned* every 6 months is as real as one replaced every 25 uses.
+    expect(selectorOf(wear, 'action')).toEqual(
+      dropdown([
+        { value: 'replace', label: 'Replace' },
+        { value: 'clean', label: 'Clean' },
+        { value: 'service', label: 'Service' },
+        { value: 'renew', label: 'Renew' },
+        { value: 'sharpen', label: 'Sharpen' },
+        { value: 'rotate', label: 'Rotate' },
+        { value: 'inspect', label: 'Inspect' },
       ]),
     );
     // The date the clock starts from, so a derived task doesn't start at "now".
     expect(selectorOf(wear, 'last_replaced')).toEqual({ date: {} });
+  });
+
+  it('reveals the counting fields only once the unit is uses', () => {
+    const timed = partSchema({ name: 'Filter', type: 'wear', replace_unit: 'months' });
+    for (const field of ['use_noun', 'use_task_name', 'also_every_on']) {
+      expect(names(timed)).not.toContain(field);
+    }
+    const counted = partSchema({ name: 'DWR', type: 'wear', replace_unit: 'uses' });
+    expect(names(counted)).toContain('use_noun');
+    expect(names(counted)).toContain('use_task_name');
+    expect(names(counted)).toContain('also_every_on');
+    // The target carries the backend's ceiling into the control, so the limit is met
+    // while typing rather than as a save error.
+    expect(selectorOf(counted, 'replace_interval')).toEqual({
+      number: { min: 1, mode: 'box', max: 250 },
+    });
+  });
+
+  it('reveals the backstop interval only once the backstop is on', () => {
+    const off = partSchema({ name: 'DWR', type: 'wear', replace_unit: 'uses' });
+    expect(names(off)).not.toContain('also_every_interval');
+    const on = partSchema({
+      name: 'DWR',
+      type: 'wear',
+      replace_unit: 'uses',
+      replace_also_every: { interval: 12, unit: 'months' },
+    });
+    expect(names(on)).toContain('also_every_interval');
+    expect(names(on)).toContain('also_every_unit');
+    // The backstop measures time, so its unit list is the task one — no `uses`.
+    expect(selectorOf(on, 'also_every_unit')).toEqual(
+      dropdown([
+        { value: 'days', label: 'days' },
+        { value: 'weeks', label: 'weeks' },
+        { value: 'months', label: 'months' },
+      ]),
+    );
   });
 
   it('lays the fixed fields out in three grids', () => {
@@ -1909,6 +1966,7 @@ describe('partBaseSchema / partDependentSchema', () => {
     expect(names(partDependentSchema({ ...consumable, type: 'wear' }))).toEqual([
       'replace_interval',
       'replace_unit',
+      'action',
       'last_replaced',
     ]);
   });
@@ -1954,7 +2012,39 @@ describe('partFormData', () => {
       restock_quantity: undefined,
       replace_interval: undefined,
       replace_unit: 'months',
+      action: 'replace',
+      use_noun: '',
+      use_task_name: '',
+      // The backstop is 2 controls behind a switch: the switch reads whether the
+      // stored object is there, the 2 fields read inside it.
+      also_every_on: false,
+      also_every_interval: 1,
+      also_every_unit: 'months',
       last_replaced: undefined,
+    });
+  });
+
+  it('seeds a counted part from its own values', () => {
+    expect(
+      partFormData({
+        name: 'DWR',
+        type: 'wear',
+        replace_interval: 25,
+        replace_unit: 'uses',
+        action: 'renew',
+        use_noun: 'wear',
+        use_task_name: 'Wear rain jacket',
+        replace_also_every: { interval: 12, unit: 'months' },
+      }),
+    ).toMatchObject({
+      replace_interval: 25,
+      replace_unit: 'uses',
+      action: 'renew',
+      use_noun: 'wear',
+      use_task_name: 'Wear rain jacket',
+      also_every_on: true,
+      also_every_interval: 12,
+      also_every_unit: 'months',
     });
   });
 });
@@ -2002,7 +2092,7 @@ describe('mergePartForm', () => {
     });
   });
 
-  it('keeps the replacement schedule only on a wear item, and only with an interval', () => {
+  it('keeps the replacement schedule only on a wear item', () => {
     const wear = { name: 'Anode', type: 'wear', replace_interval: 12, replace_unit: 'months', last_replaced: '2025-05-01' };
     expect(mergePartForm(wear, { type: 'consumable' })).toMatchObject({
       replace_interval: null,
@@ -2010,9 +2100,15 @@ describe('mergePartForm', () => {
       // A consumable keeps the date: the field is hidden, so nothing changed it.
       last_replaced: '2025-05-01',
     });
+    // Clearing the interval clears the interval, and **keeps** the unit. It used to
+    // clear both, which was invisible while every unit measured time (the field
+    // re-seeds to "months") and became a dead control once `uses` existed: picking it
+    // before typing a target discarded the choice, so the counting fields the unit
+    // reveals never appeared. Storage is unaffected either way —
+    // `assets._normalize_part` writes `replace_unit` only when an interval is set.
     expect(mergePartForm(wear, { replace_interval: '', replace_unit: 'months' })).toMatchObject({
       replace_interval: null,
-      replace_unit: null,
+      replace_unit: 'months',
     });
     expect(mergePartForm(wear, { last_replaced: '' }).last_replaced).toBeNull();
   });
@@ -2068,11 +2164,32 @@ describe('metadataBaseSchema / metadataDependentSchema', () => {
 // `partDependentKey` keeps two parts *different* while lying about both.
 describe('partDependentKey — the exact shape', () => {
   it('spells out each gate in order', () => {
-    expect(partDependentKey({ name: 'x', type: 'consumable' })).toBe('false,false,false,false');
+    expect(partDependentKey({ name: 'x', type: 'consumable' })).toBe(
+      'false,false,false,false,false,false',
+    );
     expect(
-      partDependentKey({ name: 'x', type: 'wear', stock: 0, reorder_at: 0, create_buy_task: true }),
-    ).toBe('true,true,true,true');
-    expect(partDependentKey({ name: 'x', type: 'consumable', stock: 2 })).toBe('false,true,false,false');
+      partDependentKey({
+        name: 'x',
+        type: 'wear',
+        stock: 0,
+        reorder_at: 0,
+        create_buy_task: true,
+        replace_unit: 'uses',
+        replace_also_every: { interval: 12, unit: 'months' },
+      }),
+    ).toBe('true,true,true,true,true,true');
+    expect(partDependentKey({ name: 'x', type: 'consumable', stock: 2 })).toBe(
+      'false,true,false,false,false,false',
+    );
+    // Switching a wear item's unit to uses is what reveals the counting fields, so
+    // the key has to move with it. Without the 5th gate the form kept the shape it
+    // was built with and the new controls never appeared.
+    expect(partDependentKey({ name: 'x', type: 'wear', replace_unit: 'months' })).toBe(
+      'true,false,false,false,false,false',
+    );
+    expect(partDependentKey({ name: 'x', type: 'wear', replace_unit: 'uses' })).toBe(
+      'true,false,false,false,true,false',
+    );
   });
   it('offers nothing dependent for a part that tracks nothing', () => {
     expect(partDependentSchema({ name: 'x', type: 'consumable' })).toEqual([]);
@@ -2118,6 +2235,12 @@ describe('partFormData — zeros and blanks survive the seeding', () => {
       restock_quantity: undefined,
       replace_interval: undefined,
       replace_unit: 'months',
+      action: 'replace',
+      use_noun: '',
+      use_task_name: '',
+      also_every_on: false,
+      also_every_interval: 1,
+      also_every_unit: 'months',
       last_replaced: undefined,
     });
   });

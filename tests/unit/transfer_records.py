@@ -62,7 +62,26 @@ def _maximal_asset() -> dict:
                 "consume_quantity": 1.0,
                 "create_buy_task": True,
                 "restock_quantity": 4.0,
-            }
+            },
+            {
+                # A counted wear item, so the fields that only exist for one —
+                # ``uses`` as a unit, the time backstop, the action and the use-task
+                # naming — travel under the same gate as everything else.
+                "name": "DWR coating",
+                "part_number": "",
+                "type": "wear",
+                "vendor": "Fibertec",
+                "cost": 18.0,
+                "url": "https://example.com/dwr",
+                "notes": "Wash first, then treat.",
+                "replace_interval": 25,
+                "replace_unit": "uses",
+                "replace_also_every": {"interval": 12, "unit": "months"},
+                "action": "renew",
+                "use_noun": "wear",
+                "use_task_name": "Wear rain jacket",
+                "last_replaced": "2026-01-10",
+            },
         ],
         "related_device_ids": ["dev_thermostat"],
     }
@@ -112,6 +131,12 @@ _BY_TYPE = {
     },
     "triggered": {
         "recurrence_type": "triggered",
+        "interval": None,
+        "unit": None,
+        "active_season": None,
+    },
+    "use": {
+        "recurrence_type": "use",
         "interval": None,
         "unit": None,
         "active_season": None,

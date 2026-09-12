@@ -24,9 +24,12 @@ add_task:
         floating (measured from completion), fixed (anchored schedule), one-off
         (do-once, uses "due", goes dormant when completed), triggered
         (condition-driven, no schedule; an owning integration arms it via trigger_task
-        and clears it via complete_task), or sensor (due-state derived from a bound
-        entity, uses "sensor"). interval/unit/freq/anchor are N/A for one-off,
-        triggered, and sensor. Optional: omit it and the type is inferred from the
+        and clears it via complete_task), sensor (due-state derived from a bound
+        entity, uses "sensor"), or use (a counted wear item's use task - it is never
+        due, and each completion counts 1 use; Home Keeper generates these from a
+        wear part, so create one by hand only if you have a reason to).
+        interval/unit/freq/anchor are N/A for one-off, triggered, sensor and use.
+        Optional: omit it and the type is inferred from the
         schedule fields you passed - interval/unit means floating, freq/anchor means
         fixed, and neither means a one-off due today.
       selector:
@@ -37,6 +40,7 @@ add_task:
             - one-off
             - triggered
             - sensor
+            - use
     interval:
       name: Interval
       description: Repeat every N units/steps (floating/fixed only, N/A for triggered).
@@ -240,7 +244,8 @@ update_task:
       name: Recurrence type
       description: >-
         floating, fixed, one-off (do-once), triggered (condition-driven, no schedule),
-        or sensor (derived from a bound entity).
+        sensor (derived from a bound entity), or use (never due; each completion
+        counts 1 use of a counted wear item).
       selector:
         select:
           options:
@@ -249,6 +254,7 @@ update_task:
             - one-off
             - triggered
             - sensor
+            - use
     interval:
       name: Interval
       description: Repeat every N units/steps.
@@ -1017,8 +1023,14 @@ add_asset:
         consume_quantity (how much one completion uses up, default 1),
         optional create_buy_task + restock_quantity (auto-create a "Buy {part}" task
         while the part is low, adding restock_quantity back when completed), and
-        for wear items replace_interval + replace_unit (days/weeks/months) which
-        drive a maintenance task.
+        for wear items replace_interval + replace_unit (days/weeks/months/uses)
+        which drive a maintenance task, plus an optional action (replace/clean/
+        service/renew/sharpen/rotate/inspect) naming that task. A replace_unit of
+        "uses" makes it a counted wear item: the interval is a number of uses
+        (max 250), Home Keeper generates a use task beside the maintenance task, and
+        use_noun (the plural word for its uses) and use_task_name name them.
+        replace_also_every ({interval, unit}) adds a time backstop - "every 25 uses
+        or every 12 months, whichever comes first".
       selector:
         object:
     parent_asset_id:

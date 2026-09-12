@@ -17,6 +17,7 @@
 import {
   bucketByKey,
   isBuyTask,
+  isUseTask,
   statusBucket,
   taskAreaId,
   taskMatchesQuery,
@@ -92,6 +93,7 @@ export function controls(p: PanelHost): string {
             { value: 'overdue', label: t('filter.overdue'), count: counts?.overdue },
             { value: 'soon', label: t('filter.soon'), count: counts?.soon },
             { value: 'shopping', label: t('filter.shopping'), count: counts?.shopping },
+            { value: 'counted', label: t('filter.counted'), count: counts?.counted },
           ],
           // Not `group.by`: these pills choose *what is listed*, and the Group by
           // dropdown sitting beside them chooses how it is arranged. Naming both
@@ -289,12 +291,16 @@ export function scopeMatches(task: Task, scope: TaskFilter, now = Date.now()): b
   if (scope === 'overdue') return isOverdue(task) && !isBuyTask(task);
   if (scope === 'soon') return statusBucket(task, now, PANEL_BUCKETS) === 'soon';
   if (scope === 'shopping') return isBuyTask(task);
+  // A use task is never overdue and never due soon (it has no due date at all), so
+  // without a pill of its own the only scope that lists it is All. This is the pill
+  // that answers "what am I counting?".
+  if (scope === 'counted') return isUseTask(task);
   return true;
 }
 
 /** How many tasks each scope pill would show, for the counts rendered on them. */
 function filterCounts(p: PanelHost, now = Date.now()): Record<TaskFilter, number> {
-  const counts = { all: 0, overdue: 0, soon: 0, shopping: 0 };
+  const counts = { all: 0, overdue: 0, soon: 0, shopping: 0, counted: 0 };
   // The text filter is part of what the list shows, so it is part of what a pill
   // promises. Left out, a pill reads "Overdue 12" above a list of three.
   const tasks = p._query
@@ -303,7 +309,7 @@ function filterCounts(p: PanelHost, now = Date.now()): Record<TaskFilter, number
       )
     : p._tasks;
   for (const task of tasks) {
-    for (const scope of ['all', 'overdue', 'soon', 'shopping'] as TaskFilter[]) {
+    for (const scope of ['all', 'overdue', 'soon', 'shopping', 'counted'] as TaskFilter[]) {
       if (scopeMatches(task, scope, now)) counts[scope]++;
     }
   }
@@ -337,11 +343,22 @@ export function groupTasks(p: PanelHost, tasks: Task[], now = Date.now()): Group
   const group = effectiveGroup(p);
   if (group === 'status') {
     const order: {
-      bucket: 'overdue' | 'shopping' | 'soon' | 'later' | 'monitored' | 'completed' | 'none';
+      bucket:
+        | 'overdue'
+        | 'shopping'
+        | 'counted'
+        | 'soon'
+        | 'later'
+        | 'monitored'
+        | 'completed'
+        | 'none';
       label: string;
     }[] = [
       { bucket: 'overdue', label: t('chip.overdue') },
       { bucket: 'shopping', label: t('filter.shopping') },
+      // Above Soon rather than below it: a use task is something you tap today, so it
+      // belongs with the sections you act on, not with the ones you read.
+      { bucket: 'counted', label: t('filter.counted') },
       { bucket: 'soon', label: t('filter.soon') },
       { bucket: 'later', label: t('section.later') },
       { bucket: 'monitored', label: t('section.monitored') },

@@ -287,6 +287,49 @@ export const STYLES = `
     --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
+  /* Counting is neutral news, so the counted chip reads in the accent family rather
+     than the warn one the shopping chip uses: "17 of 25 wears" is progress, not a
+     nudge and not a fault. It goes solid (ok, then warn at the target) only once the
+     count is reached, which is the moment the replacement task actually arms. */
+  ha-assist-chip.hk-counted {
+    --ha-assist-chip-container-color: var(--hk-accent-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-accent-soft);
+    --md-assist-chip-label-text-color: var(--hk-accent-ink);
+    --ha-assist-chip-label-text-color: var(--hk-accent-ink);
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
+  }
+  ha-assist-chip.hk-counted-full {
+    --ha-assist-chip-container-color: var(--hk-warn-soft);
+    --ha-assist-chip-filled-container-color: var(--hk-warn-soft);
+    --md-assist-chip-label-text-color: var(--hk-warn-ink);
+    --ha-assist-chip-label-text-color: var(--hk-warn-ink);
+  }
+  /* The meter on an appliance's part row: the same bar the detail page's usage task
+     draws, at list scale.
+
+     An explicit width and flex:none, exactly as .hk-meter.hk-part-meter above does,
+     because this sits inside .hk-part-cell — a wrapping flex row. A block with no
+     basis there shrinks to its content, and its only child sizes itself as a
+     percentage of that, so the bar computed to zero width and rendered invisible
+     while the chip beside it read correctly. (No backticks in here: this whole
+     sheet is a template literal, and one would end it.) */
+  .hk-use-meter {
+    width: 120px;
+    flex: none;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--hk-line);
+    overflow: hidden;
+  }
+  .hk-use-meter > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--hk-accent);
+  }
+  .hk-use-meter.full > span { background: var(--hk-warn-ink); }
   ha-assist-chip.hk-archived {
     --ha-assist-chip-container-color: var(--hk-page);
     --ha-assist-chip-filled-container-color: var(--hk-page);
@@ -1004,7 +1047,7 @@ export const STYLES = `
   /* Same trick the "+n" control uses: a day count is read down the column, and
      proportional digits make two three-digit counts different widths. */
   .hk-status ha-assist-chip { font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-shopping) {
+  .hk-status ha-assist-chip:not(.hk-overdue):not(.hk-shopping):not(.hk-counted) {
     --ha-assist-chip-outline-width: 0px;
     --md-assist-chip-outline-width: 0px;
     --ha-assist-chip-outline-color: transparent;

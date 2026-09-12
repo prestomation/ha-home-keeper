@@ -184,6 +184,43 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await allBtn.click();
   await page.waitForTimeout(BEAT);
 
+  // 1d-2. Counted wear items. The Counted pill, then the row itself: a use task has
+  //       no due date at all, so the count chip is the only thing on the row that
+  //       says anything — which is exactly why the section exists. Then one tap of
+  //       Done, which counts a wear and moves the chip up by 1.
+  const countedBtn = panel.locator(
+    '.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="counted"]',
+  );
+  await countedBtn.scrollIntoViewIfNeeded();
+  await countedBtn.click();
+  const countedRow = panel.locator(`ha-card.hk-card[data-id="${TASK.wearJacket}"]`);
+  await expect(countedRow).toBeVisible();
+  // Read the count rather than naming it. The seed says 17, but a retry re-uses the
+  // same container, and this step *completes* the use task — so attempt 2 opens on
+  // 18 and a literal 17 fails on a tour that is working correctly. That is the same
+  // trap the e2e specs had; the tour kept it a commit longer.
+  //
+  // Read off the chip's `label` attribute, not the row's text. The chip paints its
+  // label inside its own shadow root, so `innerText` on the row comes back without
+  // the number — Playwright's own text matching pierces the shadow root and finds
+  // it, which is why the assertion above passes while the read below does not. A
+  // `?? '0'` fallback turned that into "expected 1 of 25 wears" against a row that
+  // was correctly reading 18, so the read has to fail loudly instead: the regex
+  // form of `toHaveAttribute` waits for a parsable label and no fallback is needed.
+  const countChip = countedRow.locator('ha-assist-chip.hk-counted').first();
+  await expect(countChip).toHaveAttribute('label', /^\d+ of 25 wears$/);
+  const wears = Number(((await countChip.getAttribute('label')) ?? '').split(' ')[0]);
+  await page.waitForTimeout(BEAT * 3);
+  // Done on the row counts one use. The chip is the feedback, so linger on the new
+  // number rather than cutting away the moment the click lands.
+  await countedRow.locator('.done-btn').first().click();
+  await expect(countChip).toHaveAttribute('label', `${wears + 1} of 25 wears`, {
+    timeout: 15_000,
+  });
+  await page.waitForTimeout(BEAT * 3);
+  await allBtn.click();
+  await page.waitForTimeout(BEAT);
+
   // 1e. The text filter beside the pills (#297). Typed a character at a time, because
   //     the point of the beat is that the list narrows *as* the word arrives and the
   //     pills' counts come down with it — a `fill()` would jump straight to the answer

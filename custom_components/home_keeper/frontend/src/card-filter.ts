@@ -1,6 +1,6 @@
 import { t } from './i18n';
 import type { Asset, HassArea, HassDevice, RecurrenceType, Task } from './types';
-import { areaName, deviceName, groupableDeviceId, isBuyTask } from './utils';
+import { areaName, deviceName, groupableDeviceId, isBuyTask, isUseTask } from './utils';
 
 /**
  * Pure (DOM-free) filtering / sorting / grouping for the dashboard card, and the
@@ -10,12 +10,20 @@ import { areaName, deviceName, groupableDeviceId, isBuyTask } from './utils';
  * is unit-testable in node without a DOM.
  */
 
-export type CardFilter = 'all' | 'overdue' | 'soon' | 'today' | 'no_due' | 'shopping';
+export type CardFilter =
+  | 'all'
+  | 'overdue'
+  | 'soon'
+  | 'today'
+  | 'no_due'
+  | 'shopping'
+  | 'counted';
 export type CardSort = 'due' | 'name' | 'recent' | 'area';
 export type CardGroupBy = 'none' | 'status' | 'area' | 'device';
 export type StatusBucket =
   | 'overdue'
   | 'shopping'
+  | 'counted'
   | 'soon'
   | 'today'
   | 'later'
@@ -82,7 +90,9 @@ export interface HomeKeeperCardConfig {
  * and re-exported here so the pure list-shaping code keeps importing it from one
  * place. See that definition for why both ids are required.
  */
-export { isBuyTask };
+// Re-exported so the panel's list code imports its list predicates from one place,
+// the way it already does for `isBuyTask`.
+export { isBuyTask, isUseTask };
 
 /** Tasks due within this many days (and not overdue) count as "due soon". */
 export const SOON_DAYS = 7;
@@ -135,6 +145,13 @@ export function statusBucket(
     !task.next_due
   )
     return 'monitored';
+  // A counted wear item's use task gets its own section, like a buy reminder does —
+  // but the check has to sit up **here**, beside `monitored`, not down beside the
+  // `shopping` line it is modelled on. A use task is dateless for its whole life, so
+  // the `if (!task.next_due) return 'none'` below would swallow it first and the
+  // section would never render. It is above the `completed` check too: a use task is
+  // completed constantly and that is the normal state, not an end state.
+  if (isUseTask(task)) return 'counted';
   if (completed && task.recurrence_type === 'one-off' && !task.next_due && task.last_completed)
     return 'completed';
   if (!task.next_due) return 'none';
@@ -445,6 +462,8 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
       return !dated;
     case 'shopping':
       return isBuyTask(task);
+    case 'counted':
+      return isUseTask(task);
     case 'all':
     default:
       return true;

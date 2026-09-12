@@ -116,6 +116,59 @@ decimals. A part with no unit and no per-use amount accepts whole spares only.
 
 ![The same part on the appliance page, its chips reading "In stock: 750 ml" and "Uses 250 ml per completion"](../../images/47b-panel-part-measured-chips.png)
 
+##### Count uses instead of months
+
+Some things wear out with use and not with time. A rain jacket needs a new water
+repellent coating after so many wears. Boots need a re-wax after so many hikes. A
+blade needs a sharpen after so many cuts. No sensor reports these numbers.
+
+Set a wear item's unit to **uses** and Home Keeper counts them for you. Give the part
+a target of 25 uses. Home Keeper then makes **2 tasks**.
+
+- A **use task** that records 1 use. It has no due date and it never becomes overdue.
+  Complete it each time you use the thing.
+- A **replacement task** that shows no due date until the count reaches the target. It
+  then becomes due like any other maintenance task.
+
+Complete the replacement task to start the next count. Home Keeper stores no counter
+that you must reset.
+
+A use is an ordinary completion, so anything in Home Assistant can record one:
+
+- the **Done** button in the panel
+- the item on your to-do list
+- an NFC tag scan
+- the per-task button on the appliance's device page
+- a notification action
+- a call to `home_keeper.complete_task` from an automation or a script
+
+That last one is the useful part. An automation that watches your washing machine
+reach *finished* counts 1 wash with no counter helper and no template.
+
+The use task has a **Counted** section of its own on the Tasks tab, and a scope pill
+beside Overdue and Shopping. Its row reads **17 of 25 wears**.
+
+**Name what you count.** Set **Count uses as** to the plural word for your part, such
+as `wears` or `hikes` or `cycles`. It captions the count everywhere. Set **Use task
+name** to name the use task itself, such as "Wear rain jacket". Both are optional.
+
+**Or after a time, whichever comes first.** Turn on **Time limit** to add a period
+beside the count. A coating that needs renewal every 25 wears, or every 12 months,
+becomes due at whichever arrives first. Completing the replacement task restarts both.
+
+**Name the job.** A wear item is not always replaced. Set **Action** to *Replace*,
+*Clean*, *Service*, *Renew*, *Sharpen*, *Rotate* or *Inspect*, and the maintenance
+task takes that name. An existing wear item keeps *Replace*.
+
+A counted target is limited to 250 uses. Home Keeper keeps the completions that the
+count is derived from, and a larger target could lose them.
+
+![The Tasks tab with a Counted section, its use task reading 17 of 25 wears](../../images/61-panel-counted-tasks.png)
+
+![The part editor for a counted wear item, with the unit set to uses and the counting fields below it](../../images/62-panel-counted-part-editor.png)
+
+![The appliance page Parts tab, the coating showing 17 of 25 wears above a progress meter](../../images/63-panel-counted-part-row.png)
+
 ##### Auto-create a buy task when a part runs low
 
 Turn on **Auto-create buy task** on a stock-tracked part. The option is shown when

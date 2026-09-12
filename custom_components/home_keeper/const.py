@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.24.0b2"
+PANEL_VERSION = "0.24.0b3"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -189,6 +189,37 @@ PART_CONSUMABLE = "consumable"
 PART_WEAR = "wear"
 PART_TYPES = [PART_CONSUMABLE, PART_WEAR]
 
+# What a wear part's generated maintenance task is *called*. A wear item is not always
+# replaced: a jacket is renewed, a chain is cleaned, a blade is sharpened, tyres are
+# rotated. The action picks the name template (see ACTION_TASK_NAME_TEMPLATES) and
+# changes nothing else about the task. ``replace`` is the default, so every part
+# written before this existed keeps the name it already had.
+PART_ACTION_REPLACE = "replace"
+PART_ACTION_CLEAN = "clean"
+PART_ACTION_SERVICE = "service"
+PART_ACTION_RENEW = "renew"
+PART_ACTION_SHARPEN = "sharpen"
+PART_ACTION_ROTATE = "rotate"
+PART_ACTION_INSPECT = "inspect"
+PART_ACTIONS = [
+    PART_ACTION_REPLACE,
+    PART_ACTION_CLEAN,
+    PART_ACTION_SERVICE,
+    PART_ACTION_RENEW,
+    PART_ACTION_SHARPEN,
+    PART_ACTION_ROTATE,
+    PART_ACTION_INSPECT,
+]
+
+# The two roles a reconciler-derived part task can have, stored at
+# ``task["source"]["part"]["role"]``. An **absent** role reads as ``replace``, which is
+# what every task written before counted wear items existed carries — so there is no
+# migration. The role is also what keeps one part's 2 tasks apart in the reconciler's
+# index and stops a *use* completion from consuming a spare (see
+# ``store._stamp_part_replacement``).
+PART_ROLE_USE = "use"
+PART_ROLE_REPLACE = "replace"
+
 # Marker on a task dict identifying it as derived from an asset part, so the
 # part-task reconciler owns it: ``task["source"] = {"asset_id", "part_id"}``.
 TASK_SOURCE_PART = "part"
@@ -336,7 +367,24 @@ REC_ONE_OFF = "one-off"
 # the reading crosses a numeric comparison) and ``state`` (due when the entity enters
 # a given state). See docs/SENSOR_TASKS_PLAN.md.
 REC_SENSOR = "sensor"
-RECURRENCE_TYPES = [REC_FLOATING, REC_FIXED, REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR]
+# A counted wear item's *use* task: the one surface a household taps to say "I wore
+# it / I used it once". It has no cadence and no due date at all — ``next_due`` is
+# ``None`` for its whole life, so it stays off the calendar, off the overdue
+# ``binary_sensor`` and out of every Profile tier but ``all``, while staying on the
+# to-do list as an undated item. Its ``completions`` list *is* the count: the
+# replacement task beside it arms once enough entries accumulate since the last
+# replacement (see ``reconcile.uses_since_replacement``). Distinct from
+# ``triggered``, which an owner arms and clears, and from ``sensor``, which reads a
+# number: nothing ever arms a use task. See docs/COUNTED_WEAR_ITEMS_PLAN.md.
+REC_USE = "use"
+RECURRENCE_TYPES = [
+    REC_FLOATING,
+    REC_FIXED,
+    REC_TRIGGERED,
+    REC_ONE_OFF,
+    REC_SENSOR,
+    REC_USE,
+]
 
 # Sensor-based task modes.
 SENSOR_MODE_USAGE = "usage"  # meter: arm when reading - baseline >= target
@@ -440,6 +488,16 @@ UNIT_WEEKS = "weeks"
 UNIT_MONTHS = "months"
 UNITS = [UNIT_DAYS, UNIT_WEEKS, UNIT_MONTHS]
 
+# A wear part's ``replace_unit`` accepts one value the recurrence engine does not:
+# ``uses``, which counts completions of a use task instead of measuring time. It is a
+# **separate list on purpose**. ``assets._normalize_part`` used to validate
+# ``replace_unit`` against ``UNITS``, the very list ``models.normalize_fields`` reads
+# for a floating task's ``unit`` — so adding ``uses`` there would have made
+# ``recurrence_type: "floating", unit: "uses"`` a valid task that no branch of
+# ``compute_next_due`` can compute.
+UNIT_USES = "uses"
+PART_REPLACE_UNITS = [*UNITS, UNIT_USES]
+
 # Fixed schedule frequencies.
 FREQ_DAILY = "DAILY"
 FREQ_WEEKLY = "WEEKLY"
@@ -454,6 +512,22 @@ MAX_EXPAND_ITERATIONS = 500
 # (e.g. 10000 days ≈ 27 years, 10000 months ≈ 833 years) but low enough to keep
 # date arithmetic well clear of datetime/timedelta overflow.
 MAX_INTERVAL = 10_000
+
+# Upper bound on a wear part's target when it is counted in ``uses``, and the floor
+# under the derived retention window.
+#
+# ``MAX_INTERVAL`` cannot serve here. ``recurrence._record_entry`` trims *every*
+# completion list to ``MAX_COMPLETION_HISTORY`` (500), blindly and on every write —
+# long before the use-task trim rule gets a look. A 5,000-use target would therefore
+# lose the very entries the count is derived from and read low forever, with nothing
+# to show the user why. 250 is the largest target whose load-bearing window
+# (2 x target, what ``usage_interval_stats`` needs) still lands inside that cap.
+MAX_USE_TARGET = 250
+MIN_USE_RETENTION = 50
+
+# A part's ``use_noun`` is a short label rendered beside a number ("17 of 25 wears"),
+# not prose. Same budget as a stock unit.
+MAX_USE_NOUN_LEN = 16
 
 # DEFERRED (not implemented this prototype): a stable cross-integration contribution
 # interface so integrations like Battery Notes can push maintenance tasks without
@@ -596,6 +670,146 @@ BUY_TASK_NAME_TEMPLATES: dict[str, str] = {
     "sv": "Köp {part}",
     "zh-Hans": "购买 {part}",
 }
+# Localized name for the *use* task of a counted wear item — "Use {asset}". Same
+# rationale as the templates above: a task name is server-side global data, resolved
+# once to ``hass.config.language`` at write time. Only ``{asset}`` is substituted; the
+# part is not named, because the household taps this task to record using the thing
+# itself ("Wear rain jacket"), not the part that wears out. A part may override it
+# outright with ``use_task_name``.
+USE_TASK_NAME_TEMPLATES: dict[str, str] = {
+    "en": "Use {asset}",
+    "ca": "Utilitzar {asset}",
+    "cs": "Použít {asset}",
+    "da": "Brug {asset}",
+    "de": "{asset} benutzen",
+    "es": "Usar {asset}",
+    "fi": "Käytä {asset}",
+    "fr": "Utiliser {asset}",
+    "it": "Usare {asset}",
+    "nb": "Bruk {asset}",
+    "nl": "{asset} gebruiken",
+    "pl": "Użyj {asset}",
+    "pt-BR": "Usar {asset}",
+    "ru": "Использование {asset}",
+    "sv": "Använd {asset}",
+    "zh-Hans": "使用 {asset}",
+}
+# One name template per wear-part action, per language. ``replace`` reuses
+# WEAR_TASK_NAME_TEMPLATES rather than repeating it, so the default action keeps the
+# exact string every existing wear part already generated. The other 6 let a wear item
+# be renewed, cleaned, serviced, sharpened, rotated or inspected instead of replaced —
+# which is what makes a wear item fit a jacket, a chain or a knife.
+ACTION_TASK_NAME_TEMPLATES: dict[str, dict[str, str]] = {
+    PART_ACTION_REPLACE: WEAR_TASK_NAME_TEMPLATES,
+    PART_ACTION_CLEAN: {
+        "en": "Clean {part} ({asset})",
+        "ca": "Netejar {part} ({asset})",
+        "cs": "Vyčistit {part} ({asset})",
+        "da": "Rengør {part} ({asset})",
+        "de": "{part} reinigen ({asset})",
+        "es": "Limpiar {part} ({asset})",
+        "fi": "Puhdista {part} ({asset})",
+        "fr": "Nettoyer {part} ({asset})",
+        "it": "Pulire {part} ({asset})",
+        "nb": "Rengjør {part} ({asset})",
+        "nl": "{part} reinigen ({asset})",
+        "pl": "Wyczyść {part} ({asset})",
+        "pt-BR": "Limpar {part} ({asset})",
+        "ru": "Очистка {part} ({asset})",
+        "sv": "Rengör {part} ({asset})",
+        "zh-Hans": "清洁 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
+    },
+    PART_ACTION_SERVICE: {
+        "en": "Service {part} ({asset})",
+        "ca": "Revisar {part} ({asset})",
+        "cs": "Servis {part} ({asset})",
+        "da": "Servicer {part} ({asset})",
+        "de": "{part} warten ({asset})",
+        "es": "Revisar {part} ({asset})",
+        "fi": "Huolla {part} ({asset})",
+        "fr": "Réviser {part} ({asset})",
+        "it": "Revisionare {part} ({asset})",
+        "nb": "Service {part} ({asset})",
+        "nl": "{part} onderhouden ({asset})",
+        "pl": "Serwisuj {part} ({asset})",
+        "pt-BR": "Revisar {part} ({asset})",
+        "ru": "Обслуживание {part} ({asset})",
+        "sv": "Serva {part} ({asset})",
+        "zh-Hans": "保养 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
+    },
+    PART_ACTION_RENEW: {
+        "en": "Renew {part} ({asset})",
+        "ca": "Renovar {part} ({asset})",
+        "cs": "Obnovit {part} ({asset})",
+        "da": "Forny {part} ({asset})",
+        "de": "{part} erneuern ({asset})",
+        "es": "Renovar {part} ({asset})",
+        "fi": "Uusi {part} ({asset})",
+        "fr": "Renouveler {part} ({asset})",
+        "it": "Rinnovare {part} ({asset})",
+        "nb": "Forny {part} ({asset})",
+        "nl": "{part} vernieuwen ({asset})",
+        "pl": "Odnów {part} ({asset})",
+        "pt-BR": "Renovar {part} ({asset})",
+        "ru": "Обновление {part} ({asset})",
+        "sv": "Förnya {part} ({asset})",
+        "zh-Hans": "翻新 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
+    },
+    PART_ACTION_SHARPEN: {
+        "en": "Sharpen {part} ({asset})",
+        "ca": "Esmolar {part} ({asset})",
+        "cs": "Nabrousit {part} ({asset})",
+        "da": "Slib {part} ({asset})",
+        "de": "{part} schärfen ({asset})",
+        "es": "Afilar {part} ({asset})",
+        "fi": "Teroita {part} ({asset})",
+        "fr": "Affûter {part} ({asset})",
+        "it": "Affilare {part} ({asset})",
+        "nb": "Slip {part} ({asset})",
+        "nl": "{part} slijpen ({asset})",
+        "pl": "Naostrz {part} ({asset})",
+        "pt-BR": "Afiar {part} ({asset})",
+        "ru": "Заточка {part} ({asset})",
+        "sv": "Slipa {part} ({asset})",
+        "zh-Hans": "磨利 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
+    },
+    PART_ACTION_ROTATE: {
+        "en": "Rotate {part} ({asset})",
+        "ca": "Rotar {part} ({asset})",
+        "cs": "Prohodit {part} ({asset})",
+        "da": "Rotér {part} ({asset})",
+        "de": "{part} rotieren ({asset})",
+        "es": "Rotar {part} ({asset})",
+        "fi": "Kierrätä {part} ({asset})",
+        "fr": "Permuter {part} ({asset})",
+        "it": "Ruotare {part} ({asset})",
+        "nb": "Roter {part} ({asset})",
+        "nl": "{part} roteren ({asset})",
+        "pl": "Rotuj {part} ({asset})",
+        "pt-BR": "Rodiziar {part} ({asset})",
+        "ru": "Ротация {part} ({asset})",
+        "sv": "Rotera {part} ({asset})",
+        "zh-Hans": "换位 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
+    },
+    PART_ACTION_INSPECT: {
+        "en": "Inspect {part} ({asset})",
+        "ca": "Inspeccionar {part} ({asset})",
+        "cs": "Zkontrolovat {part} ({asset})",
+        "da": "Efterse {part} ({asset})",
+        "de": "{part} prüfen ({asset})",
+        "es": "Inspeccionar {part} ({asset})",
+        "fi": "Tarkasta {part} ({asset})",
+        "fr": "Inspecter {part} ({asset})",
+        "it": "Ispezionare {part} ({asset})",
+        "nb": "Kontroller {part} ({asset})",
+        "nl": "{part} inspecteren ({asset})",
+        "pl": "Sprawdź {part} ({asset})",
+        "pt-BR": "Inspecionar {part} ({asset})",
+        "ru": "Проверка {part} ({asset})",
+        "sv": "Inspektera {part} ({asset})",
+        "zh-Hans": "检查 {part}（{asset}）",  # noqa: RUF001 — full-width parens are zh-Hans convention
+    },
+}
 # The word substituted for ``{asset}`` when an appliance has no name yet. Mirrors the
 # panel's ``appliance.fallbackName`` locale key so the two stay consistent.
 APPLIANCE_FALLBACK_NAMES: dict[str, str] = {
@@ -659,3 +873,26 @@ def resolve_buy_task_naming(language: str | None) -> str:
     Home Assistant's configured language before handing it to the pure reconciler.
     """
     return _pick_localized(BUY_TASK_NAME_TEMPLATES, language)
+
+
+def resolve_use_task_naming(language: str | None) -> str:
+    """Return the ``"Use {asset}"`` name template for *language*.
+
+    Used by ``store.reconcile_part_tasks`` to localize a counted wear item's use-task
+    name before handing it to the pure reconciler. A part that sets ``use_task_name``
+    overrides the result outright.
+    """
+    return _pick_localized(USE_TASK_NAME_TEMPLATES, language)
+
+
+def resolve_action_task_naming(action: str | None, language: str | None) -> str:
+    """Return the ``"<Action> {part} ({asset})"`` template for *action* in *language*.
+
+    An unknown or absent action falls back to ``replace``, which is what every wear
+    part written before actions existed carries. That fallback is the whole migration:
+    the resolved string for such a part is byte-identical to the one it already had.
+    """
+    table = ACTION_TASK_NAME_TEMPLATES.get(action or PART_ACTION_REPLACE)
+    if table is None:
+        table = ACTION_TASK_NAME_TEMPLATES[PART_ACTION_REPLACE]
+    return _pick_localized(table, language)

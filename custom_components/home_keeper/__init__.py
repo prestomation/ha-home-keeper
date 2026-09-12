@@ -393,6 +393,23 @@ _PART_SCHEMA = vol.Schema(
         vol.Optional("consume_quantity"): vol.Coerce(float),
         vol.Optional("create_buy_task"): cv.boolean,
         vol.Optional("restock_quantity"): vol.Coerce(float),
+        # A counted wear item: ``replace_unit: "uses"`` above makes the interval a
+        # number of uses rather than a span of time, and these 4 shape the pair of
+        # tasks it generates. ``replace_also_every`` is the optional time backstop
+        # ("or every 12 months, whichever comes first"); the pure model validates its
+        # interval and unit, so the schema only asserts the shape.
+        vol.Optional("action"): cv.string,
+        vol.Optional("use_noun"): cv.string,
+        vol.Optional("use_task_name"): cv.string,
+        vol.Optional("replace_also_every"): vol.Any(
+            None,
+            vol.Schema(
+                {
+                    vol.Optional("interval"): vol.Coerce(int),
+                    vol.Optional("unit"): cv.string,
+                }
+            ),
+        ),
         # file_name/file_content_type/file_size are deliberately absent: a part's
         # attached file is upload-only (see manuals.HomeKeeperPartFileView) and must
         # never be settable through add_asset/update_asset — voluptuous rejects any
