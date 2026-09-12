@@ -679,18 +679,14 @@ def pause_spec_tasks(
         key = task_key(task)
         if key is None or key[0] != spec_id:
             continue
-        source = declarative_source(task)
-        if source is None:  # pragma: no cover - task_key already proved it is there
+        if not task.get("enabled", True):
+            # Already off: either this recipe paused it on an earlier pass, or the
+            # person switched this one task off. The first needs nothing, and the
+            # second must not get a marker — that choice is theirs to undo.
             continue
-        if not task.get("enabled", True) and source.get("paused"):
-            continue
-        if task.get("enabled", True):
-            task["enabled"] = False
-            source["paused"] = True
-        else:
-            # Switched off by hand before the recipe was: leave the marker off so
-            # re-enabling the recipe does not switch it back on.
-            continue
+        task["enabled"] = False
+        # ``task_key`` above already proved the provenance block is a mapping.
+        task["source"][TASK_SOURCE_DECLARATIVE_COMPANION]["paused"] = True
         ops.append(("updated", task))
         changed = True
     return result, ops, changed

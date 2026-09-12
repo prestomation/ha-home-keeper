@@ -853,6 +853,21 @@ def test_pausing_leaves_another_specs_tasks_alone():
     assert stored[tid]["enabled"] is True
 
 
+def test_pausing_reaches_this_specs_tasks_past_a_foreign_one():
+    # A task belonging to another recipe sits first in the map. Walking past it has
+    # to be a skip, not a stop, or the recipe's own task keeps running.
+    spec = _normalized_spec()
+    other = dc.normalize_declarative_companion(_spec(name="Another recipe"))
+    foreign, _foreign_tid, _key, _m = _stored_task(other, "sensor.other_pings")
+    mine, tid, _key, _m = _stored_task(spec)
+    tasks = {**foreign, **mine}
+
+    new_tasks, ops, changed = dc.pause_spec_tasks(spec["id"], tasks)
+    assert changed is True
+    assert [task["id"] for _kind, task in ops] == [tid]
+    assert new_tasks[tid]["enabled"] is False
+
+
 def test_enabling_the_recipe_again_brings_back_the_tasks_it_paused():
     spec = _normalized_spec()
     stored, tid, key, m = _stored_task(spec)
