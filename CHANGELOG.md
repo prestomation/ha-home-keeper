@@ -6,6 +6,18 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.24.0b3]
+
+### Added
+
+- **[Counted wear items](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#count-uses-instead-of-months).**
+  Set a wear item to repeat every so many uses, or after so many months, whichever
+  comes first. Complete its use task from an automation, a tag scan or the panel to
+  count 1 use. (Fixes #306)
+- **[Wear item actions](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#count-uses-instead-of-months).**
+  Pick the verb a wear item's task uses. The choices are Clean, Service, Renew,
+  Sharpen, Rotate, Inspect and the default Replace.
+
 ## [0.24.0b2]
 
 ### Added

@@ -162,6 +162,9 @@ Use these names and no others for these things.
 | websocket command | ws command, socket call | |
 | config entry | integration entry, entry | |
 | device | | A device is a Home Assistant device. Do not call an appliance a device. |
+| wear item | wear part, consumable | A part has a type. "wear" is one of the types, so "wear item" is the name for that type. |
+| counted wear item | usage counter, use counter | A wear item that measures its interval in uses. It makes a use task and a replacement task. |
+| use task | counter task, counting task | The task a household completes to record 1 use. |
 | companion | | An integration that Home Keeper lists under Settings, Companions. |
 | glue integration | glue, bridge, connector | The pattern name for a small integration that connects another integration to Home Keeper. A glue integration is one kind of companion. |
 | AI agent | assistant, AI assistant, chatbot, LLM, model | Use it for any tool a user asks to write or read Home Keeper data on their behalf. "Home Assistant" is unrelated and keeps its name. |

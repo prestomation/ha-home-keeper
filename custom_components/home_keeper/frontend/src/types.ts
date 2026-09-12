@@ -6,8 +6,30 @@
 // `sensor` is a sensor-based task: Home Keeper derives its armed/dormant state from
 // a bound entity (see `SensorBinding`). Like `triggered`, its `next_due` is
 // its state; the user creates it and the backend watcher arms it.
-export type RecurrenceType = 'floating' | 'fixed' | 'triggered' | 'one-off' | 'sensor';
+export type RecurrenceType =
+  | 'floating'
+  | 'fixed'
+  | 'triggered'
+  | 'one-off'
+  | 'sensor'
+  // A counted wear item's use task. Never due, never armed: each completion counts
+  // one use, and the replacement task beside it is what comes due.
+  | 'use';
 export type Unit = 'days' | 'weeks' | 'months';
+/** A wear part's replacement unit. `uses` counts completions of a generated use task
+ *  instead of measuring time, and is deliberately not a `Unit` — a task can never
+ *  have a cadence measured in uses. */
+export type PartReplaceUnit = Unit | 'uses';
+/** What a wear part's generated maintenance task is called. A wear item is not always
+ *  replaced: a jacket is renewed, a chain is cleaned, a blade is sharpened. */
+export type PartAction =
+  | 'replace'
+  | 'clean'
+  | 'service'
+  | 'renew'
+  | 'sharpen'
+  | 'rotate'
+  | 'inspect';
 export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 /** `state` compares the entity's state *string* rather than a number, which is what
  *  makes a binary sensor usable (`on`/`off` has no numeric reading). Not binary-only:
@@ -158,7 +180,15 @@ export interface Task {
   // link (`part.manual`), which the user owns: completing it consumes a spare, but it
   // stays fully editable/deletable like any user task.
   source?: {
-    part?: { asset_id: string; part_id: string; manual?: boolean };
+    // `role` tells the two halves of a counted wear item apart. An **absent** role
+    // reads as `replace`, which is what every part-derived task written before
+    // counted wear items existed carries.
+    part?: {
+      asset_id: string;
+      part_id: string;
+      manual?: boolean;
+      role?: 'use' | 'replace';
+    };
     problem_sensor?: { entity_id: string };
     // The recipe a declarative companion materialized this task from. `spec_id` is
     // the dedupe key the reconciler owns; the panel reads it to find the recipe and
@@ -296,7 +326,19 @@ export interface Part {
   file_size?: number | null;
   notes?: string;
   replace_interval?: number | null;
-  replace_unit?: Unit | null;
+  // `uses` makes this a **counted** wear item: the interval is a number of uses
+  // rather than a span of time, and the part generates two tasks instead of one.
+  replace_unit?: PartReplaceUnit | null;
+  // The optional time backstop beside a counted target: "every 25 wears, or every
+  // 12 months, whichever comes first". Only meaningful with a `uses` unit.
+  replace_also_every?: { interval: number; unit: Unit } | null;
+  // What the generated maintenance task is called (default `replace`).
+  action?: PartAction | null;
+  // Naming for the use task. `use_noun` is the plural word for its uses ("wears",
+  // "hikes"), rendered verbatim beside the count; `use_task_name` overrides the whole
+  // generated name. Both empty means the localized "Use {asset}" and "uses".
+  use_noun?: string | null;
+  use_task_name?: string | null;
   last_replaced?: string | null;
   // Spare-inventory tracking. `stock` is how much is on hand (drawn down when a
   // wear-part replacement or a linked task is completed); `reorder_at` is the

@@ -235,7 +235,9 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
         ),
         Field("area_id", "str | None"),
         Field(
-            "recurrence_type", "str", "floating / fixed / one-off / triggered / sensor"
+            "recurrence_type",
+            "str",
+            "floating / fixed / one-off / triggered / sensor / use",
         ),
         Field(
             "next_due",

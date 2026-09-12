@@ -31,6 +31,7 @@ from .const import (
     REC_ONE_OFF,
     REC_SENSOR,
     REC_TRIGGERED,
+    REC_USE,
     RECURRENCE_TYPES,
     SENSOR_COMBINATOR_ANY,
     SENSOR_COMBINATORS,
@@ -641,6 +642,14 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         fields["sensor"] = normalize_sensor(data.get("sensor"))
         return fields
 
+    # A use task (a counted wear item's "I used it once" surface) has no cadence and
+    # no state either: ``next_due`` is ``None`` for its whole life, because nothing
+    # ever arms it. The count lives in ``completions``; the replacement task beside it
+    # is what comes due. Return early so we neither validate nor store interval/unit/
+    # freq/due, exactly as the 3 dateless types above do.
+    if rec_type == REC_USE:
+        return fields
+
     # A do-once task has no cadence (no interval/unit/freq) — only a single ``due``
     # datetime. Its state is carried by next_due (the due date, or None once
     # completed). Qualify a naive value with the caller tz exactly like a fixed
@@ -907,10 +916,13 @@ def build_task(data: dict, *, now: datetime) -> dict:
         recurrence.apply_completion(
             task, _coerce_seed(seed, tz=now.tzinfo), now=now, metadata=meta
         )
-    elif task["recurrence_type"] == REC_SENSOR:
+    elif task["recurrence_type"] in (REC_SENSOR, REC_USE):
         # A sensor task is born dormant: the watcher arms it (via ``trigger_task``)
         # only once the live reading actually meets its condition. ``compute_next_due``
-        # would read as due-now (the re-arm contract), so set ``None`` directly.
+        # would read as due-now (the re-arm contract), so set ``None`` directly. A use
+        # task is born with no due date for the same mechanical reason and never
+        # leaves that state — its seed completion above counts as 1 use and still
+        # arms nothing.
         task["next_due"] = None
     else:
         task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
@@ -1053,8 +1065,16 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         key in updates and merged.get(key) != existing.get(key)
         for key in recurrence_keys
     )
-    if new_type not in (REC_TRIGGERED, REC_SENSOR) and recurrence_changed:
+    if new_type not in (REC_TRIGGERED, REC_SENSOR, REC_USE) and recurrence_changed:
         merged["next_due"] = recurrence.compute_next_due(merged, now=now).isoformat()
+    elif new_type == REC_USE:
+        # A use task has no due date to recompute, in either direction. Converting an
+        # existing scheduled task into one drops its stale schedule date (carried
+        # verbatim it would render as permanently overdue on a task nothing can
+        # complete out of that state), and editing a use task's name must not invent
+        # one. Unconditional, unlike the 2 branches below: there is no state here to
+        # preserve, so the from-type does not matter.
+        merged["next_due"] = None
     elif new_type == REC_SENSOR and old_type != REC_SENSOR:
         # Converting an existing (e.g. floating, due-now) task into a sensor task: it
         # starts dormant like a freshly-built one, so the watcher arms it only when the

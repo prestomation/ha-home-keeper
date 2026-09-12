@@ -68,6 +68,7 @@ from .const import (
     TASK_SOURCE_PART,
     TASK_SOURCE_PROBLEM_SENSOR,
     resolve_buy_task_naming,
+    resolve_use_task_naming,
     resolve_wear_task_naming,
 )
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
@@ -75,9 +76,11 @@ from .problem_tasks import problem_source as _problem_source
 from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks
 from .reconcile import buy_source as _buy_source
 from .reconcile import is_manual_part_link as _is_manual_part_link
+from .reconcile import is_use_task as _is_use_task
 from .reconcile import part_source as _part_source
 from .reconcile import reconcile_buy_tasks as _reconcile_buy_tasks
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
+from .reconcile import settle_use_tasks as _settle_use_tasks
 
 # Stock transition -> the bus event it fires (STOCK_NONE maps to nothing).
 _STOCK_EVENT = {
@@ -1305,14 +1308,15 @@ class HomeKeeperStore:
         one immediately).
         """
         old_tasks = self._tasks
-        name_template, appliance_fallback = resolve_wear_task_naming(
-            self._hass.config.language
-        )
+        language = self._hass.config.language
+        name_template, appliance_fallback = resolve_wear_task_naming(language)
         new_tasks, changed = _reconcile_part_tasks(
             self._assets,
             old_tasks,
             name_template=name_template,
             appliance_fallback=appliance_fallback,
+            use_name_template=resolve_use_task_naming(language),
+            language=language,
             now=dt_util.now(),
         )
         if changed:
@@ -1397,6 +1401,37 @@ class HomeKeeperStore:
                 if _task_owns_entities(task):
                     entity_set_changed = True
         return entity_set_changed
+
+    async def settle_use_tasks(self) -> bool:
+        """Arm the replacement task of every counted wear item that has earned it.
+
+        Returns ``True`` when anything changed. A use is a **completion**, which is a
+        store mutation rather than an asset edit, so the reconciler alone never sees
+        it — this is the counting half's settle step, and it mirrors
+        :meth:`reconcile_buy_tasks` exactly.
+
+        Two things bring a replacement task due, whichever comes first: the count
+        reaching the part's target, and the optional time backstop elapsing. Both are
+        decided by the pure :func:`reconcile.settle_use_tasks`; arming happens here,
+        through :meth:`trigger_task`, so a counted wear item fires the same
+        ``home_keeper_task_triggered`` every other armed task does and needs no event
+        of its own.
+
+        The same pass trims each use task's completion log. That trim never touches an
+        entry newer than the last replacement — those entries *are* the live count, and
+        dropping one lowers it silently, so the reminder would simply never arrive.
+        """
+        to_arm, trimmed = _settle_use_tasks(
+            self._assets, self._tasks, now=dt_util.now()
+        )
+        if trimmed:
+            await self._save()
+        for task_id in to_arm:
+            # Through trigger_task rather than by assignment: it is the chokepoint that
+            # fires the triggered event, and it saves. A task armed between the pure
+            # decision above and this loop is skipped by its own dormancy check.
+            await self.trigger_task(task_id)
+        return trimmed or bool(to_arm)
 
     async def reconcile_problem_sensor_tasks(
         self, eligible: dict[str, dict[str, Any]], *, config_entry_id: str
@@ -2124,6 +2159,14 @@ class HomeKeeperStore:
     def _stamp_part_replacement(self, task: dict[str, Any], when: Any) -> None:
         src = _part_source(task)
         if not src:
+            return
+        if _is_use_task(task):
+            # A counted wear item's *use* task carries a part source too, because it
+            # is derived from the same part. It records that the thing was used once —
+            # not that the part was renewed. Without this gate every wear of the jacket
+            # would stamp the DWR treatment as done and draw a spare out of inventory,
+            # so the count would arm a reminder for maintenance that never happened
+            # while the stock quietly emptied.
             return
         asset = self._assets.get(src["asset_id"])
         if not asset:

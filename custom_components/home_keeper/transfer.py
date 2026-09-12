@@ -735,6 +735,7 @@ _TASK_PROBES: tuple[dict[str, Any], ...] = (
     },
     {"name": "probe", "recurrence_type": "one-off", "due": "2026-01-15T09:00:00"},
     {"name": "probe", "recurrence_type": "triggered"},
+    {"name": "probe", "recurrence_type": "use"},
     {
         "name": "probe",
         "recurrence_type": "sensor",

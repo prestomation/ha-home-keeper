@@ -52,6 +52,7 @@ import {
   recurrenceSummary,
   safeFileHref,
   scanRequired,
+  countedProgress,
   statusChipHtml,
   toast,
 } from './utils';
@@ -891,7 +892,9 @@ export class HomeKeeperCard extends HTMLElement {
     // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge
     // that says this work is late.
     const overdue = isOverdue(task) && !isBuyTask(task);
-    const statusChip = statusChipHtml(task, this._hass);
+    const statusChip = statusChipHtml(task, this._hass, {
+      counted: countedProgress(task, this._assets, this._tasks),
+    });
     // Managed-by reads as a compact icon-only chip (the integration's own icon,
     // else a generic one) with the full "Managed by X" as a hover/long-press
     // tooltip — keeps the row tight instead of a full-width pill.

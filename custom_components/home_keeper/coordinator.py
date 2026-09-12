@@ -166,7 +166,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         _edge_state_store(self.hass)[self.entry.entry_id] = self._edge_state
 
     async def async_settle_buy_tasks(self) -> None:
-        """Reconcile auto-buy tasks after a stock/completion change, then settle state.
+        """Reconcile part-derived tasks after a stock/completion change, then settle.
+
+        Covers both halves: the auto-buy lifecycle below, and the counted wear items
+        settled first (a use completion may have brought a replacement task due).
 
         The single decision point for the buy-task lifecycle at the HA boundary: any
         surface that can change a part's low/enabled state (stock adjust, task
@@ -187,6 +190,13 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """
         if self.shopping_sync is not None:
             await self.shopping_sync.async_sync()
+        # The counting half of a wear part settles here too, rather than at the 12 call
+        # sites this method already has. Everything that can change a part's low state
+        # is also everything that can complete a use task — this method's own docstring
+        # names task completion as one of the two — so folding it in picks all of them
+        # up, and a household that completes a use through *any* surface gets its
+        # replacement task armed in the same pass.
+        await self.store.settle_use_tasks()
         entity_set_changed = await self.store.reconcile_buy_tasks()
         if self.shopping_sync is not None:
             await self.shopping_sync.async_sync()
@@ -205,6 +215,13 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         await self._purge_expired_one_offs()
+        # Settle counted wear items on the periodic tick as well as on completion. A
+        # use completion routes through ``async_settle_buy_tasks``, but the *time*
+        # backstop ("or every 12 months") is brought due by the clock alone: no task
+        # is completed and nothing mutates, so only this tick notices that a jacket is
+        # due for its yearly treatment. Same blind spot the to-do list sweep below
+        # covers, and the same fix.
+        await self.store.settle_use_tasks()
         # Re-evaluate sensor-based tasks against their bound readings before reading the
         # task map, so a freshly-armed task surfaces as overdue/due-soon in this same
         # cycle. No refresh request here — the transition detection below runs next.

@@ -38,6 +38,7 @@ from .const import (
     REC_ONE_OFF,
     REC_SENSOR,
     REC_TRIGGERED,
+    REC_USE,
     UNIT_DAYS,
     UNIT_MONTHS,
     UNIT_WEEKS,
@@ -380,6 +381,15 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
         due = _parse(task["due"])
         assert due is not None
         return due
+    if rec_type == REC_USE:
+        # Every other type answers "when is this due?" with a date. A use task answers
+        # it with "never": nothing arms it, so there is no correct datetime to return
+        # and returning ``now`` (the triggered/sensor answer) would strand a counting
+        # task as permanently overdue on every time surface. Each of the 5 callers
+        # below skips a use task before reaching here, so this is a regression guard
+        # rather than a live path — loud on purpose, because the silent alternative
+        # ships a wrong due date.
+        raise ValueError("a use task is never due; nothing arms it")
     raise ValueError(f"unknown recurrence_type: {rec_type!r}")
 
 
@@ -500,13 +510,20 @@ def apply_completion(
         ).isoformat()
     elif rec_type == REC_FIXED:
         task["next_due"] = _advance_fixed_schedule(task, now=now)
-    elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR):
+    elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR, REC_USE):
         # A one-off is permanently complete; a triggered task clears its condition; a
         # sensor task's crossing has been actioned (and its meter reset by the store,
         # which has the live reading). All go dormant (every time surface drops them).
         # Undoing the completion re-arms a one-off (see ``remove_completion``); a
         # triggered task is re-armed only by its owning integration, and a sensor task
         # only by the watcher on a fresh crossing.
+        #
+        # A use task is the odd one here: it was already dormant and stays dormant, so
+        # this assignment changes nothing. Completing it is not "done with the thing" —
+        # it is the *record of 1 use*, and the entry this call just appended to
+        # ``completions`` is the whole point. The replacement task beside it is what
+        # comes due, armed by ``coordinator.async_settle_use_tasks`` once enough
+        # entries accumulate.
         task["next_due"] = None
     else:
         raise ValueError(f"unknown recurrence_type: {rec_type!r}")
@@ -555,7 +572,10 @@ def skip_occurrence(task: dict, *, now: datetime, metadata: dict | None = None) 
         ).isoformat()
     elif rec_type == REC_FIXED:
         task["next_due"] = _advance_fixed_schedule(task, now=now)
-    elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR):
+    elif rec_type in (REC_TRIGGERED, REC_ONE_OFF, REC_SENSOR, REC_USE):
+        # A use task is already dormant, so this is a no-op on ``next_due``. The skip
+        # is still logged: "I deliberately did not use it today" is a legitimate thing
+        # to record, and it stays out of ``completions``, so it never counts as a use.
         task["next_due"] = None
     else:
         raise ValueError(f"unknown recurrence_type: {rec_type!r}")
@@ -617,7 +637,7 @@ def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
         task["next_due"] = (
             compute_next_due(task, now=now).isoformat() if not history else None
         )
-    elif rec_type not in (REC_TRIGGERED, REC_SENSOR):
+    elif rec_type not in (REC_TRIGGERED, REC_SENSOR, REC_USE):
         task["next_due"] = compute_next_due(task, now=now).isoformat()
     return task
 
@@ -730,7 +750,7 @@ def move_completion(task: dict, old_ts: str, new_ts: str, *, now: datetime) -> d
         # (see above), so a one-off always stays dormant post-move — it only
         # re-arms via remove_completion, which can genuinely empty history.
         task["next_due"] = None
-    elif rec_type not in (REC_TRIGGERED, REC_SENSOR, REC_FIXED):
+    elif rec_type not in (REC_TRIGGERED, REC_SENSOR, REC_FIXED, REC_USE):
         task["next_due"] = compute_next_due(task, now=now).isoformat()
     return task
 

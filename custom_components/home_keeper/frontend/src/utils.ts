@@ -532,6 +532,10 @@ function recurrenceText(task: Task): string {
   if (task.recurrence_type === 'triggered') return t('recurrence.triggered');
   // A one-off (do-once) task has no cadence — just a single due date.
   if (task.recurrence_type === 'one-off') return t('recurrence.oneOff');
+  // A use task has no cadence either, and never will. It is the surface a household
+  // taps to record using the thing; the replacement task beside it carries the
+  // interval, so describing this one as a schedule would name the wrong task.
+  if (task.recurrence_type === 'use') return t('recurrence.use');
   // A sensor task is described by its bound condition, not a clock.
   if (task.recurrence_type === 'sensor') {
     const s = task.sensor;
@@ -625,6 +629,82 @@ export function isBuyTask(task: Task): boolean {
 }
 
 /**
+ * True when a task is the **use** half of a counted wear item.
+ *
+ * Mirrors `reconcile.is_use_task` on the backend, and reads the same two things it
+ * does: the recurrence type *and* the role on the part source. Both, because either
+ * alone is a worse test — a malformed source would otherwise turn an ordinary
+ * replacement task into a counting one, and an absent role legitimately means
+ * `replace` on every part-derived task written before counted wear items existed.
+ *
+ * Read by `statusBucket` (the Counted section), by the task row (which draws the
+ * count instead of a due date) and by the detail page (which withholds every
+ * schedule control, since a use task has no schedule to edit).
+ */
+export function isUseTask(task: Task): boolean {
+  if (task.recurrence_type !== 'use') return false;
+  const part = task.source?.part;
+  return Boolean(part && part.role === 'use');
+}
+
+/**
+ * `"17 of 25 wears"` — a counted wear item's progress, ready to render.
+ *
+ * The noun is the part's own (`use_noun`), used **verbatim and in the plural**,
+ * because a household counts wears, hikes, cycles or brews and no closed list covers
+ * that. Verbatim is not laziness: pluralising arbitrary user text is not something a
+ * panel shipping 16 languages can do, and appending an "s" would be wrong in most of
+ * them and in plenty of English nouns too. So the form asks for the plural and this
+ * renders what it was given.
+ *
+ * A part that names no noun gets the localized plural for "use", chosen by the target
+ * — which is why this is the panel's job rather than the backend's: only the browser
+ * knows the viewer's language.
+ *
+ * `count` is not clamped to `target`. A household that keeps wearing the jacket past
+ * 25 should read "31 of 25 wears", not a number frozen at the target — the reminder
+ * is already sitting in Overdue and pretending otherwise hides how far past it is.
+ */
+export function useCountLabel(count: number, target: number, noun: string): string {
+  const word = noun.trim() || tn('counted.use', target);
+  return t('counted.progress', { count, target, noun: word });
+}
+
+/**
+ * How far through its target a counted wear item is, as a 0..1 fraction.
+ *
+ * Clamped at 1 for the **bar** even though the label above is not clamped: a meter
+ * that overflows its track is a rendering bug, while a number past its target is
+ * information. Returns 0 for a target of 0, which is not a counted part at all.
+ */
+export function useProgress(count: number, target: number): number {
+  if (!(target > 0)) return 0;
+  return Math.min(1, Math.max(0, count / target));
+}
+
+/**
+ * How many uses a counted wear item has recorded since it was last replaced.
+ *
+ * The panel's mirror of `reconcile.uses_since_replacement`, and the same rule: the
+ * count *is* the use task's completion log, filtered to the entries later than the
+ * replacement task's `last_completed`. Compared as instants rather than as strings,
+ * because a history that has seen a timezone change holds mixed offsets.
+ */
+export function usesSinceReplacement(useTask: Task, replaceTask?: Task): number {
+  const completions = useTask.completions ?? [];
+  const since = replaceTask?.last_completed;
+  if (!since) return completions.length;
+  const marker = new Date(since).getTime();
+  if (Number.isNaN(marker)) return completions.length;
+  return completions.filter((entry) => {
+    const at = new Date(entry.ts).getTime();
+    // An unparseable entry counts, matching the backend: one bad row must not take
+    // the whole count down with it.
+    return Number.isNaN(at) || at > marker;
+  }).length;
+}
+
+/**
  * Units left before a dormant usage/meter task next comes due, or `null` when there
  * is no live countdown to show.
  *
@@ -654,6 +734,48 @@ export function meterRemaining(
   return Math.max(0, s.target - consumed);
 }
 
+/**
+ * A counted wear item's live progress, or `null` when *task* is not a use task.
+ *
+ * The one lookup every surface that draws a count shares: it walks from the use task
+ * to its part (for the target and the noun) and to its sibling replacement task (for
+ * the instant the count restarts at). Returns `null` rather than a zeroed shape when
+ * any of those is missing, so a caller falls back to the plain label instead of
+ * rendering "0 of 0".
+ *
+ * `assets` and `tasks` are what the caller already holds — the panel's `_assets` /
+ * `_tasks`, the card's own copies — so this adds no fetch.
+ */
+export function countedProgress(
+  task: Task,
+  assets: Asset[] | undefined,
+  tasks: Task[] | undefined,
+): { count: number; target: number; noun: string } | null {
+  if (!isUseTask(task)) return null;
+  const src = task.source?.part;
+  if (!src) return null;
+  const asset = assets?.find((a) => a.id === src.asset_id);
+  const part = asset?.parts?.find((candidate) => candidate.id === src.part_id);
+  const target = part?.replace_interval;
+  if (!part || typeof target !== 'number' || target <= 0) return null;
+  // The replacement half: same part, and a role that is absent or `replace` — absent
+  // being what every part-derived task written before counted wear items carries.
+  const replaceTask = tasks?.find((candidate) => {
+    const other = candidate.source?.part;
+    return (
+      other?.asset_id === src.asset_id &&
+      other?.part_id === src.part_id &&
+      other?.role !== 'use' &&
+      candidate.id !== task.id
+    );
+  });
+  return {
+    count: usesSinceReplacement(task, replaceTask),
+    target,
+    noun: (part.use_noun ?? '').trim(),
+  };
+}
+
 /** Compact relative description of a due date, e.g. "in 3 days" / "2 days ago". */
 export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): string {
   // A dormant triggered/sensor task is armed-but-not-due: show "Monitored", not "no
@@ -674,6 +796,10 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
     }
     return t('due.monitored');
   }
+  // A use task has no due date and never will. "No due date" is technically true and
+  // completely wrong to read: it suggests something unscheduled that ought to be
+  // scheduled. It is counting, and that is its whole job.
+  if (task.recurrence_type === 'use') return t('due.counting');
   // A completed one-off (do-once, now dormant) reads as "Completed".
   if (task.recurrence_type === 'one-off' && !task.next_due && task.last_completed) {
     return t('due.completed');
@@ -719,11 +845,27 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
 export function statusChipHtml(
   task: Task,
   hass?: Hass,
-  opts: { elapsed?: boolean; now?: Date } = {},
+  opts: {
+    elapsed?: boolean;
+    now?: Date;
+    /** A counted wear item's progress, from `countedProgress`. Supplied by the
+     *  surfaces that hold the appliances; without it a use task falls back to the
+     *  plain "Counting" label rather than rendering a made-up figure. */
+    counted?: { count: number; target: number; noun: string } | null;
+  } = {},
 ): string {
   const now = opts.now ?? new Date();
   const chip = (label: string, cls = '') =>
     `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
+  // Ahead of every other branch. A use task is never overdue and never completed in
+  // the terminal sense, so nothing below would draw the one number that matters.
+  if (opts.counted) {
+    const { count, target, noun } = opts.counted;
+    // At or past the target the replacement task is armed and sitting in Overdue, so
+    // this chip says the count has been reached rather than repeating the urgency.
+    const cls = count >= target ? 'hk-counted hk-counted-full' : 'hk-counted';
+    return chip(useCountLabel(count, target, noun), cls);
+  }
   // "Low stock" answers an *open* reminder. A reminder that was bought while the part
   // stayed under its reorder point keeps its row — the reconciler only retires it once
   // the stock is back up — and that row belongs to the Completed section, which is

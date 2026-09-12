@@ -25,11 +25,18 @@ export const TASK = {
   smokeBattery: 'b61a0b0e-6838-46a9-89d5-7090f8b4aa35',
   thermostatBattery: '467606ef-4193-4541-bf6c-6509cfbf425e',
   waterFilter: 'acb13a18-979a-4812-8a00-2e4a426df8db',
+  // The 2 halves of the seeded counted wear item. The rain jacket's coating is
+  // 17 wears into a 25-wear cycle, so the count reads mid-cycle rather than at
+  // either end — which is the only state that shows both the chip and the meter
+  // saying something.
+  wearJacket: 'd3a5b7c9-2f4e-4d6b-9c8a-0e1f3b5d7a29',
+  renewDwr: 'e4b6c8da-3a5f-4e7c-8d9b-1f2a4c6e8b3a',
 } as const;
 
 /** Appliances. */
 export const ASSET = {
   radioShade: '23e02da0-0411-4b16-9a63-10126f2ca7e6',
+  rainJacket: 'b7c1e2a4-3d5f-4a1b-9c8e-2f6d0a4b7e13',
   shades: '1f938cf8-c2a3-4438-aab3-840d0d749725',
   waterHeater: 'e8d76383-4067-415c-975f-2ee73f475fa1',
 } as const;
@@ -37,6 +44,7 @@ export const ASSET = {
 /** Parts. */
 export const PART = {
   anode: 'c91fd864-9e72-4645-9ab7-cdca418bb2bc',
+  dwrCoating: 'c2f4a6b8-1e3d-4c5a-8b7f-9d0e2a4c6b18',
   descaler: 'ae2b576d-67f4-4d4b-9aaf-d0bcebc5953b',
   sedimentFilter: 'f8319a3a-c717-48c2-a53e-79a205fb4a48',
   tpValve: '11a79824-31d5-4ccc-b5b9-12104ff7e327',

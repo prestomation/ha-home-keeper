@@ -44,7 +44,7 @@ import {
 } from './panel-icons';
 import { assetAncestry } from './panel-lists';
 import { consumableLinkLabel, consumableOptions, documentOptions } from './panel-task-form';
-import { taskFormIsEmpty } from './forms';
+import { partCountsUses, taskFormIsEmpty } from './forms';
 import type { Asset, Part, Task } from './types';
 import {
   ASSET_TABS,
@@ -69,7 +69,11 @@ import {
   safeHref,
   scanRequired,
   snapStock,
+  countedProgress,
+  isUseTask,
   statusChipHtml,
+  useCountLabel,
+  useProgress,
   tasksForAsset,
   toast,
   type AssetTab,
@@ -239,7 +243,9 @@ function historySection(p: PanelHost, kind: 'task' | 'asset', id: string): strin
 }
 
 function taskDetail(p: PanelHost, task: Task): string {
-  const statusChip = statusChipHtml(task, p._hass);
+  const statusChip = statusChipHtml(task, p._hass, {
+    counted: countedProgress(task, p._assets, p._tasks),
+  });
   // From a task the chip means "the appliance this work is about", so it opens the
   // appliance page. It falls back to the device page when no appliance claims the
   // device, and says so with a trailing mark.
@@ -658,6 +664,34 @@ function partsSection(p: PanelHost, asset: Asset): string {
               : t('part.neverReplaced'),
           )
         : '';
+      // A counted wear item's live progress, read from its own 2 tasks rather than
+      // from a stored number. "17 of 25 wears" plus the bar is the whole answer to
+      // "how close is this to needing attention", which a cadence chip alone cannot
+      // give: "every 25 uses" says nothing about where the count stands today.
+      let counted = '';
+      const countedUse = partCountsUses(part)
+        ? p._tasks.find(
+            (task) =>
+              isUseTask(task) &&
+              task.source?.part?.asset_id === asset.id &&
+              task.source?.part?.part_id === part.id,
+          )
+        : undefined;
+      if (countedUse) {
+        const progress = countedProgress(countedUse, p._assets, p._tasks);
+        if (progress) {
+          const pct = useProgress(progress.count, progress.target) * 100;
+          const label = useCountLabel(progress.count, progress.target, progress.noun);
+          const full = progress.count >= progress.target;
+          counted =
+            chip(label, full ? 'hk-counted hk-counted-full' : 'hk-counted') +
+            `<div class="hk-use-meter${full ? ' full' : ''}" role="progressbar"` +
+            ` aria-valuemin="0" aria-valuemax="${escapeHTML(String(progress.target))}"` +
+            ` aria-valuenow="${escapeHTML(String(progress.count))}"` +
+            ` aria-label="${escapeHTML(label)}">` +
+            `<span style="width:${pct.toFixed(1)}%"></span></div>`;
+        }
+      }
       const low = part.stock != null && part.reorder_at != null && part.stock <= part.reorder_at;
       let spares = '';
       if (part.stock != null) {
@@ -691,9 +725,9 @@ function partsSection(p: PanelHost, asset: Asset): string {
         }
       }
       const chipRow =
-        cadence || replaced || spares
+        cadence || replaced || spares || counted
           ? `<div class="hk-part-chips">
-                 <div class="hk-part-cell hk-part-cadence">${cadence}</div>
+                 <div class="hk-part-cell hk-part-cadence">${cadence}${counted}</div>
                  <div class="hk-part-cell hk-part-replaced">${replaced}</div>
                  <div class="hk-part-cell hk-part-spares">${spares}</div>
                </div>`
@@ -848,7 +882,9 @@ function relatedTasksSection(p: PanelHost, asset: Asset): string {
   if (!tasks.length) return '';
   const rows = tasks
     .map((task) => {
-      const chip = statusChipHtml(task, p._hass);
+      const chip = statusChipHtml(task, p._hass, {
+        counted: countedProgress(task, p._assets, p._tasks),
+      });
       return `
           <div class="hk-rel detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(
             task.id,

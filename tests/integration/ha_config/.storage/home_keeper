@@ -15,8 +15,8 @@
         "area_id": null,
         "enabled": true,
         "created": "2026-05-01T09:00:00-04:00",
-        "last_completed": "2026-08-28T21:33:26.584760-04:00",
-        "next_due": "2026-09-28T21:33:26.584760-04:00",
+        "last_completed": "2026-09-10T11:38:05.228245-04:00",
+        "next_due": "2026-10-10T11:39:20.155259-04:00",
         "completions": [
           {
             "ts": "2026-03-01T09:00:00-04:00"
@@ -41,6 +41,10 @@
           {
             "ts": "2026-08-28T21:33:26.584760-04:00",
             "note": "E2E completion dialog regression check"
+          },
+          {
+            "ts": "2026-09-10T11:38:05.228245-04:00",
+            "note": "E2E completion dialog regression check"
           }
         ],
         "labels": [
@@ -57,7 +61,7 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "1e7beb8aadf01309b8448a2e119f6bd3",
+        "device_id": "b5c13a793fe3ac02f5c809a733e87e0d",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
@@ -445,7 +449,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "1e7beb8aadf01309b8448a2e119f6bd3",
+        "device_id": "b5c13a793fe3ac02f5c809a733e87e0d",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -560,6 +564,123 @@
         "interval": 3,
         "unit": "months",
         "next_due": "2026-08-28T20:36:48.461809-04:00"
+      },
+      "d3a5b7c9-2f4e-4d6b-9c8a-0e1f3b5d7a29": {
+        "id": "d3a5b7c9-2f4e-4d6b-9c8a-0e1f3b5d7a29",
+        "created": "2026-04-02T09:00:00-04:00",
+        "last_completed": "2026-09-08T18:30:00-04:00",
+        "completions": [
+          {
+            "ts": "2026-08-07T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-09T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-11T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-13T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-15T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-17T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-19T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-21T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-23T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-25T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-27T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-29T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-08-31T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-09-02T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-09-04T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-09-06T18:30:00-04:00"
+          },
+          {
+            "ts": "2026-09-08T18:30:00-04:00"
+          }
+        ],
+        "skips": [],
+        "source": {
+          "part": {
+            "asset_id": "b7c1e2a4-3d5f-4a1b-9c8e-2f6d0a4b7e13",
+            "part_id": "c2f4a6b8-1e3d-4c5a-8b7f-9d0e2a4c6b18",
+            "role": "use"
+          }
+        },
+        "managed_by": null,
+        "external_id": "",
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "tag_id": null,
+        "require_tag_scan": false,
+        "name": "Wear rain jacket",
+        "notes": "",
+        "recurrence_type": "use",
+        "device_id": "7e1959d36f1295e876483782f8d3b44d",
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "active_season": null,
+        "next_due": null
+      },
+      "e4b6c8da-3a5f-4e7c-8d9b-1f2a4c6e8b3a": {
+        "id": "e4b6c8da-3a5f-4e7c-8d9b-1f2a4c6e8b3a",
+        "created": "2026-04-02T09:00:00-04:00",
+        "last_completed": "2026-04-02T09:00:00-04:00",
+        "completions": [
+          {
+            "ts": "2026-04-02T09:00:00-04:00"
+          }
+        ],
+        "skips": [],
+        "source": {
+          "part": {
+            "asset_id": "b7c1e2a4-3d5f-4a1b-9c8e-2f6d0a4b7e13",
+            "part_id": "c2f4a6b8-1e3d-4c5a-8b7f-9d0e2a4c6b18"
+          }
+        },
+        "managed_by": null,
+        "external_id": "",
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "tag_id": null,
+        "require_tag_scan": false,
+        "name": "Renew DWR coating (Rain jacket)",
+        "notes": "",
+        "recurrence_type": "triggered",
+        "device_id": "7e1959d36f1295e876483782f8d3b44d",
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "active_season": null,
+        "next_due": null
       }
     },
     "assets": {
@@ -567,7 +688,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "1e7beb8aadf01309b8448a2e119f6bd3",
+        "device_id": "b5c13a793fe3ac02f5c809a733e87e0d",
         "identifiers": [
           [
             "home_keeper",
@@ -736,7 +857,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "1017b46861aeaf9c336afa8f02b409bc",
+        "device_id": "7f0e7b13e0c64c28fd2b6343d2dbc3a8",
         "identifiers": [
           [
             "home_keeper",
@@ -761,7 +882,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "0cab11ac130c7c301f875d5d9074c1bc",
+        "device_id": "26d375b15e30a1eb87adaad48195c754",
         "identifiers": [
           [
             "home_keeper",
@@ -781,6 +902,58 @@
         "metadata": [],
         "documents": [],
         "notes": ""
+      },
+      "b7c1e2a4-3d5f-4a1b-9c8e-2f6d0a4b7e13": {
+        "id": "b7c1e2a4-3d5f-4a1b-9c8e-2f6d0a4b7e13",
+        "name": "Rain jacket",
+        "kind": "virtual",
+        "external_id": "",
+        "device_id": "7e1959d36f1295e876483782f8d3b44d",
+        "area_id": null,
+        "manufacturer": "Fjallraven",
+        "model": "Keb Eco-Shell",
+        "serial_number": "",
+        "notes": "Wash on a gentle cycle before the treatment, never with fabric softener.",
+        "icon": "mdi:tshirt-crew",
+        "cost": 340.0,
+        "metadata": [],
+        "documents": [],
+        "parts": [
+          {
+            "id": "c2f4a6b8-1e3d-4c5a-8b7f-9d0e2a4c6b18",
+            "name": "DWR coating",
+            "part_number": "",
+            "type": "wear",
+            "vendor": "Fibertec",
+            "cost": 18.0,
+            "url": "",
+            "notes": "",
+            "replace_interval": 25,
+            "replace_unit": "uses",
+            "replace_also_every": {
+              "interval": 12,
+              "unit": "months"
+            },
+            "action": "renew",
+            "use_noun": "wears",
+            "use_task_name": "Wear rain jacket",
+            "last_replaced": "2026-04-02",
+            "stock": null,
+            "reorder_at": null,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
+          }
+        ],
+        "parent_asset_id": null,
+        "related_device_ids": [],
+        "archived": false,
+        "created": "2026-04-02T09:00:00-04:00",
+        "task_history": []
       }
     },
     "problem_notes": {

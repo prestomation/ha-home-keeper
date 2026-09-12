@@ -141,7 +141,7 @@ export interface HistoryGroup {
 /** How the list view buckets rows; `status`/`device`/`integration` apply to tasks only. */
 export type GroupBy = 'none' | 'status' | 'area' | 'device' | 'integration';
 /** Task-list quick filter. */
-export type TaskFilter = 'all' | 'overdue' | 'soon' | 'shopping';
+export type TaskFilter = 'all' | 'overdue' | 'soon' | 'shopping' | 'counted';
 /** Appliance-list quick filter. */
 export type AssetFilter = 'active' | 'archived';
 export type AssetView = 'flat' | 'tree';

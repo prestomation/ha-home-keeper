@@ -119,14 +119,41 @@ test.describe('Home Keeper panel — smoke', { tag: '@responsive' }, () => {
       .filter({ hasText: 'Parts & wear items' })
       .click();
     // Add a part; switching its type to "wear item" reveals the replacement
-    // interval (a second ha-select — the replace unit — appears in the part).
+    // interval and the action. Three ha-selects then: the part type, the replace
+    // unit, and what the generated maintenance task is called.
     await panel.locator('#a-add-part').click();
     await expect(panel.locator('.hk-part')).toHaveCount(1);
     const part = panel.locator('.hk-part').first();
     // A new part opens itself (issue #296): it is the one thing the click asked for.
     await expect(part).toHaveAttribute('open', '');
     await chooseHaSelect(part.locator('ha-select').first(), 'wear item');
-    await expect(panel.locator('.hk-part').first().locator('ha-select')).toHaveCount(2);
+    await expect(panel.locator('.hk-part').first().locator('ha-select')).toHaveCount(3);
+    // Named, not just counted: a bare count says nothing about which control grew.
+    // "Action" is not asserted by text — an `ha-select` keeps its label in a hidden
+    // `slot="overline"` span, so there is no visible copy of it to find.
+    await expect(part.getByText('Replace every', { exact: false }).first()).toBeVisible();
+  });
+
+  test('a wear item counted in uses reveals its counting fields', async ({ page }) => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await gotoTab(panel, 'appliances');
+    await panel.locator('#add-btn').click();
+    await expect(panel.locator('#hk-asset-form')).toBeVisible();
+    await panel
+      .locator('#hk-asset-form details.hk-collapsible > summary')
+      .filter({ hasText: 'Parts & wear items' })
+      .click();
+    await panel.locator('#a-add-part').click();
+    const part = panel.locator('.hk-part').first();
+    await chooseHaSelect(part.locator('ha-select').first(), 'wear item');
+    // Counting is off while the interval measures time.
+    await expect(part.getByText('Count uses as', { exact: true })).toHaveCount(0);
+    // The replace unit is the second select; picking "uses" makes it counted.
+    await chooseHaSelect(part.locator('ha-select').nth(1), 'uses');
+    await expect(part.getByText('Count uses as', { exact: true }).first()).toBeVisible();
+    await expect(part.getByText('Use task name', { exact: true }).first()).toBeVisible();
+    await expect(part.getByText('Time limit', { exact: true }).first()).toBeVisible();
   });
 
   test('task detail page lists completions and a trash button removes one', async ({

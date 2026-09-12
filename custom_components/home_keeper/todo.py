@@ -75,6 +75,12 @@ class HomeKeeperTodoListEntity(
             # floating or fixed task always carries a next_due, so a missing one there
             # is malformed data that should stay visible rather than silently vanish.
             rec_type = task.get("recurrence_type")
+            # REC_USE is deliberately **absent** from this tuple. A use task is
+            # dateless for its whole life and that is exactly why it belongs here: the
+            # to-do list is the one-tap surface a household already has on its phone,
+            # and ticking the item is how a use gets counted. It reappears immediately
+            # (the list is rebuilt from the tasks), which is the correct behaviour for
+            # a thing you use again tomorrow.
             if rec_type in (REC_ONE_OFF, REC_TRIGGERED, REC_SENSOR) and not due_iso:
                 continue
             due = dt_util.parse_datetime(due_iso) if due_iso else None
