@@ -370,7 +370,10 @@
     `npx playwright test --config=walkthrough.config.ts --timeout=600000
     --reporter=list` and read the duration it *reports*, never the cap it died at,
     then set the budget to that plus ~40%. A timeout here means suspect the margin
-    first. Past ~360s, shorten the tour rather than raise the cap again.
+    first. The cap now sits at 360s, which `walkthrough.config.ts` records as the last
+    raise that is free: at 3 attempts of 6 minutes the job's own 30-minute cap is the
+    next thing to give, so the next tour that outgrows its budget is paid for by
+    shortening the walk, not by another number.
   - **Capture is a _hard_ gate.** A failed capture fails the check, so the PR does
     not merge until the tour runs clean. A flaky run still posts a "capture failed"
     note with a logs link and pushing again re-runs it, but the red check is what

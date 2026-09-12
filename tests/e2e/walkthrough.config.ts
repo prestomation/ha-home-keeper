@@ -23,37 +23,41 @@ export default captureConfig('walkthrough.capture.ts', {
   // so the tour has three independent attempts at it. Move the number against a
   // fresh measurement, not a hunch.
   //
-  // **Re-measured at 204s**, which is why 240s then failed. No single PR did that:
-  // 6 feature PRs have edited the tour since #298 took the measurement above, and
-  // each added the beats its own surface needed —
+  // Fresh measurements, September 2026, on a tour that has grown several surfaces
+  // since: **204s on CI** (green), **234s on CI** on the very next push of the same
+  // branch, and **210s in the dev container**. The 234s run then failed — it spent
+  // its last seconds inside a 40s wait at the closing step — and its first retry hit
+  // 240s outright. The tour is unchanged between those 2 CI runs and so is the
+  // panel, so the spread is the runner, and 240s had stopped being a margin: 204s
+  // leaves 15%, and one slower runner is over the line.
+  //
+  // 360s is the highest of those figures plus ~54%. Read the next timeout the same
+  // way round — the margin first — but a *lengthening* tour is the other half of
+  // this: at 3 attempts, 6 minutes each, the job's own 30-minute cap is the next
+  // thing that gives. **So this is the last raise that is free.** The next tour that
+  // outgrows its budget is paid for by shortening the walk — drop a beat the phone
+  // tour already covers, or split the desktop one — rather than by another number.
+  //
+  // Where the length came from, since it is nobody's regression and everybody's:
+  // 6 feature PRs edited the tour after #298 measured it at 168-174s, and each added
+  // the beats its own surface needed —
   //
   //     #303 search  +4    #302 notification icons  +3    #309 import/export  +14
   //     #318 due today  +4    #321 counted wear  +7    #333 guide split  +0
   //
-  // 32 beats at 900ms is ~29s, and the interactions those PRs added alongside them
-  // cover the rest of the ~33s. Every one was a correct change under the gate that
-  // requires a new surface to appear in the tour; the mistake was that none of them
-  // moved this number, so the margin fell from ~40% to ~15% and the tour began
-  // timing out on luck. It finally went red on a change that touched no panel code.
-  //
-  // So this is nobody's regression and everybody's: the tour only ever gets longer.
-  // **A PR that adds a beat re-measures and moves this number** — run the tour with
-  // `--timeout=600000 --reporter=list` and read the duration it reports, rather than
-  // the cap it died at. 300s is 204s plus ~45%, which is ~96s of headroom.
-  //
-  // That headroom is not slack to spend: it absorbs a loaded runner, and `retries: 2`
-  // does not help when the tour is over the cap every time. **Past ~360s, stop
-  // raising this and shorten the tour instead** — drop a beat the phone walk already
-  // covers, or split the desktop walk in two. A 6-minute test that runs 3 times is
-  // not a gate anyone waits for.
+  // 32 beats at 900ms is ~29s, and the interactions alongside them cover the rest.
+  // Every one was correct under the gate that requires a new surface to appear in the
+  // tour; none moved this number. **A PR that adds a beat re-measures and moves it** —
+  // run with `--timeout=600000 --reporter=list` and read the duration it reports,
+  // never the cap it died at.
   //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is
   // a fixed duration, so anything that eats the whole budget is a *call that never
   // returns*. Each of those gets its own shorter cap below, so the failure names the
   // step that broke instead of surfacing as a timeout on the whole tour, and a real
-  // hang costs 20-30s rather than 15 minutes over 3 attempts.
-  timeout: 300_000,
+  // hang costs 20-30s rather than 18 minutes over 3 attempts.
+  timeout: 360_000,
   use: {
     // The base config leaves actionTimeout unset (0 = no per-action cap), so a
     // click on a momentarily-unstable element would hang for the whole test budget.

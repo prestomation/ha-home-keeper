@@ -48,6 +48,7 @@ from .const import (
     MAX_DECLARATIVE_SPEC_DESCRIPTION_LEN,
     MAX_DECLARATIVE_SPEC_NAME_LEN,
     REC_SENSOR,
+    SENSOR_MODE_USAGE,
     TASK_SOURCE_DECLARATIVE_COMPANION,
 )
 from .models import TaskValidationError
@@ -170,8 +171,14 @@ def _normalize_task_template(data: Any) -> dict[str, Any]:
 
     Jinja source strings are validated for length and non-emptiness (``name_template``
     only) — actual template compilation happens on the HA-bound side where a
-    ``hass`` object is in scope. ``category``/``priority``/``labels`` pass through
-    with light shape checks and are stamped verbatim onto the materialized task.
+    ``hass`` object is in scope. ``labels`` passes through with a light shape check
+    and is stamped onto the materialized task.
+
+    The v1 shape also accepted ``category`` and ``priority``, and nothing ever read
+    them: :func:`_build_task` stamps ``labels`` alone, and a Home Keeper task has no
+    category or priority field to stamp them onto. They are dropped here rather than
+    refused, because a spec written when the service still advertised them would
+    otherwise fail validation on load and be dropped whole.
     """
     if data is None:
         data = {}
@@ -190,18 +197,6 @@ def _normalize_task_template(data: Any) -> dict[str, Any]:
         MAX_DECLARATIVE_NOTES_TEMPLATE_LEN,
     )
     result["notes_template"] = notes_template
-    category = _clean_str(data.get("category"), "task_template.category", 100)
-    if category:
-        result["category"] = category
-    priority = data.get("priority")
-    if priority is not None:
-        try:
-            priority_int = int(priority)
-        except (TypeError, ValueError) as err:
-            raise DeclarativeCompanionValidationError(
-                "task_template.priority must be an integer"
-            ) from err
-        result["priority"] = priority_int
     labels_raw = data.get("labels")
     if labels_raw in (None, "", []):
         result["labels"] = []
@@ -462,6 +457,37 @@ def task_key(task: dict[str, Any]) -> tuple[str, str] | None:
     return (spec_id, ent_reg_id)
 
 
+def merge_sensor_binding(existing: Any, fresh: dict[str, Any]) -> dict[str, Any]:
+    """The recipe's binding, keeping the meter anchor the watcher owns.
+
+    Every key on a materialized task's ``sensor`` block belongs to the recipe and is
+    rewritten from it on each pass — except ``baseline``, which no recipe writes. The
+    sensor watcher stamps it from the first live reading and moves it forward on each
+    completion, so it is the record of how far the meter has run.
+
+    Rewriting the block wholesale dropped it, and a reconcile pass runs on **any**
+    entity, device or area registry event, so a ``usage`` recipe restarted its meter
+    at the current reading whenever anything in Home Assistant changed. A task set to
+    "every 300 hours" could never reach 300.
+
+    A stored baseline therefore wins over the recipe's, which is only a seed for a
+    task that has none yet. The carry needs both sides in ``usage`` mode: ``baseline``
+    is a usage-only field (see ``models.USAGE_ONLY_SENSOR_FIELDS``), so carrying it
+    into a recipe switched to ``threshold`` would make the binding fail validation.
+    """
+    if not isinstance(existing, dict):
+        return fresh
+    if (
+        existing.get("mode") != SENSOR_MODE_USAGE
+        or fresh.get("mode") != SENSOR_MODE_USAGE
+    ):
+        return fresh
+    baseline = existing.get("baseline")
+    if baseline is None:
+        return fresh
+    return {**fresh, "baseline": baseline}
+
+
 def _build_task(
     spec: dict[str, Any],
     match: dict[str, Any],
@@ -531,8 +557,11 @@ def reconcile_declarative_tasks(
     * ``new_tasks`` — a fresh task map (non-declarative tasks and tasks from other
       specs are carried through untouched).
     * ``ops`` — ordered ``(kind, task)`` events the store must fire:
-      ``"created"`` / ``"deleted"`` / ``"updated"``. Arm/clear transitions are not
-      handled here — the sensor watcher owns those on the materialized tasks.
+      ``"created"`` / ``"deleted"`` / ``"updated"`` / ``"resumed"``. A ``"resumed"``
+      task is an ordinary update that also counts as freshly made, because the recipe
+      that had paused it is on again (see :func:`pause_spec_tasks`). Arm/clear
+      transitions are not handled here — the sensor watcher owns those on the
+      materialized tasks.
     * ``changed`` — whether ``new_tasks`` differs from ``tasks`` (persist if true).
 
     Handles four cases per match: new (create), still-there (drift-update
@@ -583,6 +612,9 @@ def reconcile_declarative_tasks(
         # renames / device rehoming / spec-name edits flow through.
         entry = match["entity"]
         managed_by = build_managed_by(spec, config_entry_id, lang=lang)
+        # Whether this task is off because the recipe was off. Rewriting ``source``
+        # below drops the marker, which is how it clears.
+        was_paused = bool((declarative_source(task) or {}).get("paused"))
         new_source = {
             TASK_SOURCE_DECLARATIVE_COMPANION: {
                 "spec_id": spec["id"],
@@ -596,17 +628,67 @@ def reconcile_declarative_tasks(
             ("notes", rendered_notes),
             ("device_id", entry.get("device_id")),
             ("area_id", entry.get("area_id")),
-            ("sensor", match["sensor"]),
+            ("sensor", merge_sensor_binding(task.get("sensor"), match["sensor"])),
             ("managed_by", managed_by),
             ("source", new_source),
         ):
             if task.get(field) != value:
                 task[field] = value
                 task_changed = True
+        # A task this recipe paused (see :func:`pause_spec_tasks`) runs again, unless
+        # the person switched this one task off themselves — that choice has no
+        # ``paused`` marker, and it is theirs to undo.
+        resumed = False
+        if was_paused and not task.get("enabled", True):
+            task["enabled"] = True
+            task_changed = True
+            resumed = True
         if task_changed:
-            ops.append(("updated", task))
+            # ``resumed`` is an update the caller must also treat as a task made just
+            # now: the watcher has to arm it on a condition that is true while the
+            # recipe was off, exactly as it would for a task the pass created.
+            ops.append(("resumed" if resumed else "updated", task))
             changed = True
 
+    return result, ops, changed
+
+
+def pause_spec_tasks(
+    spec_id: str, tasks: dict[str, dict[str, Any]]
+) -> tuple[dict[str, dict[str, Any]], list[tuple[str, dict[str, Any]]], bool]:
+    """Switch off every task of *spec_id* instead of removing it.
+
+    What a disabled recipe does to the tasks it made. Deleting them was tidy and it
+    threw away the completions on each one, so switching a recipe off for a week and
+    back on lost the history of the work it had tracked. A disabled task is already
+    ignored by the sensor watcher and by every due-date surface, which is the whole
+    of what "off" has to mean.
+
+    The ``paused`` marker on the task's own provenance block records who switched it
+    off, so re-enabling the recipe brings back the tasks it paused and leaves alone
+    any task the person switched off by hand. It travels with ``source`` in an export
+    like the rest of the provenance.
+
+    Same ``(new_tasks, ops, changed)`` shape as
+    :func:`reconcile_declarative_tasks`; the ops are always ``"updated"``.
+    """
+    result = dict(tasks)
+    ops: list[tuple[str, dict[str, Any]]] = []
+    changed = False
+    for task in result.values():
+        key = task_key(task)
+        if key is None or key[0] != spec_id:
+            continue
+        if not task.get("enabled", True):
+            # Already off: either this recipe paused it on an earlier pass, or the
+            # person switched this one task off. The first needs nothing, and the
+            # second must not get a marker — that choice is theirs to undo.
+            continue
+        task["enabled"] = False
+        # ``task_key`` above already proved the provenance block is a mapping.
+        task["source"][TASK_SOURCE_DECLARATIVE_COMPANION]["paused"] = True
+        ops.append(("updated", task))
+        changed = True
     return result, ops, changed
 
 

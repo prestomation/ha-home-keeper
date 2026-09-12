@@ -10,8 +10,12 @@ device/area edits) and on the store's own spec-changed dispatcher signal.
 
 Mirrors the shape of ``problem_sync.ProblemSensorSync``: single initial pass on
 setup, listeners registered via ``entry.async_on_unload`` so teardown is
-automatic, entity-set changes trigger a debounced entry reload (needed because
+automatic, entity-set changes trigger a coalesced entry reload (needed because
 each managed task owns per-task device-page entities).
+
+Every registry event goes through ``_reconcile_debouncer``, so a burst — one event
+per entity when an integration loads — costs one prompt pass and one trailing pass
+rather than one full pass per event.
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ from homeassistant.helpers import (
 from homeassistant.helpers import (
     entity_registry as er,
 )
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.template import Template, TemplateError
 
@@ -43,6 +48,11 @@ if TYPE_CHECKING:
     from .coordinator import HomeKeeperCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# How long the reconciler waits for a burst of registry events to finish before it
+# runs the trailing pass. Long enough to fold one integration's entity load into a
+# single pass, short enough that a rename shows on the task within a breath.
+RECONCILE_DEBOUNCE_SECONDS = 5.0
 
 
 def _project_entry(entry: er.RegistryEntry) -> dict[str, Any]:
@@ -84,6 +94,19 @@ class DeclarativeCompanionSync:
         self._unsub_area_registry: CALLBACK_TYPE | None = None
         self._unsub_specs: CALLBACK_TYPE | None = None
         self._reload_scheduled = False
+        # One reconcile per burst of registry events. Home Assistant fires an entity
+        # registry event per entity, so an integration loading 50 of them used to run
+        # 50 full passes — each one walking every spec over every entity, rendering
+        # Jinja per match and writing the store. ``immediate`` keeps the first pass
+        # prompt (a recipe saved in the panel must show its tasks at once) and folds
+        # the rest of the burst into one trailing pass.
+        self._reconcile_debouncer = Debouncer(
+            hass,
+            _LOGGER,
+            cooldown=RECONCILE_DEBOUNCE_SECONDS,
+            immediate=True,
+            function=self._async_reconcile_and_maybe_reload,
+        )
 
     # ── lifecycle ────────────────────────────────────────────────────────────
     async def async_initial_reconcile(self) -> None:
@@ -136,6 +159,9 @@ class DeclarativeCompanionSync:
             self._handle_specs_changed,
         )
         self._entry.async_on_unload(self._unsub_specs)
+        # A pass still pending when the entry unloads would run against the objects
+        # the reload replaced, so the debouncer is shut down with the listeners.
+        self._entry.async_on_unload(self._reconcile_debouncer.async_shutdown)
 
     # ── snapshot builders ────────────────────────────────────────────────────
     def _registry_snapshot(self) -> dict[str, Any]:
@@ -255,8 +281,9 @@ class DeclarativeCompanionSync:
         Complexity: the snapshot is built once per pass, then each spec walks
         every entity to apply its filters (O(N specs x M entities)). For the
         expected load (~10 specs, ~500 entities) that's ~5,000 predicate
-        evaluations per pass, which the dispatcher already debounces to at most
-        one pass per burst of registry events. If users report slowness with
+        evaluations per pass, plus a Jinja render per match and a store write.
+        ``_reconcile_debouncer`` is what keeps a burst of registry events to 2 of
+        those passes rather than one per event. If users report slowness with
         many specs, index the snapshot by domain/platform/device_class once and
         filter the pre-indexed subset per spec.
         """
@@ -266,17 +293,13 @@ class DeclarativeCompanionSync:
         specs = self._coordinator.store.get_declarative_companions()
         for spec in list(specs.values()):
             if not spec.get("enabled", True):
-                # A disabled spec's managed tasks are dropped (reconcile with empty
-                # matches), so toggling enabled off cleans up without deleting the spec.
-                store = self._coordinator.store
-                changed, made = await store.reconcile_declarative_companion_tasks(
-                    spec,
-                    {},
-                    {},
-                    config_entry_id=self._entry.entry_id,
+                # A disabled spec's managed tasks are switched off rather than
+                # removed, so a recipe can be turned off for a week without losing
+                # the completions recorded on the tasks it made. Re-enabling the
+                # recipe brings them back (see ``pause_spec_tasks``).
+                await self._coordinator.store.pause_declarative_companion_tasks(
+                    spec["id"]
                 )
-                entity_set_changed = entity_set_changed or changed
-                created.extend(made)
                 continue
             try:
                 matches = declarative_companions.expand_spec(spec, snapshot)
@@ -368,13 +391,13 @@ class DeclarativeCompanionSync:
 
     @callback
     def _trigger_reconcile(self) -> None:
-        """Schedule a reconcile pass (shared by every registry-event wrapper)."""
-        self._hass.async_create_task(self._async_reconcile_and_maybe_reload())
+        """Ask the debouncer for a pass (shared by every registry-event wrapper)."""
+        self._hass.async_create_task(self._reconcile_debouncer.async_call())
 
     @callback
     def _handle_specs_changed(self) -> None:
         """Store fired ``SIGNAL_DECLARATIVE_SPECS_CHANGED`` after a spec CRUD."""
-        self._hass.async_create_task(self._async_reconcile_and_maybe_reload())
+        self._hass.async_create_task(self._reconcile_debouncer.async_call())
 
     async def _async_reconcile_and_maybe_reload(self) -> None:
         entity_set_changed, created = await self._reconcile_all()

@@ -346,6 +346,64 @@ def test_threshold_hold_delays_arming():
     assert out["action"] == "arm"
 
 
+def test_threshold_no_reading_ends_a_pending_hold_and_decides_nothing():
+    # The reporter's mode (#336). A missing / unavailable / non-numeric entity reads
+    # as None. It never arms on bad data, and the seconds it spent unreadable are not
+    # seconds the reading was over the threshold, so the pending hold ends.
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    task = _threshold(">", 90, for_seconds=300)
+    out = s.evaluate_threshold(
+        task,
+        reading=None,
+        condition_met_prev=True,
+        crossed_at=cross,
+        now=cross + timedelta(seconds=60),
+    )
+    assert out == {
+        "action": None,
+        "condition_met": False,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+
+
+def test_threshold_hold_starts_again_after_a_gap_in_the_readings():
+    # The whole bug: the entity came back over the threshold after a long silence and
+    # armed at once, because the silence had been banked as hold time.
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    task = _threshold(">", 90, for_seconds=300)
+    gap = s.evaluate_threshold(
+        task,
+        reading=None,
+        condition_met_prev=True,
+        crossed_at=cross,
+        now=cross + timedelta(seconds=60),
+    )
+    back = cross + timedelta(hours=1)
+    out = s.evaluate_threshold(
+        task,
+        reading=95,
+        condition_met_prev=gap["condition_met"],
+        crossed_at=gap["crossed_at"],
+        now=back,
+    )
+    assert out["action"] is None, "an hour with no reading is not an hour over 90"
+    assert out["crossed_at"] == back
+
+
+def test_threshold_no_reading_never_clears_an_armed_clear_on_recover_task():
+    # The mirror of the state mode's dropout trap: no reading is not a recovery, so
+    # an armed task that clears on recover must survive the entity going away.
+    now = dt(2026, 6, 1, 10)
+    task = _threshold(">", 90, armed=True)
+    task["sensor"]["clear_on_recover"] = True
+    out = s.evaluate_threshold(
+        task, reading=None, condition_met_prev=True, crossed_at=None, now=now
+    )
+    assert out["action"] is None
+    assert out["condition_met"] is True
+
+
 def test_threshold_hold_resets_if_it_dips_below():
     cross = dt(2026, 6, 1, 10, 0, 0)
     task = _threshold(">", 90, for_seconds=300)
@@ -464,10 +522,10 @@ def test_state_hold_resets_if_it_recovers_first():
 
 
 # ── the unavailable / dropout trap ───────────────────────────────────────────
-def test_state_none_holds_the_edge_and_decides_nothing():
+def test_state_none_ends_a_pending_hold_and_decides_nothing():
     # `unavailable`/`unknown`/missing arrives as None. It is neither a match nor a
-    # recovery: the carried edge state must survive untouched so a dropout mid-hold
-    # doesn't restart the timer or fabricate a crossing.
+    # recovery, so it decides nothing — and it ends the pending hold, because a hold
+    # counts time the condition was true and this is not that time (#336).
     cross = dt(2026, 6, 1, 10, 0, 0)
     task = _state("on", for_seconds=600)
     out = s.evaluate_state(
@@ -479,11 +537,67 @@ def test_state_none_holds_the_edge_and_decides_nothing():
     )
     assert out == {
         "action": None,
-        "condition_met": True,
-        "crossed_at": cross,
-        # The hold is still pending, so the booked re-evaluation survives the dropout.
-        "hold_due_at": cross + timedelta(minutes=10),
+        "condition_met": False,
+        "crossed_at": None,
+        "hold_due_at": None,
     }
+
+
+def test_state_hold_starts_again_after_a_dropout():
+    # The reporter's case (#336): the entity dropped out mid-hold and came back in
+    # the trigger state. It has been on for one second, so the 10-minute hold has to
+    # run from the return, not from the crossing an hour ago.
+    cross = dt(2026, 6, 1, 10, 0, 0)
+    task = _state("on", for_seconds=600)
+    gap = s.evaluate_state(
+        task,
+        state=None,
+        condition_met_prev=True,
+        crossed_at=cross,
+        now=cross + timedelta(minutes=2),
+    )
+    back = cross + timedelta(hours=1)
+    out = s.evaluate_state(
+        task,
+        state="on",
+        condition_met_prev=gap["condition_met"],
+        crossed_at=gap["crossed_at"],
+        now=back,
+    )
+    assert out["action"] is None, "the blackout must not count toward the hold"
+    assert out["crossed_at"] == back
+    assert out["hold_due_at"] == back + timedelta(seconds=600)
+    # And it still arms once the entity really does hold the state that long.
+    out = s.evaluate_state(
+        task,
+        state="on",
+        condition_met_prev=True,
+        crossed_at=back,
+        now=back + timedelta(minutes=10),
+    )
+    assert out["action"] == "arm"
+
+
+def test_state_none_leaves_a_task_with_no_pending_crossing_alone():
+    # No crossing to break: the condition was met without one (baselined at startup)
+    # or an arm consumed it. Carrying `condition_met` is what stops a dropout from
+    # re-arming a task the user already dealt with.
+    now = dt(2026, 6, 1, 10)
+    task = _state("on", for_seconds=600)
+    out = s.evaluate_state(
+        task, state=None, condition_met_prev=True, crossed_at=None, now=now
+    )
+    assert out == {
+        "action": None,
+        "condition_met": True,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+    # Still met and still without a crossing, so the return to the state arms nothing.
+    out = s.evaluate_state(
+        task, state="on", condition_met_prev=True, crossed_at=None, now=now
+    )
+    assert out["action"] is None
 
 
 def test_state_none_never_arms_a_dormant_task():
@@ -639,12 +753,11 @@ def test_availability_missing_status_is_indeterminate():
     """A not-yet-restored entity must never fabricate an arm or clear."""
     now = dt(2026, 6, 1, 10)
     task = _availability(armed=True, clear_on_recover=True)
-    prior_cross = dt(2026, 5, 30, 10)
     out = s.evaluate_availability(
         task,
         status=s.AVAILABILITY_MISSING,
         condition_met_prev=True,
-        crossed_at=prior_cross,
+        crossed_at=None,
         now=now,
     )
     # The whole return dict is asserted so a mutated key name (e.g. ``crossed_at`` →
@@ -652,16 +765,16 @@ def test_availability_missing_status_is_indeterminate():
     assert out == {
         "action": None,
         "condition_met": True,
-        "crossed_at": prior_cross,
-        # The task is armed already, so no hold waits on a re-evaluation.
+        "crossed_at": None,
+        # The arm consumed the crossing, so no hold waits on a re-evaluation.
         "hold_due_at": None,
     }
 
 
-def test_availability_missing_keeps_a_pending_hold():
+def test_availability_missing_ends_a_pending_hold():
     # The entity left the state machine part-way through the hold. That decides
-    # nothing, so the booked re-evaluation stands: the entity may come back, and the
-    # hold still ends when it ends.
+    # nothing, and it ends the hold: an entity nobody can see is not an entity that
+    # is unavailable for 10 minutes, so the clock restarts when it comes back (#336).
     cross = dt(2026, 6, 1, 10, 0, 0)
     task = _availability(for_seconds=600)
     out = s.evaluate_availability(
@@ -673,10 +786,21 @@ def test_availability_missing_keeps_a_pending_hold():
     )
     assert out == {
         "action": None,
-        "condition_met": True,
-        "crossed_at": cross,
-        "hold_due_at": cross + timedelta(minutes=10),
+        "condition_met": False,
+        "crossed_at": None,
+        "hold_due_at": None,
     }
+    # The hold runs from the return, so an hour of "missing" arms nothing.
+    back = cross + timedelta(hours=1)
+    out = s.evaluate_availability(
+        task,
+        status=s.AVAILABILITY_UNAVAILABLE,
+        condition_met_prev=False,
+        crossed_at=None,
+        now=back,
+    )
+    assert out["action"] is None
+    assert out["crossed_at"] == back
 
 
 def test_availability_dormant_missing_never_arms():
@@ -698,6 +822,77 @@ def test_availability_dormant_missing_never_arms():
 
 
 # ── the hold's own timer (a hold ends while the entity is quiet) ─────────────
+
+
+# ── the fingerprint that retires carried edge state ─────────────────────────
+
+
+def test_the_fingerprint_reads_the_keys_that_state_the_condition():
+    # Stated as a value, not as a comparison between two fingerprints: 2 sides of a
+    # comparison move together, so a fingerprint that read the wrong key — or read
+    # them in another order — would still agree with itself.
+    task = _threshold(">", 90)
+    task["sensor"]["attribute"] = "damp"
+    assert s.condition_fingerprint(task) == (
+        "sensor.humidity",
+        "damp",
+        "threshold",
+        ">",
+        90,
+        None,
+    )
+    tank = _state("on")
+    assert s.condition_fingerprint(tank) == (
+        "binary_sensor.vacuum_water_tank_low",
+        None,
+        "state",
+        None,
+        None,
+        "on",
+    )
+
+
+def test_the_fingerprint_changes_with_every_part_of_the_condition():
+    # Carried edge state is an answer about one condition. Change the condition and
+    # the answer is about a question nobody is asking, so the watcher starts over.
+    base = _threshold(">", 90)
+    assert s.condition_fingerprint(base) == s.condition_fingerprint(_threshold(">", 90))
+    for changed in (
+        _threshold(">", 50),  # a different limit
+        _threshold("<", 90),  # a different comparison
+        _state("on"),  # a different mode entirely
+    ):
+        assert s.condition_fingerprint(changed) != s.condition_fingerprint(base)
+    moved = _threshold(">", 90)
+    moved["sensor"]["entity_id"] = "sensor.another"
+    assert s.condition_fingerprint(moved) != s.condition_fingerprint(base)
+    attributed = _threshold(">", 90)
+    attributed["sensor"]["attribute"] = "humidity"
+    assert s.condition_fingerprint(attributed) != s.condition_fingerprint(base)
+
+
+def test_the_fingerprint_ignores_what_does_not_decide_the_condition():
+    # A longer hold applies to the crossing already running; auto-clear decides what
+    # happens after the condition, not whether it is true. Neither retires the edge.
+    base = _threshold(">", 90)
+    longer = _threshold(">", 90, for_seconds=600)
+    clearing = _threshold(">", 90)
+    clearing["sensor"]["clear_on_recover"] = True
+    assert s.condition_fingerprint(longer) == s.condition_fingerprint(base)
+    assert s.condition_fingerprint(clearing) == s.condition_fingerprint(base)
+
+
+def test_the_fingerprint_of_a_task_with_no_binding_is_still_comparable():
+    # A task that stopped being a sensor task has no condition. It must not raise:
+    # the watcher fingerprints whatever it is handed.
+    assert s.condition_fingerprint({"recurrence_type": "floating"}) == (
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
 
 
 def test_hold_due_at_reports_the_moment_a_pending_hold_completes():

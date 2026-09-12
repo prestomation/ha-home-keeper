@@ -1473,7 +1473,7 @@ add_declarative_companion:
     name, description, enabled, preset_id, selection ({target_integration,
     domain, device_class, entity_regex, area_ids, label_ids, exclude_*}), trigger
     (same shape as sensor task binding, plus the new availability mode), and
-    task_template ({name_template, notes_template, category, priority, labels}).
+    task_template ({name_template, notes_template, labels}).
     Admin-only.
 
 update_declarative_companion:

@@ -194,7 +194,10 @@ class SensorTaskWatcher:
         self._unsub_state: CALLBACK_TYPE | None = None
         self._tracked: tuple[str, ...] = ()
         # In-memory threshold edge state, keyed by task id:
-        #   {"condition_met": bool, "crossed_at": datetime | None}
+        #   {"condition_met": bool, "crossed_at": datetime | None, "condition": tuple}
+        # ``condition`` is the binding the other 2 were decided against (see
+        # ``sensor_tasks.condition_fingerprint``); an edit to the task or to the
+        # recipe that owns it retires them.
         self._edge: dict[str, dict[str, Any]] = {}
         # One pending "the hold is up" timer per task id, keyed the same way. A
         # ``for_seconds`` hold ends in its own time, and the bound entity sends no
@@ -255,12 +258,19 @@ class SensorTaskWatcher:
                 # evaluation arms on a condition that is already true. A usage meter
                 # has no edge, so it is still anchored below.
                 continue
+            # Recorded with the state, so an edit between now and the first
+            # evaluation retires it (see :meth:`_carried_edge`).
+            condition = sensor_tasks.condition_fingerprint(task)
             if mode == SENSOR_MODE_THRESHOLD:
                 reading = read_sensor_value(self._hass, cfg)
                 met = reading is not None and sensor_tasks.compare(
                     reading, cfg["comparison"], float(cfg["value"])
                 )
-                self._edge[tid] = {"condition_met": met, "crossed_at": None}
+                self._edge[tid] = {
+                    "condition_met": met,
+                    "crossed_at": None,
+                    "condition": condition,
+                }
             elif mode == SENSOR_MODE_STATE:
                 # Record an already-matching sensor as met-without-a-crossing, so a
                 # vacuum still reporting "water tank low" across a restart doesn't
@@ -269,6 +279,7 @@ class SensorTaskWatcher:
                     "condition_met": read_sensor_state(self._hass, cfg)
                     == cfg.get("state"),
                     "crossed_at": None,
+                    "condition": condition,
                 }
             elif mode == SENSOR_MODE_AVAILABILITY:
                 # Record an already-unavailable entity as met-without-a-crossing:
@@ -280,6 +291,7 @@ class SensorTaskWatcher:
                 self._edge[tid] = {
                     "condition_met": status == sensor_tasks.AVAILABILITY_UNAVAILABLE,
                     "crossed_at": None,
+                    "condition": condition,
                 }
             else:
                 reading = read_sensor_value(self._hass, cfg)
@@ -416,8 +428,11 @@ class SensorTaskWatcher:
                 if await self._evaluate_usage(tid, task, reading=reading, now=now):
                     changed_any = True
             else:
-                if reading is None:
-                    continue  # unavailable / non-numeric — never arm on bad data
+                # A missing reading is handled inside the evaluator, like the state
+                # mode's missing state: it never arms on bad data, and it ends a
+                # pending hold. Skipping it here left the crossing and its timer in
+                # place, so the seconds an entity spent unreadable counted toward the
+                # hold (#336).
                 if await self._evaluate_threshold(tid, task, reading=reading, now=now):
                     changed_any = True
         # Drop edge state for tasks that no longer exist so it can't leak. A task that
@@ -452,16 +467,38 @@ class SensorTaskWatcher:
             return True
         return False
 
+    def _carried_edge(
+        self, tid: str, task: dict[str, Any]
+    ) -> tuple[bool, datetime | None]:
+        """The carried ``(condition_met, crossed_at)`` for *task*, if it still applies.
+
+        Edge state answers a question about one condition, so an edit to the task —
+        or to the recipe that owns it — retires it: the fingerprint recorded with the
+        state no longer matches the binding being evaluated, and the pass starts from
+        "nothing seen yet". A standing condition then reads as a fresh crossing and
+        arms after its hold, which is what a person editing a task expects. The
+        pending hold goes with the state it belonged to.
+        """
+        edge = self._edge.get(tid)
+        if edge is None:
+            return False, None
+        if edge.get("condition") != sensor_tasks.condition_fingerprint(task):
+            self._cancel_hold_timer(tid)
+            return False, None
+        return bool(edge.get("condition_met")), edge.get("crossed_at")
+
     async def _evaluate_threshold(
-        self, tid: str, task: dict[str, Any], *, reading: float, now: Any
+        self, tid: str, task: dict[str, Any], *, reading: float | None, now: Any
     ) -> bool:
+        condition_met_prev, crossed_at = self._carried_edge(tid, task)
         return await self._apply_edge(
             tid,
+            task,
             sensor_tasks.evaluate_threshold(
                 task,
                 reading=reading,
-                condition_met_prev=bool(self._edge.get(tid, {}).get("condition_met")),
-                crossed_at=self._edge.get(tid, {}).get("crossed_at"),
+                condition_met_prev=condition_met_prev,
+                crossed_at=crossed_at,
                 now=now,
             ),
         )
@@ -469,13 +506,15 @@ class SensorTaskWatcher:
     async def _evaluate_state(
         self, tid: str, task: dict[str, Any], *, state: str | None, now: Any
     ) -> bool:
+        condition_met_prev, crossed_at = self._carried_edge(tid, task)
         return await self._apply_edge(
             tid,
+            task,
             sensor_tasks.evaluate_state(
                 task,
                 state=state,
-                condition_met_prev=bool(self._edge.get(tid, {}).get("condition_met")),
-                crossed_at=self._edge.get(tid, {}).get("crossed_at"),
+                condition_met_prev=condition_met_prev,
+                crossed_at=crossed_at,
                 now=now,
             ),
         )
@@ -483,13 +522,15 @@ class SensorTaskWatcher:
     async def _evaluate_availability(
         self, tid: str, task: dict[str, Any], *, status: str, now: Any
     ) -> bool:
+        condition_met_prev, crossed_at = self._carried_edge(tid, task)
         return await self._apply_edge(
             tid,
+            task,
             sensor_tasks.evaluate_availability(
                 task,
                 status=status,
-                condition_met_prev=bool(self._edge.get(tid, {}).get("condition_met")),
-                crossed_at=self._edge.get(tid, {}).get("crossed_at"),
+                condition_met_prev=condition_met_prev,
+                crossed_at=crossed_at,
                 now=now,
             ),
         )
@@ -520,7 +561,9 @@ class SensorTaskWatcher:
                 _LOGGER.exception("Could not refresh the notes of task %s", tid)
         await self._coordinator.store.trigger_task(tid)
 
-    async def _apply_edge(self, tid: str, decision: dict[str, Any]) -> bool:
+    async def _apply_edge(
+        self, tid: str, task: dict[str, Any], decision: dict[str, Any]
+    ) -> bool:
         """Carry an edge decision's state forward and apply its action.
 
         Returns whether the task's due-state changed. A ``clear_on_recover`` clear
@@ -535,6 +578,7 @@ class SensorTaskWatcher:
         self._edge[tid] = {
             "condition_met": decision["condition_met"],
             "crossed_at": decision["crossed_at"],
+            "condition": sensor_tasks.condition_fingerprint(task),
         }
         self._schedule_hold(tid, decision["hold_due_at"])
         action = decision["action"]

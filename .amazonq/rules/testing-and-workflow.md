@@ -112,7 +112,9 @@
     out on a change that touched no panel code. It is nobody's regression and
     everybody's. Measure with `--timeout=600000 --reporter=list`, read the duration
     reported rather than the cap it died at, and set the budget to that plus ~40%.
-    Suspect the margin before suspecting CI, and past ~360s shorten the tour instead.
+    Suspect the margin before suspecting CI. The cap is now 360s and that is the last
+    free raise — at 3 attempts of 6 minutes the job's 30-minute cap gives next — so the
+    next tour that outgrows it is paid for by shortening the walk.
   - **Cap every call that can fail to return; the test budget is the last resort.**
     A `waitForTimeout` cannot hang — it is a fixed duration — so whatever eats a whole
     budget is a call that never returns. Playwright leaves both caps off by default:

@@ -196,6 +196,43 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   unrelated reload. Which tasks even have an edge to skip is the pure
   `sensor_tasks.holds_edge_state` — a `usage` meter is still anchored, because its
   baseline is a persisted reading and not an edge.
+- **A hold measures unbroken truth, and carried edge state belongs to one condition.**
+  Two rules the watcher and the pure evaluators share, both learned from #336:
+  - An **indeterminate reading** — missing / `unavailable` / `unknown`, and `missing`
+    for the availability mode — decides nothing *and* ends a pending hold
+    (`sensor_tasks._evaluate_indeterminate`). Carrying the crossing through a blackout
+    banked time the condition was not true, so a device that dropped off the network
+    armed its task the moment it came back in the trigger state. A task with no pending
+    crossing keeps its carried `condition_met`, which is what still stops a dropout
+    from re-arming a task the user dealt with, or clearing a `clear_on_recover` one.
+    The watcher therefore **routes a missing reading through the evaluator** rather than
+    skipping the task: skipping left the crossing and its hold timer in place.
+  - The carried edge is stamped with `sensor_tasks.condition_fingerprint(task)` — the
+    entity, attribute, mode and condition, and deliberately not the hold or
+    `clear_on_recover`. When the fingerprint changes the state is retired, so editing a
+    task (or the recipe that owns it) reads the entity against the new condition and
+    arms on a standing match instead of waiting for it to recur.
+- **The reconciler owns every key on a materialized task's `sensor` block except the
+  meter anchor.** `sensor.baseline` is written by the watcher, not by any recipe, so
+  `declarative_companions.merge_sensor_binding` carries a stored one forward and the
+  recipe's own `baseline` only seeds a task that has none. Rewriting the block
+  wholesale reset a `usage` recipe's meter on every registry event, which no user could
+  see and which no target could survive. A stored baseline is carried only while both
+  bindings stay in `usage` mode — it is a usage-only field, so it would fail validation
+  in any other.
+- **A disabled recipe pauses its tasks; it does not delete them.**
+  `declarative_companions.pause_spec_tasks` switches each task off and marks its
+  provenance `paused`; the enabled pass clears the marker and switches the task back on
+  with a `"resumed"` op, which the store reports as a freshly-made id so the watcher
+  arms it on a condition that became true while the recipe was off. Deleting them threw
+  away the completions recorded on each one, and a task switched off **by hand** carries
+  no marker, so that choice survives the recipe coming back.
+- **Every registry event goes through the reconcile debouncer.** Home Assistant fires
+  one entity-registry event per entity, and a pass walks every spec over every entity,
+  renders Jinja per match and writes the store, so an integration loading 50 entities
+  once cost 50 full passes. `DeclarativeCompanionSync._reconcile_debouncer`
+  (`immediate=True`, `RECONCILE_DEBOUNCE_SECONDS`) keeps the first pass prompt and folds
+  the rest of a burst into one trailing pass; it is shut down with the listeners.
 - **A declarative companion's notes are re-rendered when the task arms.** The reconcile
   pass renders name/notes from live state, but it runs on *registry* changes, so a
   template that quotes the reading (`{{ state }} h left`) froze at whatever the entity
