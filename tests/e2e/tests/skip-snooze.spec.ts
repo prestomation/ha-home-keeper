@@ -41,6 +41,38 @@ test.describe('Home Keeper panel — snooze and skip', { tag: '@responsive' }, (
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
+  test('due today is offered on a future task and withheld on an overdue one', async ({
+    page,
+  }) => {
+    // The rule the panel and the card enforce, and the one the store deliberately
+    // does not: due today moves a due date nearer, so a task that is already due has
+    // nothing for it to do. Tapping it there would push the date *later* and drop the
+    // overdue state, with no dialog and no undo, beside Done. `defer.test.js` pins
+    // `deferVerbs` itself; this proves the rule survives into the real menu, where a
+    // stale render or a wrong `now` would not show up in jsdom.
+    const errors = trackPanelErrors(page);
+
+    // The furnace filter is due months out, so all 3 verbs are on offer.
+    let panel = await gotoPanel(page, `/tasks/${TASK.furnaceFilter}`);
+    let caret = panel.locator('.hk-detail-actions .hk-split-caret');
+    await expect(caret).toBeVisible();
+    await caret.click();
+    let menu = panel.locator('.hk-detail-actions .hk-defer-menu');
+    await expect(menu.locator('.hk-defer-due-today')).toBeVisible();
+    await expect(menu.locator('.hk-defer-due-today .hk-defer-sub')).not.toBeEmpty();
+
+    // The water filter is overdue, so the same menu holds 2 entries, not 3.
+    panel = await gotoPanel(page, `/tasks/${TASK.waterFilter}`);
+    caret = panel.locator('.hk-detail-actions .hk-split-caret');
+    await expect(caret).toBeVisible();
+    await caret.click();
+    menu = panel.locator('.hk-detail-actions .hk-defer-menu');
+    await expect(menu.locator('.hk-defer-skip')).toBeVisible();
+    await expect(menu.locator('.hk-defer-due-today')).toHaveCount(0);
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
   test('the closed menu takes up no space and swallows no clicks', async ({ page }) => {
     // A regression guard with teeth. `.hk-defer-menu` sets `display: flex`, which
     // beats the user-agent rule for the hidden attribute — so without an explicit
