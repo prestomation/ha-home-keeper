@@ -853,6 +853,34 @@ def test_pausing_leaves_another_specs_tasks_alone():
     assert stored[tid]["enabled"] is True
 
 
+def test_pausing_walks_past_a_task_that_is_already_off():
+    # One of the recipe's tasks was switched off by hand and sits before the rest.
+    # The pass has to carry on to them.
+    spec = _normalized_spec()
+    off, off_tid, _key, _m = _stored_task(spec, "sensor.first_pings")
+    on, on_tid, _key, _m = _stored_task(spec, "sensor.second_pings")
+    off[off_tid]["enabled"] = False
+    tasks = {**off, **on}
+
+    new_tasks, ops, changed = dc.pause_spec_tasks(spec["id"], tasks)
+    assert changed is True
+    assert [task["id"] for _kind, task in ops] == [on_tid]
+    assert new_tasks[on_tid]["enabled"] is False
+
+
+def test_pausing_a_task_that_never_stated_enabled_treats_it_as_on():
+    # An imported or hand-edited task can arrive without the key. Absent means on
+    # everywhere else in Home Keeper, so the recipe pauses it like any other.
+    spec = _normalized_spec()
+    stored, tid, _key, _m = _stored_task(spec)
+    del stored[tid]["enabled"]
+
+    new_tasks, _ops, changed = dc.pause_spec_tasks(spec["id"], stored)
+    assert changed is True
+    assert new_tasks[tid]["enabled"] is False
+    assert new_tasks[tid]["source"]["declarative_companion"]["paused"] is True
+
+
 def test_pausing_reaches_this_specs_tasks_past_a_foreign_one():
     # A task belonging to another recipe sits first in the map. Walking past it has
     # to be a skip, not a stop, or the recipe's own task keeps running.
