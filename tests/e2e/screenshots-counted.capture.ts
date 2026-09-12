@@ -4,12 +4,16 @@
  *   SHOT_DIR=../../docs/images npx playwright test screenshots-counted.capture.ts \
  *     --config=screenshots-counted.config.ts
  *
- * Covers the 3 changed surfaces, desktop and phone:
+ * Covers the 5 changed surfaces, desktop and phone:
  *  61 / 61c.  The Tasks list Counted section, and its scope pill. A use task has no
  *             due date, so the "17 of 25 wears" chip is the only thing on the row.
  *  62 / 62c.  The part editor with the unit set to uses, which is what reveals the
  *             counting fields below it.
  *  63 / 63c.  The appliance page's part row, with the live count and its meter.
+ *  64 / 64c.  The use task's own page. Its Next due row reads Counting rather than a
+ *             dash, because a use task has no due date and never will.
+ *  65 / 65c.  The dashboard card grouped by status, where the Counted section holds
+ *             the use tasks the card used to drop.
  *
  * Its own file rather than steps inside `screenshots.capture.ts` for the reason the
  * NFC and card captures have theirs: that walk photographs ~60 surfaces in one
@@ -19,7 +23,7 @@
 import { expect, test } from '@playwright/test';
 import { ASSET, TASK } from './fixture-ids';
 import { PHONE } from './viewports';
-import { openPanel } from './tests/helpers';
+import { openCardDashboard, openPanel } from './tests/helpers';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
@@ -46,6 +50,33 @@ async function openPartEditor(page: import('@playwright/test').Page) {
   }
   await expect(section).toHaveAttribute('open', '');
   return { panel, form };
+}
+
+/**
+ * Photograph the seeded `group_by: status` card, clipped to its own `ha-card`.
+ *
+ * Clipped at scroll-0 rather than through `element.screenshot`, which auto-scrolls
+ * and lets Home Assistant's sticky view header paint over the card's heading. The
+ * dashboard carries 2 Home Keeper cards and the grouped one is the second.
+ */
+async function captureGroupedCard(
+  page: import('@playwright/test').Page,
+  path: string,
+  width: number,
+): Promise<void> {
+  // Tall viewport plus `fullPage`, because the clip is measured at scroll-0 and the
+  // grouped card is long: a viewport-only shot clips to an area outside the image and
+  // fails, and a short viewport cuts the Counted section off the bottom.
+  await page.setViewportSize({ width, height: 2000 });
+  await openCardDashboard(page);
+  const grouped = page.locator('home-keeper-card').nth(1);
+  await expect(grouped.locator('details.hk-group').first()).toBeVisible();
+  await expect(grouped).toContainText('of 25 wears');
+  await page.waitForTimeout(500);
+  const box = await grouped.locator('ha-card').first().boundingBox();
+  if (!box) throw new Error(`no bounding box for ${path}`);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path, clip: box, fullPage: true });
 }
 
 test('capture counted wear items', async ({ page }) => {
@@ -105,6 +136,20 @@ test('capture counted wear items', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/63-panel-counted-part-row.png`, fullPage: true });
 
+  // ── 64. The use task page, whose due row is a word rather than a dash ───────
+  await page.goto(`/home-keeper/tasks/${TASK.wearJacket}`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await panel.waitFor({ state: 'attached', timeout: 45_000 });
+  await expect(panel.locator('.hk-detail-row', { hasText: 'Next due' })).toContainText(
+    'Counting',
+  );
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/64-panel-counted-task-page.png`, fullPage: true });
+
+  // ── 65. The dashboard card's Counted section ────────────────────────────────
+  await captureGroupedCard(page, `${OUT}/65-card-counted-section.png`, 1280);
+
   // ── The phone layout, which is a different layout and not a narrower one ─────
   await page.setViewportSize(PHONE);
 
@@ -150,4 +195,18 @@ test('capture counted wear items', async ({ page }) => {
   await expect(panel.locator('.hk-use-meter').first()).toBeVisible();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/63c-panel-mobile-counted-part-row.png` });
+
+  // 64c. The same page on a phone, where the detail rows stack label over value.
+  await page.goto(`/home-keeper/tasks/${TASK.wearJacket}`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await panel.waitFor({ state: 'attached', timeout: 45_000 });
+  await expect(panel.locator('.hk-detail-row', { hasText: 'Next due' })).toContainText(
+    'Counting',
+  );
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/64c-panel-mobile-counted-task-page.png` });
+
+  // 65c. The grouped card on a phone, where a row stacks and its actions take a line.
+  await captureGroupedCard(page, `${OUT}/65c-card-mobile-counted-section.png`, PHONE.width);
 });

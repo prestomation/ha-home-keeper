@@ -6,6 +6,22 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.24.0b4]
+
+### Fixed
+
+- **Skipped wear items.** Skip now holds on a counted wear item's task. The task used
+  to come back within seconds and send its reminder again.
+- **Counted wear rows.** A use task now shows on the dashboard card when the card
+  groups by status. It also shows when the card looks ahead a set number of days.
+- **Snoozed fixed schedules.** A task on a fixed schedule now moves to its next
+  occurrence when you snooze it and then mark it done. It used to jump past every
+  occurrence before the snooze date.
+- **Wear item time limits.** An appliance now saves after you clear the time limit box
+  on a wear item. The save used to fail and report an error about the whole appliance.
+- **Counted wear item counts.** The panel now reads the same count Home Keeper acts
+  on. A use task page reads Counting in place of a dash.
+
 ## [0.24.0b3]
 
 ### Added

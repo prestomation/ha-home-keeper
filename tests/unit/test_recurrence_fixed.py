@@ -313,3 +313,63 @@ def test_a_utc_anchor_still_schedules_at_the_hour_the_user_chose():
     ):
         nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=probe).astimezone(zone)
         assert (nxt.hour, nxt.minute) == (10, 0), f"{label}: got {nxt.isoformat()}"
+
+
+# ── a deferred next_due is not an occurrence ──────────────────────────────────
+def _weekly_monday():
+    """A fixed task on Mondays at 09:00, showing its next occurrence."""
+    anchor = dt(2026, 1, 5, 9)  # a Monday
+    return {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": "WEEKLY",
+        "anchor": anchor.isoformat(),
+        "next_due": anchor.isoformat(),
+        "completions": [],
+    }
+
+
+def test_completing_a_snoozed_fixed_task_takes_the_next_occurrence():
+    """A snooze target is not on the grid, so it must not move the schedule.
+
+    ``store.snooze_task`` writes an arbitrary instant into ``next_due``. Advancing
+    past *that* skipped every occurrence between the task's real one and the snooze
+    target: snoozing a Monday task by a week and then doing it anyway lost the
+    Monday in between.
+    """
+    task = _weekly_monday()
+    task["next_due"] = dt(2026, 1, 15, 9).isoformat()  # snoozed 10 days out
+    now = dt(2026, 1, 5, 10)
+    out = r.apply_completion(task, now, now=now)
+    assert out["next_due"] == dt(2026, 1, 12, 9).isoformat()
+
+
+def test_skipping_a_snoozed_fixed_task_takes_the_next_occurrence():
+    task = _weekly_monday()
+    task["next_due"] = dt(2026, 1, 15, 9).isoformat()
+    out = r.skip_occurrence(task, now=dt(2026, 1, 5, 10))
+    assert out["next_due"] == dt(2026, 1, 12, 9).isoformat()
+
+
+def test_completing_a_task_moved_to_today_takes_the_next_occurrence():
+    """``set_due_today`` writes ``now``, which is off the grid the same way."""
+    task = _weekly_monday()
+    now = dt(2026, 1, 5, 10)
+    task["next_due"] = now.isoformat()
+    out = r.apply_completion(task, now, now=now)
+    assert out["next_due"] == dt(2026, 1, 12, 9).isoformat()
+
+
+def test_an_occurrence_on_the_grid_still_moves_the_schedule_past_it():
+    """#331 stays fixed: done at 08:00 must not hand back today's 09:00."""
+    task = _weekly_monday()
+    now = dt(2026, 1, 5, 8)
+    out = r.apply_completion(task, now, now=now)
+    assert out["next_due"] == dt(2026, 1, 12, 9).isoformat()
+
+
+def test_an_overdue_fixed_task_still_collapses_the_missed_occurrences():
+    task = _weekly_monday()
+    now = dt(2026, 2, 4, 10)  # a Wednesday, 4 Mondays later
+    out = r.apply_completion(task, now, now=now)
+    assert out["next_due"] == dt(2026, 2, 9, 9).isoformat()

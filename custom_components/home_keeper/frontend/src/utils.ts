@@ -683,24 +683,47 @@ export function useProgress(count: number, target: number): number {
 }
 
 /**
- * How many uses a counted wear item has recorded since it was last replaced.
+ * When a counted wear item's current count cycle started, as a timestamp.
+ *
+ * The panel's mirror of `reconcile.cycle_start`: the later of the replacement task's
+ * `last_completed` and its most recent skip. A skip counts because it means "not this
+ * cycle", so it restarts the next one — the backend reads it the same way, and a
+ * panel that ignored it would show a count the reminder does not act on.
+ *
+ * `NaN` when the cycle has never started, or when no entry can be parsed.
+ */
+function cycleStart(replaceTask?: Task): number {
+  // Stryker disable next-line ArrayDeclaration: the fallback only feeds `.map`, so a
+  // seeded array yields an entry with no `ts` and is dropped by the filter anyway.
+  const skips = replaceTask?.skips ?? [];
+  const stamps = [replaceTask?.last_completed, ...skips.map((entry) => entry.ts)]
+    // `?? ''` rather than a falsy guard, so a missing value and an unreadable one take
+    // the same road out: `new Date('')` is an Invalid Date, and so is `new Date` of
+    // any string that is not a timestamp.
+    .map((value) => new Date(value ?? '').getTime())
+    .filter((at) => !Number.isNaN(at));
+  return stamps.length ? Math.max(...stamps) : Number.NaN;
+}
+
+/**
+ * How many uses a counted wear item has recorded since its cycle started.
  *
  * The panel's mirror of `reconcile.uses_since_replacement`, and the same rule: the
- * count *is* the use task's completion log, filtered to the entries later than the
- * replacement task's `last_completed`. Compared as instants rather than as strings,
- * because a history that has seen a timezone change holds mixed offsets.
+ * count *is* the use task's completion log, filtered to the entries later than
+ * `cycleStart`. Compared as instants rather than as strings, because a history that
+ * has seen a timezone change holds mixed offsets.
  */
 export function usesSinceReplacement(useTask: Task, replaceTask?: Task): number {
   const completions = useTask.completions ?? [];
-  const since = replaceTask?.last_completed;
-  if (!since) return completions.length;
-  const marker = new Date(since).getTime();
+  const marker = cycleStart(replaceTask);
   if (Number.isNaN(marker)) return completions.length;
   return completions.filter((entry) => {
     const at = new Date(entry.ts).getTime();
-    // An unparseable entry counts, matching the backend: one bad row must not take
-    // the whole count down with it.
-    return Number.isNaN(at) || at > marker;
+    // An unparseable entry does **not** count once the cycle has a marker, matching
+    // the backend: `reconcile._sortable` sorts such a row oldest, so it is never
+    // later than the marker and is the first thing the trim drops. It counts only
+    // while there is no marker at all, which is the branch above.
+    return !Number.isNaN(at) && at > marker;
   }).length;
 }
 
@@ -760,12 +783,18 @@ export function countedProgress(
   if (!part || typeof target !== 'number' || target <= 0) return null;
   // The replacement half: same part, and a role that is absent or `replace` — absent
   // being what every part-derived task written before counted wear items carries.
+  // A **manual** link is excluded, exactly as `reconcile.counted_part_pairs` and
+  // `reconcile.reconcile_part_tasks` exclude it. `set_task_consumable` lets any task
+  // point at any part, so without this guard `find` can return a user-owned task and
+  // measure the count from its completion instead — a chip that disagrees with the
+  // figure the reminder arms on.
   const replaceTask = tasks?.find((candidate) => {
     const other = candidate.source?.part;
     return (
       other?.asset_id === src.asset_id &&
       other?.part_id === src.part_id &&
       other?.role !== 'use' &&
+      !other?.manual &&
       candidate.id !== task.id
     );
   });
