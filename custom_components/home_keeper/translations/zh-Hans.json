@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "提前任务",
+      "description": "将任务的到期日期提前到今天，与其周期性计划无关，且不会记录完成，也不会更改其重复设置。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "要提前处理的任务的 id。名称同样可用。面板中会显示 ID。"
+        },
+        "origin": {
+          "name": "发起方",
+          "description": "可选的自由文本标记，会在 home_keeper_task_due_today_set 事件中回显，以便贡献集成能够识别并忽略由其自身触发的提前操作（防止循环）。Home Keeper 不会解释它。"
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "将任务关联到耗材",
       "description": "将任务关联到设备的耗材/部件，这样完成任务时会从库存中消耗一个备件，并在补货阈值时触发低库存事件。省略 asset_id 和 part_id 可清除关联。",

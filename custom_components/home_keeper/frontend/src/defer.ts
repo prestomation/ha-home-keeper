@@ -18,6 +18,7 @@ import {
   btnAttrs,
   escapeHTML,
   formatDateTime,
+  isOverdue,
   resolveSnoozePreset,
 } from './utils';
 
@@ -25,29 +26,45 @@ import {
 export interface DeferVerbs {
   snooze: boolean;
   skip: boolean;
+  dueToday: boolean;
 }
 
 /**
  * The verbs *task* may be offered, given the integration's options.
  *
- * Both switches default on, so a missing key means "not configured", not "off" —
- * `skipSnoozeFlags` is what encodes that. On top of the global switch two per-task
- * conditions apply: skip is refused on a completion-blocked task, because the store
- * rejects it and a button that always errors is worse than no button; and snooze is
- * refused on a dormant task, which has no due date to defer.
+ * All three switches default on, so a missing key means "not configured", not
+ * "off" — `skipSnoozeFlags` is what encodes that. On top of the global switch
+ * three per-task conditions apply:
+ *
+ * * skip is refused on a completion-blocked task, because the store rejects it
+ *   and a button that always errors is worse than no button;
+ * * snooze and due today are refused on a dormant task, which has no due date to
+ *   defer or move to today;
+ * * due today is refused on a task that is **already due or overdue**. Moving
+ *   such a task's due date to now does not bring it forward, it pushes an overdue
+ *   date later and drops the overdue state, which is the opposite of what the
+ *   button says. #312 asked for this on a task that was explicitly not overdue,
+ *   and `notifications.py` keeps the verb off notifications for the same reason.
  *
  * Hiding rather than disabling: a control that explains why it is dead earns its
  * place when the action is the page's whole point, but these are already tucked
  * behind a caret, and a menu of dead entries is just noise.
+ *
+ * *now* is injectable so a test pins the clock instead of racing the wall.
  */
 export function deferVerbs(
   task: Task,
-  options: { allow_snooze?: unknown; allow_skip?: unknown },
+  options: { allow_snooze?: unknown; allow_skip?: unknown; allow_due_today?: unknown },
+  now: Date = new Date(),
 ): DeferVerbs {
-  const { allowSnooze, allowSkip } = skipSnoozeFlags(options);
+  const { allowSnooze, allowSkip, allowDueToday } = skipSnoozeFlags(options);
   const blocked = !!task.managed_by?.completion_blocked;
   const dormant = !task.next_due;
-  return { snooze: allowSnooze && !dormant, skip: allowSkip && !blocked && !dormant };
+  return {
+    snooze: allowSnooze && !dormant,
+    skip: allowSkip && !blocked && !dormant,
+    dueToday: allowDueToday && !dormant && !isOverdue(task, now),
+  };
 }
 
 /** The menu's entries, as markup. Exported for the card, which sizes its own caret. */
@@ -63,6 +80,14 @@ export function deferMenuItems(verbs: DeferVerbs): string {
       : '') +
     (verbs.skip
       ? item('hk-defer-skip', 'mdi:skip-next-outline', t('btn.skip'), t('defer.skipHint'))
+      : '') +
+    (verbs.dueToday
+      ? item(
+          'hk-defer-due-today',
+          'mdi:calendar-arrow-left',
+          t('btn.dueToday'),
+          t('defer.dueTodayHint'),
+        )
       : '')
   );
 }
@@ -70,8 +95,8 @@ export function deferMenuItems(verbs: DeferVerbs): string {
 /**
  * Wrap *doneBtn* in a split button whose caret opens the deferral menu.
  *
- * Returns *doneBtn* untouched when there is no verb to offer, so a task with both
- * switches off — or a dormant one — looks exactly as it did before this existed.
+ * Returns *doneBtn* untouched when there is no verb to offer, so a task with every
+ * switch off — or a dormant one — looks exactly as it did before this existed.
  * *weight* must be the weight *doneBtn* itself carries; see below.
  */
 export function deferSplit(
@@ -80,7 +105,7 @@ export function deferSplit(
   verbs: DeferVerbs,
   weight: BtnWeight = 'primary',
 ): string {
-  if (!doneBtn || (!verbs.snooze && !verbs.skip)) return doneBtn;
+  if (!doneBtn || (!verbs.snooze && !verbs.skip && !verbs.dueToday)) return doneBtn;
   // The caret is an ha-button carrying *Done's own weight*, which is the only way the
   // two halves are guaranteed to paint the same. Home Assistant fills a button from
   // its appearance, and the weights differ by surface — the task page's Done is solid
@@ -111,7 +136,7 @@ export function deferSplit(
  * caret. A card row is a list you scan, and a chevron with no container to lean on
  * read as decoration — so here the verbs are simply present, muted, ahead of Done.
  *
- * Returns '' when neither verb is on offer, which leaves the row exactly as it was
+ * Returns '' when no verb is on offer, which leaves the row exactly as it was
  * before this existed.
  */
 export function deferRowActions(task: Task, verbs: DeferVerbs): string {
@@ -121,7 +146,8 @@ export function deferRowActions(task: Task, verbs: DeferVerbs): string {
     `label="${escapeHTML(label)}" title="${escapeHTML(label)}"></ha-icon-button>`;
   return (
     (verbs.snooze ? btn('hk-defer-snooze', t('btn.snooze')) : '') +
-    (verbs.skip ? btn('hk-defer-skip', t('btn.skip')) : '')
+    (verbs.skip ? btn('hk-defer-skip', t('btn.skip')) : '') +
+    (verbs.dueToday ? btn('hk-defer-due-today', t('btn.dueToday')) : '')
   );
 }
 

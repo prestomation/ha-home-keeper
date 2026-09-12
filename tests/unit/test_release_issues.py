@@ -183,6 +183,25 @@ class TestSummarize:
     def test_bold_lead_wins(self):
         assert summarize("**The headline.** Then detail. And more.") == "The headline."
 
+    def test_a_linked_lead_travels_whole_into_the_comment(self):
+        # A bullet's lead links to the feature's doc page, so the reporter's comment
+        # carries the link rather than a bare phrase. The bold has to sit *outside*
+        # the link for that: ``_BOLD_LEAD`` anchors on ``^**``.
+        assert (
+            summarize(
+                "**[Seasonal tasks](https://example.test/guide/seasons).** Detail."
+            )
+            == "[Seasonal tasks](https://example.test/guide/seasons)."
+        )
+
+    def test_bold_inside_the_link_misses_the_lead(self):
+        # The inverted form is the easy mistake, and it degrades silently to the
+        # first-sentence fallback rather than failing, so pin it.
+        assert (
+            summarize("[**Seasonal tasks**](https://example.test/g). Detail here.")
+            == "[**Seasonal tasks**](https://example.test/g)."
+        )
+
     def test_falls_back_to_the_first_sentence(self):
         assert summarize("No bold here. Second sentence.") == "No bold here."
 
@@ -539,6 +558,7 @@ _KNOWN_ISSUES = frozenset(
         297,
         305,
         308,
+        312,
         313,
         331,
     }

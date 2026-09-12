@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Przyspiesz zadanie",
+      "description": "Przenosi termin zadania na dziś, niezależnie od jego okresowego harmonogramu, bez zapisywania ukończenia ani zmiany jego powtarzania.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "Identyfikator zadania do przyspieszenia. Nazwa również działa. Panel pokazuje identyfikator."
+        },
+        "origin": {
+          "name": "Inicjator",
+          "description": "Opcjonalny znacznik w postaci dowolnego tekstu, zwracany w zdarzeniu home_keeper_task_due_today_set, dzięki czemu wnosząca wkład integracja może rozpoznać i zignorować przyspieszenie, które sama wywołała (zapobieganie pętlom). Home Keeper go nie interpretuje."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Powiąż zadanie z materiałem eksploatacyjnym",
       "description": "Wiąże zadanie z materiałem eksploatacyjnym/częścią urządzenia, tak aby jego ukończenie zużywało jedną zapasową sztukę ze stanu i wyzwalało zdarzenie niskiego stanu przy progu ponownego zamówienia. Pomiń asset_id i part_id, aby usunąć powiązanie.",

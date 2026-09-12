@@ -53,7 +53,10 @@
   ships — `deploy-docs` in `release.yml` is gated on `prerelease == 'false'`, so a beta
   never republishes the site and the bullet's link 404s for beta testers until then.
   Write it in the feature PR regardless; that is the cost of pinning the site to the
-  latest stable. Nothing validates these URLs, so check the shape against a live page.
+  latest stable. Nothing validates these URLs, so check the shape against a live page. Put the bold **outside** the
+  link, `**[Text](url).**`, never `[**Text**](url)`: `_BOLD_LEAD` in
+  `ci/release-issues.py` anchors on `^\*\*`, so the inverted form misses the bold match
+  and degrades to quoting the bullet's first sentence.
 - **Credit an outside contributor in the bullet for their change.** End the bullet
   with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
   not count against the three-sentence budget. An outside contributor is anyone

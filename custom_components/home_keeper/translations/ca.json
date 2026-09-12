@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Avança la tasca",
+      "description": "Avança a avui la data de venciment d'una tasca, independentment de la seva periodicitat, sense registrar cap realització ni modificar-ne la recurrència.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'id de la tasca a avançar. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador opcional de text lliure que es retorna a l'esdeveniment home_keeper_task_due_today_set, perquè una integració col·laboradora pugui reconèixer i ignorar l'avançament que ha provocat (prevenció de bucles). Home Keeper no l'interpreta."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Vincula la tasca a un consumible",
       "description": "Vincula una tasca a un consumible/peça d'un electrodomèstic perquè en completar-la es consumeixi un recanvi de l'estoc i es dispari un esdeveniment d'estoc baix al llindar de reposició. Omet asset_id i part_id per esborrar el vincle.",

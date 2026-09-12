@@ -659,34 +659,46 @@ describe('taskFormSchemaKey', () => {
 });
 
 describe('skipSnoozeSchema', () => {
-  it('renders exactly the two switches, in the order the section reads', () => {
+  it('renders exactly the three switches, in the order the section reads', () => {
     expect(skipSnoozeSchema()).toEqual([
       { name: 'allow_snooze', selector: { boolean: {} } },
       { name: 'allow_skip', selector: { boolean: {} } },
+      { name: 'allow_due_today', selector: { boolean: {} } },
     ]);
   });
 });
 
 describe('skipSnoozeFlags', () => {
-  it('reads both switches when they are stored', () => {
-    expect(skipSnoozeFlags({ allow_snooze: true, allow_skip: false })).toEqual({
+  it('reads all three switches when they are stored', () => {
+    expect(
+      skipSnoozeFlags({ allow_snooze: true, allow_skip: false, allow_due_today: true }),
+    ).toEqual({
       allowSnooze: true,
       allowSkip: false,
+      allowDueToday: true,
     });
-    expect(skipSnoozeFlags({ allow_snooze: false, allow_skip: true })).toEqual({
+    expect(
+      skipSnoozeFlags({ allow_snooze: false, allow_skip: true, allow_due_today: false }),
+    ).toEqual({
       allowSnooze: false,
       allowSkip: true,
+      allowDueToday: false,
     });
   });
 
   it('defaults a missing key to on, not off', () => {
     // Every options document stored before these keys existed lacks them — which is
-    // all of them. `!!v` would read that as "off" and silently withdraw both verbs
+    // all of them. `!!v` would read that as "off" and silently withdraw every verb
     // from every existing install.
-    expect(skipSnoozeFlags({})).toEqual({ allowSnooze: true, allowSkip: true });
+    expect(skipSnoozeFlags({})).toEqual({
+      allowSnooze: true,
+      allowSkip: true,
+      allowDueToday: true,
+    });
     expect(skipSnoozeFlags({ sync_problem_sensors: false })).toEqual({
       allowSnooze: true,
       allowSkip: true,
+      allowDueToday: true,
     });
   });
 
@@ -694,13 +706,23 @@ describe('skipSnoozeFlags', () => {
     expect(skipSnoozeFlags({ allow_skip: false })).toEqual({
       allowSnooze: true,
       allowSkip: false,
+      allowDueToday: true,
+    });
+    expect(skipSnoozeFlags({ allow_due_today: false })).toEqual({
+      allowSnooze: true,
+      allowSkip: true,
+      allowDueToday: false,
     });
   });
 
   it('survives options that have not loaded yet', () => {
     // The panel calls this while `_options` is still undefined on first paint; a
-    // throw here would blank the task page rather than render it with both verbs.
-    expect(skipSnoozeFlags(undefined)).toEqual({ allowSnooze: true, allowSkip: true });
+    // throw here would blank the task page rather than render it with every verb.
+    expect(skipSnoozeFlags(undefined)).toEqual({
+      allowSnooze: true,
+      allowSkip: true,
+      allowDueToday: true,
+    });
   });
 
   it('treats a stored null the same as absent — on, not off', () => {
@@ -710,15 +732,19 @@ describe('skipSnoozeFlags', () => {
     expect(skipSnoozeFlags({ allow_snooze: null })).toEqual({
       allowSnooze: true,
       allowSkip: true,
+      allowDueToday: true,
     });
   });
 
   it('reads any other falsy value as off', () => {
     // The backend coerces with `bool()`, so anything falsy that reaches the panel
     // genuinely is off — only null/undefined mean "never set".
-    expect(skipSnoozeFlags({ allow_snooze: 0, allow_skip: '' })).toEqual({
+    expect(
+      skipSnoozeFlags({ allow_snooze: 0, allow_skip: '', allow_due_today: 0 }),
+    ).toEqual({
       allowSnooze: false,
       allowSkip: false,
+      allowDueToday: false,
     });
   });
 });

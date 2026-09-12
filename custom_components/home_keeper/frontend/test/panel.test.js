@@ -1105,6 +1105,9 @@ describe('Task detail — snooze and skip behind the Done caret (issue #268)', (
     skips: [],
   };
 
+  /** The same task, due ahead rather than behind: what Due today is for. */
+  const futureTask = { ...dueTask, next_due: '2099-08-29T09:00:00Z' };
+
   /** A hass whose get_options returns *options* (the harness returns `{}`). */
   const withOptions = (tasks, options = {}) => {
     const { hass, calls } = makeHassWith({ tasks });
@@ -1257,8 +1260,12 @@ describe('Task detail — snooze and skip behind the Done caret (issue #268)', (
     expect(caret.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('shows no caret when both switches are off', async () => {
-    const { hass } = withOptions([dueTask], { allow_snooze: false, allow_skip: false });
+  it('shows no caret when every switch is off', async () => {
+    const { hass } = withOptions([dueTask], {
+      allow_snooze: false,
+      allow_skip: false,
+      allow_due_today: false,
+    });
     const panel = await mountPanel(hass, '/tasks/t1');
 
     await waitFor(() => panel.shadowRoot?.querySelector('.hk-detail-actions'));
@@ -1269,13 +1276,29 @@ describe('Task detail — snooze and skip behind the Done caret (issue #268)', (
 
   it('treats a missing option as on, so an existing install is unaffected', async () => {
     // Every stored options document predates these keys; `!!v` would read that as
-    // "off" and silently withdraw both verbs from everyone.
-    const { hass } = withOptions([dueTask], { sync_problem_sensors: false });
+    // "off" and silently withdraw every verb from everyone. The task is due ahead,
+    // because Due today is withheld on one that is already due — see below.
+    const { hass } = withOptions([futureTask], { sync_problem_sensors: false });
     const panel = await mountPanel(hass, '/tasks/t1');
 
     const menu = await openMenu(panel);
     expect(menu.querySelector('.hk-defer-snooze')).toBeTruthy();
     expect(menu.querySelector('.hk-defer-skip')).toBeTruthy();
+    expect(menu.querySelector('.hk-defer-due-today')).toBeTruthy();
+  });
+
+  it('withholds Due today on an overdue task, and keeps the other two', async () => {
+    // Moving an overdue task's due date to now does not bring it forward: it
+    // pushes the date later and drops the overdue state, the opposite of what the
+    // button says. Snooze and Skip still apply, which is what makes this a rule
+    // about the one verb rather than about the menu.
+    const { hass } = withOptions([dueTask]);
+    const panel = await mountPanel(hass, '/tasks/t1');
+
+    const menu = await openMenu(panel);
+    expect(menu.querySelector('.hk-defer-snooze')).toBeTruthy();
+    expect(menu.querySelector('.hk-defer-skip')).toBeTruthy();
+    expect(menu.querySelector('.hk-defer-due-today')).toBeFalsy();
   });
 
   it('opens the snooze dialog from the menu', async () => {

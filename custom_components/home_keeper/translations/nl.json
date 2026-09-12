@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Taak vervroegen",
+      "description": "Zet de vervaldatum van een taak op vandaag, onafhankelijk van het periodieke schema, zonder een voltooiing vast te leggen of de herhaling te wijzigen.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de te vervroegen taak. De naam werkt ook. Het paneel toont het id."
+        },
+        "origin": {
+          "name": "Oorsprong",
+          "description": "Optionele vrije-vorm markering die wordt teruggegeven in de gebeurtenis home_keeper_task_due_today_set, zodat een bijdragende integratie het vervroegen dat zij heeft geactiveerd kan herkennen en negeren (luspreventie). Home Keeper interpreteert deze niet."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Taak aan verbruiksartikel koppelen",
       "description": "Koppelt een taak aan een verbruiksartikel/onderdeel van een apparaat, zodat het voltooien ervan één reserve uit de voorraad verbruikt en bij de besteldrempel een gebeurtenis voor lage voorraad activeert. Laat asset_id en part_id weg om de koppeling te wissen.",

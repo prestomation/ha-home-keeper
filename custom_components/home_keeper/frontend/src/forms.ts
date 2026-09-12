@@ -1361,32 +1361,40 @@ export function problemSyncToggleSchema(): FormField[] {
 }
 
 /**
- * The two switches deciding whether Home Keeper offers Snooze and Skip on a task.
+ * The three switches deciding whether Home Keeper offers Snooze, Skip and Pull
+ * forward on a task.
  *
- * They govern what this panel shows and what a notification's button set may carry.
- * The `home_keeper.snooze_task` / `skip_task` services stay callable either way, so
- * turning one off never breaks an automation someone already wrote.
+ * Snooze and Skip govern what this panel shows *and* what a notification's button
+ * set may carry. Pull forward only governs the panel and the dashboard card — it
+ * is deliberately never a notification action, since a notified task is already
+ * overdue or due soon, which makes "move the due date to today" nearly a no-op
+ * there. The `home_keeper.snooze_task` / `skip_task` / `set_due_today`
+ * services stay callable either way, so turning one off never breaks an
+ * automation someone already wrote.
  */
 export function skipSnoozeSchema(): FormField[] {
   return [
     { name: 'allow_snooze', selector: selBool() },
     { name: 'allow_skip', selector: selBool() },
+    { name: 'allow_due_today', selector: selBool() },
   ];
 }
 
 /**
- * Read the two switches off an options object, defaulting **on**.
+ * Read the three switches off an options object, defaulting **on**.
  *
- * `!!v` would read a missing key as off, which would withdraw both verbs from every
- * install whose stored options predate the switches — which is all of them.
+ * `!!v` would read a missing key as off, which would withdraw all three verbs from
+ * every install whose stored options predate the switches — which is all of them.
  */
 export function skipSnoozeFlags(options: {
   allow_snooze?: unknown;
   allow_skip?: unknown;
-}): { allowSnooze: boolean; allowSkip: boolean } {
+  allow_due_today?: unknown;
+}): { allowSnooze: boolean; allowSkip: boolean; allowDueToday: boolean } {
   return {
     allowSnooze: boolOr(options?.allow_snooze, true),
     allowSkip: boolOr(options?.allow_skip, true),
+    allowDueToday: boolOr(options?.allow_due_today, true),
   };
 }
 

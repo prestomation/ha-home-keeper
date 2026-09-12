@@ -45,7 +45,7 @@ import {
   toProfileSync,
   type FormField,
 } from './forms';
-import { t, tn } from './i18n';
+import { t, tlist, tn } from './i18n';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
@@ -138,14 +138,11 @@ export function settingsSectionList(p: PanelHost): {
     {
       key: 'skipsnooze',
       card: 'hk-settings-skipsnooze',
-      // Both switches default on, so the dot is green unless one has been turned
-      // off — the state worth spotting from the rail is a *withdrawn* verb.
+      // Every switch defaults on, so the dot is green unless one has been turned
+      // off — the state worth spotting from the rail is a *withdrawn* verb. All
+      // three count, or the rail would report green on a card that is not.
       label: t('settings.skipsnooze_heading'),
-      mark: dot(
-        skipSnoozeFlags(opts ?? {}).allowSnooze && skipSnoozeFlags(opts ?? {}).allowSkip
-          ? 'on'
-          : 'off',
-      ),
+      mark: dot(offeredVerbs(opts ?? {}).length === DEFER_VERBS.length ? 'on' : 'off'),
     },
     {
       key: 'profiles',
@@ -284,11 +281,12 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
     shopping_list_entity: '',
     profiles: [],
     notifications: [],
-    // Both verbs predate the switch, so "not configured" means on. This fallback is
-    // only reached before the first load answers; `skipSnoozeFlags` is what reads
-    // them once options are in hand.
+    // All three verbs predate the switch, so "not configured" means on. This
+    // fallback is only reached before the first load answers; `skipSnoozeFlags` is
+    // what reads them once options are in hand.
     allow_snooze: true,
     allow_skip: true,
+    allow_due_today: true,
   };
   // General — settings independent of any single feature (e.g. one-off retention).
   host.appendChild(
@@ -337,7 +335,8 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
       },
     ),
   );
-  // Skip & snooze — whether the two deferral verbs are offered at all.
+  // Skip, snooze & pull forward — whether the three deferral verbs are offered at
+  // all.
   host.appendChild(
     settingsCard(
       p,
@@ -432,13 +431,49 @@ function settingsCard(
  * Derived from the live options rather than stored, so it can never disagree with
  * the controls below it. Returns '' where a card has nothing worth restating.
  */
+/**
+ * The deferral verbs, in the order their switches sit on the card.
+ *
+ * One row here, one row in `skipSnoozeSchema` and one `btn.*` label is what a
+ * fourth verb costs. The names are the buttons' own, so they are already
+ * translated everywhere and cannot drift from what the task page shows.
+ */
+const DEFER_VERBS: readonly (readonly [keyof DeferFlags, string])[] = [
+  ['allowSnooze', 'btn.snooze'],
+  ['allowSkip', 'btn.skip'],
+  ['allowDueToday', 'btn.dueToday'],
+] as const;
+
+type DeferFlags = ReturnType<typeof skipSnoozeFlags>;
+
+/** The names of the verbs a task is offered, in switch order. */
+function offeredVerbs(opts: HomeKeeperOptions | Record<string, unknown>): string[] {
+  const flags = skipSnoozeFlags(opts);
+  return DEFER_VERBS.filter(([f]) => flags[f]).map(([, key]) => t(key));
+}
+
+/**
+ * The Snooze/Skip/Due today card's one-line summary.
+ *
+ * Composed rather than enumerated: two switches needed four fixed strings, and
+ * three would need eight. The frame makes the *task* the subject, so there is no
+ * is/are agreement to resolve — a plural base key would oblige every locale to
+ * carry every CLDR category it uses (four of them in Russian, Polish and Czech)
+ * to choose between two words.
+ */
+function deferVerbSummary(opts: HomeKeeperOptions | Record<string, unknown>): string {
+  const verbs = offeredVerbs(opts);
+  if (verbs.length === 0) return t('settings.skipsnooze_none', { done: t('btn.done') });
+  return t('settings.skipsnooze_available', { verbs: tlist(verbs) });
+}
+
 function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): string {
   if (id === 'hk-settings-skipsnooze') {
-    const { allowSnooze, allowSkip } = skipSnoozeFlags(opts);
-    if (allowSnooze && allowSkip) return t('settings.skipsnooze_both');
-    if (allowSnooze) return t('settings.skipsnooze_snooze_only');
-    if (allowSkip) return t('settings.skipsnooze_skip_only');
-    return t('settings.skipsnooze_neither');
+    // Composed from the verbs that are on, rather than one string per outcome:
+    // two switches needed four, three would need eight. The verb names are their
+    // own lowercase keys because they land mid-sentence, where `btn.*` title case
+    // would read wrong.
+    return deferVerbSummary(opts);
   }
   if (id === 'hk-settings-general') {
     const days = Number(opts.one_off_retention_days) || 0;

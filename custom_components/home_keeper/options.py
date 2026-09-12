@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from . import notifications, profiles, shopping
 from .const import (
+    OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
     OPTION_DISMISSED_COMPANIONS,
@@ -58,11 +59,12 @@ _LIST_OPTIONS = (
 # The plain on/off options. ``_normalize`` coerces each with ``bool()`` when a
 # submission carries it, so they share one branch rather than accumulating an ``if``
 # apiece. Note their *defaults* differ (see ``_empty_options``): problem-sensor syncing
-# is opt-in, while snooze and skip are on until someone turns them off.
+# is opt-in, while snooze, skip and due today are on until someone turns them off.
 _BOOL_OPTIONS = (
     OPTION_SYNC_PROBLEM_SENSORS,
     OPTION_ALLOW_SNOOZE,
     OPTION_ALLOW_SKIP,
+    OPTION_ALLOW_DUE_TODAY,
 )
 
 
@@ -75,14 +77,16 @@ def _empty_options() -> dict[str, Any]:
     never disagree. Returns a fresh dict each call — the list values are handed out
     to callers.
 
-    "Nothing" is not always ``False``. ``allow_snooze`` / ``allow_skip`` default to
-    **True**, so a document written before they existed — every existing install —
-    reads back with both verbs available, which is what those installs already have.
+    "Nothing" is not always ``False``. ``allow_snooze`` / ``allow_skip`` /
+    ``allow_due_today`` default to **True**, so a document written before they
+    existed — every existing install — reads back with every verb available, which is
+    what those installs already have.
     """
     return {
         OPTION_SYNC_PROBLEM_SENSORS: False,
         OPTION_ALLOW_SNOOZE: True,
         OPTION_ALLOW_SKIP: True,
+        OPTION_ALLOW_DUE_TODAY: True,
         OPTION_ONE_OFF_RETENTION_DAYS: 0,
         OPTION_SHOPPING_LIST_ENTITY: "",
         OPTION_PROFILES: [],

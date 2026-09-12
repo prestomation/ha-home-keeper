@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Set task due today",
+      "description": "Move a task's due date to now, whatever its periodic schedule says, without recording a completion or changing its recurrence.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task to move. Its name works too. The panel shows the id."
+        },
+        "origin": {
+          "name": "Origin",
+          "description": "Optional free-form marker echoed back in the home_keeper_task_due_today_set event so a contributing integration can recognise and ignore the change it triggered (loop prevention), and Home Keeper never interprets it."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Link task to a consumable",
       "description": "Link a task to an appliance consumable/part so completing it consumes one spare from the part's stock and fires a low-stock event at the reorder threshold. Omit asset_id and part_id to clear the link.",

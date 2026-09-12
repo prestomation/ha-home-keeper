@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Fremryk opgave",
+      "description": "Flytter en opgaves forfaldsdato til nu, uafhængigt af den periodiske plan, uden at registrere en fuldførelse eller ændre gentagelsen.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "Id'et på den opgave, der skal fremrykkes. Navnet virker også. Panelet viser id'et."
+        },
+        "origin": {
+          "name": "Oprindelse",
+          "description": "Valgfri fritekstmarkør, der gengives i home_keeper_task_due_today_set-hændelsen, så en bidragende integration kan genkende og ignorere den fremrykning, den udløste (sløjfeforebyggelse). Home Keeper fortolker den ikke."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Knyt opgave til en forbrugsvare",
       "description": "Knytter en opgave til en forbrugsvare/del på et apparat, så fuldførelse forbruger én reservedel fra lageret og udløser en hændelse om lavt lager ved genbestillingsgrænsen. Udelad asset_id og part_id for at fjerne tilknytningen.",

@@ -43,6 +43,8 @@ can't express.
 ### Task lifecycle
 
 Only `next_due` moves when a task is snoozed. The recurrence stays the same.
+Setting a task due today is the mirror image: `next_due` moves to now instead of
+later, with the same "recurrence untouched" guarantee.
 
 A skip advances the schedule itself. The step depends on the kind of task:
 
@@ -50,8 +52,8 @@ A skip advances the schedule itself. The step depends on the kind of task:
 * **fixed** moves to the next scheduled occurrence
 * **one-off**, **triggered** and **sensor** tasks go dormant
 
-A snooze and a skip both re-arm the edge-triggered overdue and due-soon
-announcements for the new date.
+A snooze, a due-today and a skip all re-arm the edge-triggered overdue and
+due-soon announcements for the new date.
 
 A skip is also recorded. It goes in a `skips` list, beside the `completions` list.
 A skip records an occurrence that was passed over. It never sets `last_completed`,

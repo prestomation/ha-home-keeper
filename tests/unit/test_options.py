@@ -202,9 +202,10 @@ def test_every_option_constant_is_a_known_option() -> None:
 # the first assertion below and points at the second one.
 _PROBES: dict[str, Any] = {
     const.OPTION_SYNC_PROBLEM_SENSORS: True,
-    # These two default *on*, so their non-default probe is False.
+    # These three default *on*, so their non-default probe is False.
     const.OPTION_ALLOW_SNOOZE: False,
     const.OPTION_ALLOW_SKIP: False,
+    const.OPTION_ALLOW_DUE_TODAY: False,
     const.OPTION_ONE_OFF_RETENTION_DAYS: 9,
     const.OPTION_SHOPPING_LIST_ENTITY: "todo.somewhere",
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES: ["binary_sensor.x"],
@@ -360,15 +361,17 @@ def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
     deleting them for people who never touched the setting), and an empty shopping
     target leaves the sync off.
 
-    ``allow_snooze`` / ``allow_skip`` are the two that default **on**, and for the
-    same reason the rest default off: nothing changes for someone who never opened
-    the setting. Both verbs predate the switch, so defaulting them off would silently
-    withdraw a feature from every existing install.
+    ``allow_snooze`` / ``allow_skip`` / ``allow_due_today`` are the ones that
+    default **on**, and for the same reason the rest default off: nothing changes
+    for someone who never opened the setting. All three verbs predate their switch,
+    so defaulting any of them off would silently withdraw a feature from every
+    existing install.
     """
     assert opts.current_options(_entry({})) == {
         "sync_problem_sensors": False,
         "allow_snooze": True,
         "allow_skip": True,
+        "allow_due_today": True,
         "one_off_retention_days": 0,
         "shopping_list_entity": "",
         "profiles": [],

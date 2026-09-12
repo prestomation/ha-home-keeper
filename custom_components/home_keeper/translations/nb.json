@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Fremskynd oppgave",
+      "description": "Flytter en oppgaves forfallsdato til nå, uavhengig av den periodiske planen, uten å registrere en fullføring eller endre gjentakelsen.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven som skal fremskyndes. Navnet fungerer også. Panelet viser id-en."
+        },
+        "origin": {
+          "name": "Opprinnelse",
+          "description": "Valgfri fritekstmarkør som gjengis i home_keeper_task_due_today_set-hendelsen, slik at en bidragende integrasjon kan gjenkjenne og ignorere fremskyndingen den utløste (løkkeforebygging). Home Keeper tolker den ikke."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Koble oppgave til en forbruksvare",
       "description": "Knytter en oppgave til en forbruksvare/del på et apparat, slik at fullføring forbruker én reservedel fra lageret og utløser en hendelse om lavt lager ved bestillingsgrensen. Utelat asset_id og part_id for å fjerne koblingen.",

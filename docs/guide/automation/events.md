@@ -5,7 +5,7 @@ events to build automations. The events are:
 
 | Object | Events |
 | --- | --- |
-| Task | created, updated, completed, uncompleted, completion edited, deleted, armed, snoozed, skipped, overdue, due soon |
+| Task | created, updated, completed, uncompleted, completion edited, deleted, armed, snoozed, due today set, skipped, overdue, due soon |
 | Part | low stock, out of stock, restocked |
 | Appliance | created, updated, deleted, archived, restored |
 | Companion | connected, suggested |

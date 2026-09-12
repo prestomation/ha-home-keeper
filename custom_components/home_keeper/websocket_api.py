@@ -196,6 +196,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_delete_archived_completion)
     websocket_api.async_register_command(hass, ws_snooze_task)
     websocket_api.async_register_command(hass, ws_skip_task)
+    websocket_api.async_register_command(hass, ws_set_due_today)
     websocket_api.async_register_command(hass, ws_update_skip)
     websocket_api.async_register_command(hass, ws_move_skip)
     websocket_api.async_register_command(hass, ws_delete_skip)
@@ -525,6 +526,34 @@ async def ws_skip_task(
         return
     try:
         task = await coord.store.skip_task(msg["task_id"], metadata=msg.get("metadata"))
+    except KeyError:
+        _err(
+            hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]
+        )
+        return
+    except TaskValidationError as err:
+        _err(hass, connection, msg, "not_allowed", "invalid_task", error=str(err))
+        return
+    await coord.async_request_refresh()
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/set_due_today",
+        vol.Required("task_id"): str,
+    }
+)
+@websocket_api.async_response
+async def ws_set_due_today(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    try:
+        task = await coord.store.set_due_today(msg["task_id"])
     except KeyError:
         _err(
             hass, connection, msg, "not_found", "task_not_found", task_id=msg["task_id"]

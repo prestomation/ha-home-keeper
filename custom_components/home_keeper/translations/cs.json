@@ -371,6 +371,20 @@
         }
       }
     },
+    "set_due_today": {
+      "name": "Urychlit úkol",
+      "description": "Přesune datum splatnosti úkolu na dnešek, bez ohledu na jeho pravidelný rozvrh, aniž by se zaznamenalo dokončení nebo změnilo jeho opakování.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, který se má urychlit. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "origin": {
+          "name": "Původ",
+          "description": "Volitelná značka ve volném textu, která se vrací zpět v události home_keeper_task_due_today_set, aby přispívající integrace mohla rozpoznat a ignorovat urychlení, které sama vyvolala (prevence smyčky). Home Keeper ji neinterpretuje."
+        }
+      }
+    },
     "set_task_consumable": {
       "name": "Propojit úkol se spotřebním materiálem",
       "description": "Propojí úkol se spotřebním materiálem/dílem spotřebiče, takže jeho dokončení spotřebuje jeden náhradní kus ze zásob a při objednací hranici vyvolá událost nízkého stavu zásob. Vynechte asset_id a part_id pro zrušení propojení.",
