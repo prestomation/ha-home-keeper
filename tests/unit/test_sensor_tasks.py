@@ -824,6 +824,52 @@ def test_availability_dormant_missing_never_arms():
 # ── the hold's own timer (a hold ends while the entity is quiet) ─────────────
 
 
+# ── the fingerprint that retires carried edge state ─────────────────────────
+
+
+def test_the_fingerprint_changes_with_every_part_of_the_condition():
+    # Carried edge state is an answer about one condition. Change the condition and
+    # the answer is about a question nobody is asking, so the watcher starts over.
+    base = _threshold(">", 90)
+    assert s.condition_fingerprint(base) == s.condition_fingerprint(_threshold(">", 90))
+    for changed in (
+        _threshold(">", 50),  # a different limit
+        _threshold("<", 90),  # a different comparison
+        _state("on"),  # a different mode entirely
+    ):
+        assert s.condition_fingerprint(changed) != s.condition_fingerprint(base)
+    moved = _threshold(">", 90)
+    moved["sensor"]["entity_id"] = "sensor.another"
+    assert s.condition_fingerprint(moved) != s.condition_fingerprint(base)
+    attributed = _threshold(">", 90)
+    attributed["sensor"]["attribute"] = "humidity"
+    assert s.condition_fingerprint(attributed) != s.condition_fingerprint(base)
+
+
+def test_the_fingerprint_ignores_what_does_not_decide_the_condition():
+    # A longer hold applies to the crossing already running; auto-clear decides what
+    # happens after the condition, not whether it is true. Neither retires the edge.
+    base = _threshold(">", 90)
+    longer = _threshold(">", 90, for_seconds=600)
+    clearing = _threshold(">", 90)
+    clearing["sensor"]["clear_on_recover"] = True
+    assert s.condition_fingerprint(longer) == s.condition_fingerprint(base)
+    assert s.condition_fingerprint(clearing) == s.condition_fingerprint(base)
+
+
+def test_the_fingerprint_of_a_task_with_no_binding_is_still_comparable():
+    # A task that stopped being a sensor task has no condition. It must not raise:
+    # the watcher fingerprints whatever it is handed.
+    assert s.condition_fingerprint({"recurrence_type": "floating"}) == (
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+
+
 def test_hold_due_at_reports_the_moment_a_pending_hold_completes():
     # The watcher books a re-evaluation for this moment. Without it a hold only ran
     # out when the entity happened to send another state change.

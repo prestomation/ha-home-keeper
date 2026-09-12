@@ -222,28 +222,25 @@ def test_normalize_id_list_rejects_non_strings():
         )
 
 
-def test_normalize_task_template_priority_coerces_to_int():
+def test_normalize_task_template_drops_the_keys_nothing_ever_read():
+    # ``category`` and ``priority`` were validated, stored and exported, and no task
+    # was ever stamped with either — a Home Keeper task has no such field. They are
+    # dropped rather than refused, so a spec saved while the service still advertised
+    # them still loads instead of being thrown away whole.
     spec = dc.normalize_declarative_companion(
         _spec(
             task_template={
                 "name_template": "Fix {{ friendly_name }}",
+                "category": "plumbing",
                 "priority": "3",
             }
         )
     )
-    assert spec["task_template"]["priority"] == 3
-
-
-def test_normalize_task_template_rejects_non_int_priority():
-    with pytest.raises(TaskValidationError):
-        dc.normalize_declarative_companion(
-            _spec(
-                task_template={
-                    "name_template": "Fix {{ friendly_name }}",
-                    "priority": "not-a-number",
-                }
-            )
-        )
+    assert spec["task_template"] == {
+        "name_template": "Fix {{ friendly_name }}",
+        "notes_template": "",
+        "labels": [],
+    }
 
 
 def test_normalize_enabled_coerces_bool():
@@ -506,6 +503,83 @@ def test_reconcile_creates_missing_tasks():
     assert created["managed_by"]["completion_blocked"] is True
 
 
+def _usage_match(entity_id, spec_id):
+    """A match whose binding is a meter, so the task carries a baseline."""
+    key, match = _match(entity_id, spec_id)
+    match["sensor"] = {"entity_id": entity_id, "mode": "usage", "target": 300}
+    return key, match
+
+
+def test_reconcile_keeps_the_meter_baseline_the_watcher_stamped():
+    # The recipe owns every key on the binding except this one: the watcher writes
+    # ``baseline`` from the first live reading and moves it on each completion.
+    # Rewriting the block wholesale dropped it on any registry event, so a "every 300
+    # hours" recipe restarted its meter over and over and could never come due.
+    spec = _normalized_spec()
+    key, m = _usage_match("sensor.printer_pages", spec["id"])
+    stored, _ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, {}, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    tid = next(iter(stored))
+    stored[tid]["sensor"]["baseline"] = 1000.0
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, stored, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    assert new_tasks[tid]["sensor"]["baseline"] == 1000.0
+    assert new_tasks[tid]["sensor"]["target"] == 300
+    # Nothing else moved, so the pass reports no change and writes nothing.
+    assert changed is False
+    assert ops == []
+
+
+def test_reconcile_drops_the_baseline_when_the_recipe_leaves_meter_mode():
+    # ``baseline`` is a usage-only field, so carrying it into a threshold binding
+    # would make the task fail validation on its next write.
+    spec = _normalized_spec()
+    key, m = _usage_match("sensor.printer_pages", spec["id"])
+    stored, _ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, {}, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    tid = next(iter(stored))
+    stored[tid]["sensor"]["baseline"] = 1000.0
+
+    m["sensor"] = {"entity_id": "sensor.printer_pages", "mode": "state", "state": "on"}
+    new_tasks, _ops, changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, stored, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    assert changed is True
+    assert "baseline" not in new_tasks[tid]["sensor"]
+
+
+def test_reconcile_seeds_a_baseline_the_recipe_states_only_on_a_fresh_task():
+    # A recipe may name a starting reading. It anchors the task it makes, and the
+    # watcher's own anchor wins from then on — otherwise every pass would drag the
+    # meter back to the seed.
+    spec = _normalized_spec()
+    key, m = _usage_match("sensor.printer_pages", spec["id"])
+    m["sensor"]["baseline"] = 50.0
+    stored, _ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, {}, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    tid = next(iter(stored))
+    assert stored[tid]["sensor"]["baseline"] == 50.0
+
+    stored[tid]["sensor"]["baseline"] = 900.0
+    new_tasks, _ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, stored, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    assert new_tasks[tid]["sensor"]["baseline"] == 900.0
+
+
+def test_merge_sensor_binding_takes_the_fresh_block_when_there_is_nothing_to_keep():
+    fresh = {"entity_id": "sensor.a", "mode": "usage", "target": 10}
+    # No stored binding at all, a stored one in another mode, and one with no anchor.
+    assert dc.merge_sensor_binding(None, fresh) == fresh
+    assert dc.merge_sensor_binding({"mode": "state", "baseline": 5}, fresh) == fresh
+    assert dc.merge_sensor_binding({"mode": "usage"}, fresh) == fresh
+
+
 def test_reconcile_deletes_orphaned_tasks():
     spec = _normalized_spec()
     key, m = _match("sensor.hub_total_failed_pings", spec["id"])
@@ -732,6 +806,83 @@ def test_collect_orphans_deletes_all_specs_tasks():
     assert len(ops) == 1
     assert ops[0][0] == "deleted"
     assert new_tasks == {}
+
+
+# --- Pausing a disabled recipe ----------------------------------------------
+
+
+def _stored_task(spec, entity_id="sensor.hub_total_failed_pings"):
+    """One materialized task, the way the reconciler makes it."""
+    key, m = _match(entity_id, spec["id"])
+    stored, _ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, {}, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    return stored, next(iter(stored)), key, m
+
+
+def test_pausing_a_recipe_switches_its_tasks_off_and_keeps_them():
+    # Disabling a recipe used to delete its tasks, and the completions recorded on
+    # them went too. Switching a recipe off for a week is not a request to forget the
+    # work it tracked.
+    spec = _normalized_spec()
+    stored, tid, _key, _m = _stored_task(spec)
+    stored[tid]["completions"] = [{"ts": NOW.isoformat()}]
+
+    new_tasks, ops, changed = dc.pause_spec_tasks(spec["id"], stored)
+    assert changed is True
+    assert [kind for kind, _task in ops] == ["updated"]
+    assert new_tasks[tid]["enabled"] is False
+    assert new_tasks[tid]["completions"] == [{"ts": NOW.isoformat()}]
+    assert new_tasks[tid]["source"]["declarative_companion"]["paused"] is True
+
+
+def test_pausing_twice_reports_no_change():
+    spec = _normalized_spec()
+    stored, _tid, _key, _m = _stored_task(spec)
+    paused, _ops, _changed = dc.pause_spec_tasks(spec["id"], stored)
+    _again, ops, changed = dc.pause_spec_tasks(spec["id"], paused)
+    assert changed is False
+    assert ops == []
+
+
+def test_pausing_leaves_another_specs_tasks_alone():
+    spec = _normalized_spec()
+    stored, tid, _key, _m = _stored_task(spec)
+    _new_tasks, ops, changed = dc.pause_spec_tasks("another-spec", stored)
+    assert (changed, ops) == (False, [])
+    assert stored[tid]["enabled"] is True
+
+
+def test_enabling_the_recipe_again_brings_back_the_tasks_it_paused():
+    spec = _normalized_spec()
+    stored, tid, key, m = _stored_task(spec)
+    paused, _ops, _changed = dc.pause_spec_tasks(spec["id"], stored)
+
+    resumed, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, paused, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    assert changed is True
+    # "resumed", not "updated": the watcher must treat it as a task made just now and
+    # arm it on a condition that became true while the recipe was off.
+    assert [kind for kind, _task in ops] == ["resumed"]
+    assert resumed[tid]["enabled"] is True
+    assert "paused" not in resumed[tid]["source"]["declarative_companion"]
+
+
+def test_a_task_switched_off_by_hand_stays_off_when_the_recipe_comes_back():
+    # No ``paused`` marker, so this one is the person's choice, not the recipe's.
+    spec = _normalized_spec()
+    stored, tid, key, m = _stored_task(spec)
+    stored[tid]["enabled"] = False
+
+    paused, _ops, changed = dc.pause_spec_tasks(spec["id"], stored)
+    assert changed is False
+    assert "paused" not in paused[tid]["source"]["declarative_companion"]
+
+    resumed, _ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, paused, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    assert resumed[tid]["enabled"] is False
 
 
 # --- Presets ----------------------------------------------------------------

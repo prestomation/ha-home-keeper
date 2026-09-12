@@ -454,6 +454,33 @@ def test_state_rejects_fields_from_the_other_modes(field, value):
         )
 
 
+@pytest.mark.parametrize(
+    ("field", "value"), [("for_seconds", 600), ("clear_on_recover", True)]
+)
+def test_usage_rejects_the_fields_only_an_edge_mode_reads(field, value):
+    # The mirror of the rule above. A meter has no condition to hold or to recover
+    # from, so a hold saved onto one used to vanish without a word.
+    with raises_exactly(
+        m.TaskValidationError,
+        f"sensor.{field} is not valid for a usage-mode sensor task",
+    ):
+        m.normalize_sensor(
+            {"entity_id": "sensor.x", "mode": "usage", "target": 500, field: value}
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"), [("for_seconds", 0), ("clear_on_recover", False)]
+)
+def test_usage_accepts_an_empty_hold_or_a_cleared_switch(field, value):
+    # A form that always sends both keys is saying nothing, so refusing it would fail
+    # a save that asks for nothing.
+    binding = m.normalize_sensor(
+        {"entity_id": "sensor.x", "mode": "usage", "target": 500, field: value}
+    )
+    assert field not in binding
+
+
 @pytest.mark.parametrize("field", ["also_every", "combinator", "unit", "target"])
 def test_threshold_still_rejects_usage_only_fields(field):
     with raises_exactly(

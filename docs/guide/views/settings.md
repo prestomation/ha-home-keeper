@@ -85,6 +85,10 @@ warning shows above 50 matches. A recipe cannot match more than 500 entities. Se
 
 ![The page of a task a recipe made, with an Edit recipe button and no Done button while the task is monitored](../../images/21e-panel-declarative-task-detail.png)
 
+A recipe you switch off keeps the tasks it made. The tasks stop until you switch the
+recipe on again. Their history stays with them. Delete the recipe to remove its
+tasks.
+
 Each recipe gets a row under **Settings → Companions** with an Edit button and a
 Delete button. On a phone the row stacks, and the buttons take a line of their own.
 

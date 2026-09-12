@@ -43,6 +43,9 @@ A hold counts only the time the entity reported the condition. If the entity sto
 reporting, the hold stops. It starts again when the entity reports the condition
 again.
 
+If you change the condition of a task, Home Keeper reads the entity against the new
+condition. A task opens when the entity already meets the new condition.
+
 An armed sensor task behaves like any other task. It is on the to-do list and the
 calendar. It sets the device's overdue sensor and fires the
 `home_keeper_task_overdue` event.
