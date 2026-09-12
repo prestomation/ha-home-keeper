@@ -12,6 +12,17 @@
   step is green whatever happens, so read the artifact it produced as well as its
   colour. The walkthrough tour stayed broken across several PRs this way. Turn a
   soft gate that can hide a real failure into a hard one.
+  - **A pipeline hides a failure the same way, and looks nothing like a soft gate.**
+    `pytest … | tee log` takes `tee`'s exit status, which is 0 whatever pytest did,
+    so the step passes on a red run. The published-schema gate sat red from 0.24.0b3
+    on, with a green mypy check over it, and its own `grep -qE "[0-9]+ passed"`
+    guard matched the "23 passed" inside "1 failed, 23 passed". **Put `set -o
+    pipefail` at the top of any `run:` block that pipes a test runner**, and write
+    the guard to name what must *not* appear, not only what must.
+  - **Give an opt-in gate a sibling in the lane every PR runs.** A gate that needs
+    a dependency or a Python the default lane lacks is read by nobody the day it
+    goes red. `test_no_exported_value_is_null` in `test_transfer_coverage.py` is
+    the plain-lane sibling of the schema gate, and it names the same defect.
 - Update `CHANGELOG.md` for every user-facing change before a release.
 - **User-facing text is held to the house rules**: `CHANGELOG.md` bullets,
   `README.md`, `docs/guide/**/*.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml` descriptions

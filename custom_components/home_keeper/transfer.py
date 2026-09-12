@@ -100,6 +100,29 @@ EXCLUDED_ASSET_KEYS: tuple[tuple[str, str], ...] = (
     ),
 )
 
+EXCLUDED_PART_KEYS: tuple[tuple[str, str], ...] = (
+    (
+        "file_name",
+        "the part's single uploaded file, which a text document has no room for; "
+        "counted in the envelope's `skipped` instead, and re-uploaded by hand",
+    ),
+    ("file_content_type", "the same uploaded file, its media type"),
+    ("file_size", "the same uploaded file, its size"),
+)
+"""Keys a stored part holds that the document leaves out, and why.
+
+A part is a record inside a record, and it gets the same treatment: exported through
+:func:`_strip`, so it states only what is true of it. The parts list went past
+untouched from the first export, and a stored part holds up to ten nulls that
+``_normalize_part`` writes — which the published JSON Schema types as ``number``, so
+a real export of an ordinary wear part failed the schema Home Keeper writes for it.
+Nothing said so: the one gate that saw it reported green through the failure.
+
+These 3 are also exactly the keys ``_PART_SCHEMA`` refuses, so emitting them made
+``home_keeper.update_asset`` answer 400 for an automation replaying an export.
+``tests/unit/test_transfer_coverage.py`` holds both halves of that to account.
+"""
+
 EXCLUDED_STORE_KEYS: tuple[tuple[str, str], ...] = (
     (
         "problem_notes",
@@ -390,22 +413,24 @@ def _asset_out(
     # both derived tasks empty, and this is what it counts from until the replacement
     # task is first completed or skipped there.
     #
-    # Copied, never written through. ``_strip`` is a shallow copy, so ``out["parts"]``
-    # is the *stored* list holding the *stored* dicts — stamping one in place wrote the
-    # export's figure into live storage, where ``_merge_parts`` then read it back on a
-    # re-import and the household's own file doubled its own count.
+    # Each part goes through ``_strip`` as well, because a part is a record too. That
+    # also makes the copy this loop needs: ``_strip`` on the asset is shallow, so
+    # ``out["parts"]`` is the *stored* list holding the *stored* dicts, and stamping one
+    # in place wrote the export's figure into live storage, where ``_merge_parts`` then
+    # read it back on a re-import and the household's own file doubled its own count.
     if parts := out.get("parts"):
         counts = counted_uses or {}
         stamped = []
-        for part in parts:
+        for stored_part in parts:
             # The computed figure when this part has its derived pair, and whatever
             # carry it already holds when it does not. A part mid-reconcile, or one in
             # a hand-edited store, has no pair to count from, and dropping a carry it
             # still holds would lose the very cycle this field exists to keep.
             count = counts.get(
-                (asset["id"], part.get("id")), int(part.get("carried_uses") or 0)
+                (asset["id"], stored_part.get("id")),
+                int(stored_part.get("carried_uses") or 0),
             )
-            part = dict(part)
+            part = _strip(stored_part, EXCLUDED_PART_KEYS)
             if count:
                 part["carried_uses"] = count
             else:
@@ -423,12 +448,21 @@ def count_file_documents(assets: list[dict[str, Any]]) -> int:
     Reported in the envelope rather than passed over in silence: a text document has no
     room for a blob, and somebody restoring onto a new install needs to know that
     three manuals are waiting to be re-uploaded, not discover it a month later.
+
+    A part's own attached file counts here too. It is lost by the same rule and left
+    behind by the same table (:data:`EXCLUDED_PART_KEYS`), so counting only the
+    appliance's documents made the figure quietly low.
     """
     return sum(
         1
         for asset in assets
         for doc in asset.get("documents") or []
         if doc.get("kind") == "file"
+    ) + sum(
+        1
+        for asset in assets
+        for part in asset.get("parts") or []
+        if part.get("file_name")
     )
 
 

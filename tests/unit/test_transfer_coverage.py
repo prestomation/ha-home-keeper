@@ -24,6 +24,7 @@ from pathlib import Path
 import hk_transfer as tr
 import pytest
 import yaml
+from transfer_records import AREA_NAMES, NOW, _maximal_asset, _maximal_task
 
 _COMPONENT = Path(__file__).resolve().parents[2] / "custom_components" / "home_keeper"
 
@@ -133,16 +134,14 @@ def test_the_document_accepts_every_field_its_service_takes(service, known, extr
 # for any automation replaying an exported appliance. `carried_uses` is the field that
 # found this hole.
 
-EXCLUDED_PART_KEYS: tuple[tuple[str, str], ...] = (
-    (
-        "file_name",
-        "upload-only: a part's attached file is settable solely through "
-        "set_part_file, never through a generic add_asset/update_asset write",
-    ),
-    ("file_content_type", "the same upload-only file, its media type"),
-    ("file_size", "the same upload-only file, its size"),
-)
-"""``(key, reason)`` for every built part key ``_PART_SCHEMA`` deliberately refuses."""
+EXCLUDED_PART_KEYS = tr.EXCLUDED_PART_KEYS
+"""The exporter's own table, read rather than restated.
+
+The keys the document leaves out and the keys ``_PART_SCHEMA`` refuses are the same
+3 keys for the same reason — a part's uploaded file cannot travel as text. Keeping a
+second copy here would let the two halves drift, which is the defect this file exists
+to catch.
+"""
 
 
 def _part_schema_keys() -> set[str]:
@@ -211,3 +210,44 @@ def test_no_part_exclusion_is_stale():
 def test_every_part_exclusion_states_a_reason():
     for key, reason in EXCLUDED_PART_KEYS:
         assert reason.strip(), f"{key} is excluded with no reason"
+
+
+# ── the document says only what is true, at every depth ──────────────────────
+
+
+def test_no_exported_value_is_null():
+    """``_strip`` drops a meaningless empty; nothing below the record's top level did.
+
+    That was invisible to every gate in the plain lane. The one test that saw it,
+    ``test_a_maximal_export_validates``, lives behind ``HK_SCHEMA_GATE`` and needs
+    jsonschema, so an exported part carrying ten nulls sat red in that lane alone
+    while every other check was green. This walks the whole document instead, so the
+    next nested record is covered before somebody writes it.
+    """
+    asset = tr.assets_model.build_asset(_maximal_asset(), now=NOW)
+    task = tr.models.build_task(_maximal_task(), now=NOW)
+    document = tr.build_document([task], [asset], area_names=AREA_NAMES, now=NOW)
+    nulls = sorted(_null_paths(document))
+    assert not nulls, (
+        f"{nulls} export as null. A reader cannot tell a stated nothing from an "
+        "absent key, and the published JSON Schema types most of these, so the file "
+        "fails the schema Home Keeper writes for it. Export the record through "
+        "transfer._strip."
+    )
+
+
+def _null_paths(value: object, path: str = "") -> list[str]:
+    """Every path in *value* whose leaf is ``None``, named for the error message."""
+    if isinstance(value, dict):
+        return [
+            found
+            for key, item in value.items()
+            for found in _null_paths(item, f"{path}/{key}")
+        ]
+    if isinstance(value, list):
+        return [
+            found
+            for index, item in enumerate(value)
+            for found in _null_paths(item, f"{path}/{index}")
+        ]
+    return [path] if value is None else []

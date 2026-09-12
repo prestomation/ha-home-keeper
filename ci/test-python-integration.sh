@@ -20,6 +20,9 @@ set -euo pipefail
 # only the 2 names above. That plugin's pytest11 entry point is `homeassistant`, and
 # this lane wants none of it — it drives a real container over HTTP rather than an
 # in-process Home Assistant.
+# Arguments are passed through, so a targeted run is possible: this tier takes ~9
+# minutes whole, and re-running it to see one file made a debugging loop that long.
+# With none, pytest takes the `.` below and runs everything, which is what CI does.
 cd tests/integration
 python -m pytest . -v --tb=short --override-ini="asyncio_mode=auto" \
-  -p no:socket -p no:pytest_socket -p no:homeassistant
+  -p no:socket -p no:pytest_socket -p no:homeassistant "$@"

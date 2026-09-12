@@ -483,9 +483,15 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   `history`, `skips`); an `appliances` record is an `add_asset` payload. So
   `services.yaml` — and the generated API reference — documents the format for free,
   and `tests/unit/test_transfer_coverage.py` fails when the two drift apart.
+- **A record inside a record gets the same treatment.** A part is exported through
+  `_strip` with its own `EXCLUDED_PART_KEYS`, not passed through whole. The parts
+  list went past `_strip` untouched until 0.24.0, so every part exported all ten of
+  the nulls `_normalize_part` writes — which the published JSON Schema types as
+  `number`, and which `_PART_SCHEMA` refuses on the way back through `update_asset`.
+  A nested list of records that skips this is the same defect waiting.
 - **Derive, never restate.** The export names the fields it *excludes*
-  (`EXCLUDED_TASK_KEYS` / `EXCLUDED_ASSET_KEYS`), each with a reason, and passes
-  everything else through. Import feeds a record straight back into
+  (`EXCLUDED_TASK_KEYS` / `EXCLUDED_ASSET_KEYS` / `EXCLUDED_PART_KEYS`), each with a
+  reason, and passes everything else through. Import feeds a record straight back into
   `models.normalize_fields` / `assets.normalize_fields`, which already know every
   field. **A new persisted field on a task or an appliance therefore needs no change
   to `transfer.py`** — and a hand-maintained allowlist would have been stale within

@@ -1957,3 +1957,79 @@ def test_a_re_import_onto_the_same_install_does_not_add_the_count_twice():
     assert record.action == "update"
     merged = tr.assets_model.merge_update(asset, record.payload, now=NOW)
     assert merged["parts"][0]["carried_uses"] == 0
+
+
+# ── A part is a record too, so the export treats it like one ─────────────────
+#
+# `_strip` gave the appliance and the task their readable shape, and the parts list
+# went past it untouched: `out["parts"]` is the *stored* list, so every part exported
+# every key the builder writes, including the ten it leaves null. The published JSON
+# Schema types `stock` and its neighbours as `number`, so a real export of an ordinary
+# wear part failed the schema Home Keeper publishes for it, and `update_asset` refused
+# the parts array a replay handed back.
+
+
+def _one_part(**overrides) -> dict:
+    """One exported part, from a stored appliance holding exactly one."""
+    spec = {"name": "DWR", "type": "wear", **overrides}
+    asset = tr.assets_model.build_asset(
+        {"name": "Rain jacket", "parts": [spec]}, now=NOW
+    )
+    return tr.build_document([], [asset], now=NOW)["appliances"][0]["parts"][0]
+
+
+def test_an_exported_part_states_no_empty_value():
+    """A stored part holds ten nulls and six empty strings; a document holds none.
+
+    The same promise `_strip` already made for the record above it, and the same
+    reason: an absent key and an empty one mean the same thing to `_normalize_part`,
+    so the file says only what is true of the part.
+    """
+    part = _one_part(replace_interval=25, replace_unit="uses")
+    empty = {key: value for key, value in part.items() if value in (None, "", [], {})}
+    assert not empty, f"exported with nothing to say: {sorted(empty)}"
+
+
+def test_an_exported_part_keeps_a_zero_and_a_false():
+    """Dropping the empties must not drop a stated zero: 0 in stock is a fact."""
+    part = _one_part(type="consumable", stock=0, create_buy_task=False)
+    assert part["stock"] == 0
+    assert part["create_buy_task"] is False
+
+
+def test_an_exported_part_leaves_its_uploaded_file_behind():
+    """The file itself cannot travel, so the 3 keys that name it must not either.
+
+    They are also the keys `_PART_SCHEMA` refuses, so an automation replaying an
+    exported appliance through `update_asset` got a 400 on a document Home Keeper
+    wrote itself.
+    """
+    asset = tr.assets_model.build_asset(
+        {"name": "Rain jacket", "parts": [{"name": "DWR", "type": "wear"}]}, now=NOW
+    )
+    tr.assets_model.set_part_file(
+        asset,
+        asset["parts"][0]["id"],
+        {"filename": "dwr-sheet.pdf", "content_type": "application/pdf", "size": 9124},
+    )
+    part = tr.build_document([], [asset], now=NOW)["appliances"][0]["parts"][0]
+    for key, _reason in tr.EXCLUDED_PART_KEYS:
+        assert key not in part
+
+
+def test_the_envelope_counts_a_part_s_file_as_one_left_behind():
+    """The count exists so nobody discovers the loss a month later.
+
+    A part's attached file is lost by the same rule as an appliance's uploaded
+    manual, so it is reported by the same figure.
+    """
+    asset = tr.assets_model.build_asset(
+        {"name": "Rain jacket", "parts": [{"name": "DWR", "type": "wear"}]}, now=NOW
+    )
+    tr.assets_model.set_part_file(
+        asset,
+        asset["parts"][0]["id"],
+        {"filename": "dwr-sheet.pdf", "content_type": "application/pdf", "size": 9124},
+    )
+    document = tr.build_document([], [asset], now=NOW)
+    assert document["home_keeper"]["skipped"] == {"file_documents": 1}
