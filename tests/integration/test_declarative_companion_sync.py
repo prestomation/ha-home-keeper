@@ -516,19 +516,36 @@ def test_narrowing_the_selection_removes_the_task_and_widening_makes_a_new_one(
     assert second["name"] == "Fill HK demo water tank low"
 
 
-def test_disabling_the_spec_drops_its_tasks_and_enabling_brings_them_back(ha, specs):
-    """``enabled: false`` cleans up without deleting the recipe."""
+def test_disabling_the_spec_switches_its_tasks_off_and_keeps_their_history(ha, specs):
+    """``enabled: false`` stops the recipe without throwing away what it recorded.
+
+    The tasks used to be deleted, so a recipe switched off for a week came back with
+    every completion on its tasks gone. A disabled task is already ignored by the
+    watcher and by every due-date surface, which is all "off" has to mean.
+    """
     _set_flag(ha, False)
     spec = specs(_tank_spec())
-    _one_task(ha, spec["id"])
+    task = _one_task(ha, spec["id"])
+    _let_the_watcher_subscribe()
+
+    # Record real history first: the tank empties and is filled again, and the
+    # recipe's own clear-on-recover writes the completion.
+    _set_flag(ha, True)
+    _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
+    _set_flag(ha, False)
+    _poll_task(ha, spec["id"], lambda t: len(t.get("completions") or []) == 1)
 
     _update_spec(ha, spec["id"], {"enabled": False})
-    _poll_spec_tasks(ha, spec["id"], lambda tasks: tasks == [])
+    off = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is False)
+    assert off["id"] == task["id"], "the task must survive, not be remade"
+    assert len(off["completions"]) == 1, "the history must survive the switch"
     stored = [s for s in _list_specs(ha) if s["id"] == spec["id"]]
     assert stored and stored[0]["enabled"] is False, "the recipe itself must survive"
 
     _update_spec(ha, spec["id"], {"enabled": True})
-    _one_task(ha, spec["id"])
+    back = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is True)
+    assert back["id"] == task["id"]
+    assert len(back["completions"]) == 1
 
 
 # ── (d) deletion ─────────────────────────────────────────────────────────────

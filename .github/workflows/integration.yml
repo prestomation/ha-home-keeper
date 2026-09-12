@@ -9,7 +9,12 @@ on:
 jobs:
   integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # The tier runs a real Home Assistant container and several tests that wait out
+    # a hold or a coordinator tick, so it takes ~9.5 minutes at main HEAD. A 10
+    # minute cap cancelled a run whose 216 tests had all passed, and a cancelled run
+    # reads as a red check. 20 gives the tier room to grow before the cap is the
+    # thing that fails a PR again.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 

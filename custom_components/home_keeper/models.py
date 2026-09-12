@@ -47,6 +47,8 @@ from .const import (
 # (``threshold``, ``state``) reject them rather than storing a setting that never
 # applies.
 USAGE_ONLY_SENSOR_FIELDS = ("also_every", "combinator", "unit", "target", "baseline")
+# The mirror of the tuple above: the fields only an edge-driven mode reads.
+EDGE_ONLY_SENSOR_FIELDS = ("for_seconds", "clear_on_recover")
 
 
 class TaskValidationError(ValueError):
@@ -296,6 +298,16 @@ def normalize_sensor(
         result["attribute"] = attribute
 
     if mode == SENSOR_MODE_USAGE:
+        # A meter has no condition to hold or to recover from, so these 2 do nothing
+        # here. Dropping them quietly let a caller save "for 10 minutes" onto a usage
+        # task and believe it applied, which is what :func:`_reject_fields` exists to
+        # stop. Only a truthy value is refused: a form that always sends
+        # ``for_seconds: 0`` or ``clear_on_recover: false`` is saying nothing.
+        for name in EDGE_ONLY_SENSOR_FIELDS:
+            if data.get(name):
+                raise TaskValidationError(
+                    f"sensor.{name} is not valid for a usage-mode sensor task"
+                )
         target_raw = data.get("target")
         if target_raw is None or target_raw == "":
             raise TaskValidationError("sensor.target must be a number")

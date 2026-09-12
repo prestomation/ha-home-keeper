@@ -6,6 +6,31 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.24.0b5]
+
+### Changed
+
+- **Meter task validation.** A meter task now refuses a hold time and an auto-clear
+  switch. A meter has no condition to hold, so Home Keeper used to drop both without
+  a word.
+
+### Fixed
+
+- **Sensor hold time.** A hold now counts only the time an entity reported the
+  trigger condition. An entity that stopped reporting part way through kept its
+  hold running, so the task opened as soon as the entity came back. (Fixes #336)
+- **Recipe meter progress.** A recipe that meters a sensor now keeps the reading it
+  counts from. Home Keeper reset that reading on each change to the entity list, so
+  the task could never reach its target.
+- **Disabled recipes.** A recipe you switch off now keeps its tasks and everything
+  recorded on them. The tasks stop until you switch the recipe on again.
+- **Edited conditions.** A sensor task now opens when you change its condition to one
+  the entity already meets. It used to wait for the condition to go away and come
+  back.
+- **Recipe updates.** Home Keeper now runs one pass for each group of entity changes.
+  An integration that added many entities at once made it repeat the same work for
+  each one.
+
 ## [0.24.0b4]
 
 ### Fixed

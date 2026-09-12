@@ -1589,6 +1589,29 @@ class HomeKeeperStore:
         async_dispatcher_send(self._hass, SIGNAL_DECLARATIVE_SPECS_CHANGED)
         return entity_set_changed
 
+    async def pause_declarative_companion_tasks(self, spec_id: str) -> bool:
+        """Switch off the tasks of a disabled recipe, keeping them and their history.
+
+        The disabled half of :meth:`reconcile_declarative_companion_tasks`. Delegates
+        the decision to :func:`declarative_companions.pause_spec_tasks` and fires the
+        same ``home_keeper_task_updated`` event per changed task. Returns whether
+        anything changed; the entity set never does, because no task is created or
+        removed, so the caller needs no reload.
+        """
+        new_tasks, ops, changed = declarative_companions.pause_spec_tasks(
+            spec_id, self._tasks
+        )
+        if not changed:
+            return False
+        self._tasks = new_tasks
+        await self._save()
+        for _kind, task in ops:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": ["enabled"]}),
+            )
+        return True
+
     async def reconcile_declarative_companion_tasks(
         self,
         spec: dict[str, Any],
@@ -1642,6 +1665,18 @@ class HomeKeeperStore:
             elif kind == "deleted":
                 self._hass.bus.async_fire(
                     EVENT_TASK_DELETED, events.task_event_data(task)
+                )
+                if _task_owns_entities(task):
+                    entity_set_changed = True
+            elif kind == "resumed":
+                # The recipe that had paused this task is on again. It is an update
+                # to everything that reads tasks, and a task made just now to the
+                # sensor watcher, which must arm it on a condition that became true
+                # while the recipe was off.
+                created_ids.append(task["id"])
+                self._hass.bus.async_fire(
+                    EVENT_TASK_UPDATED,
+                    events.task_event_data(task, extra={"changed_fields": ["enabled"]}),
                 )
                 if _task_owns_entities(task):
                     entity_set_changed = True

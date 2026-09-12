@@ -19,9 +19,22 @@ export default captureConfig('walkthrough.capture.ts', {
   // CI-specific slowness if a green run ever reports a length the container cannot
   // reproduce.
   //
-  // 240s is that measurement plus ~40%, and the base config gives CI `retries: 2`,
+  // 240s was that measurement plus ~40%, and the base config gives CI `retries: 2`,
   // so the tour has three independent attempts at it. Move the number against a
   // fresh measurement, not a hunch.
+  //
+  // Fresh measurements, September 2026, on a tour that has grown several surfaces
+  // since: **204s on CI** (green), **234s on CI** on the very next push of the same
+  // branch, and **210s in the dev container**. The 234s run then failed — it spent
+  // its last seconds inside a 40s wait at the closing step — and its first retry hit
+  // 240s outright. The tour is unchanged between those 2 CI runs and so is the
+  // panel, so the spread is the runner, and 240s had stopped being a margin: 204s
+  // leaves 15%, and one slower runner is over the line.
+  //
+  // 360s is the highest of those figures plus ~54%. Read the next timeout the same
+  // way round — the margin first — but a *lengthening* tour is the other half of
+  // this: at 3 attempts, 6 minutes each, the job's own 30-minute cap is the next
+  // thing that gives.
   //
   // **This cap is the only thing that bounds a hung tour.** `actionTimeout` below
   // does not: it applies to Playwright *actions* (click, fill), and the tour is
@@ -29,7 +42,7 @@ export default captureConfig('walkthrough.capture.ts', {
   // `actionTimeout` buys is that one bad selector fails in 20s instead of eating the
   // whole budget and reporting the timeout in the wrong place. Both matter; they are
   // not the same guard.
-  timeout: 240_000,
+  timeout: 360_000,
   use: {
     // The base config leaves actionTimeout unset (0 = no per-action cap), so a
     // click on a momentarily-unstable element would hang for the whole test budget.

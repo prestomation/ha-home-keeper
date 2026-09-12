@@ -743,6 +743,98 @@ def test_an_availability_hold_completes_while_the_entity_stays_away(ha):
         _set_meter(ha, 0)  # brings the entity back
 
 
+def test_a_hold_starts_again_after_the_entity_stops_reporting(ha):
+    """A gap in the readings must not be banked as hold time (#336).
+
+    The reporter kept the Device Pulse recipe's hour-long hold, and the task opened
+    anyway each time the monitored entity reached the trigger state for a minute. The
+    watcher skipped a task whose entity had no reading, so the crossing that started
+    the hold survived the whole blackout: the entity came back over the threshold, the
+    hold read as long spent, and the task armed at once.
+    """
+    _set_meter(ha, 10)
+    task_id = _add_sensor_task(
+        ha,
+        {
+            "entity_id": METER,
+            "mode": "threshold",
+            "comparison": ">",
+            "value": 50,
+            "for_seconds": HOLD_SECONDS,
+            "clear_on_recover": True,
+        },
+    )
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+
+        # A crossing, then the entity stops reporting before the hold is up.
+        _set_meter(ha, 100)
+        time.sleep(3)
+        _force_unavailable(ha, METER)
+        time.sleep(HOLD_SECONDS + 5)
+        assert _require_task(ha, task_id)["next_due"] is None, (
+            "an unreadable entity must never arm a task"
+        )
+
+        # It comes back over the threshold. That is a fresh crossing, so the hold
+        # runs from here — the blackout bought it nothing.
+        _set_meter(ha, 100)
+        time.sleep(5)
+        assert _require_task(ha, task_id)["next_due"] is None, (
+            "armed on the return: the blackout was banked as hold time"
+        )
+
+        # The hold still completes on its own once the reading really does hold.
+        armed = _poll_task(
+            ha,
+            task_id,
+            lambda t: t.get("next_due") is not None,
+            timeout=HOLD_SECONDS + 25,
+        )
+        assert armed["next_due"] is not None
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)
+
+
+def test_editing_the_condition_arms_a_task_the_new_one_already_matches(ha):
+    """Carried edge state answers a question about one condition.
+
+    A task watching "above 90" on a meter reading 60 records "not met". Move the
+    limit to "above 50" and the meter is already past it, but the watcher used to
+    hold the answer it had reached against the old limit — the task stayed dormant
+    until the reading fell below 50 and climbed back through it. The binding is part
+    of what the edge state was measured against, so an edit retires it.
+    """
+    _set_meter(ha, 60)
+    task_id = _add_sensor_task(
+        ha, {"entity_id": METER, "mode": "threshold", "comparison": ">", "value": 90}
+    )
+    try:
+        task = _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        assert task["next_due"] is None  # 60 is not over 90
+
+        call_service(
+            ha,
+            "home_keeper",
+            "update_task",
+            {
+                "task_id": task_id,
+                "sensor": {
+                    "entity_id": METER,
+                    "mode": "threshold",
+                    "comparison": ">",
+                    "value": 50,
+                },
+            },
+        )
+        armed = _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+        assert armed["sensor"]["value"] == 50
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)
+
+
 # ── an explicit starting reading, and the reading recorded on completion (#235) ──
 
 

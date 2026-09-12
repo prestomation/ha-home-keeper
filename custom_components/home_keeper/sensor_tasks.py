@@ -38,6 +38,10 @@ Every edge decision also reports **when its pending hold completes**
 (:func:`hold_due_at`). A hold ends in its own time, so the watcher books one
 re-evaluation for that moment. It does not wait for a state change, which a quiet — or
 absent — entity never sends.
+
+A hold measures **unbroken** truth. A reading that says nothing — a missing,
+``unavailable`` or ``unknown`` entity — decides nothing and ends a pending hold, so
+the next true reading starts the clock again (:func:`_evaluate_indeterminate`).
 """
 
 from __future__ import annotations
@@ -403,6 +407,32 @@ def evaluate_usage(
     return {"action": None, "reset_candidate": reset_candidate}
 
 
+def condition_fingerprint(task: dict[str, Any]) -> tuple[Any, ...]:
+    """What the carried edge state of *task* was measured against.
+
+    The caller holds "was the condition true last tick" and "when did it cross" in
+    memory, and both are answers about **one** condition. Edit the task — or edit the
+    recipe that owns it — and the answers describe a question nobody is asking any
+    more: a task moved from "below 20%" to "below 50%" carried a ``condition_met``
+    that had been decided against the old limit, so a battery already at 30% stayed
+    dormant until it rose above 50% and fell back through it.
+
+    So the caller compares this fingerprint with the one it recorded and starts the
+    edge afresh when they differ. The entity and the condition are in it. The hold and
+    ``clear_on_recover`` are not: neither decides whether the condition is true, and
+    a longer hold applies to the crossing already running without discarding it.
+    """
+    cfg = sensor_config(task) or {}
+    return (
+        cfg.get("entity_id"),
+        cfg.get("attribute"),
+        cfg.get("mode"),
+        cfg.get("comparison"),
+        cfg.get("value"),
+        cfg.get("state"),
+    )
+
+
 def hold_due_at(
     task: dict[str, Any], *, crossed_at: datetime | None, now: datetime
 ) -> datetime | None:
@@ -417,15 +447,52 @@ def hold_due_at(
 
     A hold that is already due returns ``None``. A timer cannot help there: the same
     evaluation arms the task if it can, so only new information about the entity moves
-    a task that stayed dormant. This is what keeps an indeterminate reading (see
-    :func:`evaluate_state` and :func:`evaluate_availability`) from booking the same
-    past moment again and again.
+    a task that stayed dormant.
     """
     cfg = sensor_config(task)
     if cfg is None or crossed_at is None or task.get("next_due") is not None:
         return None
     due = crossed_at + timedelta(seconds=int(cfg.get("for_seconds") or 0))
     return due if due > now else None
+
+
+def _evaluate_indeterminate(
+    *, condition_met_prev: bool, crossed_at: datetime | None
+) -> dict[str, Any]:
+    """The decision for a reading that says nothing: decide nothing, break the hold.
+
+    An indeterminate reading is a missing / ``unavailable`` / ``unknown`` entity for
+    the ``state`` and ``threshold`` modes, and an entity that is not in the state
+    machine yet for ``availability``. It is neither a match nor a recovery, so the
+    action is always ``None``: a Zigbee dropout must not arm a task, and it must not
+    complete a ``clear_on_recover`` one either.
+
+    It does end a **pending hold**. A hold says the condition must be true for
+    ``for_seconds`` without a break, and time with no reading is not time the
+    condition was true. Carrying the crossing through the gap banked that time: a
+    device that dropped off the network for an hour armed its task the moment it came
+    back in the trigger state, whatever the hold said (#336). So an unconsumed
+    crossing is dropped, and ``condition_met`` goes with it, because a carried
+    ``True`` with no crossing cannot start the fresh hold the next true reading needs.
+
+    A task with no pending crossing keeps its carried ``condition_met``: the condition
+    was already met without a crossing (baselined at startup) or the crossing was
+    consumed by an arm, and there the "no reading is not a recovery" rule is the whole
+    decision. That is what stops a dropout from re-arming a task the user dealt with.
+    """
+    if crossed_at is not None:
+        return {
+            "action": None,
+            "condition_met": False,
+            "crossed_at": None,
+            "hold_due_at": None,
+        }
+    return {
+        "action": None,
+        "condition_met": condition_met_prev,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
 
 
 def _evaluate_edge(
@@ -495,7 +562,7 @@ def _evaluate_edge(
 def evaluate_threshold(
     task: dict[str, Any],
     *,
-    reading: float,
+    reading: float | None,
     condition_met_prev: bool,
     crossed_at: datetime | None,
     now: datetime,
@@ -504,9 +571,18 @@ def evaluate_threshold(
 
     The condition is the binding's numeric ``comparison`` against ``value``; see
     :func:`_evaluate_edge` for the edge/hold semantics and the returned shape.
+
+    ``reading`` is ``None`` when the bound entity is missing, ``unavailable``,
+    ``unknown`` or not a number. Like the ``None`` state in :func:`evaluate_state`,
+    that decides nothing — the task never arms on bad data — and it breaks a pending
+    hold (see :func:`_evaluate_indeterminate`).
     """
     cfg = sensor_config(task)
     assert cfg is not None
+    if reading is None:
+        return _evaluate_indeterminate(
+            condition_met_prev=condition_met_prev, crossed_at=crossed_at
+        )
     return _evaluate_edge(
         task,
         cfg,
@@ -534,18 +610,15 @@ def evaluate_state(
     ``state`` is ``None`` when the bound entity is missing, ``unavailable`` or
     ``unknown``. That is **not** a recovery: treating a Zigbee dropout as "the
     condition went away" would silently complete every ``clear_on_recover`` task the
-    first time its device fell off the mesh. A ``None`` state therefore holds the
-    carried edge state exactly as it was and decides nothing.
+    first time its device fell off the mesh. A ``None`` state therefore decides
+    nothing, and it ends a pending hold — see :func:`_evaluate_indeterminate`.
     """
     cfg = sensor_config(task)
     assert cfg is not None
     if state is None:
-        return {
-            "action": None,
-            "condition_met": condition_met_prev,
-            "crossed_at": crossed_at,
-            "hold_due_at": hold_due_at(task, crossed_at=crossed_at, now=now),
-        }
+        return _evaluate_indeterminate(
+            condition_met_prev=condition_met_prev, crossed_at=crossed_at
+        )
     return _evaluate_edge(
         task,
         cfg,
@@ -581,19 +654,16 @@ def evaluate_availability(
     ignore. See :func:`_evaluate_edge` for the returned shape.
 
     ``status == "missing"`` is indeterminate (the entity is not yet loaded — e.g.
-    early in HA startup) and holds the carried edge state exactly as it was, so a
-    boot-time gap can never fabricate a spurious arm or clear. Mirrors the
-    ``problem_sync`` "indeterminate does not fabricate" invariant.
+    early in HA startup), so it fabricates neither an arm nor a clear and it ends a
+    pending hold. Mirrors the ``problem_sync`` "indeterminate does not fabricate"
+    invariant. See :func:`_evaluate_indeterminate`.
     """
     cfg = sensor_config(task)
     assert cfg is not None
     if status == AVAILABILITY_MISSING:
-        return {
-            "action": None,
-            "condition_met": condition_met_prev,
-            "crossed_at": crossed_at,
-            "hold_due_at": hold_due_at(task, crossed_at=crossed_at, now=now),
-        }
+        return _evaluate_indeterminate(
+            condition_met_prev=condition_met_prev, crossed_at=crossed_at
+        )
     return _evaluate_edge(
         task,
         cfg,
