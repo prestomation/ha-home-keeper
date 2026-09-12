@@ -200,7 +200,7 @@ jobs:
                 marker,
                 '### 🎥 Panel walkthrough',
                 '',
-                `⚠️ The walkthrough capture failed for this push — see the [run logs](${process.env.RUN_URL}). This is a soft gate and does not block the PR; pushing again re-runs it.`,
+                `⚠️ The walkthrough capture failed for this push — see the [run logs](${process.env.RUN_URL}). This check is red until the tour runs clean: fix the tour, or push again if it was a flake.`,
               ].join('\n');
             }
 
@@ -220,6 +220,11 @@ jobs:
       # A cancelled run is excluded for the same reason the sticky comment excludes
       # it: this job's concurrency group cancels in-progress runs, and a superseded
       # run must not report a failure for a capture nothing was wrong with.
+      #
+      # This reads `outcome == 'failure'`, so it only fires when the capture actually
+      # ran and failed. Give the capture step an `if:` of its own and a skip makes
+      # `outcome` 'skipped', which passes this gate silently — the exact hole the gate
+      # exists to close. Gate on the skip too if the capture ever becomes conditional.
       - name: Fail the check when the capture failed
         if: ${{ !cancelled() && github.event.action != 'closed' && steps.capture.outcome == 'failure' }}
         run: |
