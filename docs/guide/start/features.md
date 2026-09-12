@@ -14,7 +14,7 @@
   can require the scan.
 - An appliance has a device page with structured metadata and optional
   tracked-date sensors. It has parts and wear items and spare-part inventory and
-  documents. A CSV home-inventory export is available for insurance.
+  documents. A CSV appliance report is available for insurance.
 - Home Keeper fires a bus event for every state change and provides device
   triggers such as "Task became overdue" for the visual automation editor.
 - Every data action is a `home_keeper.*` service for automations and scripts and

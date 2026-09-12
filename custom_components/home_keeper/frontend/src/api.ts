@@ -1,4 +1,5 @@
 import type {
+  ApplianceReport,
   Asset,
   AssetDocument,
   Companion,
@@ -9,7 +10,6 @@ import type {
   HassLabel,
   ImportReport,
   HomeKeeperOptions,
-  Inventory,
   NotifyRun,
   NotifyRunOptions,
   Part,
@@ -782,12 +782,12 @@ export async function importData(
   });
 }
 
-/** Fetch the home-inventory report (for insurance) plus a ready-to-save CSV. */
-export async function exportInventory(
+/** Fetch the appliance report plus a ready-to-save CSV. */
+export async function exportApplianceReport(
   hass: Hass,
-): Promise<{ inventory: Inventory; csv: string }> {
-  return hass.callWS<{ inventory: Inventory; csv: string }>({
-    type: 'home_keeper/export_inventory',
+): Promise<{ report: ApplianceReport; csv: string }> {
+  return hass.callWS<{ report: ApplianceReport; csv: string }>({
+    type: 'home_keeper/export_appliance_report',
   });
 }
 

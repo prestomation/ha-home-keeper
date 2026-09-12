@@ -27,7 +27,7 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   Service handlers call the local `_verify_admin(call)` helper in `__init__.py`,
   which raises HA's `Unauthorized`. Currently gated: appliance CRUD (create /
   update / delete / archive / restore, documents, part files, part stock),
-  `set_options`, `export_inventory`.
+  `set_options`, `export_appliance_report`.
 - A call with **no** `context.user_id` (internal / automation-triggered) is
   trusted, matching HA core.
 - **`Unauthorized` is the one exception to the localized-exception rule.** It is an
@@ -395,8 +395,8 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
 ## Services are the interoperability surface — expose every action as one
 - **Every action that mutates or exports Home Keeper data MUST be exposed as a
   `home_keeper.*` Home Assistant service**, not only as a panel websocket command.
-  This is not limited to task/asset CRUD — it includes exports (e.g. the inventory
-  export), stock adjustments, and any future operation. Services are what
+  This is not limited to task/asset CRUD — it includes exports (e.g. the
+  appliance report), stock adjustments, and any future operation. Services are what
   automations, scripts, voice assistants, and other integrations build on, so they
   are the contract; a panel **websocket command** is only a UI-latency optimization
   layered on top and is **never a substitute** for the service.
@@ -1509,13 +1509,13 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   `test_exception_translations.py`) fails the build on one.
 - A handful of backend-generated strings that aren't exceptions at all — the
   problem-sensor sync's `completion_prompt`, a companion catalog suggestion's
-  `description`, the inventory CSV column headers — have no home in `strings.json`
+  `description`, the appliance report CSV column headers — have no home in `strings.json`
   either (hassfest rejects an unrecognized top-level category there). These use
   `backend_i18n.resolve_string(lang, key, **params)` against a separate flat
   dotted-key bundle, `backend_strings/<lang>.json` (16 locales, own parity test
   `tests/unit/test_backend_strings_parity.py`), the same convention
   `frontend/src/locales/*.json` uses for the panel. A pure module that needs one of
-  these (`problem_tasks.py`, `inventory.py`, `companions_catalog.py` are all
+  these (`problem_tasks.py`, `appliance_report.py`, `companions_catalog.py` are all
   HA-import-free) takes `lang: str = "en"` as a plain parameter rather than reading
   `hass` itself — the HA-aware caller (`store.py`, `websocket_api.py`,
   `companions.py`) threads `hass.config.language` in, the same pattern

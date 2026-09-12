@@ -56,8 +56,8 @@ def test_backend_string_lookups_never_block_the_event_loop(ha):
     # lookup that silently fell back would leave nothing for this test to measure.
     assert reply["error"]["message"] == "Task not found: no-such-task-247", reply
 
-    # ...while `backend_strings/<lang>.json` backs the inventory CSV's headers.
-    export = call_service(ha, "home_keeper", "export_inventory", {}, True)
+    # ...while `backend_strings/<lang>.json` backs the report CSV's headers.
+    export = call_service(ha, "home_keeper", "export_appliance_report", {}, True)
     csv = export.get("service_response", export)["csv"]
     assert csv.splitlines()[0].startswith("Name,"), csv.splitlines()[0]
 

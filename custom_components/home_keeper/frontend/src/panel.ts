@@ -1337,18 +1337,25 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   }
 
   /**
-   * Build the home-inventory report server-side and save it as a CSV — a
-   * grab-and-go record for an insurance claim (make/model/serial, purchase +
-   * warranty dates, replacement cost, on-hand spares value).
+   * Build the appliance report server-side and save it as a CSV.
+   *
+   * The *report*, not the backup: `_exportData` below already writes every field
+   * this reads. What the CSV adds is the arithmetic (each appliance's spares
+   * value, and the totals) and a shape a spreadsheet opens — which is what an
+   * insurance claim asks for.
    */
-  async _exportInventory(): Promise<void> {
+  async _exportApplianceReport(): Promise<void> {
     if (!this._hass) return;
     try {
-      const { csv } = await api.exportInventory(this._hass);
+      const { csv } = await api.exportApplianceReport(this._hass);
       const stamp = new Date().toISOString().slice(0, 10);
-      this._downloadFile(`home-keeper-inventory-${stamp}.csv`, csv, 'text/csv');
+      this._downloadFile(
+        `home-keeper-appliance-report-${stamp}.csv`,
+        csv,
+        'text/csv',
+      );
     } catch (err) {
-      console.error('home-keeper: inventory export failed', err);
+      console.error('home-keeper: appliance report export failed', err);
       toast(this, t('error.exportFailed'));
     }
   }

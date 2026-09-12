@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Exportera inventarium",
-      "description": "Returnerar ett heminventarium för försäkring som svar (en rad per apparat plus summor), med en färdig CSV-fil att spara under nyckeln \"csv\"."
+    "export_appliance_report": {
+      "name": "Exportera apparatrapport",
+      "description": "Returnerar apparatrapporten som svar (en rad per apparat plus summor), med en färdig CSV-fil att spara under nyckeln \"csv\"."
     },
     "export_data": {
       "name": "Exportera data",

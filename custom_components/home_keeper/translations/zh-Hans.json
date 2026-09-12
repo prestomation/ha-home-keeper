@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "导出清单",
-      "description": "以响应形式返回用于保险的家庭清单（每个设备一行，外加合计），并在“csv”键下提供可直接保存的 CSV。"
+    "export_appliance_report": {
+      "name": "导出设备报告",
+      "description": "以响应形式返回设备报告（每个设备一行，外加合计），并在“csv”键下提供可直接保存的 CSV。"
     },
     "export_data": {
       "name": "导出数据",

@@ -23,10 +23,13 @@ the device page for use in automations. An untracked date is display-only.
 
 The appliance detail page has the metadata and parts and related tasks and
 subdevices and the full maintenance history. The history keeps the completions of
-tasks that were deleted while assigned to the appliance. Press **Export inventory**
-on the Appliances tab to download a CSV home inventory with make and model and
-replacement cost and the value of spares on hand and a total. A Details column
-lists each appliance's custom fields.
+tasks that were deleted while assigned to the appliance.
+
+**Settings → Import and export** holds the
+[appliance report](../automation/import-export.md#appliance-report), a CSV file
+with make and model and replacement cost and the value of spares on hand and a
+total. A Details column lists each appliance's custom fields. Use it for an
+insurance claim.
 
 ![Appliance detail page](../../images/8-panel-appliance-detail.png)
 

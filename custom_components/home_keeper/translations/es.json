@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Exportar inventario",
-      "description": "Devuelve un inventario del hogar para el seguro como respuesta (una fila por electrodoméstico más los totales), con un CSV listo para guardar bajo la clave «csv»."
+    "export_appliance_report": {
+      "name": "Exportar informe de electrodomésticos",
+      "description": "Devuelve el informe de electrodomésticos como respuesta (una fila por electrodoméstico más los totales), con un CSV listo para guardar bajo la clave «csv»."
     },
     "export_data": {
       "name": "Exportar datos",

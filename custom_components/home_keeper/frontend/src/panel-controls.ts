@@ -1,6 +1,6 @@
 /**
  * The list-controls region: the row above every list (scope pills, saved-Profile
- * picker, Group by, the appliance flat/tree switch, Add/Export), the two primitives
+ * picker, Group by, the appliance flat/tree switch, Add), the two primitives
  * it is built from (`seg`, `menuControl`), and the grouping glue that turns the
  * chosen options into the buckets a list renders — plus the one wiring pass that
  * makes the row live.
@@ -142,7 +142,6 @@ export function controls(p: PanelHost): string {
   const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
   const actions = `
       <span class="hk-controls-spacer"></span>
-      ${onTasks ? '' : `<ha-button ${btnAttrs('secondary')} id="export-btn">${escapeHTML(t('btn.exportInventory'))}</ha-button>`}
       <ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
   return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${groupControl}${actions}</div>`;
 }
@@ -456,7 +455,7 @@ export function renderGroups<T>(
 }
 
 /**
- * Wire the control row: Add/Export, the pill segments and their dropdown twins, the
+ * Wire the control row: Add, the pill segments and their dropdown twins, the
  * saved-Profile picker, and the text filter.
  *
  * The per-group collapse memory is *not* here, although the segments it sits beside
@@ -469,8 +468,6 @@ export function wireControls(p: PanelHost, root: ShadowRoot): void {
     if (p._view === 'tasks') p._openCreate();
     else p._openCreateAsset();
   });
-
-  root.getElementById('export-btn')?.addEventListener('click', () => p._exportInventory());
 
   // Filter / group-by segmented controls.
   root.querySelectorAll<HTMLElement>('.hk-seg-btn').forEach((b) =>

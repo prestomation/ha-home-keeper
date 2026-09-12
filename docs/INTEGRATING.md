@@ -142,6 +142,7 @@ service. Subscribe in `async_setup_entry` and unsubscribe on unload:
 ```python
 EVENT_HK_COMPLETED = "home_keeper_task_completed"
 
+
 @callback
 def _on_hk_completed(event):
     # Ignore completions we initiated ourselves (see §4, loop prevention).
@@ -152,6 +153,7 @@ def _on_hk_completed(event):
         return  # not one of our tasks
     # Apply your side-effect WITHOUT calling complete_task again (see §4).
     hass.async_create_task(_record_done(src, event.data.get("completed_at")))
+
 
 entry.async_on_unload(hass.bus.async_listen(EVENT_HK_COMPLETED, _on_hk_completed))
 ```
@@ -215,14 +217,16 @@ so you can drop exactly the mirrored record it stood for:
 ```python
 EVENT_HK_UNCOMPLETED = "home_keeper_task_uncompleted"
 
+
 @callback
 def _on_hk_uncompleted(event):
     if event.data.get("origin") == "my_integration":
-        return                      # the echo of an undo we initiated
+        return  # the echo of an undo we initiated
     src = (event.data.get("source") or {}).get("my_integration")
     if not src:
         return
     hass.async_create_task(_drop_record(src, event.data["ts"]))
+
 
 entry.async_on_unload(hass.bus.async_listen(EVENT_HK_UNCOMPLETED, _on_hk_uncompleted))
 ```
@@ -280,14 +284,14 @@ await hass.services.async_call(
         "source": {"my_integration": {"schedule_id": schedule_id}},
         "managed_by": {
             # Required.
-            "integration": "my_integration",   # your DOMAIN
+            "integration": "my_integration",  # your DOMAIN
             "display_name": "My Integration",  # shown in the UI chip
             # Optional.
-            "icon": "mdi:pill",                # mdi icon (future use)
+            "icon": "mdi:pill",  # mdi icon (future use)
             "locked_fields": ["device_id", "name"],  # user cannot change these
-            "config_entry_id": entry.entry_id, # enables orphan detection + deep link
+            "config_entry_id": entry.entry_id,  # enables orphan detection + deep link
             "completion_prompt": "Log as Buddy's medicine dose?",  # shown near Done
-            "deletion_protected": True,        # blocks deletion from HK panel
+            "deletion_protected": True,  # blocks deletion from HK panel
         },
         **recurrence_payload,
     },
@@ -385,13 +389,14 @@ inverse: it arms the task without recording anything. Both are idempotent.
 ```python
 # Condition first detected → create the task, armed/due-now:
 resp = await hass.services.async_call(
-    DOMAIN_HK, "add_task",
+    DOMAIN_HK,
+    "add_task",
     {
         "name": f"Replace battery: {device_name}",
-        "recurrence_type": "triggered",     # no interval/unit/freq/anchor
+        "recurrence_type": "triggered",  # no interval/unit/freq/anchor
         "device_id": device_id,
         "source": {"my_integration": {"device_id": device_id}},
-        "managed_by": {                      # see §6, recommended for owned tasks
+        "managed_by": {  # see §6, recommended for owned tasks
             "integration": "my_integration",
             "display_name": "My Integration",
             "config_entry_id": entry.entry_id,
@@ -399,19 +404,25 @@ resp = await hass.services.async_call(
             "locked_fields": ["name", "device_id"],
         },
     },
-    blocking=True, return_response=True,
+    blocking=True,
+    return_response=True,
 )
 task_id = resp["task_id"]
 
 # Condition resolved (records history, goes dormant):
 await hass.services.async_call(
-    DOMAIN_HK, "complete_task",
-    {"task_id": task_id, "origin": "my_integration"}, blocking=True,
+    DOMAIN_HK,
+    "complete_task",
+    {"task_id": task_id, "origin": "my_integration"},
+    blocking=True,
 )
 
 # Condition true again later (re-arm the same task, history is preserved):
 await hass.services.async_call(
-    DOMAIN_HK, "trigger_task", {"task_id": task_id}, blocking=True,
+    DOMAIN_HK,
+    "trigger_task",
+    {"task_id": task_id},
+    blocking=True,
 )
 ```
 
@@ -443,14 +454,23 @@ itself. Pass `recurrence_type: "sensor"` and a `sensor` mapping:
 
 ```python
 # Usage / meter: due once the reading advances 15000 units since the last completion.
-{"recurrence_type": "sensor",
- "sensor": {"entity_id": "sensor.odometer", "mode": "usage", "target": 15000}}
+{
+    "recurrence_type": "sensor",
+    "sensor": {"entity_id": "sensor.odometer", "mode": "usage", "target": 15000},
+}
 
 # Threshold: due when the reading crosses the comparison (optional for_seconds hold,
 # optional attribute to read instead of the state).
-{"recurrence_type": "sensor",
- "sensor": {"entity_id": "sensor.airflow", "mode": "threshold",
-            "comparison": "<", "value": 60, "for_seconds": 120}}
+{
+    "recurrence_type": "sensor",
+    "sensor": {
+        "entity_id": "sensor.airflow",
+        "mode": "threshold",
+        "comparison": "<",
+        "value": 60,
+        "for_seconds": 120,
+    },
+}
 ```
 
 The task starts **dormant**; Home Keeper's internal watcher arms it (firing
@@ -466,27 +486,29 @@ A `usage` binding takes four more optional keys, all of which a glue integration
 expected to set when it knows the answer better than the user does:
 
 ```python
-{"recurrence_type": "sensor",
- "sensor": {
-     "entity_id": "sensor.x1c_total_usage_hours",
-     "mode": "usage",
-     "target": 300,
-     # Display label for the target. Purely cosmetic (the meter arithmetic is
-     # unit-agnostic), but it turns a bare "300" into "300 h" in the panel and rides
-     # along as the ``usage_unit`` attribute for dashboards.
-     "unit": "h",
-     # The time backstop: the "or every 6 months" half of a real service interval,
-     # measured from the last completion (or the task's creation before the first).
-     "also_every": {"interval": 6, "unit": "months"},
-     # "any" (default) = whichever comes first; "all" = both must be met.
-     "combinator": "any",
-     # Start the meter somewhere other than the live reading, e.g. you already know
-     # the machine was serviced 40 hours ago. Omit it and the watcher anchors to the
-     # first valid reading it sees. Pair it with a top-level ``last_completed`` and
-     # the seeded history entry records the reading too, which also anchors the
-     # ``also_every`` backstop to the same service.
-     "baseline": 660,
- }}
+{
+    "recurrence_type": "sensor",
+    "sensor": {
+        "entity_id": "sensor.x1c_total_usage_hours",
+        "mode": "usage",
+        "target": 300,
+        # Display label for the target. Purely cosmetic (the meter arithmetic is
+        # unit-agnostic), but it turns a bare "300" into "300 h" in the panel and rides
+        # along as the ``usage_unit`` attribute for dashboards.
+        "unit": "h",
+        # The time backstop: the "or every 6 months" half of a real service interval,
+        # measured from the last completion (or the task's creation before the first).
+        "also_every": {"interval": 6, "unit": "months"},
+        # "any" (default) = whichever comes first; "all" = both must be met.
+        "combinator": "any",
+        # Start the meter somewhere other than the live reading, e.g. you already know
+        # the machine was serviced 40 hours ago. Omit it and the watcher anchors to the
+        # first valid reading it sees. Pair it with a top-level ``last_completed`` and
+        # the seeded history entry records the reading too, which also anchors the
+        # ``also_every`` backstop to the same service.
+        "baseline": 660,
+    },
+}
 ```
 
 The backstop is evaluated **even when the bound entity is unavailable**, so a device
@@ -616,6 +638,7 @@ reload), which covers the case where Home Keeper starts *after* you:
 ```python
 DOMAIN_HK = "home_keeper"
 
+
 async def _announce(hass, entry):
     if not hass.services.has_service(DOMAIN_HK, "register_companion"):
         return
@@ -636,10 +659,14 @@ async def _announce(hass, entry):
         blocking=False,
     )
 
+
 # In async_setup_entry:
 await _announce(hass, entry)
 entry.async_on_unload(
-    hass.bus.async_listen("home_keeper_register_companions", lambda _e: hass.async_create_task(_announce(hass, entry)))
+    hass.bus.async_listen(
+        "home_keeper_register_companions",
+        lambda _e: hass.async_create_task(_announce(hass, entry)),
+    )
 )
 ```
 
@@ -699,12 +726,13 @@ Then, in a real Home Assistant test environment (e.g.
 ```python
 from home_keeper.testing import async_setup_fake_home_keeper
 
+
 async def test_my_integration_two_way_sync(hass):
-    hk = await async_setup_fake_home_keeper(hass)   # registers the real service names
+    hk = await async_setup_fake_home_keeper(hass)  # registers the real service names
     # ... set up your integration so it calls home_keeper.add_task ...
 
     task = hk.get_task_by_source("my_integration", thing_id="abc")
-    assert task is not None                         # you created the task
+    assert task is not None  # you created the task
 
     # Inbound: simulate a user checking the task off in Home Keeper (origin=None).
     hk.fire_user_completion(task["id"])

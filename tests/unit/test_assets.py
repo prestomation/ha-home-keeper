@@ -1608,9 +1608,10 @@ def test_card_projection_keeps_what_the_card_renders():
     ]
 
 
-def test_card_projection_drops_inventory_value_data():
-    # The point of the projection: `export_inventory` is admin-only because costs and
-    # serials shouldn't leak, so the un-gated read must not hand them over either.
+def test_card_projection_drops_report_value_data():
+    # The point of the projection: `export_appliance_report` is admin-only because
+    # costs and serials shouldn't leak, so the un-gated read must not hand them
+    # over either.
     _, projected = _projected_asset()
     for field in ("cost", "serial_number", "manufacturer", "model", "notes", "name"):
         assert field not in projected, f"{field} leaked to a non-admin"

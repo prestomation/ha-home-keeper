@@ -68,7 +68,7 @@ class AssetValidationError(ValueError):
 # Assistant device registry (they title/brand/identify the device card —
 # ``manufacturer``/``model`` and ``serial_number`` map onto the matching ``DeviceInfo``
 # fields), so they stay first-class rather than folding into the free-form ``metadata``
-# list below. ``icon`` and ``cost`` (-> the inventory value rollup) are likewise
+# list below. ``icon`` and ``cost`` (-> the appliance report value rollup) are likewise
 # structured but validated separately, as is the ``documents`` list below.
 _TEXT_FIELDS = (
     "manufacturer",
@@ -1413,8 +1413,9 @@ def card_projection(assets: list[dict]) -> list[dict]:
     Administration is admin-only (the panel is ``require_admin``), but the dashboard
     card is a usage surface every household member can see, and it reads appliance
     data to resolve a task's "show on card" links. Without this, ``get_assets`` hands
-    any logged-in user the replacement costs, serial numbers and warranty dates that
-    ``export_inventory`` is admin-gated to protect — making that gate meaningless.
+    any logged-in user the replacement costs, serial numbers and warranty dates
+    that ``export_appliance_report`` is admin-gated to protect — making that gate
+    meaningless.
 
     The card needs exactly three things: an asset's ``documents`` (a card link can
     point at one), its ``link``-typed ``metadata`` entries (a card link can point at

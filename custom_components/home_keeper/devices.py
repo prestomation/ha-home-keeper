@@ -64,7 +64,7 @@ def area_exists(hass: HomeAssistant, area_id: str | None) -> bool:
 
 
 def area_names(hass: HomeAssistant) -> dict[str, str]:
-    """Map ``area_id`` -> human-readable name (for the inventory export)."""
+    """Map ``area_id`` -> human-readable name (for the appliance report)."""
     return {area.id: area.name for area in ar.async_get(hass).async_list_areas()}
 
 

@@ -20,16 +20,16 @@ directly by reading the file, instead of waiting on the frontend to look it up.
 
 Separately, a handful of backend-generated (not exception) strings — the
 problem-sensor sync's completion prompt, a companion catalog suggestion's
-description, the inventory CSV column headers — have no home in strings.json at all
+description, the report CSV column headers — have no home in strings.json at all
 (hassfest rejects unknown top-level categories there, and they aren't exceptions).
 Those live in their own flat-dotted-key bundle, ``backend_strings/<lang>.json``,
 mirroring the convention ``frontend/src/locales/*.json`` uses for the panel.
 
 Every helper here is a plain file read + ``str.format``-style interpolation — no
 Home Assistant import, so any module that needs a translated string (even a "pure"
-one like ``problem_tasks.py``/``inventory.py``) can use this without giving up its
-own unit-testability; callers thread the caller's ``hass.config.language`` in as a
-plain string.
+one like ``problem_tasks.py``/``appliance_report.py``) can use this without giving
+up its own unit-testability; callers thread the caller's ``hass.config.language``
+in as a plain string.
 """
 
 from __future__ import annotations
@@ -108,8 +108,8 @@ def preload(lang: str) -> None:
     Each table above is read from disk exactly once per language and memoized, so
     the cost is a one-off — but it lands on whichever caller happens to get there
     first, and every one of those callers is on Home Assistant's event loop: the
-    problem-sensor reconcile during setup, a websocket error reply, an inventory
-    export. Home Assistant's blocking-call detector catches it and logs a
+    problem-sensor reconcile during setup, a websocket error reply, an appliance
+    report. Home Assistant's blocking-call detector catches it and logs a
     ``Detected blocking call to read_text ... inside the event loop`` warning
     naming this file, which is what issue #247's reporter pasted. (``notifier.py``
     had the same problem in #150 and solved it the other way — dispatching each

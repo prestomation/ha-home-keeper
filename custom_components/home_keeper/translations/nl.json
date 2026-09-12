@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Inventaris exporteren",
-      "description": "Geeft een huisinventaris voor verzekeringen terug als antwoord (één rij per apparaat plus totalen), met een direct op te slaan CSV onder de sleutel \"csv\"."
+    "export_appliance_report": {
+      "name": "Apparaatrapport exporteren",
+      "description": "Geeft het apparaatrapport terug als antwoord (één rij per apparaat plus totalen), met een direct op te slaan CSV onder de sleutel \"csv\"."
     },
     "export_data": {
       "name": "Gegevens exporteren",

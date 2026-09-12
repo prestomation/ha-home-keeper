@@ -6,6 +6,16 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.24.0b6]
+
+### Changed
+
+- **[Appliance report](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export#appliance-report).**
+  The inventory export is now the appliance report, and its button moved to
+  Settings, Import and export, beside the backup it is not a copy of. The
+  `home_keeper.export_inventory` action is now
+  `home_keeper.export_appliance_report` and returns its rows under `report`.
+
 ## [0.24.0b5]
 
 ### Changed

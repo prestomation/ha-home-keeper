@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Exportovat inventář",
-      "description": "Vrátí domácí inventář pro pojištění jako odpověď (jeden řádek na spotřebič plus součty), s CSV připraveným k uložení pod klíčem \"csv\"."
+    "export_appliance_report": {
+      "name": "Exportovat zprávu o spotřebičích",
+      "description": "Vrátí zprávu o spotřebičích jako odpověď (jeden řádek na spotřebič plus součty), s CSV připraveným k uložení pod klíčem \"csv\"."
     },
     "export_data": {
       "name": "Exportovat data",

@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Exporter l'inventaire",
-      "description": "Renvoie un inventaire du domicile pour l'assurance sous forme de réponse (une ligne par appareil plus les totaux), avec un CSV prêt à enregistrer sous la clé « csv »."
+    "export_appliance_report": {
+      "name": "Exporter le rapport d'appareils",
+      "description": "Renvoie le rapport d'appareils sous forme de réponse (une ligne par appareil plus les totaux), avec un CSV prêt à enregistrer sous la clé « csv »."
     },
     "export_data": {
       "name": "Exporter les données",

@@ -24,7 +24,7 @@ changes, water filters, taking medicine, and anything else that recurs.
   one-tap **Done**, inline add/edit, and rich filtering/grouping.
 - **Appliances & virtual devices**: give "dumb" appliances a real device page,
   structured metadata (with optional tracked-date sensors), **parts & wear items**,
-  **spare-part inventory**, and a CSV **home-inventory export** for insurance.
+  **spare-part inventory**, and a CSV **appliance report** for insurance.
 - **Events & automation triggers**: a bus event for every state change, plus
   visual-editor **device triggers** like *"Task became overdue."*
 - **Services for everything**: every data action is a `home_keeper.*` service for

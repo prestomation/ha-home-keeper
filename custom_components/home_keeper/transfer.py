@@ -25,7 +25,7 @@ release; the only way a new field fails to travel is if somebody deliberately ex
 it, with a reason, in one line. ``tests/unit/test_transfer_roundtrip.py`` is what makes
 that enforceable.
 
-Pure, like ``inventory.py``: imports nothing from Home Assistant, so the whole
+Pure, like ``appliance_report.py``: imports nothing from Home Assistant, so the whole
 planning pass — validation, matching, id remapping, history folding — is unit-testable
 with an injected clock and runs to completion *before* anything reaches disk.
 """

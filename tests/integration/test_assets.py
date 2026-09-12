@@ -597,11 +597,13 @@ def _water_heater(ha):
     return next(a for a in _assets(ha) if a["name"] == "Garage water heater")
 
 
-def test_export_inventory_service_returns_report_and_csv(ha):
-    # The inventory export rolls the appliance metadata up for an insurance record.
-    resp = call_service(ha, "home_keeper", "export_inventory", {}, return_response=True)
+def test_export_appliance_report_service_returns_report_and_csv(ha):
+    # The appliance report rolls the appliance metadata up for an insurance record.
+    resp = call_service(
+        ha, "home_keeper", "export_appliance_report", {}, return_response=True
+    )
     payload = resp.get("service_response", resp)
-    report = payload["inventory"]
+    report = payload["report"]
     assert "assets" in report and "totals" in report
     wh = next(r for r in report["assets"] if r["name"] == "Garage water heater")
     assert wh["cost"] == 649.0

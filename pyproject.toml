@@ -85,7 +85,7 @@ only_mutate = [
     "custom_components/home_keeper/notifications.py",
     "custom_components/home_keeper/sensor_tasks.py",
     "custom_components/home_keeper/problem_tasks.py",
-    "custom_components/home_keeper/inventory.py",
+    "custom_components/home_keeper/appliance_report.py",
     "custom_components/home_keeper/profiles.py",
     "custom_components/home_keeper/documents.py",
     "custom_components/home_keeper/events.py",

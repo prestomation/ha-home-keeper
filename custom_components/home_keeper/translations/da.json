@@ -621,9 +621,9 @@
         }
       }
     },
-    "export_inventory": {
-      "name": "Eksportér inventar",
-      "description": "Returnér et hjemmeinventar til forsikring som et svar (én række pr. apparat plus totaler) med en klar-til-at-gemme CSV under nøglen \"csv\"."
+    "export_appliance_report": {
+      "name": "Eksportér apparatrapport",
+      "description": "Returnér apparatrapporten som et svar (én række pr. apparat plus totaler) med en klar-til-at-gemme CSV under nøglen \"csv\"."
     },
     "export_data": {
       "name": "Eksportér data",

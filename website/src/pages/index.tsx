@@ -33,7 +33,7 @@ const FEATURES: Feature[] = [
   {
     title: 'Appliances & inventory',
     description:
-      'Give "dumb" appliances a real device page with metadata, parts & wear items, spare-part stock, and a CSV home-inventory export for insurance.',
+      'Give "dumb" appliances a real device page with metadata, parts & wear items, spare-part stock, and a CSV appliance report for insurance.',
   },
   {
     title: 'Events & automations',

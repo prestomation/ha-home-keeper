@@ -17,8 +17,9 @@ The tab has 7 sections:
 - **Problem sensor sync** has the sync switch and the exclusions for entities and
   devices and areas and labels. The exclusions apply only when the sync is on.
 - **Companions** lists the integrations that work with Home Keeper.
-- **Import and export** saves your data to a file and reads a file back. See
-  [Import and export](../automation/import-export.md).
+- **Import and export** saves your data to a file and reads a file back. It also
+  holds the [appliance report](../automation/import-export.md#appliance-report).
+  See [Import and export](../automation/import-export.md).
 
 ![The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards](../../images/17-panel-settings.png)
 

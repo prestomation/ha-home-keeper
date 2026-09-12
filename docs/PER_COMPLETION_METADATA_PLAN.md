@@ -80,11 +80,11 @@ Gaps to close:
 
 ```python
 {
-    "ts":    "2026-06-13T10:00:00-04:00",  # unchanged, the identity key
-    "note":  "Replaced filter, hinge squeak fixed",  # str  | absent
-    "cost":  12.50,                                   # number | absent (>= 0)
-    "photo": "<image-upload-id>",                     # str  | absent (HA image id)
-    "who":   "person.alice",                          # str  | absent (stable id)
+    "ts": "2026-06-13T10:00:00-04:00",  # unchanged, the identity key
+    "note": "Replaced filter, hinge squeak fixed",  # str  | absent
+    "cost": 12.50,  # number | absent (>= 0)
+    "photo": "<image-upload-id>",  # str  | absent (HA image id)
+    "who": "person.alice",  # str  | absent (stable id)
 }
 ```
 

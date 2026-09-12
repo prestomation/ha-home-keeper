@@ -14,6 +14,9 @@ in a spreadsheet or an old app.
 Both halves are also actions, so a script or an automation can call them:
 `home_keeper.export_data` and `home_keeper.import_data`. Both are admin-only.
 
+The same card holds the [appliance report](#appliance-report), which answers a
+different question. See below.
+
 #### The file
 
 An export is also a worked example. The file it writes is the file import reads, so
@@ -151,6 +154,38 @@ with an `external_id` on every record. Paste the answer into the Import
 box and press **Preview** first: it checks every record and reports each problem with
 the path to it, so you can fix the file and try again. Nothing is written until the
 preview is clean.
+
+#### Appliance report
+
+The export above is a backup. The **appliance report** is a report, and the 2
+answer different questions.
+
+Press **Export appliance report**, at the foot of the same card, to save a CSV
+file of your appliances and what they are worth. Each row holds the name and the
+area and the make and model and serial number and replacement cost. It also holds
+the value of the spare parts you hold for that appliance, which is each part's
+cost multiplied by its stock. A Details column holds the custom fields. The last
+row totals the replacement costs and the spares.
+
+A spreadsheet opens the file, so use it for an insurance claim or for your own
+records. Column headings are in your Home Assistant language.
+
+The report is also an action, `home_keeper.export_appliance_report`, which returns
+the same rows under a `report` key and the CSV under a `csv` key. The action is
+admin-only, because the report holds every serial number and purchase cost.
+
+**The report holds no field the export leaves out.** An export of your appliances
+holds the make and model and serial number and cost and the stock of every part.
+It also holds every custom field, as a label and a value you can read.
+
+What the report adds is the arithmetic, because it multiplies and totals those
+values, and a shape made to read. The Details column is part of that shape: it
+prints your custom fields as `label: value; label: value` in one cell, because a
+spreadsheet column cannot hold a list. The export keeps each field separate, which
+is what an import needs to read them back.
+
+So use the export to move your data, and the report to state what you own and what
+it is worth.
 
 ![Settings, Import and export, with a preview of what an import would change](../../images/60-panel-transfer.png)
 

@@ -27,7 +27,7 @@ lists all of them with their fields.
   manage an appliance. `adjust_part_stock` adjusts a part's stock.
   `add_asset_document`, `update_asset_document`, and `remove_asset_document`
   attach, rename, or detach a manual, a warranty, or a receipt. A file uploads
-  from the panel. `list_assets` and `export_inventory` return a response.
+  from the panel. `list_assets` and `export_appliance_report` return a response.
 - **Import and export**: `home_keeper.export_data` returns every task and appliance
   as one document. `home_keeper.import_data` reads one back. Both return a response.
   See [Import and export](./import-export.md).

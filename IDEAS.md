@@ -169,7 +169,7 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
   API's and document-upload views' error messages (`backend_i18n.resolve_exception`,
   reusing `strings.json` `exceptions`), and backend-generated strings with no home
   in `strings.json` — the problem-sensor completion prompt, a companion suggestion's
-  description, the inventory CSV headers (`backend_i18n.resolve_string` against a
+  description, the appliance report CSV headers (`backend_i18n.resolve_string` against a
   new `backend_strings/<lang>.json` bundle) — plus a handful of frontend runtime
   strings that had been miscategorized as "editor-only" (`card.ts`'s empty/error/
   "+N more" text, a card confirm-dialog, and two form default-name fallbacks). Two
@@ -243,9 +243,11 @@ ship rather than adding a parallel system.
   Add a "total replacement value" rollup and a one-click export (CSV/JSON/PDF with
   photos, serials, purchase dates, costs, warranty) — exactly what people scramble to
   assemble after a fire/flood/theft. Reuses fields we already store. **Shipped** (CSV):
-  pure `inventory.py` (`build_inventory` + `inventory_to_csv`), a
-  `home_keeper/export_inventory` websocket command, and an **Export inventory** button
-  on the Appliances tab. Still open: JSON/PDF formats, photos, and depreciation.
+  pure `appliance_report.py` (`build_report` + `report_to_csv`), a
+  `home_keeper/export_appliance_report` websocket command, and an **Export appliance
+  report** button in Settings → Import and export, beside the portable document it is
+  deliberately *not* a second copy of. Still open: JSON/PDF formats, photos, and
+  depreciation.
 - ~~**Repair / service log (distinct from routine maintenance).** A place to record
   one-off events ("HVAC capacitor replaced, $180, ABC Heating, 2026-03") separate from
   recurring tasks, feeding **repair-vs-replace analytics** (lifetime cost per appliance).~~

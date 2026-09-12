@@ -69,7 +69,7 @@ def test_resolving_after_preload_reads_no_files(monkeypatch):
         backend_i18n.resolve_exception("en", "task_not_found", task_id="t1")
         == "Task not found: t1"
     )
-    assert backend_i18n.resolve_string("en", "inventory.csv.name") == "Name"
+    assert backend_i18n.resolve_string("en", "report.csv.name") == "Name"
     assert reads == [], f"resolving read files after preload: {reads}"
 
 

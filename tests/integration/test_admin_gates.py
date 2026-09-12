@@ -129,7 +129,7 @@ def _call(session, service, data=None, return_response=False):
 @pytest.mark.parametrize(
     ("service", "data"),
     [
-        ("export_inventory", {}),
+        ("export_appliance_report", {}),
         ("set_options", {"sync_problem_sensors": True}),
         # The portable document is every task, note, serial and cost in the store,
         # and the import writes tasks and appliances wholesale.
@@ -146,11 +146,13 @@ def test_admin_only_services_refuse_a_non_admin(non_admin, service, data):
     assert r.status_code == 401, f"{service} answered a non-admin: {r.status_code}"
 
 
-def test_export_inventory_still_works_for_an_admin(ha):
+def test_export_appliance_report_still_works_for_an_admin(ha):
     # The gate must refuse the right people only — an admin still gets the report.
-    resp = call_service(ha, "home_keeper", "export_inventory", {}, return_response=True)
+    resp = call_service(
+        ha, "home_keeper", "export_appliance_report", {}, return_response=True
+    )
     payload = resp.get("service_response", resp)
-    assert "inventory" in payload and "csv" in payload
+    assert "report" in payload and "csv" in payload
 
 
 @pytest.mark.parametrize(
