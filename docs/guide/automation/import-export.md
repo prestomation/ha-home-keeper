@@ -176,9 +176,16 @@ admin-only, because the report holds every serial number and purchase cost.
 
 **The report holds no field the export leaves out.** An export of your appliances
 holds the make and model and serial number and cost and the stock of every part.
+It also holds every custom field, as a label and a value you can read.
+
 What the report adds is the arithmetic, because it multiplies and totals those
-values, and the CSV shape. So use the export to move your data, and the report to
-state what you own and what it is worth.
+values, and a shape made to read. The Details column is part of that shape: it
+prints your custom fields as `label: value; label: value` in one cell, because a
+spreadsheet column cannot hold a list. The export keeps each field separate, which
+is what an import needs to read them back.
+
+So use the export to move your data, and the report to state what you own and what
+it is worth.
 
 ![Settings, Import and export, with a preview of what an import would change](../../images/60-panel-transfer.png)
 
