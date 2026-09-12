@@ -143,6 +143,50 @@ def test_a_use_task_name_override_is_kept():
     )
 
 
+# ── the carried count ─────────────────────────────────────────────────────────
+def test_a_carried_count_is_kept():
+    assert _counted(carried_uses=24)["carried_uses"] == 24
+
+
+def test_an_absent_carried_count_is_zero():
+    assert _counted()["carried_uses"] == 0
+    assert assets.part_carried_uses(_counted()) == 0
+
+
+def test_a_carried_count_of_text_is_refused():
+    with pytest.raises(assets.AssetValidationError, match="carried_uses"):
+        _counted(carried_uses="two dozen")
+
+
+def test_a_negative_carried_count_is_refused():
+    with pytest.raises(assets.AssetValidationError, match="carried_uses must be >= 0"):
+        _counted(carried_uses=-1)
+
+
+def test_a_carried_count_above_the_history_cap_is_refused():
+    """``recurrence._record_entry`` trims every completion log to 500 on every write.
+
+    A carry above that is a figure Home Keeper could never have produced, so the file
+    that states one is wrong rather than merely large.
+    """
+    with pytest.raises(
+        assets.AssetValidationError, match="carried_uses must be <= 500"
+    ):
+        _counted(carried_uses=501)
+
+
+def test_the_history_cap_itself_is_accepted():
+    """The ceiling is MAX_COMPLETION_HISTORY, not the 250 use target: a household can
+    let a count run past its target."""
+    assert _counted(carried_uses=500)["carried_uses"] == 500
+
+
+def test_a_boolean_carried_count_is_refused():
+    """``True`` is an ``int`` in Python, so only the boolean guard refuses it."""
+    with pytest.raises(assets.AssetValidationError, match="carried_uses"):
+        _counted(carried_uses=True)
+
+
 # ── the predicates ────────────────────────────────────────────────────────────
 def test_part_counts_uses():
     assert assets.part_counts_uses(_counted()) is True
