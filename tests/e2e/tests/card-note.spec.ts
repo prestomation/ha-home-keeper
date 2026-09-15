@@ -20,22 +20,33 @@ test.describe('Home Keeper card — note quick-view', () => {
   test('a task with a note shows a Note chip; one without does not @responsive', async ({
     page,
   }) => {
-    const NAME = 'E2E note quick-view probe';
-    const taskId = await createTask({
-      name: NAME,
-      recurrence_type: 'one-off',
-      due: new Date(Date.now() + 86_400_000).toISOString(),
-      notes: 'Use a **HEPA** filter, part #A1B2.',
-    });
-    created.push(taskId);
+    const NAMED = 'E2E note quick-view probe';
+    const BLANK = 'E2E no-note probe';
+    // Two tasks created here rather than trusting a seeded fixture's notes field —
+    // #340's own e2e run picked a seeded "no note" control that, it turned out,
+    // carried one ("Replace water filter": "Under-sink RO filter"), which false-
+    // failed the very assertion this test exists for.
+    const [taskId, blankId] = await Promise.all([
+      createTask({
+        name: NAMED,
+        recurrence_type: 'one-off',
+        due: new Date(Date.now() + 86_400_000).toISOString(),
+        notes: 'Use a **HEPA** filter, part #A1B2.',
+      }),
+      createTask({
+        name: BLANK,
+        recurrence_type: 'one-off',
+        due: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    ]);
+    created.push(taskId, blankId);
 
     const card = await openCardDashboard(page);
-    const row = card.locator('.hk-row', { hasText: NAME });
+    const row = card.locator('.hk-row', { hasText: NAMED });
     await expect(row).toHaveCount(1, { timeout: 15_000 });
     await expect(row.locator('.hk-note-chip')).toBeVisible();
 
-    // The seeded water-filter task carries no note, so it shows no chip.
-    const noNote = card.locator('.hk-row', { hasText: 'Replace water filter' });
+    const noNote = card.locator('.hk-row', { hasText: BLANK });
     await expect(noNote).toHaveCount(1);
     await expect(noNote.locator('.hk-note-chip')).toHaveCount(0);
   });
@@ -59,7 +70,6 @@ test.describe('Home Keeper card — note quick-view', () => {
     // Assert on what's inside the dialog, not on `ha-dialog` itself — the host
     // element has no box of its own (see card-defer.spec.ts).
     const dialog = page.locator('ha-dialog[open]').first();
-    await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAttribute('heading', new RegExp(NAME));
     // Rendered as Markdown, not escaped text: the emphasis becomes a real <strong>.
     await expect(dialog.locator('strong', { hasText: 'HEPA' })).toBeVisible();
@@ -83,7 +93,10 @@ test.describe('Home Keeper card — note quick-view', () => {
     const card = await openCardDashboard(page);
     const row = card.locator('.hk-row', { hasText: NAME });
     await row.locator('.hk-note-chip').click();
-    await expect(page.locator('ha-dialog[open]')).toBeVisible();
+    // Assert on content inside the dialog, not on `ha-dialog` itself — the host
+    // element has no box of its own (see card-defer.spec.ts).
+    const dialog = page.locator('ha-dialog[open]').first();
+    await expect(dialog.locator('.hk-note-body')).toContainText('street valve');
 
     // The row's Done button is still there and untouched by the tap.
     await expect(row.locator('.hk-done')).toBeVisible();
