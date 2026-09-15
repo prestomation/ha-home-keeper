@@ -464,6 +464,98 @@ describe('Card notes render as Markdown (issue #163)', () => {
   });
 });
 
+// Note quick-view (issue #340). A task with a note gets a one-tap chip that opens a
+// read-only dialog showing the full note as Markdown, independent of the card's
+// "Show notes" row setting — the point is a compact row that still reaches the note.
+describe('Card note quick-view (issue #340)', () => {
+  beforeAll(() => {
+    if (!customElements.get('ha-markdown')) {
+      customElements.define('ha-markdown', class extends HTMLElement {});
+    }
+    if (!customElements.get('ha-dialog')) {
+      customElements.define('ha-dialog', class extends HTMLElement {});
+    }
+  });
+
+  const noted = [{ ...sampleTasks[0], notes: 'Use a **HEPA** filter' }];
+
+  it('shows the note chip only on a task with a note', async () => {
+    const card = makeCard();
+    card.hass = { callWS: async () => ({ tasks: noted }), language: 'en' };
+
+    const shown = await waitFor(() => sr(card)?.querySelector('.hk-note-chip'));
+    expect(shown).toBe(true);
+    expect(sr(card).querySelector('.hk-note-chip').getAttribute('label')).toBe('Note');
+  });
+
+  it('shows no note chip on a task with no note', async () => {
+    const card = makeCard();
+    card.hass = { callWS: async () => ({ tasks: sampleTasks }), language: 'en' };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(sr(card).querySelector('.hk-note-chip')).toBeNull();
+  });
+
+  it('shows no note chip on a task whose note is blank', async () => {
+    const card = makeCard();
+    const blank = [{ ...sampleTasks[0], notes: '   ' }];
+    card.hass = { callWS: async () => ({ tasks: blank }), language: 'en' };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(sr(card).querySelector('.hk-note-chip')).toBeNull();
+  });
+
+  it('appears even when "Show notes" is off, and opens the full note on tap', async () => {
+    const card = makeCard({ type: 'custom:home-keeper-card' }); // show_notes unset
+    card.hass = { callWS: async () => ({ tasks: noted }), language: 'en' };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-note-chip'));
+    // The affordance is independent of the inline-notes setting.
+    expect(sr(card).querySelector('.hk-notes')).toBeNull();
+
+    sr(card).querySelector('.hk-note-chip').click();
+    const shown = await waitFor(() => sr(card)?.querySelector('ha-dialog[open] ha-markdown'));
+    expect(shown).toBe(true);
+    expect(sr(card).querySelector('ha-dialog[open] ha-markdown').content).toBe(
+      'Use a **HEPA** filter',
+    );
+  });
+
+  it('opens a read-only dialog — no form, no save', async () => {
+    const card = makeCard();
+    card.hass = { callWS: async () => ({ tasks: noted }), language: 'en' };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-note-chip'));
+    sr(card).querySelector('.hk-note-chip').click();
+    await waitFor(() => sr(card)?.querySelector('ha-dialog[open]'));
+
+    const dialog = sr(card).querySelector('ha-dialog[open]');
+    expect(dialog.querySelector('ha-form')).toBeNull();
+    expect(dialog.querySelector('input, textarea')).toBeNull();
+  });
+
+  it('does not interfere with the row\'s Done button', async () => {
+    const card = makeCard();
+    let completes = 0;
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: noted };
+        if (msg.type === 'home_keeper/complete_task') completes++;
+        return {};
+      },
+    };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-note-chip'));
+    sr(card).querySelector('.hk-note-chip').click();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(completes, 'tapping the note chip must not complete the task').toBe(0);
+
+    const done = sr(card).querySelector('.hk-done');
+    expect(done, 'Done stays present and reachable').not.toBeNull();
+  });
+});
+
 // NFC/RFID tag binding (issue #211). The card shows that a task is tag-bound and,
 // when the tag is the only way to complete it, refuses its own mark-done — the
 // backend rejects that completion, and the sidebar panel would refuse it too, so

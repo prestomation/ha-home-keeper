@@ -59,11 +59,11 @@ const DECLARATIVE_COGNATES = {
 const COGNATE_IDENTICAL = {
   ca: ['detail.id', 'field.cost', 'field.doc_url', 'field.model', 'field.notes', 'field.sensor_entity_id', 'meta.seed.notes', 'notify.opt.normal', 'opt.meta.text', 'section.notes', 'settings.exclusions', 'settings.general_heading', 'tab.documents'],
   cs: ['detail.id', 'field.doc_url', 'field.model', 'opt.meta.text'],
-  da: ['chip.orphaned', 'detail.id', 'field.doc_url', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.skipNote', 'field.type', 'group.integration', 'group.status', 'notify.opt.normal', 'notify.test', 'opt.meta.link', 'opt.month.11', 'opt.month.12', 'opt.month.4', 'opt.month.8', 'opt.month.9'],
+  da: ['chip.note', 'chip.orphaned', 'detail.id', 'field.doc_url', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.skipNote', 'field.type', 'group.integration', 'group.status', 'notify.opt.normal', 'notify.test', 'opt.meta.link', 'opt.month.11', 'opt.month.12', 'opt.month.4', 'opt.month.8', 'opt.month.9'],
   de: ['chip.orphaned', 'detail.about', 'detail.id', 'due.in_units', 'field.doc_name', 'field.doc_url', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'notify.opt.normal', 'opt.meta.link', 'opt.meta.text', 'opt.month.11', 'opt.month.4', 'opt.month.8', 'opt.month.9'],
   es: ['detail.id', 'field.doc_url', 'field.sensor_entity_id', 'notify.opt.normal', 'settings.general_heading'],
   fi: ['field.doc_url'],
-  fr: ['completion.photo', 'detail.id', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'section.notes', 'settings.exclusions', 'tab.documents'],
+  fr: ['chip.note', 'completion.photo', 'detail.id', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'section.notes', 'settings.exclusions', 'tab.documents'],
   it: ['detail.id', 'field.area_id', 'field.doc_url', 'group.area', 'opt.meta.link'],
   // `part.taskName.service` is "Service {part} ({asset})" in Norwegian, which takes
   // the English verb unchanged ("service bilen"). Danish and Swedish inflect it
