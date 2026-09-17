@@ -17,14 +17,14 @@
 | custom\_components/home\_keeper/companions.py                   |       86 |       34 |       18 |        2 |     54% |62, 108, 138-\>140, 145, 149-153, 157, 173-196, 201-205, 211-213, 223, 229, 235, 247-248 |
 | custom\_components/home\_keeper/companions\_catalog.py          |       40 |        1 |       12 |        0 |     98% |        61 |
 | custom\_components/home\_keeper/config\_flow.py                 |       30 |        7 |        4 |        1 |     71% |130-136, 142, 165 |
-| custom\_components/home\_keeper/const.py                        |      182 |        2 |       12 |        1 |     98% |  885, 897 |
+| custom\_components/home\_keeper/const.py                        |      183 |        2 |       12 |        1 |     98% |  892, 904 |
 | custom\_components/home\_keeper/coordinator.py                  |      144 |       84 |       50 |        0 |     35% |58, 63, 79-81, 104-146, 162, 166, 191-208, 211-214, 217-275, 325, 337, 347, 358, 371-381, 412-423, 443-447 |
 | custom\_components/home\_keeper/declarative\_companion\_sync.py |      177 |      177 |       36 |        0 |      0% |    21-495 |
 | custom\_components/home\_keeper/declarative\_companions.py      |      260 |        7 |      130 |        7 |     96% |103, 105, 129, 184, 186, 308, 328 |
 | custom\_components/home\_keeper/declarative\_presets.py         |       15 |        0 |        4 |        0 |    100% |           |
 | custom\_components/home\_keeper/device\_compat.py               |       17 |        0 |        6 |        0 |    100% |           |
 | custom\_components/home\_keeper/device\_trigger.py              |       69 |       69 |       24 |        0 |      0% |    23-163 |
-| custom\_components/home\_keeper/devices.py                      |      217 |      122 |      114 |        2 |     42% |56, 61-63, 68, 73-83, 92, 99-100, 116-122, 137-169, 225-\>232, 324, 356-366, 387-400, 412-480, 488-515, 572-580 |
+| custom\_components/home\_keeper/devices.py                      |      219 |      123 |      114 |        2 |     42% |57, 74, 85-87, 92, 97-107, 116, 123-124, 140-146, 161-193, 249-\>256, 348, 380-390, 411-424, 436-504, 512-539, 596-604 |
 | custom\_components/home\_keeper/diagnostics.py                  |       23 |       23 |        0 |        0 |      0% |     11-84 |
 | custom\_components/home\_keeper/documents.py                    |       61 |        1 |       26 |        1 |     98% |       141 |
 | custom\_components/home\_keeper/entity.py                       |       44 |       44 |        8 |        0 |      0% |    25-122 |
@@ -42,7 +42,7 @@
 | custom\_components/home\_keeper/reconcile.py                    |      252 |        5 |      138 |        7 |     97% |146, 166, 272, 274, 348, 605-\>613, 678-\>676 |
 | custom\_components/home\_keeper/recurrence.py                   |      333 |        7 |      156 |        7 |     97% |196, 288, 300, 333, 393, 558, 910 |
 | custom\_components/home\_keeper/resolve.py                      |       50 |        0 |       16 |        0 |    100% |           |
-| custom\_components/home\_keeper/sensor.py                       |      122 |      122 |       36 |        0 |      0% |    13-239 |
+| custom\_components/home\_keeper/sensor.py                       |      164 |      164 |       42 |        0 |      0% |    16-382 |
 | custom\_components/home\_keeper/sensor\_tasks.py                |      178 |        3 |       74 |        4 |     97% |138, 171-\>166, 190, 196 |
 | custom\_components/home\_keeper/sensor\_watcher.py              |      217 |      217 |       88 |        0 |      0% |    27-596 |
 | custom\_components/home\_keeper/shopping.py                     |      165 |        0 |       74 |        0 |    100% |           |
@@ -50,6 +50,7 @@
 | custom\_components/home\_keeper/store.py                        |      897 |      747 |      394 |        7 |     13% |109, 121-124, 141-143, 157-159, 216, 226, 234-246, 258-261, 263, 265, 286, 301, 305, 320-324, 349, 352, 366-383, 388-413, 434-482, 498-512, 539-561, 592-611, 636-673, 690-705, 708-741, 754-761, 771-777, 787-801, 806, 809, 812, 817-823, 828-844, 875-927, 941-952, 965-970, 981-993, 1005-1011, 1024-1030, 1041-1055, 1061-1070, 1079-1081, 1098-1111, 1121-1128, 1160-1205, 1213-1216, 1226-1270, 1279-1285, 1289-1295, 1310-1358, 1374-1403, 1424-1434, 1451-1486, 1491, 1494, 1511-1531, 1543-1557, 1569-1590, 1601-1613, 1640-1688, 1722-1779, 1811-1840, 1852-1872, 1893-1929, 1950-1988, 2006-2033, 2040-2055, 2070-2097, 2110-2126, 2135-2148, 2166-2172, 2189-2192, 2195-2227, 2239-2249, 2266-2268, 2280-2289 |
 | custom\_components/home\_keeper/tag\_listener.py                |       29 |       29 |        8 |        0 |      0% |     12-69 |
 | custom\_components/home\_keeper/tags.py                         |       11 |        0 |        2 |        0 |    100% |           |
+| custom\_components/home\_keeper/task\_counts.py                 |       20 |        0 |        0 |        0 |    100% |           |
 | custom\_components/home\_keeper/todo.py                         |       64 |        6 |       20 |        0 |     93% |41-42, 58-59, 152-153 |
 | custom\_components/home\_keeper/todo\_items.py                  |       28 |        0 |       16 |        0 |    100% |           |
 | custom\_components/home\_keeper/todo\_list.py                   |      229 |        0 |       96 |        0 |    100% |           |
@@ -59,7 +60,7 @@
 | custom\_components/home\_keeper/transfer\_runner.py             |       43 |       43 |       14 |        0 |      0% |    13-141 |
 | custom\_components/home\_keeper/transitions.py                  |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py               |      563 |      563 |       72 |        0 |      0% |    8-1474 |
-| **TOTAL**                                                       | **8686** | **3754** | **3048** |  **108** | **58%** |           |
+| **TOTAL**                                                       | **8751** | **3797** | **3054** |  **108** | **58%** |           |
 
 
 ## Setup coverage badge
