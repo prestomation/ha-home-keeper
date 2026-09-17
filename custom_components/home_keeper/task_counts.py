@@ -57,12 +57,13 @@ COUNT_KEYS = (
 _DAY_SECONDS = 86400.0
 
 
-def _due_date(task: dict[str, Any], now: datetime) -> date | None:
-    """The calendar date *task* falls due on, read in ``now``'s timezone."""
-    raw = task.get("next_due")
-    if not raw:
-        return None
-    return datetime.fromisoformat(raw).astimezone(now.tzinfo).date()
+def _due_date(task: dict[str, Any], now: datetime) -> date:
+    """The calendar date *task* falls due on, read in ``now``'s timezone.
+
+    ``next_due`` is guaranteed non-None by ``matches_filter``, which every task in
+    the scope has passed — the same invariant ``profiles._due_key`` reads on.
+    """
+    return datetime.fromisoformat(task["next_due"]).astimezone(now.tzinfo).date()
 
 
 def _days_overdue(task: dict[str, Any], now: datetime) -> float:

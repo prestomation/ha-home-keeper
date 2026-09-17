@@ -169,6 +169,21 @@ def test_due_today_reads_a_foreign_offset_in_the_callers_zone():
     assert result["due_today"] == 1
 
 
+def test_a_naive_now_is_rejected_by_the_comparison():
+    """A naive ``now`` fails loudly, and it fails before any date arithmetic.
+
+    The module contract is local *aware* time (``dt_util.now()``). A naive one cannot
+    reach the ``due_today`` conversion: the first overdue comparison inside
+    ``matches_filter`` raises, which is the earliest and clearest place to fail. This
+    is pinned because a runtime guard further in would be unreachable code.
+    """
+    task = make_task("Gutters", NOW - timedelta(days=1))
+    with pytest.raises(TypeError, match="offset-naive and offset-aware"):
+        task_counts.count_tasks(
+            [task], filt(status=profiles.STATUS_ALL), now=NOW.replace(tzinfo=None)
+        )
+
+
 # ── the next task up ─────────────────────────────────────────────────────────
 
 
