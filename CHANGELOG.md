@@ -10,6 +10,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
 ### Added
 
+- **[Note quick-view](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#read-a-tasks-note-from-the-card).**
+  A task with a note shows a **Note** chip on the dashboard card. Tapping it opens
+  the note in a read-only dialog, rendered as Markdown. (Fixes #340)
 - **[Task count sensors](https://prestomation.github.io/ha-home-keeper/docs/guide/profiles#task-count-sensors).**
   Home Keeper gives each profile a sensor that counts the tasks it shows, and adds one
   more for every task it keeps. Put the overdue count on a dashboard badge, with no
