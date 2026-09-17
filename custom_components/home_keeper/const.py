@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.24.0b6"
+PANEL_VERSION = "0.24.0b7"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -178,6 +178,13 @@ EVENT_ASSET_RESTORED = f"{DOMAIN}_asset_restored"  # an archived appliance is re
 # (DOMAIN, f"{ASSET_IDENTIFIER_PREFIX}_{asset_id}"); the prefix keeps it from
 # colliding with the per-task self-owned devices, which key on the bare task id.
 ASSET_IDENTIFIER_PREFIX = "asset"
+
+# The integration-level "Home Keeper" service device, registered with identifier
+# (DOMAIN, SERVICE_DEVICE_IDENTIFIER). It holds the aggregate task-count sensors,
+# which belong to no single task and no appliance. Deliberately *not* prefixed
+# ASSET_IDENTIFIER_PREFIX, so devices._is_asset_device never claims it, and not a
+# bare uuid, so it never collides with a per-task self-owned device.
+SERVICE_DEVICE_IDENTIFIER = "service"
 ASSET_KIND_VIRTUAL = "virtual"  # Home Keeper provisions the registry device
 ASSET_KIND_EXISTING = "existing"  # metadata attached to another integration's device
 ASSET_KINDS = [ASSET_KIND_VIRTUAL, ASSET_KIND_EXISTING]

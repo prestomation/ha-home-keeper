@@ -54,6 +54,10 @@ _PURE_MODULES = (
     "appliance_report",
     "companions_catalog",
     "profiles",
+    # ``task_counts`` imports ``profiles`` and ``recurrence``, so it comes after both:
+    # a module first pulled in by a sibling and then re-executed here would leave two
+    # copies loaded, one of them nobody's tests can reach.
+    "task_counts",
     "notifications",
     "tags",
     "card_resource",

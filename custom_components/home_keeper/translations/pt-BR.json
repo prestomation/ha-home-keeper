@@ -957,6 +957,12 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Próximo vencimento"
+      },
+      "all_tasks": {
+        "name": "Tarefas"
+      },
+      "profile_tasks": {
+        "name": "Tarefas de {profile}"
       }
     },
     "binary_sensor": {

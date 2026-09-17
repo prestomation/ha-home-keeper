@@ -957,6 +957,12 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Следующий срок"
+      },
+      "all_tasks": {
+        "name": "Задачи"
+      },
+      "profile_tasks": {
+        "name": "Задачи профиля {profile}"
       }
     },
     "binary_sensor": {

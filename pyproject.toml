@@ -84,6 +84,9 @@ only_mutate = [
     "custom_components/home_keeper/shopping.py",
     "custom_components/home_keeper/notifications.py",
     "custom_components/home_keeper/sensor_tasks.py",
+    # Aggregate profile / all-tasks counts behind the count sensors. Pure and driven
+    # by tests/unit/test_task_counts.py; sensor.py is a thin publisher over it.
+    "custom_components/home_keeper/task_counts.py",
     "custom_components/home_keeper/problem_tasks.py",
     "custom_components/home_keeper/appliance_report.py",
     "custom_components/home_keeper/profiles.py",

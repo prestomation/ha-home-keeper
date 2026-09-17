@@ -84,3 +84,49 @@ task shows **Snooze** instead of **Mark done** and **Skip**.
 ![The Settings → Profiles card with saved filters](../../images/profiles-card.png)
 
 ![The Tasks tab filtered to a saved Profile via the Profile dropdown](../../images/23-panel-profile-filter.png)
+
+## Task count sensors
+
+Home Keeper gives each Profile a **count sensor**, and adds one more sensor for every
+task it keeps. Use the sensor for a dashboard badge, a gauge card, or a numeric-state
+trigger in an automation. You do not need a template.
+
+The sensors are on the **Home Keeper** device in **Settings → Devices & services**.
+
+- `sensor.home_keeper_tasks` counts every task. Its state is the number of overdue
+  tasks.
+- One sensor for each Profile. Its state is the number of tasks that Profile shows,
+  which is set by the Profile's status tier: **Overdue only** counts the overdue
+  tasks, **Overdue and due soon** counts both groups, and **Every scheduled task**
+  counts them all.
+
+The sensor keeps its entity id when you rename the Profile. Home Keeper removes the
+sensor when you delete the Profile.
+
+#### Attributes
+
+Each sensor has these attributes. They are measured over the Profile's full scope, not
+over its status tier, so `total` keeps its meaning and the next task is named even
+when the state is 0.
+
+| Attribute | What it is |
+| --- | --- |
+| `total` | Every enabled, scheduled task the Profile selects. |
+| `overdue` | The tasks that are at or past their due date. |
+| `due_soon` | The tasks that come due in the next 3 days, but are not yet overdue. |
+| `due_today` | The tasks that come due today, on your local date. |
+| `next_due` | The due date of the first task, as an ISO timestamp. |
+| `next_task_name` | The name of that task. |
+| `next_task_id` | The id of that task. |
+| `most_overdue_days` | The days past due for the most overdue task. It is empty if no task is overdue. |
+
+Because `due_soon` does not include the overdue tasks, an **Overdue and due soon**
+Profile has a state of `overdue` plus `due_soon`.
+
+The counts refresh every 5 minutes, the same as the per-task **Overdue** sensor. A
+count can be a few minutes behind.
+
+#### Put the overdue count on a badge
+
+Add a badge to a dashboard and select `sensor.home_keeper_tasks`. To show the count of
+one Profile, select that Profile's sensor.

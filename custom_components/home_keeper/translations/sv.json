@@ -957,6 +957,12 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Nästa förfallodatum"
+      },
+      "all_tasks": {
+        "name": "Uppgifter"
+      },
+      "profile_tasks": {
+        "name": "Uppgifter i {profile}"
       }
     },
     "binary_sensor": {

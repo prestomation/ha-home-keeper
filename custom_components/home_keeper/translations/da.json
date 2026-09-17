@@ -957,6 +957,12 @@
     "sensor": {
       "next_due": {
         "name": "{task_name}Næste forfald"
+      },
+      "all_tasks": {
+        "name": "Opgaver"
+      },
+      "profile_tasks": {
+        "name": "Opgaver i {profile}"
       }
     },
     "binary_sensor": {

@@ -29,6 +29,7 @@ from .const import (
     ASSET_KIND_VIRTUAL,
     DOMAIN,
     PANEL_URL_PATH,
+    SERVICE_DEVICE_IDENTIFIER,
 )
 
 # Every device-registry *read* goes through device_compat, never straight at the
@@ -54,6 +55,29 @@ def _asset_configuration_url(asset_id: str) -> str:
     bounces to the default dashboard.
     """
     return f"homeassistant://{PANEL_URL_PATH}/appliances/{asset_id}"
+
+
+def service_device_info() -> dr.DeviceInfo:
+    """The integration-level device the aggregate task-count sensors live on.
+
+    Those sensors count across tasks, so they belong to no one task and no appliance.
+    A ``SERVICE`` device gives them a home under **Settings, Devices and services,
+    Home Keeper** without pretending to be hardware.
+
+    Home Assistant creates the device from an entity's ``device_info`` when the
+    platform adds it, so nothing here calls ``async_get_or_create``: Home Assistant
+    owns the config-entry link and removes the device with the integration, and the
+    device can never exist with no entities on it. ``async_prune_orphaned_devices``
+    relies on that second property, since this device is not an asset device and is
+    therefore *not* skipped by the prune.
+    """
+    return dr.DeviceInfo(
+        identifiers={(DOMAIN, SERVICE_DEVICE_IDENTIFIER)},
+        name="Home Keeper",
+        manufacturer="Home Keeper",
+        entry_type=dr.DeviceEntryType.SERVICE,
+        configuration_url=f"homeassistant://{PANEL_URL_PATH}",
+    )
 
 
 def area_exists(hass: HomeAssistant, area_id: str | None) -> bool:

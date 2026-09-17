@@ -641,10 +641,10 @@ ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
     EntityPlatformSpec("button", ("mark_done",)),
     EntityPlatformSpec(
         "sensor",
-        ("next_due",),
+        ("next_due", "all_tasks", "profile_tasks"),
         attributes=(
-            Field("task_id", "str"),
-            Field("task_name", "str"),
+            Field("task_id", "str", "next-due sensor"),
+            Field("task_name", "str", "next-due sensor"),
             Field("recurrence_type", "str"),
             Field("last_completed", "str | None", "ISO"),
             Field("completions_count", "int"),
@@ -663,6 +663,37 @@ ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
                 "usage_last_interval, usage_avg_interval, usage_min_interval and "
                 "usage_max_interval, once two completions carry a reading; absent "
                 "on every other task",
+            ),
+            Field(
+                "total",
+                "int",
+                "count sensors; every active scheduled task the profile scopes to, "
+                "whatever its status tier",
+            ),
+            Field("overdue", "int", "count sensors"),
+            Field(
+                "due_soon",
+                "int",
+                "count sensors; due within the three-day window and not yet "
+                "overdue, so a due-soon profile's state is overdue + due_soon",
+            ),
+            Field(
+                "due_today",
+                "int",
+                "count sensors; next_due falls on today's local calendar date",
+            ),
+            Field(
+                "next_due",
+                "str | None",
+                "count sensors; ISO, the earliest task in the profile's scope",
+            ),
+            Field("next_task_name", "str | None", "count sensors"),
+            Field("next_task_id", "str | None", "count sensors"),
+            Field(
+                "most_overdue_days",
+                "float | None",
+                "count sensors; days past due for the most overdue task, to one "
+                "decimal place; absent value when nothing is overdue",
             ),
         ),
     ),

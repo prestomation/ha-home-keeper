@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.24.0b7]
+
+### Added
+
+- **[Task count sensors](https://prestomation.github.io/ha-home-keeper/docs/guide/profiles#task-count-sensors).**
+  Home Keeper gives each profile a sensor that counts the tasks it shows, and adds one
+  more for every task it keeps. Put the overdue count on a dashboard badge, with no
+  template. (Fixes #342)
+
 ## [0.24.0b6]
 
 ### Changed
