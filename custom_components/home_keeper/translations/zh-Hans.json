@@ -400,6 +400,10 @@
         "part_id": {
           "name": "零件名称或 ID",
           "description": "要调整库存的零件的 ID。名称同样可用。面板中会显示 ID。"
+        },
+        "quantity": {
+          "name": "数量",
+          "description": "一次完成消耗该部件的数量。省略时使用部件设置的数量。"
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "更新受管电器",
+      "description": "更新由其他集成管理的电器的名称和部件列表。每个部件的库存字段不会改变。",
+      "fields": {
+        "asset_id": {
+          "name": "资产名称或 ID",
+          "description": "要更新的资产的 id。名称同样可用。面板中会显示 ID。"
+        },
+        "name": {
+          "name": "名称",
+          "description": "电器的新名称。"
+        },
+        "parts": {
+          "name": "部件",
+          "description": "完整的部件列表，按 id 与已保存的部件匹配。如果部件有库存数量，Home Keeper 会保留不在列表中的部件。"
+        }
+      }
+    },
     "delete_asset": {
       "name": "删除电器",
       "description": "删除一个电器/资产。其虚拟设备（如有）会被移除，关联到它的任务将变为独立任务。",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "资产名称或 ID",
           "description": "要删除的资产的 id。名称同样可用。面板中会显示 ID。"
+        },
+        "force": {
+          "name": "强制",
+          "description": "删除受某个集成保护的电器。仅在该集成已不存在时使用。"
         }
       }
     },

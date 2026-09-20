@@ -185,6 +185,7 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("list_profiles", response="only"),
     ServiceSpec("add_asset", admin_only=True),
     ServiceSpec("update_asset", admin_only=True),
+    ServiceSpec("update_managed_asset", admin_only=True),
     ServiceSpec("delete_asset", admin_only=True),
     ServiceSpec("archive_asset", admin_only=True),
     ServiceSpec("restore_asset", admin_only=True),
@@ -294,6 +295,8 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
             "str | None",
             "None until a virtual appliance's device is provisioned",
         ),
+        Field("source", "dict | None", "opaque provenance, echoed verbatim"),
+        Field("managed_by", "dict | None", "well-known ownership block, or None"),
     ),
     "companion": (
         Field("domain", "str"),

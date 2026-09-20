@@ -15,6 +15,7 @@ import * as api from './api';
 import { assetMatchesQuery, bucketByKey, profileMatches, taskMatchesQuery } from './card-filter';
 import { t, tn } from './i18n';
 import {
+  consumableChip,
   deviceChip,
   isManagedOrphan,
   managedChip,
@@ -290,7 +291,13 @@ function taskCard(p: PanelHost, task: Task): string {
   // a device chip opens the device page, an integration-supplied chip opens its URL —
   // so folding them behind a caption would put an action one navigation away that
   // used to be one click. It unfolds the row in place instead.
-  const inlineChips = [dev, tag, ...taskChipsList(task), managed].filter(Boolean);
+  //
+  // The stock chip sits with them: "Takes 2 AAA · 2 left" is what this task is
+  // about as much as the device it is on, and it is read right where the Done
+  // button that spends those spares is.
+  const inlineChips = [dev, tag, consumableChip(p, task), ...taskChipsList(task), managed].filter(
+    Boolean,
+  );
   const hiddenChips = Math.max(0, inlineChips.length - TASK_CARD_INLINE_CHIPS);
   const chipsOpen = !!task.id && p._chipsExpanded.has(task.id);
   const more = hiddenChips

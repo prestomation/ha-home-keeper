@@ -3,6 +3,7 @@ import {
   MAX_SEASON_WINDOWS,
   assetIdentitySchema,
   companionOptions,
+  dropLockedFields,
   profileSchema,
   buildTaskPayload,
   duplicateTaskSeed,
@@ -1437,6 +1438,85 @@ describe('partSchema', () => {
   });
 });
 
+/**
+ * A part on a list an integration owns.
+ *
+ * The owner writes what the part *is* — its name, its type, where it is bought, the
+ * note saying which devices use it — and rewrites all of it on every reconcile. The
+ * counts were never the owner's: a battery pool Battery Notes keeps is still counted
+ * by hand, still reordered at a threshold the user picks, still bought in the pack
+ * size they buy. So the form is the stock fields and nothing else.
+ */
+describe('partSchema on an owned part list', () => {
+  const battery = { id: 'p-aaa', name: 'AAA', type: 'consumable' };
+
+  it('offers the counts, and only the counts', () => {
+    expect(names(partSchema(battery, true))).toEqual(['stock', 'reorder_at', 'stock_unit']);
+  });
+
+  it('keeps those three on one unnamed grid, with the selectors they always had', () => {
+    const schema = partSchema(battery, true);
+    expect(schema).toHaveLength(1);
+    expect(schema[0].type).toBe('grid');
+    expect(schema[0].name).toBe('');
+    expect(selectorOf(schema, 'stock')).toEqual({ number: { min: 0, mode: 'box', step: 'any' } });
+    expect(selectorOf(schema, 'reorder_at')).toEqual({
+      number: { min: 0, mode: 'box', step: 'any' },
+    });
+    expect(selectorOf(schema, 'stock_unit')).toEqual(TEXT);
+  });
+
+  it('withholds every field the owner writes', () => {
+    const offered = names(partSchema(battery, true));
+    for (const field of ['part_name', 'part_number', 'type', 'vendor', 'cost', 'part_url', 'notes']) {
+      expect(offered).not.toContain(field);
+    }
+  });
+
+  it('still reveals the per-completion amount once the part is counted', () => {
+    // How much one replacement takes off the shelf is the user's: two cells in this
+    // device, four in the next.
+    expect(names(partSchema(battery, true))).not.toContain('consume_quantity');
+    expect(names(partSchema({ ...battery, stock: 0 }, true))).toContain('consume_quantity');
+    expect(selectorOf(partSchema({ ...battery, stock: 4 }, true), 'consume_quantity')).toEqual({
+      number: { min: 0.001, mode: 'box', step: 'any' },
+    });
+  });
+
+  it('still offers auto-buy and the pack size, which is what the counts are for', () => {
+    const low = { ...battery, stock: 2, reorder_at: 4 };
+    expect(names(partSchema(low, true))).toContain('create_buy_task');
+    expect(names(partSchema({ ...low, create_buy_task: true }, true))).toContain(
+      'restock_quantity',
+    );
+  });
+
+  it('withholds the replacement schedule, which describes the part', () => {
+    const wear = { id: 'p1', name: 'Filter', type: 'wear', replace_unit: 'uses', stock: 2 };
+    const offered = names(partSchema(wear, true));
+    for (const field of [
+      'replace_interval',
+      'replace_unit',
+      'action',
+      'use_noun',
+      'use_task_name',
+      'also_every_on',
+      'last_replaced',
+    ]) {
+      expect(offered).not.toContain(field);
+    }
+    // The counts survive the wear item, exactly as they do on a consumable.
+    expect(offered).toEqual(['stock', 'reorder_at', 'stock_unit', 'consume_quantity']);
+    // And an unowned wear item is untouched by any of this.
+    expect(names(partSchema(wear))).toContain('replace_interval');
+  });
+
+  it('is the unlocked form when no owner claims the list', () => {
+    expect(names(partSchema(battery, false))).toEqual(names(partSchema(battery)));
+    expect(names(partSchema(battery))).toContain('part_name');
+  });
+});
+
 describe('metadataSchema', () => {
   it('always offers type, label and value — the type and label side by side', () => {
     const schema = metadataSchema({ type: 'text', label: 'Serial', value: 'abc' });
@@ -1545,6 +1625,41 @@ describe('assetIdentitySchema', () => {
     // The panel resolves the tree (no cycles, virtual only); this only lays it out.
     expect(selectorOf(assetIdentitySchema({}, true, []), 'parent_asset_id')).toEqual(dropdown([]));
   });
+
+  it('withholds the fields an owning integration writes', () => {
+    // Battery Notes names the appliance and keeps it named; a box over that value is
+    // a Save its next pass undoes.
+    const schema = assetIdentitySchema(
+      { kind: 'virtual' },
+      true,
+      parents,
+      new Set(['name', 'parts']),
+    );
+    expect(names(schema)).toEqual([
+      'manufacturer',
+      'model',
+      'serial_number',
+      'icon',
+      'parent_asset_id',
+      'area_id',
+    ]);
+  });
+
+  it('drops the make/model row when the owner writes both, and keeps it when it writes one', () => {
+    const both = assetIdentitySchema({ kind: 'virtual' }, true, parents, new Set(['manufacturer', 'model']));
+    expect(both.filter((f) => f.type === 'grid').map((g) => names(g.schema))).toEqual([
+      ['icon', 'parent_asset_id'],
+    ]);
+    const one = assetIdentitySchema({ kind: 'virtual' }, true, parents, new Set(['manufacturer']));
+    expect(one.filter((f) => f.type === 'grid').map((g) => names(g.schema))).toEqual([
+      ['model'],
+      ['icon', 'parent_asset_id'],
+    ]);
+  });
+
+  it('locks nothing when no owner is named', () => {
+    expect(names(assetIdentitySchema({ kind: 'virtual' }, true, parents))).toContain('name');
+  });
 });
 
 describe('structuredDetailsSchema', () => {
@@ -1552,6 +1667,41 @@ describe('structuredDetailsSchema', () => {
     expect(structuredDetailsSchema()).toEqual([
       { name: 'cost', selector: { number: { min: 0, mode: 'box' } } },
     ]);
+  });
+
+  it('goes away when the appliance owner sets the value', () => {
+    expect(structuredDetailsSchema(new Set(['cost']))).toEqual([]);
+    // Another field being the owner's says nothing about this one.
+    expect(names(structuredDetailsSchema(new Set(['name'])))).toEqual(['cost']);
+  });
+});
+
+describe('dropLockedFields', () => {
+  const grid = (...inner) => ({ name: '', type: 'grid', schema: inner });
+  const text = (name) => ({ name, selector: TEXT });
+
+  it('keeps every field when nothing is locked', () => {
+    const fields = [text('a'), grid(text('b'), text('c'))];
+    expect(dropLockedFields(fields, new Set())).toEqual(fields);
+  });
+
+  it('drops a named field and leaves its neighbours', () => {
+    expect(names(dropLockedFields([text('a'), text('b')], new Set(['a'])))).toEqual(['b']);
+  });
+
+  it('reaches inside a grid', () => {
+    const out = dropLockedFields([grid(text('a'), text('b'))], new Set(['b']));
+    expect(out).toEqual([grid(text('a'))]);
+  });
+
+  it('drops a grid whose every field is locked, rather than painting an empty row', () => {
+    expect(dropLockedFields([grid(text('a'), text('b'))], new Set(['a', 'b']))).toEqual([]);
+  });
+
+  it('leaves the fields it was handed untouched', () => {
+    const fields = [grid(text('a'), text('b'))];
+    dropLockedFields(fields, new Set(['a']));
+    expect(names(fields)).toEqual(['a', 'b']);
   });
 });
 

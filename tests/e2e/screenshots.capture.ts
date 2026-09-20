@@ -1256,6 +1256,46 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#a-cancel').click();
   await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
 
+  // 70. An appliance an integration manages. The seeded Batteries appliance is owned
+  // by the Battery Notes glue: its head carries the "Managed by" chip and a line that
+  // says who owns what, Edit and Delete are withheld, and the Parts tab has no
+  // "+ Add part" because the part list is the owner's. Every stock count stays the
+  // user's, so the steppers are live.
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.batteries}"]`).click();
+  const batteriesHead = panel.locator('.hk-asset-head');
+  await expect(batteriesHead.locator('ha-assist-chip.hk-managed')).toBeVisible();
+  await expect(batteriesHead.locator('.d-edit')).toHaveCount(0);
+  await expect(panel.locator('.d-add-part')).toHaveCount(0);
+  await expect(panel.locator('.hk-part-row')).toHaveCount(3);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/70-panel-managed-appliance.png`, fullPage: true });
+
+  // 70b. A part the owner added that nobody has counted yet. It starts untracked, so
+  // it raises no buy reminder until the user enters a count, and the row offers
+  // "Start counting" where the stepper will be.
+  const coinCellRow = panel.locator('.hk-part-row').filter({ hasText: 'CR2032' });
+  await expect(coinCellRow.locator('.hk-start-counting')).toBeVisible();
+  await coinCellRow.screenshot({ path: `${OUT}/70b-panel-managed-part-row.png` });
+
+  // 70c. Start counting opens the part editor on that part, and the editor shows
+  // only the stock fields: the name, type and notes belong to the owner.
+  await coinCellRow.locator('.hk-start-counting').click();
+  await expect(panel.locator('#hk-asset-form details.hk-part[open]')).toHaveCount(1);
+  await expect(panel.locator('#a-add-part')).toHaveCount(0);
+  await page.waitForTimeout(600);
+  await shotWithDrawer(page, `${OUT}/70c-panel-managed-part-editor.png`);
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+
+  // 70d. The task side of the same stock. The door sensor's battery task is linked
+  // to the AAA part with a quantity of 2, so its row says how much a completion
+  // takes and how many are left.
+  await panel.locator('#tab-tasks').click();
+  const doorRow = panel.locator(`.hk-card[data-id="${TASK.doorBattery}"]`);
+  await expect(doorRow.locator('ha-assist-chip.hk-counted', { hasText: 'left' })).toBeVisible();
+  await page.waitForTimeout(300);
+  await doorRow.screenshot({ path: `${OUT}/70d-panel-battery-consumable-chip.png` });
+
   // 17-pre. Point the buy-reminder mirror at the household shopping list and opt
   // the seeded anode rod (already sitting at its reorder point) into auto-buy, so
   // the Settings shots below show the picker holding a real list and the dashboard
@@ -1842,6 +1882,37 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await tooLarge.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60d-panel-mobile-transfer-too-large.png` });
+
+  // 70e. The managed appliance on a phone. The owner chip wraps under the title, the
+  // actions row holds Archive alone, and the three part rows stack with their
+  // steppers full width.
+  await openPanel(page);
+  await panel.locator('#mtab-appliances').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.batteries}"]`).click();
+  await expect(panel.locator('.hk-asset-head ha-assist-chip.hk-managed')).toBeVisible();
+  await expect(panel.locator('.hk-part-row')).toHaveCount(3);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/70e-panel-mobile-managed-appliance.png`, fullPage: true });
+
+  // 70f. Start counting on a phone: the editor is a page rather than a drawer, and it
+  // holds only the stock fields.
+  await panel.locator('.hk-part-row').filter({ hasText: 'CR2032' }).locator('.hk-start-counting').click();
+  await expect(panel.locator('#hk-asset-form details.hk-part[open]')).toHaveCount(1);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/70f-panel-mobile-managed-part-editor.png`, fullPage: true });
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+
+  // 70g. The battery task's stock chip on a phone, where the chips take a row of
+  // their own under the status.
+  await panel.locator('#mtab-tasks').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+  const doorRowPhone = panel.locator(`.hk-card[data-id="${TASK.doorBattery}"]`);
+  await doorRowPhone.scrollIntoViewIfNeeded();
+  await expect(doorRowPhone.locator('ha-assist-chip.hk-counted', { hasText: 'left' })).toBeVisible();
+  await page.waitForTimeout(300);
+  await doorRowPhone.screenshot({ path: `${OUT}/70g-panel-mobile-battery-consumable-chip.png` });
 
   await page.setViewportSize(DESKTOP);
 });

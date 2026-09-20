@@ -864,6 +864,16 @@ set_task_consumable:
       description: The id of the consumable/part to link. Omit to unlink. Its name works too. The panel shows the id.
       selector:
         text:
+    quantity:
+      name: Quantity
+      description: >-
+        How much of the part one completion takes. Omit it to use the quantity that
+        the part sets.
+      selector:
+        number:
+          min: 0
+          mode: box
+          step: 0.01
 
 notify:
   name: Notify what's due
@@ -1128,6 +1138,31 @@ update_asset:
         device:
           multiple: true
 
+update_managed_asset:
+  name: Update managed appliance
+  description: >-
+    Update the name and the part list of an appliance that another integration
+    manages. The stock fields on each part do not change.
+  fields:
+    asset_id:
+      name: Appliance name or ID
+      description: The id of the appliance to update. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    name:
+      name: Name
+      description: A new name for the appliance.
+      selector:
+        text:
+    parts:
+      name: Parts
+      description: >-
+        The full part list, matched to the stored parts by id. Home Keeper keeps a
+        part that is not in the list if the part has a stock count.
+      selector:
+        object:
+
 delete_asset:
   name: Delete appliance
   description: >-
@@ -1139,6 +1174,13 @@ delete_asset:
       required: true
       selector:
         text:
+    force:
+      name: Force
+      description: >-
+        Delete an appliance that an integration protects. Use this only if that
+        integration is gone.
+      selector:
+        boolean:
 
 archive_asset:
   name: Archive appliance

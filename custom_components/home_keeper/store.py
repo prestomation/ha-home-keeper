@@ -413,7 +413,12 @@ class HomeKeeperStore:
         return merged
 
     async def set_task_consumable(
-        self, task_id: str, asset_id: str | None, part_id: str | None
+        self,
+        task_id: str,
+        asset_id: str | None,
+        part_id: str | None,
+        *,
+        quantity: float | None = None,
     ) -> dict[str, Any]:
         """Link a task to an asset consumable/part, or clear the link.
 
@@ -427,6 +432,15 @@ class HomeKeeperStore:
         armed by a fridge's filter-life entity) to the consumable it depletes.
 
         Pass both ``asset_id`` and ``part_id`` to link; pass both as ``None`` to clear.
+        ``quantity`` states what this one task takes, for a task that takes more than
+        the part's own per-use amount (a smoke alarm that holds 2 cells of a battery
+        type other tasks take 1 of); ``None`` keeps the part's amount.
+
+        The link is **merged into** the task's ``source``, and clearing it pops only
+        the ``part`` key. Another integration's namespace on the same task — the glue
+        that created the task, and still reads its own key back — has to survive a
+        user linking or unlinking a consumable.
+
         Raises ``KeyError`` for an unknown task; ``TaskValidationError`` for an unknown
         asset/part, a half-specified link, or a task already owned by another source (a
         reconciler-derived wear-part task, or a synced ``problem`` sensor).
@@ -445,10 +459,12 @@ class HomeKeeperStore:
                 "already linked to it — manage its part in the appliance editor."
             )
 
+        source = dict(existing.get("source") or {})
         if asset_id is None and part_id is None:
-            if existing.get("source") is None:
+            if TASK_SOURCE_PART not in source:
                 return existing  # already unlinked — no-op, no event
-            existing["source"] = None
+            source.pop(TASK_SOURCE_PART)
+            existing["source"] = source or None
         else:
             if not asset_id or not part_id:
                 raise models.TaskValidationError(
@@ -461,16 +477,21 @@ class HomeKeeperStore:
                 raise models.TaskValidationError(
                     f"asset {asset_id!r} has no part {part_id!r}"
                 )
-            new_source = {
-                TASK_SOURCE_PART: {
-                    "asset_id": asset_id,
-                    "part_id": part_id,
-                    "manual": True,
-                }
+            link: dict[str, Any] = {
+                "asset_id": asset_id,
+                "part_id": part_id,
+                "manual": True,
             }
-            if existing.get("source") == new_source:
+            try:
+                amount = assets.normalize_link_quantity(quantity)
+            except assets.AssetValidationError as err:
+                raise models.TaskValidationError(str(err)) from err
+            if amount is not None:
+                link["quantity"] = amount
+            if source.get(TASK_SOURCE_PART) == link:
                 return existing  # already linked to this part — no-op, no event
-            existing["source"] = new_source
+            source[TASK_SOURCE_PART] = link
+            existing["source"] = source
         await self._save()
         _LOGGER.debug(
             "Set consumable link for task %s -> %s", task_id, existing.get("source")
@@ -1215,14 +1236,93 @@ class HomeKeeperStore:
             asset["device_id"] = device_id
             await self._save()
 
-    async def delete_asset(self, asset_id: str) -> dict[str, Any] | None:
+    def managed_asset_orphaned(self, asset: dict[str, Any]) -> bool:
+        """Whether a managed appliance's owning integration is no longer present.
+
+        The appliance twin of :meth:`managed_task_orphaned`, and the same rule: the
+        owner is gone when ``managed_by.config_entry_id`` names a config entry that is
+        not loaded. Without a recorded entry id we cannot prove the owner is gone, so
+        the appliance counts as owned and ``force`` is the way out.
+        """
+        managed_by = asset.get("managed_by")
+        if not isinstance(managed_by, dict):
+            return False
+        entry_id = managed_by.get("config_entry_id")
+        if not entry_id:
+            return False
+        entry = self._hass.config_entries.async_get_entry(entry_id)
+        return entry is None or entry.state is not ConfigEntryState.LOADED
+
+    async def update_managed_asset(
+        self,
+        asset_id: str,
+        *,
+        name: str | None = None,
+        parts: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """The owner's door into a managed appliance: its name and its part list.
+
+        Only an appliance with a ``managed_by`` block can be written this way, and the
+        write goes through the locks rather than around them: *name* sets the locked
+        name (the owner's own option), and *parts* is applied by
+        ``assets.apply_managed_parts``, which keeps every stock field the household
+        owns. Raises ``KeyError`` for an unknown appliance and ``AssetValidationError``
+        for one no integration owns.
+        """
+        asset = self._assets.get(asset_id)
+        if asset is None:
+            raise KeyError(asset_id)
+        if not assets.asset_is_managed(asset):
+            raise assets.AssetValidationError(
+                "update_managed_asset only writes an appliance an integration owns; "
+                "use update_asset."
+            )
+        before = dict(asset)
+        if name is not None:
+            renamed = str(name).strip()
+            if not renamed:
+                raise assets.AssetValidationError("name must not be empty")
+            asset["name"] = renamed
+        if parts is not None:
+            asset["parts"] = assets.apply_managed_parts(
+                before.get("parts") or [], parts, today=dt_util.now().date()
+            )
+        changed = _changed_fields(before, asset)
+        if not changed:
+            return asset
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_ASSET_UPDATED,
+            events.asset_event_data(asset, extra={"changed_fields": changed}),
+        )
+        return asset
+
+    async def delete_asset(
+        self, asset_id: str, *, force: bool = False
+    ) -> dict[str, Any] | None:
         """Remove an asset; returns the removed asset (for device cleanup) or None.
 
         Drops the tasks **derived** from this asset's wear parts, but only **unlinks**
-        a user-owned task that was *manually* linked to one of its consumables (clearing
-        the dangling part source, keeping the task and its history). Also detaches any
-        child asset that named it as a parent (so the child becomes standalone).
+        a user-owned task that was *manually* linked to one of its consumables (dropping
+        the dangling ``part`` key and keeping the rest of its ``source``, the task and
+        its history). Also detaches any child asset that named it as a parent (so the
+        child becomes standalone).
+
+        A ``deletion_protected`` appliance whose owner is still loaded is refused, the
+        same way a protected task is; ``force`` bypasses that.
         """
+        doomed = self._assets.get(asset_id)
+        if doomed is not None:
+            managed_by = doomed.get("managed_by")
+            orphaned = self.managed_asset_orphaned(doomed)
+            if assets.deletion_blocked(doomed, orphaned=orphaned, force=force):
+                display_name = (managed_by or {}).get(
+                    "display_name"
+                ) or "an integration"
+                raise assets.AssetValidationError(
+                    f"This appliance is managed by {display_name}. "
+                    f"Delete it from {display_name} instead."
+                )
         asset = self._assets.pop(asset_id, None)
         if asset is None:
             return None
@@ -1239,9 +1339,13 @@ class HomeKeeperStore:
             if src is None or src.get("asset_id") != asset_id:
                 continue
             if _is_manual_part_link(t):
-                # A user-owned manual link: keep the task, just clear the now-dangling
-                # link (its consumable is gone with the appliance).
-                t["source"] = None
+                # A user-owned manual link: keep the task, just drop the now-dangling
+                # link (its consumable is gone with the appliance). Only the ``part``
+                # key goes — another integration's namespace on the same task names
+                # the thing that made the task, which this appliance is not.
+                source = dict(t.get("source") or {})
+                source.pop(TASK_SOURCE_PART, None)
+                t["source"] = source or None
                 unlinked.append(t)
             else:
                 dropped_ids.add(tid)
@@ -2221,10 +2325,15 @@ class HomeKeeperStore:
         part = assets.find_part(asset, part_id) if part_id is not None else None
         if part is not None:
             part["last_replaced"] = when_date
-            # Completing a wear-part replacement consumes the part's per-use amount
-            # (one whole spare unless it says otherwise); signal a low/out-of-stock
-            # crossing so users can automate a reorder.
-            self._emit_stock_event(assets.consume_part_stock(part), asset, part)
+            # Completing a wear-part replacement consumes the link's amount when it
+            # states one, and the part's per-use amount otherwise (one whole spare
+            # unless the part says otherwise); signal a low/out-of-stock crossing so
+            # users can automate a reorder.
+            self._emit_stock_event(
+                assets.consume_part_stock(part, quantity=src.get("quantity")),
+                asset,
+                part,
+            )
 
     def _stamp_buy_restock(self, task: dict[str, Any]) -> None:
         """On completing an auto-created buy task, restock its part.

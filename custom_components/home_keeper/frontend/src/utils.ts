@@ -397,6 +397,27 @@ export function partStockButtonStep(part: Part): number {
   return partStockStep(part) === 1 ? 1 : (part.consume_quantity ?? 1);
 }
 
+/**
+ * The fields an integration owns on this appliance, as a set the forms and the
+ * detail page both read. Empty for an appliance nobody manages, which is every
+ * appliance a user made — so a caller never has to ask whether the appliance is
+ * managed before it asks what is locked.
+ */
+export function assetLockedFields(asset?: Partial<Asset> | null): Set<string> {
+  return new Set(asset?.managed_by?.locked_fields ?? []);
+}
+
+/**
+ * Whether the owner writes this appliance's part list. `parts` is the one
+ * structural lock: the list itself, and every owner key on a part, belong to the
+ * integration, while the counts — stock, reorder point, pack size — stay the
+ * user's. The panel withholds Add part and Remove part on such an appliance and
+ * keeps the stock controls.
+ */
+export function assetPartsLocked(asset?: Partial<Asset> | null): boolean {
+  return assetLockedFields(asset).has('parts');
+}
+
 /** A typed stock value snapped to *step* and floored at zero, at the stored
  *  three-decimal precision. */
 export function snapStock(value: number, step: number): number {

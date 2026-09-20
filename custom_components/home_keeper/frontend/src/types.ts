@@ -110,16 +110,26 @@ export interface Skip {
   reading?: number;
 }
 
-/** Ownership block set by an integration at task-creation time. Home Keeper
- *  inspects this (unlike the opaque `source`) to enforce UI behavior. */
-export interface ManagedBy {
+/** The ownership fields a managed task and a managed appliance share. Split out
+ *  because an appliance is never completed, so the two `completion_*` fields below
+ *  belong to the task shape alone — an appliance that carried them would be
+ *  describing an action it has not got. */
+export interface ManagedByBase {
   integration: string;
   display_name: string;
-  icon?: string;
+  /** Which fields the owner writes. The panel drops each one from its forms. On an
+   *  appliance `parts` is structural: the part list and every owner key on a part
+   *  are read-only, while the stock counts stay the user's. */
   locked_fields?: string[];
+  icon?: string;
   config_entry_id?: string;
-  completion_prompt?: string;
   deletion_protected?: boolean;
+}
+
+/** Ownership block set by an integration at task-creation time. Home Keeper
+ *  inspects this (unlike the opaque `source`) to enforce UI behavior. */
+export interface ManagedBy extends ManagedByBase {
+  completion_prompt?: string;
   // The task can't be completed from Home Keeper (it's cleared by its source). The
   // panel hides the "Done" action and shows `completion_prompt` to explain. Used by
   // problem-sensor-synced tasks, which clear when the originating integration
@@ -188,6 +198,10 @@ export interface Task {
       part_id: string;
       manual?: boolean;
       role?: 'use' | 'replace';
+      // How much of the part one completion takes off the count. Absent means the
+      // part's own `consume_quantity` decides, which is the link every task written
+      // before a per-task quantity existed carries.
+      quantity?: number;
     };
     problem_sensor?: { entity_id: string };
     // The recipe a declarative companion materialized this task from. `spec_id` is
@@ -432,6 +446,14 @@ export interface Asset {
   // commands, never through add_asset/update_asset. Hides the appliance from the
   // panel's default list without touching its device, entities, or tasks.
   archived_at?: string | null;
+  // An integration owns this appliance: it wrote the fields it names in
+  // `locked_fields` and keeps them in step. The panel withholds those fields and
+  // leaves the rest — on a battery pool, the owner sets the name and the part list
+  // and the user sets every count.
+  managed_by?: ManagedByBase | null;
+  // Opaque provenance, keyed by the writing integration's domain. Home Keeper never
+  // reads inside it; it answers "who owns this appliance" for the owner itself.
+  source?: Record<string, unknown> | null;
 }
 
 export interface PanelInfo {

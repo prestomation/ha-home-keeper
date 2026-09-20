@@ -161,6 +161,7 @@ def test_export_appliance_report_still_works_for_an_admin(ha):
         ("add_asset", {"name": "Should not exist"}),
         ("update_asset", {"asset_id": "whatever", "name": "Renamed"}),
         ("delete_asset", {"asset_id": "whatever"}),
+        ("update_managed_asset", {"asset_id": "whatever", "name": "Renamed"}),
         (
             "add_asset_document",
             {"asset_id": "x", "document": {"name": "n", "url": "https://e.com"}},

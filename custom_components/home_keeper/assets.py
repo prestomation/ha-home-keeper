@@ -466,6 +466,21 @@ def _normalize_consume_quantity(value: Any) -> float | None:
     return quantity
 
 
+def normalize_link_quantity(value: Any) -> float | None:
+    """Validate the per-task draw-down a consumable link may carry.
+
+    A task linked to a part takes the part's own ``consume_quantity`` by default; a
+    link may state its own amount instead ("this smoke alarm takes 2 of these cells").
+    The rule is the part's rule — a positive, finite number — so a link can never ask
+    for a draw-down the part itself would refuse. ``None`` means "use the part's
+    amount", which is what a link without a quantity has always meant.
+    """
+    quantity = _normalize_stock(value, "quantity")
+    if quantity is not None and quantity <= 0:
+        raise AssetValidationError("quantity must be greater than zero")
+    return quantity
+
+
 def _normalize_restock_quantity(value: Any) -> float | None:
     """Validate how much completing a buy reminder puts back, folding zero to unset.
 
@@ -768,6 +783,120 @@ def _merge_parts(existing: list[dict], incoming: list[dict]) -> list[dict]:
             }
         merged.append(part)
     return merged
+
+
+# ── Who owns which part field ────────────────────────────────────────────────
+#
+# A managed appliance splits each part in two. The owning integration knows what the
+# part *is* — its name, its type, how often it is replaced — and the household knows
+# how many are in the drawer. The 2 tuples below are that split, and
+# ``tests/unit/test_assets.py`` holds them to it: together with the identity keys they
+# must equal every key :func:`_normalize_part` writes, so a new part field has to be
+# given to one side or the other rather than quietly belonging to neither.
+
+PART_USER_KEYS: tuple[str, ...] = (
+    "stock",
+    "reorder_at",
+    "stock_unit",
+    "consume_quantity",
+    "create_buy_task",
+    "restock_quantity",
+)
+"""The stock fields a user keeps on a managed part. An owner never writes these."""
+
+PART_OWNER_KEYS: tuple[str, ...] = (
+    "name",
+    "type",
+    "notes",
+    "part_number",
+    "vendor",
+    "url",
+    "cost",
+    "replace_interval",
+    "replace_unit",
+    "replace_also_every",
+    "action",
+    "use_noun",
+    "use_task_name",
+    "last_replaced",
+    "carried_uses",
+)
+"""What the part is, which the owning integration writes and a user cannot edit."""
+
+PART_IDENTITY_KEYS: tuple[str, ...] = (
+    "id",
+    "file_name",
+    "file_content_type",
+    "file_size",
+)
+"""Neither side's to send: the key both match on, and the upload-only file fields."""
+
+
+def _merge_managed_parts(stored: list[dict], incoming: list[dict]) -> list[dict]:
+    """The user's edit of a managed appliance's parts: stock fields only.
+
+    The stored list decides which parts exist, in which order — the owner owns that —
+    so the result is always ``stored``'s parts, one for one. A stored part the caller
+    also sent takes that part's :data:`PART_USER_KEYS` and nothing else; an incoming
+    part matching no stored id is dropped, because adding a part to somebody else's
+    appliance is the owner's call.
+    """
+    by_id = {p.get("id"): p for p in incoming}
+    merged: list[dict] = []
+    for part in stored:
+        sent = by_id.get(part.get("id"))
+        if sent is None:
+            merged.append(part)
+            continue
+        merged.append({**part, **{key: sent[key] for key in PART_USER_KEYS}})
+    return merged
+
+
+def apply_managed_parts(
+    stored: list[dict], incoming: Any, *, today: date | None = None
+) -> list[dict]:
+    """The owner's edit of a managed appliance's parts: everything but the stock.
+
+    The mirror image of :func:`_merge_managed_parts`. *incoming* is the owner's whole
+    part list, matched against *stored* by ``id``:
+
+    * a matched part keeps the user's :data:`PART_USER_KEYS`, its id and its attached
+      file, and takes :data:`PART_OWNER_KEYS` from the owner;
+    * an unmatched incoming part is a new part, and it starts **untracked** —
+      ``stock`` is forced to ``None`` — so a part the household has never counted
+      cannot open a buy reminder for a shelf nobody has looked at;
+    * a stored part the owner leaves out is removed only when it tracks no stock.
+      One that does is kept, and appended after the owner's parts: the spares in the
+      drawer are the household's, and a glue that miscounts its own catalog must not
+      delete the count with the part.
+
+    The backend-managed fields come through :func:`_merge_parts` first, exactly as a
+    panel edit does, so an owner restating its catalog cannot wipe the
+    ``last_replaced`` a completion stamped or the ``carried_uses`` an import carried.
+    """
+    parts = _merge_parts(stored, _normalize_parts(incoming, today=today))
+    by_id = {p.get("id"): p for p in stored}
+    result: list[dict] = []
+    seen: set[str] = set()
+    for part in parts:
+        prior = by_id.get(part["id"])
+        if prior is None:
+            result.append({**part, "stock": None})
+            continue
+        seen.add(part["id"])
+        result.append(
+            {
+                **part,
+                **{key: prior.get(key) for key in PART_USER_KEYS},
+                **{key: prior.get(key) for key in PART_IDENTITY_KEYS},
+            }
+        )
+    result.extend(
+        part
+        for part in stored
+        if part.get("id") not in seen and part_tracks_stock(part)
+    )
+    return result
 
 
 def find_part(asset: dict[str, Any], part_id: str) -> dict[str, Any] | None:
@@ -1088,21 +1217,29 @@ def stock_transition(old: float, new: float, reorder_at: float | None) -> str:
     return STOCK_NONE
 
 
-def consume_part_stock(part: dict) -> str:
-    """Draw a part's ``consume_quantity`` off its on-hand ``stock`` (never below zero).
+def consume_part_stock(part: dict, *, quantity: float | None = None) -> str:
+    """Draw a quantity off a part's on-hand ``stock`` (never below zero).
 
-    Defaults to one whole spare, so a filter replacement behaves exactly as before; a
-    part that measures itself in millilitres (or in thirds of a bottle) sets its own
-    amount instead. A no-op (``STOCK_NONE``) for parts that don't track stock.
-    Otherwise returns the edge transition (``stock_transition``) this consumption
-    caused, so the caller emits at most one stock event per crossing rather than on
-    every step while already low.
+    ``quantity`` is what the task that was completed takes. ``None`` — every caller
+    before consumable links carried their own amount — takes the part's
+    ``consume_quantity``, one whole spare by default, so a filter replacement behaves
+    exactly as before. A stated amount goes through the same floor as a stored one
+    (:func:`_positive_quantity`): junk falls back to the part's figure rather than
+    raising, because a completion is a user action and refusing to record one over a
+    malformed number would be worse than consuming the default.
+
+    A no-op (``STOCK_NONE``) for parts that don't track stock. Otherwise returns the
+    edge transition (``stock_transition``) this consumption caused, so the caller
+    emits at most one stock event per crossing rather than on every step while
+    already low.
     """
     stock = part.get("stock")
     if stock is None:
         return STOCK_NONE
+    per_use = part_consume_quantity(part)
+    drawn = per_use if quantity is None else _positive_quantity(quantity, per_use)
     old = _round_stock(stock)
-    new = _round_stock(max(0.0, old - part_consume_quantity(part)))
+    new = _round_stock(max(0.0, old - drawn))
     part["stock"] = new
     return stock_transition(old, new, part.get("reorder_at"))
 
@@ -1207,12 +1344,85 @@ def normalize_external_id(value: Any) -> str:
     return text
 
 
+def validate_source(source: Any) -> None:
+    """Reject an appliance ``source`` that is not a mapping.
+
+    The appliance twin of ``models.validate_source`` — same rule, its own exception
+    type, written out here because ``assets`` and ``models`` are independent siblings
+    (``tests/unit/test_transfer_roundtrip.py`` holds the two to each other).
+
+    ``source`` is opaque provenance: Home Keeper never reads inside a namespace it
+    does not own. The *shape* is not opaque, because every writer merges its own key
+    into it and reads the rest back out, and a string would pass an ``isinstance``
+    guard by being skipped and then break that merge long after the write.
+    """
+    if source is not None and not isinstance(source, dict):
+        raise AssetValidationError("source must be a mapping")
+
+
+def validate_managed_by(managed_by: Any) -> None:
+    """Validate an appliance's optional ``managed_by`` ownership block.
+
+    The appliance twin of ``models.validate_managed_by``, with the same rule: a
+    ``deletion_protected`` appliance must record ``config_entry_id``, because that is
+    how Home Keeper sees the owning integration go away and lifts the protection. A
+    protected appliance without one could never be cleaned up except by ``force``.
+    """
+    if managed_by is None:
+        return
+    if not isinstance(managed_by, dict):
+        raise AssetValidationError("managed_by must be a mapping")
+    if managed_by.get("deletion_protected") and not managed_by.get("config_entry_id"):
+        raise AssetValidationError(
+            "managed_by.deletion_protected requires config_entry_id so the appliance "
+            "can still be cleaned up if the managing integration is removed"
+        )
+
+
+def asset_is_managed(asset: dict[str, Any]) -> bool:
+    """Whether an integration declares itself the owner of this appliance."""
+    return isinstance(asset.get("managed_by"), dict)
+
+
+def asset_locked_fields(asset: dict[str, Any]) -> frozenset[str]:
+    """The appliance fields the owning integration keeps for itself.
+
+    Empty for an ordinary appliance, and empty for a managed one that locks nothing.
+    The names come from :data:`const.ASSET_LOCKED_FIELDS`; every one but ``parts`` is
+    a plain strip in :func:`merge_update`, and ``parts`` keeps the user's stock fields
+    (see :func:`_merge_managed_parts`).
+    """
+    if not asset_is_managed(asset):
+        return frozenset()
+    locked = asset["managed_by"].get("locked_fields") or []
+    return frozenset(str(field) for field in locked)
+
+
+def deletion_blocked(asset: dict, *, orphaned: bool, force: bool = False) -> bool:
+    """Whether an appliance's deletion should be refused.
+
+    The appliance twin of ``models.deletion_blocked``, and the same rule: only a
+    ``deletion_protected`` managed appliance is protected, only while its owner is
+    still present. Once the owner is gone — uninstalled, disabled, failing to load —
+    the appliance is orphaned and must stay deletable, or the protection becomes a
+    trap. A ``force`` delete bypasses it entirely.
+    """
+    if force:
+        return False
+    managed_by = asset.get("managed_by")
+    if not (isinstance(managed_by, dict) and managed_by.get("deletion_protected")):
+        return False
+    return not orphaned
+
+
 def build_asset(data: dict, *, now: datetime) -> dict:
     """Create a brand-new asset dict (with id, created, and provisioning anchors)."""
     fields = normalize_fields(data, today=now.date())
     # Files are upload-only (they own an on-disk blob, which a brand-new asset can't
     # have yet), so a create payload can only seed link documents.
     fields["documents"] = [d for d in fields["documents"] if d.get("kind") == "link"]
+    validate_source(data.get("source"))
+    validate_managed_by(data.get("managed_by"))
     asset_id = str(uuid.uuid4())
     asset: dict[str, Any] = {
         "id": asset_id,
@@ -1227,6 +1437,14 @@ def build_asset(data: dict, *, now: datetime) -> dict:
         # An author-chosen stable key for import/export. Normalized here rather than
         # in ``normalize_fields`` so an update can only set it when actually sent.
         "external_id": normalize_external_id(data.get("external_id")),
+        # Optional provenance, echoed verbatim: ``{namespace: payload}`` saying which
+        # integration made this appliance and what it means to that integration. Home
+        # Keeper reads nothing inside a namespace it does not own.
+        "source": data.get("source"),
+        # Optional well-known ownership block Home Keeper *does* read: which fields
+        # the owner keeps, whether the appliance is deletion-protected, and how to
+        # name the owner in the panel. Create-only, like a task's.
+        "managed_by": data.get("managed_by"),
         **fields,
     }
     if asset["kind"] == ASSET_KIND_VIRTUAL:
@@ -1239,7 +1457,20 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
 
     ``kind`` and the virtual-device identifier are immutable after creation — an
     asset cannot switch between owning a device and decorating someone else's.
+
+    When an integration owns the appliance (``managed_by`` with ``locked_fields``),
+    those fields are dropped from *updates* before the merge, so a user edit or an
+    automation never overwrites the owner's values. ``parts`` is the one locked field
+    that is not simply dropped: the owner owns the list, and the user still owns every
+    stock field on each part (:func:`_merge_managed_parts`).
     """
+    locked = asset_locked_fields(existing)
+    if locked:
+        updates = {
+            key: value
+            for key, value in updates.items()
+            if key not in locked or key == "parts"
+        }
     candidate: dict[str, Any] = {
         "kind": existing.get("kind", ASSET_KIND_VIRTUAL),
         "name": updates.get("name", existing.get("name")),
@@ -1264,6 +1495,13 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # Preserve backend-managed part fields across the edit.
     if "parts" in updates:
         fields["parts"] = _merge_parts(existing.get("parts", []), fields["parts"])
+        if "parts" in locked:
+            # A managed appliance's part list belongs to its owner. The user's edit
+            # reaches the stock fields of the parts that are already there, and
+            # nothing else — see :func:`_merge_managed_parts`.
+            fields["parts"] = _merge_managed_parts(
+                existing.get("parts", []), fields["parts"]
+            )
     # File documents are upload-only: a generic write controls only links, and always
     # carries the stored file documents through (see _merge_documents).
     if "documents" in updates:
@@ -1288,6 +1526,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # import that updates an appliance without restating the key leaves it in place.
     if "external_id" in updates:
         merged["external_id"] = normalize_external_id(updates["external_id"])
+    # Ownership is create-only, with one exception: an owner that is being removed
+    # clears its own block, and the appliance stays behind as an ordinary one the
+    # household keeps. Any other value is ignored, so a caller cannot take an
+    # appliance over by updating it.
+    if "managed_by" in updates and updates["managed_by"] is None:
+        merged["managed_by"] = None
     return merged
 
 

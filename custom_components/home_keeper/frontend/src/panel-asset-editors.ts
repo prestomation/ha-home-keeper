@@ -56,7 +56,7 @@ import {
   uploadButtonLabel,
 } from './panel-upload';
 import type { Asset, AssetDocument, Hass, MetadataEntry, MetadataType, Part } from './types';
-import { escapeHTML, isHttpUrl, randomId, setBtnWeight } from './utils';
+import { assetPartsLocked, escapeHTML, isHttpUrl, randomId, setBtnWeight } from './utils';
 
 // ── shared row scaffolds ────────────────────────────────────────────────────
 
@@ -629,26 +629,34 @@ function revealInDrawer(p: PanelHost, el: HTMLElement): void {
 
 export function renderPartsEditor(p: PanelHost, inner: HTMLElement): void {
   const parts = p._assetEdit.asset?.parts || [];
+  // An integration that owns the part list writes which parts exist; the user
+  // writes what is on the shelf. So the rows stay and every stock field in them
+  // stays, and only the two controls that change the *list* go: a part added here
+  // would be deleted by the owner's next pass, and a part removed here would come
+  // straight back.
+  const locked = assetPartsLocked(p._assetEdit.asset);
   const { details, body } = collapsibleSection(p, t('section.parts'), 'parts', parts.length);
   inner.appendChild(details);
   const openIdx = openPartIndex(p, parts.length);
-  parts.forEach((part, i) => body.appendChild(partBox(p, body, part, i, i === openIdx)));
+  parts.forEach((part, i) => body.appendChild(partBox(p, body, part, i, i === openIdx, locked)));
 
-  const add = document.createElement('ha-button');
-  setBtnWeight(add, 'secondary');
-  add.id = 'a-add-part';
-  add.textContent = t('btn.addPart');
-  add.addEventListener('click', () => {
-    const list = [...(p._assetEdit.asset?.parts || [])];
-    list.push({ name: '', type: 'consumable' });
-    p._assetEdit.asset!.parts = list;
-    // The new row opens on its own and takes the keyboard: it is the one thing the
-    // click asked for, and a folded blank row would have to be found and opened.
-    p._assetEdit.openPart = list.length - 1;
-    p._assetEdit.revealPart = 'focus';
-    p._render();
-  });
-  body.appendChild(add);
+  if (!locked) {
+    const add = document.createElement('ha-button');
+    setBtnWeight(add, 'secondary');
+    add.id = 'a-add-part';
+    add.textContent = t('btn.addPart');
+    add.addEventListener('click', () => {
+      const list = [...(p._assetEdit.asset?.parts || [])];
+      list.push({ name: '', type: 'consumable' });
+      p._assetEdit.asset!.parts = list;
+      // The new row opens on its own and takes the keyboard: it is the one thing the
+      // click asked for, and a folded blank row would have to be found and opened.
+      p._assetEdit.openPart = list.length - 1;
+      p._assetEdit.revealPart = 'focus';
+      p._render();
+    });
+    body.appendChild(add);
+  }
 
   // One-shot: the Parts tab's Edit / Add part, and the button above, ask for the
   // opened row to be on screen (and, for a new part, under the cursor). Consumed
@@ -691,6 +699,7 @@ function partBox(
   part: Part,
   i: number,
   open: boolean,
+  locked = false,
 ): HTMLDetailsElement {
   const box = document.createElement('details');
   box.className = 'hk-part hk-part-acc';
@@ -741,59 +750,65 @@ function partBox(
     p._assetEdit.asset!.parts = all;
     if ('notes' in value) notePreview?.update(next.notes ?? '');
     updateSummary(next);
-    wearHint.hidden = next.type !== 'wear';
+    wearHint.hidden = next.type !== 'wear' || locked;
     const key = partDependentKey(next);
     if (key !== depKey) {
       depKey = key;
-      const schema = partDependentSchema(next);
+      const schema = partDependentSchema(next, locked);
       dep.schema = schema;
       dep.data = pickFormData(partFormData(next), schema);
       dep.style.display = schema.length ? '' : 'none';
     }
   };
-  const baseSchema = partBaseSchema();
+  const baseSchema = partBaseSchema(locked);
   const base = p._makeForm(baseSchema, pickFormData(partFormData(part), baseSchema), merge);
   // An id, so the panel's focus restore can find this form again after a render
   // that had to happen (a file upload, a removed part) — see `_focusKey`.
   base.id = `hk-part-form-${i}`;
   bodyEl.appendChild(base);
-  notePreview = p._attachNotePreview(bodyEl, String(part.notes ?? ''));
-  const depSchema = partDependentSchema(part);
+  // The note is the owner's on a locked list (it is the usage line the glue
+  // writes), and the form above has no field to preview, so the preview goes too.
+  if (!locked) notePreview = p._attachNotePreview(bodyEl, String(part.notes ?? ''));
+  const depSchema = partDependentSchema(part, locked);
   dep = p._makeForm(depSchema, pickFormData(partFormData(part), depSchema), merge);
   dep.className = 'hk-part-dep';
   if (!depSchema.length) dep.style.display = 'none';
   bodyEl.appendChild(dep);
-  wearHint.hidden = part.type !== 'wear';
+  // The hint explains the replacement interval, which an owned part does not offer.
+  wearHint.hidden = part.type !== 'wear' || locked;
   bodyEl.appendChild(wearHint);
   renderPartFile(p, bodyEl, part, i);
 
   // Remove sits at the foot of the open row, not in its summary: a button inside a
   // `summary` toggles the row as well as firing, and the browsers disagree on which
-  // happens first.
-  const foot = document.createElement('div');
-  foot.className = 'hk-part-foot';
-  const del = document.createElement('ha-button');
-  setBtnWeight(del, 'danger');
-  del.className = 'part-del';
-  del.textContent = t('btn.removePart');
-  del.addEventListener('click', () => {
-    const name = p._assetEdit.asset?.parts?.[i]?.name;
-    openConfirmDialog(
-      p,
-      name ? t('confirm.removeNamed', { name }) : t('confirm.removePart', { n: i + 1 }),
-      () => {
-        const all = p._assetEdit.asset?.parts || [];
-        p._assetEdit.asset!.parts = all.filter((_, j) => j !== i);
-        const chosen = p._assetEdit.openPart;
-        if (chosen != null) {
-          if (chosen === i) p._assetEdit.openPart = null;
-          else if (chosen > i) p._assetEdit.openPart = chosen - 1;
-        }
-      },
-    );
-  });
-  foot.appendChild(del);
-  bodyEl.appendChild(foot);
+  // happens first. Withheld on an owned list, where it would delete a row the next
+  // reconcile puts back.
+  if (!locked) {
+    const foot = document.createElement('div');
+    foot.className = 'hk-part-foot';
+    const del = document.createElement('ha-button');
+    setBtnWeight(del, 'danger');
+    del.className = 'part-del';
+    del.textContent = t('btn.removePart');
+    del.addEventListener('click', () => {
+      const name = p._assetEdit.asset?.parts?.[i]?.name;
+      openConfirmDialog(
+        p,
+        name ? t('confirm.removeNamed', { name }) : t('confirm.removePart', { n: i + 1 }),
+        () => {
+          const all = p._assetEdit.asset?.parts || [];
+          p._assetEdit.asset!.parts = all.filter((_, j) => j !== i);
+          const chosen = p._assetEdit.openPart;
+          if (chosen != null) {
+            if (chosen === i) p._assetEdit.openPart = null;
+            else if (chosen > i) p._assetEdit.openPart = chosen - 1;
+          }
+        },
+      );
+    });
+    foot.appendChild(del);
+    bodyEl.appendChild(foot);
+  }
 
   box.open = open;
   box.addEventListener('toggle', () => {

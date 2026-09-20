@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Nom o ID de la peça",
           "description": "L'id de la peça de la qual s'ha d'ajustar l'estoc. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "quantity": {
+          "name": "Quantitat",
+          "description": "Quina quantitat de la peça consumeix una finalització. Ometeu-ho per usar la quantitat que indica la peça."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Actualitzar electrodomèstic gestionat",
+      "description": "Actualitza el nom i la llista de peces d'un electrodomèstic que gestiona una altra integració. Els camps d'estoc de cada peça no canvien.",
+      "fields": {
+        "asset_id": {
+          "name": "Nom o ID d'actiu",
+          "description": "L'id de l'actiu a actualitzar. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "name": {
+          "name": "Nom",
+          "description": "Un nom nou per a l'electrodomèstic."
+        },
+        "parts": {
+          "name": "Peces",
+          "description": "La llista completa de peces, aparellada amb les peces desades per id. Home Keeper manté una peça que no és a la llista si la peça té estoc."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Eliminar electrodomèstic",
       "description": "Eliminar un electrodomèstic/actiu. El seu dispositiu virtual (si n'hi ha) s'elimina i les tasques que hi estan vinculades passen a ser independents.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Nom o ID d'actiu",
           "description": "L'id de l'actiu a eliminar. El seu nom també funciona. El tauler mostra l'id."
+        },
+        "force": {
+          "name": "Força",
+          "description": "Elimina un electrodomèstic protegit per una integració. Useu-ho només si aquella integració ja no hi és."
         }
       }
     },

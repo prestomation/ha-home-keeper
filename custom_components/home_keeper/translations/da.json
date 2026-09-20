@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Reservedelsnavn eller -ID",
           "description": "ID'et på den reservedel, hvis lager skal justeres. Navnet virker også. Panelet viser id'et."
+        },
+        "quantity": {
+          "name": "Mængde",
+          "description": "Hvor meget af delen én fuldførelse bruger. Udelad det for at bruge den mængde, delen angiver."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Opdater administreret apparat",
+      "description": "Opdater navnet og listen over dele for et apparat, som en anden integration administrerer. Lagerfelterne på hver del ændres ikke.",
+      "fields": {
+        "asset_id": {
+          "name": "Aktivnavn eller -ID",
+          "description": "ID'et på aktivet, der skal opdateres. Navnet virker også. Panelet viser id'et."
+        },
+        "name": {
+          "name": "Navn",
+          "description": "Et nyt navn til apparatet."
+        },
+        "parts": {
+          "name": "Dele",
+          "description": "Hele listen over dele, matchet mod de gemte dele på id. Home Keeper beholder en del, der ikke er på listen, hvis delen har et lagerantal."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Slet apparat",
       "description": "Slet et apparat/aktiv. Dets virtuelle enhed (hvis nogen) fjernes, og opgaver tilknyttet det bliver fritstående.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Aktivnavn eller -ID",
           "description": "ID'et på aktivet, der skal slettes. Navnet virker også. Panelet viser id'et."
+        },
+        "force": {
+          "name": "Tving",
+          "description": "Slet et apparat, som en integration beskytter. Brug kun dette, hvis den integration er væk."
         }
       }
     },

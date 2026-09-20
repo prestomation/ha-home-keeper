@@ -98,6 +98,15 @@ EXCLUDED_ASSET_KEYS: tuple[tuple[str, str], ...] = (
         "completions archived from deleted tasks; the tasks that made "
         "them are gone, so there is nothing on the other side to attach them to",
     ),
+    (
+        "source",
+        "the integration that made the appliance; one carrying a source is not "
+        "exported, because that integration makes it again on the other side",
+    ),
+    (
+        "managed_by",
+        "an owning integration's block; such an appliance is not exported",
+    ),
 )
 
 EXCLUDED_PART_KEYS: tuple[tuple[str, str], ...] = (
@@ -179,6 +188,11 @@ _ASSET_EXTRA_KEYS = frozenset({"external_id", "area", "archived"})
 # than a feature. The schema is permissive, so leaving them out hides them from an
 # editor's completions without rejecting a file that has them.
 UNPORTABLE_TASK_KEYS: tuple[str, ...] = ("source", "managed_by")
+
+# The same 2 fields on an appliance, withheld from the published schema for the same
+# reason: ``add_asset`` accepts them, and an appliance that has them is one
+# :func:`is_portable_asset` declines to export.
+UNPORTABLE_ASSET_KEYS: tuple[str, ...] = ("source", "managed_by")
 
 
 # ── Results ──────────────────────────────────────────────────────────────────
@@ -292,6 +306,20 @@ def is_portable_task(task: dict[str, Any]) -> bool:
     if isinstance(source, dict) and _RECONCILER_SOURCES & set(source):
         return False
     return not task.get("managed_by")
+
+
+def is_portable_asset(asset: dict[str, Any]) -> bool:
+    """Whether *asset* is the user's to move, rather than an integration's to rebuild.
+
+    An appliance an integration made and owns — the battery pool a battery glue keeps,
+    with one part per battery type — is rebuilt on the other side by that integration
+    from the devices it reads. Copying it across would restore an appliance the next
+    reconcile pass rewrites, and its parts would arrive with a list the owner then
+    replaces. The household's own appliances travel as they always did.
+    """
+    if asset.get("managed_by"):
+        return False
+    return not asset.get("source")
 
 
 def _strip(
@@ -485,7 +513,8 @@ def build_document(
             "exported_at": now.isoformat(),
         }
     }
-    portable_assets = [a for a in assets if a.get("id")]
+    stored_assets = [a for a in assets if a.get("id")]
+    portable_assets = [a for a in stored_assets if is_portable_asset(a)]
     if "appliances" in wanted:
         counted = _counted_uses_by_part(portable_assets, tasks)
         document["appliances"] = [
@@ -495,7 +524,11 @@ def build_document(
         if skipped := count_file_documents(portable_assets):
             document["home_keeper"]["skipped"] = {"file_documents": skipped}
     if "tasks" in wanted:
-        by_device = {a["device_id"]: a for a in portable_assets if a.get("device_id")}
+        # Every stored appliance, not only the portable ones: a task attached to an
+        # appliance an integration owns still states which appliance it means, and the
+        # name resolves against the appliance that integration rebuilds on the other
+        # side. A device id would not.
+        by_device = {a["device_id"]: a for a in stored_assets if a.get("device_id")}
         document["tasks"] = [
             _task_out(t, area_names=names, asset_by_device=by_device)
             for t in tasks
@@ -1245,6 +1278,18 @@ def _plan_asset(
         index=index,
         problems=problems,
     )
+    if not is_portable_asset(record):
+        problems.append(
+            Problem(
+                "appliances",
+                index,
+                f"appliances[{index}]"
+                + (".managed_by" if record.get("managed_by") else ".source"),
+                "this appliance names an integration as its owner, so that "
+                "integration creates it rather than an import.",
+            )
+        )
+        return None
     payload = {k: v for k, v in record.items() if k not in ("area", "archived", "id")}
     if (
         area_id := _resolve_area(

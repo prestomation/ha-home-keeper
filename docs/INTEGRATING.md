@@ -300,6 +300,11 @@ await hass.services.async_call(
 )
 ```
 
+An **appliance** can be managed the same way. `home_keeper.add_asset` takes the same
+block without `completion_prompt` and `completion_blocked`. Its `locked_fields`
+vocabulary names the appliance's own fields plus its `parts` list. See
+[§8](#8-managing-an-appliance).
+
 ### What Home Keeper does with `managed_by`
 
 | Field | Effect |
@@ -346,6 +351,9 @@ config entry is removed (see §5). Orphan cleanup is the safety net for when it 
 - `managed_by` is a **UI contract**. Other integrations or automations can still call
   `complete_task` or `update_task` on non-locked fields.
 - Set `managed_by` once at creation via `add_task`. The `update_task` service ignores it.
+- An appliance takes the same block through `add_asset`. There, `update_asset` accepts
+  the single value `managed_by: null`, which gives the appliance back to the user
+  (see [§8](#8-managing-an-appliance)).
 - Because locked fields are stripped from the `update_task` payload, your reconciler can
   safely call `update_task` to change a locked field (e.g. rename when the pet's name
   changes) without risk of the user having overwritten it first.
@@ -560,6 +568,9 @@ data:
   part_id: "<consumable part id>"   # omit asset_id/part_id to clear the link
 ```
 
+An optional `quantity` sets what this one task consumes per completion, in place of the
+part's own `consume_quantity` (see [§8](#8-managing-an-appliance)).
+
 This is the end-to-end recipe for *"my fridge tells me when the water filter is spent,
 auto-subtract a spare and tell me to buy more"*: create a `sensor` task bound to the
 filter's life/usage entity, link it to the filter consumable, and an automation on
@@ -708,6 +719,146 @@ integration needs to *write back* to the upstream (Battery Notes' `set_battery_r
 on completion) or has to maintain domain state across completions (replacement history).
 For those cases, publish a glue integration
 per this section and use `home_keeper.add_task` + `complete_task` + the events.
+
+## 8. Managing an appliance
+
+An integration can own an **appliance**, not only a task. Pass `managed_by` and
+`source` to `home_keeper.add_asset` and Home Keeper records your integration as the
+owner of that appliance and of its parts.
+
+```yaml
+service: home_keeper.add_asset
+data:
+  name: Batteries
+  kind: virtual
+  source:
+    my_integration:
+      role: battery_stock
+  managed_by:
+    integration: my_integration
+    display_name: My Integration
+    config_entry_id: "<your entry id>"
+    deletion_protected: true
+    locked_fields: ["name", "parts"]
+```
+
+`managed_by` is the same block as a task's, without `completion_prompt` and
+`completion_blocked` (an appliance has no completion). `deletion_protected` still
+requires `config_entry_id`, and orphan detection is unchanged: once your entry is
+unloaded, the user can delete the appliance again.
+
+Both fields are **create-only**. `update_asset` ignores `source`, and ignores
+`managed_by` except for the single value `null`, which is the uninstall path below.
+`source` is opaque to Home Keeper, exactly as it is on a task. Call
+`home_keeper.list_assets` and match on your namespace to find your appliance again
+after a restart.
+
+### `locked_fields` on an appliance
+
+The vocabulary is `const.ASSET_LOCKED_FIELDS`: `name`, `area_id`, `icon`,
+`manufacturer`, `model`, `serial_number`, `notes`, `cost`, `documents`, `metadata`,
+`parts`, `parent_asset_id`, `related_device_ids`.
+
+Every entry but `parts` behaves as it does on a task. The panel drops the field from
+the edit form, and `update_asset` strips it from the payload.
+
+`"parts"` is **structural**, not a plain strip. The list itself is yours, and the
+stock numbers on each part stay the user's:
+
+| Owner keys, locked | User keys, never yours |
+|---|---|
+| `name`, `type`, `notes`, `part_number`, `vendor`, `url`, `cost` | `stock`, `reorder_at`, `stock_unit` |
+| `replace_interval`, `replace_unit`, `replace_also_every`, `action` | `consume_quantity`, `create_buy_task` |
+| `use_noun`, `use_task_name`, `last_replaced`, `carried_uses` | `restock_quantity` |
+
+So an `update_asset` call with a `parts` list writes only the user keys, and only on
+the parts that are already stored. It never adds a part and never removes one.
+
+### `update_managed_asset`
+
+Locking `parts` leaves you a door of your own. Write the owner keys after creation
+through `home_keeper.update_managed_asset`:
+
+```yaml
+service: home_keeper.update_managed_asset
+data:
+  asset_id: "<asset id>"
+  name: Batteries            # optional: re-applies your locked name
+  parts:                     # optional: the whole list, as you want it
+    - id: "<part id>"        # omit on a new part
+      name: AAA
+      type: consumable
+      notes: "Used by 4 devices, 7 installed. Front door sensor (2), Thermostat (1)"
+```
+
+What the service does with that list:
+
+- Parts are matched on `id`. A part with an unknown `id` or with no `id` at all is a
+  **new** part.
+- A new part starts at `stock: null` and tracks nothing. It opens no buy task. The
+  panel offers the user a **Start counting** button. Do not send a `stock` value. It is
+  a user key and Home Keeper drops it.
+- A part you leave out is removed **only if it tracks no stock**. A part the user has
+  counted stays in the list. Those spares are in a drawer whatever your integration
+  believes.
+- The call is admin-only and it rejects an appliance your integration does not manage.
+  Your own service call has no user context and passes the admin gate.
+
+### Drawing stock down from a task
+
+`home_keeper.set_task_consumable` links a task to a part, so a completion of that task
+takes an amount off the part's `stock`. It takes an optional `quantity`:
+
+```yaml
+service: home_keeper.set_task_consumable
+data:
+  task_id: "<task id>"
+  asset_id: "<asset id>"
+  part_id: "<part id>"
+  quantity: 2
+```
+
+`quantity` is what **this task** consumes per completion, and it must be greater than
+zero. Leave it out and the part's own `consume_quantity` applies, which is 1 spare by
+default. A device that takes 2 AAA batteries links its replacement task with
+`quantity: 2`.
+
+The link is recorded as `source["part"] = {asset_id, part_id, manual: true, quantity}`.
+
+### Every writer merges into `source`, and pops its own key only
+
+`source` is a map of namespaces, on a task and on an appliance alike. Home Keeper owns
+the reserved names (`part`, `buy`, `declarative_companion`), your integration owns its
+own, and neither side rewrites the whole map. `set_task_consumable` merges `part` in
+beside your namespace, and unlinking pops `part` and leaves the rest. Hold your own
+writers to the same rule.
+
+### Handing the appliance back when you are removed
+
+Deleting a managed appliance deletes its parts, and with them every count the user
+entered. Hand it over instead, from `async_remove_entry`:
+
+```python
+await hass.services.async_call(
+    "home_keeper",
+    "update_asset",
+    {"asset_id": asset_id, "managed_by": None},
+    blocking=True,
+)
+```
+
+The appliance stays where it is, the locks come off, and the user keeps an ordinary
+appliance with their stock. Delete the appliance instead only when no part tracks
+stock, so there is nothing to lose.
+
+### The "Used by" line in a part's notes
+
+Shared stock has no single device to attach to. Name the devices in the part's
+`notes` instead. It is an owner key and the panel renders it as Markdown. The Battery
+Notes glue writes `Used by 4 devices, 7 installed. Front door sensor (2), Thermostat
+(1)`. A type that is stocked but no longer fitted gets `Not used by any device`. Home
+Keeper stores that text and renders it. The format is a convention between you and the
+user.
 
 ## Testing your integration
 

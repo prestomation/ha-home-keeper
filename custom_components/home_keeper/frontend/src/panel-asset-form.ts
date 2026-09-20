@@ -30,6 +30,7 @@ import type { PanelHost } from './panel-host';
 import { drawerHead } from './panel-task-form';
 import { errorAlert, setAssetError } from './panel-upload';
 import type { Asset } from './types';
+import { assetLockedFields } from './utils';
 
 /**
  * The appliances this one may be nested under: every virtual appliance except itself
@@ -82,6 +83,11 @@ function deviceDefaults(
 export function renderAssetForm(p: PanelHost, host: HTMLElement): void {
   const x = p._assetEdit.asset || {};
   const editing = Boolean(x.id);
+  // What the appliance's owning integration writes. Each of these fields leaves the
+  // drawer: the owner rewrites them on its next pass, so a control over one is a
+  // Save that undoes itself. Everything it does not claim stays editable — a
+  // battery pool the glue names still takes its counts from here.
+  const locked = assetLockedFields(x);
   const card = document.createElement('ha-card');
   card.className = 'hk-form-card';
   card.id = 'hk-asset-form';
@@ -107,7 +113,7 @@ export function renderAssetForm(p: PanelHost, host: HTMLElement): void {
 
   // Identity (kind toggle re-renders since the schema changes).
   const identity = p._makeForm(
-    assetIdentitySchema(x, editing, eligibleParents(p, x)),
+    assetIdentitySchema(x, editing, eligibleParents(p, x), locked),
     {
       kind: x.kind ?? 'virtual',
       device_id: x.device_id ?? undefined,
@@ -140,42 +146,50 @@ export function renderAssetForm(p: PanelHost, host: HTMLElement): void {
   );
   inner.appendChild(identity);
 
-  inner.appendChild(section(t('section.reference')));
-  inner.appendChild(
-    p._makeForm(
-      structuredDetailsSchema(),
-      { cost: x.cost ?? undefined },
-      mergeAsset,
-    ),
-  );
+  const reference = structuredDetailsSchema(locked);
+  if (reference.length) {
+    inner.appendChild(section(t('section.reference')));
+    inner.appendChild(p._makeForm(reference, { cost: x.cost ?? undefined }, mergeAsset));
+  }
 
   // Notes get their own section so the live Markdown preview can sit directly under
   // the field it previews (the appliance form is already section-split, unlike the
   // task form's single `ha-form`).
-  inner.appendChild(section(t('section.notes')));
-  let assetNotePreview: MarkdownPreview | null = null;
-  inner.appendChild(
-    p._makeForm([{ name: 'notes', selector: selText(true) }], { notes: x.notes ?? '' }, (value) => {
-      mergeAsset(value);
-      assetNotePreview?.update(String(value.notes ?? ''));
-    }),
-  );
-  assetNotePreview = p._attachNotePreview(inner, String(x.notes ?? ''));
+  if (!locked.has('notes')) {
+    inner.appendChild(section(t('section.notes')));
+    let assetNotePreview: MarkdownPreview | null = null;
+    inner.appendChild(
+      p._makeForm(
+        [{ name: 'notes', selector: selText(true) }],
+        { notes: x.notes ?? '' },
+        (value) => {
+          mergeAsset(value);
+          assetNotePreview?.update(String(value.notes ?? ''));
+        },
+      ),
+    );
+    assetNotePreview = p._attachNotePreview(inner, String(x.notes ?? ''));
+  }
 
-  renderDocumentsEditor(p, inner);
+  if (!locked.has('documents')) renderDocumentsEditor(p, inner);
 
-  renderMetadataEditor(p, inner);
+  if (!locked.has('metadata')) renderMetadataEditor(p, inner);
 
+  // The parts editor stays whatever the owner claims: `parts` locks the *list*, not
+  // the counts, so the rows are still opened here to be counted (see
+  // `renderPartsEditor`).
   renderPartsEditor(p, inner);
 
-  inner.appendChild(section(t('section.related')));
-  inner.appendChild(
-    p._makeForm(
-      [{ name: 'related_device_ids', selector: selDevice(true) }],
-      { related_device_ids: x.related_device_ids ?? [] },
-      mergeAsset,
-    ),
-  );
+  if (!locked.has('related_device_ids')) {
+    inner.appendChild(section(t('section.related')));
+    inner.appendChild(
+      p._makeForm(
+        [{ name: 'related_device_ids', selector: selDevice(true) }],
+        { related_device_ids: x.related_device_ids ?? [] },
+        mergeAsset,
+      ),
+    );
+  }
 
   if (p._assetEdit.error) {
     inner.appendChild(errorAlert(p._assetEdit.error, p._assetEdit.errorLink));

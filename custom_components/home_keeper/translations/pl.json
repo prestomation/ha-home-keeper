@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Nazwa lub identyfikator części",
           "description": "Identyfikator części, której zapas ma zostać dostosowany. Nazwa również działa. Panel pokazuje identyfikator."
+        },
+        "quantity": {
+          "name": "Ilość",
+          "description": "Ile części zużywa jedno ukończenie. Pomiń to, aby użyć ilości podanej przy części."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Zaktualizuj zarządzane urządzenie",
+      "description": "Zaktualizuj nazwę i listę części urządzenia, którym zarządza inna integracja. Pola stanu magazynowego każdej części nie zmieniają się.",
+      "fields": {
+        "asset_id": {
+          "name": "Nazwa lub identyfikator zasobu",
+          "description": "Identyfikator zasobu do zaktualizowania. Nazwa również działa. Panel pokazuje identyfikator."
+        },
+        "name": {
+          "name": "Nazwa",
+          "description": "Nowa nazwa urządzenia."
+        },
+        "parts": {
+          "name": "Części",
+          "description": "Pełna lista części, dopasowana do zapisanych części według id. Home Keeper zachowuje część spoza listy, jeśli część ma stan magazynowy."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Usuń urządzenie",
       "description": "Usuń urządzenie/zasób. Jego urządzenie wirtualne (jeśli istnieje) zostaje usunięte, a przypisane do niego zadania stają się samodzielne.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Nazwa lub identyfikator zasobu",
           "description": "Identyfikator zasobu do usunięcia. Nazwa również działa. Panel pokazuje identyfikator."
+        },
+        "force": {
+          "name": "Wymuś",
+          "description": "Usuń urządzenie chronione przez integrację. Użyj tego tylko wtedy, gdy tej integracji już nie ma."
         }
       }
     },

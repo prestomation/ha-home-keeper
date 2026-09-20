@@ -326,6 +326,8 @@ async def ws_delete_task(
         # Both null clears the link; both set links the task to that part.
         vol.Required("asset_id"): vol.Any(str, None),
         vol.Required("part_id"): vol.Any(str, None),
+        # What this one task takes; absent, the part's own per-use amount decides.
+        vol.Optional("quantity"): vol.Any(vol.Coerce(float), None),
     }
 )
 @websocket_api.async_response
@@ -337,7 +339,10 @@ async def ws_set_task_consumable(
     coord: HomeKeeperCoordinator,
 ) -> None:
     task = await coord.store.set_task_consumable(
-        msg["task_id"], msg["asset_id"], msg["part_id"]
+        msg["task_id"],
+        msg["asset_id"],
+        msg["part_id"],
+        quantity=msg.get("quantity"),
     )
     # Linking only rewrites the task's source; the per-task entity set is unchanged,
     # so a refresh is enough (no entry reload).
@@ -754,6 +759,8 @@ async def ws_update_asset(
     {
         vol.Required("type"): "home_keeper/delete_asset",
         vol.Required("asset_id"): str,
+        # Bypass a managed appliance's deletion protection, like ``delete_task``.
+        vol.Optional("force", default=False): bool,
     }
 )
 @websocket_api.require_admin
@@ -769,7 +776,7 @@ async def ws_delete_asset(
     # back would be a cycle (the same idiom ``store``/``manuals`` use).
     from . import _delete_asset
 
-    await _delete_asset(hass, coord, msg["asset_id"])
+    await _delete_asset(hass, coord, msg["asset_id"], force=msg.get("force", False))
     connection.send_result(msg["id"], {"ok": True})
 
 

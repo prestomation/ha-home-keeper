@@ -617,7 +617,9 @@ def reconcile_part_tasks(
     # Clear a manual consumable link whose target part no longer exists (the part was
     # removed while the appliance remains). Left dangling, the link silently no-ops on
     # completion — the user would think they're drawing down stock but aren't. The task
-    # itself survives as a plain standalone task; only its source is cleared.
+    # itself survives; only the ``part`` key goes. Any other namespace on the same
+    # ``source`` belongs to the integration that made the task, and a part that was
+    # deleted somewhere else is no reason to drop it.
     existing_parts = {
         (asset.get("id"), part.get("id"))
         for asset in assets.values()
@@ -629,7 +631,12 @@ def reconcile_part_tasks(
         if src is None or not src.get("manual"):
             continue
         if (src["asset_id"], src["part_id"]) not in existing_parts:
-            result[tid] = {**task, "source": None}
+            source = {
+                key: value
+                for key, value in (task.get("source") or {}).items()
+                if key != TASK_SOURCE_PART
+            }
+            result[tid] = {**task, "source": source or None}
             changed = True
 
     return result, changed

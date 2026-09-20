@@ -81,13 +81,18 @@ def asset_event_data(
     """Return the common payload for `home_keeper_asset_*` lifecycle events.
 
     Carries the appliance identity and its registry ``device_id`` (``None`` until a
-    virtual asset's device is provisioned). Per-event extras (``changed_fields`` for an
-    update) merge in via *extra*.
+    virtual asset's device is provisioned), plus the opaque ``source`` and the
+    well-known ``managed_by`` block, echoed verbatim like a task's — an integration
+    that owns an appliance reads its own namespace back off the event rather than
+    calling ``list_assets`` to find out whether the appliance is still its own.
+    Per-event extras (``changed_fields`` for an update) merge in via *extra*.
     """
     data: dict[str, Any] = {
         "asset_id": asset.get("id"),
         "asset_name": asset.get("name") or "",
         "device_id": asset.get("device_id"),
+        "source": asset.get("source"),
+        "managed_by": asset.get("managed_by"),
     }
     if extra:
         data.update(extra)

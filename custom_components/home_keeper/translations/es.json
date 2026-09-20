@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Nombre o ID de la pieza",
           "description": "El id de la pieza cuyo stock se va a ajustar. Su nombre también funciona. El panel muestra el id."
+        },
+        "quantity": {
+          "name": "Cantidad",
+          "description": "Cuánto consume de la pieza una finalización. Omítelo para usar la cantidad que indica la pieza."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Actualizar electrodoméstico gestionado",
+      "description": "Actualizar el nombre y la lista de piezas de un electrodoméstico que gestiona otra integración. Los campos de stock de cada pieza no cambian.",
+      "fields": {
+        "asset_id": {
+          "name": "Nombre o ID del activo",
+          "description": "El id del activo a actualizar. Su nombre también funciona. El panel muestra el id."
+        },
+        "name": {
+          "name": "Nombre",
+          "description": "Un nuevo nombre para el electrodoméstico."
+        },
+        "parts": {
+          "name": "Piezas",
+          "description": "La lista completa de piezas, emparejada con las piezas guardadas por id. Home Keeper mantiene una pieza que no está en la lista si la pieza tiene stock."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Eliminar electrodoméstico",
       "description": "Eliminar un electrodoméstico/activo. Su dispositivo virtual (si lo hay) se elimina y las tareas adjuntas a él pasan a ser independientes.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Nombre o ID del activo",
           "description": "El id del activo a eliminar. Su nombre también funciona. El panel muestra el id."
+        },
+        "force": {
+          "name": "Forzar",
+          "description": "Eliminar un electrodoméstico protegido por una integración. Úsalo solo si esa integración ya no está."
         }
       }
     },

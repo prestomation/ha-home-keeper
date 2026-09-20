@@ -353,6 +353,21 @@ def test_manual_link_cleared_when_part_removed():
     assert changed2 is False
 
 
+def test_clearing_a_dangling_link_keeps_the_tasks_other_namespaces():
+    # The part is gone, so the link goes — but the namespace of the integration that
+    # made the task stays. Setting ``source = None`` here orphaned every glue task on
+    # an appliance whose part list moved.
+    asset = _asset(parts=[])
+    link = _manual_link_task(pid="p1")
+    link["source"]["battery_notes"] = {"device_id": "dev1"}
+    tasks, changed = _reconcile({"a1": asset}, {"m1": link})
+    assert changed is True
+    assert tasks["m1"]["source"] == {"battery_notes": {"device_id": "dev1"}}
+    # Idempotent: the second pass sees no part link and changes nothing.
+    _again, changed2 = _reconcile({"a1": asset}, tasks)
+    assert changed2 is False
+
+
 def test_manual_link_cleared_when_whole_asset_gone():
     # The linked asset no longer exists at all (e.g. mid-reconcile) → link cleared.
     link = _manual_link_task(aid="ghost", pid="p1")
@@ -470,3 +485,16 @@ def test_buy_task_carries_area_from_asset():
     asset = _asset(area_id="garage", parts=[_consumable()])
     task = _only(_buy_reconcile({"a1": asset})[0])
     assert task["area_id"] == "garage"
+
+
+def test_a_part_nobody_has_counted_opens_no_buy_task():
+    # A managed appliance's new part starts untracked (``stock`` is None), and an
+    # untracked part is not low — so an integration adding a battery type cannot
+    # open a Buy reminder for a shelf nobody has looked at.
+    asset = _asset(
+        device_id="dev1",
+        parts=[_consumable(stock=None, reorder_at=2, create_buy_task=True)],
+    )
+    tasks, changed = _buy_reconcile({"a1": asset})
+    assert tasks == {}
+    assert changed is False

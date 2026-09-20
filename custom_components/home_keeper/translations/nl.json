@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Onderdeelnaam of -ID",
           "description": "De id van het onderdeel waarvan de voorraad moet worden aangepast. De naam werkt ook. Het paneel toont het id."
+        },
+        "quantity": {
+          "name": "Hoeveelheid",
+          "description": "Hoeveel van het onderdeel één voltooiing verbruikt. Laat het weg om de hoeveelheid van het onderdeel te gebruiken."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Beheerd apparaat bijwerken",
+      "description": "Werk de naam en de onderdelenlijst bij van een apparaat dat een andere integratie beheert. De voorraadvelden van elk onderdeel veranderen niet.",
+      "fields": {
+        "asset_id": {
+          "name": "Assetnaam of -ID",
+          "description": "De id van het bij te werken asset. De naam werkt ook. Het paneel toont het id."
+        },
+        "name": {
+          "name": "Naam",
+          "description": "Een nieuwe naam voor het apparaat."
+        },
+        "parts": {
+          "name": "Onderdelen",
+          "description": "De volledige onderdelenlijst, op id gekoppeld aan de opgeslagen onderdelen. Home Keeper behoudt een onderdeel dat niet in de lijst staat als het onderdeel voorraad heeft."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Apparaat verwijderen",
       "description": "Een apparaat/asset verwijderen. Het virtuele apparaat (indien aanwezig) wordt verwijderd en taken die eraan gekoppeld zijn worden zelfstandig.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Assetnaam of -ID",
           "description": "De id van het te verwijderen asset. De naam werkt ook. Het paneel toont het id."
+        },
+        "force": {
+          "name": "Forceren",
+          "description": "Verwijder een apparaat dat een integratie beschermt. Gebruik dit alleen als die integratie weg is."
         }
       }
     },

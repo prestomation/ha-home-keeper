@@ -41,9 +41,15 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.util import dt as dt_util
 
+from . import assets as assets_model
 from . import events, models, recurrence
 from .const import (
     DOMAIN,
+    EVENT_ASSET_CREATED,
+    EVENT_ASSET_UPDATED,
+    EVENT_PART_LOW_STOCK,
+    EVENT_PART_OUT_OF_STOCK,
+    EVENT_PART_RESTOCKED,
     EVENT_TASK_COMPLETED,
     EVENT_TASK_CREATED,
     EVENT_TASK_DELETED,
@@ -52,12 +58,21 @@ from .const import (
     EVENT_TASK_UPDATED,
     REC_SENSOR,
     REC_TRIGGERED,
+    TASK_SOURCE_PART,
 )
+from .reconcile import is_use_task
 from .store import _changed_fields as _store_changed_fields
 
 # Permissive schema: the fake mirrors behaviour, not validation. Your integration's
 # real calls still flow through Home Keeper's strict schemas in production.
 _ANY = vol.Schema({}, extra=vol.ALLOW_EXTRA)
+
+# Stock transition -> the bus event it fires, as ``store.py`` maps them.
+_STOCK_EVENT = {
+    assets_model.STOCK_LOW: EVENT_PART_LOW_STOCK,
+    assets_model.STOCK_OUT: EVENT_PART_OUT_OF_STOCK,
+    assets_model.STOCK_RESTOCKED: EVENT_PART_RESTOCKED,
+}
 
 
 class FakeHomeKeeper:
@@ -67,11 +82,22 @@ class FakeHomeKeeper:
     ``complete_task``/``delete_completion``/``list_tasks``) on the test ``hass`` and
     fires the genuine ``home_keeper_task_completed`` /
     ``home_keeper_task_uncompleted`` events as completions are recorded and undone.
+
+    The appliance half is here too (``add_asset``/``update_asset``/
+    ``update_managed_asset``/``list_assets``/``set_task_consumable``/
+    ``adjust_part_stock``), for an integration that keeps an appliance of its own and
+    draws stock off its parts. Completing a linked task consumes the spares, so a
+    glue asserts on the count the same way it would against the real Home Keeper.
     """
 
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
         self.tasks: dict[str, dict[str, Any]] = {}
+        # Appliances, the same way: real records built by ``assets.build_asset`` and
+        # edited by the real merge helpers, so an integration that keeps an appliance
+        # of its own (a battery pool, a filter cupboard) tests against the rules that
+        # ship rather than against a second description of them.
+        self.assets: dict[str, dict[str, Any]] = {}
 
     # -- service handlers (names + shapes match the real integration) ---------
 
@@ -136,6 +162,139 @@ class FakeHomeKeeper:
     async def _list_tasks(self, call: ServiceCall) -> dict[str, Any]:
         return {"tasks": [dict(t) for t in self.tasks.values()]}
 
+    # -- appliances -----------------------------------------------------------
+
+    async def _add_asset(self, call: ServiceCall) -> None:
+        # No response, because the real ``add_asset`` has none: a caller finds the
+        # appliance it just made with ``list_assets`` (or ``get_asset_by_source``).
+        asset = assets_model.build_asset(dict(call.data), now=dt_util.now())
+        self.assets[asset["id"]] = asset
+        self.hass.bus.async_fire(EVENT_ASSET_CREATED, events.asset_event_data(asset))
+
+    async def _update_asset(self, call: ServiceCall) -> None:
+        data = dict(call.data)
+        asset_id = data.pop("asset_id")
+        before = self.assets[asset_id]
+        merged = assets_model.merge_update(before, data, now=dt_util.now())
+        self.assets[asset_id] = merged
+        self._announce_asset(before, merged)
+
+    async def _update_managed_asset(self, call: ServiceCall) -> None:
+        data = dict(call.data)
+        asset = self.assets[data["asset_id"]]
+        if not assets_model.asset_is_managed(asset):
+            raise assets_model.AssetValidationError(
+                "update_managed_asset only writes an appliance an integration owns; "
+                "use update_asset."
+            )
+        before = dict(asset)
+        if data.get("name") is not None:
+            renamed = str(data["name"]).strip()
+            if not renamed:
+                raise assets_model.AssetValidationError("name must not be empty")
+            asset["name"] = renamed
+        if data.get("parts") is not None:
+            asset["parts"] = assets_model.apply_managed_parts(
+                before.get("parts") or [], data["parts"], today=dt_util.now().date()
+            )
+        self._announce_asset(before, asset)
+
+    async def _list_assets(self, call: ServiceCall) -> dict[str, Any]:
+        return {"assets": [dict(a) for a in self.assets.values()]}
+
+    async def _set_task_consumable(self, call: ServiceCall) -> None:
+        data = dict(call.data)
+        task = self.tasks[data["task_id"]]
+        asset_id = str(data["asset_id"]) if data.get("asset_id") else None
+        part_id = str(data["part_id"]) if data.get("part_id") else None
+        source = dict(task.get("source") or {})
+        # Merge, exactly like the real store: another integration's namespace on the
+        # same task survives a user linking or clearing a consumable.
+        if asset_id is None or part_id is None:
+            source.pop(TASK_SOURCE_PART, None)
+            task["source"] = source or None
+        else:
+            asset = self.assets[asset_id]
+            if assets_model.find_part(asset, part_id) is None:
+                raise models.TaskValidationError(
+                    f"asset {asset_id!r} has no part {part_id!r}"
+                )
+            link: dict[str, Any] = {
+                "asset_id": asset_id,
+                "part_id": part_id,
+                "manual": True,
+            }
+            amount = assets_model.normalize_link_quantity(data.get("quantity"))
+            if amount is not None:
+                link["quantity"] = amount
+            source[TASK_SOURCE_PART] = link
+            task["source"] = source
+        self.hass.bus.async_fire(
+            EVENT_TASK_UPDATED,
+            events.task_event_data(task, extra={"changed_fields": ["source"]}),
+        )
+
+    async def _adjust_part_stock(self, call: ServiceCall) -> None:
+        asset = self.assets[call.data["asset_id"]]
+        part = assets_model.find_part(asset, call.data["part_id"])
+        if part is None:
+            raise assets_model.AssetValidationError(
+                f"asset {call.data['asset_id']!r} has no part {call.data['part_id']!r}"
+            )
+        self._emit_stock_event(
+            assets_model.adjust_part_stock(part, float(call.data["delta"])),
+            asset,
+            part,
+        )
+
+    def _announce_asset(self, before: dict[str, Any], after: dict[str, Any]) -> None:
+        """Fire ``home_keeper_asset_updated`` only when something really moved."""
+        changed = _store_changed_fields(before, after)
+        if changed:
+            self.hass.bus.async_fire(
+                EVENT_ASSET_UPDATED,
+                events.asset_event_data(after, extra={"changed_fields": changed}),
+            )
+
+    def _emit_stock_event(
+        self, transition: str, asset: dict[str, Any], part: dict[str, Any]
+    ) -> None:
+        event = _STOCK_EVENT.get(transition)
+        if event is not None:
+            self.hass.bus.async_fire(event, events.stock_event_data(asset, part))
+
+    def _stamp_part_replacement(self, task: dict[str, Any], when: Any) -> None:
+        """Draw a completed task's consumable off its part, like the real store.
+
+        The twin of ``store._stamp_part_replacement``: the link's own ``quantity``
+        when it states one, the part's per-use amount otherwise. It is what lets a
+        glue assert that completing "Replace battery" really took 2 AAA cells off the
+        count.
+        """
+        src = (task.get("source") or {}).get(TASK_SOURCE_PART)
+        if not isinstance(src, dict):
+            return
+        if is_use_task(task):
+            # A counted wear item's use task carries a part source of its own. It
+            # records a use, not a renewal, so it stamps nothing and draws nothing.
+            return
+        asset = self.assets.get(str(src.get("asset_id")))
+        if asset is None:
+            return
+        part = assets_model.find_part(asset, str(src.get("part_id")))
+        if part is None:
+            return
+        part["last_replaced"] = (
+            dt_util.as_local(when).date().isoformat()
+            if hasattr(when, "date")
+            else str(when)[:10]
+        )
+        self._emit_stock_event(
+            assets_model.consume_part_stock(part, quantity=src.get("quantity")),
+            asset,
+            part,
+        )
+
     # -- test helpers ---------------------------------------------------------
 
     def _complete(
@@ -153,6 +312,10 @@ class FakeHomeKeeper:
             when = dt_util.parse_datetime(when) or now
         updated = recurrence.apply_completion(dict(task), when, now=now)
         self.tasks[task_id] = updated
+        # Completing a task linked to a consumable draws the spares off the part, at
+        # Home Keeper's own chokepoint — so it happens whatever the ``origin`` is, and
+        # a glue can assert on the count rather than on its own bookkeeping.
+        self._stamp_part_replacement(updated, when)
         self.hass.bus.async_fire(
             EVENT_TASK_COMPLETED, events.completion_event_data(updated, when, origin)
         )
@@ -192,6 +355,24 @@ class FakeHomeKeeper:
                 return task
         return None
 
+    def get_asset_by_source(
+        self, namespace: str, **match: Any
+    ) -> dict[str, Any] | None:
+        """Return the first appliance whose ``source[namespace]`` matches all kwargs."""
+        for asset in self.assets.values():
+            src = (asset.get("source") or {}).get(namespace)
+            if isinstance(src, dict) and all(src.get(k) == v for k, v in match.items()):
+                return asset
+        return None
+
+    def part_named(self, asset_id: str, name: str) -> dict[str, Any] | None:
+        """Return the part of *asset_id* called *name*, or None."""
+        asset = self.assets.get(asset_id)
+        for part in (asset or {}).get("parts") or []:
+            if part.get("name") == name:
+                return part
+        return None
+
     # -- lifecycle ------------------------------------------------------------
 
     def register(self) -> None:
@@ -215,6 +396,18 @@ class FakeHomeKeeper:
             _ANY,
             supports_response=SupportsResponse.ONLY,
         )
+        reg(DOMAIN, "add_asset", self._add_asset, _ANY)
+        reg(DOMAIN, "update_asset", self._update_asset, _ANY)
+        reg(DOMAIN, "update_managed_asset", self._update_managed_asset, _ANY)
+        reg(DOMAIN, "set_task_consumable", self._set_task_consumable, _ANY)
+        reg(DOMAIN, "adjust_part_stock", self._adjust_part_stock, _ANY)
+        reg(
+            DOMAIN,
+            "list_assets",
+            self._list_assets,
+            _ANY,
+            supports_response=SupportsResponse.ONLY,
+        )
 
     def remove(self) -> None:
         for name in (
@@ -225,6 +418,12 @@ class FakeHomeKeeper:
             "delete_completion",
             "trigger_task",
             "list_tasks",
+            "add_asset",
+            "update_asset",
+            "update_managed_asset",
+            "set_task_consumable",
+            "adjust_part_stock",
+            "list_assets",
         ):
             self.hass.services.async_remove(DOMAIN, name)
 

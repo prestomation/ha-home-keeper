@@ -294,6 +294,10 @@ SET_TASK_CONSUMABLE_SCHEMA = vol.Schema(
         vol.Required("task_id"): cv.string,
         vol.Optional("asset_id"): vol.Any(cv.string, None),
         vol.Optional("part_id"): vol.Any(cv.string, None),
+        # What this one task takes, when it takes more than the part's own per-use
+        # amount (a smoke alarm holding 2 cells of a type other tasks take 1 of).
+        # Omitted, the part's ``consume_quantity`` decides, as it always has.
+        vol.Optional("quantity"): vol.Coerce(float),
     }
 )
 # ``force`` bypasses managed-task deletion protection — the escape hatch for cleaning
@@ -472,10 +476,47 @@ _ASSET_FIELDS: dict[Any, Any] = {
     vol.Optional("parts"): [_PART_SCHEMA],
     vol.Optional("parent_asset_id"): cv.string,
     vol.Optional("related_device_ids"): [cv.string],
+    # Opaque provenance, namespaced by the integration that created the appliance —
+    # the appliance twin of ``add_task``'s ``source``, create-only. Like
+    # ``managed_by`` below it is an integrator's field, documented in
+    # docs/INTEGRATING.md rather than in ``services.yaml``, so the UI draws no
+    # control for it.
+    vol.Optional("source"): dict,
 }
-ADD_ASSET_SCHEMA = vol.Schema(_ASSET_FIELDS)
-UPDATE_ASSET_SCHEMA = vol.Schema({vol.Required("asset_id"): cv.string, **_ASSET_FIELDS})
+# ``managed_by`` is create-only, so it is named per action rather than in the shared
+# field set: on an add it declares ownership (which fields the owner keeps — see
+# ``const.ASSET_LOCKED_FIELDS`` — and whether the appliance is deletion-protected).
+ADD_ASSET_SCHEMA = vol.Schema({**_ASSET_FIELDS, vol.Optional("managed_by"): dict})
+UPDATE_ASSET_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        **_ASSET_FIELDS,
+        # On an update only ``None`` acts, and it clears the block: an integration
+        # being removed hands its appliance back, and the household keeps a plain
+        # appliance with its stock counts. Any other value is ignored, so an
+        # appliance cannot be taken over by updating it.
+        vol.Optional("managed_by"): vol.Any(None, dict),
+    }
+)
 ASSET_ID_SCHEMA = vol.Schema({vol.Required("asset_id"): cv.string})
+# ``force`` bypasses a managed appliance's deletion protection, exactly as it does
+# for a task — the escape hatch when the owning integration is gone or misbehaving.
+DELETE_ASSET_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Optional("force", default=False): cv.boolean,
+    }
+)
+# The owner's door into an appliance it manages: the locked name, and the part list
+# it owns. Every stock field on each part stays the household's (see
+# ``assets.apply_managed_parts``).
+UPDATE_MANAGED_ASSET_SCHEMA = vol.Schema(
+    {
+        vol.Required("asset_id"): cv.string,
+        vol.Optional("name"): cv.string,
+        vol.Optional("parts"): [_PART_SCHEMA],
+    }
+)
 
 # Add a link document to an existing asset (file uploads go through the HTTP view).
 ADD_ASSET_DOCUMENT_SCHEMA = vol.Schema(
@@ -637,7 +678,11 @@ TRANSFER_TASK_RECORD_SCHEMA = vol.Schema(
 )
 TRANSFER_ASSET_RECORD_SCHEMA = vol.Schema(
     {
-        **ADD_ASSET_SCHEMA.schema,
+        **{
+            marker: validator
+            for marker, validator in ADD_ASSET_SCHEMA.schema.items()
+            if marker.schema not in transfer.UNPORTABLE_ASSET_KEYS
+        },
         vol.Optional("id"): cv.string,
         vol.Optional("external_id"): cv.string,
         vol.Optional("area"): cv.string,
@@ -1253,6 +1298,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 task_id,
                 asset_id,
                 part_id,
+                quantity=call.data.get("quantity"),
             )
         # Linking only rewrites the task's source; the per-task entity set is
         # unchanged, so a refresh is enough — no entry reload.
@@ -1365,11 +1411,35 @@ def _register_services(hass: HomeAssistant) -> None:
             await coord.store.update_asset(asset_id, data)
         await devices.async_apply_asset_change(hass, coord.entry, coord.store)
 
+    async def handle_update_managed_asset(call: ServiceCall) -> None:
+        await _verify_admin(call)
+        coord = _coordinator()
+        data = dict(call.data)
+        asset_id = _asset_ref(coord, data["asset_id"])
+        before = dict(coord.store.get_asset(asset_id) or {})
+        with _store_errors(asset_id=asset_id):
+            updated = await coord.store.update_managed_asset(
+                asset_id,
+                name=data.get("name"),
+                parts=data.get("parts"),
+            )
+        if all(updated.get(key) == value for key, value in before.items()):
+            # The owner restated what is already stored. Its reconciler calls this on
+            # a schedule, and the follow-up below reloads the config entry, so a
+            # no-op write must stay one.
+            return
+        # The same follow-up ``update_asset`` does: a renamed appliance re-titles its
+        # device, and a new or changed part re-derives its wear/buy tasks.
+        await devices.async_apply_asset_change(hass, coord.entry, coord.store)
+
     async def handle_delete_asset(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
         asset_id = _asset_ref(coord, call.data["asset_id"])
-        await _delete_asset(hass, coord, asset_id)
+        with _store_errors(asset_id=asset_id):
+            await _delete_asset(
+                hass, coord, asset_id, force=call.data.get("force", False)
+            )
 
     async def handle_archive_asset(call: ServiceCall) -> None:
         await _verify_admin(call)
@@ -1641,7 +1711,13 @@ def _register_services(hass: HomeAssistant) -> None:
         DOMAIN, "update_asset", handle_update_asset, UPDATE_ASSET_SCHEMA
     )
     hass.services.async_register(
-        DOMAIN, "delete_asset", handle_delete_asset, ASSET_ID_SCHEMA
+        DOMAIN,
+        "update_managed_asset",
+        handle_update_managed_asset,
+        UPDATE_MANAGED_ASSET_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN, "delete_asset", handle_delete_asset, DELETE_ASSET_SCHEMA
     )
     hass.services.async_register(
         DOMAIN, "archive_asset", handle_archive_asset, ASSET_ID_SCHEMA
@@ -1844,13 +1920,18 @@ def _register_services(hass: HomeAssistant) -> None:
 
 
 async def _delete_asset(
-    hass: HomeAssistant, coord: HomeKeeperCoordinator, asset_id: str
+    hass: HomeAssistant,
+    coord: HomeKeeperCoordinator,
+    asset_id: str,
+    *,
+    force: bool = False,
 ) -> None:
     """Delete an asset, remove its virtual device, and detach orphaned tasks.
 
     Shared by the service and websocket handlers so both clean up identically.
+    ``force`` bypasses a managed appliance's deletion protection.
     """
-    asset = await coord.store.delete_asset(asset_id)
+    asset = await coord.store.delete_asset(asset_id, force=force)
     if asset is None:
         return
     removed_device_id = await devices.async_remove_asset_device(hass, asset)

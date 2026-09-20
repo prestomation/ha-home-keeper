@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Part name or ID",
           "description": "The id of the consumable/part to link. Omit to unlink. Its name works too. The panel shows the id."
+        },
+        "quantity": {
+          "name": "Quantity",
+          "description": "How much of the part one completion takes. Omit it to use the quantity that the part sets."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Update managed appliance",
+      "description": "Update the name and the part list of an appliance that another integration manages. The stock fields on each part do not change.",
+      "fields": {
+        "asset_id": {
+          "name": "Appliance name or ID",
+          "description": "The id of the appliance to update. Its name works too. The panel shows the id."
+        },
+        "name": {
+          "name": "Name",
+          "description": "A new name for the appliance."
+        },
+        "parts": {
+          "name": "Parts",
+          "description": "The full part list, matched to the stored parts by id. Home Keeper keeps a part that is not in the list if the part has a stock count."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Delete appliance",
       "description": "Delete an appliance/asset. Its virtual device (if any) is removed and tasks attached to it become standalone.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Appliance name or ID",
           "description": "The id of the asset to delete. Its name works too. The panel shows the id."
+        },
+        "force": {
+          "name": "Force",
+          "description": "Delete an appliance that an integration protects. Use this only if that integration is gone."
         }
       }
     },
