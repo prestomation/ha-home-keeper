@@ -694,6 +694,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/30b-panel-sensor-backstop.png` });
+  // 30c. The rule box itself, centred, with the Create button under it. Every other
+  // task-form shot centres on a field, which leaves the box below the fold, so no
+  // desktop shot showed the label or the rule it states. The label is 2 words and a
+  // stale one reads as correct, so assert it here as well as photograph it.
+  await expect(panel.locator('.hk-form-summary-label')).toHaveText('When due');
+  await centre(panel.locator('.hk-form-summary'));
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/30c-panel-form-rule-box.png` });
   // Put it back to a pure meter so the threshold shot below starts from a clean form.
   await setBackstop(panel, false);
 
