@@ -118,6 +118,13 @@ keys the same as the English source (see "Translations" in
 
 - Do not write for effect. Do not use "simply", "just", "note that", or
   "it is important to note".
+- **Cut the empty subject and verb. Write the fact as a phrase.** Write "Due every 6
+  months", not "It comes due every 6 months". Write "Two tasks", not "This creates two
+  tasks". Write "No spare in stock", not "There is no spare in stock". A subject that
+  names nothing, such as "it", "this", or "there", adds a word and no fact. The rule
+  applies to UI text, to help text, and to a short line that states a value. A full
+  sentence is still correct in a paragraph of documentation, where the subject names a
+  real thing.
 - Do not tell a story. Write what the software does and what the user does.
 - Do not repeat a point in different words.
 - The house rules above are enforced by the `HomeKeeper` Vale style in
@@ -201,5 +208,7 @@ can be a noun or a verb as listed, and it can appear in a heading.
    Replace them.
 3. Find every synonym for a glossary name. Replace it.
 4. Find every parenthesis, em dash, and semicolon. Remove or split.
-5. Check that every instruction is a command in the active voice.
-6. Run `vale <file>` on a documentation file.
+5. Find every sentence that opens with "it", "this", or "there". Cut the subject and
+   the verb, and keep the phrase.
+6. Check that every instruction is a command in the active voice.
+7. Run `vale <file>` on a documentation file.
