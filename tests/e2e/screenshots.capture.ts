@@ -1687,6 +1687,22 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('.hk-search-clear').click();
   await expect(panel.locator('.hk-search-input')).toHaveValue('');
 
+  // 62. The task form's rule box on a phone. It is the last thing read before Create,
+  // and below 700px the form is a page rather than a drawer, so the box and the button
+  // it sits above share a screen the desktop shot cannot show. The label is asserted
+  // rather than only photographed: it is 2 words, and a stale one reads as correct.
+  await panel.locator('#add-btn').click();
+  await expect(panel.locator('#hk-form')).toBeVisible();
+  await fillText(panel.locator('#hk-task-form'), 0, 'Replace the water filter');
+  await expect(panel.locator('.hk-form-summary-label')).toHaveText('When due');
+  await expect(panel.locator('#hk-form-summary-value')).not.toHaveText('');
+  await centre(panel.locator('.hk-form-summary'));
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/62-panel-mobile-form-summary.png` });
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+
   await panel.locator('#mtab-appliances').click();
   await expect(panel.locator('#hk-list')).toBeVisible();
   await page.waitForTimeout(600);

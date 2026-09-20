@@ -75,7 +75,7 @@ and a **Combine with** choice:
 - **Both must be met** makes the task due only when both halves are met. An example
   is a generator that is run at least monthly and serviced after 100 engine hours.
 
-The form shows the resulting rule under **When it comes due** and updates it as the
+The form shows the resulting rule under **When due** and updates it as the
 fields change.
 
 ![The task form with a metered rule and a time backstop, summarised as "Every 100 of use, or every 6 months" above the Create button](../../images/30b-panel-sensor-backstop.png)

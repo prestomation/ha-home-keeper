@@ -240,7 +240,7 @@
   "form.section.placement": "Placement",
   "form.section.completion": "Completion",
   "form.section.dependent": "Schedule details",
-  "form.summary.label": "When it comes due",
+  "form.summary.label": "When due",
   "form.task.completedOn": "completed {date}",
   "form.task.due": "due {date}",
   "form.task.edit": "Edit task",
