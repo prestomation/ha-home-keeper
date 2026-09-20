@@ -6,6 +6,66 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.24.0] - 2026-09-20
+
+### Added
+
+- **[Counted wear items](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#count-uses-instead-of-months).**
+  Set a wear item to repeat every so many uses, or after so many months, whichever
+  comes first. Complete its use task from an automation, a tag scan or the panel to
+  count 1 use. (Fixes #306)
+- **[Wear item actions](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#count-uses-instead-of-months).**
+  Pick the verb a wear item's task uses. The choices are Clean, Service, Renew,
+  Sharpen, Rotate, Inspect and the default Replace.
+- **[Wear item preview](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#parts--wear-items).**
+  A wear item now says what it will create before you save it. The box names each
+  task, its schedule, and the count a use task feeds.
+- **[Due today](https://prestomation.github.io/ha-home-keeper/docs/guide/snooze-and-skip).**
+  Move a task's due date to today, whatever its schedule says. Home Keeper records no
+  completion, so the recurrence is unchanged. (Fixes #312) (Thanks @joss94!)
+- **[Task count sensors](https://prestomation.github.io/ha-home-keeper/docs/guide/profiles#task-count-sensors).**
+  Home Keeper gives each profile a sensor that counts the tasks it shows, and adds one
+  more for every task it keeps. Put the overdue count on a dashboard badge, with no
+  template. (Fixes #342)
+
+### Changed
+
+- **[Appliance report](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export#appliance-report).**
+  The inventory export is now the appliance report, and its button moved to
+  Settings, Import and export, beside the backup it is not a copy of. The
+  `home_keeper.export_inventory` action is now
+  `home_keeper.export_appliance_report` and returns its rows under `report`.
+- **Meter task validation.** A meter task now refuses a hold time and an auto-clear
+  switch. A meter has no condition to hold, so Home Keeper used to drop both without
+  a word.
+
+### Fixed
+
+- **Fixed schedules.** A task on a fixed schedule now moves to its next occurrence when
+  you mark it done. A task due later in the same day used to stay due today.
+  (Fixes #331)
+- **Daylight saving time.** A fixed schedule now keeps its time of day when the clocks
+  change. A task set for 10am used to move to 9am each autumn.
+- **Snoozed fixed schedules.** A task on a fixed schedule now moves to its next
+  occurrence when you snooze it and then mark it done. It used to jump past every
+  occurrence before the snooze date.
+- **Sensor hold time.** A hold now counts only the time an entity reported the
+  trigger condition. An entity that stopped reporting part way through kept its
+  hold running, so the task opened as soon as the entity came back. (Fixes #336)
+- **Recipe meter progress.** A recipe that meters a sensor now keeps the reading it
+  counts from. Home Keeper reset that reading on each change to the entity list, so
+  the task could never reach its target.
+- **Disabled recipes.** A recipe you switch off now keeps its tasks and everything
+  recorded on them. The tasks stop until you switch the recipe on again.
+- **Edited conditions.** A sensor task now opens when you change its condition to one
+  the entity already meets. It used to wait for the condition to go away and come
+  back.
+- **Recipe updates.** Home Keeper now runs one pass for each group of entity changes.
+  An integration that added many entities at once made it repeat the same work for
+  each one.
+- **Task names in a narrow list.** A task name no longer collapses into a column of
+  single letters when the edit drawer is open beside the list.
+
 ## [0.24.0b8]
 
 ### Added
