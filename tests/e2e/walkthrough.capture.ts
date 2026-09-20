@@ -706,6 +706,22 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(buyPart.getByText('Restock quantity', { exact: false })).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
 
+  // 4b2. What a wear item will create. The 2 parts above are consumables, which
+  //      create nothing and so draw no box at all — the surface only exists on a wear
+  //      item. The anode rod is the water heater's first part, and its box names the
+  //      task the part will generate and when it comes due, before anything is saved.
+  //      (A counted wear item's box names 2 tasks; that case is in the screenshots,
+  //      because reaching it from here means leaving the editor 4c goes on to use.)
+  const wearPart = partsSection.locator('.hk-part').first();
+  await openPart(wearPart);
+  await wearPart.scrollIntoViewIfNeeded();
+  const wearPreview = wearPart.locator('.hk-part-preview');
+  await expect(wearPreview.locator('.hk-form-summary-task')).toHaveText([
+    'Replace Anode rod (Garage water heater)',
+  ]);
+  await wearPreview.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 3);
+
   // 4c. Uploading a manual — the documents editor. Picking a file over the 100 MB
   //     ceiling is refused instantly, with the reason right under the button that
   //     was pressed (rather than in a banner far below the fold), then a real
