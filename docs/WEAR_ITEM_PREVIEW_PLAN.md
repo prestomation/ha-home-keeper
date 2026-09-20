@@ -56,13 +56,35 @@ and verb, and write the fact as a phrase.
 | Time, Replace | `Replace HEPA filter (Air purifier)` / `Due every 6 months.` |
 | Time, other action | The action's own template, from `resolve_action_task_naming`. |
 | Last replaced set | Adds `First one due 3 June 2026.` |
-| Counted | `Wear rain jacket` / `One wear per completion.` / `Renew Waterproof coating (Rain jacket)` / `Due after 20 wears.` / `Count reads 0 of 20 wears.` |
+| Counted | `Wear rain jacket` / `Each completion adds 1 to the count.` / `Renew Waterproof coating (Rain jacket)` / `Due after 20 wears.` |
 | Counted, no use task name | The use task reads `Use Rain jacket`. |
 | Counted, no use noun | `uses` in place of the noun. |
 | Backstop on | `Due after 20 wears, or after 12 months.` / `The earlier one wins.` |
-| Stock and auto-buy | A second, quieter block: `1 filter per completion.` / `Buy reminder at 1 filter.` |
-| Part unnamed | `part` in place of the name, which is what `reconcile.py` writes. |
-| Appliance unnamed | `New appliance` in place of the name. |
+| Stock and auto-buy | A second, quieter block: `Takes 1 from stock.` / `Buy reminder at 1.` |
+| Part unnamed | The name as stored, which is empty. |
+| Appliance unnamed | `Appliance`, the word `reconcile.py` substitutes. |
+
+**Three rows of this table were wrong, and building it is what showed that.**
+
+1. **No count line.** The draft said the box would read `Count reads 0 of 20 wears.`
+   The capture of the seeded rain jacket put that line beside a part row reading
+   **17 of 25 wears**. The box previews what a part creates, so a hardcoded 0 states a
+   falsehood on every part that has been used, and threading the live count in would
+   make a pure builder depend on the task list. The noun was all that line added, and
+   the due line above it already carries the noun.
+2. **No `New appliance`.** `reconcile.py` substitutes the localized `Appliance`
+   (`const.APPLIANCE_FALLBACK_NAMES`), and the panel already ships that word as
+   `appliance.fallbackName`. The preview reuses the existing key, so this needs no new
+   string and cannot drift.
+3. **No part-name fallback.** `reconcile.py` writes `part["name"]` verbatim, so an
+   unnamed part really does generate `Replace  (Fridge)`. A placeholder here would
+   preview a name the task will not have.
+
+**One line was added that the plan did not have.** A time-measured part with a
+last-replaced date says `First one due Sep 3, 2026.`, from `partFirstDue`. Month
+arithmetic clamps the way `recurrence.add_months` does, which `resolveSnoozePreset` in
+`utils.ts` already does for the same reason. A counted part gets no such line: its
+replacement task is `triggered`, so the count arms it rather than the calendar.
 
 The second block uses `.hk-form-summary-detail`, the same element the sensor task's
 live arithmetic uses. It draws only when the part tracks stock.
@@ -131,15 +153,27 @@ Without that test this change is a second source of truth for a user-visible nam
 | `part.preview.setInterval` | `Set an interval to create a task.` |
 | `part.preview.dueEvery` | `Due every {n} {unit}.` |
 | `part.preview.dueAfterUses` | `Due after {n} {noun}.` |
-| `part.preview.dueAfterUsesOr` | `Due after {n} {noun}, or after {every}.` |
+| `part.preview.dueAfterUsesOr` | `Due after {n} {noun}, or after {n2} {unit2}.` |
 | `part.preview.earlierWins` | `The earlier one wins.` |
 | `part.preview.firstDue` | `First one due {date}.` |
-| `part.preview.onePerCompletion` | `One {noun} per completion.` |
-| `part.preview.countReads` | `Count reads {count} of {target} {noun}.` |
-| `part.preview.perCompletion` | `{n} per completion.` |
+| `part.preview.countsOne` | `Each completion adds 1 to the count.` |
+| `part.preview.stockDraw` | `Takes {n} from stock.` |
 | `part.preview.buyAt` | `Buy reminder at {n}.` |
-| `part.preview.newAsset` | `New appliance` |
-| `part.action.<7 actions>` | The 7 task-name templates, for the parity test above. |
+| `part.taskName.<7 actions>` + `part.taskName.use` | The task-name templates, for the parity test above. |
+
+Two of these changed while building.
+
+- **`dueAfterUsesOr` carries the backstop's own number and unit** rather than a
+  separate `{every}` key holding `"{n} {unit}"`. That key would read identically in
+  all 16 languages, and the untranslated-leak gate in `i18n-parity.test.js` rejects
+  a value equal to its English one.
+- **No `newAsset` key.** The existing `appliance.fallbackName` already holds the word,
+  as noted in section 3.
+
+`part.taskName.*` is copied verbatim from the backend's own tables rather than
+translated by hand, which makes the parity test pass by construction. One value trips
+the leak gate legitimately: Norwegian takes the English verb unchanged for *service*,
+so `nb` gets an entry in that test's reviewed-cognate list, with its reason.
 
 Every key lands in all 16 locale files, or `i18n-parity.test.js` fails. A value equal
 to the English one fails the untranslated-leak gate as well, unless it is a genuine

@@ -16,6 +16,9 @@ htmlcov/
 tests/e2e/.auth/
 tests/e2e/playwright-report/
 tests/e2e/test-results/
+# Playwright writes its results beside the config it was given, so a run driven from
+# the repository root lands here instead of under tests/e2e.
+test-results/
 
 # The video walkthrough (ci/capture-video.sh) is a CI build artifact, never
 # committed — it's captured per-PR and published to the gh-pages pr-preview-media

@@ -37,6 +37,7 @@ import {
   partDependentKey,
   partDependentSchema,
   partFormData,
+  partPreview,
   partSummaryLine,
   pickFormData,
   selText,
@@ -731,9 +732,31 @@ function partBox(
   let notePreview: MarkdownPreview | null = null;
   let depKey = partDependentKey(part);
   let dep: HaFormElement;
-  const wearHint = document.createElement('div');
-  wearHint.className = 'hk-meta';
-  wearHint.textContent = t('part.wearHint');
+  // What the part will create, in plain language. It replaces the old wear hint,
+  // which said a wear item creates a maintenance task without ever naming it — and
+  // never mentioned the second task a counted wear item generates.
+  const preview = document.createElement('div');
+  preview.className = 'hk-form-summary hk-part-preview';
+  const drawPreview = (x: Part): void => {
+    const { lines, detail } = partPreview(x, p._assetEdit.asset?.name ?? '');
+    preview.hidden = !lines.length;
+    if (!lines.length) return;
+    const body = lines
+      .map(
+        (line) =>
+          `<span class="hk-form-summary-${line.kind}">${escapeHTML(line.text)}</span>`,
+      )
+      .join('');
+    const extra = detail.length
+      ? `<span class="hk-form-summary-detail">${detail
+          .map((line) => `<span>${escapeHTML(line)}</span>`)
+          .join('')}</span>`
+      : '';
+    preview.innerHTML =
+      `<span class="hk-form-summary-label">${escapeHTML(t('part.preview.label'))}</span>` +
+      `<span class="hk-form-summary-value">${body}</span>${extra}`;
+  };
+  drawPreview(part);
   const merge = (value: Record<string, unknown>): void => {
     const all = [...(p._assetEdit.asset?.parts || [])];
     const next = mergePartForm(all[i] ?? part, value);
@@ -741,7 +764,7 @@ function partBox(
     p._assetEdit.asset!.parts = all;
     if ('notes' in value) notePreview?.update(next.notes ?? '');
     updateSummary(next);
-    wearHint.hidden = next.type !== 'wear';
+    drawPreview(next);
     const key = partDependentKey(next);
     if (key !== depKey) {
       depKey = key;
@@ -763,9 +786,10 @@ function partBox(
   dep.className = 'hk-part-dep';
   if (!depSchema.length) dep.style.display = 'none';
   bodyEl.appendChild(dep);
-  wearHint.hidden = part.type !== 'wear';
-  bodyEl.appendChild(wearHint);
   renderPartFile(p, bodyEl, part, i);
+  // Under the last field, above the Remove row: the last thing read before the part
+  // is saved, which is the same place the task form puts its own rule box.
+  bodyEl.appendChild(preview);
 
   // Remove sits at the foot of the open row, not in its summary: a button inside a
   // `summary` toggles the row as well as firing, and the browsers disagree on which
