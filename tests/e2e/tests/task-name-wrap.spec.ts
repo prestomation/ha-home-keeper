@@ -62,13 +62,21 @@ test.describe('Home Keeper panel — a task name keeps its column', () => {
         `"${row.text}" collapsed to a ${row.width}px column`,
       ).toBeGreaterThan(40);
 
-      // The shape check is the one that names the bug: a letter-per-line stack is far
-      // taller than it is wide. A name that honestly wraps to 2 or 3 lines stays well
-      // inside this, and a 1-line name is 16px tall.
+      // The shape check, measured against the text rather than against the column.
+      // A letter-per-line stack is one line per character, so its height is about
+      // 16px x the character count. Allowing 4px per character permits a wrap as
+      // tight as 4 characters per line, which no honest column reaches, and still
+      // fails by 2x on the stack: "Wear rain jacket" measured 128px against a 64px
+      // budget.
+      //
+      // Deliberately not `height < width`. That reads well and holds today, but it
+      // compares the box against the 6rem floor rather than against its content, so
+      // a future fixture with a long name in a floored column would fail it while
+      // rendering correctly.
       expect(
         row.height,
-        `"${row.text}" is ${row.height}px tall in a ${row.width}px column, which is a letter-per-line stack`,
-      ).toBeLessThan(row.width);
+        `"${row.text}" is ${row.height}px tall for ${row.text.length} characters, which is a letter-per-line stack`,
+      ).toBeLessThan(row.text.length * 4);
     }
   });
 });
