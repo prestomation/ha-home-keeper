@@ -1037,8 +1037,8 @@
             "reorder_at": 4,
             "stock_unit": "",
             "consume_quantity": null,
-            "create_buy_task": true,
-            "restock_quantity": 12
+            "create_buy_task": false,
+            "restock_quantity": null
           },
           {
             "id": "7c4a2f90-6e1b-4d3c-a8f5-2b9e0d1c7a36",

@@ -1893,14 +1893,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-asset-head ha-assist-chip.hk-managed')).toBeVisible();
   await expect(panel.locator('.hk-part-row')).toHaveCount(3);
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/70e-panel-mobile-managed-appliance.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/70e-panel-mobile-managed-appliance.png` });
 
   // 70f. Start counting on a phone: the editor is a page rather than a drawer, and it
   // holds only the stock fields.
   await panel.locator('.hk-part-row').filter({ hasText: 'CR2032' }).locator('.hk-start-counting').click();
   await expect(panel.locator('#hk-asset-form details.hk-part[open]')).toHaveCount(1);
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/70f-panel-mobile-managed-part-editor.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/70f-panel-mobile-managed-part-editor.png` });
   await panel.locator('#a-cancel').click();
   await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
 
@@ -1909,8 +1909,11 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#mtab-tasks').click();
   await expect(panel.locator('#hk-list')).toBeVisible();
   const doorRowPhone = panel.locator(`.hk-card[data-id="${TASK.doorBattery}"]`);
-  await doorRowPhone.scrollIntoViewIfNeeded();
+  // Centre the row: at the foot of the viewport the floating Add button and the
+  // tab bar cover its chips.
+  await centre(doorRowPhone);
   await expect(doorRowPhone.locator('ha-assist-chip.hk-counted', { hasText: 'left' })).toBeVisible();
+  await page.mouse.move(0, 0);
   await page.waitForTimeout(300);
   await doorRowPhone.screenshot({ path: `${OUT}/70g-panel-mobile-battery-consumable-chip.png` });
 
