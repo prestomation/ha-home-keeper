@@ -164,10 +164,10 @@ becomes due at whichever arrives first. Completing the replacement task restarts
 task takes that name. An existing wear item keeps *Replace*.
 
 **See what you will get.** The foot of a wear item shows a box titled **What this
-creates**. It names each task, gives its schedule, and shows the count the use task
-feeds. The box changes as you type, so Action and Count uses as and Use task name show
-their result before you save. A wear item that tracks spares also gets a line for the
-stock each completion takes.
+creates**. It names each task and gives its schedule. A counted wear item names both
+of the tasks it makes. The box changes as you type, so Action and Count uses as and
+Use task name show their result before you save. A wear item that tracks spares also
+gets a line for the stock each completion takes.
 
 ![The part editor for a counted wear item, with the What this creates box at the foot naming both tasks](../../images/62d-panel-wear-preview.png)
 

@@ -56,7 +56,8 @@ def test_panel_ships_a_locale_for_every_backend_language() -> None:
     backend = set(ACTION_TASK_NAME_TEMPLATES["replace"])
     panel = set(_panel_languages())
     assert backend == panel, (
-        f"backend-only: {sorted(backend - panel)}; panel-only: {sorted(panel - backend)}"
+        f"backend-only: {sorted(backend - panel)}, "
+        f"panel-only: {sorted(panel - backend)}"
     )
 
 
