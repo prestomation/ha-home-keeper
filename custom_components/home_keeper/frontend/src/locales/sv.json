@@ -709,5 +709,16 @@
   "part.low": "Lågt",
   "part.reorderAt": "Beställ vid {n}",
   "toast.stockSet": "Lager inställt på {n}",
-  "transfer.tooLarge": "Det här dokumentet är större än gränsen på {mb} MB för panelen. Dela upp det i mindre filer, eller använd tjänsten home_keeper.import_data för dokument upp till {max} MB."
+  "transfer.tooLarge": "Det här dokumentet är större än gränsen på {mb} MB för panelen. Dela upp det i mindre filer, eller använd tjänsten home_keeper.import_data för dokument upp till {max} MB.",
+  "layout.label": "Vy",
+  "layout.rows": "Rader",
+  "layout.tiles": "Rutor",
+  "layout.board": "Tavla",
+  "btn.openTask": "Öppna uppgift",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "om {n} d",
+  "layout.short.today": "I dag",
+  "layout.short.armed": "Aktiv",
+  "layout.short.done": "Klar",
+  "layout.cardAria": "{name}, {status}"
 }

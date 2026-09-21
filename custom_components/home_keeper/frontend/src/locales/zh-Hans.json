@@ -709,5 +709,16 @@
   "part.low": "低",
   "part.reorderAt": "补货阈值：{n}",
   "toast.stockSet": "库存已设为{n}",
-  "transfer.tooLarge": "此文档超过面板 {mb} MB 的上限。请将其拆分为更小的文件，或使用 home_keeper.import_data 服务导入最多 {max} MB 的文档。"
+  "transfer.tooLarge": "此文档超过面板 {mb} MB 的上限。请将其拆分为更小的文件，或使用 home_keeper.import_data 服务导入最多 {max} MB 的文档。",
+  "layout.label": "布局",
+  "layout.rows": "列表",
+  "layout.tiles": "磁贴",
+  "layout.board": "看板",
+  "btn.openTask": "打开任务",
+  "layout.short.overdue": "{n}天",
+  "layout.short.in": "{n}天后",
+  "layout.short.today": "今天",
+  "layout.short.armed": "待触发",
+  "layout.short.done": "已完成",
+  "layout.cardAria": "{name}, {status}"
 }

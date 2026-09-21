@@ -709,5 +709,16 @@
   "part.low": "Low",
   "part.reorderAt": "Reorder at {n}",
   "toast.stockSet": "Stock set to {n}",
-  "transfer.tooLarge": "This document is over the panel's {mb} MB limit. Split it into smaller files, or use the home_keeper.import_data service for documents up to {max} MB."
+  "transfer.tooLarge": "This document is over the panel's {mb} MB limit. Split it into smaller files, or use the home_keeper.import_data service for documents up to {max} MB.",
+  "layout.label": "Layout",
+  "layout.rows": "Rows",
+  "layout.tiles": "Tiles",
+  "layout.board": "Board",
+  "btn.openTask": "Open task",
+  "layout.short.overdue": "{n}d",
+  "layout.short.in": "in {n}d",
+  "layout.short.today": "Today",
+  "layout.short.armed": "Armed",
+  "layout.short.done": "Done",
+  "layout.cardAria": "{name}, {status}"
 }

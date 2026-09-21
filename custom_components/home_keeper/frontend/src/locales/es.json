@@ -726,5 +726,16 @@
   "part.low": "Bajo",
   "part.reorderAt": "Reordenar en {n}",
   "toast.stockSet": "Existencias establecidas en {n}",
-  "transfer.tooLarge": "Este documento es más grande que el límite de {mb} MB del panel. Divídelo en archivos más pequeños, o usa el servicio home_keeper.import_data para documentos de hasta {max} MB."
+  "transfer.tooLarge": "Este documento es más grande que el límite de {mb} MB del panel. Divídelo en archivos más pequeños, o usa el servicio home_keeper.import_data para documentos de hasta {max} MB.",
+  "layout.label": "Diseño",
+  "layout.rows": "Filas",
+  "layout.tiles": "Mosaicos",
+  "layout.board": "Tablero",
+  "btn.openTask": "Abrir tarea",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "en {n} d",
+  "layout.short.today": "Hoy",
+  "layout.short.armed": "Activa",
+  "layout.short.done": "Hecho",
+  "layout.cardAria": "{name}, {status}"
 }

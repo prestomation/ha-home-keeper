@@ -726,5 +726,16 @@
   "part.low": "Baixo",
   "part.reorderAt": "Reabastecer em {n}",
   "toast.stockSet": "Estoque definido para {n}",
-  "transfer.tooLarge": "Este documento está acima do limite de {mb} MB do painel. Divida-o em arquivos menores, ou use o serviço home_keeper.import_data para documentos de até {max} MB."
+  "transfer.tooLarge": "Este documento está acima do limite de {mb} MB do painel. Divida-o em arquivos menores, ou use o serviço home_keeper.import_data para documentos de até {max} MB.",
+  "layout.label": "Disposição",
+  "layout.rows": "Linhas",
+  "layout.tiles": "Blocos",
+  "layout.board": "Quadro",
+  "btn.openTask": "Abrir tarefa",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "em {n} d",
+  "layout.short.today": "Hoje",
+  "layout.short.armed": "Ativa",
+  "layout.short.done": "Feito",
+  "layout.cardAria": "{name}, {status}"
 }

@@ -709,5 +709,16 @@
   "part.low": "Lavt",
   "part.reorderAt": "Bestill ved {n}",
   "toast.stockSet": "Lager satt til {n}",
-  "transfer.tooLarge": "Dette dokumentet er større enn grensen på {mb} MB for panelet. Del det opp i mindre filer, eller bruk tjenesten home_keeper.import_data for dokumenter opptil {max} MB."
+  "transfer.tooLarge": "Dette dokumentet er større enn grensen på {mb} MB for panelet. Del det opp i mindre filer, eller bruk tjenesten home_keeper.import_data for dokumenter opptil {max} MB.",
+  "layout.label": "Visning",
+  "layout.rows": "Rader",
+  "layout.tiles": "Fliser",
+  "layout.board": "Tavle",
+  "btn.openTask": "Åpne oppgave",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "om {n} d",
+  "layout.short.today": "I dag",
+  "layout.short.armed": "Aktiv",
+  "layout.short.done": "Ferdig",
+  "layout.cardAria": "{name}, {status}"
 }

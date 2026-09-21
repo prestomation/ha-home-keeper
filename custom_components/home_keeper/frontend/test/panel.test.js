@@ -1889,3 +1889,218 @@ describe('The list text filter (#297)', () => {
     expect(names(panel)).toEqual(['Fridge']);
   });
 });
+
+describe('Task layouts', () => {
+  // The Layout menu swaps the task list between rows, tiles and a board. The choice
+  // is per user (HA's own frontend data store), so a fresh panel for the same user
+  // opens in the layout they last picked — and a tile or a board card carries its
+  // actions in a sheet instead of on the card.
+  const DUE = '2030-01-01T00:00:00+00:00';
+  const LATE = '2020-01-01T00:00:00+00:00';
+  const TASKS = [
+    { id: 't1', name: 'Replace water filter', recurrence_type: 'floating', interval: 3, unit: 'months', next_due: LATE, completions: [] },
+    { id: 't2', name: 'Clean gutters', recurrence_type: 'floating', interval: 3, unit: 'months', next_due: DUE, completions: [] },
+    { id: 't3', name: 'Water leak', recurrence_type: 'triggered', completions: [] },
+  ];
+
+  /** A hass whose per-user store starts holding *layout*, over the tasks above. */
+  function layoutHass(layout, tasks = TASKS) {
+    const store = { home_keeper_intro_dismissed: true };
+    if (layout !== undefined) store.home_keeper_task_layout = layout;
+    const { hass, calls } = makeHass(store);
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) => {
+      if (msg.type === 'home_keeper/get_tasks') return Promise.resolve({ tasks });
+      return inner(msg);
+    };
+    return { hass, calls, store };
+  }
+
+  const tiles = (panel) => panel.shadowRoot.querySelectorAll('#hk-list .hk-tile');
+  const cards = (panel) => panel.shadowRoot.querySelectorAll('#hk-list .hk-bcard');
+  const cols = (panel) => panel.shadowRoot.querySelectorAll('#hk-list .hk-board-col');
+  const sheetRows = (panel) =>
+    [...panel.shadowRoot.querySelectorAll('.hk-sheet-row')].map((b) => b.dataset.action);
+  const layoutSelect = (panel) =>
+    panel.shadowRoot.querySelector('select[data-seg-select="layout"]');
+
+  async function mountAt(layout, tasks) {
+    const made = layoutHass(layout, tasks);
+    const panel = await mountPanel(made.hass, '/tasks');
+    await waitFor(() => panel.shadowRoot?.querySelector('#add-btn'));
+    return { panel, ...made };
+  }
+
+  it('opens on rows, and asks the store which layout this user picked', async () => {
+    const { panel, calls } = await mountAt(undefined);
+    await waitFor(() => panel.shadowRoot.querySelectorAll('#hk-list .hk-card-row').length === 3);
+    expect(panel._taskLayout).toBe('rows');
+    expect(calls['frontend/get_user_data']).toBeGreaterThan(0);
+    expect(tiles(panel).length).toBe(0);
+    expect(cols(panel).length).toBe(0);
+  });
+
+  it('draws tiles when the store says tiles, and colours the late one', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    expect(panel.shadowRoot.querySelectorAll('#hk-list .hk-tiles').length).toBeGreaterThan(0);
+    const late = panel.shadowRoot.querySelector('#hk-list .hk-tile[data-id="t1"]');
+    expect(late.classList.contains('overdue')).toBe(true);
+    const soon = panel.shadowRoot.querySelector('#hk-list .hk-tile[data-id="t2"]');
+    expect(soon.classList.contains('overdue')).toBe(false);
+    // Each tile is one press target, and says what it is and how late it is.
+    expect(late.getAttribute('role')).toBe('button');
+    expect(late.getAttribute('aria-label')).toContain('Replace water filter');
+  });
+
+  it('draws a board of the status sections, most urgent first', async () => {
+    const { panel } = await mountAt('board');
+    await waitFor(() => cards(panel).length === 3);
+    // One column per non-empty bucket: overdue, later, monitored.
+    const buckets = [...cols(panel)].map((c) => c.dataset.bucket);
+    expect(buckets).toEqual(['overdue', 'later', 'monitored']);
+    expect(cols(panel)[0].querySelector('.hk-group-count').textContent).toBe('1');
+  });
+
+  it('heads the one column of an ungrouped board All', async () => {
+    const { panel } = await mountAt('board');
+    await waitFor(() => cards(panel).length === 3);
+    panel._setGroupBy('none');
+    await waitFor(() => cols(panel).length === 1);
+    expect(cols(panel)[0].querySelector('.hk-group-title').textContent).toBe('All');
+    expect(cols(panel)[0].querySelector('.hk-group-count').textContent).toBe('3');
+  });
+
+  it('falls back to rows when the store holds a word it does not know', async () => {
+    const { panel } = await mountAt('mosaic');
+    await waitFor(() => panel.shadowRoot.querySelectorAll('#hk-list .hk-card-row').length === 3);
+    expect(panel._taskLayout).toBe('rows');
+  });
+
+  it('redraws and remembers the layout the menu picks', async () => {
+    const { panel, store } = await mountAt(undefined);
+    await waitFor(() => panel.shadowRoot.querySelectorAll('#hk-list .hk-card-row').length === 3);
+    const select = layoutSelect(panel);
+    select.value = 'tiles';
+    select.dispatchEvent(new Event('change'));
+    await waitFor(() => tiles(panel).length === 3);
+    expect(panel._taskLayout).toBe('tiles');
+    await waitFor(() => store.home_keeper_task_layout === 'tiles');
+    expect(store.home_keeper_task_layout).toBe('tiles');
+    // The menu redraws showing the choice, so the control and the list agree.
+    expect(layoutSelect(panel).value).toBe('tiles');
+  });
+
+  it('opens the action sheet on a press, offering only what the task can take', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    // Overdue: Due today is refused, because moving an overdue date to now pushes
+    // it later rather than bringing it forward.
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t1"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    expect(sheetRows(panel)).toEqual(['done', 'snooze', 'skip', 'open']);
+    panel._actionSheet = { open: false, task: null };
+    panel._render();
+
+    // A dormant monitored task has nothing to complete and nothing to defer.
+    await waitFor(() => tiles(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t3"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    expect(sheetRows(panel)).toEqual(['open']);
+  });
+
+  it('completes the task from the sheet, once, and closes', async () => {
+    const { panel, calls } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    panel.shadowRoot.querySelector('.hk-sheet-row[data-action="done"]').click();
+    await waitFor(() => calls['home_keeper/complete_task']);
+    expect(calls['home_keeper/complete_task']).toBe(1);
+    expect(panel._actionSheet.open).toBe(false);
+    expect(panel.shadowRoot.querySelector('.hk-sheet-row')).toBe(null);
+  });
+
+  it('opens the task page from the sheet', async () => {
+    const { panel } = await mountAt('board');
+    await waitFor(() => cards(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-bcard[data-id="t2"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    panel.shadowRoot.querySelector('.hk-sheet-row[data-action="open"]').click();
+    // Home Assistant owns the address bar and feeds `route` back, so what the
+    // panel does here is push the task's URL.
+    await waitFor(() => location.pathname.includes('t2'));
+    expect(location.pathname).toContain('t2');
+  });
+
+  it('opens the task page on a hold, and the sheet on a press', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { panel } = await mountAt('tiles');
+      await vi.waitFor(() => expect(tiles(panel).length).toBe(3));
+      const tile = () => panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]');
+
+      // A press held past the threshold opens the page, and the click that ends
+      // the hold must not then drop a sheet on top of it.
+      const card = tile();
+      card.dispatchEvent(new Event('pointerdown'));
+      await vi.advanceTimersByTimeAsync(500);
+      expect(location.pathname).toContain('t2');
+      card.dispatchEvent(new Event('pointerup'));
+      card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(panel._actionSheet.open).toBe(false);
+
+      // A short press is a press: it opens the sheet and never the page.
+      const depth = history.length;
+      card.dispatchEvent(new Event('pointerdown'));
+      await vi.advanceTimersByTimeAsync(200);
+      card.dispatchEvent(new Event('pointerup'));
+      card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await vi.waitFor(() => expect(sheetRows(panel).length).toBeGreaterThan(0));
+      expect(history.length).toBe(depth);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never opens a page for a card the list has already replaced', async () => {
+    // `_setQuery` swaps the whole list out, which can leave a timer armed on a
+    // card nobody is pressing any more.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { panel } = await mountAt('tiles');
+      await vi.waitFor(() => expect(tiles(panel).length).toBe(3));
+      const depth = history.length;
+      panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]').dispatchEvent(new Event('pointerdown'));
+      panel._setQuery('water');
+      await vi.advanceTimersByTimeAsync(500);
+      expect(history.length, 'the armed timer belonged to a card that is gone').toBe(depth);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('opens the sheet from the keyboard, on Enter and on Space', async () => {
+    for (const key of ['Enter', ' ']) {
+      const { panel } = await mountAt('tiles');
+      await waitFor(() => tiles(panel).length === 3);
+      const tile = panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]');
+      const evt = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      tile.dispatchEvent(evt);
+      expect(evt.defaultPrevented, 'Space must not scroll the page').toBe(true);
+      await waitFor(() => sheetRows(panel).length);
+      expect(sheetRows(panel)).toContain('open');
+      panel.remove();
+    }
+  });
+
+  it('leaves the tiles live after a text filter has replaced them', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    panel._setQuery('gutters');
+    await waitFor(() => tiles(panel).length === 1);
+    tiles(panel)[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await waitFor(() => sheetRows(panel).length);
+    expect(panel._actionSheet.task.id).toBe('t2');
+  });
+});

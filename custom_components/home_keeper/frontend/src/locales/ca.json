@@ -726,5 +726,16 @@
   "part.low": "Baix",
   "part.reorderAt": "Reabastir a {n}",
   "toast.stockSet": "Estoc establert a {n}",
-  "transfer.tooLarge": "Aquest document és més gran que el límit de {mb} MB del tauler. Divideix-lo en fitxers més petits, o utilitza el servei home_keeper.import_data per a documents de fins a {max} MB."
+  "transfer.tooLarge": "Aquest document és més gran que el límit de {mb} MB del tauler. Divideix-lo en fitxers més petits, o utilitza el servei home_keeper.import_data per a documents de fins a {max} MB.",
+  "layout.label": "Disposició",
+  "layout.rows": "Files",
+  "layout.tiles": "Mosaics",
+  "layout.board": "Tauler",
+  "btn.openTask": "Obre la tasca",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "d'aquí a {n} d",
+  "layout.short.today": "Avui",
+  "layout.short.armed": "Activa",
+  "layout.short.done": "Fet",
+  "layout.cardAria": "{name}, {status}"
 }

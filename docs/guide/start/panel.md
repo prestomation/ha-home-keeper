@@ -31,6 +31,20 @@ promises more than the list shows.
 
 ![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](../../images/54-panel-task-detail-edit.png)
 
+### Task list layouts
+
+The **Tasks** tab has a **Layout** menu with 3 choices. **Rows** is the default list.
+**Tiles** shows each task as a card with the name and the status. **Board** shows one
+column for each group in **Group by**.
+
+Tap a tile or a board card to open its actions. The actions are Done, Snooze, Skip, Due
+today, and Open task. Press and hold a card to open the task's page. Home Keeper stores the layout for
+the user, so the choice applies on every device.
+
+![The Tasks tab in the Tiles layout, with each task as a card that shows the name and the status](../../images/68-panel-task-tiles.png)
+
+![The Tasks tab in the Board layout, with one column for each group and a card for each task](../../images/68b-panel-task-board.png)
+
 The task list and the appliance list are compact, so more rows fit on the screen.
 On a phone, each task row keeps the Done button next to the task.
 
