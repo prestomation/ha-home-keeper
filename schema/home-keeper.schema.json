@@ -170,6 +170,36 @@
                 },
                 "restock_quantity": {
                   "type": "number"
+                },
+                "action": {
+                  "type": "string"
+                },
+                "use_noun": {
+                  "type": "string"
+                },
+                "use_task_name": {
+                  "type": "string"
+                },
+                "replace_also_every": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "interval": {
+                          "type": "integer"
+                        },
+                        "unit": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "carried_uses": {
+                  "type": "integer"
                 }
               },
               "required": [
