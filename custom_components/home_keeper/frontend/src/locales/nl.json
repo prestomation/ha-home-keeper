@@ -714,7 +714,7 @@
   "declarative.companions.chip_error": "Fout",
   "declarative.companions.chip_monitored": "Bewaakt",
   "declarative.companions.field_template": "Triggersjabloon (Jinja)",
-  "declarative.companions.preview_summary_due": "{shown} van {total} overeenkomsten getoond. {due} zijn nu te doen.",
+  "declarative.companions.preview_summary_due": "{shown} van {total} overeenkomsten getoond. Nu te doen: {due}.",
   "declarative.companions.preview_template_error": "Het sjabloon kan niet worden verwerkt: {error}. Herstel het voor je opslaat.",
   "declarative.companions.template_trigger_help": "De taak staat open zolang dit waar oplevert. Beschikbaar: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Sjabloon",

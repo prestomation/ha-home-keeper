@@ -731,7 +731,7 @@
   "declarative.companions.chip_error": "Erro",
   "declarative.companions.chip_monitored": "Monitorado",
   "declarative.companions.field_template": "Modelo do gatilho (Jinja)",
-  "declarative.companions.preview_summary_due": "Mostrando {shown} de {total} correspondências. {due} vencem agora.",
+  "declarative.companions.preview_summary_due": "Mostrando {shown} de {total} correspondências. Vencem agora: {due}.",
   "declarative.companions.preview_template_error": "O modelo não é processado: {error}. Corrija antes de salvar.",
   "declarative.companions.template_trigger_help": "A tarefa fica aberta enquanto isto resultar em verdadeiro. Disponível: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Modelo",

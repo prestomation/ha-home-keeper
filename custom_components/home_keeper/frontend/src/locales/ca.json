@@ -731,7 +731,7 @@
   "declarative.companions.chip_error": "Error",
   "declarative.companions.chip_monitored": "Supervisat",
   "declarative.companions.field_template": "Plantilla del disparador (Jinja)",
-  "declarative.companions.preview_summary_due": "Es mostren {shown} de {total} coincidències. {due} vencen ara.",
+  "declarative.companions.preview_summary_due": "Es mostren {shown} de {total} coincidències. Vencen ara: {due}.",
   "declarative.companions.preview_template_error": "La plantilla no es renderitza: {error}. Corregeix-la abans de desar.",
   "declarative.companions.template_trigger_help": "La tasca s'obre mentre això es renderitza com a cert. Disponible: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Plantilla",

@@ -714,7 +714,7 @@
   "declarative.companions.chip_error": "Feil",
   "declarative.companions.chip_monitored": "Overvåket",
   "declarative.companions.field_template": "Utløsermal (Jinja)",
-  "declarative.companions.preview_summary_due": "Viser {shown} av {total} treff. {due} forfaller nå.",
+  "declarative.companions.preview_summary_due": "Viser {shown} av {total} treff. Forfaller nå: {due}.",
   "declarative.companions.preview_template_error": "Malen kan ikke tolkes: {error}. Rett den før du lagrer.",
   "declarative.companions.template_trigger_help": "Oppgaven er åpen så lenge dette gir sant. Tilgjengelig: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Mal",

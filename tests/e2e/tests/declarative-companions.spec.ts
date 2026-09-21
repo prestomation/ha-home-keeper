@@ -16,7 +16,7 @@ import {
  * (`update.hk_demo_router_firmware`, always `on`), so the bundled **Firmware update
  * available** preset matches one entity and the preview and the task count are both
  * knowable. Device Pulse is *not* installed there, so its preset card is the disabled
- * case, and it is the only one of the two shipped presets that is gated.
+ * case, and it is the only one of the three shipped presets that is gated.
  *
  * Two recipes can also select the same entity, and each one makes its own task for it.
  * The overlap test seeds one recipe, then opens the Add dialog on the same entity. The
@@ -136,7 +136,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
-  test('the preset picker offers two recipes and gates the one that needs an integration', async ({
+  test('the preset picker offers every recipe and gates the one that needs an integration', async ({
     page,
   }) => {
     const errors = trackPanelErrors(page);
@@ -145,7 +145,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await panel.locator('.hk-decl-preset').click();
     const picker = panel.locator('ha-dialog.hk-decl-picker');
     await expectDialogOpen(picker, '.hk-decl-preset-card');
-    await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(2);
+    await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(3);
 
     // Firmware update available needs nothing installed, so it is pickable.
     const firmware = picker.locator('.hk-decl-preset-card', {
@@ -365,6 +365,107 @@ test.describe('Home Keeper panel — declarative companions', () => {
     expect(saved!.trigger.mode).toBe('state');
     expect(saved!.trigger).not.toHaveProperty('comparison');
     expect(saved!.trigger).not.toHaveProperty('value');
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  /**
+   * The `template` trigger mode, end to end (issue #346).
+   *
+   * A template is the one condition a user cannot check by reading it, so what this
+   * pins is the **verdict**: the preview renders the template against each matched
+   * entity, and the chip says what it got. The seeded pair lands on opposite sides of
+   * the same template, so one row each way proves the render really ran rather than
+   * that a chip is drawn unconditionally.
+   *
+   * The error half matters just as much. A template that cannot render is
+   * indeterminate — it opens nothing and closes nothing — and a preview that quietly
+   * showed "Monitored" for it would read as "this is fine" while the recipe did
+   * nothing for a week.
+   */
+  test('a template trigger previews its verdict per entity', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    const panel = await openDeclarativeSection(page);
+
+    await panel.locator('.hk-decl-add').click();
+    const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+    await expectDialogOpen(dialog, '[data-decl-section="identity"]');
+
+    await fillSection(dialog, 'identity', 0, 'E2E template probe');
+    // Two seeded sensors that straddle the template below: the printer reads 780 and
+    // the battery reads 42.
+    await fillSection(
+      dialog,
+      'selection',
+      1,
+      'sensor\\.(demo_printer_hours|e2e_battery_device_battery)',
+    );
+
+    const trigger = dialog.locator('[data-decl-section="trigger"]');
+    await chooseHaSelect(trigger.locator('ha-select').first(), 'Template');
+    // The mode change re-renders the dialog, so re-read the section before typing.
+    const box = dialog.locator('[data-decl-section="trigger"] textarea').first();
+    await box.fill('{{ state | float(0) >= 500 }}');
+    await box.blur();
+
+    // The verdict summary replaces the plain one only when the backend rendered a
+    // template, so this line is itself the proof that it did.
+    await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(
+      'Showing 2 of 2 matches. Due now: 1.',
+      { timeout: 20_000 },
+    );
+    await expect(dialog.locator('.hk-decl-chip.due')).toHaveCount(1);
+    await expect(dialog.locator('.hk-decl-chip.quiet')).toHaveCount(1);
+    await expect(dialog.locator('.hk-decl-template-error')).toHaveCount(0);
+
+    // A template that cannot render: one alert carrying the Jinja message, and an
+    // Error chip on every row rather than a quiet one.
+    await box.fill('{{ stat | float(0) >= 500 }}');
+    await box.blur();
+    await expect(dialog.locator('.hk-decl-template-error')).toContainText(
+      "'stat' is undefined",
+      { timeout: 20_000 },
+    );
+    await expect(dialog.locator('.hk-decl-chip.bad')).toHaveCount(2);
+    await expect(dialog.locator('.hk-decl-chip.due')).toHaveCount(0);
+    await expect(dialog.locator('.hk-decl-chip.quiet')).toHaveCount(0);
+
+    // Saved with the working template, to prove the mode survives the round trip
+    // through `normalize_sensor` rather than only rendering in the dialog.
+    await box.fill('{{ state | float(0) >= 500 }}');
+    await box.blur();
+    await expect(dialog.locator('.hk-decl-chip.due')).toHaveCount(1, { timeout: 20_000 });
+    await dialog.locator('.hk-decl-save').click();
+    await expect(dialog, 'the save was rejected — the dialog is still open').toHaveCount(0, {
+      timeout: 20_000,
+    });
+
+    const saved = (await listSpecs()).find((s) => s.name === 'E2E template probe');
+    expect(saved, 'the recipe was not stored').toBeTruthy();
+    expect(saved!.trigger.mode).toBe('template');
+    expect(saved!.trigger.template).toBe('{{ state | float(0) >= 500 }}');
+    // An attribute is rejected in this mode, so the rewrite must not have carried one.
+    expect(saved!.trigger).not.toHaveProperty('attribute');
+
+    try {
+      // The recipe opens one task per match, and only the printer's is due: the
+      // battery's stays dormant because its template renders false. This is the half a
+      // preview cannot prove — that the watcher reads the same answer the dialog did.
+      const mine = async (): Promise<Array<Record<string, any>>> =>
+        (await listTasks()).filter(
+          (t) => t.source?.declarative_companion?.spec_id === saved!.id,
+        );
+      await expect.poll(async () => (await mine()).length, { timeout: 30_000 }).toBe(2);
+      await expect
+        .poll(async () => (await mine()).filter((t) => t.next_due !== null).length, {
+          timeout: 30_000,
+        })
+        .toBe(1);
+      const due = (await mine()).find((t) => t.next_due !== null);
+      expect(due!.sensor.entity_id).toBe('sensor.demo_printer_hours');
+    } finally {
+      await callService('home_keeper', 'delete_declarative_companion', { id: saved!.id });
+    }
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });

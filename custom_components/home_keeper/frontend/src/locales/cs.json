@@ -748,7 +748,7 @@
   "declarative.companions.chip_error": "Chyba",
   "declarative.companions.chip_monitored": "Sledováno",
   "declarative.companions.field_template": "Šablona spouštěče (Jinja)",
-  "declarative.companions.preview_summary_due": "Zobrazeno {shown} z {total} shod. {due} jsou splatné teď.",
+  "declarative.companions.preview_summary_due": "Zobrazeno {shown} z {total} shod. Splatné teď: {due}.",
   "declarative.companions.preview_template_error": "Šablonu nelze vyhodnotit: {error}. Před uložením ji opravte.",
   "declarative.companions.template_trigger_help": "Úkol se otevře, dokud se toto vyhodnotí jako pravda. K dispozici: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Šablona",

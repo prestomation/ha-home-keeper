@@ -535,8 +535,19 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     .first()
     .click();
   await page.waitForTimeout(BEAT * 2);
-  await panel.locator('#hk-task-form ha-select').nth(1).click();
+  // Scroll the mode control into view before opening it. The drawer scrolls its own
+  // content, so the select can sit below the fold by this point, and the menu then
+  // opens against an edge rather than under the control — the click lands on the
+  // surface instead of the item and the mode never changes. It grew a fifth option
+  // (Template), which is what made an already-tight menu tip over.
+  const modeSelect = panel.locator('#hk-task-form ha-select').nth(1);
+  await modeSelect.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT);
+  await modeSelect.click();
   await page.getByRole('menuitem', { name: /^State$/ }).first().click();
+  // Asserted on the control itself first, so a menu click that misses says so here
+  // rather than as a summary that never rewrites.
+  await expect(modeSelect).toContainText('State');
   // The summary rewrites itself again, now describing a transition rather than a
   // meter — the same strip, tracking a completely different kind of rule.
   await expect(panel.locator('#hk-form-summary-value')).toHaveText('When it changes to on');
@@ -814,7 +825,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT);
   await panel.locator('.hk-decl-preset').click();
   const presetPicker = panel.locator('ha-dialog.hk-decl-picker');
-  await expect(presetPicker.locator('.hk-decl-preset-card')).toHaveCount(2);
+  await expect(presetPicker.locator('.hk-decl-preset-card')).toHaveCount(3);
   await page.waitForTimeout(BEAT * 2);
   await presetPicker
     .locator('.hk-decl-preset-card', { hasText: 'Firmware update available' })
@@ -822,11 +833,34 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   const declForm = panel.locator('ha-dialog.hk-decl-dialog');
   await expect(declForm.locator('.hk-decl-preview-header')).toBeVisible();
   await page.waitForTimeout(BEAT * 3);
+
+  // 6b. The template trigger, in the dialog already open. The other four modes each
+  //     ask one plain question — one string, one number — and none can do arithmetic
+  //     on a timestamp. Switching the mode swaps the condition box for a Jinja one,
+  //     and the preview then says what the template renders for each matched entity:
+  //     a chip per row, because a template is the one condition a user cannot check
+  //     by reading it. The selection is still the seeded firmware entity, so the
+  //     count stays the 1 the tour has just shown.
+  const declTrigger = declForm.locator('[data-decl-section="trigger"]');
+  await declTrigger.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT);
+  await declTrigger.locator('ha-select').first().click();
+  await page.getByRole('menuitem', { name: 'Template' }).first().click();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+  const declTemplate = declForm.locator('[data-decl-section="trigger"] textarea').first();
+  await declTemplate.fill("{{ state == 'on' }}");
+  await declTemplate.blur();
+  await expect(declForm.locator('.hk-decl-chip.due')).toHaveCount(1, { timeout: 20_000 });
+  await declForm.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 3);
+
   await declForm.locator('.hk-decl-cancel').click();
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
-  // 6b. Settings → Profiles — a saved filter, and inside it the to-do list the
+  // 6c. Settings → Profiles — a saved filter, and inside it the to-do list the
   //     household already checks. A sync *is* a profile: the same filter that
   //     chooses the chores also says where they go, so the tour opens the profile
   //     and then its **Sync to a to-do list** group.

@@ -714,7 +714,7 @@
   "declarative.companions.chip_error": "Fejl",
   "declarative.companions.chip_monitored": "Overvåget",
   "declarative.companions.field_template": "Udløsershabelon (Jinja)",
-  "declarative.companions.preview_summary_due": "Viser {shown} af {total} match. {due} forfalder nu.",
+  "declarative.companions.preview_summary_due": "Viser {shown} af {total} match. Forfalder nu: {due}.",
   "declarative.companions.preview_template_error": "Skabelonen kan ikke gengives: {error}. Ret den, før du gemmer.",
   "declarative.companions.template_trigger_help": "Opgaven åbner, så længe dette gengives som sandt. Tilgængelige: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Skabelon",

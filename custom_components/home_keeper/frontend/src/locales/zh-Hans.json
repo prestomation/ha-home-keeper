@@ -714,7 +714,7 @@
   "declarative.companions.chip_error": "错误",
   "declarative.companions.chip_monitored": "监视中",
   "declarative.companions.field_template": "触发模板（Jinja）",
-  "declarative.companions.preview_summary_due": "显示 {total} 个匹配中的 {shown} 个。其中 {due} 个现在到期。",
+  "declarative.companions.preview_summary_due": "显示 {total} 个匹配中的 {shown} 个。现在到期：{due}。",
   "declarative.companions.preview_template_error": "模板无法求值：{error}。保存前请先修正。",
   "declarative.companions.template_trigger_help": "只要这里求值为真，任务就会打开。 可用: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "模板",

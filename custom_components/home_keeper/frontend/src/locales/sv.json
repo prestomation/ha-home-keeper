@@ -714,7 +714,7 @@
   "declarative.companions.chip_error": "Fel",
   "declarative.companions.chip_monitored": "Bevakad",
   "declarative.companions.field_template": "Utlösarmall (Jinja)",
-  "declarative.companions.preview_summary_due": "Visar {shown} av {total} träffar. {due} förfaller nu.",
+  "declarative.companions.preview_summary_due": "Visar {shown} av {total} träffar. Förfaller nu: {due}.",
   "declarative.companions.preview_template_error": "Mallen går inte att tolka: {error}. Rätta den innan du sparar.",
   "declarative.companions.template_trigger_help": "Uppgiften är öppen så länge detta blir sant. Tillgängliga: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Mall",

@@ -714,7 +714,7 @@
   "declarative.companions.chip_error": "Fehler",
   "declarative.companions.chip_monitored": "Überwacht",
   "declarative.companions.field_template": "Auslöser-Vorlage (Jinja)",
-  "declarative.companions.preview_summary_due": "{shown} von {total} Treffern werden gezeigt. {due} sind jetzt fällig.",
+  "declarative.companions.preview_summary_due": "{shown} von {total} Treffern werden gezeigt. Jetzt fällig: {due}.",
   "declarative.companions.preview_template_error": "Die Vorlage lässt sich nicht auswerten: {error}. Bitte vor dem Speichern beheben.",
   "declarative.companions.template_trigger_help": "Die Aufgabe ist offen, solange dies wahr ergibt. Verfügbar: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Vorlage",

@@ -748,7 +748,7 @@
   "declarative.companions.chip_error": "Ошибка",
   "declarative.companions.chip_monitored": "Наблюдение",
   "declarative.companions.field_template": "Шаблон триггера (Jinja)",
-  "declarative.companions.preview_summary_due": "Показано {shown} из {total} совпадений. {due} пора сейчас.",
+  "declarative.companions.preview_summary_due": "Показано {shown} из {total} совпадений. Пора сейчас: {due}.",
   "declarative.companions.preview_template_error": "Шаблон не вычисляется: {error}. Исправьте его перед сохранением.",
   "declarative.companions.template_trigger_help": "Задача открыта, пока это даёт истину. Доступно: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Шаблон",

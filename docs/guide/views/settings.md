@@ -127,9 +127,20 @@ each 5-minute pass. So a template that reads the clock, such as the example abov
 take up to 5 minutes to open its task.
 
 The Add dialog renders the template against your own entities. Each row in the preview
-says **Due now** or **Monitored**, and the count above them says how many are due. A
-template that cannot render shows the Jinja error instead, so you can correct it before
-you save.
+says **Due now** or **Monitored**, and the count above them says how many are due.
+
+![The recipe dialog on Template mode. The preview shows a Due now chip and a Monitored chip](../../images/21j-panel-template-trigger.png)
+
+A template that cannot render shows the Jinja error instead, so you can correct it
+before you save. Such a template opens no task and closes no task.
+
+![The same dialog with a broken template. A red alert shows the Jinja error, and each row shows an Error chip](../../images/21k-panel-template-trigger-error.png)
+
+On a phone the chip keeps its own column, and the task name wraps under itself.
+
+![The trigger section on a phone, with the Template mode and the Jinja box](../../images/21m-panel-mobile-template-field.png)
+
+![The preview on a phone, with a Due now chip and a Monitored chip](../../images/21l-panel-mobile-template-trigger.png)
 
 The template mode is also on a single sensor task. Open **Add task**, set the schedule
 to Sensor, and pick Template as the trigger mode. Only an admin can set a template on a

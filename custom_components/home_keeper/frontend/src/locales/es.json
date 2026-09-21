@@ -731,7 +731,7 @@
   "declarative.companions.chip_error": "Error",
   "declarative.companions.chip_monitored": "Supervisado",
   "declarative.companions.field_template": "Plantilla del disparador (Jinja)",
-  "declarative.companions.preview_summary_due": "Se muestran {shown} de {total} coincidencias. {due} vencen ahora.",
+  "declarative.companions.preview_summary_due": "Se muestran {shown} de {total} coincidencias. Vencen ahora: {due}.",
   "declarative.companions.preview_template_error": "La plantilla no se procesa: {error}. Corrígela antes de guardar.",
   "declarative.companions.template_trigger_help": "La tarea se abre mientras esto dé verdadero. Disponible: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Plantilla",

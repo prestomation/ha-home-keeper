@@ -1171,3 +1171,181 @@ describe('availability mode — the entity going away is the condition', () => {
     expect(summary).toContain('unavailable');
   });
 });
+
+/**
+ * `template` mode — the escape hatch for a condition the other four cannot say.
+ *
+ * State compares one string and threshold compares one number, so neither can do
+ * arithmetic on a timestamp — "this entity has not reported for 24 hours" (#346) has
+ * no other home. The mode is a plain edge mode otherwise: the same hold and the same
+ * auto-clear, with a Jinja string where the condition field would be.
+ *
+ * It takes **no** attribute. `normalize_sensor` rejects one, because a template reads
+ * `attributes.<key>` itself and a second, invisible hop would change what
+ * `{{ state }}` means inside it. The form has to agree, or Save is rejected by the
+ * backend the way #230 was.
+ */
+describe('template mode — a Jinja condition', () => {
+  const TEMPLATE = "{{ (now() - as_datetime(state)) >= timedelta(hours=24) }}";
+
+  it('shows the template box, the hold and the auto-clear, and nothing else', () => {
+    const names = taskSchema({ recurrence_type: 'sensor', sensor_mode: 'template' }).map(
+      (f) => f.name,
+    );
+    expect(names).toContain('sensor_entity_id');
+    expect(names).toContain('sensor_template');
+    expect(names).toContain('sensor_for');
+    expect(names).toContain('sensor_clear_on_recover');
+    // Every other mode's condition field, and the attribute the backend rejects here.
+    expect(names).not.toContain('sensor_target');
+    expect(names).not.toContain('sensor_comparison');
+    expect(names).not.toContain('sensor_value');
+    expect(names).not.toContain('sensor_state');
+    expect(names).not.toContain('sensor_attribute');
+  });
+
+  it('gives the template a multiline box', () => {
+    // A trigger template is one expression, but it runs long: a single-line box hides
+    // its own tail, which is how an unbalanced brace goes unnoticed.
+    const field = taskSchema({ recurrence_type: 'sensor', sensor_mode: 'template' }).find(
+      (f) => f.name === 'sensor_template',
+    );
+    expect(field.required).toBe(true);
+    expect(field.selector.text.multiline).toBe(true);
+  });
+
+  it('labels its option the way the other modes are labelled', () => {
+    const mode = taskSchema({ recurrence_type: 'sensor' }).find((f) => f.name === 'sensor_mode');
+    const option = mode.selector.select.options.find((o) => o.value === 'template');
+    expect(option.label).toBe(t('opt.sensor_mode.template'));
+    expect(option.label).not.toBe('');
+    const labels = mode.selector.select.options.map((o) => o.label);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it('picks the mode up from a loaded binding, not just live edit state', () => {
+    const names = taskSchema({
+      recurrence_type: 'sensor',
+      sensor: { entity_id: 'sensor.hub_last_seen', mode: 'template', template: TEMPLATE },
+    }).map((f) => f.name);
+    expect(names).toContain('sensor_template');
+    expect(names).not.toContain('sensor_value');
+  });
+
+  it('assembles a payload carrying the template and nothing else', () => {
+    const payload = buildTaskPayload({
+      name: 'Re-pair the hub',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.hub_last_seen',
+      sensor_mode: 'template',
+      sensor_template: `  ${TEMPLATE}  `,
+      sensor_for: '600',
+      sensor_clear_on_recover: true,
+    });
+    expect(payload.sensor).toEqual({
+      entity_id: 'sensor.hub_last_seen',
+      mode: 'template',
+      // Trimmed: a trailing newline from a textarea is not a condition change, and
+      // `condition_fingerprint` would otherwise retire the carried edge state over one.
+      template: TEMPLATE,
+      for_seconds: 600,
+      clear_on_recover: true,
+    });
+  });
+
+  it('falls back to the stored template when the form state has none', () => {
+    // Opening a saved task for editing seeds the form from `task.sensor`; a field the
+    // user does not touch is only in the binding, so the payload has to read it there.
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.hub_last_seen',
+      sensor_mode: 'template',
+      sensor: { entity_id: 'sensor.hub_last_seen', mode: 'template', template: TEMPLATE },
+    });
+    expect(payload.sensor.template).toBe(TEMPLATE);
+  });
+
+  it('drops an attribute carried in from another mode', () => {
+    // The backend rejects `attribute` in this mode rather than ignoring it, so an
+    // attribute typed under threshold and left in edit state would fail the save.
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'template',
+      sensor_template: TEMPLATE,
+      sensor_attribute: 'battery_level',
+      sensor: { entity_id: 'sensor.x', mode: 'threshold', attribute: 'battery_level' },
+    });
+    expect(payload.sensor).not.toHaveProperty('attribute');
+  });
+
+  it('never sends another mode’s fields left behind in edit state', () => {
+    // Switching threshold -> template leaves `sensor_comparison` / `sensor_value` in
+    // the live form state. Sending either is what the backend rejects.
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'template',
+      sensor_template: TEMPLATE,
+      sensor_comparison: '>=',
+      sensor_value: '20',
+      sensor_state: 'on',
+      sensor_target: '300',
+    });
+    expect(payload.sensor).not.toHaveProperty('comparison');
+    expect(payload.sensor).not.toHaveProperty('value');
+    expect(payload.sensor).not.toHaveProperty('state');
+    expect(payload.sensor).not.toHaveProperty('target');
+  });
+
+  it('says nothing until a template is typed', () => {
+    // An empty box is "not enough entered yet", the same as an empty threshold value.
+    expect(
+      sensorHintText({
+        recurrence_type: 'sensor',
+        sensor_entity_id: 'sensor.x',
+        sensor_mode: 'template',
+        sensor_template: '   ',
+      }),
+    ).toBe('');
+  });
+
+  it('describes a typed template without repeating it back', () => {
+    // The hint says what a true render does, not what the template says: the box is
+    // right above it, and quoting Jinja into a sentence reads as noise.
+    const hint = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'template',
+      sensor_template: TEMPLATE,
+    });
+    expect(hint).toBe(t('hint.sensor.template'));
+    expect(hint).not.toContain('now()');
+  });
+
+  it('names the hold in the hint when one is set', () => {
+    const hint = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'template',
+      sensor_template: TEMPLATE,
+      sensor_for: 600,
+    });
+    expect(hint).toContain('600');
+    expect(hint).not.toBe(t('hint.sensor.template'));
+  });
+
+  it('adds the auto-clear sentence when the box is ticked', () => {
+    const hint = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'template',
+      sensor_template: TEMPLATE,
+      sensor_clear_on_recover: true,
+    });
+    expect(hint).toContain(t('hint.sensor.clearOnRecover'));
+  });
+});

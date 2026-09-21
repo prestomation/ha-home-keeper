@@ -714,7 +714,7 @@
   "declarative.companions.chip_error": "Virhe",
   "declarative.companions.chip_monitored": "Valvotaan",
   "declarative.companions.field_template": "Liipaisimen mallipohja (Jinja)",
-  "declarative.companions.preview_summary_due": "Näytetään {shown} / {total} osumaa. {due} erääntyy nyt.",
+  "declarative.companions.preview_summary_due": "Näytetään {shown} / {total} osumaa. Erääntyy nyt: {due}.",
   "declarative.companions.preview_template_error": "Mallipohjaa ei voi muodostaa: {error}. Korjaa se ennen tallennusta.",
   "declarative.companions.template_trigger_help": "Tehtävä on auki niin kauan kuin tämä antaa tosi. Käytettävissä: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Mallipohja",

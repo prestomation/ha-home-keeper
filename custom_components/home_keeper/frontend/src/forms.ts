@@ -613,7 +613,15 @@ export function taskSchemaSections(
                   ]
                 : []),
             ]),
-        { name: 'sensor_attribute', selector: selText() },
+        // Every mode but `template` reads an optional attribute in place of the
+        // state. `normalize_sensor` *rejects* one in template mode, because a
+        // template reads `attributes.<key>` itself and a second, invisible hop would
+        // change what `{{ state }}` means inside it. Offering the box there is the
+        // #230 bug in a new place: the save comes back "sensor.attribute is not valid
+        // for a template-mode sensor task".
+        ...(sensorMode === 'template'
+          ? []
+          : [{ name: 'sensor_attribute', selector: selText() } as FormField]),
       ]
     : [];
 
@@ -1054,7 +1062,13 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       entity_id: String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? ''),
       mode,
     };
-    const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
+    // Not in template mode: the form offers no box there, and the backend rejects
+    // the key rather than ignoring it, so an attribute left in edit state from
+    // another mode would fail the save.
+    const attribute =
+      mode === 'template'
+        ? ''
+        : String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
     if (attribute) sensor.attribute = attribute;
     if (mode === 'usage') {
       sensor.target = Number(sd.sensor_target ?? task.sensor?.target) || 0;

@@ -1105,6 +1105,22 @@ def test_template_rejects_cross_mode_fields(sensor):
         m.normalize_sensor(sensor)
 
 
+def test_template_rejects_a_field_with_the_mode_name_in_the_message():
+    # The rejection message names the offending field and the mode; a mutant that
+    # swaps ``"template"`` (the mode argument to ``_reject_fields``) for ``None`` /
+    # ``XXtemplateXX`` / ``TEMPLATE`` breaks the exact string. The parametrized case
+    # above only asserts that *something* was raised, so it cannot see that.
+    _reject_with(
+        {
+            "entity_id": "sensor.x",
+            "mode": "template",
+            "template": TEMPLATE_SRC,
+            "state": "on",
+        },
+        "sensor.state is not valid for a template-mode sensor task",
+    )
+
+
 @pytest.mark.parametrize("mode", ["threshold", "state", "availability"])
 def test_the_other_edge_modes_reject_a_template(mode):
     # The panel rewrites the trigger on a mode change, and this is the backend half
