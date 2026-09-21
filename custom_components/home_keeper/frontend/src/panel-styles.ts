@@ -945,6 +945,18 @@ export const STYLES = `
     margin-bottom: 2px;
   }
   .hk-form-summary-value { color: var(--primary-text-color); font-weight: 500; }
+  /* The part preview stacks a line per fact, so the value is a column rather than one
+     sentence. The task form's own box holds a single line and is unaffected. */
+  .hk-form-summary-value { display: flex; flex-direction: column; gap: 1px; }
+  /* A generated task name is 2 names and a bracket pair ("Renew DWR coating (Rain
+     jacket)") against a 360px phone, so it has to break mid-word. break-word rather
+     than anywhere, for the reason given on .hk-name-text above. */
+  .hk-form-summary-task { font-weight: 700; overflow-wrap: break-word; }
+  .hk-form-summary-fact { font-weight: 400; }
+  /* Space between the 2 tasks a counted wear item creates, so the facts under each
+     one read as belonging to it. */
+  .hk-form-summary-fact + .hk-form-summary-task { margin-top: 6px; }
+  .hk-form-summary-detail span { display: block; }
   /* The live arithmetic under the headline (sensor tasks only): quieter, because it
      elaborates the rule rather than restating it. */
   .hk-form-summary-detail {
@@ -984,7 +996,12 @@ export const STYLES = `
      ever the text, and a device chip is only ever the chip. */
   .hk-card-row.hk-row-task > .grow { flex: 0 1 auto; }
   .hk-row-spacer { flex: 1 1 auto; min-width: 8px; }
-  .hk-name-text { min-width: 0; overflow-wrap: anywhere; }
+  /* break-word, never anywhere. The two wrap identically, but anywhere also shrinks
+     the element's min-content width to a single character, so any track or flex item
+     that can be squeezed takes the text down to one letter per line with it.
+     break-word stops at the longest word instead. Pinned by task-name-wrap.spec.ts,
+     together with the grid tracks further down. */
+  .hk-name-text { min-width: 0; overflow-wrap: break-word; }
   .hk-chips.hk-chips-inline {
     margin-top: 0; gap: 6px; flex-wrap: nowrap; flex: 0 1 auto;
     align-items: center; min-width: 0; overflow: hidden;
@@ -1805,8 +1822,17 @@ export const STYLES = `
   @media (min-width: 1151px) {
     .hk-card-row.hk-row-task {
       display: grid;
+      /* The name track carries a floor and the chip track absorbs the squeeze.
+         Both tracks used to be the other way round, a zero-floor name track and a
+         fixed chip track, which held only while the panel had the whole window. Open the drawer and the panel is ~515px against 728px of tracks, so
+         every pixel of the shortfall came off the one track that could give: the
+         name fell to 17px and its text stacked one letter per line.
+         The chips are the right column to lose: the rule below already says a chip
+         steps aside when the column cannot hold it honestly, and the detail page
+         lists every chip. The name is the point of the row. */
       grid-template-columns:
-        minmax(0, var(--hk-name-col)) var(--hk-chip-col) var(--hk-status-col) auto;
+        minmax(6rem, var(--hk-name-col)) minmax(0, var(--hk-chip-col))
+        var(--hk-status-col) auto;
     }
     /* The grid has its own columns, so the spacer has no work left. It stays in the
        DOM — it is what pushes Done right on the flex line below this width, and the

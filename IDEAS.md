@@ -301,7 +301,7 @@ ship rather than adding a parallel system.
   websocket command for restock; the appliance page's Parts tab has a stock stepper
   (v0.21). Still open: a built-in shopping-list blueprint.
 - **Option C: a per-device Battery wear part drawing from the shared pool.** The
-  Battery Notes glue's managed **Batteries** appliance (0.24.0b8) keeps one consumable
+  Battery Notes glue's managed **Batteries** appliance (0.24.0b9) keeps one consumable
   part per battery type, so the count is shared and the replacement history stays on
   the device's *"Replace battery"* task. Option C would additionally give each device a
   `Battery` wear part of its own whose replacements draw down the shared type's stock,

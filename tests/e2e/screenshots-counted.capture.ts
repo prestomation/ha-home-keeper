@@ -9,6 +9,8 @@
  *             due date, so the "17 of 25 wears" chip is the only thing on the row.
  *  62 / 62c.  The part editor with the unit set to uses, which is what reveals the
  *             counting fields below it.
+ *  62d / 62e. The What this creates box at the foot of that same part, which is the
+ *             only place the form says a counted wear item makes 2 tasks.
  *  63 / 63c.  The appliance page's part row, with the live count and its meter.
  *  64 / 64c.  The use task's own page. Its Next due row reads Counting rather than a
  *             dash, because a use task has no due date and never will.
@@ -25,6 +27,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { ASSET, TASK } from './fixture-ids';
+import { centre } from './shots';
 import { PHONE } from './viewports';
 import { openCardDashboard, openPanel } from './tests/helpers';
 
@@ -145,6 +148,22 @@ test('capture counted wear items', async ({ page }) => {
     await page.mouse.wheel(0, 240);
     await page.waitForTimeout(500);
     await page.screenshot({ path: `${OUT}/62-panel-counted-part-editor.png` });
+
+    // ── 62d. The preview box at the foot of the same part ─────────────────────
+    // A counted wear item creates 2 tasks and the form never said so. The box is at
+    // the end of the part, so this scrolls past the fields above rather than framing
+    // them. Asserted as well as photographed: the names come from a table of 7 and a
+    // wrong one reads as correct in a picture.
+    const preview = part.locator('.hk-part-preview');
+    await expect(preview).toBeVisible();
+    await expect(preview.locator('.hk-form-summary-task')).toHaveText([
+      'Wear rain jacket',
+      'Renew DWR coating (Rain jacket)',
+    ]);
+    await centre(preview);
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${OUT}/62d-panel-wear-preview.png` });
     await page.keyboard.press('Escape');
   }
 
@@ -228,6 +247,20 @@ test('capture counted wear items', async ({ page }) => {
     await page.mouse.wheel(0, 430);
     await page.waitForTimeout(500);
     await page.screenshot({ path: `${OUT}/62c-panel-mobile-counted-part-editor.png` });
+
+    // 62e. The preview box on a phone. It is the tallest thing the part editor adds,
+    // 5 lines for a counted item, so the phone shot is what shows whether it reads as
+    // a block or as a wall.
+    const previewPhone = part.locator('.hk-part-preview');
+    await expect(previewPhone).toBeVisible();
+    await expect(previewPhone.locator('.hk-form-summary-task')).toHaveText([
+      'Wear rain jacket',
+      'Renew DWR coating (Rain jacket)',
+    ]);
+    await centre(previewPhone);
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${OUT}/62e-panel-mobile-wear-preview.png` });
     await page.keyboard.press('Escape');
   }
 

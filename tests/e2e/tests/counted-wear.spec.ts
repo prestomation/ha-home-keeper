@@ -198,6 +198,26 @@ test.describe('Home Keeper panel — counted wear items', () => {
     // use, the rebuild key that drives the reveal, and the clear-on-switch-back that
     // broke while this was being built. What this test adds is the one thing those
     // cannot: that the fields reach a real browser at all.
+
+    // The preview box is plain elements the panel builds itself, not `ha-form`, so
+    // unlike the fields above its text really is readable from here. A counted wear
+    // item creates 2 tasks, and this is the only place the form says so.
+    const preview = part.locator('.hk-part-preview');
+    await expect(preview).toBeVisible();
+    await expect(preview.locator('.hk-form-summary-label')).toHaveText('What this creates');
+    await expect(preview.locator('.hk-form-summary-task')).toHaveText([
+      'Wear rain jacket',
+      'Renew DWR coating (Rain jacket)',
+    ]);
+    // The seeded part counts 25 wears with a 12-month backstop, so the preview has to
+    // name both halves and say which one wins. The noun is the part's own, not the
+    // localized "uses" fallback.
+    await expect(preview.locator('.hk-form-summary-value')).toContainText(
+      'Due after 25 wears, or after 12 months.',
+    );
+    await expect(preview.locator('.hk-form-summary-value')).toContainText(
+      'The earlier one wins.',
+    );
   });
 
   test('the count chip survives the phone layout', async ({ page }) => {

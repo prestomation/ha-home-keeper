@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.24.0b8]
+## [0.24.0b9]
 
 ### Added
 
@@ -16,6 +16,19 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **[Consume quantity](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#parts--wear-items).**
   A task linked to a part can take more than 1 spare off the stock. An integration
   sets the amount for the task it links.
+
+## [0.24.0b8]
+
+### Added
+
+- **[Wear item preview](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#parts--wear-items).**
+  A wear item now says what it will create before you save it. The box names each
+  task, its schedule, and the count a use task feeds.
+
+### Fixed
+
+- **Task names in a narrow list.** A task name no longer collapses into a column of
+  single letters when the edit drawer is open beside the list.
 
 ## [0.24.0b7]
 

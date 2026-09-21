@@ -65,7 +65,12 @@ const COGNATE_IDENTICAL = {
   fi: ['field.doc_url'],
   fr: ['completion.photo', 'detail.id', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'section.notes', 'settings.exclusions', 'tab.documents'],
   it: ['detail.id', 'field.area_id', 'field.doc_url', 'group.area', 'opt.meta.link'],
-  nb: ['detail.id', 'field.doc_url', 'field.kind', 'field.sensor_entity_id', 'field.type', 'group.status', 'notify.opt.normal', 'notify.test', 'opt.month.11', 'opt.month.4', 'opt.month.8', 'opt.month.9'],
+  // `part.taskName.service` is "Service {part} ({asset})" in Norwegian, which takes
+  // the English verb unchanged ("service bilen"). Danish and Swedish inflect it
+  // ("Servicer", "Serva"), so the guard stays strict for them. The value is copied
+  // from `const.ACTION_TASK_NAME_TEMPLATES`, which is where that choice was made —
+  // see `tests/unit/test_part_preview_parity.py`.
+  nb: ['detail.id', 'field.doc_url', 'field.kind', 'field.sensor_entity_id', 'field.type', 'group.status', 'notify.opt.normal', 'notify.test', 'opt.month.11', 'opt.month.4', 'opt.month.8', 'opt.month.9', 'part.taskName.service'],
   nl: ['detail.about', 'detail.id', 'field.doc_url', 'field.kind', 'field.label', 'field.model', 'field.sensor_entity_id', 'field.type', 'group.status', 'notify.triggers_heading', 'opt.meta.link', 'opt.month.11', 'opt.month.12', 'opt.month.4', 'opt.month.9', 'recurrence.unit.week.one', 'section.later'],
   pl: ['field.doc_url', 'field.model', 'group.status', 'opt.meta.link'],
   'pt-BR': ['detail.id', 'field.doc_url', 'field.sensor_entity_id', 'group.status', 'notify.opt.normal', 'opt.meta.link'],

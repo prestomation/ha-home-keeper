@@ -1,5 +1,11 @@
-import { t } from './i18n';
-import { formatQuantity, normalizeIcon, recurrenceSummary, round1 } from './utils';
+import { t, tn } from './i18n';
+import {
+  formatDate,
+  formatQuantity,
+  normalizeIcon,
+  recurrenceSummary,
+  round1,
+} from './utils';
 import type {
   Asset,
   Companion,
@@ -1944,6 +1950,181 @@ export function partSummaryLine(part: Part): string {
     if (backstop) bits.push(backstop);
   }
   return bits.join(' · ');
+}
+
+/** One line of the part preview. A `task` line is a generated task's name; a `fact`
+ *  line says something about the line above it, or about the part as a whole. */
+export interface PartPreviewLine {
+  text: string;
+  kind: 'task' | 'fact';
+}
+
+/** What a wear item will create, as lines. `detail` is the quieter stock block. */
+export interface PartPreview {
+  lines: PartPreviewLine[];
+  detail: string[];
+}
+
+/**
+ * The task name the backend will generate for a wear part's maintenance task.
+ *
+ * The templates live in `const.ACTION_TASK_NAME_TEMPLATES` on the backend and as
+ * `part.taskName.*` here, because only the browser knows the viewer's language.
+ * Two copies of a user-visible name drift, so `tests/unit/test_part_preview_parity.py`
+ * fails when the English pair stops matching.
+ *
+ * The part's name is used exactly as stored, with no fallback. `reconcile.py` does the
+ * same, so an unnamed part really does generate "Replace  (Fridge)" — showing a
+ * tidied-up version here would preview a name the task will not have.
+ */
+export function partTaskName(part: Part, assetName: string): string {
+  const asset = assetName.trim() || t('appliance.fallbackName');
+  return t(`part.taskName.${part.action || 'replace'}`, {
+    part: part.name ?? '',
+    asset,
+  });
+}
+
+/** The name of the use task a counted wear item generates. The part is not named:
+ *  the household taps this to record using the appliance, not the component. */
+export function partUseTaskName(part: Part, assetName: string): string {
+  const own = (part.use_task_name ?? '').trim();
+  if (own) return own;
+  return t('part.taskName.use', { asset: assetName.trim() || t('appliance.fallbackName') });
+}
+
+/**
+ * When a time-measured wear item first comes due, given the date it was last done.
+ *
+ * Month arithmetic clamps a day the target month does not have (Jan 31 plus 1 month is
+ * Feb 28), which is what the backend's `recurrence.add_months` does — so the date
+ * previewed here is the date the task gets. `resolveSnoozePreset` in `utils.ts` shifts
+ * a date the same way and for the same reason.
+ *
+ * Returns `null` for a counted part, which has no such date: its replacement task is
+ * `triggered`, and the count arms it rather than the calendar.
+ */
+export function partFirstDue(part: Part): Date | null {
+  const interval = part.replace_interval;
+  const unit = part.replace_unit;
+  // Stryker disable next-line StringLiteral: equivalent. Any replacement for the ''
+  // fallback is a string Date cannot parse, so the guard below returns null either
+  // way, exactly as it does for the absent date this line is written for.
+  const from = (part.last_replaced ?? '').trim();
+  if (!interval || !unit || !from || partCountsUses(part)) return null;
+  const out = new Date(`${from}T00:00:00`);
+  if (Number.isNaN(out.getTime())) return null;
+  if (unit === 'days') out.setDate(out.getDate() + interval);
+  else if (unit === 'weeks') out.setDate(out.getDate() + interval * 7);
+  else {
+    const day = out.getDate();
+    // Day 1 first: `setMonth` on the 31st of a month whose target is shorter rolls
+    // *forward* into the month after (Jan 31 -> Mar 3), the opposite of clamping.
+    out.setDate(1);
+    out.setMonth(out.getMonth() + interval);
+    const lastDay = new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate();
+    out.setDate(Math.min(day, lastDay));
+  }
+  return out;
+}
+
+/**
+ * What a wear item will create, in plain language, for the box at the foot of the part
+ * editor.
+ *
+ * Three fields decide this and none of them says it: Action picks the maintenance
+ * task's name from a table of 7, Use task name names a second task, and Count uses as
+ * captions the count. A counted wear item generates **2** tasks, which the form never
+ * said before this box.
+ *
+ * Pure, and takes *assetName* rather than reading the panel's edit state, so the
+ * builder is unit-testable and scored by the mutation gate.
+ *
+ * A consumable gets nothing. The box belongs to the wear half of the editor, and a
+ * consumable creates no task at all.
+ */
+export function partPreview(part: Part, assetName: string): PartPreview {
+  const lines: PartPreviewLine[] = [];
+  const detail: string[] = [];
+  if (part.type !== 'wear') return { lines, detail };
+
+  const target = part.replace_interval;
+  if (!target || !part.replace_unit) {
+    lines.push({ text: t('part.preview.setInterval'), kind: 'fact' });
+    return { lines, detail };
+  }
+
+  const counted = partCountsUses(part);
+  const noun = (part.use_noun ?? '').trim();
+  if (counted) {
+    // The use task comes first: it is the one the household touches, and the
+    // maintenance task below is what its count adds up to.
+    lines.push({ text: partUseTaskName(part, assetName), kind: 'task' });
+    // Phrased against the count rather than against one use, because `use_noun` is
+    // stored in the plural and no panel shipping 16 languages can singularise
+    // arbitrary user text. See `useCountLabel`.
+    lines.push({ text: t('part.preview.countsOne'), kind: 'fact' });
+  }
+
+  lines.push({ text: partTaskName(part, assetName), kind: 'task' });
+  if (counted) {
+    const word = noun || tn('counted.use', target);
+    const backstop = part.replace_also_every;
+    if (backstop) {
+      lines.push({
+        text: t('part.preview.dueAfterUsesOr', {
+          n: target,
+          noun: word,
+          // The backstop's own number and unit, rather than a second key holding
+          // "{n} {unit}": that key would read the same in all 16 languages and the
+          // untranslated-leak gate in `i18n-parity.test.js` would reject it.
+          n2: backstop.interval,
+          unit2: t(`opt.unit.${backstop.unit}`),
+        }),
+        kind: 'fact',
+      });
+      lines.push({ text: t('part.preview.earlierWins'), kind: 'fact' });
+    } else {
+      lines.push({
+        text: t('part.preview.dueAfterUses', { n: target, noun: word }),
+        kind: 'fact',
+      });
+    }
+    // No "the count reads 0 of 25" line. The box previews what the part creates, and
+    // a part that is already counting reads 17 of 25 — so a hardcoded 0 states a
+    // falsehood, and threading the live count in would make the builder depend on the
+    // task list. The noun is already shown by the due line above, which is the only
+    // thing that line added. The real count is on the part row and on the task.
+  } else {
+    lines.push({
+      text: t('part.preview.dueEvery', {
+        n: target,
+        unit: t(`opt.unit.${part.replace_unit}`),
+      }),
+      kind: 'fact',
+    });
+    const first = partFirstDue(part);
+    if (first) {
+      lines.push({ text: t('part.preview.firstDue', { date: formatDate(first) }), kind: 'fact' });
+    }
+  }
+
+  // Stock is a second, quieter block: true of the part, but not about either task's
+  // name or schedule. Only a completion of the maintenance task draws stock down — a
+  // use never does (see `store._stamp_part_replacement`).
+  if (part.stock != null) {
+    detail.push(
+      t('part.preview.stockDraw', {
+        n: formatQuantity(part.consume_quantity ?? 1, part.stock_unit),
+      }),
+    );
+    if (part.create_buy_task && part.reorder_at != null) {
+      detail.push(
+        t('part.preview.buyAt', { n: formatQuantity(part.reorder_at, part.stock_unit) }),
+      );
+    }
+  }
+  return { lines, detail };
 }
 
 /**

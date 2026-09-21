@@ -163,6 +163,14 @@ becomes due at whichever arrives first. Completing the replacement task restarts
 *Clean*, *Service*, *Renew*, *Sharpen*, *Rotate* or *Inspect*, and the maintenance
 task takes that name. An existing wear item keeps *Replace*.
 
+**See what you will get.** The foot of a wear item shows a box titled **What this
+creates**. It names each task and gives its schedule. A counted wear item names both
+of the tasks it makes. The box changes as you type, so Action and Count uses as and
+Use task name show their result before you save. A wear item that tracks spares also
+gets a line for the stock each completion takes.
+
+![The part editor for a counted wear item, with the What this creates box at the foot naming both tasks](../../images/62d-panel-wear-preview.png)
+
 A counted target is limited to 250 uses. Home Keeper keeps the completions that the
 count is derived from, and a larger target could lose them.
 
