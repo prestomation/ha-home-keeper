@@ -991,3 +991,137 @@ def test_availability_clear_on_recover_truthy_non_bool_is_stored_as_true():
         }
     )
     assert cfg["clear_on_recover"] is True
+
+
+# ── template mode ───────────────────────────────────────────────────────────
+TEMPLATE_SRC = "{{ (now() - as_datetime(state)) >= timedelta(hours=24) }}"
+
+
+def test_template_mode_normalizes_the_source():
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.hub_last_seen",
+            "mode": "template",
+            "template": f"  {TEMPLATE_SRC}  ",
+        }
+    )
+    assert cfg == {
+        "entity_id": "sensor.hub_last_seen",
+        "mode": "template",
+        # Stripped, because a trailing newline from a textarea is not a difference
+        # the fingerprint should retire carried edge state over.
+        "template": TEMPLATE_SRC,
+    }
+
+
+def test_template_carries_for_seconds_and_clear_on_recover():
+    cfg = m.normalize_sensor(
+        {
+            "entity_id": "sensor.x",
+            "mode": "template",
+            "template": TEMPLATE_SRC,
+            "for_seconds": 600,
+            "clear_on_recover": True,
+        }
+    )
+    assert cfg["for_seconds"] == 600
+    assert cfg["clear_on_recover"] is True
+
+
+def test_template_clear_on_recover_defaults_off():
+    # Unlike availability, where an entity coming back *is* the recovery, a template
+    # says nothing about what a false render means. So the default is off and only an
+    # explicit opt-in stores it.
+    cfg = m.normalize_sensor(
+        {"entity_id": "sensor.x", "mode": "template", "template": TEMPLATE_SRC}
+    )
+    assert "clear_on_recover" not in cfg
+
+
+@pytest.mark.parametrize("template", ["", "   ", None])
+def test_template_mode_requires_a_template(template):
+    with raises_exactly(m.TaskValidationError, "sensor.template is required"):
+        m.normalize_sensor(
+            {"entity_id": "sensor.x", "mode": "template", "template": template}
+        )
+
+
+def test_template_mode_caps_the_source_length():
+    with raises_exactly(
+        m.TaskValidationError, "sensor.template must be <= 1000 characters"
+    ):
+        m.normalize_sensor(
+            {"entity_id": "sensor.x", "mode": "template", "template": "x" * 1001}
+        )
+
+
+def test_template_mode_accepts_the_source_at_the_cap():
+    cfg = m.normalize_sensor(
+        {"entity_id": "sensor.x", "mode": "template", "template": "x" * 1000}
+    )
+    assert len(cfg["template"]) == 1000
+
+
+@pytest.mark.parametrize(
+    "sensor",
+    [
+        {
+            "entity_id": "sensor.x",
+            "mode": "template",
+            "template": TEMPLATE_SRC,
+            "comparison": ">",
+        },
+        {
+            "entity_id": "sensor.x",
+            "mode": "template",
+            "template": TEMPLATE_SRC,
+            "value": 10,
+        },
+        {
+            "entity_id": "sensor.x",
+            "mode": "template",
+            "template": TEMPLATE_SRC,
+            "state": "on",
+        },
+        {
+            "entity_id": "sensor.x",
+            "mode": "template",
+            "template": TEMPLATE_SRC,
+            "target": 100,
+        },
+        # An attribute is rejected rather than dropped: a template reads
+        # `attributes.<key>` itself, and a second invisible hop would change what
+        # `{{ state }}` means inside it.
+        {
+            "entity_id": "sensor.x",
+            "mode": "template",
+            "template": TEMPLATE_SRC,
+            "attribute": "battery",
+        },
+    ],
+)
+def test_template_rejects_cross_mode_fields(sensor):
+    with pytest.raises(m.TaskValidationError):
+        m.normalize_sensor(sensor)
+
+
+@pytest.mark.parametrize("mode", ["threshold", "state", "availability"])
+def test_the_other_edge_modes_reject_a_template(mode):
+    # The panel rewrites the trigger on a mode change, and this is the backend half
+    # of that contract: a carried-over template is refused rather than stored where
+    # nothing will ever render it.
+    sensor = {"entity_id": "sensor.x", "mode": mode, "template": TEMPLATE_SRC}
+    if mode == "threshold":
+        sensor |= {"comparison": ">", "value": 1}
+    if mode == "state":
+        sensor["state"] = "on"
+    with pytest.raises(m.TaskValidationError):
+        m.normalize_sensor(sensor)
+
+
+def test_template_mode_works_without_an_entity_id_for_a_recipe():
+    cfg = m.normalize_sensor(
+        {"mode": "template", "template": TEMPLATE_SRC}, allow_missing_entity=True
+    )
+    assert "entity_id" not in cfg
+    assert cfg["template"] == TEMPLATE_SRC

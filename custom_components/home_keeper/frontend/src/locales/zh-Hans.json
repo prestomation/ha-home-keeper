@@ -709,5 +709,18 @@
   "part.low": "低",
   "part.reorderAt": "补货阈值：{n}",
   "toast.stockSet": "库存已设为{n}",
-  "transfer.tooLarge": "此文档超过面板 {mb} MB 的上限。请将其拆分为更小的文件，或使用 home_keeper.import_data 服务导入最多 {max} MB 的文档。"
+  "transfer.tooLarge": "此文档超过面板 {mb} MB 的上限。请将其拆分为更小的文件，或使用 home_keeper.import_data 服务导入最多 {max} MB 的文档。",
+  "declarative.companions.chip_due_now": "现在到期",
+  "declarative.companions.chip_error": "错误",
+  "declarative.companions.chip_monitored": "监视中",
+  "declarative.companions.field_template": "触发模板（Jinja）",
+  "declarative.companions.preview_summary_due": "显示 {total} 个匹配中的 {shown} 个。其中 {due} 个现在到期。",
+  "declarative.companions.preview_template_error": "模板无法求值：{error}。保存前请先修正。",
+  "declarative.companions.template_trigger_help": "只要这里求值为真，任务就会打开。 可用: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "declarative.companions.trigger_mode.template": "模板",
+  "field.sensor_template": "触发模板（Jinja）",
+  "help.sensor_template": "只要此模板求值为真，任务就到期。 可用: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "hint.sensor.template": "只要模板为真，任务就到期。",
+  "hint.sensor.templateFor": "模板持续为真 {seconds} 秒后，任务到期。",
+  "opt.sensor_mode.template": "模板"
 }

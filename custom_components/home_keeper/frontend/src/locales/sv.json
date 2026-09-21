@@ -709,5 +709,18 @@
   "part.low": "Lågt",
   "part.reorderAt": "Beställ vid {n}",
   "toast.stockSet": "Lager inställt på {n}",
-  "transfer.tooLarge": "Det här dokumentet är större än gränsen på {mb} MB för panelen. Dela upp det i mindre filer, eller använd tjänsten home_keeper.import_data för dokument upp till {max} MB."
+  "transfer.tooLarge": "Det här dokumentet är större än gränsen på {mb} MB för panelen. Dela upp det i mindre filer, eller använd tjänsten home_keeper.import_data för dokument upp till {max} MB.",
+  "declarative.companions.chip_due_now": "Förfaller nu",
+  "declarative.companions.chip_error": "Fel",
+  "declarative.companions.chip_monitored": "Bevakad",
+  "declarative.companions.field_template": "Utlösarmall (Jinja)",
+  "declarative.companions.preview_summary_due": "Visar {shown} av {total} träffar. {due} förfaller nu.",
+  "declarative.companions.preview_template_error": "Mallen går inte att tolka: {error}. Rätta den innan du sparar.",
+  "declarative.companions.template_trigger_help": "Uppgiften är öppen så länge detta blir sant. Tillgängliga: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "declarative.companions.trigger_mode.template": "Mall",
+  "field.sensor_template": "Utlösarmall (Jinja)",
+  "help.sensor_template": "Uppgiften förfaller så länge den här mallen blir sann. Tillgängliga: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "hint.sensor.template": "Uppgiften förfaller så länge mallen är sann.",
+  "hint.sensor.templateFor": "Uppgiften förfaller när mallen förblir sann i {seconds}s.",
+  "opt.sensor_mode.template": "Mall"
 }

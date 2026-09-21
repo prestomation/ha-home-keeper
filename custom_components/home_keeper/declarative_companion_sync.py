@@ -38,9 +38,10 @@ from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.template import Template, TemplateError
 
-from . import declarative_companions, sensor_tasks, sensor_watcher
+from . import declarative_companions, sensor_tasks, sensor_watcher, template_context
 from .const import (
     DOMAIN,
+    SENSOR_MODE_TEMPLATE,
     SIGNAL_DECLARATIVE_SPECS_CHANGED,
 )
 
@@ -192,49 +193,13 @@ class DeclarativeCompanionSync:
 
     # ── rendering ────────────────────────────────────────────────────────────
     def _template_variables(self, entry: dict[str, Any]) -> dict[str, Any]:
-        """Assemble the Jinja render context for a single matched entity.
+        """The Jinja render context for one matched entity.
 
-        The context flattens registry + state + device + area lookups so a
-        template writer only ever sees ``{{ device_name }}`` — never
-        ``{{ device.name_by_user or device.name }}``. Attribute access on the
-        entity's state is exposed as ``attributes.<key>`` so a Firmware Update
-        template can say ``{{ attributes.latest_version }}``.
+        Delegates to :func:`template_context.template_variables`, which the
+        ``template``-mode sensor trigger renders against as well, so a recipe's task
+        name and the trigger that opened it always read the same ``{{ state }}``.
         """
-        entity_id = entry["entity_id"]
-        state = self._hass.states.get(entity_id)
-        friendly = None
-        state_value: Any = None
-        attributes: dict[str, Any] = {}
-        if state is not None:
-            state_value = state.state
-            attributes = dict(state.attributes)
-            friendly = attributes.get("friendly_name")
-        friendly = (
-            friendly or entry.get("name") or entry.get("original_name") or entity_id
-        )
-        device_name = None
-        if entry.get("device_id"):
-            dev_reg = dr.async_get(self._hass)
-            device = dev_reg.async_get(entry["device_id"])
-            if device:
-                device_name = device.name_by_user or device.name
-        area_name = None
-        if entry.get("area_id"):
-            area_reg = ar.async_get(self._hass)
-            area = area_reg.async_get_area(entry["area_id"])
-            if area:
-                area_name = area.name
-        return {
-            "entity_id": entity_id,
-            "friendly_name": friendly,
-            "device_id": entry.get("device_id"),
-            "device_name": device_name,
-            "area_id": entry.get("area_id"),
-            "area_name": area_name,
-            "integration": entry.get("platform"),
-            "state": state_value,
-            "attributes": attributes,
-        }
+        return template_context.template_variables(self._hass, entry)
 
     def _render_one(self, source: str, variables: dict[str, Any]) -> str:
         """Render one Jinja template, returning the source on any error.
@@ -450,6 +415,14 @@ class DeclarativeCompanionSync:
         count = len(matches)
         if count > 50:
             warnings.append("too_many_matches")
+        trigger = spec.get("trigger") or {}
+        # A template trigger is the one condition a user cannot check by reading it:
+        # `{{ state > 24 }}` against a string state renders false forever and opens
+        # nothing. So the preview renders it too, per sampled entity, and the panel
+        # draws the verdict beside the task name. The other modes say what they do on
+        # their face and get `None`, which the panel reads as "draw no chip".
+        is_template = trigger.get("mode") == SENSOR_MODE_TEMPLATE
+        template_source = str(trigger.get("template") or "")
         # Sample the first 10 for the preview panel (deterministic order — dicts
         # are insertion-ordered and expand_spec walks the registry in registry
         # order, which is stable across boots for the same HA config).
@@ -462,6 +435,14 @@ class DeclarativeCompanionSync:
             rendered_notes = self._render_one(
                 spec.get("task_template", {}).get("notes_template", ""), variables
             )
+            trigger_now: bool | None = None
+            trigger_error: str | None = None
+            if is_template:
+                # The watcher's own renderer, not a second one: what the preview says
+                # is true is what will arm the task.
+                trigger_now, trigger_error = sensor_watcher.render_template_result(
+                    self._hass, template_source, variables
+                )
             sample.append(
                 {
                     "entity_id": match["entity"]["entity_id"],
@@ -470,6 +451,8 @@ class DeclarativeCompanionSync:
                     "rendered_notes": rendered_notes,
                     "device_name": variables["device_name"],
                     "area_name": variables["area_name"],
+                    "trigger_now": trigger_now,
+                    "trigger_error": trigger_error,
                 }
             )
         return {

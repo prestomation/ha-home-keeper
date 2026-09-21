@@ -25,6 +25,7 @@ from .const import (
     MAX_EXTERNAL_ID_LEN,
     MAX_INTERVAL,
     MAX_SENSOR_STATE_LEN,
+    MAX_SENSOR_TEMPLATE_LEN,
     MAX_SENSOR_UNIT_LEN,
     REC_FIXED,
     REC_FLOATING,
@@ -36,6 +37,7 @@ from .const import (
     SENSOR_COMBINATOR_ANY,
     SENSOR_COMBINATORS,
     SENSOR_COMPARISONS,
+    SENSOR_MODE_AVAILABILITY,
     SENSOR_MODE_STATE,
     SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_USAGE,
@@ -267,10 +269,17 @@ def normalize_sensor(
       that starts life unavailable does NOT arm a fresh task (see
       ``sensor_watcher.async_baseline``); only a live transition from available →
       unavailable does.
+    * ``template`` — a Jinja ``template`` string (non-empty, at most
+      :data:`MAX_SENSOR_TEMPLATE_LEN`) that arms while it renders true, with the same
+      optional ``for_seconds`` hold. It is the mode for a condition the other four
+      cannot say, such as "this entity has not reported for 24 hours". A render error
+      is indeterminate, not false — it neither arms nor clears. Takes no
+      ``attribute``: a template reads ``attributes.<key>`` itself, and a second hop
+      would silently change what ``state`` means inside the template.
 
-    ``threshold``, ``state`` and ``availability`` also accept ``clear_on_recover``:
-    when set, an armed task clears itself once the condition goes away again,
-    instead of waiting to be completed by hand.
+    ``threshold``, ``state``, ``availability`` and ``template`` also accept
+    ``clear_on_recover``: when set, an armed task clears itself once the condition
+    goes away again, instead of waiting to be completed by hand.
 
     An optional ``attribute`` reads that entity attribute instead of the state. Raises
     :class:`TaskValidationError` on any malformed field so bad input fails at the edge
@@ -333,7 +342,7 @@ def normalize_sensor(
                 raise TaskValidationError(f"invalid sensor.combinator: {combinator!r}")
             result["combinator"] = combinator
     elif mode == SENSOR_MODE_THRESHOLD:
-        _reject_fields(data, USAGE_ONLY_SENSOR_FIELDS, "threshold")
+        _reject_fields(data, (*USAGE_ONLY_SENSOR_FIELDS, "template"), "threshold")
         comparison = data.get("comparison")
         if comparison not in SENSOR_COMPARISONS:
             raise TaskValidationError(f"invalid sensor comparison: {comparison!r}")
@@ -349,7 +358,9 @@ def normalize_sensor(
             result["clear_on_recover"] = True
     elif mode == SENSOR_MODE_STATE:
         _reject_fields(
-            data, (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value"), "state"
+            data,
+            (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value", "template"),
+            "state",
         )
         state = str(data.get("state") or "").strip()
         if not state:
@@ -363,14 +374,14 @@ def normalize_sensor(
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):
             result["clear_on_recover"] = True
-    else:  # SENSOR_MODE_AVAILABILITY
+    elif mode == SENSOR_MODE_AVAILABILITY:
         # Inverts the "no reading = do nothing" policy: this mode arms *because* the
         # entity is unavailable/unknown (or the bound ``attribute`` is missing) for
         # ``for_seconds``. Rejects every numeric/state-comparison field — the
         # condition is simply "no reading", no operator or target to configure.
         _reject_fields(
             data,
-            (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value", "state"),
+            (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value", "state", "template"),
             "availability",
         )
         if for_seconds := _normalize_for_seconds(data):
@@ -381,6 +392,28 @@ def normalize_sensor(
         # True so a dict-equality test does not care about default padding.
         clear_on_recover = data.get("clear_on_recover")
         if clear_on_recover is None or bool(clear_on_recover):
+            result["clear_on_recover"] = True
+    else:  # SENSOR_MODE_TEMPLATE
+        # The condition is one Jinja template, so every operator and target field
+        # belongs to another mode. ``attribute`` goes too: a template reads
+        # ``attributes.<key>`` itself, and a second, invisible attribute hop would
+        # silently change what ``state`` means inside the template.
+        _reject_fields(
+            data,
+            (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value", "state", "attribute"),
+            "template",
+        )
+        template = str(data.get("template") or "").strip()
+        if not template:
+            raise TaskValidationError("sensor.template is required")
+        if len(template) > MAX_SENSOR_TEMPLATE_LEN:
+            raise TaskValidationError(
+                f"sensor.template must be <= {MAX_SENSOR_TEMPLATE_LEN} characters"
+            )
+        result["template"] = template
+        if for_seconds := _normalize_for_seconds(data):
+            result["for_seconds"] = for_seconds
+        if data.get("clear_on_recover"):
             result["clear_on_recover"] = True
     return result
 

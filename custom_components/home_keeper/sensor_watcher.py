@@ -32,6 +32,7 @@ from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import (
@@ -41,19 +42,22 @@ from homeassistant.core import (
     HomeAssistant,
     callback,
 )
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import (
     async_track_point_in_time,
     async_track_state_change_event,
 )
+from homeassistant.helpers.template import Template, TemplateError
 from homeassistant.util import dt as dt_util
 
-from . import sensor_tasks
+from . import sensor_tasks, template_context
 from .const import (
     DOMAIN,
     ORIGIN_SENSOR_RECOVER,
     REC_SENSOR,
     SENSOR_MODE_AVAILABILITY,
     SENSOR_MODE_STATE,
+    SENSOR_MODE_TEMPLATE,
     SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_USAGE,
 )
@@ -179,6 +183,67 @@ def read_availability_status(hass: HomeAssistant, cfg: dict[str, Any] | None) ->
     return sensor_tasks.AVAILABILITY_AVAILABLE
 
 
+def render_template_result(
+    hass: HomeAssistant, source: str, variables: dict[str, Any]
+) -> tuple[bool | None, str | None]:
+    """Render *source* and read it as a boolean. Returns ``(result, error)``.
+
+    ``result`` is ``None`` with an ``error`` message when the template could not be
+    rendered, or when what it rendered is not true or false. Both are
+    **indeterminate** for the caller: the task neither arms nor clears. The error text
+    is what the recipe preview shows the user, so it is the message Jinja produced,
+    not a summary of it.
+
+    ``parse_result=True`` is what makes ``{{ a >= b }}`` come back as a real ``bool``
+    rather than the string ``"True"``. The declarative-companion name/notes renderer
+    passes ``False`` instead, because a task name wants the text.
+
+    ``cv.boolean`` is used rather than ``template.result_as_boolean``, which reads
+    anything it does not recognise as ``False``. A template rendering a timestamp, or
+    a device name, is not a condition that happens to be false — it is a template
+    answering some other question, and the whole point of the preview is to say so
+    rather than to let the recipe sit there matching nothing.
+
+    Split out of the watcher class so the recipe preview can render exactly what the
+    watcher will, without standing one up.
+    """
+    if not source:
+        return None, "sensor.template is empty"
+    try:
+        rendered = Template(source, hass).async_render(variables, parse_result=True)
+    except TemplateError as err:
+        return None, str(err)
+    if isinstance(rendered, bool):
+        return rendered, None
+    try:
+        return cv.boolean(rendered), None
+    except vol.Invalid:
+        return None, f"the template rendered {rendered!r}, which is not true or false"
+
+
+def read_template_result(
+    hass: HomeAssistant, cfg: dict[str, Any] | None
+) -> tuple[bool | None, str | None]:
+    """Render a ``template`` binding against its bound entity. ``(result, error)``.
+
+    The ``template`` mode's counterpart to :func:`read_sensor_value` and
+    :func:`read_sensor_state`. Unlike those two it does **not** go through
+    :func:`_raw_reading`: an unavailable entity is not "no reading" here, because a
+    template is free to be about exactly that (``{{ state == 'unavailable' }}``).
+    Whether a missing state means anything is the template's business, and
+    ``{{ state }}`` is ``None`` when there is none.
+    """
+    if not cfg:
+        return None, "the task has no sensor binding"
+    entity_id = cfg.get("entity_id")
+    if not entity_id:
+        return None, "the binding names no entity"
+    variables = template_context.template_variables(
+        hass, template_context.registry_projection(hass, entity_id)
+    )
+    return render_template_result(hass, str(cfg.get("template") or ""), variables)
+
+
 class SensorTaskWatcher:
     """Evaluates sensor-based tasks against their bound entities."""
 
@@ -290,6 +355,18 @@ class SensorTaskWatcher:
                 status = read_availability_status(self._hass, cfg)
                 self._edge[tid] = {
                     "condition_met": status == sensor_tasks.AVAILABILITY_UNAVAILABLE,
+                    "crossed_at": None,
+                    "condition": condition,
+                }
+            elif mode == SENSOR_MODE_TEMPLATE:
+                # Record an already-true template as met-without-a-crossing, the same
+                # way the three modes above record theirs: a sensor that was quiet
+                # before Home Assistant restarted must not open a second task for the
+                # same silence. A template that cannot render reads as not-met, which
+                # is the indeterminate treatment — a genuine crossing later arms it.
+                result, _error = read_template_result(self._hass, cfg)
+                self._edge[tid] = {
+                    "condition_met": result is True,
                     "crossed_at": None,
                     "condition": condition,
                 }
@@ -417,6 +494,24 @@ class SensorTaskWatcher:
                 ):
                     changed_any = True
                 continue
+            if mode == SENSOR_MODE_TEMPLATE:
+                # Matched explicitly, ahead of the numeric read below: the ``else`` at
+                # the end of this chain treats an unrecognised mode as ``threshold``,
+                # so a fall-through would compare a template binding against a
+                # ``comparison`` and ``value`` it does not carry.
+                result, error = read_template_result(self._hass, cfg)
+                if error is not None:
+                    # Logged once per pass per task. A template that cannot render
+                    # decides nothing, so without this the task simply sits there.
+                    _LOGGER.warning(
+                        "Template trigger for %s (%s) did not render: %s",
+                        task.get("name"),
+                        cfg.get("entity_id"),
+                        error,
+                    )
+                if await self._evaluate_template(tid, task, result=result, now=now):
+                    changed_any = True
+                continue
             reading = read_sensor_value(self._hass, cfg)
             if mode == SENSOR_MODE_USAGE:
                 # A usage task with a time backstop must still be evaluable with no
@@ -529,6 +624,22 @@ class SensorTaskWatcher:
             sensor_tasks.evaluate_availability(
                 task,
                 status=status,
+                condition_met_prev=condition_met_prev,
+                crossed_at=crossed_at,
+                now=now,
+            ),
+        )
+
+    async def _evaluate_template(
+        self, tid: str, task: dict[str, Any], *, result: bool | None, now: Any
+    ) -> bool:
+        condition_met_prev, crossed_at = self._carried_edge(tid, task)
+        return await self._apply_edge(
+            tid,
+            task,
+            sensor_tasks.evaluate_template(
+                task,
+                result=result,
                 condition_met_prev=condition_met_prev,
                 crossed_at=crossed_at,
                 now=now,

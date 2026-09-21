@@ -69,6 +69,7 @@ from .const import (
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
+    SENSOR_MODE_TEMPLATE,
     SENSOR_MODE_USAGE,
     SKIP_ENTRY_FIELDS,
     TRANSFER_FORMAT,
@@ -1026,6 +1027,29 @@ def _register_services(hass: HomeAssistant) -> None:
         if not await _caller_is_admin(call):
             raise Unauthorized(context=call.context)
 
+    async def _verify_template_binding(call: ServiceCall) -> None:
+        """Reject a non-admin caller who sets a ``template``-mode sensor binding.
+
+        ``add_task`` and ``update_task`` are open to every signed-in user on purpose
+        — ``docs/SECURITY.md`` says a non-admin can create and complete tasks. A
+        ``template`` binding is the one part of a task that is not inert data: Home
+        Keeper renders it, and a Jinja template reaches registry helpers
+        (``device_attr``, ``area_id``, ``integration_entities``) that a non-admin
+        cannot otherwise enumerate. So the mode alone is admin-only, and the rest of
+        the service stays open.
+
+        The panel's own route to this mode is already admin-only twice over: the
+        panel is ``require_admin`` and every websocket task command carries
+        ``@websocket_api.require_admin``. This closes the ``call_service`` path that
+        walks around both.
+        """
+        sensor = call.data.get("sensor")
+        if not isinstance(sensor, dict):
+            return
+        if sensor.get("mode") != SENSOR_MODE_TEMPLATE:
+            return
+        await _verify_admin(call)
+
     def _check_area(data: dict) -> None:
         if not devices.area_exists(hass, data.get("area_id")):
             raise ServiceValidationError(
@@ -1089,6 +1113,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_add_task(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
+        await _verify_template_binding(call)
         _check_area(call.data)
         with _store_errors():
             task = await coord.store.add_task(dict(call.data))
@@ -1103,6 +1128,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_update_task(call: ServiceCall) -> None:
         coord = _coordinator()
+        await _verify_template_binding(call)
         _check_area(call.data)
         data = dict(call.data)
         task_id = _task_ref(coord, data.pop("task_id"))

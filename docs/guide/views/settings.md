@@ -47,8 +47,8 @@ To add a companion or a [glue integration](../../GLUE_INTEGRATIONS.md) to the ca
 
 A **declarative companion** is a recipe. The recipe targets an integration, or it
 matches entities through an entity id filter. The recipe sets a trigger mode: usage,
-threshold, state, or availability. The recipe also sets a Jinja template for the task
-name and the task notes.
+threshold, state, availability, or template. The recipe also sets a Jinja template for
+the task name and the task notes.
 
 Home Keeper opens one managed task for each entity that matches the recipe. The task
 clears when the condition recovers. A task that a recipe made has an **Edit recipe**
@@ -63,13 +63,16 @@ available** preset, a device with an update pending shows an overdue task, and a
 device with no update pending shows **Monitored**. All bundled presets complete the
 task automatically when the condition recovers, so those tasks offer no Done button.
 
-The *Add from preset* picker offers 2 presets.
+The *Add from preset* picker offers 3 presets.
 
 - **Device Pulse** targets the per-device ping sensors from
   [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse).
   The Device Pulse integration must be installed.
 - **Firmware update available** matches every `update.*` entity that reports `on`.
   This covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab.
+- **Device stopped reporting** matches every `sensor.*_last_seen` entity. It opens a
+  task for each device that has not reported for 24 hours. This finds the Zigbee or
+  Z-Wave devices that dropped off the mesh. It needs no other integration.
 
 Low batteries have no preset. The [Battery Notes glue
 integration](../../GLUE_INTEGRATIONS.md) already opens a task for each battery and
@@ -96,3 +99,38 @@ Delete button. On a phone the row stacks, and the buttons take a line of their o
 ![A recipe row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete](../../images/21h-panel-declarative-row-actions.png)
 
 ![The same recipe row on a phone, with Edit and Delete on a line under the name](../../images/21i-panel-mobile-recipe-row.png)
+
+##### Template triggers
+
+The other 4 trigger modes each ask 1 plain question. State compares 1 string.
+Threshold compares 1 number. Neither can do arithmetic on a date.
+
+The **template** mode takes a Jinja template instead. The task is due while the
+template renders true. This example opens a task for a sensor that has not reported
+for a day:
+
+```jinja
+{{ state not in ['unknown', 'unavailable', none]
+   and (now() - as_datetime(state)) >= timedelta(hours=24) }}
+```
+
+The template reads the same values as the task name template and the task notes
+template: `state`, `attributes.<key>`, `friendly_name`, `entity_id`, `device_name`,
+`area_name`, and `integration`. Home Assistant template functions are also available.
+
+A template that does not render decides nothing. Home Keeper opens no task and closes
+no task, and it writes the error to the log. A typo cannot complete the tasks that a
+recipe already opened.
+
+Home Keeper renders the template when the bound entity changes state, and again on
+each 5-minute pass. So a template that reads the clock, such as the example above, can
+take up to 5 minutes to open its task.
+
+The Add dialog renders the template against your own entities. Each row in the preview
+says **Due now** or **Monitored**, and the count above them says how many are due. A
+template that cannot render shows the Jinja error instead, so you can correct it before
+you save.
+
+The template mode is also on a single sensor task. Open **Add task**, set the schedule
+to Sensor, and pick Template as the trigger mode. Only an admin can set a template on a
+task, because a template reads registry data that other users cannot list.

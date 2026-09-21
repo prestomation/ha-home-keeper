@@ -487,13 +487,16 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
 });
 
 describe('state mode — binary sensors', () => {
-  it('offers state alongside usage, threshold and availability', () => {
+  it('offers state alongside usage, threshold, availability and template', () => {
     const mode = taskSchema({ recurrence_type: 'sensor' }).find((f) => f.name === 'sensor_mode');
+    // Order matters, not just membership: `template` goes last so a user who wants
+    // one of the four plain modes does not have to read past Jinja to find it.
     expect(mode.selector.select.options.map((o) => o.value)).toEqual([
       'usage',
       'threshold',
       'state',
       'availability',
+      'template',
     ]);
   });
 

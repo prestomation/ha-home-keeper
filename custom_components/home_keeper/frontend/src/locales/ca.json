@@ -726,5 +726,18 @@
   "part.low": "Baix",
   "part.reorderAt": "Reabastir a {n}",
   "toast.stockSet": "Estoc establert a {n}",
-  "transfer.tooLarge": "Aquest document és més gran que el límit de {mb} MB del tauler. Divideix-lo en fitxers més petits, o utilitza el servei home_keeper.import_data per a documents de fins a {max} MB."
+  "transfer.tooLarge": "Aquest document és més gran que el límit de {mb} MB del tauler. Divideix-lo en fitxers més petits, o utilitza el servei home_keeper.import_data per a documents de fins a {max} MB.",
+  "declarative.companions.chip_due_now": "Venç ara",
+  "declarative.companions.chip_error": "Error",
+  "declarative.companions.chip_monitored": "Supervisat",
+  "declarative.companions.field_template": "Plantilla del disparador (Jinja)",
+  "declarative.companions.preview_summary_due": "Es mostren {shown} de {total} coincidències. {due} vencen ara.",
+  "declarative.companions.preview_template_error": "La plantilla no es renderitza: {error}. Corregeix-la abans de desar.",
+  "declarative.companions.template_trigger_help": "La tasca s'obre mentre això es renderitza com a cert. Disponible: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "declarative.companions.trigger_mode.template": "Plantilla",
+  "field.sensor_template": "Plantilla del disparador (Jinja)",
+  "help.sensor_template": "La tasca venç mentre aquesta plantilla es renderitza com a certa. Disponible: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "hint.sensor.template": "La tasca venç mentre la plantilla és certa.",
+  "hint.sensor.templateFor": "La tasca venç quan la plantilla es manté certa durant {seconds}s.",
+  "opt.sensor_mode.template": "Plantilla"
 }

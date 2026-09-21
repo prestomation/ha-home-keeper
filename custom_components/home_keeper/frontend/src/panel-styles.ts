@@ -1973,6 +1973,24 @@ export const STYLES = `
   .hk-decl-preview-header { font-weight: 500; margin-bottom: 6px; }
   .hk-decl-preview-row { padding: 6px 0; border-bottom: 1px solid var(--divider-color); }
   .hk-decl-preview-row:last-child { border-bottom: none; }
+  /* A template trigger's rows carry a verdict chip. Two columns rather than a flex
+     row, so the chip keeps its own column and the task name wraps under itself
+     instead of pushing the chip off the edge on a phone. */
+  .hk-decl-preview-row.hk-decl-preview-verdicted {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center;
+  }
+  .hk-decl-preview-verdicted .hk-decl-preview-name,
+  .hk-decl-preview-verdicted .hk-decl-preview-eid { grid-column: 1; min-width: 0; }
+  .hk-decl-chip {
+    grid-column: 2; grid-row: 1 / span 2; justify-self: end;
+    font-size: 0.72rem; font-weight: 500; border-radius: var(--hk-r-pill);
+    padding: 2px 10px; white-space: nowrap;
+  }
+  .hk-decl-chip.due { background: var(--hk-accent-soft); color: var(--hk-accent-ink); }
+  .hk-decl-chip.quiet {
+    background: color-mix(in srgb, var(--hk-ink) 8%, transparent); color: var(--hk-ink-2);
+  }
+  .hk-decl-chip.bad { background: var(--hk-danger-soft); color: var(--hk-danger-ink); }
   .hk-decl-preview-name { font-weight: 500; }
   .hk-decl-preview-eid {
     color: var(--secondary-text-color); font-family: monospace; font-size: 0.8rem;

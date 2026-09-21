@@ -726,5 +726,18 @@
   "part.low": "Basso",
   "part.reorderAt": "Riordina a {n}",
   "toast.stockSet": "Scorte impostate a {n}",
-  "transfer.tooLarge": "Questo documento è più grande del limite di {mb} MB del pannello. Dividilo in file più piccoli, oppure usa il servizio home_keeper.import_data per documenti fino a {max} MB."
+  "transfer.tooLarge": "Questo documento è più grande del limite di {mb} MB del pannello. Dividilo in file più piccoli, oppure usa il servizio home_keeper.import_data per documenti fino a {max} MB.",
+  "declarative.companions.chip_due_now": "In scadenza ora",
+  "declarative.companions.chip_error": "Errore",
+  "declarative.companions.chip_monitored": "Monitorato",
+  "declarative.companions.field_template": "Modello dell'attivatore (Jinja)",
+  "declarative.companions.preview_summary_due": "Mostrate {shown} di {total} corrispondenze. {due} sono in scadenza ora.",
+  "declarative.companions.preview_template_error": "Il modello non si elabora: {error}. Correggilo prima di salvare.",
+  "declarative.companions.template_trigger_help": "L'attività resta aperta finché questo risulta vero. Disponibili: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "declarative.companions.trigger_mode.template": "Modello",
+  "field.sensor_template": "Modello dell'attivatore (Jinja)",
+  "help.sensor_template": "L'attività scade finché questo modello risulta vero. Disponibili: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "hint.sensor.template": "L'attività scade finché il modello è vero.",
+  "hint.sensor.templateFor": "L'attività scade quando il modello resta vero per {seconds}s.",
+  "opt.sensor_mode.template": "Modello"
 }
