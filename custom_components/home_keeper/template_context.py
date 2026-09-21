@@ -32,6 +32,52 @@ from homeassistant.helpers import (
 from homeassistant.helpers import (
     entity_registry as er,
 )
+from homeassistant.helpers.template import Template
+from homeassistant.util.hass_dict import HassKey
+
+# Templates Home Keeper has already compiled, per config entry's Home Assistant.
+#
+# Home Assistant caches compiled template code on its shared environment, but
+# ``TemplateEnvironment.template_cache`` is a **WeakValueDictionary**: the only strong
+# reference to the compiled code is the ``Template`` object's own ``_compiled_code``.
+# Build a fresh ``Template`` for each entity and the previous one is collected, the
+# cache entry goes with it, and every render re-parses the Jinja source.
+#
+# That is 90x the cost of the render it precedes — ~500us to parse against ~6us to
+# render — so a recipe at the 500-entity cap spent about a quarter of a second of
+# event-loop time parsing one unchanged expression, on every pass. Holding the
+# ``Template`` keeps Home Assistant's own cache warm and the parse happens once.
+#
+# Capped, because the recipe preview renders on every keystroke and each draft is a
+# different source: without a bound, typing a template would grow this forever.
+_TEMPLATE_CACHE: HassKey[dict[str, Template]] = HassKey("home_keeper_template_cache")
+_TEMPLATE_CACHE_MAX = 64
+
+
+def cached_template(hass: HomeAssistant, source: str) -> Template:
+    """A ``Template`` for *source*, reused across entities and evaluation passes.
+
+    Reuse is safe because rendering does not mutate the template: ``async_render``
+    takes its variables per call, which is how Home Assistant drives its own
+    config-defined templates. Callers must keep the render flags constant, though —
+    ``Template`` asserts that ``limited`` and ``strict`` never change for one object.
+
+    Kept on ``hass.data`` rather than in a module-level dict so the cache cannot
+    outlive the Home Assistant it is bound to.
+    """
+    cache = hass.data.get(_TEMPLATE_CACHE)
+    if cache is None:
+        cache = hass.data[_TEMPLATE_CACHE] = {}
+    template = cache.get(source)
+    if template is None:
+        if len(cache) >= _TEMPLATE_CACHE_MAX:
+            # Plain FIFO rather than an LRU: the entries worth keeping are the handful
+            # of saved recipes that render every pass, and they are re-added the next
+            # time they render. The churn this bounds is a preview draft, which is
+            # never rendered twice.
+            cache.pop(next(iter(cache)))
+        template = cache[source] = Template(source, hass)
+    return template
 
 
 def registry_projection(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:

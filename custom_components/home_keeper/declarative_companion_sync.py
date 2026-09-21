@@ -36,7 +36,7 @@ from homeassistant.helpers import (
 )
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.template import Template, TemplateError
+from homeassistant.helpers.template import TemplateError
 
 from . import declarative_companions, sensor_tasks, sensor_watcher, template_context
 from .const import (
@@ -212,7 +212,7 @@ class DeclarativeCompanionSync:
         if not source:
             return ""
         try:
-            template = Template(source, self._hass)
+            template = template_context.cached_template(self._hass, source)
             return str(template.async_render(variables, parse_result=False))
         except TemplateError as err:
             _LOGGER.warning(

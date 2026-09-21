@@ -47,7 +47,7 @@ from homeassistant.helpers.event import (
     async_track_point_in_time,
     async_track_state_change_event,
 )
-from homeassistant.helpers.template import Template, TemplateError
+from homeassistant.helpers.template import TemplateError
 from homeassistant.util import dt as dt_util
 
 from . import sensor_tasks, template_context
@@ -210,7 +210,9 @@ def render_template_result(
     if not source:
         return None, "sensor.template is empty"
     try:
-        rendered = Template(source, hass).async_render(variables, parse_result=True)
+        rendered = template_context.cached_template(hass, source).async_render(
+            variables, parse_result=True
+        )
     except TemplateError as err:
         return None, str(err)
     if isinstance(rendered, bool):
