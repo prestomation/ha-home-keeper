@@ -38,3 +38,12 @@ updates:
     schedule:
       interval: weekly
     labels: ["dependencies"]
+
+  # The Docusaurus site. This is the fourth npm project in the repository, and the
+  # site build is a gate on every PR. No entry covered it, so its dependencies did
+  # not get updates.
+  - package-ecosystem: npm
+    directory: "/website"
+    schedule:
+      interval: weekly
+    labels: ["dependencies"]
