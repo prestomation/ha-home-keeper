@@ -9,7 +9,7 @@
  * are `ha-select` built on `ha-dropdown` (open, then click the role="menuitem").
  */
 import { test, expect, Locator, Page } from '@playwright/test';
-import { openPanel, openDashboard, openPart, openTaskTab } from './tests/helpers';
+import { openPanel, openDashboard, openPart, openTaskTab, setTaskLayout } from './tests/helpers';
 import {
   centre,
   expandGroup,
@@ -600,6 +600,48 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/42c-panel-tasks-grouped-by-area.png`, fullPage: true });
   // Reset grouping so later list shots are unaffected.
   await panel.locator('select[data-seg-select="group"]').selectOption('status');
+
+  // 68. Tiles — the Layout menu's second entry. Each task is a card with its name
+  // and its status pill and nothing else, three to a row, so a whole week of work
+  // is on one screen. Everything a list row carries inline moves into the action
+  // sheet at 68c.
+  const layoutMenu = panel.locator('select[data-seg-select="layout"]');
+  await layoutMenu.selectOption('tiles');
+  await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/68-panel-task-tiles.png`, fullPage: true });
+
+  // 68b. Board — one column per Group by group, read across rather than down. The
+  // grouping is status here, so the columns are the sections the list already has.
+  await layoutMenu.selectOption('board');
+  await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/68b-panel-task-board.png`, fullPage: true });
+
+  // 68c. The action sheet a press on a tile or a board card opens: Done, the two
+  // deferrals, Due today and Open task. It is where the actions a row carries
+  // inline went, so it is the shot that says a compact layout costs none of them.
+  // Viewport, not full page. The sheet is fixed to the viewport, and a full-page
+  // capture of a page taller than the screen paints Home Assistant's fixed sidebar
+  // twice — once at the top and once where it really is — with the sheet floating
+  // between the two copies.
+  await layoutMenu.selectOption('tiles');
+  await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
+  await panel.locator(`.hk-tile[data-id="${TASK.furnaceFilter}"]`).click();
+  await expect(panel.locator('ha-dialog[open] .hk-sheet-row[data-action="open"]')).toBeVisible({
+    timeout: 10_000,
+  });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
+  await page.screenshot({ path: `${OUT}/68c-panel-task-action-sheet.png` });
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+  // Back to rows. The choice is stored per user, so a layout left behind here is
+  // the layout every later list shot in this file is taken in.
+  await layoutMenu.selectOption('rows');
+  await expect(panel.locator('#hk-list ha-card.hk-card .hk-card-row').first()).toBeVisible({
+    timeout: 10_000,
+  });
 
   // 2. Create form — floating recurrence + device picker.
   await panel.locator('#add-btn').click();
@@ -1686,6 +1728,26 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
 
+  // 68d. Tiles on a phone. Two to a row rather than three, which is the layout the
+  // picker exists for: a phone list row is a tall stacked block, so the same screen
+  // holds four times as many tasks as tiles.
+  const phoneLayoutMenu = panel.locator('select[data-seg-select="layout"]');
+  await phoneLayoutMenu.selectOption('tiles');
+  await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/68d-panel-mobile-task-tiles.png` });
+
+  // 68e. The board on a phone. There is no room for columns side by side, so a
+  // column takes most of the width and the next one is a swipe away, snapping to
+  // the column edge — a different layout from the desktop board, not a narrower one.
+  await phoneLayoutMenu.selectOption('board');
+  await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/68e-panel-mobile-task-board.png` });
+  // Back to rows for the phone shots below, which are all of the list.
+  await phoneLayoutMenu.selectOption('rows');
+  await expect(panel.locator('#hk-list ha-card.hk-card').first()).toBeVisible({ timeout: 10_000 });
+
   // 57c. The text filter on a phone. Below 700px the search chip takes a row of its
   // own under the wrapped scope pills, and its field grows to the width instead of
   // holding the 16ch it has beside them on a desktop (#297).
@@ -1842,6 +1904,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await tooLarge.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60d-panel-mobile-transfer-too-large.png` });
+
+  // The task layout is stored per user on the server, so it outlives this capture
+  // and would greet the next run — and the e2e suite — in whatever the last shot
+  // left. The steps above each put it back themselves; this is the backstop for a
+  // run that died between one of them and its reset.
+  await setTaskLayout(page, 'rows');
 
   await page.setViewportSize(DESKTOP);
 });

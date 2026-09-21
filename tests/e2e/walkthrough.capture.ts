@@ -235,6 +235,29 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(searchBox).toHaveValue('');
   await page.waitForTimeout(BEAT);
 
+  // 1f. The Layout menu, beside Group by. Rows is the list this tour has walked so
+  //     far; Tiles redraws every task as a card, three to a row, and Board turns the
+  //     Group by sections into columns read across. The actions a row carries inline
+  //     have nowhere to go on a card that small, so a press opens them as a sheet —
+  //     which is the beat between the two layouts here. Back to Rows at the end,
+  //     because the choice is stored per user and every later beat is a list.
+  const layoutMenu = panel.locator('select[data-seg-select="layout"]');
+  await layoutMenu.selectOption('tiles');
+  const firstTile = panel.locator('.hk-tile:visible').first();
+  await expect(firstTile).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await firstTile.click();
+  await expect(panel.locator('ha-dialog[open] .hk-sheet-row[data-action="open"]')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+  await layoutMenu.selectOption('board');
+  await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await layoutMenu.selectOption('rows');
+  await expect(panel.locator('#hk-list ha-card.hk-card .hk-card-row').first()).toBeVisible();
+  await page.waitForTimeout(BEAT);
+
   // 2. Open a task's detail page — full schedule, notes, completion history, and
   //    (since this task is linked to a part with a product URL) a clickable
   //    "Consumable link" row that jumps straight to buying the replacement.
@@ -1053,6 +1076,17 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await overdue.click();
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]').click();
+  await page.waitForTimeout(BEAT);
+
+  // 2b. The board on a phone, from the Layout menu. A column takes most of the
+  //     width and the next one is a swipe away — the desktop board's columns do not
+  //     fit side by side here, so this is the one beat the wide tour cannot carry.
+  const phoneLayout = panel.locator('select[data-seg-select="layout"]');
+  await phoneLayout.selectOption('board');
+  await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await phoneLayout.selectOption('rows');
+  await expect(panel.locator('#hk-list ha-card.hk-card').first()).toBeVisible();
   await page.waitForTimeout(BEAT);
 
   // 3. Add opens the drawer as a sheet rising from the bottom, over a list that goes

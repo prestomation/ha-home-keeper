@@ -51,6 +51,14 @@ export default captureConfig('walkthrough.capture.ts', {
   // run with `--timeout=600000 --reporter=list` and read the duration it reports,
   // never the cap it died at.
   //
+  // Measured again, September 2026, after the task layouts PR added 7 beats to the
+  // desktop walk (Tiles, a tile's action sheet, Board, back to Rows) and 3 to the
+  // phone one (the board): **222s in the dev container**, against 210s for the same
+  // container before them. Plus 40% is 311s, which this 360s cap already covers, so
+  // the number stays where it is — but the margin is now ~38% rather than ~54%, and
+  // the rule above still holds: the next tour that outgrows this is paid for by
+  // shortening the walk.
+  //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is
   // a fixed duration, so anything that eats the whole budget is a *call that never
