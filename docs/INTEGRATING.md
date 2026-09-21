@@ -788,7 +788,7 @@ data:
     - id: "<part id>"        # omit on a new part
       name: AAA
       type: consumable
-      notes: "Used by 4 devices, 7 installed. Front door sensor (2), Thermostat (1)"
+      notes: "Used by 4 devices · 7 installed — Front door sensor (2), Thermostat (2)"
 ```
 
 What the service does with that list:
@@ -855,8 +855,8 @@ stock, so there is nothing to lose.
 
 Shared stock has no single device to attach to. Name the devices in the part's
 `notes` instead. It is an owner key and the panel renders it as Markdown. The Battery
-Notes glue writes `Used by 4 devices, 7 installed. Front door sensor (2), Thermostat
-(1)`. A type that is stocked but no longer fitted gets `Not used by any device`. Home
+Notes glue writes `Used by 4 devices · 7 installed — Front door sensor (2), Thermostat
+(2)`. A type that is stocked but no longer fitted gets `Not used by any device`. Home
 Keeper stores that text and renders it. The format is a convention between you and the
 user.
 
