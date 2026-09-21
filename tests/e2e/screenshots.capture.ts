@@ -1915,7 +1915,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(doorRowPhone.locator('ha-assist-chip.hk-counted', { hasText: 'left' })).toBeVisible();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(300);
-  await doorRowPhone.screenshot({ path: `${OUT}/70g-panel-mobile-battery-consumable-chip.png` });
+  await doorRowPhone.screenshot({ path: `${OUT}/70g-panel-mobile-battery-stock-chip.png` });
 
   await page.setViewportSize(DESKTOP);
 });
