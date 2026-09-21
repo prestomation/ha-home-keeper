@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.25.0b1]
+
+### Fixed
+
+- **Document upload token.** A document upload no longer fails with `Upload failed
+  (401)` after the panel has been open for a long time. Home Keeper refreshes the
+  access token before it sends the file. (Fixes #352)
+
 ## [0.24.0] - 2026-09-20
 
 ### Added
