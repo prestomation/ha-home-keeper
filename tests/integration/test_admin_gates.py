@@ -196,6 +196,104 @@ def test_non_admin_can_still_complete_a_task(ha, non_admin):
         call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
 
 
+# ── the template trigger, which is admin-only on an otherwise open service ──
+
+TANK = "binary_sensor.hk_demo_water_tank_low"
+TEMPLATE_BINDING = {
+    "entity_id": TANK,
+    "mode": "template",
+    "template": "{{ state == 'on' }}",
+}
+
+
+def _template_task(name):
+    return {
+        "name": name,
+        "recurrence_type": "sensor",
+        "sensor": dict(TEMPLATE_BINDING),
+    }
+
+
+def test_add_task_refuses_a_template_binding_from_a_non_admin(non_admin):
+    # ``add_task`` is open to everyone on purpose — a household member has to be able
+    # to add a chore. A **template** binding is the one part of a task that is not
+    # inert data: Home Keeper renders it, and Jinja reaches registry helpers
+    # (``device_attr``, ``area_id``, ``integration_entities``) that a non-admin cannot
+    # otherwise enumerate. So the mode alone is gated, and only here: the panel's own
+    # route is admin-only twice over, and this is the ``call_service`` path around it.
+    r = _call(non_admin, "add_task", _template_task("Should not exist"))
+    assert r.status_code == 401, f"a non-admin created a template task: {r.status_code}"
+
+
+def test_update_task_refuses_a_template_binding_from_a_non_admin(ha, non_admin):
+    # The other door into the same field. A non-admin who cannot *create* a template
+    # task could otherwise create a plain sensor task and edit a template onto it.
+    name = f"Gate template update probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": name,
+            "recurrence_type": "sensor",
+            "sensor": {"entity_id": TANK, "mode": "state", "state": "on"},
+        },
+    )
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    try:
+        r = _call(
+            non_admin,
+            "update_task",
+            {"task_id": task["id"], "sensor": dict(TEMPLATE_BINDING)},
+        )
+        assert r.status_code == 401, (
+            f"a non-admin set a template on a task: {r.status_code}"
+        )
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
+def test_a_non_admin_can_still_add_a_plain_sensor_task(ha, non_admin):
+    # The gate must refuse the mode, not the service. Refusing every sensor task would
+    # take a feature away from the household to protect one field of it.
+    name = f"Gate plain sensor probe {uuid.uuid4().hex[:8]}"
+    r = _call(
+        non_admin,
+        "add_task",
+        {
+            "name": name,
+            "recurrence_type": "sensor",
+            "sensor": {"entity_id": TANK, "mode": "state", "state": "on"},
+        },
+    )
+    assert r.status_code == 200, f"a non-admin could not add a sensor task: {r.text}"
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
+def test_an_admin_can_still_add_a_template_task(ha):
+    # And the gate must not refuse the right people. An admin's template task is
+    # stored with its template intact, which is also the only assertion here that the
+    # binding survives ``normalize_sensor`` over the real service.
+    name = f"Gate template admin probe {uuid.uuid4().hex[:8]}"
+    call_service(ha, "home_keeper", "add_task", _template_task(name))
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    try:
+        assert task["sensor"]["mode"] == "template"
+        assert task["sensor"]["template"] == TEMPLATE_BINDING["template"]
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
 # ── the non-admin asset projection ──────────────────────────────────────────
 
 
