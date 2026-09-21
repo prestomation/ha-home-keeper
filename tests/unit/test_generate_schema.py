@@ -107,7 +107,7 @@ def _export() -> dict:
     ("section", "service", "extras", "withheld"),
     [
         ("tasks", "add_task", tr._TASK_EXTRA_KEYS, tr.UNPORTABLE_TASK_KEYS),
-        ("appliances", "add_asset", tr._ASSET_EXTRA_KEYS, ()),
+        ("appliances", "add_asset", tr._ASSET_EXTRA_KEYS, tr.UNPORTABLE_ASSET_KEYS),
     ],
 )
 def test_the_schema_holds_every_field_the_action_takes(

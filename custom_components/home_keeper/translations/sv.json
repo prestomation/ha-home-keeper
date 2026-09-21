@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Delnamn eller -ID",
           "description": "ID för den del vars lager ska justeras. Namnet fungerar också. Panelen visar id:t."
+        },
+        "quantity": {
+          "name": "Mängd",
+          "description": "Hur mycket av delen en slutförd uppgift förbrukar. Utelämna det för att använda mängden som delen anger."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Uppdatera hanterad apparat",
+      "description": "Uppdatera namnet och dellistan för en apparat som en annan integration hanterar. Lagerfälten på varje del ändras inte.",
+      "fields": {
+        "asset_id": {
+          "name": "Tillgångsnamn eller -ID",
+          "description": "ID:t för tillgången som ska uppdateras. Namnet fungerar också. Panelen visar id:t."
+        },
+        "name": {
+          "name": "Namn",
+          "description": "Ett nytt namn på apparaten."
+        },
+        "parts": {
+          "name": "Delar",
+          "description": "Hela dellistan, matchad mot de sparade delarna via id. Home Keeper behåller en del som inte finns i listan om delen har ett lagersaldo."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Ta bort apparat",
       "description": "Ta bort en apparat/tillgång. Dess virtuella enhet (om någon) tas bort och uppgifter kopplade till den blir fristående.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Tillgångsnamn eller -ID",
           "description": "ID:t för tillgången som ska tas bort. Namnet fungerar också. Panelen visar id:t."
+        },
+        "force": {
+          "name": "Tvinga",
+          "description": "Radera en apparat som en integration skyddar. Använd detta bara om den integrationen är borta."
         }
       }
     },

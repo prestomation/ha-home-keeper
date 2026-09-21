@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Teilename oder -ID",
           "description": "Die ID des Teils, dessen Bestand angepasst werden soll. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "quantity": {
+          "name": "Menge",
+          "description": "Wie viel des Teils ein Abschluss verbraucht. Ohne Angabe gilt die Menge, die das Teil angibt."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Verwaltetes Gerät aktualisieren",
+      "description": "Den Namen und die Teileliste eines Geräts aktualisieren, das eine andere Integration verwaltet. Die Bestandsfelder jedes Teils ändern sich nicht.",
+      "fields": {
+        "asset_id": {
+          "name": "Asset-Name oder -ID",
+          "description": "Die ID des zu aktualisierenden Assets. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Ein neuer Name für das Gerät."
+        },
+        "parts": {
+          "name": "Teile",
+          "description": "Die vollständige Teileliste, über die id den gespeicherten Teilen zugeordnet. Home Keeper behält ein Teil, das nicht in der Liste steht, wenn das Teil einen Bestand hat."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Gerät löschen",
       "description": "Ein Gerät/Asset löschen. Sein virtuelles Gerät (falls vorhanden) wird entfernt und daran angehängte Aufgaben werden eigenständig.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Asset-Name oder -ID",
           "description": "Die ID des zu löschenden Assets. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "force": {
+          "name": "Erzwingen",
+          "description": "Ein Gerät löschen, das eine Integration schützt. Nur verwenden, wenn diese Integration nicht mehr vorhanden ist."
         }
       }
     },

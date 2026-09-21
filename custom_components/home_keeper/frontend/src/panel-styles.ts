@@ -885,6 +885,11 @@ export const STYLES = `
   .hk-meter.hk-part-meter > span { background: var(--hk-ok); }
   .hk-meter.hk-part-meter.low > span { background: var(--hk-warn); }
   .hk-part-notes { color: var(--secondary-text-color); margin-top: 6px; }
+  /* The same block on a part an integration owns. It carries the owner's usage line
+     ("Used by 4 devices · 7 installed — …"), which is a caption about the part
+     rather than a note the user wrote, so it reads a step quieter than the counts
+     above it. */
+  .hk-part-notes.hk-part-usage { font-size: 0.85rem; opacity: 0.85; }
   /* The Parts tab's own way into the drawer, on the row it is about. */
   .hk-part-actions { flex: none; align-self: flex-start; margin: -8px -8px 0 0; }
   .hk-part-actions ha-icon-button { --mdc-icon-button-size: 40px; color: var(--hk-ink-2); }

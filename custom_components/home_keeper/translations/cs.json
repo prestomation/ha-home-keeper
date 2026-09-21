@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Název nebo ID dílu",
           "description": "Id dílu, jehož zásobu chcete upravit. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "quantity": {
+          "name": "Množství",
+          "description": "Kolik dílu spotřebuje jedno dokončení. Vynechte to, chcete-li použít množství nastavené u dílu."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Aktualizovat spravovaný spotřebič",
+      "description": "Aktualizuje název a seznam dílů spotřebiče, který spravuje jiná integrace. Pole zásob u každého dílu se nemění.",
+      "fields": {
+        "asset_id": {
+          "name": "Název nebo ID majetku",
+          "description": "ID majetku, který se má aktualizovat. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "name": {
+          "name": "Název",
+          "description": "Nový název spotřebiče."
+        },
+        "parts": {
+          "name": "Díly",
+          "description": "Úplný seznam dílů, spárovaný s uloženými díly podle id. Home Keeper ponechá díl, který v seznamu není, pokud má díl zásobu."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Smazat spotřebič",
       "description": "Smazat spotřebič/majetek. Jeho virtuální zařízení (pokud existuje) je odstraněno a úkoly k němu připojené se osamostatní.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Název nebo ID majetku",
           "description": "ID majetku, který se má smazat. Funguje i jeho název. Panel zobrazuje id."
+        },
+        "force": {
+          "name": "Vynutit",
+          "description": "Smaže spotřebič chráněný integrací. Použijte to, jen když daná integrace už není nainstalovaná."
         }
       }
     },

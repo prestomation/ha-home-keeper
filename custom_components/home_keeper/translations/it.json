@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Nome o ID ricambio",
           "description": "L'id del ricambio di cui regolare le scorte. Funziona anche il suo nome. Il pannello mostra l'id."
+        },
+        "quantity": {
+          "name": "Quantità",
+          "description": "Quanto consuma del componente un completamento. Omettila per usare la quantità indicata dal componente."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Aggiorna elettrodomestico gestito",
+      "description": "Aggiorna il nome e l'elenco dei componenti di un elettrodomestico gestito da un'altra integrazione. I campi di scorta di ogni componente non cambiano.",
+      "fields": {
+        "asset_id": {
+          "name": "Nome o ID asset",
+          "description": "L'id dell'asset da aggiornare. Funziona anche il suo nome. Il pannello mostra l'id."
+        },
+        "name": {
+          "name": "Nome",
+          "description": "Un nuovo nome per l'elettrodomestico."
+        },
+        "parts": {
+          "name": "Componenti",
+          "description": "L'elenco completo dei componenti, abbinato ai componenti memorizzati tramite id. Home Keeper mantiene un componente assente dall'elenco se il componente ha una scorta."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Elimina elettrodomestico",
       "description": "Elimina un elettrodomestico/asset. Il suo dispositivo virtuale (se presente) viene rimosso e le attività ad esso collegate diventano autonome.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Nome o ID asset",
           "description": "L'id dell'asset da eliminare. Funziona anche il suo nome. Il pannello mostra l'id."
+        },
+        "force": {
+          "name": "Forza",
+          "description": "Elimina un elettrodomestico protetto da un'integrazione. Usalo solo se quell'integrazione non c'è più."
         }
       }
     },

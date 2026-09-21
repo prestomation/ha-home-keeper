@@ -1095,6 +1095,34 @@ The appliance/asset feature lives in `assets.py` (pure model — no HA imports, 
   the appliance the task is attached to** (its `device_id` / related devices) — you link
   a task to its own appliance's consumable, not an unrelated one — and re-scopes (clearing
   a now-out-of-scope link) when the attached device changes.
+- **An integration can own an appliance; it never owns the stock on its parts.**
+  `assets.build_asset` takes `managed_by` (the task block minus `completion_prompt` /
+  `completion_blocked`) and `source` (an opaque namespace map), both **create-only** —
+  `update_asset` accepts `managed_by: null` as the single clearing exception, which is
+  the uninstall hand-over that leaves the user a plain appliance with their counts.
+  `const.ASSET_LOCKED_FIELDS` is the vocabulary and every entry but `parts` is a plain
+  strip, mirroring `models.merge_update`. `"parts"` is **structural**: list identity
+  plus `PART_OWNER_KEYS` belong to the owner, while `PART_USER_KEYS` (`stock`,
+  `reorder_at`, `stock_unit`, `consume_quantity`, `create_buy_task`,
+  `restock_quantity`) stay the user's on *every* path. The owner's door is the
+  admin-only `update_managed_asset` service (`store.set_managed_parts`): parts match on
+  `id`, a part the owner adds starts at `stock: null` so `reconcile_buy_tasks` opens no
+  buy task for a count nobody has entered, and a stored part the owner omits is removed
+  **only when it tracks no stock** — spares in a drawer are the user's data and a glue
+  bug must not delete them. A totality test pins `PART_USER_KEYS | PART_OWNER_KEYS` to
+  the key set `_normalize_part` writes, so a new part field has to pick a side.
+- **A `source` dict is merged, never replaced.** Its namespaces are independent owners:
+  Home Keeper's reserved `part` / `buy` / `declarative_companion` keys sit beside an
+  integration's own, so every writer touches **only its own key**.
+  `store.set_task_consumable` merges `part` in and pops `part` alone on unlink; the
+  dangling-link sweeps in `delete_asset` and `reconcile.reconcile_part_tasks` pop
+  `part` rather than setting `source = None`, or deleting one appliance orphans every
+  glue task that happened to carry a link.
+- **A managed appliance is not portable.** `transfer.py` excludes `managed_by` and
+  `source` on an appliance exactly as it does on a task, and `is_portable_asset` keeps
+  the whole record — its parts and their stock counts — out of the document. The owning
+  integration builds the appliance again on the other side; the counts do not travel,
+  which the appliances guide states plainly and `IDEAS.md` tracks as an open cost.
 - **Spare quantities are decimal, and a whole one stays an `int`.** `stock`,
   `reorder_at`, `restock_quantity`, `consume_quantity` and the `adjust_part_stock`
   `delta` are all floats: a part can be measured in millilitres or in thirds of a

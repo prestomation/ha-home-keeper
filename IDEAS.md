@@ -300,6 +300,24 @@ ship rather than adding a parallel system.
   automate the shopping-list add / reorder themselves). Manual `adjust_part_stock`
   websocket command for restock; the appliance page's Parts tab has a stock stepper
   (v0.21). Still open: a built-in shopping-list blueprint.
+- **Option C: a per-device Battery wear part drawing from the shared pool.** The
+  Battery Notes glue's managed **Batteries** appliance (0.24.0b9) keeps one consumable
+  part per battery type, so the count is shared and the replacement history stays on
+  the device's *"Replace battery"* task. Option C would additionally give each device a
+  `Battery` wear part of its own whose replacements draw down the shared type's stock,
+  so a device page carries its own wear item while the spares stay counted in one
+  place. It needs a cross-appliance part reference (a part whose stock lives on another
+  appliance), which nothing in the model has today — decide that shape before building
+  it.
+- **Stock counts of a managed appliance do not travel in an export.** `transfer.py`
+  excludes a managed appliance whole, the same way it excludes a managed task, so an
+  import on a new install gets the appliance back from the owning integration but every
+  count the user entered is gone. Two candidate fixes: export the *user* keys only
+  (`stock`, `reorder_at`, `stock_unit`, `consume_quantity`, `create_buy_task`,
+  `restock_quantity`) keyed by appliance `source` namespace + part name, and re-apply
+  them when the owner recreates the appliance; or give the document a small "counts"
+  section that outlives whichever integration owns the parts. Until then the appliances
+  guide tells users to write the counts down.
 
 ### Households & motivation
 

@@ -7,6 +7,7 @@ provisioning (``devices.py``) imports HA and is covered by the integration tests
 from datetime import datetime, timedelta, timezone
 
 import hk_assets as a
+import hk_const as const
 import pytest
 from asserts import raises_exactly
 
@@ -1759,3 +1760,386 @@ def test_an_appliance_rename_keeps_its_identity_and_provisioning_anchors():
     assert renamed["kind"] == "virtual"
     assert renamed["identifiers"] == asset["identifiers"]
     assert renamed["device_id"] == "dev_fridge"
+
+
+# ── Managed appliances: ownership, locks, and the part-key partition ─────────
+#
+# An integration can own an appliance the way it already owns a task: a
+# ``managed_by`` block says which fields it keeps, and an opaque ``source`` says
+# what the appliance means to it. The split that matters is on the parts — the
+# owner owns the list, the household owns every stock count on it.
+
+
+def _managed_asset(locked=("name", "parts"), parts=None, **extra):
+    """An appliance a fake integration owns, with the parts it declared."""
+    managed_by = {
+        "integration": "battery_notes",
+        "display_name": "Battery Notes",
+        "config_entry_id": "entry1",
+        "locked_fields": list(locked),
+        **extra,
+    }
+    return a.build_asset(
+        {
+            "name": "Batteries",
+            "source": {"battery_notes": {"role": "battery_stock"}},
+            "managed_by": managed_by,
+            "parts": parts if parts is not None else [{"name": "AA", "stock": 4}],
+        },
+        now=NOW,
+    )
+
+
+def test_part_keys_partition_every_field_a_part_has():
+    # Totality. A new part field has to be given to the owner or to the user, or a
+    # managed edit would silently drop it: ``apply_managed_parts`` rebuilds a part
+    # out of these 3 tuples and nothing else.
+    part = a.build_asset({"name": "X", "parts": [{"name": "Filter"}]}, now=NOW)[
+        "parts"
+    ][0]
+    partition = (
+        set(a.PART_USER_KEYS) | set(a.PART_OWNER_KEYS) | set(a.PART_IDENTITY_KEYS)
+    )
+    assert partition == set(part)
+    # And the three sides are disjoint, so no key has two owners.
+    assert len(a.PART_USER_KEYS) + len(a.PART_OWNER_KEYS) + len(
+        a.PART_IDENTITY_KEYS
+    ) == len(partition)
+
+
+def test_locked_appliance_fields_are_the_documented_vocabulary():
+    # ``const.ASSET_LOCKED_FIELDS`` is what an integrator may name in
+    # ``locked_fields``; every entry has to be a field an appliance really has.
+    asset = a.build_asset(dict(_FULL_ASSET), now=NOW)
+    assert set(const.ASSET_LOCKED_FIELDS) <= set(asset)
+
+
+def test_validate_source_rejects_a_non_mapping():
+    with raises_exactly(a.AssetValidationError, "source must be a mapping"):
+        a.validate_source("battery_notes")
+    a.validate_source(None)
+    a.validate_source({"battery_notes": {}})
+
+
+def test_validate_managed_by_needs_a_config_entry_to_protect_a_deletion():
+    with raises_exactly(
+        a.AssetValidationError,
+        "managed_by.deletion_protected requires config_entry_id so the appliance "
+        "can still be cleaned up if the managing integration is removed",
+    ):
+        a.validate_managed_by({"integration": "x", "deletion_protected": True})
+    with raises_exactly(a.AssetValidationError, "managed_by must be a mapping"):
+        a.validate_managed_by("battery_notes")
+    a.validate_managed_by(None)
+    a.validate_managed_by(
+        {"integration": "x", "deletion_protected": True, "config_entry_id": "e1"}
+    )
+
+
+def test_build_asset_stores_ownership_verbatim():
+    asset = _managed_asset()
+    assert asset["source"] == {"battery_notes": {"role": "battery_stock"}}
+    assert asset["managed_by"]["integration"] == "battery_notes"
+    assert a.asset_is_managed(asset)
+    assert a.asset_locked_fields(asset) == frozenset({"name", "parts"})
+
+
+def test_an_ordinary_appliance_owns_itself():
+    asset = a.build_asset({"name": "Fridge"}, now=NOW)
+    assert asset["source"] is None
+    assert asset["managed_by"] is None
+    assert not a.asset_is_managed(asset)
+    assert a.asset_locked_fields(asset) == frozenset()
+    # A managed appliance that locks nothing is still managed, and still unlocked.
+    open_asset = _managed_asset(locked=())
+    assert a.asset_is_managed(open_asset)
+    assert a.asset_locked_fields(open_asset) == frozenset()
+
+
+def test_build_asset_rejects_a_bad_ownership_block():
+    with raises_exactly(a.AssetValidationError, "source must be a mapping"):
+        a.build_asset({"name": "Batteries", "source": "battery_notes"}, now=NOW)
+    with raises_exactly(a.AssetValidationError, "managed_by must be a mapping"):
+        a.build_asset({"name": "Batteries", "managed_by": "battery_notes"}, now=NOW)
+
+
+def test_a_locked_field_is_stripped_from_a_user_edit():
+    asset = _managed_asset(locked=("name", "icon"))
+    edited = a.merge_update(asset, {"name": "Mine", "icon": "mdi:x"}, now=NOW)
+    assert edited["name"] == "Batteries"
+    assert edited["icon"] == ""
+    # An unlocked field on the same appliance is still the user's to edit.
+    assert a.merge_update(asset, {"notes": "In the drawer"}, now=NOW)["notes"] == (
+        "In the drawer"
+    )
+
+
+def test_an_unmanaged_appliance_keeps_every_field_editable():
+    asset = a.build_asset({"name": "Fridge", "icon": "mdi:fridge"}, now=NOW)
+    edited = a.merge_update(asset, {"name": "Garage fridge"}, now=NOW)
+    assert edited["name"] == "Garage fridge"
+
+
+def test_ownership_survives_an_edit_and_cannot_be_claimed_by_one():
+    asset = a.build_asset({"name": "Fridge"}, now=NOW)
+    taken = a.merge_update(
+        asset,
+        {"managed_by": {"integration": "thief"}, "source": {"thief": {}}},
+        now=NOW,
+    )
+    assert taken["managed_by"] is None
+    assert taken["source"] is None
+    managed = _managed_asset()
+    kept = a.merge_update(managed, {"notes": "n"}, now=NOW)
+    assert kept["managed_by"] == managed["managed_by"]
+    assert kept["source"] == managed["source"]
+
+
+def test_an_owner_can_hand_an_appliance_back_with_a_null_managed_by():
+    # The uninstall path: the integration goes away and the household keeps a plain
+    # appliance, stock counts and all. ``source`` stays as provenance.
+    asset = _managed_asset()
+    freed = a.merge_update(asset, {"managed_by": None}, now=NOW)
+    assert freed["managed_by"] is None
+    assert a.asset_locked_fields(freed) == frozenset()
+    assert freed["parts"][0]["stock"] == 4
+    # And the name is editable again.
+    assert a.merge_update(freed, {"name": "Mine"}, now=NOW)["name"] == "Mine"
+
+
+def test_a_user_edit_of_a_locked_part_list_reaches_the_stock_fields_only():
+    asset = _managed_asset(
+        parts=[
+            {"name": "AA", "stock": 4, "notes": "Used by 2 devices"},
+            {"name": "AAA", "stock": 2},
+        ]
+    )
+    aa, aaa = asset["parts"]
+    edited = a.merge_update(
+        asset,
+        {
+            "parts": [
+                {
+                    "id": aa["id"],
+                    "name": "Renamed by the user",
+                    "notes": "mine now",
+                    "stock": 9,
+                    "reorder_at": 2,
+                    "stock_unit": "cells",
+                    "consume_quantity": 2,
+                    "create_buy_task": True,
+                    "restock_quantity": 4,
+                },
+                {"id": "made-up", "name": "Not mine to add", "stock": 1},
+            ]
+        },
+        now=NOW,
+    )
+    # The list is the owner's: same parts, same order, same length.
+    assert [p["id"] for p in edited["parts"]] == [aa["id"], aaa["id"]]
+    kept, untouched = edited["parts"]
+    assert kept["name"] == "AA"
+    assert kept["notes"] == "Used by 2 devices"
+    assert kept["stock"] == 9
+    assert kept["reorder_at"] == 2
+    assert kept["stock_unit"] == "cells"
+    assert kept["consume_quantity"] == 2
+    assert kept["create_buy_task"] is True
+    assert kept["restock_quantity"] == 4
+    # A part the user did not send is left exactly as it was.
+    assert untouched["stock"] == 2
+
+
+def test_a_user_edit_cannot_shorten_a_locked_part_list():
+    asset = _managed_asset(parts=[{"name": "AA", "stock": 4}, {"name": "AAA"}])
+    emptied = a.merge_update(asset, {"parts": []}, now=NOW)
+    assert [p["name"] for p in emptied["parts"]] == ["AA", "AAA"]
+    assert emptied["parts"][0]["stock"] == 4
+
+
+def test_a_part_list_that_is_not_locked_is_an_ordinary_edit():
+    asset = _managed_asset(locked=("name",), parts=[{"name": "AA", "stock": 4}])
+    edited = a.merge_update(asset, {"parts": [{"name": "Added"}]}, now=NOW)
+    assert [p["name"] for p in edited["parts"]] == ["Added"]
+
+
+def test_the_owner_writes_the_part_list_and_keeps_the_users_counts():
+    asset = _managed_asset(
+        parts=[{"name": "AA", "stock": 4, "reorder_at": 1, "create_buy_task": True}]
+    )
+    stored = asset["parts"][0]
+    applied = a.apply_managed_parts(
+        asset["parts"],
+        [
+            {
+                "id": stored["id"],
+                "name": "AA",
+                "notes": "Used by 3 devices",
+                # The owner may not write a count, even by sending one.
+                "stock": 99,
+                "reorder_at": 99,
+                "create_buy_task": False,
+            }
+        ],
+        today=NOW.date(),
+    )
+    (updated,) = applied
+    assert updated["notes"] == "Used by 3 devices"
+    assert updated["stock"] == 4
+    assert updated["reorder_at"] == 1
+    assert updated["create_buy_task"] is True
+    assert updated["id"] == stored["id"]
+
+
+def test_a_new_managed_part_starts_untracked():
+    # Nobody has counted the drawer yet, so the part tracks no stock — and a part
+    # that tracks no stock opens no buy reminder.
+    applied = a.apply_managed_parts(
+        [], [{"name": "CR2032", "stock": 12, "reorder_at": 2}], today=NOW.date()
+    )
+    (new,) = applied
+    assert new["name"] == "CR2032"
+    assert new["stock"] is None
+    assert not a.part_tracks_stock(new)
+    # The rest of the owner's fields do arrive.
+    assert new["reorder_at"] == 2
+
+
+def test_the_owner_removes_an_untracked_part_and_keeps_a_stocked_one():
+    asset = _managed_asset(
+        parts=[
+            {"name": "AA", "stock": 4},
+            {"name": "9V"},
+            {"name": "AAA", "stock": 2},
+        ]
+    )
+    aa, _nine, aaa = asset["parts"]
+    applied = a.apply_managed_parts(
+        asset["parts"], [{"id": aa["id"], "name": "AA"}], today=NOW.date()
+    )
+    # The 9V is gone (nothing counted), the AAA survives — spares in a drawer are the
+    # household's data, and a glue that miscounts its catalog must not delete them.
+    names = [p["name"] for p in applied]
+    assert names == ["AA", "AAA"]
+    assert applied[1]["id"] == aaa["id"]
+    assert applied[1]["stock"] == 2
+
+
+def test_the_owners_parts_come_first_and_keep_their_order():
+    asset = _managed_asset(parts=[{"name": "AA", "stock": 4}, {"name": "AAA"}])
+    applied = a.apply_managed_parts(
+        asset["parts"],
+        [{"name": "CR2032"}, {"id": asset["parts"][1]["id"], "name": "AAA"}],
+        today=NOW.date(),
+    )
+    assert [p["name"] for p in applied] == ["CR2032", "AAA", "AA"]
+
+
+def test_the_owner_cannot_write_a_parts_attached_file():
+    stored = a.build_asset({"name": "Batteries", "parts": [{"name": "AA"}]}, now=NOW)[
+        "parts"
+    ]
+    a.set_part_file(
+        {"parts": stored},
+        stored[0]["id"],
+        {"filename": "aa.pdf", "content_type": "application/pdf", "size": 12},
+    )
+    applied = a.apply_managed_parts(
+        stored, [{"id": stored[0]["id"], "name": "AA"}], today=NOW.date()
+    )
+    assert applied[0]["file_name"] == "aa.pdf"
+    assert applied[0]["file_size"] == 12
+
+
+def test_consume_part_stock_takes_the_quantity_it_is_given():
+    part = {"stock": 6, "reorder_at": 2, "consume_quantity": 1}
+    assert a.consume_part_stock(part, quantity=2) == a.STOCK_NONE
+    assert part["stock"] == 4
+    # None means the part's own amount, which is what every caller did before links
+    # carried one.
+    assert a.consume_part_stock(part) == a.STOCK_NONE
+    assert part["stock"] == 3
+    # A crossing is still reported once, and the floor still holds.
+    assert a.consume_part_stock(part, quantity=2) == a.STOCK_LOW
+    assert part["stock"] == 1
+    assert a.consume_part_stock(part, quantity=10) == a.STOCK_OUT
+    assert part["stock"] == 0
+
+
+def test_consume_part_stock_falls_back_rather_than_raising_on_junk():
+    # A completion is a user action: refusing to record one because a stored number
+    # is malformed would be worse than consuming the part's own amount.
+    part = {"stock": 5, "consume_quantity": 2}
+    assert a.consume_part_stock(part, quantity="two") == a.STOCK_NONE
+    assert part["stock"] == 3
+    assert a.consume_part_stock(part, quantity=0) == a.STOCK_NONE
+    assert part["stock"] == 1
+
+
+def test_normalize_link_quantity_rejects_what_cannot_be_consumed():
+    assert a.normalize_link_quantity(None) is None
+    assert a.normalize_link_quantity("") is None
+    assert a.normalize_link_quantity(2) == 2
+    assert a.normalize_link_quantity(0.5) == 0.5
+    with raises_exactly(a.AssetValidationError, "quantity must be greater than zero"):
+        a.normalize_link_quantity(0)
+    with raises_exactly(a.AssetValidationError, "quantity must not be negative"):
+        a.normalize_link_quantity(-1)
+    with raises_exactly(a.AssetValidationError, "quantity must be a number"):
+        a.normalize_link_quantity(float("inf"))
+
+
+def test_deletion_is_blocked_only_while_the_owner_is_there():
+    protected = _managed_asset(deletion_protected=True)
+    assert a.deletion_blocked(protected, orphaned=False) is True
+    # The owner is gone: the protection lifts, or it would be a trap.
+    assert a.deletion_blocked(protected, orphaned=True) is False
+    # Force is the power-user escape hatch.
+    assert a.deletion_blocked(protected, orphaned=False, force=True) is False
+    # An appliance nobody protects is always deletable.
+    assert a.deletion_blocked(_managed_asset(), orphaned=False) is False
+    assert (
+        a.deletion_blocked(a.build_asset({"name": "Fridge"}, now=NOW), orphaned=False)
+        is False
+    )
+
+
+def test_the_owner_cannot_wipe_what_the_backend_stamped():
+    # ``last_replaced`` is stamped when a replacement is completed, and
+    # ``carried_uses`` arrives with an imported part. An owner restating its catalog
+    # sends neither, so both are carried across the way a panel edit carries them.
+    asset = _managed_asset(
+        parts=[{"name": "Filter", "type": "wear", "replace_interval": 6}]
+    )
+    stored = asset["parts"][0]
+    stored["last_replaced"] = "2026-03-04"
+    stored["carried_uses"] = 7
+    (applied,) = a.apply_managed_parts(
+        [stored], [{"id": stored["id"], "name": "Filter"}], today=NOW.date()
+    )
+    assert applied["last_replaced"] == "2026-03-04"
+    assert applied["carried_uses"] == 7
+    # An owner that does send a date still sets it.
+    (dated,) = a.apply_managed_parts(
+        [stored],
+        [{"id": stored["id"], "name": "Filter", "last_replaced": "2026-05-01"}],
+        today=NOW.date(),
+    )
+    assert dated["last_replaced"] == "2026-05-01"
+
+
+def test_the_owner_is_held_to_the_injected_clock():
+    # ``last_replaced`` is validated against the clock the caller passes — Home
+    # Assistant's configured timezone — not the process wall clock, the same way
+    # every other appliance entry point threads it. A date after that clock is
+    # refused, however recent it looks to the machine running the test.
+    asset = _managed_asset(parts=[{"name": "Filter", "type": "wear"}])
+    stored = asset["parts"][0]
+    with raises_exactly(
+        a.AssetValidationError, "last_replaced must not be in the future"
+    ):
+        a.apply_managed_parts(
+            [stored],
+            [{"id": stored["id"], "name": "Filter", "last_replaced": "2026-06-14"}],
+            today=NOW.date(),
+        )

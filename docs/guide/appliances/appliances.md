@@ -229,6 +229,53 @@ the feature off.
 
 ![A buy reminder on the household shopping list card](../../images/46-shopping-list-buy-reminder.png)
 
+#### Stock an integration keeps for you
+
+Home Keeper supports an appliance that another integration owns. The integration
+creates the appliance and keeps its list of parts correct. You keep every stock
+number on those parts. The appliance page shows a **Managed by** chip with the name
+of the integration that owns it.
+
+The [Battery Notes glue integration](https://github.com/prestomation/ha-home-keeper-battery-notes)
+is the first example. It makes a **Batteries** appliance with 1 consumable part for
+each battery type in your home. Each part's notes name the devices that use that
+type. A new type arrives with no stock number, so Home Keeper counts no spares until
+you enter one.
+
+![The Batteries appliance page, managed by Battery Notes, with a consumable part for each battery type](../../images/70-panel-managed-appliance.png)
+
+The owner locks the name and the list of parts. The page offers no **Add part**
+button and no **Edit** button for the appliance. These part fields stay yours:
+
+- **In stock** and **Reorder at**
+- **Stock unit** and **Used per completion**
+- **Restock quantity** and **Auto-create buy task**
+
+Press **Start counting** on a part that has no stock number. The part editor opens
+with the stock fields. Every field the owner holds is read-only.
+
+![A part row on the Batteries appliance with a Start counting button, because the part has no stock number yet](../../images/70b-panel-managed-part-row.png)
+
+![The part editor for a managed part, with the stock fields and no name field](../../images/70c-panel-managed-part-editor.png)
+
+After you enter a count, the part is an ordinary stock-tracked part. Set a **Reorder
+at** threshold and turn on **Auto-create buy task** for a
+["Buy {part}" task](#auto-create-a-buy-task-when-a-part-runs-low) when the count drops
+to the threshold. The [shopping list](#send-buy-reminders-to-your-shopping-list) shows
+that reminder as before.
+
+A task that the integration links to a part draws the count down on each completion.
+The Battery Notes glue links each **Replace battery** task to the battery type that
+the device takes, and the task reads **Takes 2 AAA · 2 left**. Complete the task and
+2 batteries come off the count.
+
+![A Replace battery task with a chip that reads Takes 2 AAA, 2 left](../../images/70d-panel-battery-consumable-chip.png)
+
+**A managed appliance is not in the export file.** The
+[export](../automation/import-export.md) leaves out an appliance that an integration
+owns, with the stock counts on its parts. Write down a count that you want to keep.
+After an import, install the integration and enter the counts again.
+
 #### Offline manuals & documents
 
 Every appliance has a list of **documents**, such as manuals and warranties and

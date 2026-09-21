@@ -9,6 +9,8 @@ import {
   TASK_TABS,
   SNOOZE_PRESETS,
   areaName,
+  assetLockedFields,
+  assetPartsLocked,
   assetSummary,
   brandLogoUrl,
   btnAttrs,
@@ -1851,6 +1853,52 @@ describe('snooze presets', () => {
 });
 
 // ── the stock stepper's step rules ───────────────────────────────────────────
+
+describe('assetLockedFields', () => {
+  it('is empty for an appliance nobody owns', () => {
+    expect([...assetLockedFields({ id: 'a1', name: 'Fridge' })]).toEqual([]);
+    expect([...assetLockedFields(undefined)]).toEqual([]);
+    expect([...assetLockedFields(null)]).toEqual([]);
+  });
+
+  it('is empty for an owner that claims nothing', () => {
+    const owned = { id: 'a1', name: 'Batteries', managed_by: { integration: 'g', display_name: 'G' } };
+    expect([...assetLockedFields(owned)]).toEqual([]);
+  });
+
+  it('is exactly what the owner named', () => {
+    const owned = {
+      id: 'a1',
+      name: 'Batteries',
+      managed_by: { integration: 'g', display_name: 'G', locked_fields: ['name', 'parts'] },
+    };
+    const locked = assetLockedFields(owned);
+    expect([...locked].sort()).toEqual(['name', 'parts']);
+    expect(locked.has('name')).toBe(true);
+    expect(locked.has('cost')).toBe(false);
+  });
+});
+
+describe('assetPartsLocked', () => {
+  const owned = (fields) => ({
+    id: 'a1',
+    name: 'Batteries',
+    managed_by: { integration: 'g', display_name: 'G', locked_fields: fields },
+  });
+
+  it('is true only when the owner claims the part list itself', () => {
+    expect(assetPartsLocked(owned(['parts']))).toBe(true);
+    expect(assetPartsLocked(owned(['name', 'parts']))).toBe(true);
+  });
+
+  it('is false when the owner claims other fields, or none at all', () => {
+    // The name being the owner's says nothing about the list of parts.
+    expect(assetPartsLocked(owned(['name']))).toBe(false);
+    expect(assetPartsLocked(owned([]))).toBe(false);
+    expect(assetPartsLocked({ id: 'a1', name: 'Fridge' })).toBe(false);
+    expect(assetPartsLocked(undefined)).toBe(false);
+  });
+});
 
 describe('partStockStep', () => {
   it('moves in whole spares for a part counted in spares', () => {

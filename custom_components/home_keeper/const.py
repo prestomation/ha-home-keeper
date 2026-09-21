@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.24.0b8"
+PANEL_VERSION = "0.24.0b9"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -217,6 +217,30 @@ PART_ACTIONS = [
     PART_ACTION_ROTATE,
     PART_ACTION_INSPECT,
 ]
+
+# The appliance fields an owning integration may lock, named in
+# ``asset["managed_by"]["locked_fields"]``. The task vocabulary is every field a task
+# has; an appliance's is every field it has *except* its parts' stock, because the
+# spares in a drawer are the household's count and not the owner's. Every entry but
+# ``parts`` is a plain strip in ``assets.merge_update``: the stored value wins and the
+# caller's is dropped. ``parts`` is structural — the owner keeps the list itself (which
+# parts exist, what they are called, how often they are replaced) while the user keeps
+# every stock field on each part (see ``assets.PART_USER_KEYS``).
+ASSET_LOCKED_FIELDS = (
+    "name",
+    "area_id",
+    "icon",
+    "manufacturer",
+    "model",
+    "serial_number",
+    "notes",
+    "cost",
+    "documents",
+    "metadata",
+    "parts",
+    "parent_asset_id",
+    "related_device_ids",
+)
 
 # The two roles a reconciler-derived part task can have, stored at
 # ``task["source"]["part"]["role"]``. An **absent** role reads as ``replace``, which is

@@ -602,6 +602,18 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
 
+  // 4b. An appliance an integration manages. Battery Notes owns the Batteries
+  //     appliance and its part list, one part per battery type; the counts are the
+  //     user's. A type nobody has counted offers "Start counting".
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.batteries}"]`).click();
+  await expect(panel.locator('.hk-asset-head ha-assist-chip.hk-managed')).toBeVisible();
+  await expect(panel.locator('.hk-part-row')).toHaveCount(3);
+  await page.waitForTimeout(BEAT * 2);
+  // Back to the water heater, which the rest of this section walks.
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await expect(panel.locator('.hk-part-row').first()).toBeVisible();
+  await page.waitForTimeout(BEAT);
+
   // 4a. Appliances carry Markdown notes of their own — the shut-off location, a
   //     spec table, the yearly drain — plus per-part notes down in Parts. They
   //     live under Details, with the identity fields.

@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Nome ou ID da peça",
           "description": "O id da peça cujo estoque deve ser ajustado. O nome também funciona. O painel mostra o id."
+        },
+        "quantity": {
+          "name": "Quantidade",
+          "description": "Quanto da peça uma conclusão consome. Omita para usar a quantidade indicada pela peça."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Atualizar eletrodoméstico gerenciado",
+      "description": "Atualizar o nome e a lista de peças de um eletrodoméstico que outra integração gerencia. Os campos de estoque de cada peça não mudam.",
+      "fields": {
+        "asset_id": {
+          "name": "Nome ou ID do ativo",
+          "description": "O id do ativo a atualizar. O nome também funciona. O painel mostra o id."
+        },
+        "name": {
+          "name": "Nome",
+          "description": "Um novo nome para o eletrodoméstico."
+        },
+        "parts": {
+          "name": "Peças",
+          "description": "A lista completa de peças, associada às peças salvas pelo id. Home Keeper mantém uma peça fora da lista se a peça tiver estoque."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Excluir eletrodoméstico",
       "description": "Excluir um eletrodoméstico/ativo. Seu dispositivo virtual (se houver) é removido e as tarefas anexadas a ele tornam-se independentes.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Nome ou ID do ativo",
           "description": "O id do ativo a excluir. O nome também funciona. O painel mostra o id."
+        },
+        "force": {
+          "name": "Forçar",
+          "description": "Excluir um eletrodoméstico protegido por uma integração. Use isto apenas se essa integração não existir mais."
         }
       }
     },

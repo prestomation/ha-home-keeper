@@ -20,6 +20,8 @@ import { t, tn } from './i18n';
 import { markdownBlock } from './markdown';
 import {
   areaChip,
+  assetManagedChip,
+  consumableChip,
   deviceChip,
   isManagedOrphan,
   managedChip,
@@ -51,6 +53,8 @@ import {
   HK_DOMAIN,
   areaName,
   assetForTask,
+  assetLockedFields,
+  assetPartsLocked,
   assetSummary,
   btnAttrs,
   copyText,
@@ -258,6 +262,10 @@ function taskDetail(p: PanelHost, task: Task): string {
   // device chip sits right beside it and shows where it came from.
   const area = areaChip(p, task);
   const tag = tagChip(p, task);
+  // What completing this takes off the shelf, and what is left. It rides with the
+  // descriptive chips because that is what it is: a fact about the work, read at
+  // the moment the Done button above it would spend those spares.
+  const consumable = consumableChip(p, task);
   const managed = managedChip(p, task);
   const taskChips = taskChipsHtml(task);
   const mb = task.managed_by;
@@ -447,7 +455,7 @@ function taskDetail(p: PanelHost, task: Task): string {
   return `
       <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
-        <div class="hk-chips">${statusChip}${dev}${area}${tag}${taskChips}${managed}</div>
+        <div class="hk-chips">${statusChip}${dev}${area}${tag}${consumable}${taskChips}${managed}</div>
         <div class="hk-detail-actions">
           ${doneSplit}
           ${manage}
@@ -514,6 +522,29 @@ function assetDetail(p: PanelHost, asset: Asset): string {
     ? `<div class="hk-section">${escapeHTML(t('detail.about'))}</div>
          <ha-card class="hk-detail-card"><div class="hk-detail-inner">${details}</div></ha-card>`
     : '';
+  // An integration may own an appliance the way it owns a task: it writes the
+  // fields it names and keeps them in step. The chip says who, and the line under
+  // the actions says what is theirs and what is still the user's — a battery pool
+  // whose name and part list come from Battery Notes still has every count set here.
+  const owner = asset.managed_by;
+  const managedChipHtml = assetManagedChip(p, asset);
+  const locked = assetLockedFields(asset);
+  // The owner writes the name, so Edit would open a drawer over a field the next
+  // reconcile rewrites, and Delete would remove an appliance the owner recreates.
+  // Archive is untouched: hiding an appliance is the user's call whoever owns it.
+  const ownsIdentity = Boolean(owner) && locked.has('name');
+  const managedInfo =
+    owner && ownsIdentity
+      ? `<span class="hk-managed-info">${escapeHTML(
+          t('managed.assetOwned', { name: owner.display_name }),
+        )}</span>`
+      : '';
+  const editBtn = ownsIdentity
+    ? ''
+    : `<ha-button ${btnAttrs('primary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
+  const deleteBtn = ownsIdentity
+    ? ''
+    : `<ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
   const archived = Boolean(asset.archived_at);
   const archiveOrRestoreBtn = archived
     ? `<ha-button ${btnAttrs('secondary')} class="d-restore">${escapeHTML(t('btn.restore'))}</ha-button>`
@@ -544,12 +575,13 @@ function assetDetail(p: PanelHost, asset: Asset): string {
   return `
       <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(title)}</div>
-        <div class="hk-chips">${kindChip}${parentChip}</div>
+        <div class="hk-chips">${kindChip}${parentChip}${managedChipHtml}</div>
         ${archivedNote}
         <div class="hk-detail-actions">
-          <ha-button ${btnAttrs('primary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>
+          ${editBtn}
           ${archiveOrRestoreBtn}
-          <ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>
+          ${deleteBtn}
+          ${managedInfo}
         </div>
       </div>
       <nav class="hk-subtabs" aria-label="${escapeHTML(asset.name)}">${assetSubtabs(p, asset, tab)}</nav>
@@ -633,6 +665,10 @@ function documentsSection(p: PanelHost, asset: Asset): string {
 
 function partsSection(p: PanelHost, asset: Asset): string {
   const parts = asset.parts || [];
+  // The owner writes the part list itself: which parts exist and what each one is.
+  // The counts stay the user's, so every stock control below is untouched — only
+  // Add part and the "what this part is for" line change.
+  const partsLocked = assetPartsLocked(asset);
   const chip = (label: string, cls = ''): string =>
     `<ha-assist-chip class="${cls}" label="${escapeHTML(label)}"></ha-assist-chip>`;
   const rows = parts
@@ -706,6 +742,15 @@ function partsSection(p: PanelHost, asset: Asset): string {
       }
       const low = part.stock != null && part.reorder_at != null && part.stock <= part.reorder_at;
       let spares = '';
+      // A part the owner has just added tracks nothing yet: it starts untracked so
+      // an invented count never opens a Buy task the user did not ask for. The
+      // button is how they take it over — it opens this part in the editor, where
+      // the first number they type starts the count.
+      if (part.stock == null && partsLocked) {
+        spares = `<ha-button ${btnAttrs('tertiary')} class="hk-start-counting" data-part-idx="${i}">${escapeHTML(
+          t('btn.startCounting'),
+        )}</ha-button>`;
+      }
       if (part.stock != null) {
         // "In stock: 250 ml" — the unit rides with the number wherever stock is
         // shown, so a measured part never reads as a bare count of somethings.
@@ -764,8 +809,15 @@ function partsSection(p: PanelHost, asset: Asset): string {
       // A part's notes render as Markdown like every other note, but read-only:
       // parts are edited as a whole in the appliance's parts editor, so letting one
       // field be edited inline while its siblings aren't would be inconsistent.
+      //
+      // On a managed appliance that line is the owner's usage note ("Used by 4
+      // devices · 7 installed — Front door sensor (2), …"), which is a caption
+      // rather than prose the user wrote, so it reads a shade quieter.
       const partNotes = part.notes
-        ? `<div class="hk-part-notes">${markdownBlock(part.notes, 'hk-md-compact')}</div>`
+        ? `<div class="hk-part-notes${partsLocked ? ' hk-part-usage' : ''}">${markdownBlock(
+            part.notes,
+            'hk-md-compact',
+          )}</div>`
         : '';
       // Edit opens the appliance drawer on *this* part, expanded and scrolled to.
       // The id is what hands the keyboard back here when the drawer closes
@@ -794,10 +846,18 @@ function partsSection(p: PanelHost, asset: Asset): string {
   const body = rows
     ? `<ha-card class="hk-detail-card"><div class="hk-detail-inner hk-parts">${rows}</div></ha-card>`
     : `<ha-alert alert-type="info">${escapeHTML(t('appliance.tabEmpty'))}</ha-alert>`;
+  // Add part on an owned list would make a row the next reconcile deletes, so the
+  // heading says who writes the list instead of offering a button that undoes
+  // itself.
+  const addPart = partsLocked
+    ? `<span class="hk-managed-info">${escapeHTML(
+        t('part.managedFields', { name: asset.managed_by?.display_name ?? '' }),
+      )}</span>`
+    : `<ha-button ${btnAttrs('secondary')} class="d-add-part">${escapeHTML(t('btn.addPart'))}</ha-button>`;
   return `
       <div class="hk-section hk-section-row">
         <span>${escapeHTML(t('section.parts'))}</span>
-        <ha-button ${btnAttrs('secondary')} class="d-add-part">${escapeHTML(t('btn.addPart'))}</ha-button>
+        ${addPart}
       </div>
       ${body}`;
 }
@@ -1084,11 +1144,16 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   root.querySelector('.d-edit')?.addEventListener('click', () => p._openEditAsset(asset));
   // The Parts tab's own ways into the drawer: Edit on a row opens it on that part,
   // Add part opens it on a blank one.
-  root.querySelectorAll<HTMLElement>('.hk-part-edit').forEach((btn) => {
-    btn.addEventListener('click', () =>
-      p._openEditAsset(asset, { part: Number(btn.dataset.partIdx) }),
-    );
-  });
+  // Edit on a row and Start counting on an untracked one open the same drawer on
+  // the same part — one is an icon on the row, the other the invitation to take a
+  // part the owner just added and give it a count.
+  root
+    .querySelectorAll<HTMLElement>('.hk-part-edit, .hk-start-counting')
+    .forEach((btn) => {
+      btn.addEventListener('click', () =>
+        p._openEditAsset(asset, { part: Number(btn.dataset.partIdx) }),
+      );
+    });
   root
     .querySelector('.d-add-part')
     ?.addEventListener('click', () => p._openEditAsset(asset, { part: 'new' }));

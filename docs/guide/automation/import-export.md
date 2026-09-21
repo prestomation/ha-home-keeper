@@ -130,6 +130,8 @@ on the way back in.
   A counted wear item keeps its count. The count is on the part, because the 2
   tasks that use it are not in the file.
 - **Tasks created by companions.**
+- **Appliances that a companion manages**, with their stock counts. The companion
+  builds the appliance again after an import. Enter the counts again.
 - **Settings, profiles, notifications and recipes.** These stay in the config entry.
 
 #### How big a file can be

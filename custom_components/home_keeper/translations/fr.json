@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Nom ou ID de la pièce",
           "description": "L'identifiant de la pièce dont le stock doit être ajusté. Son nom fonctionne aussi. Le panneau affiche l'id."
+        },
+        "quantity": {
+          "name": "Quantité",
+          "description": "Quelle quantité de la pièce une réalisation consomme. Omettez-la pour utiliser la quantité indiquée par la pièce."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Mettre à jour l'appareil géré",
+      "description": "Mettre à jour le nom et la liste des pièces d'un appareil géré par une autre intégration. Les champs de stock de chaque pièce ne changent pas.",
+      "fields": {
+        "asset_id": {
+          "name": "Nom ou ID de l'actif",
+          "description": "L'id de l'actif à mettre à jour. Son nom fonctionne aussi. Le panneau affiche l'id."
+        },
+        "name": {
+          "name": "Nom",
+          "description": "Un nouveau nom pour l'appareil."
+        },
+        "parts": {
+          "name": "Pièces",
+          "description": "La liste complète des pièces, rapprochée des pièces enregistrées par id. Home Keeper garde une pièce absente de la liste si la pièce a du stock."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Supprimer l'appareil",
       "description": "Supprimer un appareil/actif. Son appareil virtuel (le cas échéant) est supprimé et les tâches qui y sont rattachées deviennent autonomes.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Nom ou ID de l'actif",
           "description": "L'id de l'actif à supprimer. Son nom fonctionne aussi. Le panneau affiche l'id."
+        },
+        "force": {
+          "name": "Forcer",
+          "description": "Supprimer un appareil protégé par une intégration. À utiliser seulement si cette intégration n'est plus là."
         }
       }
     },

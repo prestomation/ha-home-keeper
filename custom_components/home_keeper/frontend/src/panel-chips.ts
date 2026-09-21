@@ -14,7 +14,7 @@ import { taskAreaId } from './card-filter';
 import { t } from './i18n';
 import type { PanelHost } from './panel-host';
 import { MDI_DEVICES } from './panel-icons';
-import type { Asset, Task } from './types';
+import type { Asset, ManagedByBase, Task } from './types';
 import {
   HK_DOMAIN,
   areaName,
@@ -22,6 +22,7 @@ import {
   deviceDomain,
   deviceName,
   escapeHTML,
+  formatQuantity,
   isHttpUrl,
   navigateTo,
   safeHref,
@@ -37,7 +38,18 @@ import {
  * orphaned (the `force` service is the escape hatch for that edge case).
  */
 export function isManagedOrphan(p: PanelHost, task: Task): boolean {
-  const id = task.managed_by?.config_entry_id;
+  return ownerIsGone(p, task.managed_by);
+}
+
+/** The same question about an appliance's owner. An appliance carries the same
+ *  ownership block a task does, so it can be orphaned the same way. */
+export function isManagedAssetOrphan(p: PanelHost, asset: Asset): boolean {
+  return ownerIsGone(p, asset.managed_by);
+}
+
+/** The one reading of "the owner is no longer here", shared by both surfaces. */
+function ownerIsGone(p: PanelHost, mb?: ManagedByBase | null): boolean {
+  const id = mb?.config_entry_id;
   return Boolean(id) && !p._loadedEntryIds.has(id as string);
 }
 
@@ -116,9 +128,21 @@ export function tagChip(p: PanelHost, task: Task): string {
 
 /** Renders a "Managed by X" chip (or "Integration offline" if orphaned). */
 export function managedChip(p: PanelHost, task: Task): string {
-  const mb = task.managed_by;
+  return ownerChip(p, task.managed_by);
+}
+
+/**
+ * The same chip for an appliance an integration owns. One renderer, because the
+ * chip says the same thing on both surfaces and two copies would be free to
+ * disagree about what "offline" looks like.
+ */
+export function assetManagedChip(p: PanelHost, asset: Asset): string {
+  return ownerChip(p, asset.managed_by);
+}
+
+function ownerChip(p: PanelHost, mb?: ManagedByBase | null): string {
   if (!mb) return '';
-  if (isManagedOrphan(p, task)) {
+  if (ownerIsGone(p, mb)) {
     return `<ha-assist-chip class="hk-orphaned" label="${escapeHTML(t('chip.orphaned'))}"></ha-assist-chip>`;
   }
   // A task Home Keeper synced from a sensor is "owned" by Home Keeper itself, so
@@ -132,6 +156,38 @@ export function managedChip(p: PanelHost, task: Task): string {
   const iconName = selfOwned ? 'mdi:autorenew' : mb.icon || 'mdi:puzzle';
   const icon = `<ha-icon slot="icon" icon="${escapeHTML(iconName)}" class="hk-chip-ic"></ha-icon>`;
   return `<ha-assist-chip class="hk-managed" label="${escapeHTML(label)}" title="${escapeHTML(tip)}">${icon}</ha-assist-chip>`;
+}
+
+/**
+ * What completing this task takes off the shelf, and what is left: "Takes 2 AAA ·
+ * 2 left".
+ *
+ * The count already lives on the appliance page, but the task row is where the work
+ * is decided — a replacement the user is about to mark done is exactly when "am I
+ * about to run out" matters. The quantity is the link's own when it carries one
+ * (a device takes 2 cells, its neighbour takes 4), else the part's per-completion
+ * amount, else one whole spare.
+ *
+ * Empty when the link points at a part that is gone, or at one that tracks no stock
+ * — an untracked part has no number to report and the chip would say "Takes 1 AAA ·
+ * left" about a shelf nobody is counting.
+ */
+export function consumableChip(p: PanelHost, task: Task): string {
+  const link = task.source?.part;
+  if (!link) return '';
+  const asset = p._assets.find((a) => a.id === link.asset_id);
+  const part = asset?.parts?.find((x) => x.id === link.part_id);
+  if (!part || part.stock == null) return '';
+  const takes = link.quantity ?? part.consume_quantity ?? 1;
+  const label = [
+    t('chip.takes', {
+      n: formatQuantity(takes, part.stock_unit),
+      part: part.name,
+    }),
+    t('chip.left', { n: formatQuantity(part.stock, part.stock_unit) }),
+  ].join(' · ');
+  const icon = `<ha-icon slot="icon" icon="mdi:package-variant" class="hk-chip-ic"></ha-icon>`;
+  return `<ha-assist-chip class="hk-counted" label="${escapeHTML(label)}">${icon}</ha-assist-chip>`;
 }
 
 /**

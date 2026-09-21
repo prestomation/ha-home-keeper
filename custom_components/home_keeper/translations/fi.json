@@ -400,6 +400,10 @@
         "part_id": {
           "name": "Varaosan nimi tai tunnus",
           "description": "Sen varaosan tunnus, jonka varastoa säädetään. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "quantity": {
+          "name": "Määrä",
+          "description": "Kuinka paljon osaa yksi suoritus kuluttaa. Jätä se pois, niin käytetään osan ilmoittamaa määrää."
         }
       }
     },
@@ -569,6 +573,24 @@
         }
       }
     },
+    "update_managed_asset": {
+      "name": "Päivitä hallinnoitu laite",
+      "description": "Päivitä nimi ja osaluettelo laitteelle, jota toinen integraatio hallinnoi. Kunkin osan varastokentät eivät muutu.",
+      "fields": {
+        "asset_id": {
+          "name": "Kohteen nimi tai tunnus",
+          "description": "Päivitettävän kohteen tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "name": {
+          "name": "Nimi",
+          "description": "Laitteen uusi nimi."
+        },
+        "parts": {
+          "name": "Osat",
+          "description": "Koko osaluettelo, joka yhdistetään tallennettuihin osiin tunnuksen perusteella. Home Keeper säilyttää osan, jota luettelossa ei ole, jos osalla on varastomäärä."
+        }
+      }
+    },
     "delete_asset": {
       "name": "Poista laite",
       "description": "Poista laite/kohde. Sen virtuaalilaite (jos sellainen on) poistetaan ja siihen liitetyt tehtävät muuttuvat itsenäisiksi.",
@@ -576,6 +598,10 @@
         "asset_id": {
           "name": "Kohteen nimi tai tunnus",
           "description": "Poistettavan kohteen tunnus. Myös sen nimi käy. Paneeli näyttää tunnuksen."
+        },
+        "force": {
+          "name": "Pakota",
+          "description": "Poista laite, jota integraatio suojaa. Käytä tätä vain, jos kyseistä integraatiota ei enää ole."
         }
       }
     },

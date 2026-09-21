@@ -6,6 +6,17 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.24.0b9]
+
+### Added
+
+- **[Managed appliances](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#stock-an-integration-keeps-for-you).**
+  An integration can own an appliance and its list of parts. You keep every stock
+  count.
+- **[Consume quantity](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#parts--wear-items).**
+  A task linked to a part can take more than 1 spare off the stock. An integration
+  sets the amount for the task it links.
+
 ## [0.24.0b8]
 
 ### Added
