@@ -20,7 +20,15 @@ from types import SimpleNamespace
 
 import pytest
 
-pytest.importorskip("homeassistant")
+# Skip on the exact modules `template_context` imports, never on bare
+# `homeassistant`. `tests/unit/ha_stubs.py` hand-builds a `homeassistant` module tree
+# for the HA-shaped unit tests, so in a lane without the real thing — the mutation
+# lane, which installs `requirements-test.txt` only — `import homeassistant` succeeds
+# against that stub and `importorskip("homeassistant")` sails straight through. The
+# deeper import then fails at collection with "'homeassistant.helpers' is not a
+# package", which stops the whole run rather than skipping this file.
+pytest.importorskip("homeassistant.helpers.template")
+pytest.importorskip("homeassistant.util.hass_dict")
 
 from custom_components.home_keeper import template_context
 
