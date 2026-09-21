@@ -294,6 +294,85 @@ def test_an_admin_can_still_add_a_template_task(ha):
         call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
 
 
+def test_a_non_admin_cannot_author_an_automation_or_a_script(non_admin):
+    """The Home Assistant contract the template gate rests on.
+
+    `_caller_is_admin` treats `context.user_id is None` as trusted, which is Home
+    Assistant's own convention for an internal or automation-triggered call. That is
+    only safe while authoring an automation is itself admin-only: otherwise a
+    non-admin could write one that calls `add_task` with a template of their choosing
+    and let it run unattended with no user attached, which would walk straight around
+    the gate.
+
+    Home Assistant puts `@require_admin` on the config view's `post`, so the hole does
+    not exist. But that is *its* contract rather than Home Keeper's, and a unit test
+    mocking the framework could never see it change — the #183 argument. Asserted here
+    so the day it relaxes, this fails rather than the gate quietly becoming decorative.
+    """
+    body = {
+        "alias": "probe",
+        "trigger": [
+            {"platform": "state", "entity_id": "binary_sensor.hk_demo_water_tank_low"}
+        ],
+        "action": [
+            {
+                "service": "home_keeper.add_task",
+                "data": {
+                    "name": "escalated",
+                    "recurrence_type": "sensor",
+                    "sensor": {
+                        "entity_id": "binary_sensor.hk_demo_water_tank_low",
+                        "mode": "template",
+                        "template": "{{ true }}",
+                    },
+                },
+            }
+        ],
+    }
+    key = uuid.uuid4().hex
+    for kind in ("automation", "script"):
+        r = non_admin.post(f"{HA_URL}/api/config/{kind}/config/{key}", json=body)
+        assert r.status_code == 401, (
+            f"a non-admin authored a {kind}, so the template gate can be bypassed "
+            f"by letting it run with no user attached: {r.status_code}"
+        )
+
+
+def test_a_non_admin_can_rename_an_admin_s_template_task(ha, non_admin):
+    """Renaming is not authoring, and the gate must not confuse the two.
+
+    `_verify_template_binding` reads `call.data.get("sensor")`, so an `update_task`
+    that does not carry one is not checked. That is correct rather than a gap: the
+    template is only reachable through `sensor`, so an update without it cannot
+    introduce or change one, and refusing the rename would take the household's own
+    task list away to protect a field they are not touching.
+    """
+    name = f"Gate rename probe {uuid.uuid4().hex[:8]}"
+    call_service(ha, "home_keeper", "add_task", _template_task(name))
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    try:
+        r = _call(
+            non_admin, "update_task", {"task_id": task["id"], "name": f"{name} renamed"}
+        )
+        assert r.status_code == 200, f"a non-admin could not rename a task: {r.text}"
+
+        # The rename went through and the admin's template is untouched — the
+        # non-admin changed the one field they sent and nothing else.
+        resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+        after = next(
+            t
+            for t in resp.get("service_response", resp)["tasks"]
+            if t["id"] == task["id"]
+        )
+        assert after["name"] == f"{name} renamed"
+        assert after["sensor"]["template"] == TEMPLATE_BINDING["template"]
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
 # ── the non-admin asset projection ──────────────────────────────────────────
 
 

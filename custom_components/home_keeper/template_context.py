@@ -50,17 +50,29 @@ from homeassistant.util.hass_dict import HassKey
 #
 # Capped, because the recipe preview renders on every keystroke and each draft is a
 # different source: without a bound, typing a template would grow this forever.
-_TEMPLATE_CACHE: HassKey[dict[str, Template]] = HassKey("home_keeper_template_cache")
+#
+# Keyed by ``(strict, source)`` rather than by source alone. ``Template`` asserts that
+# ``strict`` never changes for one object, and the two callers disagree: a trigger
+# renders strict so a typo cannot read as false, while a task name renders lax so
+# ``{{ attributes.latest_version or 'unknown' }}`` keeps working. Sharing one object
+# between them would trip that assertion the first time a user wrote the same text in
+# both boxes.
+_TEMPLATE_CACHE: HassKey[dict[tuple[bool, str], Template]] = HassKey(
+    "home_keeper_template_cache"
+)
 _TEMPLATE_CACHE_MAX = 64
 
 
-def cached_template(hass: HomeAssistant, source: str) -> Template:
+def cached_template(
+    hass: HomeAssistant, source: str, *, strict: bool = False
+) -> Template:
     """A ``Template`` for *source*, reused across entities and evaluation passes.
 
     Reuse is safe because rendering does not mutate the template: ``async_render``
     takes its variables per call, which is how Home Assistant drives its own
     config-defined templates. Callers must keep the render flags constant, though —
-    ``Template`` asserts that ``limited`` and ``strict`` never change for one object.
+    ``Template`` asserts that ``limited`` and ``strict`` never change for one object —
+    so *strict* is part of the cache key and callers pass the same value every time.
 
     Kept on ``hass.data`` rather than in a module-level dict so the cache cannot
     outlive the Home Assistant it is bound to.
@@ -68,7 +80,8 @@ def cached_template(hass: HomeAssistant, source: str) -> Template:
     cache = hass.data.get(_TEMPLATE_CACHE)
     if cache is None:
         cache = hass.data[_TEMPLATE_CACHE] = {}
-    template = cache.get(source)
+    key = (strict, source)
+    template = cache.get(key)
     if template is None:
         if len(cache) >= _TEMPLATE_CACHE_MAX:
             # Plain FIFO rather than an LRU: the entries worth keeping are the handful
@@ -76,7 +89,7 @@ def cached_template(hass: HomeAssistant, source: str) -> Template:
             # time they render. The churn this bounds is a preview draft, which is
             # never rendered twice.
             cache.pop(next(iter(cache)))
-        template = cache[source] = Template(source, hass)
+        template = cache[key] = Template(source, hass)
     return template
 
 

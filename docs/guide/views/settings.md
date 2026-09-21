@@ -122,6 +122,11 @@ A template that does not render decides nothing. Home Keeper opens no task and c
 no task, and it writes the error to the log. A typo cannot complete the tasks that a
 recipe already opened.
 
+Home Keeper reads a name it does not know as an error. A misspelled `{{ stat == 'on' }}`
+gives you the same red message as any other broken template. A template that reads
+false closes the tasks it opened when you set **Auto-clear**, so a typo must never look
+like a condition that went away.
+
 Home Keeper renders the template when the bound entity changes state, and again on
 each 5-minute pass. So a template that reads the clock, such as the example above, can
 take up to 5 minutes to open its task.

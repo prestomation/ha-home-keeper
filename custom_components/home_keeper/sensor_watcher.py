@@ -204,15 +204,29 @@ def render_template_result(
     answering some other question, and the whole point of the preview is to say so
     rather than to let the recipe sit there matching nothing.
 
+    ``strict=True`` is load-bearing, and the reason is not obvious. Jinja's default
+    undefined is lax about *comparison*: ``{{ stat == 'on' }}`` with ``stat``
+    misspelled renders ``False`` rather than raising, because ``Undefined.__eq__``
+    answers without touching the undefined-ness. So a typo in a variable name would
+    not be an error at all — it would be a condition that is false forever, and on a
+    binding with ``clear_on_recover`` the watcher would complete every armed task and
+    record real completions for them. (A typo only raised when a *filter* touched it,
+    as in ``{{ stat | float(0) }}``, which is what made this look covered.) Strict
+    undefined turns the typo back into the error the indeterminate contract is for.
+
+    The task name and notes renderer stays lax on purpose: ``{{ attributes.foo or
+    'unknown' }}`` is a reasonable thing to write for a name, and a name that renders
+    oddly is cosmetic where a trigger that renders wrongly closes people's work.
+
     Split out of the watcher class so the recipe preview can render exactly what the
     watcher will, without standing one up.
     """
     if not source:
         return None, "sensor.template is empty"
     try:
-        rendered = template_context.cached_template(hass, source).async_render(
-            variables, parse_result=True
-        )
+        rendered = template_context.cached_template(
+            hass, source, strict=True
+        ).async_render(variables, parse_result=True, strict=True)
     except TemplateError as err:
         return None, str(err)
     if isinstance(rendered, bool):

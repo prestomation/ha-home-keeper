@@ -38,6 +38,22 @@ def test_the_same_source_gives_back_the_same_template():
     assert template_context.cached_template(hass, SRC) is first
 
 
+def test_strict_and_lax_never_share_a_template():
+    # `Template` asserts that `strict` never changes for one object, and the two
+    # callers disagree: a trigger renders strict so a typo cannot read as false, a
+    # task name renders lax so `{{ attributes.foo or 'x' }}` keeps working. Share one
+    # object between them and the first user who writes the same text in both boxes
+    # trips that assertion.
+    hass = _hass()
+    assert template_context.cached_template(hass, SRC, strict=True) is not (
+        template_context.cached_template(hass, SRC)
+    )
+    # Each side is still cached on its own.
+    assert template_context.cached_template(hass, SRC, strict=True) is (
+        template_context.cached_template(hass, SRC, strict=True)
+    )
+
+
 def test_a_different_source_gives_a_different_template():
     # Identity, not equality: two templates that merely compare equal would still be
     # two compiles, which is the whole thing this cache exists to avoid.
@@ -77,5 +93,5 @@ def test_the_oldest_entry_is_the_one_evicted():
     for i in range(cap):
         template_context.cached_template(hass, f"{{{{ {i} }}}}")
     cache = hass.data[template_context._TEMPLATE_CACHE]
-    assert oldest not in cache
-    assert f"{{{{ {cap - 1} }}}}" in cache
+    assert (False, oldest) not in cache
+    assert (False, f"{{{{ {cap - 1} }}}}") in cache
