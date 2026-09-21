@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Settings | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-361/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-361/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-361/docs/guide/settings"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Settings | Home Keeper"><meta data-rh="true" name="description" content="The Settings tab in the panel edits the integration options. The form matches the"><meta data-rh="true" property="og:description" content="The Settings tab in the panel edits the integration options. The form matches the"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-361/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-361/docs/guide/settings"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-361/docs/guide/settings" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-361/docs/guide/settings" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Settings","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-361/docs/guide/settings"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-361/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-361/assets/js/runtime~main.85c21a60.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-361/assets/js/runtime~main.cea72859.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-361/assets/js/main.00ff860f.js" defer="defer"></script>
 </head>
 <body>
@@ -106,6 +106,10 @@ template: <code>state</code>, <code>attributes.&lt;key&gt;</code>, <code>friendl
 <p>A template that does not render decides nothing. Home Keeper opens no task and closes
 no task, and it writes the error to the log. A typo cannot complete the tasks that a
 recipe already opened.</p>
+<p>Home Keeper reads a name it does not know as an error. A misspelled <code>{{ stat == &#x27;on&#x27; }}</code>
+gives you the same red message as any other broken template. A template that reads
+false closes the tasks it opened when you set <strong>Auto-clear</strong>, so a typo must never look
+like a condition that went away.</p>
 <p>Home Keeper renders the template when the bound entity changes state, and again on
 each 5-minute pass. So a template that reads the clock, such as the example above, can
 take up to 5 minutes to open its task.</p>
