@@ -119,9 +119,13 @@ template: `state`, `attributes.<key>`, `friendly_name`, `entity_id`, `device_nam
 `area_name`, and `integration`. Home Assistant template functions are also available.
 
 A template must render **true or false**. Home Keeper accepts a true or false result,
-and the words `on`, `off`, `yes` and `no`. Anything else is an error. A number is an
-error too, so `{{ state }}` on a sensor that reports a number does not work. Write a
-comparison instead, such as `{{ state | float(0) >= 500 }}`.
+and the words `on`, `off`, `yes` and `no`. Anything else is an error.
+
+A number is an error, `1` and `0` included. So `{{ state }}` on a sensor that reports a
+number does not work, and `{{ 1 if state | float(0) >= 500 else 0 }}` does not work
+either. Write the comparison on its own: `{{ state | float(0) >= 500 }}`. Home Keeper
+reads a number as an error on purpose, because many sensors report `0` or `1`, and a
+template that gives back the reading must not look like an answer.
 
 An attribute that is not on the entity is also an error. Write
 `{{ attributes.get('battery') }}` or `{{ attributes.battery | default(0) }}` when the
