@@ -120,6 +120,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "Aktiveret",
+          "description": "Slå denne opgave fra eller til. En opgave, der er slået fra, beholder sin historik og sine indstillinger. Home Keeper holder den ude af dine påmindelser og dine lister, indtil du slår den til igen. Dens forfaldsdato flyttes ikke."
         }
       }
     },
@@ -210,6 +214,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "Aktiveret",
+          "description": "Slå denne opgave fra eller til. En opgave, der er slået fra, beholder sin historik og sine indstillinger. Home Keeper holder den ude af dine påmindelser og dine lister, indtil du slår den til igen. Dens forfaldsdato flyttes ikke."
         }
       }
     },

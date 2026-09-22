@@ -1667,6 +1667,59 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(1500); // let cards settle
   await page.screenshot({ path: `${OUT}/4-usage-todo-and-calendar.png`, fullPage: true });
 
+  // 68/69. A switched-off task (issue #344). `enabled` is a field on
+  // `home_keeper.update_task`, so an automation on a helper can take a pool's tasks
+  // out of every list for the winter. There is no control for it in the panel and
+  // there is deliberately never going to be one, so the only way to reach this state
+  // is the action — which is also how a user reaches it. Both halves are photographed:
+  // the Disabled section on the list, where the rows carry a Disabled label instead of
+  // a due date, and the task's own page, which is where the one control the panel does
+  // offer lives. Switched back on afterwards, so the phone block below photographs the
+  // same list every earlier shot did.
+  await page.evaluate(async (IDS) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    for (const id of [IDS.TASK.waterFilter, IDS.TASK.carRegistration]) {
+      await hass.callService('home_keeper', 'update_task', { task_id: id, enabled: false });
+    }
+  }, { TASK });
+  await openPanel(page);
+  // Shot 23 left a Profile selected, and a Profile excludes a switched-off task by
+  // definition — `matches_filter` requires `enabled` before it looks at anything else.
+  // Clear it and stand on All, which is the one scope that keeps these rows.
+  await panel.locator('select[data-profile-filter]').selectOption('');
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+  const disabledGroup = panel.locator('details.hk-group[data-group-key="status:disabled"]');
+  await expandGroup(disabledGroup);
+  await expect(disabledGroup.locator('ha-card.hk-card')).toHaveCount(2);
+  await expect(
+    disabledGroup.locator('ha-assist-chip.hk-disabled').first(),
+  ).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/68-panel-task-disabled-list.png`, fullPage: true });
+
+  await openRow(page, panel, `.detail-open[data-detail-id="${TASK.waterFilter}"]`);
+  await expect(panel.locator('.hk-disabled-banner')).toBeVisible();
+  await expect(panel.locator('.d-enable')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/69-panel-task-enable-banner.png`, fullPage: true });
+
+  // Enable is the panel's own control, so use it rather than a second action call:
+  // the button is the thing under test, and pressing it proves the way back works.
+  await panel.locator('.d-enable').click();
+  await expect(panel.locator('.hk-disabled-banner')).toHaveCount(0);
+  await page.evaluate(async (IDS) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'update_task', {
+      task_id: IDS.TASK.carRegistration,
+      enabled: true,
+    });
+  }, { TASK });
+
   // 50-53. The phone layout, which is different enough from the desktop one that the
   // shots above document none of it: the tabs are along the bottom, Add floats, and
   // Settings opens on an index rather than six expanded sections. Asserted in
@@ -1842,6 +1895,37 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await tooLarge.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60d-panel-mobile-transfer-too-large.png` });
+
+  // 68c/69c. The switched-off task on a phone. Below 700px the Disabled label and the
+  // row's name share a column that the desktop row splits into three, and the banner's
+  // Enable button drops under its own text rather than sitting beside it — so the
+  // desktop pair documents neither. Last in the phone block, and left switched on
+  // after, so nothing here changes what an earlier shot photographed.
+  await page.evaluate(async (IDS) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'update_task', {
+      task_id: IDS.TASK.waterFilter,
+      enabled: false,
+    });
+  }, { TASK });
+  await openPanel(page);
+  await panel.locator('#mtab-tasks').click();
+  const disabledPhone = panel.locator('details.hk-group[data-group-key="status:disabled"]');
+  await expandGroup(disabledPhone);
+  await expect(disabledPhone.locator('ha-assist-chip.hk-disabled').first()).toBeVisible();
+  await disabledPhone.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/68c-panel-mobile-task-disabled.png` });
+
+  await openRow(page, panel, `.detail-open[data-detail-id="${TASK.waterFilter}"]`);
+  await expect(panel.locator('.hk-disabled-banner')).toBeVisible();
+  await expect(panel.locator('.d-enable')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/69c-panel-mobile-task-enable-banner.png` });
+  await panel.locator('.d-enable').click();
+  await expect(panel.locator('.hk-disabled-banner')).toHaveCount(0);
 
   await page.setViewportSize(DESKTOP);
 });

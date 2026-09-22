@@ -120,6 +120,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "已启用",
+          "description": "关闭或开启此任务。已关闭的任务会保留它的历史记录和设置。在你重新开启之前，Home Keeper 不会把它放进你的提醒和列表中。它的到期日期不会改变。"
         }
       }
     },
@@ -210,6 +214,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "已启用",
+          "description": "关闭或开启此任务。已关闭的任务会保留它的历史记录和设置。在你重新开启之前，Home Keeper 不会把它放进你的提醒和列表中。它的到期日期不会改变。"
         }
       }
     },

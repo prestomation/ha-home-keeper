@@ -120,6 +120,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "Activada",
+          "description": "Desactiva o activa aquesta tasca. Una tasca desactivada conserva el seu historial i la seva configuració. Home Keeper la manté fora dels teus recordatoris i de les teves llistes fins que la tornis a activar. La seva data de venciment no es mou."
         }
       }
     },
@@ -210,6 +214,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "Activada",
+          "description": "Desactiva o activa aquesta tasca. Una tasca desactivada conserva el seu historial i la seva configuració. Home Keeper la manté fora dels teus recordatoris i de les teves llistes fins que la tornis a activar. La seva data de venciment no es mou."
         }
       }
     },
