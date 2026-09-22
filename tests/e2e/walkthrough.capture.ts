@@ -36,6 +36,7 @@
 import { test, expect, Browser, Locator, Page } from '@playwright/test';
 import { resolve } from 'path';
 import {
+  callService,
   gotoTab,
   openPanel,
   openDashboard,
@@ -70,48 +71,53 @@ type Tour = {
  * enabling auto-buy on a part *already* at its reorder point crosses no threshold,
  * so the stock is nudged up and back to make the crossing actually happen — the
  * part ends on its seeded quantity either way.
+ *
+ * Driven from Node over REST rather than through `page.evaluate`, and that is not a
+ * style choice. `update_asset` with `create_buy_task` materializes a buy task, a buy
+ * task owns per-task entities, and a change to the entity set reloads the config entry
+ * — which re-registers the sidebar panel and makes Home Assistant's frontend navigate.
+ * Run inside the browser, the seed therefore raced a navigation it had itself caused,
+ * and the two `adjust_part_stock` calls after it lived in an execution context that
+ * could be destroyed underneath them:
+ *
+ *     Error: page.evaluate: Execution context was destroyed,
+ *     most likely because of a navigation.
+ *
+ * The tour then walked on with no buy reminder and died at the Shopping section three
+ * beats later, which is where it read as a failure. Nothing here needs the browser —
+ * these are plain service calls — so taking them out of the page removes the race
+ * rather than waiting it out.
  */
-async function seedBuyReminder(page: Page): Promise<void> {
-  await page.evaluate(
-    async ({ ASSET: assetIds, PART: partIds }) => {
-      const hass = (document.querySelector('home-assistant') as unknown as {
-        hass: {
-          callWS: (msg: Record<string, unknown>) => Promise<Record<string, unknown>>;
-          callService: (d: string, s: string, data: Record<string, unknown>) => Promise<unknown>;
-        };
-      }).hass;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { assets } = (await hass.callWS({ type: 'home_keeper/get_assets' })) as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const heater = assets.find((a: any) => a.id === assetIds.waterHeater);
-      const WRITABLE = [
-        'id', 'name', 'part_number', 'type', 'vendor', 'cost', 'url', 'notes',
-        'replace_interval', 'replace_unit', 'last_replaced', 'stock', 'reorder_at',
-        'stock_unit', 'consume_quantity', 'create_buy_task', 'restock_quantity',
-      ];
-      await hass.callService('home_keeper', 'update_asset', {
-        asset_id: heater.id,
-        parts: heater.parts.map((p: Record<string, unknown>) => {
-          const out: Record<string, unknown> = {};
-          for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
-          if (p.id === partIds.anode) {
-            out.create_buy_task = true;
-            out.restock_quantity = 4;
-          }
-          return out;
-        }),
-      });
-      for (const delta of [1, -1]) {
-        await hass.callService('home_keeper', 'adjust_part_stock', {
-          asset_id: heater.id,
-          part_id: partIds.anode,
-          delta,
-        });
-        await new Promise((r) => setTimeout(r, 1000));
+async function seedBuyReminder(): Promise<void> {
+  const { assets } = await callService('home_keeper', 'list_assets', {}, true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const heater = assets.find((a: any) => a.id === ASSET.waterHeater);
+  if (!heater) throw new Error('the seeded water heater is missing from the store');
+  const WRITABLE = [
+    'id', 'name', 'part_number', 'type', 'vendor', 'cost', 'url', 'notes',
+    'replace_interval', 'replace_unit', 'last_replaced', 'stock', 'reorder_at',
+    'stock_unit', 'consume_quantity', 'create_buy_task', 'restock_quantity',
+  ];
+  await callService('home_keeper', 'update_asset', {
+    asset_id: heater.id,
+    parts: heater.parts.map((p: Record<string, unknown>) => {
+      const out: Record<string, unknown> = {};
+      for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
+      if (p.id === PART.anode) {
+        out.create_buy_task = true;
+        out.restock_quantity = 4;
       }
-    },
-    { ASSET, PART },
-  );
+      return out;
+    }),
+  });
+  for (const delta of [1, -1]) {
+    await callService('home_keeper', 'adjust_part_stock', {
+      asset_id: heater.id,
+      part_id: PART.anode,
+      delta,
+    });
+    await new Promise((r) => setTimeout(r, 1000));
+  }
 }
 
 /**
@@ -163,7 +169,11 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // 1b. Put a part below its reorder point so there is a buy reminder to show. The
   //     seed has none, and a Shopping pill filtering to "No tasks match this filter"
   //     is a beat that shows nothing.
-  await seedBuyReminder(page);
+  await seedBuyReminder();
+  // The seed reloads the config entry (a buy task owns entities), which re-registers
+  // the panel and bounces the frontend. Land on the panel again afterwards rather than
+  // filming whatever the bounce chose.
+  await openPanel(page);
   await gotoTab(page, 'tasks');
 
   // 1c. The Shopping section — a buy reminder has no due date of its own, so it
