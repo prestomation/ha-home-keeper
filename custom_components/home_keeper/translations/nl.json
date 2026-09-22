@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Ingeschakeld",
-          "description": "Schakel deze taak uit of in. Een uitgeschakelde taak behoudt haar geschiedenis en haar instellingen. Home Keeper houdt haar buiten je herinneringen en je lijsten totdat je haar weer inschakelt. De vervaldatum verschuift niet."
+          "description": "Schakel deze taak uit of in. Een uitgeschakelde taak behoudt haar geschiedenis en haar instellingen, en de vervaldatum verschuift niet. Home Keeper houdt haar buiten je herinneringen en je lijsten totdat je haar weer inschakelt."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Ingeschakeld",
-          "description": "Schakel deze taak uit of in. Een uitgeschakelde taak behoudt haar geschiedenis en haar instellingen. Home Keeper houdt haar buiten je herinneringen en je lijsten totdat je haar weer inschakelt. De vervaldatum verschuift niet."
+          "description": "Schakel deze taak uit of in. Een uitgeschakelde taak behoudt haar geschiedenis en haar instellingen, en de vervaldatum verschuift niet. Home Keeper houdt haar buiten je herinneringen en je lijsten totdat je haar weer inschakelt."
         }
       }
     },

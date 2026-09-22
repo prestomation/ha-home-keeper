@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Aktiverad",
-          "description": "Inaktivera eller aktivera den här uppgiften. En inaktiverad uppgift behåller sin historik och sina inställningar. Home Keeper håller den utanför dina påminnelser och dina listor tills du aktiverar den igen. Dess förfallodatum flyttas inte."
+          "description": "Inaktivera eller aktivera den här uppgiften. En inaktiverad uppgift behåller sin historik och sina inställningar, och dess förfallodatum ligger kvar. Home Keeper håller den utanför dina påminnelser och dina listor tills du aktiverar den igen."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Aktiverad",
-          "description": "Inaktivera eller aktivera den här uppgiften. En inaktiverad uppgift behåller sin historik och sina inställningar. Home Keeper håller den utanför dina påminnelser och dina listor tills du aktiverar den igen. Dess förfallodatum flyttas inte."
+          "description": "Inaktivera eller aktivera den här uppgiften. En inaktiverad uppgift behåller sin historik och sina inställningar, och dess förfallodatum ligger kvar. Home Keeper håller den utanför dina påminnelser och dina listor tills du aktiverar den igen."
         }
       }
     },

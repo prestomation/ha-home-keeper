@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Ativada",
-          "description": "Desative ou ative esta tarefa. Uma tarefa desativada mantém seu histórico e suas configurações. O Home Keeper a mantém fora dos seus lembretes e das suas listas até você ativá-la novamente. A data de vencimento não muda."
+          "description": "Desative ou ative esta tarefa. Uma tarefa desativada mantém seu histórico e suas configurações, e a data de vencimento não muda. O Home Keeper a mantém fora dos seus lembretes e das suas listas até você ativá-la novamente."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Ativada",
-          "description": "Desative ou ative esta tarefa. Uma tarefa desativada mantém seu histórico e suas configurações. O Home Keeper a mantém fora dos seus lembretes e das suas listas até você ativá-la novamente. A data de vencimento não muda."
+          "description": "Desative ou ative esta tarefa. Uma tarefa desativada mantém seu histórico e suas configurações, e a data de vencimento não muda. O Home Keeper a mantém fora dos seus lembretes e das suas listas até você ativá-la novamente."
         }
       }
     },

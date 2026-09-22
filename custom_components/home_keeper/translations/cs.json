@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Povoleno",
-          "description": "Zakažte nebo povolte tento úkol. Vypnutý úkol si zachová svou historii i nastavení. Home Keeper jej nechá mimo vaše připomínky a seznamy, dokud jej znovu nezapnete. Datum splnění se nezmění."
+          "description": "Zakažte nebo povolte tento úkol. Vypnutý úkol si zachová svou historii i nastavení a datum splnění zůstane beze změny. Home Keeper jej nechá mimo vaše připomínky a seznamy, dokud jej znovu nezapnete."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Povoleno",
-          "description": "Zakažte nebo povolte tento úkol. Vypnutý úkol si zachová svou historii i nastavení. Home Keeper jej nechá mimo vaše připomínky a seznamy, dokud jej znovu nezapnete. Datum splnění se nezmění."
+          "description": "Zakažte nebo povolte tento úkol. Vypnutý úkol si zachová svou historii i nastavení a datum splnění zůstane beze změny. Home Keeper jej nechá mimo vaše připomínky a seznamy, dokud jej znovu nezapnete."
         }
       }
     },

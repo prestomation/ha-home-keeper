@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Aktiveret",
-          "description": "Deaktivér eller aktivér denne opgave. En deaktiveret opgave beholder sin historik og sine indstillinger. Home Keeper holder den ude af dine påmindelser og dine lister, indtil du aktiverer den igen. Dens forfaldsdato flyttes ikke."
+          "description": "Deaktivér eller aktivér denne opgave. En deaktiveret opgave beholder sin historik og sine indstillinger, og dens forfaldsdato bliver stående. Home Keeper holder den ude af dine påmindelser og dine lister, indtil du aktiverer den igen."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Aktiveret",
-          "description": "Deaktivér eller aktivér denne opgave. En deaktiveret opgave beholder sin historik og sine indstillinger. Home Keeper holder den ude af dine påmindelser og dine lister, indtil du aktiverer den igen. Dens forfaldsdato flyttes ikke."
+          "description": "Deaktivér eller aktivér denne opgave. En deaktiveret opgave beholder sin historik og sine indstillinger, og dens forfaldsdato bliver stående. Home Keeper holder den ude af dine påmindelser og dine lister, indtil du aktiverer den igen."
         }
       }
     },

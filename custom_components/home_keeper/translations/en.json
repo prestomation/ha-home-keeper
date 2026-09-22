@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Enabled",
-          "description": "Disable or enable this task. A disabled task keeps its history and its settings. Home Keeper keeps it out of your reminders and your lists until you enable it again. Its due date does not move."
+          "description": "Disable or enable this task. A disabled task keeps its history and its settings, and its due date stays where it was. Home Keeper keeps it out of your reminders and your lists until you enable it again."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Enabled",
-          "description": "Disable or enable this task. A disabled task keeps its history and its settings. Home Keeper keeps it out of your reminders and your lists until you enable it again. Its due date does not move."
+          "description": "Disable or enable this task. A disabled task keeps its history and its settings, and its due date stays where it was. Home Keeper keeps it out of your reminders and your lists until you enable it again."
         }
       }
     },

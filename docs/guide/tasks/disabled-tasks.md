@@ -1,9 +1,9 @@
 # Disabled tasks
 
-A task can be disabled and enabled again later. A disabled task keeps everything
-recorded on it. Home Keeper stops asking for it. Use this for work that belongs to
-part of the year, where an [active season](../start/concepts.md#active-season) does
-not fit, because the dates are different each year.
+Disable a task from an automation, and enable it again later. Everything recorded on
+it stays, and Home Keeper stops asking for it. Use this for work that belongs to part
+of the year where an [active season](../start/concepts.md#active-season) does not fit
+because the dates are different each year.
 
 A pool is the example. It opens and closes when the weather says so, not on a date.
 Many users already have an `input_boolean` helper that says whether the pool is

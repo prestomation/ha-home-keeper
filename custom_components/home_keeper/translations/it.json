@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Attiva",
-          "description": "Disattiva o attiva questa attività. Un'attività disattivata conserva la sua cronologia e le sue impostazioni. Home Keeper la tiene fuori dai tuoi promemoria e dai tuoi elenchi finché non la riattivi. La sua data di scadenza non si sposta."
+          "description": "Disattiva o attiva questa attività. Un'attività disattivata conserva la sua cronologia e le sue impostazioni, e la sua data di scadenza non si sposta. Home Keeper la tiene fuori dai tuoi promemoria e dai tuoi elenchi finché non la riattivi."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Attiva",
-          "description": "Disattiva o attiva questa attività. Un'attività disattivata conserva la sua cronologia e le sue impostazioni. Home Keeper la tiene fuori dai tuoi promemoria e dai tuoi elenchi finché non la riattivi. La sua data di scadenza non si sposta."
+          "description": "Disattiva o attiva questa attività. Un'attività disattivata conserva la sua cronologia e le sue impostazioni, e la sua data di scadenza non si sposta. Home Keeper la tiene fuori dai tuoi promemoria e dai tuoi elenchi finché non la riattivi."
         }
       }
     },

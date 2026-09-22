@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Activada",
-          "description": "Desactiva o activa esta tarea. Una tarea desactivada conserva su historial y su configuración. Home Keeper la mantiene fuera de tus recordatorios y tus listas hasta que la vuelvas a activar. Su fecha de vencimiento no se mueve."
+          "description": "Desactiva o activa esta tarea. Una tarea desactivada conserva su historial y su configuración, y su fecha de vencimiento no se mueve. Home Keeper la mantiene fuera de tus recordatorios y tus listas hasta que la vuelvas a activar."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Activada",
-          "description": "Desactiva o activa esta tarea. Una tarea desactivada conserva su historial y su configuración. Home Keeper la mantiene fuera de tus recordatorios y tus listas hasta que la vuelvas a activar. Su fecha de vencimiento no se mueve."
+          "description": "Desactiva o activa esta tarea. Una tarea desactivada conserva su historial y su configuración, y su fecha de vencimiento no se mueve. Home Keeper la mantiene fuera de tus recordatorios y tus listas hasta que la vuelvas a activar."
         }
       }
     },

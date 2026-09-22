@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Activée",
-          "description": "Désactive ou active cette tâche. Une tâche désactivée conserve son historique et ses réglages. Home Keeper la tient à l'écart de vos rappels et de vos listes jusqu'à ce que vous la réactiviez. Sa date d'échéance ne bouge pas."
+          "description": "Désactive ou active cette tâche. Une tâche désactivée conserve son historique et ses réglages, et sa date d'échéance ne bouge pas. Home Keeper la tient à l'écart de vos rappels et de vos listes jusqu'à ce que vous la réactiviez."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Activée",
-          "description": "Désactive ou active cette tâche. Une tâche désactivée conserve son historique et ses réglages. Home Keeper la tient à l'écart de vos rappels et de vos listes jusqu'à ce que vous la réactiviez. Sa date d'échéance ne bouge pas."
+          "description": "Désactive ou active cette tâche. Une tâche désactivée conserve son historique et ses réglages, et sa date d'échéance ne bouge pas. Home Keeper la tient à l'écart de vos rappels et de vos listes jusqu'à ce que vous la réactiviez."
         }
       }
     },
