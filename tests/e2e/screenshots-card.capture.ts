@@ -1,6 +1,7 @@
 import { test, expect, Locator, Page } from '@playwright/test';
 import { openCardDashboard } from './tests/helpers';
 import { TASK } from './fixture-ids';
+import { PHONE } from './viewports';
 
 /**
  * One-off capture of the Home Keeper dashboard card for the README / PR. Run via:
@@ -140,4 +141,39 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   );
   await expect(card.locator('.hk-more')).toBeVisible();
   await shotCard(page, card, `${OUT}/card-more-hidden.png`);
+
+  // 7. Note quick-view (#340): a task with a note shows a Note chip on its row —
+  // the seeded water-filter task already carries one ("Under-sink RO filter") — and
+  // tapping it opens the full note in a read-only dialog, rendered as Markdown.
+  // Reset the card back to its plain default first (the step above left it capped
+  // at max_items: 3, which could crop the water-filter row out of the list).
+  await card.evaluate((el: ConfigurableCard) =>
+    el.setConfig({ type: 'custom:home-keeper-card', title: 'Home maintenance' }),
+  );
+  await expect(card.locator('.hk-note-chip').first()).toBeVisible();
+  await shotCard(page, card, `${OUT}/card-note-chip.png`);
+  await card.locator('.hk-note-chip').first().click();
+  // Assert on content inside the dialog, not on `ha-dialog` itself — the host
+  // element has no box of its own (see card-defer.spec.ts / card-note.spec.ts).
+  const noteDialog = page.locator('ha-dialog[open]').first();
+  await expect(noteDialog.locator('.hk-note-body')).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/card-note-dialog.png` });
+  // `ha-button`, not getByRole: `ha-dialog`'s own header close icon also has an
+  // accessible name of "Close" and would otherwise match too (see card-note.spec.ts).
+  await noteDialog.locator('ha-button', { hasText: 'Close' }).click();
+  await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
+
+  // 7b. The phone layout is a different arrangement, not a narrower one — the row
+  // wraps its chips and actions — so the note chip and its dialog get their own
+  // shot at phone width too. Last in the file, since it changes the viewport.
+  await page.setViewportSize({ width: PHONE.width, height: 1000 });
+  const mobileCard = await openCardDashboard(page);
+  await expect(mobileCard.locator('.hk-note-chip').first()).toBeVisible();
+  await shotCard(page, mobileCard, `${OUT}/card-note-chip-mobile.png`);
+  await mobileCard.locator('.hk-note-chip').first().click();
+  const mobileNoteDialog = page.locator('ha-dialog[open]').first();
+  await expect(mobileNoteDialog.locator('.hk-note-body')).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/card-note-dialog-mobile.png` });
 });

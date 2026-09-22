@@ -207,10 +207,13 @@ const STYLES = `
   /* A chip that wraps an <a>: the anchor is invisible (display:contents) so the chip
      itself is the tappable element, opening the linked URL in a new tab. */
   .hk-task-chip-link { display: contents; }
-  /* Link-chips (document / metadata / part-URL links) read as primary-tinted, outlined
-     pills so they sit in the same chip row yet still signal "tap to open externally".
-     Long document names ellipsize instead of blowing out the row. */
-  a.hk-link-chip ha-assist-chip {
+  /* Link-chips read as primary-tinted, outlined pills, so they sit in the same chip row
+     yet still signal "tap me". The document / metadata / part-URL chips wrap an <a> and
+     open a URL; the note chip is the chip itself and opens a dialog. Both shapes need
+     the rule, hence the selector list. Long document names ellipsize instead of blowing
+     out the row. */
+  a.hk-link-chip ha-assist-chip,
+  ha-assist-chip.hk-link-chip {
     --ha-assist-chip-label-text-color: var(--primary-color);
     --md-assist-chip-label-text-color: var(--primary-color);
     --ha-assist-chip-outline-color: var(--primary-color);
@@ -308,11 +311,16 @@ const STYLES = `
     background: var(--secondary-background-color);
     border-radius: 999px; padding: 1px 8px;
   }
-  /* The note quick-view chip is a real tap target inside a row of otherwise inert
-     chips (area, labels, NFC), so it says so with a pointer cursor. */
+  /* The note chip is a real tap target in a row of otherwise inert chips (area, labels,
+     NFC), so it says so with a pointer cursor. A document chip inherits its cursor from
+     the <a> that wraps it; this chip has no such ancestor. */
   ha-assist-chip.hk-note-chip { cursor: pointer; }
   .hk-note-body { min-width: 260px; max-width: 480px; }
   .hk-note-body .hk-md { word-break: break-word; }
+  /* markdownBlock falls back to a plain <div> when ha-markdown is not registered. The
+     row's own copy of this rule is scoped to .hk-notes, so the dialog needs its own, or
+     the fallback drops the author's line breaks. */
+  .hk-note-body .hk-md-plain { white-space: pre-wrap; }
   .hk-form { padding: 8px 16px 16px; border-bottom: 1px solid var(--divider-color); }
   .hk-form-title { font-size: 1.05rem; font-weight: 500; margin-bottom: 8px; }
   .hk-form-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
@@ -952,7 +960,7 @@ export class HomeKeeperCard extends HTMLElement {
     // Editing stays panel-only, so this affordance only ever opens a read-only dialog.
     let noteChip = '';
     if (task.notes && task.notes.trim()) {
-      noteChip = `<ha-assist-chip class="hk-note-chip" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('chip.note'))}"><ha-icon slot="icon" icon="${MDI_NOTE}" class="hk-chip-ic"></ha-icon></ha-assist-chip>`;
+      noteChip = `<ha-assist-chip class="hk-note-chip hk-link-chip" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('chip.note'))}"><ha-icon slot="icon" icon="${MDI_NOTE}" class="hk-chip-ic"></ha-icon></ha-assist-chip>`;
     }
     let labelChips = '';
     if (this._config.show_labels && task.labels?.length) {
@@ -1087,7 +1095,8 @@ export class HomeKeeperCard extends HTMLElement {
           b.addEventListener(evt, cancel);
         }
         b.addEventListener('click', (e) => {
-          // The row itself opens the task, and these sit inside it.
+          // The card gives the row no click handler, but stop anyway: these buttons sit
+          // inside it, and a future row-level listener must not see their taps.
           e.stopPropagation();
           if (explained) {
             explained = false;
@@ -1154,8 +1163,12 @@ export class HomeKeeperCard extends HTMLElement {
    * how the card already creates but never edits a task.
    */
   private _renderNoteDialog(host: HTMLElement): void {
-    const task = this._noteView.task;
-    if (!task) return;
+    // Re-resolve by id rather than trusting the captured object: a live entity push
+    // re-renders the card while the dialog is open, and `_noteView.task` is then the
+    // task as it was at open time, not as the store has it now.
+    const open = this._noteView.task;
+    if (!open) return;
+    const task = this._tasks.find((x) => x.id === open.id) ?? open;
     const { dialog, body, footer, mount } = makeDialog(t('note.viewTitle', { name: task.name }), () => {
       if (this._noteView.open) this._closeNote();
     });

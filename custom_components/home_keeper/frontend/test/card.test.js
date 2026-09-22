@@ -488,6 +488,18 @@ describe('Card note quick-view (issue #340)', () => {
     expect(sr(card).querySelector('.hk-note-chip').getAttribute('label')).toBe('Note');
   });
 
+  // The chip carries `hk-link-chip` so it takes the card's primary-tinted, outlined
+  // style — the same one the document chips use. A neutral chip reads as inert state,
+  // like the Area chip beside it, and nothing else would catch that class going away.
+  it('reads as a link-chip, not a neutral state chip', async () => {
+    const card = makeCard();
+    card.hass = { callWS: async () => ({ tasks: noted }), language: 'en' };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-note-chip'));
+    const chip = sr(card).querySelector('.hk-note-chip');
+    expect(chip.classList.contains('hk-link-chip')).toBe(true);
+  });
+
   it('shows no note chip on a task with no note', async () => {
     const card = makeCard();
     card.hass = { callWS: async () => ({ tasks: sampleTasks }), language: 'en' };
