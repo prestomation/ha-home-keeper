@@ -1014,7 +1014,10 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   //     so the note now sits behind a tinted chip that reads like the document links
   //     beside it. Hold on the open dialog long enough to read the note, then Escape
   //     out, so the closing shot still frames the cards.
-  const noteChip = hkCard.locator('.hk-note-chip').first();
+  //     The fridge-filter task by id, not `.first()`: its note is the long Markdown one
+  //     this feature exists for. The water-filter row sorts first and carries a 1-line
+  //     note, which shows the dialog but argues nothing for it.
+  const noteChip = hkCard.locator(`.hk-note-chip[data-id="${TASK.fridgeFilter}"]`);
   await expect(noteChip).toBeVisible();
   await page.waitForTimeout(BEAT);
   await noteChip.click();

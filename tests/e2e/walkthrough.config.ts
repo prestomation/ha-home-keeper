@@ -52,11 +52,12 @@ export default captureConfig('walkthrough.capture.ts', {
   // run with `--timeout=600000 --reporter=list` and read the duration it reports,
   // never the cap it died at.
   //
-  // #362 added the note chip's 5 beats and re-measured rather than assuming: **216s in
-  // the dev container**, against the 210s the same container gave before them. 216s plus
-  // ~40% is ~302s, so 360s still holds and the number does not move. The phone tour ran
-  // 37s. Read this as the container figure it is: CI ran 204s and 234s on the 2 samples
-  // above, so a CI run of this tour should be read against 216s, not below it.
+  // #362 added the note chip's 5 beats and re-measured rather than assuming: **216s and
+  // then 222s in the dev container**, against the 210s the same container gave before
+  // them. 222s plus ~40% is ~311s, so 360s still holds and the number does not move. The
+  // phone tour ran 37s. Read these as the container figures they are: CI ran 204s and
+  // 234s on the 2 samples above, so a CI run of this tour should be read against 222s,
+  // not below it.
   //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is
