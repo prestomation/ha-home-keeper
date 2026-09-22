@@ -1010,6 +1010,23 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(page.locator('ha-dialog[open] .hk-snooze-hint')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
+  // 8b. The note chip (#340). A long note used to make a row too tall for a dashboard,
+  //     so the note now sits behind a tinted chip that reads like the document links
+  //     beside it. Hold on the open dialog long enough to read the note, then Escape
+  //     out, so the closing shot still frames the cards.
+  //     The fridge-filter task by id, not `.first()`: its note is the long Markdown one
+  //     this feature exists for. The water-filter row sorts first and carries a 1-line
+  //     note, which shows the dialog but argues nothing for it.
+  const noteChip = hkCard.locator(`.hk-note-chip[data-id="${TASK.fridgeFilter}"]`);
+  await expect(noteChip).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  await noteChip.click();
+  await expect(page.locator('ha-dialog[open] .hk-note-body').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('ha-dialog[open] .hk-note-body')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   const familyCard = page
     .locator('hui-todo-list-card, todo-list-card')
     .filter({ hasText: 'Family chores' })

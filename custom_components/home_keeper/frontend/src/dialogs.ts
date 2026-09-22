@@ -31,6 +31,16 @@ export interface DialogParts {
  * directly on `<ha-dialog>` silently don't render. Falls back to slotting straight
  * on `<ha-dialog>` (the pre-wa-dialog convention) if `ha-dialog-footer` isn't
  * registered, so older HA frontends keep working too.
+ *
+ * `onClosed` only fires for a dialog still attached to the DOM. `ha-dialog` fires
+ * `closed` when it is removed from the DOM, not only when the user dismisses it —
+ * and the card's `_render()` removes it, because the dialog host is rebuilt with
+ * the rest of the card on every re-render (a live entity push while a dialog is
+ * open, say). So a re-render *while a dialog is open* reported itself as a
+ * dismissal: the handler cleared the dialog state that the very same render was
+ * about to rebuild, and the dialog vanished right after opening. A disconnected
+ * dialog is never the one the user closed. See `panel-dialogs.ts`'s own copy of
+ * this shell, which carries the same guard for the same reason (#144/#262).
  */
 export function makeDialog(title: string, onClosed: () => void): DialogParts {
   const dialog = document.createElement('ha-dialog');
@@ -40,7 +50,10 @@ export function makeDialog(title: string, onClosed: () => void): DialogParts {
   heading.setAttribute('slot', 'headerTitle');
   heading.textContent = title;
   dialog.appendChild(heading);
-  dialog.addEventListener('closed', onClosed);
+  dialog.addEventListener('closed', () => {
+    if (!dialog.isConnected) return;
+    onClosed();
+  });
 
   const body = document.createElement('div');
   body.className = 'hk-completion-body';
