@@ -9,17 +9,24 @@ and buried everything else in the log.
 
 The bookkeeping is a plain dict on the watcher, so this drives it directly rather than
 standing up Home Assistant: what is under test is "when does it log", not "does it
-render". ``sensor_watcher`` imports Home Assistant, so the module is skipped where that
-is not installed — the same treatment ``conftest`` gives its other HA-coupled imports.
+render".
+
+The module under test is imported through ``importorskip`` rather than guarded on
+``homeassistant`` itself. Guarding on the package name is not enough: ``conftest``
+installs **stub** parent packages so the HA-importing ``__init__.py`` never runs, and
+the mutation lane inherits them — so ``import homeassistant`` succeeds there while
+``from homeassistant.helpers.event import async_track_point_in_time`` (which
+``sensor_watcher`` does at module scope) raises. Asking for the real module is the only
+guard that answers the question this file needs: can this import run *here*. A
+collection error is not a skipped test — it aborts mutmut's stats pass and takes the
+whole mutation gate with it.
 """
 
 import logging
 
 import pytest
 
-pytest.importorskip("homeassistant")
-
-from custom_components.home_keeper import sensor_watcher
+sensor_watcher = pytest.importorskip("custom_components.home_keeper.sensor_watcher")
 
 TASK = {"name": "Service the printer"}
 CFG = {"entity_id": "sensor.demo_printer_hours"}
