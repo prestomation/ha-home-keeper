@@ -12,6 +12,12 @@ test.describe('Home Keeper card — note quick-view', () => {
   // addition to it.
   let created: string[] = [];
 
+  // Every `@responsive` test runs once per project (desktop, phone, tablet) against the
+  // same Home Assistant, so a fixed task name can match a row another project created,
+  // and the row locator then fails strict mode. A suffix per test makes each row its
+  // own, and also survives a task an aborted run left behind.
+  const uniq = (label: string): string => `${label} ${Math.random().toString(36).slice(2, 8)}`;
+
   test.afterEach(async () => {
     await Promise.all(created.map(deleteTask));
     created = [];
@@ -20,8 +26,8 @@ test.describe('Home Keeper card — note quick-view', () => {
   test('a task with a note shows a Note chip; one without does not @responsive', async ({
     page,
   }) => {
-    const NAMED = 'E2E note quick-view probe';
-    const BLANK = 'E2E no-note probe';
+    const NAMED = uniq('E2E note quick-view probe');
+    const BLANK = uniq('E2E no-note probe');
     // Two tasks created here rather than trusting a seeded fixture's notes field —
     // #340's own e2e run picked a seeded "no note" control that, it turned out,
     // carried one ("Replace water filter": "Under-sink RO filter"), which false-
@@ -54,7 +60,7 @@ test.describe('Home Keeper card — note quick-view', () => {
   test('tapping the chip opens the full note as Markdown, read-only @responsive', async ({
     page,
   }) => {
-    const NAME = 'E2E note dialog probe';
+    const NAME = uniq('E2E note dialog probe');
     const taskId = await createTask({
       name: NAME,
       recurrence_type: 'one-off',
@@ -80,8 +86,35 @@ test.describe('Home Keeper card — note quick-view', () => {
     await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
   });
 
+  test('the chip opens the note from the keyboard @responsive', async ({ page }) => {
+    // The chip is a bare `ha-assist-chip` with a click listener, not an anchor like the
+    // document chips, so "can a keyboard user reach it?" is a real question. It can:
+    // the component renders an inner `<button tabindex="0">` with a focus ring, and the
+    // click listener on the host sees the button's activation. This test is here so a
+    // change to that shape cannot quietly leave the chip mouse-only.
+    const NAME = uniq('E2E note keyboard probe');
+    const taskId = await createTask({
+      name: NAME,
+      recurrence_type: 'one-off',
+      due: new Date(Date.now() + 86_400_000).toISOString(),
+      notes: 'Use a **HEPA** filter, part #A1B2.',
+    });
+    created.push(taskId);
+
+    const card = await openCardDashboard(page);
+    const chip = card.locator('.hk-row', { hasText: NAME }).locator('.hk-note-chip');
+    await expect(chip).toBeVisible();
+
+    await chip.focus();
+    await page.keyboard.press('Enter');
+
+    const dialog = page.locator('ha-dialog[open]').first();
+    await expect(dialog.locator('.hk-note-body')).toBeVisible();
+    await expect(dialog.locator('strong', { hasText: 'HEPA' })).toBeVisible();
+  });
+
   test('the note chip leaves Done and the row untouched @responsive', async ({ page }) => {
-    const NAME = 'E2E note isolation probe';
+    const NAME = uniq('E2E note isolation probe');
     const taskId = await createTask({
       name: NAME,
       recurrence_type: 'one-off',
