@@ -1062,7 +1062,7 @@ def test_allow_missing_template_accepts_a_blank_box():
 
 
 def test_allow_missing_template_is_off_by_default():
-    """Every path that *saves* a binding leaves the flag alone, so a save still fails."""
+    """Every path that *saves* a binding leaves the flag alone, so a save fails."""
     with raises_exactly(m.TaskValidationError, "sensor.template is required"):
         m.normalize_sensor({"entity_id": "sensor.x", "mode": "template"})
     with raises_exactly(m.TaskValidationError, "sensor.template is required"):
