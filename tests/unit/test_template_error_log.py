@@ -11,22 +11,36 @@ The bookkeeping is a plain dict on the watcher, so this drives it directly rathe
 standing up Home Assistant: what is under test is "when does it log", not "does it
 render".
 
-The module under test is imported through ``importorskip`` rather than guarded on
-``homeassistant`` itself. Guarding on the package name is not enough: ``conftest``
-installs **stub** parent packages so the HA-importing ``__init__.py`` never runs, and
-the mutation lane inherits them — so ``import homeassistant`` succeeds there while
-``from homeassistant.helpers.event import async_track_point_in_time`` (which
-``sensor_watcher`` does at module scope) raises. Asking for the real module is the only
-guard that answers the question this file needs: can this import run *here*. A
-collection error is not a skipped test — it aborts mutmut's stats pass and takes the
-whole mutation gate with it.
+The import is guarded by hand rather than with ``importorskip``, and both halves of
+that are load-bearing.
+
+Guarding on ``homeassistant`` is not enough. ``conftest`` installs **stub** parent
+packages so the HA-importing ``__init__.py`` never runs, and the mutation lane inherits
+them — so ``import homeassistant`` succeeds there while
+``from homeassistant.helpers.event import async_track_point_in_time``, which
+``sensor_watcher`` does at module scope, raises. The guard passed and the import under
+it failed.
+
+``importorskip`` on the real module is not enough either. It swallows the
+``ImportError`` on some pytest versions and re-raises it on others, so the mutation
+lane still went red on a guard that skips cleanly locally. ``try``/``except`` means the
+same thing everywhere.
+
+The distinction matters more than a skipped test usually does: a collection error is
+not a skip. It aborts mutmut's stats pass, so one unimportable file takes the whole
+mutation gate down instead of reporting a score.
 """
 
 import logging
 
 import pytest
 
-sensor_watcher = pytest.importorskip("custom_components.home_keeper.sensor_watcher")
+try:
+    from custom_components.home_keeper import sensor_watcher
+except ImportError as err:  # pragma: no cover - the lane without a real HA
+    pytest.skip(
+        f"sensor_watcher needs a real Home Assistant: {err}", allow_module_level=True
+    )
 
 TASK = {"name": "Service the printer"}
 CFG = {"entity_id": "sensor.demo_printer_hours"}
