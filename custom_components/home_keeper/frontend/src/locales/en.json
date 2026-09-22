@@ -592,7 +592,7 @@
   "tasks.intro.recurring": "<b>Recurring</b>: repeats on a schedule or after each time you finish it (filter changes, vet visits, batteries).",
   "tasks.intro.title": "Welcome to Home Keeper",
   "tasks.noMatch": "No tasks match this filter.",
-  "tasks.disabledBanner": "This task is disabled. Home Keeper keeps it out of your reminders and your lists until you switch it on.",
+  "tasks.disabledBanner": "This task is disabled. Home Keeper keeps it out of your reminders and your lists until you enable it.",
   "btn.duplicate": "Duplicate",
   "declarative.companions.add": "Add companion",
   "declarative.companions.add_from_preset": "Add from preset ▾",

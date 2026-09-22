@@ -43,7 +43,7 @@ of `{"start": "MM-DD", "end": "MM-DD"}` objects, so an automation can set a seas
 <img src="docs/images/3b-panel-create-season.png" alt="The task form with Active season on, showing two windows with month and day pickers" width="820">
 
 An active season needs dates. For work that starts and stops on no fixed date, such
-as the tasks for a pool, switch the task off instead. See
+as the tasks for a pool, disable the task instead. See
 [Disabled tasks](../tasks/disabled-tasks.md).
 
 #### Put a task in a room

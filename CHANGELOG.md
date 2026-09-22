@@ -11,8 +11,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **[Disabled tasks](https://prestomation.github.io/ha-home-keeper/docs/guide/disabled-tasks).**
-  Switch a task off from an automation and on again later. A disabled task keeps its
-  history and stays out of your reminders and your lists. (Fixes #344)
+  Disable a task from an automation and enable it again later. A disabled task keeps
+  its history and stays out of your reminders and your lists. (Fixes #344)
 
 ## [0.25.0b1]
 

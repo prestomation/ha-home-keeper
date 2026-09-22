@@ -592,7 +592,7 @@
   "tasks.intro.recurring": "<b>Tilbagevendende</b> — gentages efter en plan eller hver gang du er færdig (filterskift, dyrlæge, batterier).",
   "tasks.intro.title": "Velkommen til Home Keeper",
   "tasks.noMatch": "Ingen opgaver matcher dette filter.",
-  "tasks.disabledBanner": "Denne opgave er deaktiveret. Home Keeper holder den ude af dine påmindelser og lister, indtil du slår den til.",
+  "tasks.disabledBanner": "Denne opgave er deaktiveret. Home Keeper holder den ude af dine påmindelser og lister, indtil du aktiverer den.",
   "btn.duplicate": "Dupliker",
   "declarative.companions.add": "Tilføj companion",
   "declarative.companions.add_from_preset": "Tilføj fra forudindstilling ▾",

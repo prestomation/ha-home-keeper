@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Käytössä",
-          "description": "Kytke tämä tehtävä pois päältä tai päälle. Pois päältä oleva tehtävä säilyttää historiansa ja asetuksensa. Home Keeper pitää sen poissa muistutuksistasi ja listoiltasi, kunnes kytket sen takaisin päälle. Sen eräpäivä ei siirry."
+          "description": "Poista tämä tehtävä käytöstä tai ota se käyttöön. Käytöstä poistettu tehtävä säilyttää historiansa ja asetuksensa. Home Keeper pitää sen poissa muistutuksistasi ja listoiltasi, kunnes otat sen uudelleen käyttöön. Sen eräpäivä ei siirry."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Käytössä",
-          "description": "Kytke tämä tehtävä pois päältä tai päälle. Pois päältä oleva tehtävä säilyttää historiansa ja asetuksensa. Home Keeper pitää sen poissa muistutuksistasi ja listoiltasi, kunnes kytket sen takaisin päälle. Sen eräpäivä ei siirry."
+          "description": "Poista tämä tehtävä käytöstä tai ota se käyttöön. Käytöstä poistettu tehtävä säilyttää historiansa ja asetuksensa. Home Keeper pitää sen poissa muistutuksistasi ja listoiltasi, kunnes otat sen uudelleen käyttöön. Sen eräpäivä ei siirry."
         }
       }
     },

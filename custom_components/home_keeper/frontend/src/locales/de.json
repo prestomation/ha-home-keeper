@@ -592,7 +592,7 @@
   "tasks.intro.recurring": "<b>Wiederkehrend</b> – wiederholt sich nach Zeitplan oder nach jedem Erledigen (Filterwechsel, Tierarzttermine, Batterien).",
   "tasks.intro.title": "Willkommen bei Home Keeper",
   "tasks.noMatch": "Keine Aufgaben entsprechen diesem Filter.",
-  "tasks.disabledBanner": "Diese Aufgabe ist deaktiviert. Home Keeper hält sie aus Ihren Erinnerungen und Listen heraus, bis Sie sie einschalten.",
+  "tasks.disabledBanner": "Diese Aufgabe ist deaktiviert. Home Keeper hält sie aus Ihren Erinnerungen und Listen heraus, bis Sie sie aktivieren.",
   "btn.duplicate": "Duplizieren",
   "declarative.companions.add": "Companion hinzufügen",
   "declarative.companions.add_from_preset": "Aus Vorlage hinzufügen ▾",

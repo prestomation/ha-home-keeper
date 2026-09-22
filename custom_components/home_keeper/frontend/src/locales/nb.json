@@ -592,7 +592,7 @@
   "tasks.intro.recurring": "<b>Gjentakende</b> — gjentas etter en plan eller hver gang du fullfører den (filterbytte, veterinær, batterier).",
   "tasks.intro.title": "Velkommen til Home Keeper",
   "tasks.noMatch": "Ingen oppgaver samsvarer med dette filteret.",
-  "tasks.disabledBanner": "Denne oppgaven er deaktivert. Home Keeper holder den utenfor påminnelsene og listene dine til du slår den på.",
+  "tasks.disabledBanner": "Denne oppgaven er deaktivert. Home Keeper holder den utenfor påminnelsene og listene dine til du aktiverer den.",
   "btn.duplicate": "Dupliser",
   "declarative.companions.add": "Legg til companion",
   "declarative.companions.add_from_preset": "Legg til fra forhåndsvalg ▾",

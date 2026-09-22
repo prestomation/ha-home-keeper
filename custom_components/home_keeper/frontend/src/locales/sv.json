@@ -592,7 +592,7 @@
   "tasks.intro.recurring": "<b>Återkommande</b> — upprepas enligt schema eller efter varje gång du slutfört den (filterbyten, veterinärbesök, batterier).",
   "tasks.intro.title": "Välkommen till Home Keeper",
   "tasks.noMatch": "Inga uppgifter matchar detta filter.",
-  "tasks.disabledBanner": "Den här uppgiften är inaktiverad. Home Keeper håller den utanför dina påminnelser och listor tills du slår på den.",
+  "tasks.disabledBanner": "Den här uppgiften är inaktiverad. Home Keeper håller den utanför dina påminnelser och listor tills du aktiverar den.",
   "btn.duplicate": "Duplicera",
   "declarative.companions.add": "Lägg till companion",
   "declarative.companions.add_from_preset": "Lägg till från förinställning ▾",

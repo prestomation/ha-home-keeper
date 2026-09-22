@@ -592,7 +592,7 @@
   "tasks.intro.recurring": "<b>Toistuva</b> — toistuu aikataulun mukaan tai aina kun suoritat sen (suodattimet, eläinlääkäri, paristot).",
   "tasks.intro.title": "Tervetuloa Home Keeperiin",
   "tasks.noMatch": "Mikään tehtävä ei vastaa tätä suodatinta.",
-  "tasks.disabledBanner": "Tämä tehtävä on poissa käytöstä. Home Keeper pitää sen poissa muistutuksistasi ja listoiltasi, kunnes otat sen käyttöön.",
+  "tasks.disabledBanner": "Tämä tehtävä on poistettu käytöstä. Home Keeper pitää sen poissa muistutuksistasi ja listoiltasi, kunnes otat sen käyttöön.",
   "btn.duplicate": "Monista",
   "declarative.companions.add": "Lisää kumppani",
   "declarative.companions.add_from_preset": "Lisää esiasetuksesta ▾",

@@ -1,6 +1,6 @@
 import { beforeAll, afterEach, describe, expect, it } from 'vitest';
 import { scopeMatches } from '../src/panel-controls.ts';
-import { statusBucket } from '../src/card-filter.ts';
+import { groupTasks, statusBucket } from '../src/card-filter.ts';
 import { definePanelStubs, waitFor } from './panel-harness.js';
 
 /**
@@ -74,6 +74,34 @@ describe('statusBucket on a switched-off task', () => {
   it('reads an absent field as on, so nothing stored before the field moves', () => {
     const late = { next_due: '2025-10-15T10:00:00Z' };
     expect(statusBucket(late, NOW)).toBe('overdue');
+  });
+});
+
+describe('the dashboard card groups a switched-off task too', () => {
+  // The card shows these rows only when its own `show_disabled` is on, but when it
+  // does they need the same section the panel gives them. The card builds its sections
+  // from STATUS_ORDER alone, so a bucket with no row there matches nothing and the
+  // task disappears from a card that was configured to show it.
+  it('puts it under its own section, last, with its own label', () => {
+    const off = offTask({ next_due: '2025-10-15T10:00:00Z' });
+    const live = { id: 'gutters', name: 'Clean gutters', next_due: '2025-10-01T10:00:00Z' };
+    const groups = groupTasks([live, off], 'status', undefined, undefined, NOW);
+    const keys = groups.map((g) => g.key);
+    expect(keys).toContain('status:disabled');
+    expect(keys.at(-1), 'nothing to do, so nothing above the sections you act on').toBe(
+      'status:disabled',
+    );
+    const group = groups.find((g) => g.key === 'status:disabled');
+    expect(group.label).toBe('Disabled');
+    expect(group.items).toEqual([off]);
+    // And the live task is still filed as late work, in a section of its own.
+    expect(groups.find((g) => g.key === 'status:overdue').items).toEqual([live]);
+  });
+
+  it('builds no such section when nothing is switched off', () => {
+    const live = { id: 'gutters', next_due: '2025-10-01T10:00:00Z' };
+    const keys = groupTasks([live], 'status', undefined, undefined, NOW).map((g) => g.key);
+    expect(keys).not.toContain('status:disabled');
   });
 });
 

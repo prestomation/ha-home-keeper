@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Aktiviert",
-          "description": "Schaltet diese Aufgabe aus oder ein. Eine ausgeschaltete Aufgabe behält ihren Verlauf und ihre Einstellungen. Home Keeper hält sie aus Ihren Erinnerungen und Ihren Listen heraus, bis Sie sie wieder einschalten. Ihr Fälligkeitsdatum ändert sich nicht."
+          "description": "Deaktiviert oder aktiviert diese Aufgabe. Eine deaktivierte Aufgabe behält ihren Verlauf und ihre Einstellungen. Home Keeper hält sie aus Ihren Erinnerungen und Ihren Listen heraus, bis Sie sie wieder aktivieren. Ihr Fälligkeitsdatum ändert sich nicht."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Aktiviert",
-          "description": "Schaltet diese Aufgabe aus oder ein. Eine ausgeschaltete Aufgabe behält ihren Verlauf und ihre Einstellungen. Home Keeper hält sie aus Ihren Erinnerungen und Ihren Listen heraus, bis Sie sie wieder einschalten. Ihr Fälligkeitsdatum ändert sich nicht."
+          "description": "Deaktiviert oder aktiviert diese Aufgabe. Eine deaktivierte Aufgabe behält ihren Verlauf und ihre Einstellungen. Home Keeper hält sie aus Ihren Erinnerungen und Ihren Listen heraus, bis Sie sie wieder aktivieren. Ihr Fälligkeitsdatum ändert sich nicht."
         }
       }
     },

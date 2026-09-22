@@ -123,7 +123,7 @@
         },
         "enabled": {
           "name": "Włączone",
-          "description": "Wyłącz lub włącz to zadanie. Wyłączone zadanie zachowuje swoją historię i swoje ustawienia. Home Keeper trzyma je poza przypomnieniami i listami, dopóki nie włączysz go ponownie. Termin nie przesuwa się."
+          "description": "Wyłącz lub włącz to zadanie. Wyłączone zadanie zachowuje swoją historię i swoje ustawienia. Home Keeper trzyma je poza przypomnieniami i listami, dopóki go ponownie nie włączysz. Termin nie przesuwa się."
         }
       }
     },
@@ -217,7 +217,7 @@
         },
         "enabled": {
           "name": "Włączone",
-          "description": "Wyłącz lub włącz to zadanie. Wyłączone zadanie zachowuje swoją historię i swoje ustawienia. Home Keeper trzyma je poza przypomnieniami i listami, dopóki nie włączysz go ponownie. Termin nie przesuwa się."
+          "description": "Wyłącz lub włącz to zadanie. Wyłączone zadanie zachowuje swoją historię i swoje ustawienia. Home Keeper trzyma je poza przypomnieniami i listami, dopóki go ponownie nie włączysz. Termin nie przesuwa się."
         }
       }
     },

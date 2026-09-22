@@ -184,9 +184,9 @@ add_task:
     enabled:
       name: Enabled
       description: >-
-        Switch this task off or on. A task that is off keeps its history and its
+        Disable or enable this task. A disabled task keeps its history and its
         settings. Home Keeper keeps it out of your reminders and your lists until you
-        switch it on again. Its due date does not move.
+        enable it again. Its due date does not move.
       selector:
         boolean:
     source:
@@ -369,9 +369,9 @@ update_task:
     enabled:
       name: Enabled
       description: >-
-        Switch this task off or on. A task that is off keeps its history and its
+        Disable or enable this task. A disabled task keeps its history and its
         settings. Home Keeper keeps it out of your reminders and your lists until you
-        switch it on again. Its due date does not move.
+        enable it again. Its due date does not move.
       selector:
         boolean:
     source:

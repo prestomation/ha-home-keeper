@@ -1,9 +1,9 @@
 # Disabled tasks
 
-A task can be switched off and on again. A disabled task keeps everything recorded
-on it, and Home Keeper stops asking for it. Use this for work that belongs to part
-of the year, where an [active season](../start/concepts.md#active-season) does not
-fit, because the dates are different each year.
+A task can be disabled and enabled again later. A disabled task keeps everything
+recorded on it. Home Keeper stops asking for it. Use this for work that belongs to
+part of the year, where an [active season](../start/concepts.md#active-season) does
+not fit, because the dates are different each year.
 
 A pool is the example. It opens and closes when the weather says so, not on a date.
 Many users already have an `input_boolean` helper that says whether the pool is
@@ -23,12 +23,12 @@ takes it out of every place that asks for work:
   `show_disabled`
 - an [NFC tag](nfc-tags.md) scan, which cannot complete it
 
-The due date does not move. A task switched off in October is as late in April as
-its stored date says. The section below shows how to come back to a clean date.
+The due date does not move. A task disabled in October is as late in April as its
+stored date says. The section below shows how to come back to a clean date.
 
-## Switch a task off from an automation
+## Disable a task from an automation
 
-The panel has no control to switch a task off. Use the
+The panel has no control to disable a task. Use the
 `home_keeper.update_task` action, with `enabled`. This automation follows a helper,
 so 1 switch controls every pool task:
 
@@ -55,9 +55,9 @@ The task ids are on each task's page in the panel. A task name works too.
 ## Come back to a clean due date
 
 With an active season, the due date moves forward to the start of the next window.
-A task switched off keeps the date it had, so it comes back as late as it was left.
+A disabled task keeps the date it had, so it comes back as late as it was left.
 
-To get the same clean start, pair the switch-on with
+To get the same clean start, pair the enable with
 [due today](snooze-and-skip.md). Add this to the automation above:
 
 ```yaml
@@ -76,8 +76,8 @@ A disabled task is not counted on the **Overdue**, **Due soon**, **Shopping** or
 **Counted** filters. It is on the **All** filter, under a **Disabled** section, with
 a **Disabled** label in place of its due date.
 
-Open it and select **Enable** to switch it back on. This is the only switch the
-panel offers. A service call is what switches a task off.
+Open it and select **Enable** to enable it again. This is the only control the panel
+offers. A service call is what disables a task.
 
 ![The panel task list on the All filter, with a Disabled section at the bottom holding two tasks, each with a Disabled label in place of a due date](../../images/68-panel-task-disabled-list.png)
 
