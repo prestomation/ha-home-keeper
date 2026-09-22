@@ -44,12 +44,19 @@ export default captureConfig('walkthrough.capture.ts', {
   //
   //     #303 search  +4    #302 notification icons  +3    #309 import/export  +14
   //     #318 due today  +4    #321 counted wear  +7    #333 guide split  +0
+  //     #362 note chip  +5
   //
   // 32 beats at 900ms is ~29s, and the interactions alongside them cover the rest.
   // Every one was correct under the gate that requires a new surface to appear in the
   // tour; none moved this number. **A PR that adds a beat re-measures and moves it** —
   // run with `--timeout=600000 --reporter=list` and read the duration it reports,
   // never the cap it died at.
+  //
+  // #362 added the note chip's 5 beats and re-measured rather than assuming: **216s in
+  // the dev container**, against the 210s the same container gave before them. 216s plus
+  // ~40% is ~302s, so 360s still holds and the number does not move. The phone tour ran
+  // 37s. Read this as the container figure it is: CI ran 204s and 234s on the 2 samples
+  // above, so a CI run of this tour should be read against 216s, not below it.
   //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is
