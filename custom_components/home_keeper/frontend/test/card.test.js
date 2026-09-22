@@ -488,6 +488,37 @@ describe('Card note quick-view (issue #340)', () => {
     expect(sr(card).querySelector('.hk-note-chip').getAttribute('label')).toBe('Note');
   });
 
+  // A task deleted from the panel while its note is open is gone from `_tasks` on the
+  // next push. Showing the copy captured at open time would put a note on screen for a
+  // task that no longer exists, so the dialog goes away instead.
+  it('drops the dialog when the task is deleted from another surface', async () => {
+    const card = makeCard();
+    let tasks = noted;
+    card.hass = { callWS: async () => ({ tasks }), language: 'en' };
+
+    await waitFor(() => sr(card)?.querySelector('.hk-note-chip'));
+    sr(card).querySelector('.hk-note-chip').click();
+    await waitFor(() => sr(card)?.querySelector('ha-dialog[open]'));
+
+    // The task goes away, and a state change makes the card reload.
+    tasks = [];
+    card.hass = {
+      callWS: async () => ({ tasks }),
+      language: 'en',
+      states: {
+        'todo.home_keeper_tasks': {
+          entity_id: 'todo.home_keeper_tasks',
+          state: '0',
+          last_updated: new Date().toISOString(),
+          attributes: {},
+        },
+      },
+    };
+
+    const gone = await waitFor(() => !sr(card)?.querySelector('ha-dialog[open]'));
+    expect(gone, 'the dialog must not outlive its task').toBe(true);
+  });
+
   // The chip carries `hk-link-chip` so it takes the card's primary-tinted, outlined
   // style — the same one the document chips use. A neutral chip reads as inert state,
   // like the Area chip beside it, and nothing else would catch that class going away.

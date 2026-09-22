@@ -1165,10 +1165,19 @@ export class HomeKeeperCard extends HTMLElement {
   private _renderNoteDialog(host: HTMLElement): void {
     // Re-resolve by id rather than trusting the captured object: a live entity push
     // re-renders the card while the dialog is open, and `_noteView.task` is then the
-    // task as it was at open time, not as the store has it now.
+    // task as it was at open time, not as the store has it now. A task deleted from
+    // another surface is gone from `_tasks`, and a note for a task that no longer
+    // exists is worse than no note, so close instead of showing the captured copy.
     const open = this._noteView.task;
     if (!open) return;
-    const task = this._tasks.find((x) => x.id === open.id) ?? open;
+    const task = this._tasks.find((x) => x.id === open.id);
+    if (!task) {
+      // Clear the state rather than call `_closeNote`: this runs inside `_hydrate`,
+      // and that would re-render the card part way through hydrating it. This pass
+      // already draws no dialog, so there is nothing to undo.
+      this._noteView = { open: false, task: null };
+      return;
+    }
     const { dialog, body, footer, mount } = makeDialog(t('note.viewTitle', { name: task.name }), () => {
       if (this._noteView.open) this._closeNote();
     });
