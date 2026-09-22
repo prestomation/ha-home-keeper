@@ -797,10 +797,14 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
         admin_only=True,
         service="delete_declarative_companion",
     ),
-    # Read-only helpers for the panel's Add dialog: the bundled presets, a dry-run
-    # expansion of a draft recipe, and the integrations that have a config entry.
+    # A dry-run expansion of a draft recipe. It writes nothing, but it renders the
+    # draft's Jinja — the task name, the notes and, since 0.25, the trigger — so it is
+    # admin-only like the commands that save one. See the docstring on
+    # ``websocket_api.ws_preview_declarative_companion``.
+    WebsocketSpec("home_keeper/preview_declarative_companion", admin_only=True),
+    # Read-only helpers for the panel's Add dialog: the bundled presets, and the
+    # integrations that have a config entry. Neither reads caller-supplied input.
     WebsocketSpec("home_keeper/list_declarative_presets"),
-    WebsocketSpec("home_keeper/preview_declarative_companion"),
     WebsocketSpec("home_keeper/installed_integrations"),
 )
 

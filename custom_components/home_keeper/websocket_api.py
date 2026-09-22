@@ -1410,6 +1410,7 @@ async def ws_list_declarative_presets(
         vol.Required("companion"): dict,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_preview_declarative_companion(
     hass: HomeAssistant,
@@ -1420,9 +1421,25 @@ async def ws_preview_declarative_companion(
 
     The panel's Add/Edit dialog polls this on debounce so the user sees "matches
     out of N" as they narrow the selection. Never writes — read-only introspection
-    over the current entity registry. Malformed specs return the pure validator's
-    error; the 500-match hard cap surfaces as an ``over_cap`` result the panel
-    renders as a red banner.
+    over the current entity registry. The 500-match hard cap surfaces as an
+    ``over_cap`` result the panel renders as a red banner.
+
+    **Admin-only, and it has to be.** "Read-only" stopped being the whole story when a
+    draft spec grew a ``template`` trigger: this command takes caller-supplied Jinja
+    and renders it against the registries, then hands back the answer. That is a
+    general-purpose template oracle, and ``__init__._verify_template_binding`` gates
+    the same power on ``add_task`` for exactly that reason — ``device_attr``,
+    ``area_id`` and ``integration_entities`` reach things a non-admin cannot otherwise
+    enumerate. The panel is ``require_admin`` already, so no user loses a surface; this
+    closes the websocket that walked around it. The name and notes templates were
+    rendered here before the trigger was, so part of this is older than that mode.
+
+    ``api_surface.py`` carries the matching ``admin_only=True`` and
+    ``tests/unit/test_api_surface.py`` fails if the two drift apart.
+
+    A blank ``template`` is deliberately **not** an error here: the preview normalizes
+    with ``allow_missing_template=True`` so the match list still renders while the user
+    is writing one. Saving it still fails, in ``models.normalize_sensor``.
     """
     from . import declarative_companions as dc  # avoid an import cycle at top
 
@@ -1431,8 +1448,11 @@ async def ws_preview_declarative_companion(
         _not_loaded(hass, connection, msg)
         return
     try:
-        # Normalize the draft so bad input fails the same way an add would.
-        spec = dc.normalize_declarative_companion(msg["companion"])
+        # Normalize the draft so bad input fails the same way an add would — except
+        # for the one field a draft is expected to be part-way through.
+        spec = dc.normalize_declarative_companion(
+            msg["companion"], allow_missing_template=True
+        )
     except TaskValidationError as err:
         _err(
             hass,

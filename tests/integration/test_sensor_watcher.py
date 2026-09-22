@@ -1188,3 +1188,67 @@ def test_a_repaired_template_still_clears_the_task(ha):
     finally:
         _delete(ha, task_id)
         _set_flag(ha, False)
+
+
+def test_a_template_that_renders_a_number_never_arms_the_task(ha):
+    """A number is not a verdict, whatever its value.
+
+    ``{{ state }}`` on a numeric sensor is the mistake a beginner makes, and it read
+    as "due" for every entity a recipe matched: the verdict went through
+    ``cv.boolean``, which maps any number to ``value != 0``. The preview drew a
+    confident green chip and no error, and with ``clear_on_recover`` the task would
+    only ever close if the reading happened to land on exactly zero.
+
+    The same template also changed regime under the old reader: the moment the entity
+    reported ``unavailable`` the value became a string it did not recognise, so the
+    task went indeterminate instead. One template, three answers.
+    """
+    _set_meter(ha, 1000)
+    task_id = _add_sensor_task(
+        ha, {"entity_id": METER, "mode": "template", "template": "{{ state }}"}
+    )
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _set_meter(ha, 1100)
+        time.sleep(3)
+        assert _get_task(ha, task_id)["next_due"] is None, (
+            "a template that rendered a number armed the task"
+        )
+        # Zero is not a verdict either — reading it as False was the other half of the
+        # same wrong answer.
+        _set_meter(ha, 0)
+        time.sleep(3)
+        assert _get_task(ha, task_id)["next_due"] is None
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)
+
+
+def test_a_template_rendering_a_true_or_false_word_still_decides(ha):
+    """The words Home Assistant uses for a yes/no answer keep working.
+
+    Only the numbers went. A template that renders ``on`` is answering the question
+    that was asked, and `{% if %}` templates produce exactly these strings.
+    """
+    _set_meter(ha, 0)
+    task_id = _add_sensor_task(
+        ha,
+        {
+            "entity_id": METER,
+            "mode": "template",
+            "template": "{{ 'on' if state | float(0) > 50 else 'off' }}",
+            "clear_on_recover": True,
+        },
+    )
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _set_meter(ha, 100)
+        armed = _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+        assert armed["next_due"] is not None
+
+        _set_meter(ha, 0)
+        cleared = _poll_task(ha, task_id, lambda t: t.get("next_due") is None)
+        assert cleared["next_due"] is None
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)

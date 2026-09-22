@@ -714,7 +714,7 @@
   "declarative.companions.chip_error": "Feil",
   "declarative.companions.chip_monitored": "Overvåket",
   "declarative.companions.field_template": "Utløsermal (Jinja)",
-  "declarative.companions.preview_summary_due": "Viser {shown} av {total} treff. Forfaller nå: {due}.",
+  "declarative.companions.preview_summary_due": "Viser {shown} av {total} treff. {due} av dem forfaller nå.",
   "declarative.companions.preview_template_error": "Malen kan ikke tolkes: {error}. Rett den før du lagrer.",
   "declarative.companions.template_trigger_help": "Oppgaven er åpen så lenge dette gir sant. Tilgjengelig: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Mal",
@@ -722,5 +722,8 @@
   "help.sensor_template": "Oppgaven forfaller så lenge denne malen gir sant. Tilgjengelig: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "hint.sensor.template": "Oppgaven forfaller så lenge malen er sann.",
   "hint.sensor.templateFor": "Oppgaven forfaller når malen holder seg sann i {seconds}s.",
-  "opt.sensor_mode.template": "Mal"
+  "opt.sensor_mode.template": "Mal",
+  "recurrence.sensorTemplate": "Når malen er sann",
+  "declarative.companions.preview_template_empty": "Skriv en mal for å se hvilke enheter som forfaller.",
+  "declarative.companions.preview_summary_undecided": "Viser {shown} av {total} treff. Malen kunne ikke kjøres."
 }

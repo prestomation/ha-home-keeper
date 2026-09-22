@@ -403,6 +403,16 @@ test.describe('Home Keeper panel — declarative companions', () => {
 
     const trigger = dialog.locator('[data-decl-section="trigger"]');
     await chooseHaSelect(trigger.locator('ha-select').first(), 'Template');
+
+    // Straight after the mode change the box is empty, which is a form mid-typing and
+    // not a mistake. The preview used to fail the whole command there and paint one
+    // raw `sensor.template is required`, taking the match list with it — at the moment
+    // the user most wants to see which entities the recipe covers.
+    await expect(dialog.locator('.hk-decl-template-hint')).toBeVisible({ timeout: 20_000 });
+    await expect(dialog.locator('.hk-decl-template-error')).toHaveCount(0);
+    await expect(dialog.locator('.hk-decl-preview-row')).toHaveCount(2);
+    await expect(dialog.locator('.hk-decl-chip')).toHaveCount(0);
+
     // The mode change re-renders the dialog, so re-read the section before typing.
     const box = dialog.locator('[data-decl-section="trigger"] textarea').first();
     await box.fill('{{ state | float(0) >= 500 }}');
@@ -411,7 +421,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
     // The verdict summary replaces the plain one only when the backend rendered a
     // template, so this line is itself the proof that it did.
     await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(
-      'Showing 2 of 2 matches. Due now: 1.',
+      'Showing 2 of 2 matches. 1 of these are due now.',
       { timeout: 20_000 },
     );
     await expect(dialog.locator('.hk-decl-chip.due')).toHaveCount(1);
@@ -429,6 +439,17 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await expect(dialog.locator('.hk-decl-chip.bad')).toHaveCount(2);
     await expect(dialog.locator('.hk-decl-chip.due')).toHaveCount(0);
     await expect(dialog.locator('.hk-decl-chip.quiet')).toHaveCount(0);
+    // And the header claims no count: "Due now: 0" beside a red Jinja error reads as
+    // "nothing is due", which is the one thing a failed render did not say.
+    await expect(dialog.locator('.hk-decl-preview-header')).not.toContainText('due now');
+
+    // A template that renders a *number* is answering some other question. It used to
+    // read as "due" for every row, because the verdict went through `cv.boolean` and
+    // any non-zero number is truthy there.
+    await box.fill('{{ state }}');
+    await box.blur();
+    await expect(dialog.locator('.hk-decl-chip.bad')).toHaveCount(2, { timeout: 20_000 });
+    await expect(dialog.locator('.hk-decl-chip.due')).toHaveCount(0);
 
     // Saved with the working template, to prove the mode survives the round trip
     // through `normalize_sensor` rather than only rendering in the dialog.

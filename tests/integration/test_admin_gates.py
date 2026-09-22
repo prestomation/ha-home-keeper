@@ -373,6 +373,84 @@ def test_a_non_admin_can_rename_an_admin_s_template_task(ha, non_admin):
         call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
 
 
+# ── the recipe preview, which renders caller-supplied Jinja ─────────────────
+
+
+def _preview_spec(template):
+    return {
+        "type": "home_keeper/preview_declarative_companion",
+        "companion": {
+            "name": "Gate preview probe",
+            "description": "",
+            "enabled": True,
+            "selection": {"domain": "binary_sensor"},
+            "trigger": {"mode": "template", "template": template},
+            "task_template": {"name_template": "{{ friendly_name }}"},
+        },
+    }
+
+
+def test_the_recipe_preview_refuses_a_non_admin(non_admin_token):
+    """The gate `_verify_template_binding` exists for, on the surface that renders.
+
+    The preview was filed under "read-only helpers for the panel's Add dialog" and
+    carried no `require_admin`. It writes nothing, but it takes a Jinja string from
+    the caller, renders it against the entity, device and area registries, and hands
+    back the answer — a general-purpose template oracle for anyone with a login, and
+    the exact power `add_task` refuses a non-admin. No user loses a surface: the panel
+    is `require_admin`, so only an admin ever reaches the dialog.
+    """
+    msg = ws_send(
+        non_admin_token,
+        _preview_spec("{{ device_id is not none }}"),
+    )
+    assert not msg.get("success"), (
+        "a non-admin rendered a template through the recipe preview"
+    )
+    assert msg["error"]["code"] == "unauthorized", msg
+
+
+def test_the_recipe_preview_still_answers_an_admin(ha):
+    # The gate has to refuse the right people only — the dialog it feeds must work.
+    msg = ws_send(_owner_token(ha), _preview_spec("{{ state == 'on' }}"))
+    assert msg.get("success"), f"preview failed for an admin: {msg}"
+    assert "matched" in msg["result"]
+
+
+def test_the_preview_answers_an_admin_before_the_template_is_written(ha):
+    """An empty box is a form mid-typing, not a malformed spec.
+
+    The command used to normalize the draft the way a save does, so the instant a user
+    picked Template mode it failed with `sensor.template is required` and the panel
+    dropped the match list — at the moment the user most wants to see which entities
+    the recipe covers. Saving a blank template still fails; only the preview waives it.
+    """
+    msg = ws_send(_owner_token(ha), _preview_spec(""))
+    assert msg.get("success"), f"preview refused an unwritten template: {msg}"
+    assert msg["result"]["matched"], "the preview answered with no match list"
+    # No verdict and no error: an empty template rendered nothing, so it says nothing.
+    for row in msg["result"]["matched"]:
+        assert row["trigger_now"] is None
+        assert row["trigger_error"] is None
+
+
+def test_saving_a_recipe_with_no_template_still_fails(ha):
+    """The other side of the waiver. The preview is the only caller that passes it.
+
+    Asserted over the websocket, which is the panel's own save path and the one that
+    reports a validation error rather than a bare 500.
+    """
+    msg = ws_send(
+        _owner_token(ha),
+        {
+            "type": "home_keeper/add_declarative_companion",
+            "companion": _preview_spec("")["companion"],
+        },
+    )
+    assert not msg.get("success"), "a recipe saved with no template"
+    assert "sensor.template is required" in str(msg["error"]), msg
+
+
 # ── the non-admin asset projection ──────────────────────────────────────────
 
 

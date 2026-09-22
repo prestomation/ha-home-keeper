@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   declarativeOverlap,
   emptyDeclarativeCompanion,
+  previewHtml,
   triggerForMode,
   verdictChip,
 } from '../src/panel-declarative.ts';
@@ -374,5 +375,94 @@ describe('verdictChip', () => {
     const html = verdictChip({ trigger_now: null, trigger_error: null });
 
     expect(html).toContain('hk-decl-chip quiet');
+  });
+});
+
+/**
+ * The preview's header and its two template alerts.
+ *
+ * Three states have to read differently, and two of them used to read the same. A
+ * template that did not render reported "Due now: 0" beside its own red error — a
+ * count the render never produced. And an *empty* box, which is what every draft has
+ * the instant a user picks Template mode, failed the whole websocket command: the
+ * panel painted one raw `sensor.template is required` and threw away the match list
+ * at the moment the user most wants to see what the recipe covers.
+ */
+describe('previewHtml', () => {
+  const row = (entity_id, rest = {}) => ({
+    entity_id,
+    entity_registry_id: entity_id,
+    rendered_name: `Check ${entity_id}`,
+    rendered_notes: '',
+    device_name: null,
+    area_name: null,
+    trigger_now: null,
+    trigger_error: null,
+    ...rest,
+  });
+  const result = (matched, count = matched.length) => ({
+    matched,
+    count,
+    warnings: [],
+    over_cap: false,
+  });
+
+  it('counts the due rows when every template rendered', () => {
+    const html = previewHtml(
+      result([row('sensor.a', { trigger_now: true }), row('sensor.b', { trigger_now: false })]),
+      null,
+    );
+
+    expect(html).toContain('1');
+    expect(html).toContain('due now');
+    expect(html).not.toContain('hk-decl-template-error');
+    expect(html).not.toContain('hk-decl-template-hint');
+  });
+
+  it('reports no count at all when a template did not render', () => {
+    // "Due now: 0" is the one thing a failed render did not say.
+    const html = previewHtml(
+      result([
+        row('sensor.a', { trigger_error: "'stat' is undefined" }),
+        row('sensor.b', { trigger_error: "'stat' is undefined" }),
+      ]),
+      null,
+    );
+
+    expect(html).toContain('hk-decl-template-error');
+    expect(html).not.toContain('due now');
+    // The rows still list what the recipe matches.
+    expect(html).toContain('sensor.a');
+  });
+
+  it('draws a neutral hint, not an error, for a box the user has not filled in', () => {
+    const html = previewHtml(result([row('sensor.a'), row('sensor.b')]), null, true);
+
+    expect(html).toContain('hk-decl-template-hint');
+    expect(html).toContain('alert-type="info"');
+    expect(html).not.toContain('hk-decl-template-error');
+    // The whole point: the match list survives.
+    expect(html).toContain('sensor.a');
+    expect(html).toContain('sensor.b');
+  });
+
+  it('never draws the hint beside a real Jinja error', () => {
+    const html = previewHtml(
+      result([row('sensor.a', { trigger_error: 'boom' })]),
+      null,
+      true,
+    );
+
+    expect(html).toContain('hk-decl-template-error');
+    expect(html).not.toContain('hk-decl-template-hint');
+  });
+
+  it('leaves the other trigger modes alone', () => {
+    // Every row carries a null verdict, so no chip, no alert, and the plain summary.
+    const html = previewHtml(result([row('sensor.a'), row('sensor.b')], 7), null);
+
+    expect(html).not.toContain('hk-decl-chip');
+    expect(html).not.toContain('due now');
+    expect(html).toContain('7');
   });
 });

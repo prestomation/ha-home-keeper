@@ -118,9 +118,18 @@ The template reads the same values as the task name template and the task notes
 template: `state`, `attributes.<key>`, `friendly_name`, `entity_id`, `device_name`,
 `area_name`, and `integration`. Home Assistant template functions are also available.
 
+A template must render **true or false**. Home Keeper accepts a true or false result,
+and the words `on`, `off`, `yes` and `no`. Anything else is an error. A number is an
+error too, so `{{ state }}` on a sensor that reports a number does not work. Write a
+comparison instead, such as `{{ state | float(0) >= 500 }}`.
+
+An attribute that is not on the entity is also an error. Write
+`{{ attributes.get('battery') }}` or `{{ attributes.battery | default(0) }}` when the
+attribute can be missing.
+
 A template that does not render decides nothing. Home Keeper opens no task and closes
-no task, and it writes the error to the log. A typo cannot complete the tasks that a
-recipe already opened.
+no task, and it writes the error to the log once. A typo cannot complete the tasks that
+a recipe already opened.
 
 Home Keeper reads a name it does not know as an error. A misspelled `{{ stat == 'on' }}`
 gives you the same red message as any other broken template. A template that reads
@@ -132,7 +141,9 @@ each 5-minute pass. So a template that reads the clock, such as the example abov
 take up to 5 minutes to open its task.
 
 The Add dialog renders the template against your own entities. Each row in the preview
-says **Due now** or **Monitored**, and the count above them says how many are due.
+says **Due now** or **Monitored**, and the line above them says how many of the shown
+rows are due. The preview lists the matched entities before you write the template, so
+you can see what the recipe covers first.
 
 ![The recipe dialog on Template mode. The preview shows a Due now chip and a Monitored chip](../../images/21j-panel-template-trigger.png)
 
@@ -140,6 +151,13 @@ A template that cannot render shows the Jinja error instead, so you can correct 
 before you save. Such a template opens no task and closes no task.
 
 ![The same dialog with a broken template. A red alert shows the Jinja error, and each row shows an Error chip](../../images/21k-panel-template-trigger-error.png)
+
+An empty box is not an error. The preview lists the matched entities and tells you to
+write a template.
+
+![The recipe dialog on Template mode with an empty box. A blue note asks for a template, and the match list is below it](../../images/21n-panel-template-empty.png)
+
+![The same empty state on a phone](../../images/21o-panel-mobile-template-empty.png)
 
 On a phone the chip keeps its own column, and the task name wraps under itself.
 
@@ -150,3 +168,10 @@ On a phone the chip keeps its own column, and the task name wraps under itself.
 The template mode is also on a single sensor task. Open **Add task**, set the schedule
 to Sensor, and pick Template as the trigger mode. Only an admin can set a template on a
 task, because a template reads registry data that other users cannot list.
+
+The task page shows the template and the current value of the entity. A template task
+waits for its condition, so it shows **Monitored** and it has no Done button.
+
+![The page of a template task. The sensor row shows the entity, its value and the template](../../images/21p-panel-template-task-detail.png)
+
+![The same task page on a phone](../../images/21q-panel-mobile-template-task-detail.png)

@@ -95,6 +95,11 @@ class DeclarativeCompanionSync:
         self._unsub_area_registry: CALLBACK_TYPE | None = None
         self._unsub_specs: CALLBACK_TYPE | None = None
         self._reload_scheduled = False
+        # The last render error logged per entity id, so a broken name or notes
+        # template is reported once instead of on every pass and every preview
+        # keystroke. See ``_render_one``. Bounded by the entity registry, and an entry
+        # goes as soon as that entity renders cleanly again.
+        self._render_errors: dict[str, str] = {}
         # One reconcile per burst of registry events. Home Assistant fires an entity
         # registry event per entity, so an integration loading 50 of them used to run
         # 50 full passes — each one walking every spec over every entity, rendering
@@ -208,19 +213,33 @@ class DeclarativeCompanionSync:
         — log the error, fall back to the raw source. The preview surface (see
         the WS ``preview_declarative_companion`` command) reports the template
         error explicitly so the user can fix it before saving.
+
+        Logged once per (entity, message) rather than per render. This runs per matched
+        entity per reconcile pass, and the preview runs it for 10 sampled entities on
+        every keystroke of the Add dialog's debounce, so one broken name template used
+        to write the same line hundreds of times while the user was still typing it.
         """
         if not source:
             return ""
         try:
-            template = template_context.cached_template(self._hass, source)
-            return str(template.async_render(variables, parse_result=False))
-        except TemplateError as err:
-            _LOGGER.warning(
-                "Declarative-companion template render failed for %s: %s",
-                variables.get("entity_id"),
-                err,
+            rendered = str(
+                template_context.cached_template(self._hass, source).async_render(
+                    variables, parse_result=False
+                )
             )
+        except TemplateError as err:
+            entity_id = str(variables.get("entity_id") or "")
+            message = str(err)
+            if self._render_errors.get(entity_id) != message:
+                self._render_errors[entity_id] = message
+                _LOGGER.warning(
+                    "Declarative-companion template render failed for %s: %s",
+                    entity_id,
+                    message,
+                )
             return source
+        self._render_errors.pop(str(variables.get("entity_id") or ""), None)
+        return rendered
 
     def _render_match(
         self, spec: dict[str, Any], match: dict[str, Any]
@@ -421,8 +440,17 @@ class DeclarativeCompanionSync:
         # nothing. So the preview renders it too, per sampled entity, and the panel
         # draws the verdict beside the task name. The other modes say what they do on
         # their face and get `None`, which the panel reads as "draw no chip".
-        is_template = trigger.get("mode") == SENSOR_MODE_TEMPLATE
-        template_source = str(trigger.get("template") or "")
+        # An **empty** template renders nothing, and the preview says nothing about it.
+        # A draft has an empty box the instant the user picks Template mode, and that
+        # is not a mistake to report — it is a form they have not filled in. The
+        # command used to refuse outright there (``normalize_sensor`` raised), which
+        # threw away the match list at the one moment the user most wants to see which
+        # entities they are about to write a template against. Now the rows come back
+        # with no verdict, and the panel draws a neutral hint instead of a red alert.
+        template_source = str(trigger.get("template") or "").strip()
+        is_template = trigger.get("mode") == SENSOR_MODE_TEMPLATE and bool(
+            template_source
+        )
         # Sample the first 10 for the preview panel (deterministic order — dicts
         # are insertion-ordered and expand_spec walks the registry in registry
         # order, which is stable across boots for the same HA config).

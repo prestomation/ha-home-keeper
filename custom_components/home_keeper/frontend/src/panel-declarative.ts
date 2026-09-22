@@ -740,16 +740,25 @@ async function refreshPreview(
       p._declarativeCompanions,
       draft.id,
     );
-    host.innerHTML = previewHtml(result, overlap);
+    const trig = (draft.trigger ?? {}) as Trigger;
+    const pendingTemplate =
+      trig.mode === 'template' && !String(trig.template ?? '').trim();
+    host.innerHTML = previewHtml(result, overlap, pendingTemplate);
   } catch (err) {
     host.innerHTML = `<ha-alert alert-type="error">${escapeHTML(errorMessage(err))}</ha-alert>`;
   }
 }
 
-/** The preview's HTML: the count line, the warnings, and the sample. */
-function previewHtml(
+/** The preview's HTML: the count line, the warnings, and the sample.
+ *
+ * `pendingTemplate` says the draft is on Template mode with an empty box — a form the
+ * user has not filled in yet, not a mistake. The backend sends no verdict for those
+ * rows, so the sample still says what the recipe matches while the hint says what is
+ * missing. */
+export function previewHtml(
   result: DeclarativeCompanionPreviewResult,
   overlap: DeclarativeOverlap | null,
+  pendingTemplate = false,
 ): string {
   if (result.over_cap) {
     return `<ha-alert alert-type="error">${escapeHTML(t('declarative.companions.preview_over_cap'))}</ha-alert>`;
@@ -789,22 +798,30 @@ function previewHtml(
         </div>`,
     )
     .join('');
-  const firing = result.matched.filter((m) => m.trigger_now === true).length;
-  const summary = escapeHTML(
-    verdicts
-      ? t('declarative.companions.preview_summary_due', {
-          shown: String(result.matched.length),
-          total: String(count),
-          due: String(firing),
-        })
-      : t('declarative.companions.preview_summary', {
-          shown: String(result.matched.length),
-          total: String(count),
-        }),
-  );
   // One alert for the whole sample rather than one per row: a broken template is
   // broken for every entity, and ten copies of the same Jinja error is noise.
   const failed = result.matched.find((m) => m.trigger_error);
+  const firing = result.matched.filter((m) => m.trigger_now === true).length;
+  // A template that did not render decided nothing, so the header must not report a
+  // count. "Due now: 0" beside a red Jinja error reads as "nothing is due", which is
+  // the one thing the render did not say.
+  const summary = escapeHTML(
+    failed
+      ? t('declarative.companions.preview_summary_undecided', {
+          shown: String(result.matched.length),
+          total: String(count),
+        })
+      : verdicts
+        ? t('declarative.companions.preview_summary_due', {
+            shown: String(result.matched.length),
+            total: String(count),
+            due: String(firing),
+          })
+        : t('declarative.companions.preview_summary', {
+            shown: String(result.matched.length),
+            total: String(count),
+          }),
+  );
   const templateError = failed
     ? `<ha-alert alert-type="error" class="hk-decl-template-error">${escapeHTML(
         t('declarative.companions.preview_template_error', {
@@ -812,9 +829,19 @@ function previewHtml(
         }),
       )}</ha-alert>`
     : '';
+  // An empty box is not an error, so this is `info` and it sits where the red alert
+  // would. It cannot collide with one: an empty template renders nothing, so no row
+  // carries a `trigger_error` for the backend to report.
+  const templateHint =
+    pendingTemplate && !failed
+      ? `<ha-alert alert-type="info" class="hk-decl-template-hint">${escapeHTML(
+          t('declarative.companions.preview_template_empty'),
+        )}</ha-alert>`
+      : '';
   return `
       <div class="hk-decl-preview-header">${summary}</div>
       ${templateError}
+      ${templateHint}
       ${duplicate}
       ${warning}
       ${rows || `<div class="hk-decl-preview-empty">${escapeHTML(t('declarative.companions.preview_empty'))}</div>`}`;

@@ -1202,6 +1202,91 @@ describe('template mode — a Jinja condition', () => {
     expect(names).not.toContain('sensor_value');
     expect(names).not.toContain('sensor_state');
     expect(names).not.toContain('sensor_attribute');
+    // Every field is a real one. The attribute box is spliced in through a
+    // conditional spread, and a spread that yields the wrong thing adds a nameless
+    // field that every `not.toContain` above happily ignores.
+    expect(names).not.toContain(undefined);
+  });
+
+  it('still offers the attribute box in every other mode', () => {
+    // The other half of the same spread. Dropping the box everywhere would satisfy
+    // the test above and quietly take a working field off four modes.
+    for (const mode of ['usage', 'threshold', 'state']) {
+      const names = taskSchema({ recurrence_type: 'sensor', sensor_mode: mode }).map(
+        (f) => f.name,
+      );
+      expect(names, `${mode} lost its attribute box`).toContain('sensor_attribute');
+    }
+  });
+
+  it('drops an attribute left in edit state by another mode', () => {
+    // Switching state -> template leaves `sensor_attribute` in the live form. The
+    // backend rejects the key rather than ignoring it, so sending it fails the save
+    // with "sensor.attribute is not valid for a template-mode sensor task" — the #230
+    // bug in a new place.
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'template',
+      sensor_template: TEMPLATE,
+      sensor_attribute: 'battery_level',
+    });
+    expect(payload.sensor).not.toHaveProperty('attribute');
+  });
+
+  it('drops an attribute carried on the stored binding too', () => {
+    // A task saved in another mode keeps its attribute in `task.sensor`, which the
+    // payload reads when the form state has none.
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_mode: 'template',
+      sensor_template: TEMPLATE,
+      sensor: { entity_id: 'sensor.x', mode: 'state', attribute: 'battery_level' },
+    });
+    expect(payload.sensor).not.toHaveProperty('attribute');
+  });
+
+  it('keeps the attribute in the modes that accept one', () => {
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'threshold',
+      sensor_comparison: '>=',
+      sensor_value: '20',
+      sensor_attribute: '  battery_level  ',
+    });
+    expect(payload.sensor.attribute).toBe('battery_level');
+  });
+
+  it('sends an empty template rather than undefined when there is nothing to send', () => {
+    // The backend decides whether a blank template is allowed; the panel must not
+    // decide it by omitting the key.
+    const payload = buildTaskPayload({
+      name: 'T',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.x',
+      sensor_mode: 'template',
+    });
+    expect(payload.sensor.template).toBe('');
+  });
+
+  it('reads a stored template for the hint when the form state has none', () => {
+    // The task page renders the hint from a loaded task before anything is typed.
+    const hint = sensorHintText({
+      recurrence_type: 'sensor',
+      sensor_mode: 'template',
+      sensor: { entity_id: 'sensor.x', mode: 'template', template: TEMPLATE },
+    });
+    expect(hint).toBe(t('hint.sensor.template'));
+  });
+
+  it('says nothing when neither the form nor the binding has a template', () => {
+    expect(
+      sensorHintText({ recurrence_type: 'sensor', sensor_mode: 'template' }),
+    ).toBe('');
   });
 
   it('gives the template a multiline box', () => {

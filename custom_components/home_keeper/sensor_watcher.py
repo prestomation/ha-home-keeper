@@ -32,7 +32,6 @@ from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
-import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import (
@@ -42,7 +41,6 @@ from homeassistant.core import (
     HomeAssistant,
     callback,
 )
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import (
     async_track_point_in_time,
     async_track_state_change_event,
@@ -183,6 +181,15 @@ def read_availability_status(hass: HomeAssistant, cfg: dict[str, Any] | None) ->
     return sensor_tasks.AVAILABILITY_AVAILABLE
 
 
+# The only non-boolean renders read as a verdict. Home Assistant's own vocabulary for
+# a yes/no answer, minus the numbers: a template that renders a *number* is answering
+# some other question, and reading it as "anything but zero is true" is what made
+# ``{{ state }}`` open a task for every entity a recipe matched. Someone who means a
+# literal true writes ``{{ true }}``, which never reaches here.
+_TRUE_WORDS = frozenset({"true", "yes", "on", "enable"})
+_FALSE_WORDS = frozenset({"false", "no", "off", "disable"})
+
+
 def render_template_result(
     hass: HomeAssistant, source: str, variables: dict[str, Any]
 ) -> tuple[bool | None, str | None]:
@@ -198,11 +205,20 @@ def render_template_result(
     rather than the string ``"True"``. The declarative-companion name/notes renderer
     passes ``False`` instead, because a task name wants the text.
 
-    ``cv.boolean`` is used rather than ``template.result_as_boolean``, which reads
-    anything it does not recognise as ``False``. A template rendering a timestamp, or
-    a device name, is not a condition that happens to be false — it is a template
-    answering some other question, and the whole point of the preview is to say so
-    rather than to let the recipe sit there matching nothing.
+    The verdict is read by :data:`_TRUE_WORDS` / :data:`_FALSE_WORDS` rather than by
+    ``template.result_as_boolean`` or by ``cv.boolean``, and each is rejected for its
+    own reason. ``result_as_boolean`` reads anything it does not recognise as
+    ``False``. ``cv.boolean`` looked right and is not: it maps **any** number to
+    ``value != 0``, so ``{{ state }}`` on a printer-hours sensor rendered ``782`` and
+    armed every task a recipe matched, with a confident "Due now" in the preview and no
+    error — and the same template went indeterminate the moment the entity reported
+    ``unavailable``, because that is a string it does not recognise. One template, three
+    regimes, none of them what the user asked for.
+
+    A template rendering a timestamp, a device name, or a reading is not a condition
+    that happens to be true — it is a template answering some other question, and the
+    whole point of the preview is to say so rather than to let the recipe open a task
+    per matched entity.
 
     ``strict=True`` is load-bearing, and the reason is not obvious. Jinja's default
     undefined is lax about *comparison*: ``{{ stat == 'on' }}`` with ``stat``
@@ -231,10 +247,13 @@ def render_template_result(
         return None, str(err)
     if isinstance(rendered, bool):
         return rendered, None
-    try:
-        return cv.boolean(rendered), None
-    except vol.Invalid:
-        return None, f"the template rendered {rendered!r}, which is not true or false"
+    if isinstance(rendered, str):
+        word = rendered.strip().lower()
+        if word in _TRUE_WORDS:
+            return True, None
+        if word in _FALSE_WORDS:
+            return False, None
+    return None, f"the template rendered {rendered!r}, which is not true or false"
 
 
 def read_template_result(
@@ -293,6 +312,14 @@ class SensorTaskWatcher:
         # Held in memory only — never persisted — so a restart safely re-evaluates
         # from the current reading rather than acting on a half-seen reset.
         self._usage_reset: dict[str, float | None] = {}
+        # The last template-render error logged per task id, so a broken template is
+        # reported once rather than on every pass. A recipe may match up to 500
+        # entities, and each one is a task: a single typo wrote 500 warnings every 5
+        # minutes, plus a burst on every state change of a bound entity, for as long as
+        # the recipe stayed broken. The message still repeats when the error *changes*,
+        # which is the only time it carries new information. Same shape as
+        # ``todo_sync_driver._warned``.
+        self._template_errors: dict[str, str] = {}
 
     # ── task / entity enumeration ──────────────────────────────────────────────
     def _sensor_tasks(self) -> dict[str, dict[str, Any]]:
@@ -516,15 +543,7 @@ class SensorTaskWatcher:
                 # so a fall-through would compare a template binding against a
                 # ``comparison`` and ``value`` it does not carry.
                 result, error = read_template_result(self._hass, cfg)
-                if error is not None:
-                    # Logged once per pass per task. A template that cannot render
-                    # decides nothing, so without this the task simply sits there.
-                    _LOGGER.warning(
-                        "Template trigger for %s (%s) did not render: %s",
-                        task.get("name"),
-                        cfg.get("entity_id"),
-                        error,
-                    )
+                self._report_template_error(tid, task, cfg, error)
                 if await self._evaluate_template(tid, task, result=result, now=now):
                     changed_any = True
                 continue
@@ -554,6 +573,8 @@ class SensorTaskWatcher:
             del self._edge[stale]
         for stale in [tid for tid in self._usage_reset if tid not in live]:
             del self._usage_reset[stale]
+        for stale in [tid for tid in self._template_errors if tid not in live]:
+            del self._template_errors[stale]
         for stale in [tid for tid in self._hold_timers if tid not in live]:
             self._cancel_hold_timer(stale)
         if changed_any and refresh:
@@ -644,6 +665,38 @@ class SensorTaskWatcher:
                 crossed_at=crossed_at,
                 now=now,
             ),
+        )
+
+    def _report_template_error(
+        self,
+        tid: str,
+        task: dict[str, Any],
+        cfg: dict[str, Any],
+        error: str | None,
+    ) -> None:
+        """Log a template that did not render, once per error rather than per pass.
+
+        A template that cannot render decides nothing — the task neither arms nor
+        clears — so without a log line the task just sits there and nothing says why.
+        But the pass runs every 5 minutes and on every state change of a bound entity,
+        and a recipe materializes one task per matched entity, so logging it each time
+        buried the rest of the log under one typo.
+
+        Keyed by task and compared against the last message, so a template that starts
+        failing *differently* is reported again. Clearing the entry on a good render is
+        what makes a template that breaks, is fixed, then breaks again report twice.
+        """
+        if error is None:
+            self._template_errors.pop(tid, None)
+            return
+        if self._template_errors.get(tid) == error:
+            return
+        self._template_errors[tid] = error
+        _LOGGER.warning(
+            "Template trigger for %s (%s) did not render: %s",
+            task.get("name"),
+            cfg.get("entity_id"),
+            error,
         )
 
     async def _evaluate_template(

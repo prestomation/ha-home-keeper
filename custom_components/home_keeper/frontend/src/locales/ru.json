@@ -748,7 +748,7 @@
   "declarative.companions.chip_error": "Ошибка",
   "declarative.companions.chip_monitored": "Наблюдение",
   "declarative.companions.field_template": "Шаблон триггера (Jinja)",
-  "declarative.companions.preview_summary_due": "Показано {shown} из {total} совпадений. Пора сейчас: {due}.",
+  "declarative.companions.preview_summary_due": "Показано {shown} из {total} совпадений. Из них {due} пора обслужить.",
   "declarative.companions.preview_template_error": "Шаблон не вычисляется: {error}. Исправьте его перед сохранением.",
   "declarative.companions.template_trigger_help": "Задача открыта, пока это даёт истину. Доступно: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Шаблон",
@@ -756,5 +756,8 @@
   "help.sensor_template": "Срок задачи наступает, пока этот шаблон даёт истину. Доступно: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "hint.sensor.template": "Срок задачи наступает, пока шаблон истинен.",
   "hint.sensor.templateFor": "Срок задачи наступает, когда шаблон остаётся истинным {seconds}с.",
-  "opt.sensor_mode.template": "Шаблон"
+  "opt.sensor_mode.template": "Шаблон",
+  "recurrence.sensorTemplate": "Когда шаблон истинен",
+  "declarative.companions.preview_template_empty": "Напишите шаблон, чтобы увидеть, какие объекты пора обслужить.",
+  "declarative.companions.preview_summary_undecided": "Показано {shown} из {total} совпадений. Шаблон не удалось обработать."
 }

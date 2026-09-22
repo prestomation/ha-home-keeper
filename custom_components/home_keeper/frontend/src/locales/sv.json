@@ -714,7 +714,7 @@
   "declarative.companions.chip_error": "Fel",
   "declarative.companions.chip_monitored": "Bevakad",
   "declarative.companions.field_template": "Utlösarmall (Jinja)",
-  "declarative.companions.preview_summary_due": "Visar {shown} av {total} träffar. Förfaller nu: {due}.",
+  "declarative.companions.preview_summary_due": "Visar {shown} av {total} träffar. {due} av dem förfaller nu.",
   "declarative.companions.preview_template_error": "Mallen går inte att tolka: {error}. Rätta den innan du sparar.",
   "declarative.companions.template_trigger_help": "Uppgiften är öppen så länge detta blir sant. Tillgängliga: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Mall",
@@ -722,5 +722,8 @@
   "help.sensor_template": "Uppgiften förfaller så länge den här mallen blir sann. Tillgängliga: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "hint.sensor.template": "Uppgiften förfaller så länge mallen är sann.",
   "hint.sensor.templateFor": "Uppgiften förfaller när mallen förblir sann i {seconds}s.",
-  "opt.sensor_mode.template": "Mall"
+  "opt.sensor_mode.template": "Mall",
+  "recurrence.sensorTemplate": "När mallen är sann",
+  "declarative.companions.preview_template_empty": "Skriv en mall för att se vilka enheter som förfaller.",
+  "declarative.companions.preview_summary_undecided": "Visar {shown} av {total} träffar. Mallen kunde inte köras."
 }

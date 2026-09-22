@@ -731,7 +731,7 @@
   "declarative.companions.chip_error": "Erreur",
   "declarative.companions.chip_monitored": "Surveillé",
   "declarative.companions.field_template": "Modèle du déclencheur (Jinja)",
-  "declarative.companions.preview_summary_due": "Affichage de {shown} sur {total} correspondances. À faire maintenant : {due}.",
+  "declarative.companions.preview_summary_due": "Affichage de {shown} sur {total} correspondances. {due} d’entre elles sont dues maintenant.",
   "declarative.companions.preview_template_error": "Le modèle ne se calcule pas : {error}. Corrigez-le avant d'enregistrer.",
   "declarative.companions.template_trigger_help": "La tâche reste ouverte tant que ceci donne vrai. Disponible: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "declarative.companions.trigger_mode.template": "Modèle",
@@ -739,5 +739,8 @@
   "help.sensor_template": "La tâche est due tant que ce modèle donne vrai. Disponible: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
   "hint.sensor.template": "La tâche est due tant que le modèle est vrai.",
   "hint.sensor.templateFor": "La tâche est due quand le modèle reste vrai pendant {seconds}s.",
-  "opt.sensor_mode.template": "Modèle"
+  "opt.sensor_mode.template": "Modèle",
+  "recurrence.sensorTemplate": "Quand le modèle est vrai",
+  "declarative.companions.preview_template_empty": "Écrivez un modèle pour voir quelles entités sont dues.",
+  "declarative.companions.preview_summary_undecided": "Affichage de {shown} sur {total} correspondances. Le modèle n’a pas pu être évalué."
 }

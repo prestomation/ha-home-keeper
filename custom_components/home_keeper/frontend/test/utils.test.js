@@ -269,6 +269,23 @@ describe('recurrenceSummary', () => {
     expect(summary).toContain('unavailable');
   });
 
+  it('describes a template task without borrowing the meter’s words', () => {
+    // The same hole as availability above, dug a second time: `template` shipped
+    // without a case of its own, so a template task read "Every of use" in the list
+    // and on its detail page. The template itself is not in the summary — it can run
+    // to 1000 characters, and the detail page's sensor row carries it.
+    const summary = recurrenceSummary({
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.hallway_lux',
+        mode: 'template',
+        template: '{{ state | float(0) >= 500 }}',
+      },
+    });
+    expect(summary).not.toContain('of use');
+    expect(summary).toContain('template');
+  });
+
   it('still describes the other sensor modes in their own words', () => {
     // The guard above sits between `threshold` and the meter, so it is exactly the
     // kind of edit that can swallow a neighbour.
@@ -356,11 +373,14 @@ describe('isMonitoredDormant', () => {
   });
 
   // #231: a Device Pulse task sat under the Monitored heading with a live Done
-  // button. The three edge modes watch a condition, so a dormant one has no work.
+  // button. Every edge mode watches a condition, so a dormant one has no work.
+  // `template` is here because it reached `EDGE_SENSOR_MODES` a mode late and put
+  // that same Done button back — pressing it recorded a completion and moved nothing.
   it('is true for a dormant sensor task in an edge mode', () => {
     expect(isMonitoredDormant(sensor('state'))).toBe(true);
     expect(isMonitoredDormant(sensor('threshold'))).toBe(true);
     expect(isMonitoredDormant(sensor('availability'))).toBe(true);
+    expect(isMonitoredDormant(sensor('template'))).toBe(true);
   });
 
   // A meter is counting up to its target; completing it early is real work that
@@ -378,6 +398,7 @@ describe('isMonitoredDormant', () => {
     expect(isMonitoredDormant({ recurrence_type: 'triggered', next_due: due })).toBe(false);
     expect(isMonitoredDormant(sensor('state', { next_due: due }))).toBe(false);
     expect(isMonitoredDormant(sensor('availability', { next_due: due }))).toBe(false);
+    expect(isMonitoredDormant(sensor('template', { next_due: due }))).toBe(false);
   });
 
   it('is false for the clock and one-off shapes, dormant or not', () => {
@@ -401,6 +422,12 @@ describe('isMonitoredDormant', () => {
       isMonitoredDormant({
         recurrence_type: 'one-off',
         sensor: { entity_id: 'sensor.x', mode: 'availability' },
+      }),
+    ).toBe(false);
+    expect(
+      isMonitoredDormant({
+        recurrence_type: 'fixed',
+        sensor: { entity_id: 'sensor.x', mode: 'template', template: '{{ true }}' },
       }),
     ).toBe(false);
   });

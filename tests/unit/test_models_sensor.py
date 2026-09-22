@@ -1046,6 +1046,43 @@ def test_template_mode_requires_a_template(template):
         )
 
 
+def test_allow_missing_template_accepts_a_blank_box():
+    """The recipe preview reads a draft mid-typing, so a blank box is not a mistake.
+
+    Failing there took the whole preview with it: the panel showed one raw
+    ``sensor.template is required`` and dropped the match list at the moment the user
+    most wants to see which entities they are about to write a template against.
+    """
+    cfg = m.normalize_sensor(
+        {"entity_id": "sensor.x", "mode": "template", "template": "  "},
+        allow_missing_template=True,
+    )
+    assert cfg["mode"] == "template"
+    assert cfg["template"] == ""
+
+
+def test_allow_missing_template_is_off_by_default():
+    """Every path that *saves* a binding leaves the flag alone, so a save still fails."""
+    with raises_exactly(m.TaskValidationError, "sensor.template is required"):
+        m.normalize_sensor({"entity_id": "sensor.x", "mode": "template"})
+    with raises_exactly(m.TaskValidationError, "sensor.template is required"):
+        m.normalize_sensor(
+            {"entity_id": "sensor.x", "mode": "template"},
+            allow_missing_template=False,
+        )
+
+
+def test_allow_missing_template_still_caps_a_long_one():
+    """The flag waives the "required" gate, not every gate on the field."""
+    with raises_exactly(
+        m.TaskValidationError, "sensor.template must be <= 1000 characters"
+    ):
+        m.normalize_sensor(
+            {"entity_id": "sensor.x", "mode": "template", "template": "x" * 1001},
+            allow_missing_template=True,
+        )
+
+
 def test_template_mode_caps_the_source_length():
     with raises_exactly(
         m.TaskValidationError, "sensor.template must be <= 1000 characters"

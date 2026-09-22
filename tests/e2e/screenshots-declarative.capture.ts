@@ -338,7 +338,7 @@ test('capture the template trigger at both widths', async ({ page }) => {
     });
     // The verdict summary replaces the plain one only once the backend has rendered
     // the template, so wait on the "N are due now" wording rather than on the box.
-    await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(/Due now: 1/, {
+    await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(/1 of these are due now/, {
       timeout: 20_000,
     });
     // Asserted before the shot, so a screenshot of the wrong state cannot be
@@ -407,9 +407,99 @@ test('capture the template trigger at both widths', async ({ page }) => {
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${OUT}/21m-panel-mobile-template-field.png` });
 
+    // 21n / 21o. The box a user has not written yet, at both widths. This is the first
+    // thing anyone picking Template mode sees, and it used to be a red
+    // `sensor.template is required` with no match list under it. The match list is the
+    // point of the shot: the preview says what the recipe covers before the template
+    // decides anything.
+    await box.fill('');
+    await box.blur();
+    await expect(dialog.locator('.hk-decl-template-hint')).toBeVisible({ timeout: 20_000 });
+    await expect(dialog.locator('.hk-decl-template-error')).toHaveCount(0);
+    await expect(dialog.locator('.hk-decl-preview-row')).toHaveCount(2);
+    await dialog.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${OUT}/21o-panel-mobile-template-empty.png` });
+
+    await page.setViewportSize({ width: 1280, height: 1800 });
+    await page.waitForTimeout(600);
+    await shoot('21n-panel-template-empty.png');
+
+    await dialog.locator('.hk-decl-cancel').scrollIntoViewIfNeeded();
     await dialog.locator('.hk-decl-cancel').click();
     await page.setViewportSize({ width: 1280, height: 720 });
   } finally {
     await callService('home_keeper', 'delete_declarative_companion', { id: specId });
+  }
+});
+
+/**
+ * A plain template-mode sensor task's own page, at both widths.
+ *
+ * The surface three separate mode allowlists forgot. `EDGE_SENSOR_MODES` left the task
+ * with a live **Done** button while its own chip said Monitored — #231 exactly, and
+ * pressing it recorded a completion that moved nothing. `recurrenceText` and
+ * `sensorProgress` both fell through to the usage meter, so the page read "Every of
+ * use" and "Target 0 (sensor.…)" for a task whose whole condition is one Jinja
+ * expression that appeared nowhere on it.
+ *
+ * Deliberately a **dormant** task: armed, the Done button is expected, and the shot
+ * would prove nothing.
+ */
+test('capture a template-mode sensor task page at both widths', async ({ page }) => {
+  const created = await callService(
+    'home_keeper',
+    'add_task',
+    {
+      name: 'Service the printer',
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.demo_printer_hours',
+        mode: 'template',
+        template: '{{ state | float(0) >= 5000 }}',
+        clear_on_recover: true,
+      },
+    },
+    true,
+  );
+  const taskId = created.task_id as string;
+  try {
+    const panel = page.locator('home-keeper-panel').first();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/home-keeper/tasks/${taskId}`, { waitUntil: 'domcontentloaded' });
+    const card = panel.locator('.hk-detail-card').first();
+    await expect(card).toBeVisible({ timeout: 45_000 });
+    // The Schedule rows are a card of their own, below the header card the actions
+    // live in, so the assertions below read the page rather than one card.
+    const page$ = panel.locator('.hk-detail-card');
+    await expect(page$.filter({ hasText: 'Recurrence' })).toBeVisible({ timeout: 20_000 });
+
+    // Asserted before the shot, so a screenshot of the wrong state cannot be committed.
+    await expect(card).toContainText('Monitored');
+    await expect(page$.first().locator('..')).toContainText('{{ state | float(0) >= 5000 }}');
+    await expect(panel).not.toContainText('of use');
+    await expect(panel).not.toContainText('Target 0');
+    await expect(panel.locator('.hk-detail-actions .d-done')).toHaveCount(0);
+
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(400);
+    await page.screenshot({
+      path: `${OUT}/21p-panel-template-task-detail.png`,
+      fullPage: true,
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(600);
+    await expect(card).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(600);
+    await page.screenshot({
+      path: `${OUT}/21q-panel-mobile-template-task-detail.png`,
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 1280, height: 720 });
+  } finally {
+    await callService('home_keeper', 'delete_task', { task_id: taskId });
   }
 });
