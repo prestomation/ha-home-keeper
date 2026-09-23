@@ -4,7 +4,7 @@
 
 | Name                                                            |    Stmts |     Miss |   Branch |   BrPart |   Cover |   Missing |
 |---------------------------------------------------------------- | -------: | -------: | -------: | -------: | ------: | --------: |
-| custom\_components/home\_keeper/\_\_init\_\_.py                 |      577 |      577 |       68 |        0 |      0% |    8-1921 |
+| custom\_components/home\_keeper/\_\_init\_\_.py                 |      577 |      577 |       68 |        0 |      0% |    8-1930 |
 | custom\_components/home\_keeper/api\_surface.py                 |       85 |        0 |        0 |        0 |    100% |           |
 | custom\_components/home\_keeper/appliance\_report.py            |       66 |        0 |       14 |        0 |    100% |           |
 | custom\_components/home\_keeper/assets.py                       |      602 |       29 |      270 |       24 |     94% |156, 185, 204, 209, 216, 249, 273, 276, 279, 302-303, 340, 342, 347, 361-\>360, 409-410, 412, 571, 574, 577-578, 584, 608, 715, 761-\>769, 1144, 1303-1304, 1328-1329, 1331-\>1344, 1377-\>1379 |
@@ -56,7 +56,7 @@
 | custom\_components/home\_keeper/todo\_list.py                   |      229 |        0 |       96 |        0 |    100% |           |
 | custom\_components/home\_keeper/todo\_list\_sync.py             |      127 |        2 |       52 |        2 |     98% |  187, 201 |
 | custom\_components/home\_keeper/todo\_sync\_driver.py           |       96 |        4 |       22 |        3 |     94% |119, 199-\>205, 225-226, 259 |
-| custom\_components/home\_keeper/transfer.py                     |      514 |        9 |      208 |        5 |     98% |261-270, 497-\>504, 719, 738, 1198-\>1197, 1314-\>1317 |
+| custom\_components/home\_keeper/transfer.py                     |      514 |        9 |      208 |        5 |     98% |259-268, 495-\>502, 717, 736, 1196-\>1195, 1312-\>1315 |
 | custom\_components/home\_keeper/transfer\_runner.py             |       43 |       43 |       14 |        0 |      0% |    13-141 |
 | custom\_components/home\_keeper/transitions.py                  |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py               |      563 |      563 |       72 |        0 |      0% |    8-1474 |
