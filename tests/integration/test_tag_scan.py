@@ -9,12 +9,14 @@ of marking a task done.
 """
 
 import time
+import uuid
 
 from conftest import HA_URL, call_service, poll_state
 
 # Unique to this module so the scans here can't collide with a seeded task's tag.
 TAG = "hk-itest-tag"
 OTHER_TAG = "hk-itest-tag-unknown"
+PART_TAG = "hk-itest-part-tag"
 
 
 def _fire_scan(ha, tag_id):
@@ -57,6 +59,80 @@ def _poll_task(ha, task_id, condition, timeout=20):
             return task
         time.sleep(1)
     raise TimeoutError(f"Timed out waiting on task {task_id}. Last seen: {task}")
+
+
+def _list_assets(ha):
+    resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
+    return resp.get("service_response", resp)["assets"]
+
+
+def _poll(fetch, condition, timeout=20):
+    deadline = time.monotonic() + timeout
+    last = None
+    while time.monotonic() < deadline:
+        last = next((item for item in fetch() if condition(item)), None)
+        if last is not None:
+            return last
+        time.sleep(1)
+    raise TimeoutError(f"Timed out polling. Last seen: {last}")
+
+
+def test_tag_scan_completes_the_task_a_wear_part_creates(ha):
+    # The tag is bound on the *part*: a derived task has no form of its own, so the
+    # part editor is where a household sticks the tag on. The reconciler copies it
+    # onto the maintenance task, and a scan then completes that task like any other —
+    # through the store's one completion path, which also stamps the part replaced.
+    name = f"Tag scan heater {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": name,
+            "parts": [
+                {
+                    "name": "Anode",
+                    "type": "wear",
+                    "replace_interval": 12,
+                    "replace_unit": "months",
+                    "tag_id": PART_TAG,
+                    "require_tag_scan": True,
+                }
+            ],
+        },
+    )
+    asset = _poll(lambda: _list_assets(ha), lambda a: a["name"] == name)
+    try:
+
+        def _derived(task):
+            src = (task.get("source") or {}).get("part") or {}
+            return src.get("asset_id") == asset["id"]
+
+        task = _poll(lambda: _list_tasks(ha), _derived)
+        assert task["tag_id"] == PART_TAG
+        assert task["require_tag_scan"] is True
+        assert not task["completions"]
+
+        # The flag holds on the derived task too: a plain Done is refused.
+        rejected = ha.post(
+            f"{HA_URL}/api/services/home_keeper/complete_task",
+            json={"task_id": task["id"]},
+        )
+        assert rejected.status_code >= 400, (
+            f"bare complete_task should be refused, got {rejected.status_code}"
+        )
+        assert not _get_task(ha, task["id"])["completions"]
+
+        _fire_scan(ha, PART_TAG)
+        task = _poll_task(ha, task["id"], lambda t: t["completions"])
+        assert len(task["completions"]) == 1
+
+        asset = _poll(
+            lambda: _list_assets(ha),
+            lambda a: a["id"] == asset["id"] and a["parts"][0].get("last_replaced"),
+        )
+    finally:
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 
 
 def test_tag_scan_completes_every_task_bound_to_the_tag(ha):

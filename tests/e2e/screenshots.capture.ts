@@ -40,6 +40,55 @@ async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Pr
 }
 
 /**
+ * Bind (or unbind) an NFC tag on the seeded anode rod, through the public service.
+ *
+ * `update_asset` replaces the whole parts list, so the other parts are sent back as
+ * they are. Undone right after each shot that needs it: the derived "Replace Anode
+ * rod" task wears an NFC chip while the tag is set, and every other shot of the task
+ * list documents that row without one.
+ */
+async function setAnodeTag(page: Page, tagId: string | null): Promise<void> {
+  await page.evaluate(
+    async ({ ASSET: assetIds, PART: partIds, tagId: tag }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      if (!hass) return;
+      if (tag) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tags: any[] = await hass.callWS({ type: 'tag/list' });
+        if (!tags.some((t) => t.id === tag)) {
+          await hass.callWS({ type: 'tag/create', tag_id: tag, name: 'Anode rod' });
+        }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { assets } = (await hass.callWS({ type: 'home_keeper/get_assets' })) as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const heater = assets.find((a: any) => a.id === assetIds.waterHeater);
+      const WRITABLE = [
+        'id', 'name', 'part_number', 'type', 'vendor', 'cost', 'url', 'notes',
+        'replace_interval', 'replace_unit', 'last_replaced', 'stock', 'reorder_at',
+        'stock_unit', 'consume_quantity', 'create_buy_task', 'restock_quantity',
+        'action', 'use_noun', 'use_task_name', 'replace_also_every',
+        'tag_id', 'require_tag_scan',
+      ];
+      await hass.callService('home_keeper', 'update_asset', {
+        asset_id: heater.id,
+        parts: heater.parts.map((p: Record<string, unknown>) => {
+          const out: Record<string, unknown> = {};
+          for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
+          if (p.id === partIds.anode) {
+            out.tag_id = tag;
+            out.require_tag_scan = Boolean(tag);
+          }
+          return out;
+        }),
+      });
+    },
+    { ASSET, PART, tagId },
+  );
+}
+
+/**
  * Put the usage form's "Also come due on a schedule" switch into a known state.
  *
  * Driven by its *effect* — the backstop adds a second number selector ("Or every")
@@ -973,6 +1022,45 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/5b-panel-appliances-archived-list.png`, fullPage: true });
   // Reset to Active so the remaining appliance shots see the normal list.
   await panel.locator('.hk-seg[data-seg="assetFilter"] button', { hasText: 'Active' }).click();
+
+  // 70. A wear item's NFC/RFID binding. A task derived from a wear part has no Edit
+  //     of its own — its part is its editor — so the tag picker and the require-scan
+  //     switch sit at the foot of the part, above the What this creates box, which
+  //     says what a scan does. Bound through the service first so the picker shows a
+  //     registry tag by name, exactly as the task form's shot (44) does.
+  await setAnodeTag(page, 'anode-rod-tag');
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await panel.locator('.d-edit').click();
+  const tagForm = panel.locator('#hk-asset-form');
+  await expect(tagForm).toBeVisible();
+  const tagParts = tagForm.locator('details.hk-collapsible').filter({ hasText: 'Parts & wear items' });
+  if (!(await tagParts.first().evaluate((d: HTMLDetailsElement) => d.open))) {
+    await tagParts.first().locator('summary').click();
+  }
+  const anodePart = tagParts.locator('.hk-part').first();
+  await openPart(anodePart);
+  const anodeTagToggle = anodePart
+    .locator('ha-selector-boolean')
+    .filter({ hasText: 'Require a tag scan' });
+  await expect(anodeTagToggle).toBeVisible({ timeout: 10_000 });
+  await expect(anodePart.locator('.hk-part-preview .hk-form-summary-fact')).toContainText([
+    /Due every 12 months/,
+    'A tag scan completes it.',
+    'Done is blocked until the tag is scanned.',
+  ]);
+  await centre(anodeTagToggle);
+  await page.waitForTimeout(600);
+  await shotWithDrawer(page, `${OUT}/70-panel-part-tag-field.png`);
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+  await setAnodeTag(page, null);
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 6. Appliance create form — virtual device, metadata, parts and relationships.
   await panel.locator('#add-btn').click();
@@ -1926,6 +2014,37 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/69c-panel-mobile-task-enable-banner.png` });
   await panel.locator('.d-enable').click();
   await expect(panel.locator('.hk-disabled-banner')).toHaveCount(0);
+
+  // 70c. The wear item's tag binding on a phone. Below 700px the appliance editor is
+  //      a page rather than a drawer, and the part's fields stack one to a row, so
+  //      the picker, the switch and the What this creates box share one screen the
+  //      desktop shot cannot show. Bound and unbound around the shot, as 70 is.
+  await setAnodeTag(page, 'anode-rod-tag');
+  await openPanel(page);
+  await panel.locator('#mtab-appliances').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await panel.locator('.d-edit').click();
+  const tagFormPhone = panel.locator('#hk-asset-form');
+  await expect(tagFormPhone).toBeVisible();
+  const tagPartsPhone = tagFormPhone
+    .locator('details.hk-collapsible')
+    .filter({ hasText: 'Parts & wear items' });
+  if (!(await tagPartsPhone.first().evaluate((d: HTMLDetailsElement) => d.open))) {
+    await tagPartsPhone.first().locator('summary').click();
+  }
+  const anodePartPhone = tagPartsPhone.locator('.hk-part').first();
+  await openPart(anodePartPhone);
+  const anodeTagTogglePhone = anodePartPhone
+    .locator('ha-selector-boolean')
+    .filter({ hasText: 'Require a tag scan' });
+  await expect(anodeTagTogglePhone).toBeVisible({ timeout: 10_000 });
+  await centre(anodeTagTogglePhone);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/70c-panel-mobile-part-tag-field.png` });
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await setAnodeTag(page, null);
 
   await page.setViewportSize(DESKTOP);
 });

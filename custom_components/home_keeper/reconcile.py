@@ -23,6 +23,7 @@ from .assets import (
     part_counts_uses,
     part_is_low,
     part_replace_backstop,
+    part_tag_role,
     part_use_target,
     part_wants_buy_task,
     use_retention_cap,
@@ -420,6 +421,59 @@ def _replace_name_template(
     return resolve_action_task_naming(action, language)
 
 
+def _tag_fields(part: dict[str, Any], role: str) -> dict[str, Any]:
+    """The ``tag_id``/``require_tag_scan`` pair a derived task of *role* carries.
+
+    The part's binding goes to exactly one of its tasks — :func:`assets.part_tag_role`
+    says which — and the other gets the empty pair, so switching a part between
+    months and uses moves the tag from one task to the other rather than leaving it on
+    both. ``require_tag_scan`` is tied to the tag here as well as at validation: a
+    ``True`` beside a ``None`` tag is what ``models.merge_update`` refuses.
+    """
+    if role != part_tag_role(part):
+        return {"tag_id": None, "require_tag_scan": False}
+    tag_id = part.get("tag_id") or None
+    return {
+        "tag_id": tag_id,
+        "require_tag_scan": tag_id is not None and bool(part.get("require_tag_scan")),
+    }
+
+
+def adopt_part_tags(
+    assets: dict[str, dict[str, Any]], tasks: dict[str, dict[str, Any]]
+) -> bool:
+    """Move a tag bound to a derived task straight onto the part that owns it.
+
+    Before parts carried a tag, ``home_keeper.update_task`` was the only way to bind
+    one to a wear part's task, and the 0.24 notes said a tag scan counts a use. Now
+    that :func:`reconcile_part_tasks` writes the task's binding from the part, such a
+    tag would be cleared on the first pass after the upgrade. The store runs this
+    **once, when it loads**, and copies the tag up instead: a part that already names
+    a tag keeps its own, and a task whose role is not the one the part's tag goes to
+    is left for the reconciler to clear. Never on every pass — there it would put back
+    a tag a user had just cleared on the part, because the task still wore it. Mutates
+    *assets* in place and returns ``True`` when a part changed.
+    """
+    parts = {
+        (asset["id"], part["id"]): part
+        for asset in assets.values()
+        for part in asset.get("parts", [])
+        if part.get("id")
+    }
+    changed = False
+    for task in tasks.values():
+        src = part_source(task)
+        if src is None or src.get("manual") or not task.get("tag_id"):
+            continue
+        part = parts.get((src["asset_id"], src["part_id"]))
+        if part is None or part.get("tag_id") or part_role(task) != part_tag_role(part):
+            continue
+        part["tag_id"] = task["tag_id"]
+        part["require_tag_scan"] = bool(task.get("require_tag_scan"))
+        changed = True
+    return changed
+
+
 def reconcile_part_tasks(
     assets: dict[str, dict[str, Any]],
     tasks: dict[str, dict[str, Any]],
@@ -532,6 +586,7 @@ def reconcile_part_tasks(
                 "device_id": asset.get("device_id"),
                 "area_id": asset.get("area_id"),
                 "source": {"part": part_link},
+                **_tag_fields(part, role),
             }
             if rec_type == REC_FLOATING:
                 payload["interval"] = part["replace_interval"]
@@ -579,6 +634,14 @@ def reconcile_part_tasks(
                 updates["device_id"] = asset.get("device_id")
             if before.get("area_id") != asset.get("area_id"):
                 updates["area_id"] = asset.get("area_id")
+            tag = _tag_fields(part, role)
+            if (
+                before.get("tag_id") != tag["tag_id"]
+                or bool(before.get("require_tag_scan")) != tag["require_tag_scan"]
+            ):
+                # Both keys together, always: ``merge_update`` validates the pair, and
+                # a tag cleared on its own while the flag stood would be refused.
+                updates.update(tag)
             merged = (
                 models.merge_update(before, updates, now=now) if updates else before
             )

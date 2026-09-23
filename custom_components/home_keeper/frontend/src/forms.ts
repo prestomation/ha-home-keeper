@@ -1666,7 +1666,10 @@ export function partBaseSchema(): FormField[] {
  * once auto-buy is on), and the replacement schedule for a wear item. Empty for a
  * consumable that tracks nothing.
  */
-export function partDependentSchema(part: Part): FormField[] {
+export function partDependentSchema(
+  part: Part,
+  tags: { value: string; label: string }[] = [],
+): FormField[] {
   const fields: FormField[] = [];
   // How much one completion draws down. Only meaningful once the part is tracking
   // stock at all — with nothing to draw from, the field would promise nothing.
@@ -1727,6 +1730,13 @@ export function partDependentSchema(part: Part): FormField[] {
     // Let the user record when the part was last replaced so the derived
     // maintenance task's clock starts from the real date instead of "now".
     fields.push({ name: 'last_replaced', selector: selDate() });
+    // The NFC/RFID binding of the task this part creates. The task form offers the
+    // same pair, but a derived task has no Edit — its part is its editor — so the
+    // sticker is bound here. Offered with an empty registry too: `custom_value` lets
+    // the id be typed straight off the sticker. Named apart from the task form's
+    // fields because the helper text has to say which task a scan reaches.
+    fields.push({ name: 'part_tag_id', selector: selSelectCustom(tags) });
+    fields.push({ name: 'part_require_tag_scan', selector: selBool() });
   }
   return fields;
 }
@@ -1753,8 +1763,8 @@ export function partDependentKey(part: Part): string {
 
 /** Schema for one part, as one flat list: the fixed fields, then the ones its own
  *  values reveal. The concatenation of the two builders the editor uses. */
-export function partSchema(part: Part): FormField[] {
-  return [...partBaseSchema(), ...partDependentSchema(part)];
+export function partSchema(part: Part, tags: { value: string; label: string }[] = []): FormField[] {
+  return [...partBaseSchema(), ...partDependentSchema(part, tags)];
 }
 
 /** A part's fields as the flat form data both of its forms are seeded from (each
@@ -1785,6 +1795,8 @@ export function partFormData(part: Part): Record<string, unknown> {
     also_every_interval: part.replace_also_every?.interval ?? 1,
     also_every_unit: part.replace_also_every?.unit ?? 'months',
     last_replaced: part.last_replaced ?? undefined,
+    part_tag_id: part.tag_id ?? undefined,
+    part_require_tag_scan: part.require_tag_scan ?? false,
   };
 }
 
@@ -1856,6 +1868,11 @@ export function mergePartForm(prev: Part, value: Record<string, unknown>): Part 
   // The last-replaced date is only editable for a wear item; a consumable keeps
   // whatever it had (the field is not shown, so nothing can have changed it).
   if (has('last_replaced')) next.last_replaced = value.last_replaced ? str(value.last_replaced) : null;
+  if (has('part_tag_id')) next.tag_id = str(value.part_tag_id).trim() || null;
+  if (has('part_require_tag_scan')) next.require_tag_scan = Boolean(value.part_require_tag_scan);
+  // A scan requirement with no tag to scan is a task nothing can complete, and the
+  // backend refuses the pair — so clearing the tag clears the flag, as the task form does.
+  if (!next.tag_id) next.require_tag_scan = false;
   if (next.stock == null) next.consume_quantity = null;
   if (next.reorder_at == null) next.create_buy_task = false;
   if (!next.create_buy_task) next.restock_quantity = null;
@@ -1994,6 +2011,16 @@ export function partFirstDue(part: Part): Date | null {
 }
 
 /**
+ * The preview's tag facts, under whichever task the part's tag reaches: what a scan
+ * does (*scanKey*), then, when the part demands one, that Done waits for it.
+ */
+function pushTagLines(lines: PartPreviewLine[], part: Part, scanKey: string): void {
+  if (!part.tag_id) return;
+  lines.push({ text: t(scanKey), kind: 'fact' });
+  if (part.require_tag_scan) lines.push({ text: t('part.preview.tagRequired'), kind: 'fact' });
+}
+
+/**
  * What a wear item will create, in plain language, for the box at the foot of the part
  * editor.
  *
@@ -2029,6 +2056,9 @@ export function partPreview(part: Part, assetName: string): PartPreview {
     // stored in the plural and no panel shipping 16 languages can singularise
     // arbitrary user text. See `useCountLabel`.
     lines.push({ text: t('part.preview.countsOne'), kind: 'fact' });
+    // The tag goes to the use task (`assets.part_tag_role`), so it is said here,
+    // under that task, and not under the maintenance task below.
+    pushTagLines(lines, part, 'part.preview.tagCountsUse');
   }
 
   lines.push({ text: partTaskName(part, assetName), kind: 'task' });
@@ -2072,6 +2102,7 @@ export function partPreview(part: Part, assetName: string): PartPreview {
     if (first) {
       lines.push({ text: t('part.preview.firstDue', { date: formatDate(first) }), kind: 'fact' });
     }
+    pushTagLines(lines, part, 'part.preview.tagCompletes');
   }
 
   // Stock is a second, quieter block: true of the part, but not about either task's

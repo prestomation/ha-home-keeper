@@ -74,6 +74,7 @@ from .const import (
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
 from .problem_tasks import problem_source as _problem_source
 from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks
+from .reconcile import adopt_part_tags as _adopt_part_tags
 from .reconcile import buy_source as _buy_source
 from .reconcile import is_manual_part_link as _is_manual_part_link
 from .reconcile import is_use_task as _is_use_task
@@ -260,6 +261,12 @@ class HomeKeeperStore:
             if assets.migrate_documents_from_manual_url(asset):
                 changed = True
         if self._clean_relationship_links():
+            changed = True
+        # A tag bound to a wear part's derived task before parts carried one moves
+        # onto the part, once, here — the first reconcile after the upgrade would
+        # otherwise clear it. Load-time only: on every pass it would also undo a tag
+        # a user just cleared on the part (see reconcile.adopt_part_tags).
+        if _adopt_part_tags(self._assets, self._tasks):
             changed = True
         if changed:
             await self._save()
