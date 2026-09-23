@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.25.0b3]
+
+### Added
+
+- **[Disabled tasks](https://prestomation.github.io/ha-home-keeper/docs/guide/disabled-tasks).**
+  Disable a task from an automation and enable it again later. A disabled task keeps
+  its history and stays out of your reminders and your lists. (Fixes #344)
+
 ## [0.25.0b2]
 
 ### Added

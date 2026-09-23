@@ -120,6 +120,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Disable or enable this task. A disabled task keeps its history and its settings, and its due date stays where it was. Home Keeper keeps it out of your reminders and your lists until you enable it again."
         }
       }
     },
@@ -210,6 +214,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Disable or enable this task. A disabled task keeps its history and its settings, and its due date stays where it was. Home Keeper keeps it out of your reminders and your lists until you enable it again."
         }
       }
     },

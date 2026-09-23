@@ -287,6 +287,18 @@ export const STYLES = `
     --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
+  /* Off is not a fault and not a nudge, so the disabled chip stays out of the warn
+     and danger families entirely: the page ground with muted ink, which is what the
+     neutral rule further down already gives every uncoloured status chip. Only the
+     label colour is set here, so the chip reads as switched off rather than as
+     something needing attention. */
+  ha-assist-chip.hk-disabled {
+    --md-assist-chip-label-text-color: var(--hk-ink-2);
+    --ha-assist-chip-label-text-color: var(--hk-ink-2);
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
+  }
   /* Counting is neutral news, so the counted chip reads in the accent family rather
      than the warn one the shopping chip uses: "17 of 25 wears" is progress, not a
      nudge and not a fault. It goes solid (ok, then warn at the target) only once the
