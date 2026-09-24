@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Ausgeschlossene Bereiche",
           "problem_sensor_exclude_labels": "Ausgeschlossene Labels",
           "one_off_retention_days": "Aufbewahrung einmaliger Aufgaben (Tage)",
-          "shopping_list_entity": "Einkaufsliste"
+          "shopping_list_entity": "Einkaufsliste",
+          "shopping_line_style": "Text auf der Einkaufsliste"
         },
         "data_description": {
           "sync_problem_sensors": "Eine synchronisierte Aufgabe wird erst geschlossen, wenn die Quellintegration das Problem behebt, nicht beim Tippen auf Erledigt. Erinnerungen dazu bieten Später statt Erledigt.",
           "one_off_retention_days": "Eine abgeschlossene one-off-Aufgabe (Einmalaufgabe) so viele Tage nach ihrem Abschluss automatisch löschen. 0 behält abgeschlossene Einmalaufgaben dauerhaft.",
-          "shopping_list_entity": "Synchronisiert automatische Einkaufserinnerungen mit dieser Aufgabenliste. Wird ein Eintrag dort abgehakt, schließt Home Keeper die Erinnerung ab und füllt den Bestand des Ersatzteils auf. Leer lassen, um die Synchronisierung abzuschalten."
+          "shopping_list_entity": "Synchronisiert automatische Einkaufserinnerungen mit dieser Aufgabenliste. Wird ein Eintrag dort abgehakt, schließt Home Keeper die Erinnerung ab und füllt den Bestand des Ersatzteils auf. Leer lassen, um die Synchronisierung abzuschalten.",
+          "shopping_line_style": "So erscheint eine Kauferinnerung auf der Einkaufsliste. „Nur Produkt“ zeigt den Namen des Teils ohne Verb, zum Beispiel „Weichspüler“ statt „Weichspüler kaufen“."
         }
       }
     }
@@ -688,6 +690,10 @@
           "name": "Einkaufsliste",
           "description": "Eine vorhandene Aufgabenliste, mit der automatische Einkaufserinnerungen synchronisiert werden. Ein dort abgehakter Eintrag schließt die Erinnerung ab und füllt den Bestand auf. Ein leeres Feld schaltet das ab."
         },
+        "shopping_line_style": {
+          "name": "Text auf der Einkaufsliste",
+          "description": "So erscheint eine Kauferinnerung auf der Einkaufsliste. with_verb (Standard) zeigt den Namen der Erinnerung, zum Beispiel „Weichspüler kaufen“. product_only zeigt nur den Namen des Teils."
+        },
         "dismissed_companions": {
           "name": "Ausgeblendete Companions",
           "description": "Glue-Integrationsdomains, die in der Liste „Vorgeschlagen“ unter Einstellungen → Companions ausgeblendet werden. Das Ausblenden unterdrückt nur einen Vorschlag; eine verbundene Kopplung wird immer angezeigt."
@@ -959,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Deklarative Companions auflisten",
       "description": "Gibt jede gespeicherte deklarative Companion-Spezifikation als Antwort zurück."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Mit Verb",
+        "product_only": "Nur Produkt"
+      }
     }
   },
   "entity": {

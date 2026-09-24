@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Uteslutna områden",
           "problem_sensor_exclude_labels": "Uteslutna etiketter",
           "one_off_retention_days": "Lagringstid för engångsuppgifter (dagar)",
-          "shopping_list_entity": "Inköpslista"
+          "shopping_list_entity": "Inköpslista",
+          "shopping_line_style": "Text på inköpslistan"
         },
         "data_description": {
           "sync_problem_sensors": "En synkroniserad uppgift avslutas först när källintegrationen löser problemet, inte när du trycker på Klar. Påminnelser om den erbjuder Skjut upp i stället för Klar.",
           "one_off_retention_days": "Radera automatiskt en slutförd engångsuppgift så här många dagar efter att den slutförts. 0 behåller slutförda engångsuppgifter för alltid.",
-          "shopping_list_entity": "Synkroniserar automatiska inköpspåminnelser till den här uppgiftslistan. Att bocka av en post där slutför påminnelsen i Home Keeper och fyller på reservdelen. Lämna tomt för att stänga av synkroniseringen."
+          "shopping_list_entity": "Synkroniserar automatiska inköpspåminnelser till den här uppgiftslistan. Att bocka av en post där slutför påminnelsen i Home Keeper och fyller på reservdelen. Lämna tomt för att stänga av synkroniseringen.",
+          "shopping_line_style": "Så visas en inköpspåminnelse på inköpslistan. ”Bara produkt” visar reservdelens namn utan verb, till exempel ”Sköljmedel” i stället för ”Köp sköljmedel”."
         }
       }
     }
@@ -688,6 +690,10 @@
           "name": "Inköpslista",
           "description": "En befintlig uppgiftslista att synkronisera automatiska inköpspåminnelser till. Att bocka av en post där slutför påminnelsen och fyller på lagret. Ett tomt fält stänger av funktionen."
         },
+        "shopping_line_style": {
+          "name": "Text på inköpslistan",
+          "description": "Så visas en inköpspåminnelse på inköpslistan. with_verb (standard) visar påminnelsens namn, till exempel ”Köp sköljmedel”. product_only visar bara reservdelens namn."
+        },
         "dismissed_companions": {
           "name": "Avfärdade kompanjoner",
           "description": "Domäner för kopplingsintegrationer att dölja från listan ”Föreslagna” under Inställningar → Kompanjoner. Att avfärda tystar bara ett förslag; en ansluten koppling visas alltid."
@@ -959,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Visa deklarativa companions",
       "description": "Returnerar varje sparad deklarativ companion-specifikation som svar."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Med verb",
+        "product_only": "Bara produkt"
+      }
     }
   },
   "entity": {

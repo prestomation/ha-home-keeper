@@ -38,7 +38,12 @@ from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.template import Template, TemplateError
 
-from . import declarative_companions, sensor_tasks, sensor_watcher
+from . import (
+    declarative_companions,
+    declarative_presets,
+    sensor_tasks,
+    sensor_watcher,
+)
 from .const import (
     DOMAIN,
     SIGNAL_DECLARATIVE_SPECS_CHANGED,
@@ -236,6 +241,12 @@ class DeclarativeCompanionSync:
             "attributes": attributes,
         }
 
+    def _task_template(self, spec: dict[str, Any]) -> dict[str, Any]:
+        """*spec*'s task template, with unchanged preset text in the HA language."""
+        return declarative_presets.localized_task_template(
+            spec, self._hass.config.language
+        )
+
     def _render_one(self, source: str, variables: dict[str, Any]) -> str:
         """Render one Jinja template, returning the source on any error.
 
@@ -262,7 +273,7 @@ class DeclarativeCompanionSync:
     ) -> tuple[str, str]:
         """Return ``(rendered_name, rendered_notes)`` for one match."""
         variables = self._template_variables(match["entity"])
-        template = spec.get("task_template") or {}
+        template = self._task_template(spec)
         name = self._render_one(template.get("name_template", ""), variables)
         notes = self._render_one(template.get("notes_template", ""), variables)
         return name, notes
@@ -355,7 +366,7 @@ class DeclarativeCompanionSync:
         spec = store.get_declarative_companion(source.get("spec_id") or "")
         if spec is None:
             return
-        template = (spec.get("task_template") or {}).get("notes_template") or ""
+        template = self._task_template(spec).get("notes_template") or ""
         if not template:
             return
         entity_id = sensor_tasks.bound_entity_id(task)
@@ -456,11 +467,12 @@ class DeclarativeCompanionSync:
         sample: list[dict[str, Any]] = []
         for (_spec_id_key, ent_reg_id), match in list(matches.items())[:10]:
             variables = self._template_variables(match["entity"])
+            template = self._task_template(spec)
             rendered_name = self._render_one(
-                spec.get("task_template", {}).get("name_template", ""), variables
+                template.get("name_template", ""), variables
             )
             rendered_notes = self._render_one(
-                spec.get("task_template", {}).get("notes_template", ""), variables
+                template.get("notes_template", ""), variables
             )
             sample.append(
                 {

@@ -1435,13 +1435,26 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/17-panel-settings.png`, fullPage: true });
 
-  // 17s. The Shopping list card on its own, for the README section about mirroring
-  // buy reminders onto an existing to-do list.
-  await panel.locator('#hk-settings-shopping').scrollIntoViewIfNeeded();
-  await page.waitForTimeout(400);
-  await panel
-    .locator('#hk-settings-shopping')
-    .screenshot({ path: `${OUT}/45-panel-settings-shopping.png` });
+  // 17s. The Shopping list card on its own, for the guide section about mirroring
+  // buy reminders onto an existing to-do list. "Product only" is picked so the shot
+  // shows the line style and the preview under it with the part name alone (#369).
+  // The preview is asserted, not only photographed: it is what says the choice works.
+  const shoppingSettings = panel.locator('#hk-settings-shopping');
+  await shoppingSettings.scrollIntoViewIfNeeded();
+  await shoppingSettings.getByLabel('Product only').check();
+  await expect(shoppingSettings.locator('.hk-shopping-preview-title').first()).toHaveText(
+    'Anode rod',
+    { timeout: 10_000 },
+  );
+  await expect(shoppingSettings.locator('.hk-settings-value')).toContainText(
+    'product names only',
+  );
+  // The choice autosaves; wait for it to land so shot 46 finds the renamed line.
+  await expect(shoppingSettings.locator('.hk-save-status.saved')).toBeVisible({
+    timeout: 30_000,
+  });
+  await page.waitForTimeout(600);
+  await shoppingSettings.screenshot({ path: `${OUT}/45-panel-settings-shopping.png` });
 
   // 17t. The Skip, snooze & pull forward card on its own — now 3 switches, Pull
   // forward being the newest.
@@ -1746,7 +1759,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     .locator('hui-todo-list-card, todo-list-card')
     .filter({ hasText: 'Shopping list' })
     .first();
-  await expect(shoppingCard).toContainText('Buy Anode rod', { timeout: 30_000 });
+  // Shot 17s picked "Product only", so the line is the part name without the verb.
+  await expect(shoppingCard).toContainText('Anode rod', { timeout: 30_000 });
+  await expect(shoppingCard).not.toContainText('Buy Anode rod', { timeout: 30_000 });
   await page.waitForTimeout(600);
   await shoppingCard.screenshot({ path: `${OUT}/46-shopping-list-buy-reminder.png` });
 
@@ -1917,6 +1932,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-settings-skipsnooze')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/45d-panel-mobile-settings-skipsnooze.png` });
+
+  // 45e. The Shopping list section on a phone: the list picker, the line style below
+  // it, and the preview, one under the other in a single column.
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="shopping"]').click();
+  await expect(panel.locator('#hk-settings-shopping .hk-shopping-preview')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/45e-panel-mobile-settings-shopping.png` });
 
   // 22b. One notification open on a phone. This is where the pair that #313 confused
   // has to read: the line under the profile picker naming what that profile sends, and

@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Wykluczone obszary",
           "problem_sensor_exclude_labels": "Wykluczone etykiety",
           "one_off_retention_days": "Przechowywanie jednorazowych (dni)",
-          "shopping_list_entity": "Lista zakupów"
+          "shopping_list_entity": "Lista zakupów",
+          "shopping_line_style": "Tekst na liście zakupów"
         },
         "data_description": {
           "sync_problem_sensors": "Zsynchronizowane zadanie zamyka się dopiero, gdy integracja źródłowa rozwiąże problem, a nie po naciśnięciu Gotowe. Przypomnienia o nim oferują Odłóż zamiast Gotowe.",
           "one_off_retention_days": "Automatycznie usuwaj ukończone zadanie jednorazowe po upływie tylu dni od jego ukończenia. Wartość 0 zachowuje ukończone zadania jednorazowe na zawsze.",
-          "shopping_list_entity": "Synchronizuje automatyczne przypomnienia o zakupie z tą listą zadań. Odhaczenie pozycji tam kończy przypomnienie w Home Keeper i uzupełnia zapas części. Pozostaw puste, aby wyłączyć synchronizację."
+          "shopping_list_entity": "Synchronizuje automatyczne przypomnienia o zakupie z tą listą zadań. Odhaczenie pozycji tam kończy przypomnienie w Home Keeper i uzupełnia zapas części. Pozostaw puste, aby wyłączyć synchronizację.",
+          "shopping_line_style": "Jak przypomnienie o zakupie wygląda na liście zakupów. „Tylko produkt” pokazuje nazwę części bez czasownika, na przykład „Płyn do płukania” zamiast „Kup płyn do płukania”."
         }
       }
     }
@@ -688,6 +690,10 @@
           "name": "Lista zakupów",
           "description": "Istniejąca lista zadań, z którą synchronizowane są automatyczne przypomnienia o zakupie. Odhaczenie pozycji tam kończy przypomnienie i uzupełnia zapas. Puste pole wyłącza tę funkcję."
         },
+        "shopping_line_style": {
+          "name": "Tekst na liście zakupów",
+          "description": "Jak przypomnienie o zakupie wygląda na liście zakupów. with_verb (domyślnie) pokazuje nazwę przypomnienia, na przykład „Kup płyn do płukania”. product_only pokazuje tylko nazwę części."
+        },
         "dismissed_companions": {
           "name": "Odrzuceni towarzysze",
           "description": "Domeny integracji łączących do ukrycia z listy „Sugerowane” w Ustawienia → Towarzysze. Odrzucenie jedynie wycisza sugestię; połączone powiązanie jest zawsze wyświetlane."
@@ -959,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Wyświetl deklaratywnych towarzyszy",
       "description": "Zwraca w odpowiedzi każdą zapisaną specyfikację deklaratywnego towarzysza."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Z czasownikiem",
+        "product_only": "Tylko produkt"
+      }
     }
   },
   "entity": {

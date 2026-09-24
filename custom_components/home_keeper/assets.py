@@ -31,12 +31,16 @@ by the caller.
 from __future__ import annotations
 
 import decimal
+import functools
 import math
 import re
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
+
+from babel import Locale, UnknownLocaleError
+from babel.numbers import get_decimal_symbol
 
 from .const import (
     ASSET_IDENTIFIER_PREFIX,
@@ -928,7 +932,23 @@ def part_restock_quantity(part: dict) -> float:
     return _positive_quantity(part.get("restock_quantity"), 1)
 
 
-def format_quantity(value: float, unit: str = "") -> str:
+@functools.cache
+def decimal_mark(lang: str | None) -> str:
+    """The decimal mark for *lang*: ``"."`` in English, ``","`` in German.
+
+    ``None``, an empty string and a language Babel does not know all read as English.
+    The panel's ``decimalMark`` (``frontend/src/utils.ts``) asks ``Intl`` the same
+    question; both read CLDR, so the two agree for every language Home Keeper ships.
+    """
+    if not lang:
+        return "."
+    try:
+        return str(get_decimal_symbol(Locale.parse(lang.replace("-", "_"))))
+    except (UnknownLocaleError, ValueError):
+        return "."
+
+
+def format_quantity(value: float, unit: str = "", lang: str | None = None) -> str:
     """A spare quantity as text, with *unit* appended when the part has one.
 
     The Python twin of the panel's ``formatQuantity`` (``frontend/src/utils.ts``), and
@@ -969,12 +989,13 @@ def format_quantity(value: float, unit: str = "") -> str:
             )
         whole = int(quantized)
         text = str(whole if quantized == whole else quantized)
+        text = text.replace(".", decimal_mark(lang))
     else:
         text = str(number)
     return f"{text} {label}" if label else text
 
 
-def part_restock_label(part: dict) -> str:
+def part_restock_label(part: dict, lang: str | None = None) -> str:
     """How much a buy reminder is asking for, as a short suffix — or ``""``.
 
     Three cases, and the empty one is the point: a part measured in something reads
@@ -987,9 +1008,9 @@ def part_restock_label(part: dict) -> str:
     unit = part_stock_unit(part)
     quantity = part_restock_quantity(part)
     if unit:
-        return format_quantity(quantity, unit)
+        return format_quantity(quantity, unit, lang)
     if quantity > 1:
-        return f"×{format_quantity(quantity)}"
+        return f"×{format_quantity(quantity, lang=lang)}"
     return ""
 
 

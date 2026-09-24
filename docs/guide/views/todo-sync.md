@@ -37,7 +37,9 @@ Synchronization works in both directions:
 
 Items include the task's due date and notes if the list supports these fields.
 Home Keeper modifies only the items it added and does not modify an item that is
-already complete.
+already complete. Home Keeper keeps the name that you give an item on the list, and
+still syncs the other fields of that item. This works on a list that gives each item
+an ID.
 
 Items that a user adds to the list are not imported into Home Keeper. Only the
 completion state is read back from the list.

@@ -579,6 +579,9 @@ export interface HomeKeeperOptions {
   one_off_retention_days: number;
   // The to-do list auto-buy reminders are mirrored onto; '' = mirror off.
   shopping_list_entity: string;
+  // How a mirrored reminder's line reads on that list: the reminder's own name, or the
+  // part name alone. Absent reads as 'with_verb'.
+  shopping_line_style?: 'with_verb' | 'product_only';
   // Catalog glue domains dismissed from the Companions "Suggested" list.
   dismissed_companions?: string[];
   // Saved filters (each carrying its own to-do list sync) and the notifications

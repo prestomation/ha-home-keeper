@@ -64,6 +64,9 @@ Bookkeeping (persisted by the store, silently) is a flat map
 ``{"entity_id", "uid", "summary", "due", "last_completed", "added_at"}``.
 ``added_at`` stamps when an item was added but not yet seen on the list, and is
 dropped the moment one is resolved; it is what bounds the hold described above.
+``summary`` is the title Home Keeper last wrote. When an item with a uid reads
+differently, someone renamed it on the list: the entry then holds the item's own title
+and ``user_named: True``, and the sync stops renaming that item.
 ``last_completed``
 snapshots the task's own ``last_completed`` at bind time; a live value strictly
 newer means "completed inside Home Keeper since it was synced", while an undone
@@ -89,6 +92,8 @@ from . import profiles
 from .notifications import is_completion_blocked
 from .reconcile import buy_source
 from .todo_items import (
+    CAP_DESCRIPTION,
+    CAP_DUE_DATE,
     STATUS_COMPLETED,
     STATUS_NEEDS_ACTION,
     find_open,
@@ -116,12 +121,6 @@ __all__ = [
     "sync_key",
 ]
 
-# Optional to-do item fields a list may or may not support, as capability tokens
-# ``todo_list_sync`` derives from the entity's ``supported_features``
-# (``SET_DUE_DATE_ON_ITEM`` / ``SET_DESCRIPTION_ON_ITEM``). The planner only
-# writes or compares these fields for entities whose capability set includes them.
-CAP_DUE_DATE = "due"
-CAP_DESCRIPTION = "description"
 
 # How long an entry whose add we could not confirm is held before it is re-added.
 # It is a *staleness budget*, not a formula: it has to comfortably clear the slowest
@@ -533,7 +532,15 @@ def plan_sync(
 
         caps = capabilities.get(entity_id, frozenset())
         name = str(want["name"])
-        rename = name if item.get("summary") != name else None
+        live = str(item.get("summary") or "")
+        written = str(entry.get("summary") or "")
+        # An item with a uid that no longer reads as what we last wrote was renamed
+        # by someone on the list. Their name wins: the title is left alone from now
+        # on, while completion, the due date and the notes still sync.
+        user_named = bool(entry.get("user_named")) or (
+            bool(item.get("uid")) and bool(written) and live != written
+        )
+        rename = name if not user_named and live != name else None
         due = None
         if CAP_DUE_DATE in caps and str(item.get("due") or "")[:10] != str(want["due"]):
             # A list that cannot hold a due date is never told one: comparing a
@@ -555,7 +562,11 @@ def plan_sync(
                     description=description,
                 )
             )
-        plan.tracked[key] = _entry(entity_id, item.get("uid") or entry.get("uid"), want)
+        bound = _entry(entity_id, item.get("uid") or entry.get("uid"), want)
+        if user_named:
+            bound["summary"] = live
+            bound["user_named"] = True
+        plan.tracked[key] = bound
 
     for profile_id in sorted(desired):
         profile = by_id.get(profile_id)
@@ -644,7 +655,9 @@ def needs_pass(
             return True
         if str(entry.get("entity_id") or "") != _target(profile):
             return True
-        if str(want["name"]) != str(entry.get("summary") or ""):
+        if not entry.get("user_named") and str(want["name"]) != str(
+            entry.get("summary") or ""
+        ):
             return True
         if str(want["due"]) != str(entry.get("due") or ""):
             return True

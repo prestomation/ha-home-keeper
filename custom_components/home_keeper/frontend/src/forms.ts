@@ -104,8 +104,9 @@ export const selColorRgb = (): Selector => ({ color_rgb: {} });
 export const selSelect = (
   options: { value: string; label: string }[],
   multiple = false,
+  mode: 'dropdown' | 'list' = 'dropdown',
 ): Selector => ({
-  select: { mode: 'dropdown', options, sort: false, multiple },
+  select: { mode, options, sort: false, multiple },
 });
 /**
  * A dropdown that also accepts a value the user types. Used for the NFC/RFID tag
@@ -1483,14 +1484,30 @@ export function generalSchema(): FormField[] {
 
 /**
  * The `ha-form` schema for the Settings tab's **Shopping list** card — the one
- * to-do list auto-buy reminders are mirrored onto (empty turns the mirror off).
+ * to-do list auto-buy reminders are mirrored onto (empty turns the mirror off), and,
+ * once *target* names one, how a reminder's line reads on it.
  * Home Keeper's own to-do lists are excluded from the picker: mirroring a list
  * onto itself is a loop, and ours accepts no new items anyway.
  */
-export function shoppingSchema(exclude: string[] = []): FormField[] {
-  return [
+export function shoppingSchema(exclude: string[] = [], target = ''): FormField[] {
+  const fields: FormField[] = [
     { name: 'shopping_list_entity', selector: selEntity({ domain: 'todo' }, false, exclude) },
   ];
+  // How a line reads on the list only matters once there is a list to read it on.
+  if (target) {
+    fields.push({
+      name: 'shopping_line_style',
+      selector: selSelect(
+        [
+          { value: 'with_verb', label: t('settings.shopping_line_style_with_verb') },
+          { value: 'product_only', label: t('settings.shopping_line_style_product_only') },
+        ],
+        false,
+        'list',
+      ),
+    });
+  }
+  return fields;
 }
 
 // ── appliance form schemas ──────────────────────────────────────────────────

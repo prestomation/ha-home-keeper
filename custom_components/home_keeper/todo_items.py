@@ -20,6 +20,8 @@ from __future__ import annotations
 from typing import Any
 
 __all__ = [
+    "CAP_DESCRIPTION",
+    "CAP_DUE_DATE",
     "STATUS_COMPLETED",
     "STATUS_NEEDS_ACTION",
     "find_open",
@@ -31,6 +33,14 @@ __all__ = [
 # ``TodoItemStatus`` values, as the ``todo.get_items`` response spells them.
 STATUS_NEEDS_ACTION = "needs_action"
 STATUS_COMPLETED = "completed"
+
+# Optional to-do item fields a list may or may not support, as capability tokens
+# the sync drivers derive from the entity's ``supported_features``
+# (``SET_DUE_DATE_ON_ITEM`` / ``SET_DESCRIPTION_ON_ITEM``). A planner only writes or
+# compares these fields for entities whose capability set includes them: a list that
+# drops a field would otherwise be rewritten on every pass, forever.
+CAP_DUE_DATE = "due"
+CAP_DESCRIPTION = "description"
 
 
 def item_identity(item: dict[str, Any]) -> str:

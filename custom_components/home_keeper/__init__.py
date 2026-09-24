@@ -46,6 +46,7 @@ from . import (
     panel,
     profiles,
     sensor_tasks,
+    shopping,
     tag_listener,
     transfer,
     websocket_api,
@@ -66,6 +67,7 @@ from .const import (
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_PROFILES,
+    OPTION_SHOPPING_LINE_STYLE,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
@@ -732,6 +734,8 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         # Anything that isn't a ``todo.*`` entity id normalizes to "" (see
         # shopping.normalize_target), so a typo disables rather than half-works.
         vol.Optional(OPTION_SHOPPING_LIST_ENTITY): cv.string,
+        # How a mirrored reminder's line reads on that list (shopping.LINE_STYLES).
+        vol.Optional(OPTION_SHOPPING_LINE_STYLE): vol.In(shopping.LINE_STYLES),
         # Catalog glue domains the user dismissed from the Companions "Suggested"
         # list. A list of domain strings.
         vol.Optional(OPTION_DISMISSED_COMPANIONS): vol.All(cv.ensure_list, [cv.string]),

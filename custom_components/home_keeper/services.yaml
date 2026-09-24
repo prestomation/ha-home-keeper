@@ -1388,6 +1388,18 @@ set_options:
         entity:
           filter:
             domain: todo
+    shopping_line_style:
+      name: Shopping list line text
+      description: >-
+        How a buy reminder reads on the shopping list. with_verb (the default)
+        shows the reminder name, such as "Buy fabric softener". product_only
+        shows only the part name.
+      selector:
+        select:
+          translation_key: shopping_line_style
+          options:
+            - with_verb
+            - product_only
     problem_sensor_exclude_entities:
       name: Excluded sensors
       description: Problem binary sensors to leave out of syncing.

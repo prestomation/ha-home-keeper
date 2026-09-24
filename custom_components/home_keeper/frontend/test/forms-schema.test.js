@@ -932,6 +932,22 @@ describe('shoppingSchema', () => {
     const [field] = shoppingSchema([]);
     expect('exclude_entities' in field.selector.entity).toBe(false);
   });
+
+  it('offers the line style as a radio list once a list is picked', () => {
+    const fields = shoppingSchema([], 'todo.shopping_list');
+    expect(fields.map((f) => f.name)).toEqual(['shopping_list_entity', 'shopping_line_style']);
+    expect(fields[1].selector).toEqual({
+      select: {
+        mode: 'list',
+        options: [
+          { value: 'with_verb', label: 'With verb' },
+          { value: 'product_only', label: 'Product only' },
+        ],
+        sort: false,
+        multiple: false,
+      },
+    });
+  });
 });
 
 // A profile's "Sync to a to-do list" group. Configuring it is a standing instruction

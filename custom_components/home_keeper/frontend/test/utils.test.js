@@ -23,6 +23,7 @@ import {
   formatCost,
   formatDate,
   formatDateTime,
+  decimalMark,
   formatQuantity,
   isArmedTriggered,
   isBuyTask,
@@ -58,6 +59,7 @@ import {
   toast,
   usageIntervalStats,
 } from '../src/utils.ts';
+import { setLanguage } from '../src/i18n';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
@@ -162,6 +164,22 @@ describe('formatQuantity', () => {
     expect(formatQuantity(0.5, ' bottles ')).toBe('0.5 bottles');
   });
 
+  it('writes the decimal mark of the language it is given', () => {
+    expect(formatQuantity(1.5, 'kg', 'de')).toBe('1,5 kg');
+    expect(formatQuantity(1.5, 'kg', 'en')).toBe('1.5 kg');
+    expect(formatQuantity(3, '', 'de')).toBe('3');
+  });
+
+  it('follows the panel language when none is given', () => {
+    setLanguage('de');
+    try {
+      expect(formatQuantity(0.5)).toBe('0,5');
+    } finally {
+      setLanguage('en');
+    }
+    expect(formatQuantity(0.5)).toBe('0.5');
+  });
+
   it('drops trailing zeros and float noise', () => {
     expect(formatQuantity(1.5)).toBe('1.5');
     expect(formatQuantity(2.0)).toBe('2');
@@ -186,7 +204,7 @@ describe('formatQuantity', () => {
 
     for (const c of cases) {
       it(c.name, () => {
-        expect(formatQuantity(c.value, c.unit)).toBe(c.expected);
+        expect(formatQuantity(c.value, c.unit, c.lang ?? 'en')).toBe(c.expected);
       });
     }
   });
@@ -1982,5 +2000,25 @@ describe('notifyRowChip', () => {
     // escaped after the fact: the icon by its character set, the color by its shape.
     const html = notifyRowChip('mdi:pill" onload="alert(1)', '#000000"onload="alert(1)');
     expect(html).toBe('');
+  });
+});
+
+describe('decimalMark', () => {
+  it('reads the mark from the language', () => {
+    expect(decimalMark('en')).toBe('.');
+    expect(decimalMark('de')).toBe(',');
+    expect(decimalMark('pt-BR')).toBe(',');
+    expect(decimalMark('zh-Hans')).toBe('.');
+  });
+
+  it('reads anything it cannot place as English', () => {
+    expect(decimalMark()).toBe('.');
+    expect(decimalMark('')).toBe('.');
+    expect(decimalMark('!!')).toBe('.');
+  });
+
+  it('answers the same twice', () => {
+    expect(decimalMark('fr')).toBe(',');
+    expect(decimalMark('fr')).toBe(',');
   });
 });

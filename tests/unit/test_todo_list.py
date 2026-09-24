@@ -1302,3 +1302,53 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
         "m5:d": _entry(entity_id=GHOST, uid="i5d", summary="Wax the car"),
         "m9:a": _entry(entity_id=OTHER, uid="i9", summary="Rake the leaves"),
     }
+
+
+# ── a line the user renamed on the list ───────────────────────────────────────
+
+
+def test_a_line_renamed_on_the_list_keeps_the_new_name():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want(due="2026-07-01")]),
+        items=[_item(summary="Filter, the big one")],
+    )
+    # The title is left alone; the due date still syncs.
+    assert plan.update == [tm.UpdateOp(KEY, LIST, "i1", due="2026-07-01")]
+    assert plan.tracked == {
+        KEY: {
+            **_entry(summary="Filter, the big one", due="2026-07-01"),
+            "user_named": True,
+        }
+    }
+
+
+def test_a_user_named_line_is_not_renamed_when_the_task_is():
+    tracked = _tracked({**_entry(summary="Filter, the big one"), "user_named": True})
+    plan = _plan(
+        tracked=tracked,
+        desired=_desired([_want(name="Change the water filter")]),
+        items=[_item(summary="Filter, the big one")],
+    )
+    assert plan.update == []
+    assert plan.tracked == tracked
+
+
+def test_a_line_without_a_uid_is_never_taken_for_a_user_rename():
+    # Without a uid the summary is the only handle, so a different title means a
+    # different item; the planner does not guess.
+    plan = _plan(
+        tracked=_tracked(_entry(uid=None)),
+        desired=_desired([_want(name="Change the water filter")]),
+        items=[_item(uid=None)],
+    )
+    assert plan.update == [
+        tm.UpdateOp(KEY, LIST, NAME, rename="Change the water filter")
+    ]
+    assert "user_named" not in plan.tracked[KEY]
+
+
+def test_needs_pass_ignores_the_title_of_a_user_named_line():
+    tracked = _tracked({**_entry(summary="Filter, the big one"), "user_named": True})
+    renamed = _desired([_want(name="Change the water filter")])
+    assert _needs(tracked=tracked, desired=renamed) is False

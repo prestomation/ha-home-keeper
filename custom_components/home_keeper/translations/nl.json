@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Uitgesloten gebieden",
           "problem_sensor_exclude_labels": "Uitgesloten labels",
           "one_off_retention_days": "Bewaartermijn eenmalige taken (dagen)",
-          "shopping_list_entity": "Boodschappenlijst"
+          "shopping_list_entity": "Boodschappenlijst",
+          "shopping_line_style": "Tekst op de boodschappenlijst"
         },
         "data_description": {
           "sync_problem_sensors": "Een gesynchroniseerde taak sluit pas wanneer de bronintegratie het probleem oplost, niet wanneer je op Klaar tikt. Herinneringen ervoor bieden Uitstellen in plaats van Klaar.",
           "one_off_retention_days": "Verwijder een voltooide one-off-taak automatisch zoveel dagen na voltooiing. Bij 0 worden voltooide one-offs voor altijd bewaard.",
-          "shopping_list_entity": "Synchroniseert automatische koopherinneringen met deze takenlijst. Een item daar afvinken voltooit de herinnering in Home Keeper en vult de voorraad van het onderdeel aan. Laat leeg om de synchronisatie uit te schakelen."
+          "shopping_list_entity": "Synchroniseert automatische koopherinneringen met deze takenlijst. Een item daar afvinken voltooit de herinnering in Home Keeper en vult de voorraad van het onderdeel aan. Laat leeg om de synchronisatie uit te schakelen.",
+          "shopping_line_style": "Hoe een koopherinnering op de boodschappenlijst staat. 'Alleen product' toont de naam van het onderdeel zonder werkwoord, bijvoorbeeld 'Wasverzachter' in plaats van 'Wasverzachter kopen'."
         }
       }
     }
@@ -688,6 +690,10 @@
           "name": "Boodschappenlijst",
           "description": "Een bestaande takenlijst om automatische koopherinneringen mee te synchroniseren. Een item daar afvinken voltooit de herinnering en vult de voorraad aan. Een leeg veld schakelt dit uit."
         },
+        "shopping_line_style": {
+          "name": "Tekst op de boodschappenlijst",
+          "description": "Hoe een koopherinnering op de boodschappenlijst staat. with_verb (standaard) toont de naam van de herinnering, bijvoorbeeld 'Wasverzachter kopen'. product_only toont alleen de naam van het onderdeel."
+        },
         "dismissed_companions": {
           "name": "Genegeerde companions",
           "description": "Glue-integratiedomeinen om te verbergen uit de lijst \"Voorgesteld\" onder Instellingen → Companions. Negeren dempt alleen een suggestie; een verbonden koppeling wordt altijd getoond."
@@ -959,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Declaratieve companions weergeven",
       "description": "Geeft elke opgeslagen declaratieve companion-specificatie terug als antwoord."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Met werkwoord",
+        "product_only": "Alleen product"
+      }
     }
   },
   "entity": {

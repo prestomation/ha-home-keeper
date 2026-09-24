@@ -19,6 +19,8 @@ const APPLIANCE = 'E2E mirror appliance';
  * still plain "Buy E2E cartridge" in the panel.
  */
 const REMINDER = 'Buy E2E cartridge (×4)';
+/** The same line with the "Product only" line style: the part name, no verb (#369). */
+const PRODUCT_LINE = 'E2E cartridge (×4)';
 
 type Ids = { assetId: string; partId: string };
 
@@ -99,12 +101,15 @@ test.describe('Home Keeper — buy reminders on the household shopping list', ()
   test.afterEach(async () => {
     // The container's store is the committed seed fixture, so this spec has to
     // leave nothing behind — appliance, option, and the line on the list.
-    await callWhenReady('set_options', { shopping_list_entity: '' });
+    await callWhenReady('set_options', {
+      shopping_list_entity: '',
+      shopping_line_style: 'with_verb',
+    });
     if (ids) await callWhenReady('delete_asset', { asset_id: ids.assetId });
     ids = null;
     const leftovers = (await callService('todo', 'get_items', { entity_id: SHOPPING_LIST }, true))[
       SHOPPING_LIST
-    ]?.items?.filter((i: any) => i.summary === REMINDER)
+    ]?.items?.filter((i: any) => i.summary === REMINDER || i.summary === PRODUCT_LINE)
       .map((i: any) => i.uid);
     if (leftovers?.length) {
       await callService('todo', 'remove_item', { entity_id: SHOPPING_LIST, item: leftovers });
@@ -187,5 +192,35 @@ test.describe('Home Keeper — buy reminders on the household shopping list', ()
         { timeout: 40_000 },
       )
       .toBe(false);
+  });
+
+  test('"Product only" puts the part name on the line, and the preview says so', async ({
+    page,
+  }) => {
+    await callWhenReady('adjust_part_stock', {
+      asset_id: ids!.assetId,
+      part_id: ids!.partId,
+      delta: -1,
+    });
+    await expect
+      .poll(async () => await shoppingSummaries(['needs_action']), { timeout: 40_000 })
+      .toContain(REMINDER);
+
+    // Pick the style in Settings, the way a user would.
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await panel.locator('#tab-settings').click();
+    const card = panel.locator('#hk-settings-shopping');
+    await expect(card.locator('.hk-shopping-preview')).toContainText(REMINDER);
+    await card.getByLabel('Product only').check();
+    // The preview follows the choice at once, before anything is saved.
+    await expect(card.locator('.hk-shopping-preview')).toContainText(PRODUCT_LINE);
+    await expect(card.locator('.hk-shopping-preview')).not.toContainText(REMINDER);
+
+    // The line on the household list is renamed in place: same item, no verb.
+    await expect
+      .poll(async () => await shoppingSummaries(['needs_action']), { timeout: 40_000 })
+      .toContain(PRODUCT_LINE);
+    expect(await shoppingSummaries()).not.toContain(REMINDER);
   });
 });

@@ -1180,3 +1180,98 @@ def test_reconcile_indexes_every_task_of_this_spec_past_a_foreign_one():
 
     assert changed is False
     assert ops == []
+
+
+# ── preset task text in the household language ────────────────────────────────
+
+
+def _preset_spec(preset_id="firmware_update_available", **template):
+    base = dict(presets.preset_by_id(preset_id)["default_spec"])
+    base["task_template"] = {**base["task_template"], **template}
+    return base
+
+
+def test_every_preset_ships_its_task_text_in_every_language():
+    for preset in presets.CATALOG_PRESETS:
+        texts = presets.PRESET_TASK_TEXT[preset["id"]]
+        for field in ("name_template", "notes_template"):
+            # The English entry is the default_spec itself, so the two cannot drift.
+            assert texts[field]["en"] == preset["default_spec"]["task_template"][field]
+            assert len(texts[field]) == 16
+
+
+def test_every_translation_keeps_the_jinja_variables():
+    import re
+
+    for texts in presets.PRESET_TASK_TEXT.values():
+        for variants in texts.values():
+            english = set(re.findall(r"\{\{ ([a-z_.]+)", variants["en"]))
+            for lang, text in variants.items():
+                assert set(re.findall(r"\{\{ ([a-z_.]+)", text)) == english, lang
+
+
+def test_an_unchanged_english_template_renders_in_german():
+    template = presets.localized_task_template(_preset_spec(), "de")
+    assert template["name_template"] == "{{ friendly_name }} aktualisieren"
+    assert template["notes_template"] == (
+        "Neueste Version: {{ attributes.latest_version or 'unbekannt' }}"
+    )
+
+
+def test_an_unchanged_template_in_another_language_follows_a_language_change():
+    spec = _preset_spec(name_template="{{ friendly_name }} aktualisieren")
+    template = presets.localized_task_template(spec, "fr")
+    assert template["name_template"] == "Mettre à jour {{ friendly_name }}"
+
+
+def test_an_edited_template_is_rendered_as_written():
+    spec = _preset_spec(name_template="Flash {{ friendly_name }}")
+    template = presets.localized_task_template(spec, "de")
+    assert template["name_template"] == "Flash {{ friendly_name }}"
+    # The other field was not edited, so it still follows the language.
+    assert template["notes_template"].startswith("Neueste Version")
+
+
+def test_a_recipe_without_a_preset_is_rendered_as_written():
+    spec = _preset_spec()
+    spec["preset_id"] = None
+    template = presets.localized_task_template(spec, "de")
+    assert template["name_template"] == "Update {{ friendly_name }}"
+
+
+def test_localizing_does_not_mutate_the_spec():
+    spec = _preset_spec()
+    presets.localized_task_template(spec, "de")
+    assert spec["task_template"]["name_template"] == "Update {{ friendly_name }}"
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
+        ("de", "{{ friendly_name }} aktualisieren"),
+        ("pt-BR", "Atualizar {{ friendly_name }}"),
+        ("pt-br", "Atualizar {{ friendly_name }}"),
+        ("zh-Hans", "更新 {{ friendly_name }}"),
+        ("de-CH", "{{ friendly_name }} aktualisieren"),
+        ("xx", "Update {{ friendly_name }}"),
+        (None, "Update {{ friendly_name }}"),
+        ("", "Update {{ friendly_name }}"),
+    ],
+)
+def test_the_language_is_matched_exactly_then_by_base(lang, expected):
+    template = presets.localized_task_template(_preset_spec(), lang)
+    assert template["name_template"] == expected
+
+
+def test_the_seeded_spec_carries_the_localized_name_and_text():
+    preset = presets.preset_by_id("device_pulse")
+    spec = presets.localized_default_spec(preset, "de", "Gerätepuls")
+    assert spec["name"] == "Gerätepuls"
+    assert spec["task_template"]["name_template"] == (
+        "{{ device_name or friendly_name }} prüfen"
+    )
+    # The shipped preset itself is untouched.
+    assert preset["default_spec"]["name"] == "Device Pulse"
+    assert preset["default_spec"]["task_template"]["name_template"].startswith("Check")
+    # And the seeded spec still passes validation.
+    dc.normalize_declarative_companion(spec)

@@ -44,11 +44,13 @@ import {
   skipSnoozeSchema,
   toProfileSync,
   type FormField,
+  type HaFormElement,
 } from './forms';
 import { t, tlist, tn } from './i18n';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
+import { normalizeLineStyle, previewLines, supportsDescription } from './shopping-preview';
 import {
   COMPANIONS_DOCS_URL,
   DOCS_URL,
@@ -279,6 +281,7 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
     problem_sensor_exclude_labels: [],
     one_off_retention_days: 0,
     shopping_list_entity: '',
+    shopping_line_style: 'with_verb',
     profiles: [],
     notifications: [],
     // All three verbs predate the switch, so "not configured" means on. This
@@ -299,23 +302,8 @@ function renderSettingsForm(p: PanelHost, host: HTMLElement): void {
       opts,
     ),
   );
-  // Shopping list — where auto-buy reminders are mirrored.
-  host.appendChild(
-    settingsCard(
-      p,
-      'hk-settings-shopping',
-      'settings.shopping_heading',
-      'settings.shopping_help',
-      shoppingSchema(p._ownTodoEntities),
-      opts,
-      // Clearing an entity picker emits `undefined`, which JSON drops on the way
-      // to the backend — so the key never reaches the partial-update merge and
-      // "turn the mirror off" silently wouldn't stick. Send the empty string the
-      // backend reads as off. (The other settings are multi-selects, which emit
-      // `[]`, which is why nothing has needed this before.)
-      (value) => ({ ...value, shopping_list_entity: String(value.shopping_list_entity ?? '') }),
-    ),
-  );
+  // Shopping list — where auto-buy reminders are mirrored, and how they read there.
+  host.appendChild(shoppingCard(p, opts));
   // Problem-sensor sync. Keeps id `hk-settings` (deep-link/e2e/test anchor). The
   // exclusions are split out so they can be indented behind the switch that decides
   // whether they apply at all.
@@ -482,8 +470,10 @@ function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): str
   if (id === 'hk-settings-shopping') {
     const entity = String(opts.shopping_list_entity ?? '');
     if (!entity) return t('settings.shopping_off');
-    const name = p._hass?.states?.[entity]?.attributes?.friendly_name;
-    return t('settings.shopping_on', { list: String(name || entity) });
+    const list = listName(p, entity);
+    return normalizeLineStyle(opts.shopping_line_style) === 'product_only'
+      ? t('settings.shopping_on_product', { list })
+      : t('settings.shopping_on', { list });
   }
   if (id === 'hk-settings') {
     if (!opts.sync_problem_sensors) return t('settings.sync_off');
@@ -507,6 +497,101 @@ function settingsSummary(p: PanelHost, id: string, opts: HomeKeeperOptions): str
   // that says so before you open it.
   if (id === 'hk-transfer') return t('settings.transfer_summary');
   return '';
+}
+
+/** A to-do entity's name as Home Assistant shows it, or its id. */
+function listName(p: PanelHost, entity: string): string {
+  return String(p._hass?.states?.[entity]?.attributes?.friendly_name || entity);
+}
+
+/**
+ * The Shopping list card: the list picker, how a line reads on that list, and a
+ * preview of the lines as the list will show them.
+ *
+ * The card cannot be re-rendered on a change (that would tear down the picker the user
+ * is working in), so the one change handler keeps the rest in step: the style choice
+ * appears once a list is picked, and the summary and the preview follow each edit.
+ */
+function shoppingCard(p: PanelHost, opts: HomeKeeperOptions): HTMLElement {
+  let form: HaFormElement | null = null;
+  let preview: HTMLElement | null = null;
+  let card: HTMLElement | null = null;
+  const refresh = (value: Partial<HomeKeeperOptions>): void => {
+    const entity = String(value.shopping_list_entity ?? '');
+    if (form) {
+      form.schema = shoppingSchema(p._ownTodoEntities, entity);
+      form.data = { ...value };
+    }
+    const summary = card?.querySelector('.hk-settings-value');
+    if (summary) summary.textContent = settingsSummary(p, 'hk-settings-shopping', value as HomeKeeperOptions);
+    if (preview) renderShoppingPreview(p, preview, value);
+  };
+  card = settingsCard(
+    p,
+    'hk-settings-shopping',
+    'settings.shopping_heading',
+    'settings.shopping_help',
+    shoppingSchema(p._ownTodoEntities, opts.shopping_list_entity),
+    opts,
+    (raw) => {
+      // Clearing an entity picker emits `undefined`, which JSON drops on the way
+      // to the backend — so the key never reaches the partial-update merge and
+      // "turn the mirror off" silently wouldn't stick. Send the empty string the
+      // backend reads as off. (The other settings are multi-selects, which emit
+      // `[]`, which is why nothing has needed this before.)
+      const value = {
+        ...raw,
+        shopping_list_entity: String(raw.shopping_list_entity ?? ''),
+        shopping_line_style: normalizeLineStyle(raw.shopping_line_style),
+      };
+      refresh(value as Partial<HomeKeeperOptions>);
+      return value;
+    },
+  );
+  form = card.querySelector('ha-form') as HaFormElement | null;
+  if (form) form.data = { ...opts, shopping_line_style: normalizeLineStyle(opts.shopping_line_style) };
+  preview = document.createElement('div');
+  preview.className = 'hk-shopping-preview';
+  card.querySelector('.hk-form-inner')?.appendChild(preview);
+  renderShoppingPreview(p, preview, opts);
+  return card;
+}
+
+/** Fill *host* with the preview of the lines on the selected list, or clear it. */
+function renderShoppingPreview(
+  p: PanelHost,
+  host: HTMLElement,
+  value: Partial<HomeKeeperOptions>,
+): void {
+  const entity = String(value.shopping_list_entity ?? '');
+  if (!entity) {
+    host.hidden = true;
+    host.innerHTML = '';
+    return;
+  }
+  const lines = previewLines(
+    p._tasks,
+    p._assets,
+    normalizeLineStyle(value.shopping_line_style),
+    supportsDescription(p._hass?.states?.[entity]?.attributes?.supported_features),
+    p._lang(),
+  );
+  host.hidden = false;
+  host.innerHTML =
+    `<div class="hk-shopping-preview-head">${escapeHTML(
+      t('settings.shopping_preview_heading', { list: listName(p, entity) }),
+    )}</div>` +
+    lines
+      .map(
+        (line) =>
+          `<div class="hk-shopping-preview-row"><span class="hk-shopping-preview-box" aria-hidden="true"></span>` +
+          `<div><div class="hk-shopping-preview-title">${escapeHTML(line.title)}</div>` +
+          (line.description
+            ? `<div class="hk-shopping-preview-desc">${escapeHTML(line.description)}</div>`
+            : '') +
+          `</div></div>`,
+      )
+      .join('');
 }
 
 // ── autosave status ─────────────────────────────────────────────────────────

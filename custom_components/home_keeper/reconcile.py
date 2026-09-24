@@ -52,6 +52,28 @@ from .const import (
 # resolved from ``hass.config.language`` (see const.resolve_wear_task_naming).
 _DEFAULT_NAME_TEMPLATE = WEAR_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 _DEFAULT_BUY_NAME_TEMPLATE = BUY_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
+
+
+def is_generated_buy_name(name: str) -> bool:
+    """Whether *name* still reads as a generated "Buy {part}" name, in any language.
+
+    The reconciler renames a buy reminder when its part is renamed or the household
+    changes language, but only while the name is still one it wrote. A name that
+    matches none of :data:`BUY_TASK_NAME_TEMPLATES` was typed by someone (through
+    ``update_task``), and that name is theirs to keep. The check is on the shape,
+    not the part: after a part rename the old name holds the *old* part name.
+    """
+    for template in BUY_TASK_NAME_TEMPLATES.values():
+        prefix, _, suffix = template.partition("{part}")
+        if (
+            len(name) > len(prefix) + len(suffix)
+            and name.startswith(prefix)
+            and name.endswith(suffix)
+        ):
+            return True
+    return False
+
+
 _DEFAULT_APPLIANCE_FALLBACK = APPLIANCE_FALLBACK_NAMES[DEFAULT_LANGUAGE]
 _DEFAULT_USE_NAME_TEMPLATE = USE_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 
@@ -782,10 +804,11 @@ def reconcile_buy_tasks(
     out, or was deleted — which also ends the episode and re-arms the next one.
 
     Pure: the input maps are not mutated, and the name is localized by the caller
-    (``store.reconcile_buy_tasks`` resolves ``hass.config.language``). Buy tasks are
-    never *updated* here (a one-off has no cadence to re-derive); only created and
-    removed, so a rename after a language change is picked up as a delete + recreate
-    on the next reconcile — acceptable for a transient reminder.
+    (``store.reconcile_buy_tasks`` resolves ``hass.config.language``). The only update
+    is the name of an **open** reminder: it follows a part rename and a change of
+    language, the same drift the wear-part reconciler corrects, but only while it is
+    still a generated name (:func:`is_generated_buy_name`). A name someone typed is
+    kept, and a completed reminder is a record, so it is left as it was.
     """
     result = dict(tasks)
 
@@ -812,13 +835,25 @@ def reconcile_buy_tasks(
             existing_by_key.pop(key, None)
             changed = True
 
-    # Create a buy task for each desired key that doesn't already have one.
+    # Create a buy task for each desired key that has none, and keep the name of an
+    # open one in step with its part and the language.
     for key, (asset, part) in desired.items():
+        name = name_template.format(part=part["name"])
         if key in existing_by_key:
+            tid = existing_by_key[key]
+            current = result[tid]
+            stored = str(current.get("name") or "")
+            if (
+                stored != name
+                and not recurrence.one_off_completed(current)
+                and is_generated_buy_name(stored)
+            ):
+                result[tid] = models.merge_update(current, {"name": name}, now=now)
+                changed = True
             continue
         task = models.build_task(
             {
-                "name": name_template.format(part=part["name"]),
+                "name": name,
                 "recurrence_type": REC_ONE_OFF,
                 "device_id": asset.get("device_id"),
                 "area_id": asset.get("area_id"),
