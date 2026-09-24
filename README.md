@@ -12,7 +12,7 @@
 | custom\_components/home\_keeper/binary\_sensor.py               |       69 |       69 |        6 |        0 |      0% |    12-151 |
 | custom\_components/home\_keeper/button.py                       |       30 |       30 |        2 |        0 |      0% |      8-69 |
 | custom\_components/home\_keeper/calendar.py                     |       83 |       12 |       40 |        9 |     83% |34-35, 59-60, 74, 78-\>72, 90, 94, 123, 128, 136, 138, 142, 159-\>134 |
-| custom\_components/home\_keeper/card.py                         |       66 |       66 |       20 |        0 |      0% |    32-172 |
+| custom\_components/home\_keeper/card.py                         |       76 |        9 |       24 |        3 |     86% |87-89, 121-123, 126-127, 133 |
 | custom\_components/home\_keeper/card\_resource.py               |       29 |        0 |        2 |        0 |    100% |           |
 | custom\_components/home\_keeper/companions.py                   |       86 |       34 |       18 |        2 |     54% |62, 108, 138-\>140, 145, 149-153, 157, 173-196, 201-205, 211-213, 223, 229, 235, 247-248 |
 | custom\_components/home\_keeper/companions\_catalog.py          |       40 |        1 |       12 |        0 |     98% |        61 |
@@ -60,7 +60,7 @@
 | custom\_components/home\_keeper/transfer\_runner.py             |       43 |       43 |       14 |        0 |      0% |    13-141 |
 | custom\_components/home\_keeper/transitions.py                  |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py               |      563 |      563 |       72 |        0 |      0% |    8-1474 |
-| **TOTAL**                                                       | **8812** | **3801** | **3084** |  **110** | **58%** |           |
+| **TOTAL**                                                       | **8822** | **3744** | **3088** |  **113** | **59%** |           |
 
 
 ## Setup coverage badge
