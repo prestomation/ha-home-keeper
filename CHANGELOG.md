@@ -6,6 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.25.0] - 2026-09-24
+
+### Added
+
+- **[Disabled tasks](https://prestomation.github.io/ha-home-keeper/docs/guide/disabled-tasks).**
+  Disable a task from an automation and enable it again later. A disabled task keeps
+  its history and stays out of your reminders and your lists. (Fixes #344)
+- **[Note chip](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#read-a-tasks-note-from-the-card).**
+  A task with a note now shows a Note chip on the card. Select the chip to read the
+  full note in a dialog. (Fixes #340) (Thanks @baratrax!)
+
+### Fixed
+
+- **Document upload token.** A document upload no longer fails with `Upload failed
+  (401)` after the panel has been open for a long time. Home Keeper refreshes the
+  access token before it sends the file. (Fixes #352)
+
 ## [0.25.0b3]
 
 ### Added
