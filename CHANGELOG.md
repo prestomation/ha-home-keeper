@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.26.0b1]
+
+### Added
+
+- **[Wear item NFC tags](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#scan-a-tag-to-complete-a-wear-items-task).**
+  Set an NFC/RFID tag on a wear item, and a scan completes the task it creates. For
+  a counted wear item, a scan counts 1 use. (Fixes #364) (Thanks @berezovskyi-oleksandr!)
+
 ## [0.25.0] - 2026-09-24
 
 ### Added
