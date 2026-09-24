@@ -1065,7 +1065,7 @@ export const STYLES = `
   /* A board card is the densest the panel draws a task: a dot for urgency, the
      name, and a few characters of due text. */
   .hk-bcard {
-    display: flex; align-items: center; gap: 8px; width: 100%;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; width: 100%;
     min-height: 36px; padding: 6px 8px;
     font: inherit; color: var(--hk-ink);
     background: var(--hk-surface); border: 1px solid var(--hk-line);
@@ -1081,15 +1081,18 @@ export const STYLES = `
   .hk-bcard.soon .hk-bdot { background: var(--hk-warn); }
   /* 2 lines of name before the ellipsis, as on a tile. One line cut the part of a
      name that tells 2 tasks apart ("Replace battery: Hall…"). */
+  /* The name keeps at least 9em. When the status does not fit beside that, it
+     wraps under the name, so a long status never cuts the part of a name that
+     tells 2 tasks apart. A short figure such as "145d" stays on the name's line. */
   .hk-bname {
-    flex: 1; min-width: 0; overflow: hidden; font-weight: 500;
+    flex: 1 1 0; min-width: 9em; overflow: hidden; font-weight: 500;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
     line-height: 1.3;
   }
   /* The only status a card shows, so it is the card's size and not smaller. Red
      text on a late card, so urgency is not the dot's colour alone. */
   .hk-bdue {
-    flex: none; max-width: 45%; color: var(--hk-ink-2); font-size: inherit;
+    flex: none; margin-left: auto; color: var(--hk-ink-2); font-size: inherit;
     font-variant-numeric: tabular-nums; text-align: end;
   }
   .hk-bcard.overdue .hk-bdue { color: var(--hk-danger-ink); font-weight: 500; }

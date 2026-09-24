@@ -62,3 +62,8 @@ The **move date** button on a history row changes the date of that entry. The
 ![The completion-details dialog (note, cost, who and photo captured when a task is marked done)](../../images/11-panel-completion-dialog.png)
 
 ![Task history annotated with per-completion cost and notes, each row editable](../../images/7c-panel-task-history-tab.png)
+
+## Undo a one-tap Done
+
+After a one-tap **Done** in the panel, a message names the task. Select **Undo** in
+the message to remove that completion. The task then has its previous due date again.
