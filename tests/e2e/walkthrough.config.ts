@@ -61,8 +61,9 @@ export default captureConfig('walkthrough.capture.ts', {
   //
   // The task layouts PR added 7 beats to the desktop walk (Tiles, a tile's action
   // sheet, Board, back to Rows) and 3 to the phone one (the board). Measured on its
-  // own branch, before the note chip merged in: 222s in the dev container. The two
-  // together are MEASURED_BELOW.
+  // own branch, before the note chip merged in: 222s in the dev container. Measured
+  // again with both merged: 3.7m (about 222s) for the desktop walk and 40s for the
+  // phone one, in the dev container. 222s plus ~40% is ~311s, so 360s still holds.
   //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is
