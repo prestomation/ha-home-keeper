@@ -1077,6 +1077,9 @@ export const STYLES = `
     font-variant-numeric: tabular-nums;
   }
   /* A press still down, before the hold resolves to "open the task". */
+  /* A long touch is the hold that opens the task, so the phone must not select
+     the text or show its own callout menu. */
+  .hk-press { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
   .hk-press.hk-pressing { border-color: var(--hk-accent); }
   ha-card.hk-card.hk-tile.hk-pressing { border-color: var(--hk-accent); }
   /* A task row reads left to right: what it is, what qualifies it, how late it is,

@@ -410,8 +410,17 @@ export function openActionSheet(p: PanelHost, task: Task): void {
 
 /** Close the action sheet. */
 export function closeActionSheet(p: PanelHost): void {
+  const id = p._actionSheet.task?.id;
   p._actionSheet = { open: false, task: null };
   p._render();
+  // `_render` draws the list again, so the card that opened the sheet is a new
+  // element and focus went back to the page. Put it on the card again, so a
+  // keyboard user continues from the same task.
+  if (id) {
+    p.shadowRoot
+      ?.querySelector<HTMLElement>(`.hk-press[data-id="${CSS.escape(id)}"]`)
+      ?.focus();
+  }
 }
 
 /** The icon and the label each sheet row carries. */
@@ -502,7 +511,13 @@ export function wirePressCards(p: PanelHost, root: ParentNode): void {
       timer = undefined;
       card.classList.remove('hk-pressing');
     };
-    card.addEventListener('pointerdown', () => {
+    let touch = false;
+    card.addEventListener('pointerdown', (e) => {
+      // Only the primary button starts a hold. A right-click opens the browser's
+      // menu, and the card does not always get the pointerup after it, so the
+      // timer would open the task page behind the menu.
+      if ((e as PointerEvent).button > 0) return;
+      touch = (e as PointerEvent).pointerType === 'touch';
       held = false;
       card.classList.add('hk-pressing');
       timer = window.setTimeout(() => {
@@ -516,6 +531,13 @@ export function wirePressCards(p: PanelHost, root: ParentNode): void {
     for (const evt of ['pointerup', 'pointerleave', 'pointercancel']) {
       card.addEventListener(evt, cancelTimer);
     }
+    // A long touch on a phone fires `contextmenu` near the same 500 ms. Stop the
+    // browser's menu there so the hold can finish. Any other context menu (a
+    // right-click, the menu key) cancels the hold.
+    card.addEventListener('contextmenu', (e) => {
+      if (touch) e.preventDefault();
+      else cancelTimer();
+    });
     const activate = (): void => {
       // The click that ends a hold must not also open the sheet on top of the
       // page the hold just opened.

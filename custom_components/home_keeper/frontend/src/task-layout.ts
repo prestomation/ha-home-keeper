@@ -63,6 +63,10 @@ function startOfDay(ms: number): number {
  * looking at the board at lunchtime reads it.
  */
 export function shortDueLabel(task: Task, now: Date = new Date()): string {
+  // First, as in `statusChipHtml`. A disabled task keeps its old due date, and a
+  // count of days from that date is urgency that nothing will act on. The board
+  // card has no pill, so this text is the only place the card says it is off.
+  if (task.enabled === false) return t('chip.disabled');
   // Both states are dateless, so they have to answer before the date arithmetic.
   // A completed one-off is finished; a dormant monitored task is waiting on its
   // sensor or its integration, and neither is late.
@@ -92,6 +96,9 @@ export function shortDueLabel(task: Task, now: Date = new Date()): string {
  * its red rail.
  */
 export function urgencyClass(task: Task, now: Date = new Date()): '' | 'overdue' | 'soon' {
+  // A disabled task is not late and not due soon, whatever its frozen date says.
+  // The list row drops its red rail for the same reason.
+  if (task.enabled === false) return '';
   if (isBuyTask(task)) return '';
   if (isOverdue(task, now)) return 'overdue';
   if (statusBucket(task, now.getTime(), PANEL_STATUS_BUCKETS) === 'soon') return 'soon';

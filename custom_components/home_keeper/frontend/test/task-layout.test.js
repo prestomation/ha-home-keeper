@@ -50,6 +50,11 @@ describe('parseTaskLayout', () => {
 });
 
 describe('shortDueLabel', () => {
+  it('says Disabled for a disabled task in place of a count of days', () => {
+    expect(shortDueLabel(task({ next_due: '2020-01-01T00:00:00Z', enabled: false }), NOW)).toBe('Disabled');
+    expect(shortDueLabel(task({ next_due: '2020-01-01T00:00:00Z', enabled: true }), NOW)).not.toBe('Disabled');
+  });
+
   it('counts an overdue task in whole days', () => {
     expect(shortDueLabel(task({ next_due: '2026-02-04T12:00:00Z' }), NOW)).toBe('129d');
     expect(shortDueLabel(task({ next_due: '2026-06-12T23:00:00Z' }), NOW)).toBe('1d');
@@ -108,6 +113,11 @@ describe('shortDueLabel', () => {
 });
 
 describe('urgencyClass', () => {
+  it('leaves a disabled task plain, whatever its frozen date says', () => {
+    expect(urgencyClass(task({ next_due: '2020-01-01T00:00:00Z', enabled: false }), NOW)).toBe('');
+    expect(urgencyClass(task({ next_due: '2020-01-01T00:00:00Z', enabled: true }), NOW)).toBe('overdue');
+  });
+
   it('colours an overdue task', () => {
     expect(urgencyClass(task({ next_due: '2026-06-10T12:00:00Z' }), NOW)).toBe('overdue');
   });

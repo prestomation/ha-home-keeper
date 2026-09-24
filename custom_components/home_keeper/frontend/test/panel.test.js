@@ -2103,4 +2103,83 @@ describe('Task layouts', () => {
     await waitFor(() => sheetRows(panel).length);
     expect(panel._actionSheet.task.id).toBe('t2');
   });
+
+  it('keeps the layout the user picked when a reload returns the old one', async () => {
+    // The save can fail, or a reload can leave before the save lands. Either way
+    // the store still says rows, and the reload must not put rows back.
+    const { panel, hass } = await mountAt('rows');
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) => {
+      if (msg.type === 'frontend/set_user_data') return Promise.reject(new Error('offline'));
+      return inner(msg);
+    };
+    panel._setTaskLayout('tiles');
+    await panel._reload();
+    expect(panel._taskLayout).toBe('tiles');
+    expect(layoutSelect(panel).value).toBe('tiles');
+  });
+
+  it('starts no hold on a right-click, and a context menu cancels a hold', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { panel } = await mountAt('tiles');
+      await vi.waitFor(() => expect(tiles(panel).length).toBe(3));
+      const depth = history.length;
+      const card = panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]');
+      card.dispatchEvent(new MouseEvent('pointerdown', { button: 2 }));
+      await vi.advanceTimersByTimeAsync(600);
+      expect(history.length, 'a right-click opened the task page').toBe(depth);
+
+      card.dispatchEvent(new MouseEvent('pointerdown', { button: 0 }));
+      card.dispatchEvent(new MouseEvent('contextmenu', { cancelable: true }));
+      await vi.advanceTimersByTimeAsync(600);
+      expect(history.length, 'the context menu did not cancel the hold').toBe(depth);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('lets a long touch finish its hold, without the phone menu', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { panel } = await mountAt('tiles');
+      await vi.waitFor(() => expect(tiles(panel).length).toBe(3));
+      const card = panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]');
+      const down = new MouseEvent('pointerdown', { button: 0 });
+      Object.defineProperty(down, 'pointerType', { value: 'touch' });
+      card.dispatchEvent(down);
+      const menu = new MouseEvent('contextmenu', { cancelable: true });
+      card.dispatchEvent(menu);
+      expect(menu.defaultPrevented, 'the phone menu must not open').toBe(true);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(location.pathname).toContain('t2');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('puts focus back on the card when the sheet closes', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    [...panel.shadowRoot.querySelectorAll('ha-button')]
+      .find((b) => b.textContent === 'Cancel')
+      .click();
+    expect(panel._actionSheet.open).toBe(false);
+    expect(panel.shadowRoot.activeElement?.dataset.id).toBe('t2');
+  });
+
+  it('draws a disabled task with no urgency, and says it is off on the board', async () => {
+    const off = [
+      { id: 't9', name: 'Winter hose', recurrence_type: 'floating', interval: 1, unit: 'months', next_due: LATE, enabled: false, completions: [] },
+    ];
+    const { panel } = await mountAt('tiles', off);
+    await waitFor(() => tiles(panel).length === 1);
+    expect(tiles(panel)[0].classList.contains('overdue')).toBe(false);
+    panel._setTaskLayout('board');
+    await waitFor(() => cards(panel).length === 1);
+    expect(cards(panel)[0].classList.contains('overdue')).toBe(false);
+    expect(cards(panel)[0].querySelector('.hk-bdue').textContent).toBe('Disabled');
+  });
 });

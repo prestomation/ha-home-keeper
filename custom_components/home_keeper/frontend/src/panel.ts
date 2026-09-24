@@ -260,6 +260,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // `_introDismissed`, but read and written rather than write-once (see
   // `_setTaskLayout`).
   _taskLayout: TaskLayout = 'rows';
+  /** Set when this user picks a layout here. After that, a reload keeps the local
+   *  value. A reload that started before the pick reads the old value, and a failed
+   *  save leaves the old value on the server, so either would put the old layout
+   *  back under the user. */
+  _taskLayoutPicked = false;
   // In-flight refresh, shared by overlapping callers. Both `set hass` (first update)
   // and `_init` gate on `!this._loaded`, and `_loaded` only flips true after the awaited
   // reload — so without coalescing they can pass the check and run two concurrent full
@@ -593,12 +598,14 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    *
    *  Optimistic: it renders first and saves after, so the list changes under the
    *  press rather than after a round trip. A failed save only means the choice
-   *  does not follow this user to another device. It goes through `_render`
+   *  does not follow this user to another device, because `_taskLayoutPicked`
+   *  stops a reload from reading the old value back. It goes through `_render`
    *  rather than `_applyQuery`, because the control row changes as well as the
    *  list. */
   _setTaskLayout(value: TaskLayout): void {
     if (this._taskLayout === value) return;
     this._taskLayout = value;
+    this._taskLayoutPicked = true;
     this._render();
     if (this._hass) {
       void api.setTaskLayout(this._hass, value).catch(() => {
@@ -801,7 +808,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._companions = companions ?? [];
       this._declarativeCompanions = declarativeCompanions ?? [];
       this._introDismissed = introDismissed;
-      this._taskLayout = taskLayout;
+      if (!this._taskLayoutPicked) this._taskLayout = taskLayout;
       this._tags = tags;
       // Drop a remembered Profile filter that no longer exists (deleted since), so the
       // Tasks-tab dropdown and the stored id can't disagree.
