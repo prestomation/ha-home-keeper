@@ -400,14 +400,10 @@ def plan_sync(
         current = str(item.get("description") or "")
         # A note on a line that has no description from Home Keeper was typed by
         # someone (an adopted line, or a note added to a line with no amount).
-        # Never write the amount over it. The flag is not kept: when the note goes,
-        # the next pass writes the amount.
+        # Never write the amount over it or clear it. The flag is not kept: when
+        # the note goes, the next pass writes the amount.
         user_described = bool(current) and not entry.get("description")
         if description is not None and (current == description or user_described):
-            description = None
-        if description == "" and not entry.get("description"):
-            # Never clear a description Home Keeper did not write: an adopted line
-            # may carry the shopper's own note.
             description = None
         if rename is not None or description is not None:
             plan.update.append(
