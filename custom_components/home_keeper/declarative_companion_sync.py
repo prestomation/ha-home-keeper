@@ -81,7 +81,9 @@ def _project_entry(
         "area_id": declarative_companions.effective_area_id(
             entry.area_id, device.area_id if device else None
         ),
-        "labels": set(entry.labels or []),
+        "labels": declarative_companions.effective_labels(
+            entry.labels, device.labels if device else None
+        ),
         "disabled": bool(entry.disabled),
         "name": entry.name,
         "original_name": entry.original_name,
@@ -180,10 +182,8 @@ class DeclarativeCompanionSync:
 
         Everything the pure selection pass needs sits in this snapshot; no
         further HA access is made inside :func:`declarative_companions.expand_spec`.
-        Labels come from the entity registry entry's own set (device labels are
-        NOT unioned — a device-level filter would reach into per-device labels,
-        which the current filter shape doesn't expose). The area is the effective
-        one, so an entity in its device's area matches an area filter.
+        The labels and the area are the effective ones (the device's are included),
+        so an entity matches a filter set on its device, as in Problem sensor sync.
         """
         ent_reg = er.async_get(self._hass)
         dev_reg = dr.async_get(self._hass)

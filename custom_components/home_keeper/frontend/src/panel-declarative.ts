@@ -610,20 +610,25 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   });
   body.append(more, moreBody);
 
-  section(
+  // ha-form does not keep its own value, so each change is written back. Without
+  // it the area and label pickers build the next pick from the seed and drop the
+  // earlier ones.
+  const filtersData = (): Record<string, unknown> => ({
+    device_class: sel.device_class,
+    area_ids: sel.area_ids ?? [],
+    label_ids: sel.label_ids ?? [],
+    entity_regex: sel.entity_regex,
+  });
+  const filtersForm = section(
     'filters',
     moreFiltersSchema(),
-    {
-      device_class: sel.device_class,
-      area_ids: sel.area_ids ?? [],
-      label_ids: sel.label_ids ?? [],
-      entity_regex: sel.entity_regex,
-    },
+    filtersData(),
     (v) => {
       sel.device_class = str(v.device_class);
       sel.area_ids = idList(v.area_ids);
       sel.label_ids = idList(v.label_ids);
       sel.entity_regex = str(v.entity_regex);
+      filtersForm.data = filtersData();
       updateSummary();
     },
     moreBody,
