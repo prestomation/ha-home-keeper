@@ -257,10 +257,10 @@ The sync works in both directions:
   and switching Auto-create buy task off both count.
 
 Home Keeper manages the items it added and an open item with the same name that
-is already on the list. A completed item is not modified. If you rename an item on
-the list, Home Keeper keeps your name and continues to sync the item. This works on
-a list that gives each item an ID, such as the Home Assistant shopping list and a
-`local_todo` list. Clear the setting to turn the feature off.
+is already on the list. A completed item is not modified. Home Keeper keeps the name
+that you give an item on the list and still syncs the item. This works on a list
+that gives each item an ID, such as the Home Assistant shopping list. Clear the
+setting to turn the feature off.
 
 ![The Settings tab's Shopping list card, with a to-do list picked, Product only selected, and the preview](../../images/45-panel-settings-shopping.png)
 
