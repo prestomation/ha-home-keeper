@@ -159,6 +159,11 @@ class Harness:
         while self.pending:
             await self.pending.pop(0)(self.hass, "lovelace")
 
+    async def register_pending_only(self) -> None:
+        """Run the callbacks that are waiting, and nothing else."""
+        while self.pending:
+            await self.pending.pop(0)(self.hass, "lovelace")
+
     async def unregister(self) -> None:
         await card.async_unregister_card_resource(self.hass)
 
@@ -236,6 +241,18 @@ def test_removal_after_the_fallback_removes_the_shell_import(make):
     run(h.register())
     run(h.unregister())
     assert h.js_calls() == [("add", URL), ("remove", URL)]
+
+
+@pytest.mark.parametrize("mode", ["storage", "yaml"])
+def test_removal_before_the_sync_runs_delivers_nothing(make, mode):
+    # The sync is a callback that can run later. If the integration is removed
+    # first, the sync must not add a resource or a shell import again.
+    h = make(mode)
+    run(card.async_register_card(h.hass))
+    run(h.unregister())
+    run(h.register_pending_only())
+    assert h.js_calls() == []
+    assert h.resources.items == []
 
 
 # ── YAML mode and no lovelace: the shell import is the only path ─────────────

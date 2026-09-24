@@ -150,6 +150,9 @@ async def async_register_card(hass: HomeAssistant) -> None:
     _LOGGER.info("Registered Home Keeper dashboard card module at %s", url)
 
     async def _sync(hass: HomeAssistant, _component: str) -> None:
+        # Removal between registration and this callback: deliver nothing.
+        if hass.data.get(_CARD_REGISTERED) != url:
+            return
         if (resources := _storage_resources(hass)) is None:
             _LOGGER.debug(
                 "Lovelace resources are not storage-backed; the card is delivered by "
