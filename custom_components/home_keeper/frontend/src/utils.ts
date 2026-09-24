@@ -246,10 +246,15 @@ export async function copyText(value: string): Promise<boolean> {
  * listener further up the tree receives it. The panel and the card both need this and
  * had a byte-identical copy each.
  */
-export function toast(el: EventTarget, message: string): void {
+export function toast(
+  el: EventTarget,
+  message: string,
+  action?: { text: string; action: () => void },
+): void {
   el.dispatchEvent(
     new CustomEvent('hass-notification', {
-      detail: { message },
+      // Home Assistant draws `action` as a button on the toast, e.g. Undo.
+      detail: action ? { message, action } : { message },
       bubbles: true,
       composed: true,
     }),
@@ -910,24 +915,53 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
 export function statusChipHtml(
   task: Task,
   hass?: Hass,
-  opts: {
-    elapsed?: boolean;
-    now?: Date;
-    /** A counted wear item's progress, from `countedProgress`. Supplied by the
-     *  surfaces that hold the appliances; without it a use task falls back to the
-     *  plain "Counting" label rather than rendering a made-up figure. */
-    counted?: { count: number; target: number; noun: string } | null;
-  } = {},
+  opts: StatusChipOptions = {},
 ): string {
+  const { label, cls } = statusInfo(task, hass, opts);
+  return `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
+}
+
+/**
+ * The plain text of `statusChipHtml`'s label, with no markup.
+ *
+ * For an `aria-label`, and anywhere else a chip's colour cannot stand in for its
+ * meaning — a task tile and a board card both name their status inside the label
+ * that announces the card, because the card itself is one press target.
+ */
+export function statusText(
+  task: Task,
+  hass?: Hass,
+  opts: StatusChipOptions = {},
+): string {
+  return statusInfo(task, hass, opts).label;
+}
+
+/** What `statusChipHtml` and `statusText` both ask for. */
+interface StatusChipOptions {
+  elapsed?: boolean;
+  now?: Date;
+  /** A counted wear item's progress, from `countedProgress`. Supplied by the
+   *  surfaces that hold the appliances; without it a use task falls back to the
+   *  plain "Counting" label rather than rendering a made-up figure. */
+  counted?: { count: number; target: number; noun: string } | null;
+}
+
+/**
+ * The label and the chip class the two share, so a chip and the text that
+ * announces it can never disagree about what a task's status says.
+ */
+function statusInfo(
+  task: Task,
+  hass?: Hass,
+  opts: StatusChipOptions = {},
+): { label: string; cls: string } {
   const now = opts.now ?? new Date();
-  const chip = (label: string, cls = '') =>
-    `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
   // First of all, because a switched-off task is off whatever else it is. Its stored
   // due date is frozen where it was, so every branch below would read that date and
   // report urgency that nothing will ever announce — a task switched off in October
   // would sit in the list all winter saying "165 days overdue". The state replaces the
   // date rather than sitting beside it.
-  if (task.enabled === false) return chip(t('chip.disabled'), 'hk-disabled');
+  if (task.enabled === false) return { label: t('chip.disabled'), cls: 'hk-disabled' };
   // Ahead of every other branch. A use task is never overdue and never completed in
   // the terminal sense, so nothing below would draw the one number that matters.
   if (opts.counted) {
@@ -935,7 +969,7 @@ export function statusChipHtml(
     // At or past the target the replacement task is armed and sitting in Overdue, so
     // this chip says the count has been reached rather than repeating the urgency.
     const cls = count >= target ? 'hk-counted hk-counted-full' : 'hk-counted';
-    return chip(useCountLabel(count, target, noun), cls);
+    return { label: useCountLabel(count, target, noun), cls };
   }
   // "Low stock" answers an *open* reminder. A reminder that was bought while the part
   // stayed under its reorder point keeps its row — the reconciler only retires it once
@@ -945,13 +979,13 @@ export function statusChipHtml(
   // Completed must not carry a chip arguing it is still outstanding.
   const boughtAlready =
     task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-  if (isBuyTask(task) && !boughtAlready) return chip(t('chip.lowStock'), 'hk-shopping');
-  if (!isOverdue(task, now)) return chip(dueLabel(task, now, hass));
+  if (isBuyTask(task) && !boughtAlready) return { label: t('chip.lowStock'), cls: 'hk-shopping' };
+  if (!isOverdue(task, now)) return { label: dueLabel(task, now, hass), cls: '' };
   const days = task.next_due
     ? Math.floor((now.getTime() - new Date(task.next_due).getTime()) / 86_400_000)
     : 0;
   const label = opts.elapsed && days >= 1 ? tn('due.overdue_by', days) : t('chip.overdue');
-  return chip(label, 'hk-overdue');
+  return { label, cls: 'hk-overdue' };
 }
 
 /**

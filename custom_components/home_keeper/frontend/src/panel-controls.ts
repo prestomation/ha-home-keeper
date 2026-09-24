@@ -32,6 +32,7 @@ import {
   type GroupBy,
   type TaskFilter,
 } from './panel-types';
+import { TASK_LAYOUTS, boardColumnLabel, parseTaskLayout } from './task-layout';
 import type { Asset, Profile, Task } from './types';
 import {
   areaName,
@@ -76,6 +77,23 @@ export function controls(p: PanelHost): string {
     effectiveGroup(p),
     groupOpts,
   );
+  // The layout picker sits beside Group by, because the two answer the same kind
+  // of question: Group by chooses how the list is divided, Layout chooses how a
+  // task inside it is drawn. Tasks only — the appliance list has one layout.
+  const layoutControl = onTasks
+    ? menuControl(
+        'layout',
+        t('layout.label'),
+        p._taskLayout,
+        TASK_LAYOUTS.map((value) => ({ value, label: t(`layout.${value}`) })),
+      )
+    : '';
+  // One box for the pair, so a row that wraps moves both together. When a Profile
+  // menu shares the row, the Layout menu would otherwise wrap alone to the next
+  // line, away from the Group by it belongs beside.
+  const menuPair = layoutControl
+    ? `<div class="hk-menu-pair">${groupControl}${layoutControl}</div>`
+    : groupControl;
   // A saved Profile, when picked, drives the status/label/area/device filter, so
   // the inline all/overdue/soon segment is hidden while one is active.
   const profile = activeProfile(p);
@@ -143,7 +161,7 @@ export function controls(p: PanelHost): string {
   const actions = `
       <span class="hk-controls-spacer"></span>
       <ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
-  return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${groupControl}${actions}</div>`;
+  return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${menuPair}${actions}</div>`;
 }
 
 /**
@@ -436,9 +454,14 @@ export function renderGroups<T>(
   p: PanelHost,
   groups: Group<T>[],
   renderItem: (item: T) => string,
+  // Applied to each group's item container, and to the wrapper the ungrouped
+  // fallback below grows to hold it. The tile layout passes `hk-tiles` to lay a
+  // group out as a grid instead of a stack. Every other caller leaves it unset.
+  itemsClass = '',
 ): string {
   if (groups.length === 1 && !groups[0].label) {
-    return groups[0].items.map(renderItem).join('');
+    const items = groups[0].items.map(renderItem).join('');
+    return itemsClass ? `<div class="${escapeHTML(itemsClass)}">${items}</div>` : items;
   }
   return groups
     .map((g) => {
@@ -461,10 +484,44 @@ export function renderGroups<T>(
             <span class="hk-group-rule" aria-hidden="true"></span>
             <span class="hk-group-toggle" aria-hidden="true"></span>
           </summary>
-          <div class="hk-group-body">${g.items.map(renderItem).join('')}</div>
+          <div class="hk-group-body${itemsClass ? ` ${escapeHTML(itemsClass)}` : ''}">${g.items.map(renderItem).join('')}</div>
         </details>`;
     })
     .join('');
+}
+
+/**
+ * Render groups as board columns: one column per group, side by side.
+ *
+ * The board follows Group by, so the columns are whatever the list is already
+ * divided into — status sections, areas, devices, integrations. Every column is
+ * open: a board is read across, and a shut column would leave a gap where a
+ * heading is. The collapse memory `renderGroups` keeps is therefore ignored here
+ * rather than shared, and stays untouched for the rows and tiles layouts.
+ *
+ * Group by none makes one unlabelled group, which becomes one column headed
+ * "All" (see `boardColumnLabel`).
+ */
+export function renderBoard<T>(
+  groups: Group<T>[],
+  renderItem: (item: T) => string,
+): string {
+  const cols = groups
+    .map((g) => {
+      // The same `data-bucket` a group head carries, so a board head takes the
+      // status colour from the one rule set instead of a second copy of it.
+      const bucket = g.key.startsWith('status:') ? g.key.slice('status:'.length) : '';
+      return `
+        <section class="hk-board-col" data-group-key="${escapeHTML(g.key)}" data-bucket="${escapeHTML(bucket)}">
+          <div class="hk-board-head">
+            <span class="hk-group-title">${escapeHTML(boardColumnLabel(g.label))}</span>
+            <span class="hk-group-count">${g.items.length}</span>
+          </div>
+          <div class="hk-board-body">${g.items.map(renderItem).join('')}</div>
+        </section>`;
+    })
+    .join('');
+  return `<div class="hk-board">${cols}</div>`;
 }
 
 /**
@@ -504,6 +561,7 @@ export function wireControls(p: PanelHost, root: ShadowRoot): void {
       else if (segName === 'filter') p._setFilter(val as TaskFilter);
       else if (segName === 'assetFilter') p._setAssetFilter(val as AssetFilter);
       else if (segName === 'assetView') p._setAssetView(val as AssetView);
+      else if (segName === 'layout') p._setTaskLayout(parseTaskLayout(val));
     }),
   );
   // Saved-Profile filter dropdown.

@@ -690,6 +690,20 @@ fails instantly instead of after a long transfer) is mirrored in
 (`tests/unit/test_upload_limit_parity.py`). The backend stays the authority — the
 client check is a fast path, never the enforcement.
 
+### A preference is per-user or per-browser, and the panel says which
+Two stores hold panel preferences, and which one a choice belongs in follows from what
+the choice is about. A choice about *this screen* is per-browser; a choice about *the
+person* is per-user and has to follow them to their phone.
+
+- **Per-browser:** localStorage, through the `LS_*` keys in `panel-types.ts`, read in
+  `_loadPrefs` (group by, filter, tree collapse).
+- **Per-user:** Home Assistant frontend user data, through `frontend/get_user_data` /
+  `frontend/set_user_data` in `api.ts`, under keys named `home_keeper_<pref>` (intro
+  dismissed, task layout).
+- **A user-data key and its value set are a one-way door.** They outlive the panel
+  build that wrote them, so store a choice that can grow as a string (`rows` /
+  `tiles` / `board`), never a boolean, and parse an unknown value back to the default.
+
 ### The panel's visual language is a token block, never literal color
 - `STYLES` opens with a `:host` block of `--hk-*` tokens (accent/danger/warn/ok,
   surface/page/line/ink, radii, `--hk-tap`). **Every rule reads a token; no rule

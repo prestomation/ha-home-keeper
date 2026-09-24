@@ -25,6 +25,9 @@ const INTENTIONALLY_IDENTICAL = new Set([
   // A signed number: "+15,400 km". The value carries the digits and the unit, and the
   // sign reads the same in every language the panel ships.
   'completion.usageInterval',
+  // Two placeholders and a comma: "Replace filter, 3 days overdue". Both halves are
+  // already translated where they are built, so there is no word of its own here.
+  'layout.cardAria',
 ]);
 
 // Per-locale cognates / loanwords whose translation is genuinely identical to

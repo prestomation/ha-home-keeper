@@ -27,6 +27,7 @@ import type { SignedUrlCache } from './documents';
 import type { FormField, HaFormElement } from './forms';
 import type { MarkdownPreview } from './markdown';
 import type {
+  ActionSheetState,
   AssetEditState,
   AssetFilter,
   AssetView,
@@ -48,10 +49,13 @@ import type {
   HomeKeeperOptions,
   Task,
 } from './types';
+import type { TaskLayout } from './task-layout';
 import type { AssetTab, BtnWeight, PanelLocation, SettingsSection, TaskTab } from './utils';
 
 export interface PanelHost extends HTMLElement {
   /** Archive an appliance (the detail page's Archive button). */
+  /** The action sheet a task tile or a board card opens on a press. */
+  _actionSheet: ActionSheetState;
   _archiveAsset(asset: Asset): Promise<void>;
   /** The appliance edit drawer's state. `collapsibleSection` remembers a section's
    *  open/closed choice on `openSections`; see also the in-place mutation hazard
@@ -256,6 +260,8 @@ export interface PanelHost extends HTMLElement {
   /** Set the text filter. Patches the list in place instead of re-rendering, because
    *  a rebuilt shadow tree replaces the box the reader is typing in. */
   _setQuery(value: string): void;
+  /** Pick the layout the task list is drawn in, and remember it for this user. */
+  _setTaskLayout(value: TaskLayout): void;
   /** Which Settings section the URL names, or null for the section index. */
   _settingsSection: SettingsSection | null;
   /** Settings sections (and profile sync groups) the user has collapsed this session. */
@@ -276,6 +282,8 @@ export interface PanelHost extends HTMLElement {
   _signedFiles: SignedUrlCache;
   /** HA tag-registry entries as picker options, for the tag chip. */
   _tags: { value: string; label: string }[];
+  /** Which layout the task list is drawn in: rows, tiles or board. */
+  _taskLayout: TaskLayout;
   /** Which sub-tab the open task detail is showing. */
   _taskTab(): TaskTab;
   _tasks: Task[];

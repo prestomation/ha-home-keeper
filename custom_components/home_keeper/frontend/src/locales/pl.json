@@ -756,5 +756,18 @@
   "part.low": "Niski",
   "part.reorderAt": "Zamów przy {n}",
   "toast.stockSet": "Ustawiono zapas na {n}",
-  "transfer.tooLarge": "Ten dokument jest większy niż limit {mb} MB panelu. Podziel go na mniejsze pliki, lub użyj usługi home_keeper.import_data dla dokumentów do {max} MB."
+  "transfer.tooLarge": "Ten dokument jest większy niż limit {mb} MB panelu. Podziel go na mniejsze pliki, lub użyj usługi home_keeper.import_data dla dokumentów do {max} MB.",
+  "layout.label": "Układ",
+  "layout.rows": "Wiersze",
+  "layout.tiles": "Kafelki",
+  "layout.board": "Tablica",
+  "btn.openTask": "Otwórz zadanie",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "za {n} d",
+  "layout.short.today": "Dzisiaj",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} — wykonane.",
+  "btn.undo": "Cofnij",
+  "layout.holdHint": "Dotknij, aby zobaczyć akcje. Przytrzymaj, aby otworzyć zadanie.",
+  "layout.saveFailed": "Nie udało się zapisać układu. Przy następnej wizycie wróci poprzedni."
 }

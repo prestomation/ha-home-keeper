@@ -188,6 +188,7 @@ export const STYLES = `
   .hk-shell-drawer .hk-wrap:not([data-detail]) > *:not(#hk-list),
   .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list > ha-alert,
   .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list .hk-group-head,
+  .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list .hk-board-head,
   .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list ha-card:not(.hk-editing) {
     opacity: 0.72;
   }
@@ -993,6 +994,121 @@ export const STYLES = `
     border-left-color: var(--hk-danger);
     --ha-card-border-radius: 0 var(--hk-r-row) var(--hk-r-row) 0;
   }
+
+  /* -- Tiles and board -------------------------------------------------------
+     Two denser layouts of the same list, picked in the Layout menu. Both drop
+     the row's inline actions into the action sheet a press opens, so a card is
+     one press target and says only what it is and how late it is. */
+  .hk-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  ha-card.hk-card.hk-tile {
+    /* A grid item defaults to min-width:auto, which lets one long name push its
+       column past its 1fr share. Zero is what keeps the 3 columns equal. */
+    min-width: 0;
+    margin-bottom: 0;
+    padding: 11px 12px 10px;
+    min-height: 88px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  ha-card.hk-card.hk-tile.overdue { border-left-color: var(--hk-danger); }
+  ha-card.hk-card.hk-tile.soon { border-left-color: var(--hk-warn); }
+  /* 2 lines of name, then an ellipsis. A tile is a fixed height, and a name that
+     grew the tile would break the grid's rows into a ragged edge. */
+  .hk-tile .hk-name {
+    font-weight: 500; line-height: 1.3;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .hk-tile .hk-status { margin-top: auto; }
+  .hk-tile .hk-status ha-assist-chip {
+    --ha-assist-chip-container-height: 24px; --md-assist-chip-container-height: 24px;
+  }
+
+  /* The board grows sideways rather than shrinking. Grouping by area or by device
+     can make a dozen columns, and a column narrower than its floor holds nothing
+     legible -- so the track has a minimum and the board scrolls. */
+  .hk-board {
+    display: grid; grid-auto-flow: column;
+    grid-auto-columns: minmax(220px, 1fr);
+    gap: 12px; align-items: start; overflow-x: auto;
+  }
+  /* A board with more columns to the right fades out at its edge (see
+     wireBoardEdges), so the cut column does not look like the last one. */
+  .hk-board.hk-more-end {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+  }
+  /* The same surfaces as Rows: a white card on the grey page. The column is only
+     an outline around its cards. */
+  .hk-board-col {
+    background: transparent;
+    border: 1px solid var(--hk-line);
+    border-radius: var(--hk-r-row);
+    padding: 10px;
+  }
+  .hk-board-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .hk-board-head .hk-group-rule { display: none; }
+  .hk-board-col[data-bucket="overdue"] .hk-board-head .hk-group-title { color: var(--hk-danger-ink); }
+  .hk-board-col[data-bucket="overdue"] .hk-board-head .hk-group-count {
+    color: var(--hk-danger-ink); background: var(--hk-danger-soft);
+  }
+  .hk-board-col[data-bucket="shopping"] .hk-board-head .hk-group-title { color: var(--hk-warn-ink); }
+  .hk-board-col[data-bucket="shopping"] .hk-board-head .hk-group-count {
+    color: var(--hk-warn-ink); background: var(--hk-warn-soft);
+  }
+  .hk-board-body { display: flex; flex-direction: column; gap: 4px; }
+  /* A board card is the densest the panel draws a task: a dot for urgency, the
+     name, and a few characters of due text. */
+  .hk-bcard {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; width: 100%;
+    min-height: 36px; padding: 6px 8px;
+    font: inherit; color: var(--hk-ink);
+    background: var(--hk-surface); border: 1px solid var(--hk-line);
+    border-radius: var(--hk-r-row);
+    cursor: pointer; text-align: start;
+    -webkit-user-select: none; user-select: none;
+  }
+  .hk-bdot {
+    flex: none; width: 8px; height: 8px; border-radius: var(--hk-r-pill);
+    background: var(--hk-line);
+  }
+  .hk-bcard.overdue .hk-bdot { background: var(--hk-danger); }
+  .hk-bcard.soon .hk-bdot { background: var(--hk-warn); }
+  /* 2 lines of name before the ellipsis, as on a tile. One line cut the part of a
+     name that tells 2 tasks apart ("Replace battery: Hall…"). */
+  /* The name keeps at least 9em. When the status does not fit beside that, it
+     wraps under the name, so a long status never cuts the part of a name that
+     tells 2 tasks apart. A short figure such as "145d" stays on the name's line. */
+  .hk-bname {
+    flex: 1 1 0; min-width: 9em; overflow: hidden; font-weight: 500;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    line-height: 1.3;
+  }
+  /* The only status a card shows, so it is the card's size and not smaller. Red
+     text on a late card, so urgency is not the dot's colour alone. */
+  .hk-bdue {
+    flex: none; margin-left: auto; color: var(--hk-ink-2); font-size: inherit;
+    font-variant-numeric: tabular-nums; text-align: end;
+  }
+  .hk-bcard.overdue .hk-bdue { color: var(--hk-danger-ink); font-weight: 500; }
+  /* A card opens a menu, so it answers a pointer the way a row does. */
+  /* Not the left side of a tile: that is the urgency rail. */
+  ha-card.hk-card.hk-tile:hover {
+    border-top-color: var(--hk-ink-2); border-right-color: var(--hk-ink-2);
+    border-bottom-color: var(--hk-ink-2);
+  }
+  .hk-bcard:hover { border-color: var(--hk-ink-2); }
+  /* A press still down, before the hold resolves to "open the task". */
+  /* A long touch is the hold that opens the task, so the phone must not select
+     the text or show its own callout menu. */
+  .hk-press { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+  .hk-press.hk-pressing { border-color: var(--hk-accent); }
+  ha-card.hk-card.hk-tile.hk-pressing { border-color: var(--hk-accent); }
   /* A task row reads left to right: what it is, what qualifies it, how late it is,
      what to do about it.
 
@@ -1137,6 +1253,7 @@ export const STYLES = `
   }
   .hk-controls-spacer { flex: 1 1 auto; min-width: 0; }
   .hk-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .hk-menu-pair { display: flex; align-items: center; gap: inherit; min-width: 0; }
   .hk-seg-label {
     font-size: 0.8rem; font-weight: 600; color: var(--hk-ink-2);
     text-transform: uppercase; letter-spacing: 0.04em;
@@ -1610,6 +1727,26 @@ export const STYLES = `
   }
   /* Completion-details dialog */
   .hk-completion-body { display: flex; flex-direction: column; gap: 12px; min-width: 320px; }
+
+  /* The action sheet a tile or a board card opens: one full-width row per verb.
+     This is a menu, not a form, so the rows are the whole surface. */
+  .hk-sheet { display: flex; flex-direction: column; gap: 2px; min-width: 280px; }
+  .hk-sheet-summary {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 0 12px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--hk-line);
+  }
+  .hk-sheet-summary .hk-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .hk-sheet-row {
+    display: flex; align-items: center; gap: 14px; width: 100%;
+    font: inherit; font-size: 0.95rem; color: var(--hk-ink);
+    background: transparent; border: none; border-radius: var(--hk-r-btn);
+    padding: 12px 10px; cursor: pointer; text-align: start; min-height: var(--hk-tap);
+  }
+  .hk-sheet-row:hover, .hk-sheet-row:focus-visible { background: var(--hk-page); }
+  .hk-sheet-row ha-icon { color: var(--hk-ink-2); flex: none; }
+  /* Blocked, not disabled: the row still takes a press, and answers it with the
+     reason the task cannot be completed here. */
+  .hk-sheet-row.hk-sheet-blocked { color: var(--hk-ink-2); }
   .hk-completion-photo-label { font-weight: 500; font-size: 0.9rem; }
 
   /* ── Phone-width tab bar ───────────────────────────────────────────────────
@@ -1933,11 +2070,28 @@ export const STYLES = `
       position: static; max-height: none; flex: 1 1 auto; min-height: 0;
     }
     .hk-drawer ha-card.hk-form-card { min-height: 0; }
+    /* Tiles go to 2 columns: a phone is 390px wide, and a third column leaves a
+       name 2 characters per line. */
+    .hk-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    /* The board becomes one column at a time, swiped. The negative margin lets a
+       column start at the screen edge, so the last one is reachable from under
+       the floating Add button. */
+    .hk-board {
+      grid-auto-columns: 78vw;
+      scroll-snap-type: x mandatory;
+      scroll-padding-inline: 12px;
+      margin: 0 -12px;
+      padding: 0 12px 8px;
+    }
+    .hk-board-col { scroll-snap-align: start; }
+    /* Every card is a finger target on a phone, whatever its content measures. */
+    .hk-press { min-height: var(--hk-tap); }
     /* The list behind a full-width sheet is covered, not consulted — so it keeps
        its normal contrast rather than being dimmed under an opaque surface. */
     .hk-shell-drawer .hk-wrap:not([data-detail]) > *:not(#hk-list),
     .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list > ha-alert,
     .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list .hk-group-head,
+    .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list .hk-board-head,
     .hk-shell-drawer .hk-wrap:not([data-detail]) #hk-list ha-card:not(.hk-editing) {
       opacity: 1;
     }

@@ -722,5 +722,18 @@
   "part.low": "Laag",
   "part.reorderAt": "Bijbestellen bij {n}",
   "toast.stockSet": "Voorraad ingesteld op {n}",
-  "transfer.tooLarge": "Dit document is groter dan de limiet van {mb} MB van het paneel. Splits het op in kleinere bestanden, of gebruik de service home_keeper.import_data voor documenten tot {max} MB."
+  "transfer.tooLarge": "Dit document is groter dan de limiet van {mb} MB van het paneel. Splits het op in kleinere bestanden, of gebruik de service home_keeper.import_data voor documenten tot {max} MB.",
+  "layout.label": "Weergave",
+  "layout.rows": "Rijen",
+  "layout.tiles": "Tegels",
+  "layout.board": "Bord",
+  "btn.openTask": "Taak openen",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "over {n} d",
+  "layout.short.today": "Vandaag",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} is klaar.",
+  "btn.undo": "Ongedaan maken",
+  "layout.holdHint": "Tik voor acties. Houd ingedrukt om de taak te openen.",
+  "layout.saveFailed": "De indeling is niet opgeslagen. Bij je volgende bezoek geldt weer de vorige."
 }

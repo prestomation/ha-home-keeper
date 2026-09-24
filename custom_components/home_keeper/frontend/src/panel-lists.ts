@@ -13,6 +13,7 @@
 
 import * as api from './api';
 import { assetMatchesQuery, bucketByKey, profileMatches, taskMatchesQuery } from './card-filter';
+import { makeDialog } from './dialogs';
 import { t, tn } from './i18n';
 import {
   deviceChip,
@@ -27,13 +28,21 @@ import {
   effectiveGroup,
   groupAssets,
   groupTasks,
+  renderBoard,
   renderGroups,
   scopeMatches,
 } from './panel-controls';
-import { deferMenu } from './panel-defer';
+import { deferMenu, openSkip, openSnooze, setDueToday, verbsFor } from './panel-defer';
 import type { PanelHost } from './panel-host';
 import { TASK_CARD_INLINE_CHIPS } from './panel-styles';
 import { LS_TREE_COLLAPSED } from './panel-types';
+import {
+  sheetActions,
+  sheetFlags,
+  shortDueLabel,
+  urgencyClass,
+  type SheetAction,
+} from './task-layout';
 import type { Asset, Task } from './types';
 import {
   areaName,
@@ -50,10 +59,17 @@ import {
   recurrenceSummary,
   scanRequired,
   countedProgress,
+  setBtnWeight,
   statusChipHtml,
+  statusText,
   toast,
   type AssetTreeEntry,
 } from './utils';
+
+/** A press held at least this long opens the task's page rather than its action
+ *  sheet — the same threshold the dashboard card uses for its own press and hold
+ *  (see `card.ts`). */
+const HOLD_MS = 500;
 
 /** One-time orientation banner that explains the kinds of tasks a newcomer will see
  *  mixed in the list. Dismissed permanently, server-side per-user (see
@@ -119,9 +135,15 @@ export function tasksList(p: PanelHost): string {
           )}</ha-button>`;
     return `${intro}<ha-alert alert-type="info">${escapeHTML(t('tasks.noMatch'))}${showAll}</ha-alert>`;
   }
-  return `${intro}${orphanBanner(p)}${renderGroups(p, groupTasks(p, tasks, now), (task) =>
-    taskCard(p, task),
-  )}`;
+  const groups = groupTasks(p, tasks, now);
+  const head = `${intro}${orphanBanner(p)}`;
+  if (p._taskLayout === 'tiles') {
+    return `${head}${renderGroups(p, groups, (task) => taskTile(p, task), 'hk-tiles')}`;
+  }
+  if (p._taskLayout === 'board') {
+    return `${head}${renderBoard(groups, (task) => boardCard(p, task))}`;
+  }
+  return `${head}${renderGroups(p, groups, (task) => taskCard(p, task))}`;
 }
 
 /**
@@ -232,6 +254,31 @@ export function assetsList(p: PanelHost): string {
   return renderGroups(p, groupAssets(p, assets), (asset) => assetCard(p, asset));
 }
 
+/**
+ * A task's meta line: how it recurs, when it is due, and how often it was done.
+ *
+ * The list row and the action sheet both show it, so a tile or a board card
+ * opens onto the same facts the row carries.
+ */
+function taskMetaHtml(p: PanelHost, task: Task): string {
+  const completedOneOff =
+    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  // A switched-off task shows no due date. The stored one is frozen at whatever it was
+  // when the task went off, so printing it states a deadline Home Keeper will not keep:
+  // nothing announces it, no to-do item carries it, and the row's own status chip says
+  // Disabled. The chip is the whole answer, so the meta line says nothing.
+  const dueText =
+    task.enabled === false
+      ? ''
+      : task.next_due
+        ? ` · ${escapeHTML(t('form.task.due', { date: formatDate(task.next_due, p._lang()) }))}`
+        : completedOneOff
+          ? ` · ${escapeHTML(t('form.task.completedOn', { date: formatDate(task.last_completed, p._lang()) }))}`
+          : '';
+  const n = task.completions?.length ?? 0;
+  return `${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}`;
+}
+
 function taskCard(p: PanelHost, task: Task): string {
   // The danger rail follows the status pill: a buy reminder reads "Low stock" rather
   // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge that
@@ -251,18 +298,6 @@ function taskCard(p: PanelHost, task: Task): string {
   // due date.
   const completedOneOff =
     task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-  // A switched-off task shows no due date. The stored one is frozen at whatever it was
-  // when the task went off, so printing it states a deadline Home Keeper will not keep:
-  // nothing announces it, no to-do item carries it, and the row's own status chip says
-  // Disabled. The chip is the whole answer, so the meta line says nothing.
-  const dueText =
-    task.enabled === false
-      ? ''
-      : task.next_due
-        ? ` · ${escapeHTML(t('form.task.due', { date: formatDate(task.next_due, p._lang()) }))}`
-        : completedOneOff
-          ? ` · ${escapeHTML(t('form.task.completedOn', { date: formatDate(task.last_completed, p._lang()) }))}`
-          : '';
   // How overdue it is rides the right-hand status pill rather than the meta line, so
   // urgency reads at the end of the row instead of buried mid-sentence. `elapsed` is
   // the list row's alone: down a long list the count is what separates a week late
@@ -271,7 +306,6 @@ function taskCard(p: PanelHost, task: Task): string {
     elapsed: true,
     counted: countedProgress(task, p._assets, p._tasks),
   });
-  const n = task.completions?.length ?? 0;
   // A monitored task (dormant, not due) has nothing to mark done — its owning
   // integration or the sensor watcher arms it when the condition fires; hide the
   // action. A completed one-off is already done, so it too hides Done. A
@@ -318,7 +352,7 @@ function taskCard(p: PanelHost, task: Task): string {
         <div class="hk-card-row hk-row-task">
           <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
             <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
-            <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
+            <div class="hk-meta">${taskMetaHtml(p, task)}</div>
           </div>
           <div class="hk-chips hk-chips-inline${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
           <span class="hk-row-spacer"></span>
@@ -328,6 +362,262 @@ function taskCard(p: PanelHost, task: Task): string {
           </div>
         </div>
       </ha-card>`;
+}
+
+/**
+ * A task as a tile: the name over its status pill, and nothing else.
+ *
+ * Three to a row on a desktop and two on a phone, so a household sees a whole
+ * week of work without scrolling. Everything the list row carries inline — the
+ * chips, the meta line, Done and its caret — moves into the action sheet a press
+ * opens (see `renderActionSheet`), because none of it fits and a tile that offered
+ * half of it would be a smaller row rather than a different layout.
+ *
+ * The tile is one press target, so it announces itself as a button whose label
+ * names the task and its status. The left rail colours it the way the row's does.
+ */
+function taskTile(p: PanelHost, task: Task): string {
+  const hint = escapeHTML(t('layout.holdHint'));
+  const opts = { elapsed: true, counted: countedProgress(task, p._assets, p._tasks) };
+  const urgency = urgencyClass(task);
+  const aria = escapeHTML(
+    t('layout.cardAria', { name: task.name, status: statusText(task, p._hass, opts) }),
+  );
+  return `
+      <ha-card class="hk-card hk-tile hk-press${urgency ? ` ${urgency}` : ''}" data-id="${escapeHTML(
+        task.id,
+      )}" role="button" tabindex="0" aria-label="${aria}" title="${hint}">
+        <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
+        <div class="hk-status">${statusChipHtml(task, p._hass, opts)}</div>
+      </ha-card>`;
+}
+
+/**
+ * A task as a board card: a dot, the name, and the due text in a few characters.
+ *
+ * A column is 220px wide, so this is the densest the panel draws a task. The
+ * status pill does not fit beside a name, so urgency moves to the dot and the
+ * date to `shortDueLabel`. The full status still reaches a screen reader through
+ * the card's own label, which is the same label a tile carries.
+ */
+function boardCard(p: PanelHost, task: Task): string {
+  const hint = escapeHTML(t('layout.holdHint'));
+  const opts = { elapsed: true, counted: countedProgress(task, p._assets, p._tasks) };
+  const status = statusText(task, p._hass, opts);
+  const aria = escapeHTML(t('layout.cardAria', { name: task.name, status }));
+  const urgency = urgencyClass(task);
+  // The pill's own words wherever the short form has none, so a state reads the
+  // same on the board as in the list. A counted item always takes the pill: its
+  // count is the figure that matters, not a date.
+  const due = (opts.counted ? '' : shortDueLabel(task)) || status;
+  return `
+      <button type="button" class="hk-bcard hk-press${urgency ? ` ${urgency}` : ''}" data-id="${escapeHTML(
+        task.id,
+      )}" role="button" tabindex="0" aria-label="${aria}" title="${hint}">
+        <span class="hk-bdot" aria-hidden="true"></span>
+        <span class="hk-bname">${escapeHTML(task.name)}</span>
+        <span class="hk-bdue">${escapeHTML(due)}</span>
+      </button>`;
+}
+
+/** Open the action sheet for *task*. */
+export function openActionSheet(p: PanelHost, task: Task): void {
+  p._actionSheet = { open: true, task };
+  p._render();
+}
+
+/** Close the action sheet. */
+export function closeActionSheet(p: PanelHost): void {
+  const id = p._actionSheet.task?.id;
+  p._actionSheet = { open: false, task: null };
+  p._render();
+  // `_render` draws the list again, so the card that opened the sheet is a new
+  // element and focus went back to the page. Put it on the card again, so a
+  // keyboard user continues from the same task.
+  if (id) {
+    p.shadowRoot
+      ?.querySelector<HTMLElement>(`.hk-press[data-id="${CSS.escape(id)}"]`)
+      ?.focus();
+  }
+}
+
+/** The icon and the label each sheet row carries. */
+const SHEET_ROWS: Record<SheetAction['id'], { icon: string; key: string }> = {
+  done: { icon: 'mdi:check-circle-outline', key: 'btn.done' },
+  snooze: { icon: 'mdi:clock-outline', key: 'btn.snooze' },
+  skip: { icon: 'mdi:skip-next-outline', key: 'btn.skip' },
+  dueToday: { icon: 'mdi:calendar-today', key: 'btn.dueToday' },
+  open: { icon: 'mdi:open-in-new', key: 'btn.openTask' },
+};
+
+/**
+ * Build the action sheet for the pressed tile or board card into *host*.
+ *
+ * The rows are whatever `sheetActions` allows, which is the same set of guards
+ * the list row's Done and its deferral caret apply — so a compact layout never
+ * offers an action the row withholds. A blocked Done stays on the sheet and
+ * explains itself, because "this task cannot be completed here" is what the
+ * person pressing it needs to be told.
+ */
+export function renderActionSheet(p: PanelHost, host: HTMLElement): void {
+  const task = p._actionSheet.task;
+  if (!task) return;
+  // Home Assistant's adaptive dialog is a dialog on a desktop and a bottom sheet on
+  // a phone, so the actions sit in reach of the thumb. An older Home Assistant
+  // does not have it, and gets the plain dialog.
+  const tag = customElements.get('ha-adaptive-dialog') ? 'ha-adaptive-dialog' : 'ha-dialog';
+  const { dialog, body, footer, mount } = makeDialog(
+    task.name,
+    () => {
+      if (p._actionSheet.open) closeActionSheet(p);
+    },
+    tag,
+  );
+  body.classList.add('hk-sheet');
+
+  // What the tile or the card had no room for: the status pill, the chips that
+  // qualify the task (who manages it, whether its integration is offline, its
+  // tag), and the meta line. The actions below act on these facts, so the sheet
+  // shows them first. The device chip stays on the task page, one row below.
+  const counted = countedProgress(task, p._assets, p._tasks);
+  const chips = [
+    statusChipHtml(task, p._hass, { elapsed: true, counted }),
+    managedChip(p, task),
+    tagChip(p, task),
+    ...taskChipsList(task),
+  ].filter(Boolean);
+  const summary = document.createElement('div');
+  summary.className = 'hk-sheet-summary';
+  summary.innerHTML = `<div class="hk-chips">${chips.join('')}</div><div class="hk-meta">${taskMetaHtml(p, task)}</div>`;
+  body.appendChild(summary);
+
+  const run = (action: SheetAction): void => {
+    if (action.id === 'done') {
+      if (action.blocked) p._notifyBlocked(task);
+      else void p._complete(task);
+      return;
+    }
+    if (action.id === 'snooze') return openSnooze(p, task);
+    if (action.id === 'skip') return openSkip(p, task);
+    if (action.id === 'dueToday') return void setDueToday(p, task);
+    p._openDetail('task', task.id);
+  };
+
+  for (const action of sheetActions(verbsFor(p, task), sheetFlags(task))) {
+    const { icon, key } = SHEET_ROWS[action.id];
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `hk-sheet-row${action.blocked ? ' hk-sheet-blocked' : ''}`;
+    btn.dataset.action = action.id;
+    // Blocked, not disabled: a disabled button is skipped by a screen reader and
+    // says nothing on a tap, and the explanation is the whole point of the row.
+    if (action.blocked) btn.setAttribute('aria-disabled', 'true');
+    btn.innerHTML = `<ha-icon icon="${escapeHTML(icon)}"></ha-icon><span>${escapeHTML(t(key))}</span>`;
+    btn.addEventListener('click', () => {
+      closeActionSheet(p);
+      run(action);
+    });
+    body.appendChild(btn);
+  }
+
+  const cancel = document.createElement('ha-button');
+  cancel.setAttribute('slot', 'secondaryAction');
+  setBtnWeight(cancel, 'tertiary');
+  cancel.textContent = t('btn.cancel');
+  cancel.addEventListener('click', () => closeActionSheet(p));
+  footer.appendChild(cancel);
+
+  mount();
+  host.appendChild(dialog);
+}
+
+/**
+ * Wire the tiles and the board cards: a press opens the action sheet, a press
+ * held past `HOLD_MS` opens the task's page instead.
+ *
+ * Same timing and the same cancelling pointer events as the dashboard card's own
+ * press and hold (`card.ts`). There is no `pointermove` cancel: a finger never
+ * holds perfectly still, and a real scroll sends `pointercancel` anyway.
+ *
+ * `_applyQuery` replaces the whole list, so a timer armed on a card that has
+ * since left the DOM would open the page of a task nobody is pressing. The
+ * connection check in the timer is what stops that.
+ */
+export function wirePressCards(p: PanelHost, root: ParentNode): void {
+  root.querySelectorAll<HTMLElement>('.hk-press').forEach((card) => {
+    let timer: number | undefined;
+    let held = false;
+    const taskOf = (): Task | undefined => p._tasks.find((x) => x.id === card.dataset.id);
+    const cancelTimer = (): void => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = undefined;
+      card.classList.remove('hk-pressing');
+    };
+    let touch = false;
+    card.addEventListener('pointerdown', (e) => {
+      // Only the primary button starts a hold. A right-click opens the browser's
+      // menu, and the card does not always get the pointerup after it, so the
+      // timer would open the task page behind the menu.
+      if ((e as PointerEvent).button > 0) return;
+      touch = (e as PointerEvent).pointerType === 'touch';
+      held = false;
+      card.classList.add('hk-pressing');
+      timer = window.setTimeout(() => {
+        if (!card.isConnected) return;
+        held = true;
+        card.classList.remove('hk-pressing');
+        const task = taskOf();
+        if (task) p._openDetail('task', task.id);
+      }, HOLD_MS);
+    });
+    for (const evt of ['pointerup', 'pointerleave', 'pointercancel']) {
+      card.addEventListener(evt, cancelTimer);
+    }
+    // A long touch on a phone fires `contextmenu` near the same 500 ms. Stop the
+    // browser's menu there so the hold can finish. Any other context menu (a
+    // right-click, the menu key) cancels the hold.
+    card.addEventListener('contextmenu', (e) => {
+      if (touch) e.preventDefault();
+      else cancelTimer();
+    });
+    const activate = (): void => {
+      // The click that ends a hold must not also open the sheet on top of the
+      // page the hold just opened.
+      if (held) {
+        held = false;
+        return;
+      }
+      const task = taskOf();
+      if (task) openActionSheet(p, task);
+    };
+    card.addEventListener('click', activate);
+    card.addEventListener('keydown', (e) => {
+      const key = (e as KeyboardEvent).key;
+      if (key === 'Enter' || key === ' ') {
+        e.preventDefault();
+        activate();
+      }
+    });
+  });
+}
+
+/**
+ * Fade the right edge of a board that has more columns to the right.
+ *
+ * A column cut at the edge of the screen looks like the last one, so the fade
+ * says that the board scrolls. It goes away at the end of the scroll, and a board
+ * that fits has none.
+ */
+export function wireBoardEdges(root: ParentNode): void {
+  root.querySelectorAll<HTMLElement>('.hk-board').forEach((board) => {
+    const update = (): void => {
+      const more = board.scrollLeft + board.clientWidth < board.scrollWidth - 1;
+      board.classList.toggle('hk-more-end', more);
+    };
+    board.addEventListener('scroll', update, { passive: true });
+    // After layout, because a board that was just added has no width yet.
+    requestAnimationFrame(update);
+  });
 }
 
 function assetCard(p: PanelHost, x: Asset, depth = 0, isLast = false, toggleId = ''): string {
@@ -472,6 +762,9 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
     );
     // One caret per row, each resolving its own task.
     p._wireDeferMenus(root);
+    // Tiles and board cards carry their actions in a sheet instead of on the card.
+    if (p._taskLayout !== 'rows') wirePressCards(p, root);
+    if (p._taskLayout === 'board') wireBoardEdges(root);
     root.querySelectorAll<HTMLElement>('.hk-intro-dismiss').forEach((b) =>
       b.addEventListener('click', () => {
         p._introDismissed = true;

@@ -756,5 +756,18 @@
   "part.low": "Nízká",
   "part.reorderAt": "Objednat při {n}",
   "toast.stockSet": "Zásoba nastavena na {n}",
-  "transfer.tooLarge": "Tento dokument je větší než limit panelu {mb} MB. Rozdělte ho na menší soubory, nebo použijte službu home_keeper.import_data pro dokumenty do {max} MB."
+  "transfer.tooLarge": "Tento dokument je větší než limit panelu {mb} MB. Rozdělte ho na menší soubory, nebo použijte službu home_keeper.import_data pro dokumenty do {max} MB.",
+  "layout.label": "Rozvržení",
+  "layout.rows": "Řádky",
+  "layout.tiles": "Dlaždice",
+  "layout.board": "Tabule",
+  "btn.openTask": "Otevřít úkol",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "za {n} d",
+  "layout.short.today": "Dnes",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} je hotovo.",
+  "btn.undo": "Zpět",
+  "layout.holdHint": "Klepnutím zobrazíte akce. Podržením otevřete úkol.",
+  "layout.saveFailed": "Rozložení se nepodařilo uložit. Při příští návštěvě se vrátí původní."
 }

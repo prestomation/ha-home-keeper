@@ -541,6 +541,13 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   form doesn't render (profiles, notifications, dismissed companions) is deleted on
   each save. See `.amazonq/rules/architecture-and-code.md` → "Options have three
   editing surfaces".
+- **A panel preference is per-browser or per-user, and the store says which.** A choice
+  about this screen (group by, filter, tree collapse) goes in localStorage via the `LS_*`
+  keys; a choice about the person (intro dismissed, task layout) goes in Home Assistant
+  frontend user data under `home_keeper_<pref>` so it follows them to every device. A
+  user-data key and its values are a one-way door — store a growable choice as a string,
+  never a boolean. See `.amazonq/rules/architecture-and-code.md` → "A preference is
+  per-user or per-browser".
 - Tasks are plain dicts: `id, name, notes, recurrence_type, interval, unit|freq,
   anchor, device_id, area_id, enabled, last_completed, next_due, completions[]`.
 - All datetimes are timezone-aware (`homeassistant.util.dt`); `recurrence.py` takes

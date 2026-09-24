@@ -35,7 +35,7 @@ import {
 } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { REQUIRED_COMPONENTS } from './panel-icons';
-import { assetsList, tasksList, wireLists } from './panel-lists';
+import { assetsList, renderActionSheet, tasksList, wireLists } from './panel-lists';
 import {
   settingsBackbar,
   settingsIndex,
@@ -60,12 +60,14 @@ import {
   type DeclarativeDialogState,
   type EditState,
   type GroupBy,
+  type ActionSheetState,
   type MoveCompletionDialogState,
   type NoteTarget,
   type TaskFilter,
   type TransferState,
 } from './panel-types';
 import { setAssetError } from './panel-upload';
+import type { TaskLayout } from './task-layout';
 import type {
   Asset,
   AssetKind,
@@ -142,6 +144,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   };
   _snooze: SnoozeState = emptySnoozeState();
   _skip: SkipState = emptySkipState();
+  _actionSheet: ActionSheetState = { open: false, task: null };
   // The open deferral menu and the document handlers dismissing it. One at a time:
   // opening a second closes the first, so this never holds a stale pair.
   private readonly _deferMenus = new DeferMenus({
@@ -253,6 +256,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // Whether the current user has dismissed the first-run intro banner — loaded from
   // HA's per-user frontend data store in `_reload` (see `_introCard`).
   _introDismissed = false;
+  // Which layout this user reads the task list in — same per-user store as
+  // `_introDismissed`, but read and written rather than write-once (see
+  // `_setTaskLayout`).
+  _taskLayout: TaskLayout = 'rows';
+  /** Set when this user picks a layout here. After that, a reload keeps the local
+   *  value. A reload that started before the pick reads the old value, and a failed
+   *  save leaves the old value on the server, so either would put the old layout
+   *  back under the user. */
+  _taskLayoutPicked = false;
   // In-flight refresh, shared by overlapping callers. Both `set hass` (first update)
   // and `_init` gate on `!this._loaded`, and `_loaded` only flips true after the awaited
   // reload — so without coalescing they can pass the check and run two concurrent full
@@ -582,6 +594,27 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._render();
   }
 
+  /** Pick the layout the task list is drawn in.
+   *
+   *  Optimistic: it renders first and saves after, so the list changes under the
+   *  press rather than after a round trip. A failed save keeps the choice for this
+   *  visit, because `_taskLayoutPicked` stops a reload from reading the old value
+   *  back, and a toast says it will not be kept. It goes through `_render`
+   *  rather than `_applyQuery`, because the control row changes as well as the
+   *  list. */
+  _setTaskLayout(value: TaskLayout): void {
+    if (this._taskLayout === value) return;
+    this._taskLayout = value;
+    this._taskLayoutPicked = true;
+    this._render();
+    if (this._hass) {
+      void api.setTaskLayout(this._hass, value).catch(() => {
+        // The layout stays for this visit. Tell the user it will not be kept.
+        toast(this, t('layout.saveFailed'));
+      });
+    }
+  }
+
   _setFilter(value: TaskFilter): void {
     if (this._filter === value) return;
     this._filter = value;
@@ -747,6 +780,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         companions,
         declarativeCompanions,
         introDismissed,
+        taskLayout,
         tags,
       ] = await Promise.all([
         api.getTasks(this._hass),
@@ -760,6 +794,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
           [] as DeclarativeCompanion[],
         ),
         this._soft(api.getIntroDismissed(this._hass), false),
+        this._soft(api.getTaskLayout(this._hass), this._taskLayout),
         // Best-effort: the tag registry is a convenience for the picker and the
         // chip label, never a precondition for the panel loading.
         this._soft(api.getTags(this._hass), [] as { value: string; label: string }[]),
@@ -774,6 +809,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._companions = companions ?? [];
       this._declarativeCompanions = declarativeCompanions ?? [];
       this._introDismissed = introDismissed;
+      if (!this._taskLayoutPicked) this._taskLayout = taskLayout;
       this._tags = tags;
       // Drop a remembered Profile filter that no longer exists (deleted since), so the
       // Tasks-tab dropdown and the stored id can't disagree.
@@ -1078,10 +1114,32 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       openCompletionDialog(this, task);
       return;
     }
+    const before = new Set((task.completions ?? []).map((c) => c.ts));
     try {
-      await api.completeTask(this._hass, task.id);
+      const done = await api.completeTask(this._hass, task.id);
+      // Say which task is done, and offer Undo. In Tiles and Board the task moves to
+      // another section, so without this the only sign of the tap is a reflow.
+      const added = done?.completions?.find((c) => !before.has(c.ts));
+      if (added) {
+        toast(this, t('done.toast', { name: task.name }), {
+          text: t('btn.undo'),
+          action: () => void this._undoComplete(task.id, added.ts),
+        });
+      }
     } catch (err) {
       console.error('home-keeper: complete failed', err);
+      toast(this, t('error.actionFailed'));
+    }
+    await this._refresh();
+  }
+
+  /** Remove the completion that Done just added, from the toast's Undo. */
+  async _undoComplete(taskId: string, ts: string): Promise<void> {
+    if (!this._hass) return;
+    try {
+      await api.deleteCompletion(this._hass, taskId, ts);
+    } catch (err) {
+      console.error('home-keeper: undo failed', err);
       toast(this, t('error.actionFailed'));
     }
     await this._refresh();
@@ -1950,6 +2008,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (dialogHost && this._moveCompletion.open) renderMoveCompletionDialog(this, dialogHost);
     if (dialogHost && this._snooze.open) renderSnooze(this, dialogHost);
     if (dialogHost && this._skip.open) renderSkip(this, dialogHost);
+    if (dialogHost && this._actionSheet.open) renderActionSheet(this, dialogHost);
     if (dialogHost && this._declDialog.open) renderDeclarativeDialog(this, dialogHost);
     // renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 

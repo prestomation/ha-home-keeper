@@ -756,5 +756,18 @@
   "part.low": "Низкий",
   "part.reorderAt": "Заказ при {n}",
   "toast.stockSet": "Запас установлен на {n}",
-  "transfer.tooLarge": "Этот документ больше предела в {mb} MB для панели. Разделите его на файлы поменьше, или используйте службу home_keeper.import_data для документов до {max} MB."
+  "transfer.tooLarge": "Этот документ больше предела в {mb} MB для панели. Разделите его на файлы поменьше, или используйте службу home_keeper.import_data для документов до {max} MB.",
+  "layout.label": "Вид",
+  "layout.rows": "Строки",
+  "layout.tiles": "Плитки",
+  "layout.board": "Доска",
+  "btn.openTask": "Открыть задачу",
+  "layout.short.overdue": "{n} д",
+  "layout.short.in": "через {n} д",
+  "layout.short.today": "Сегодня",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "«{name}» выполнено.",
+  "btn.undo": "Отменить",
+  "layout.holdHint": "Нажмите, чтобы увидеть действия. Удерживайте, чтобы открыть задачу.",
+  "layout.saveFailed": "Не удалось сохранить вид. При следующем визите вернётся прежний."
 }

@@ -739,5 +739,18 @@
   "part.low": "Faible",
   "part.reorderAt": "Réapprovisionner à {n}",
   "toast.stockSet": "Stock défini sur {n}",
-  "transfer.tooLarge": "Ce document est au-delà de la limite de {mb} MB du panneau. Divisez-le en fichiers plus petits, ou utilisez le service home_keeper.import_data pour des documents jusqu'à {max} MB."
+  "transfer.tooLarge": "Ce document est au-delà de la limite de {mb} MB du panneau. Divisez-le en fichiers plus petits, ou utilisez le service home_keeper.import_data pour des documents jusqu'à {max} MB.",
+  "layout.label": "Disposition",
+  "layout.rows": "Lignes",
+  "layout.tiles": "Tuiles",
+  "layout.board": "Tableau",
+  "btn.openTask": "Ouvrir la tâche",
+  "layout.short.overdue": "{n} j",
+  "layout.short.in": "dans {n} j",
+  "layout.short.today": "Aujourd'hui",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} est terminée.",
+  "btn.undo": "Annuler",
+  "layout.holdHint": "Touchez pour les actions. Maintenez appuyé pour ouvrir la tâche.",
+  "layout.saveFailed": "Impossible d'enregistrer la disposition. L'ancienne revient à votre prochaine visite."
 }

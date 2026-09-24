@@ -1889,3 +1889,428 @@ describe('The list text filter (#297)', () => {
     expect(names(panel)).toEqual(['Fridge']);
   });
 });
+
+describe('Task layouts', () => {
+  // The Layout menu swaps the task list between rows, tiles and a board. The choice
+  // is per user (HA's own frontend data store), so a fresh panel for the same user
+  // opens in the layout they last picked — and a tile or a board card carries its
+  // actions in a sheet instead of on the card.
+  const DUE = '2030-01-01T00:00:00+00:00';
+  const LATE = '2020-01-01T00:00:00+00:00';
+  const TASKS = [
+    { id: 't1', name: 'Replace water filter', recurrence_type: 'floating', interval: 3, unit: 'months', next_due: LATE, completions: [] },
+    { id: 't2', name: 'Clean gutters', recurrence_type: 'floating', interval: 3, unit: 'months', next_due: DUE, completions: [] },
+    { id: 't3', name: 'Water leak', recurrence_type: 'triggered', completions: [] },
+  ];
+
+  /** A hass whose per-user store starts holding *layout*, over the tasks above. */
+  function layoutHass(layout, tasks = TASKS) {
+    const store = { home_keeper_intro_dismissed: true };
+    if (layout !== undefined) store.home_keeper_task_layout = layout;
+    const { hass, calls } = makeHass(store);
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) => {
+      if (msg.type === 'home_keeper/get_tasks') return Promise.resolve({ tasks });
+      return inner(msg);
+    };
+    return { hass, calls, store };
+  }
+
+  const tiles = (panel) => panel.shadowRoot.querySelectorAll('#hk-list .hk-tile');
+  const cards = (panel) => panel.shadowRoot.querySelectorAll('#hk-list .hk-bcard');
+  const cols = (panel) => panel.shadowRoot.querySelectorAll('#hk-list .hk-board-col');
+  const sheetRows = (panel) =>
+    [...panel.shadowRoot.querySelectorAll('.hk-sheet-row')].map((b) => b.dataset.action);
+  const layoutSelect = (panel) =>
+    panel.shadowRoot.querySelector('select[data-seg-select="layout"]');
+
+  async function mountAt(layout, tasks) {
+    const made = layoutHass(layout, tasks);
+    const panel = await mountPanel(made.hass, '/tasks');
+    await waitFor(() => panel.shadowRoot?.querySelector('#add-btn'));
+    return { panel, ...made };
+  }
+
+  it('opens on rows, and asks the store which layout this user picked', async () => {
+    const { panel, calls } = await mountAt(undefined);
+    await waitFor(() => panel.shadowRoot.querySelectorAll('#hk-list .hk-card-row').length === 3);
+    expect(panel._taskLayout).toBe('rows');
+    expect(calls['frontend/get_user_data']).toBeGreaterThan(0);
+    expect(tiles(panel).length).toBe(0);
+    expect(cols(panel).length).toBe(0);
+  });
+
+  it('draws tiles when the store says tiles, and colours the late one', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    expect(panel.shadowRoot.querySelectorAll('#hk-list .hk-tiles').length).toBeGreaterThan(0);
+    const late = panel.shadowRoot.querySelector('#hk-list .hk-tile[data-id="t1"]');
+    expect(late.classList.contains('overdue')).toBe(true);
+    const soon = panel.shadowRoot.querySelector('#hk-list .hk-tile[data-id="t2"]');
+    expect(soon.classList.contains('overdue')).toBe(false);
+    // Each tile is one press target, and says what it is and how late it is.
+    expect(late.getAttribute('role')).toBe('button');
+    expect(late.getAttribute('aria-label')).toContain('Replace water filter');
+  });
+
+  it('draws a board of the status sections, most urgent first', async () => {
+    const { panel } = await mountAt('board');
+    await waitFor(() => cards(panel).length === 3);
+    // One column per non-empty bucket: overdue, later, monitored.
+    const buckets = [...cols(panel)].map((c) => c.dataset.bucket);
+    expect(buckets).toEqual(['overdue', 'later', 'monitored']);
+    expect(cols(panel)[0].querySelector('.hk-group-count').textContent).toBe('1');
+  });
+
+  it('heads the one column of an ungrouped board All', async () => {
+    const { panel } = await mountAt('board');
+    await waitFor(() => cards(panel).length === 3);
+    panel._setGroupBy('none');
+    await waitFor(() => cols(panel).length === 1);
+    expect(cols(panel)[0].querySelector('.hk-group-title').textContent).toBe('All');
+    expect(cols(panel)[0].querySelector('.hk-group-count').textContent).toBe('3');
+  });
+
+  it('falls back to rows when the store holds a word it does not know', async () => {
+    const { panel } = await mountAt('mosaic');
+    await waitFor(() => panel.shadowRoot.querySelectorAll('#hk-list .hk-card-row').length === 3);
+    expect(panel._taskLayout).toBe('rows');
+  });
+
+  it('redraws and remembers the layout the menu picks', async () => {
+    const { panel, store } = await mountAt(undefined);
+    await waitFor(() => panel.shadowRoot.querySelectorAll('#hk-list .hk-card-row').length === 3);
+    const select = layoutSelect(panel);
+    select.value = 'tiles';
+    select.dispatchEvent(new Event('change'));
+    await waitFor(() => tiles(panel).length === 3);
+    expect(panel._taskLayout).toBe('tiles');
+    await waitFor(() => store.home_keeper_task_layout === 'tiles');
+    expect(store.home_keeper_task_layout).toBe('tiles');
+    // The menu redraws showing the choice, so the control and the list agree.
+    expect(layoutSelect(panel).value).toBe('tiles');
+  });
+
+  it('opens the action sheet on a press, offering only what the task can take', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    // Overdue: Due today is refused, because moving an overdue date to now pushes
+    // it later rather than bringing it forward.
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t1"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    expect(sheetRows(panel)).toEqual(['done', 'snooze', 'skip', 'open']);
+    panel._actionSheet = { open: false, task: null };
+    panel._render();
+
+    // A dormant monitored task has nothing to complete and nothing to defer.
+    await waitFor(() => tiles(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t3"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    expect(sheetRows(panel)).toEqual(['open']);
+  });
+
+  it('completes the task from the sheet, once, and closes', async () => {
+    const { panel, calls } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    panel.shadowRoot.querySelector('.hk-sheet-row[data-action="done"]').click();
+    await waitFor(() => calls['home_keeper/complete_task']);
+    expect(calls['home_keeper/complete_task']).toBe(1);
+    expect(panel._actionSheet.open).toBe(false);
+    expect(panel.shadowRoot.querySelector('.hk-sheet-row')).toBe(null);
+  });
+
+  it('opens the task page from the sheet', async () => {
+    const { panel } = await mountAt('board');
+    await waitFor(() => cards(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-bcard[data-id="t2"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    panel.shadowRoot.querySelector('.hk-sheet-row[data-action="open"]').click();
+    // Home Assistant owns the address bar and feeds `route` back, so what the
+    // panel does here is push the task's URL.
+    await waitFor(() => location.pathname.includes('t2'));
+    expect(location.pathname).toContain('t2');
+  });
+
+  it('opens the task page on a hold, and the sheet on a press', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { panel } = await mountAt('tiles');
+      await vi.waitFor(() => expect(tiles(panel).length).toBe(3));
+      const tile = () => panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]');
+
+      // A press held past the threshold opens the page, and the click that ends
+      // the hold must not then drop a sheet on top of it.
+      const card = tile();
+      card.dispatchEvent(new Event('pointerdown'));
+      await vi.advanceTimersByTimeAsync(500);
+      expect(location.pathname).toContain('t2');
+      card.dispatchEvent(new Event('pointerup'));
+      card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(panel._actionSheet.open).toBe(false);
+
+      // A short press is a press: it opens the sheet and never the page.
+      const depth = history.length;
+      card.dispatchEvent(new Event('pointerdown'));
+      await vi.advanceTimersByTimeAsync(200);
+      card.dispatchEvent(new Event('pointerup'));
+      card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await vi.waitFor(() => expect(sheetRows(panel).length).toBeGreaterThan(0));
+      expect(history.length).toBe(depth);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never opens a page for a card the list has already replaced', async () => {
+    // `_setQuery` swaps the whole list out, which can leave a timer armed on a
+    // card nobody is pressing any more.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { panel } = await mountAt('tiles');
+      await vi.waitFor(() => expect(tiles(panel).length).toBe(3));
+      const depth = history.length;
+      panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]').dispatchEvent(new Event('pointerdown'));
+      panel._setQuery('water');
+      await vi.advanceTimersByTimeAsync(500);
+      expect(history.length, 'the armed timer belonged to a card that is gone').toBe(depth);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('opens the sheet from the keyboard, on Enter and on Space', async () => {
+    for (const key of ['Enter', ' ']) {
+      const { panel } = await mountAt('tiles');
+      await waitFor(() => tiles(panel).length === 3);
+      const tile = panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]');
+      const evt = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      tile.dispatchEvent(evt);
+      expect(evt.defaultPrevented, 'Space must not scroll the page').toBe(true);
+      await waitFor(() => sheetRows(panel).length);
+      expect(sheetRows(panel)).toContain('open');
+      panel.remove();
+    }
+  });
+
+  it('leaves the tiles live after a text filter has replaced them', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    panel._setQuery('gutters');
+    await waitFor(() => tiles(panel).length === 1);
+    tiles(panel)[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await waitFor(() => sheetRows(panel).length);
+    expect(panel._actionSheet.task.id).toBe('t2');
+  });
+
+  it('keeps the layout the user picked when a reload returns the old one', async () => {
+    // The save can fail, or a reload can leave before the save lands. Either way
+    // the store still says rows, and the reload must not put rows back.
+    const { panel, hass } = await mountAt('rows');
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) => {
+      if (msg.type === 'frontend/set_user_data') return Promise.reject(new Error('offline'));
+      return inner(msg);
+    };
+    panel._setTaskLayout('tiles');
+    await panel._reload();
+    expect(panel._taskLayout).toBe('tiles');
+    expect(layoutSelect(panel).value).toBe('tiles');
+  });
+
+  it('starts no hold on a right-click, and a context menu cancels a hold', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { panel } = await mountAt('tiles');
+      await vi.waitFor(() => expect(tiles(panel).length).toBe(3));
+      const depth = history.length;
+      const card = panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]');
+      card.dispatchEvent(new MouseEvent('pointerdown', { button: 2 }));
+      await vi.advanceTimersByTimeAsync(600);
+      expect(history.length, 'a right-click opened the task page').toBe(depth);
+
+      card.dispatchEvent(new MouseEvent('pointerdown', { button: 0 }));
+      card.dispatchEvent(new MouseEvent('contextmenu', { cancelable: true }));
+      await vi.advanceTimersByTimeAsync(600);
+      expect(history.length, 'the context menu did not cancel the hold').toBe(depth);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('lets a long touch finish its hold, without the phone menu', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { panel } = await mountAt('tiles');
+      await vi.waitFor(() => expect(tiles(panel).length).toBe(3));
+      const card = panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]');
+      const down = new MouseEvent('pointerdown', { button: 0 });
+      Object.defineProperty(down, 'pointerType', { value: 'touch' });
+      card.dispatchEvent(down);
+      const menu = new MouseEvent('contextmenu', { cancelable: true });
+      card.dispatchEvent(menu);
+      expect(menu.defaultPrevented, 'the phone menu must not open').toBe(true);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(location.pathname).toContain('t2');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('puts focus back on the card when the sheet closes', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    [...panel.shadowRoot.querySelectorAll('ha-button')]
+      .find((b) => b.textContent === 'Cancel')
+      .click();
+    expect(panel._actionSheet.open).toBe(false);
+    expect(panel.shadowRoot.activeElement?.dataset.id).toBe('t2');
+  });
+
+  it('keeps Group by and Layout in one box, so a wrapping row moves them together', async () => {
+    const { panel } = await mountAt('rows');
+    const pair = layoutSelect(panel).closest('.hk-menu-pair');
+    expect(pair).toBeTruthy();
+    expect(pair.querySelector('select[data-seg-select="group"]')).toBeTruthy();
+  });
+
+  it('says which task is done, and Undo removes that completion', async () => {
+    const { panel, hass } = await mountAt('tiles');
+    const inner = hass.callWS.bind(hass);
+    const sent = [];
+    hass.callWS = (msg) => {
+      sent.push(msg);
+      if (msg.type === 'home_keeper/complete_task') {
+        return Promise.resolve({
+          task: { ...TASKS[1], completions: [{ ts: '2026-09-24T07:00:00+00:00' }] },
+        });
+      }
+      return inner(msg);
+    };
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail));
+    await waitFor(() => tiles(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    panel.shadowRoot.querySelector('.hk-sheet-row[data-action="done"]').click();
+    await waitFor(() => toasts.length);
+    expect(toasts[0].message).toBe('Clean gutters is done.');
+    expect(toasts[0].action.text).toBe('Undo');
+    toasts[0].action.action();
+    await waitFor(() => sent.some((m) => m.type === 'home_keeper/delete_completion'));
+    const undo = sent.find((m) => m.type === 'home_keeper/delete_completion');
+    expect(undo).toMatchObject({ task_id: 't2', ts: '2026-09-24T07:00:00+00:00' });
+    expect(sent.filter((m) => m.type === 'home_keeper/complete_task')).toHaveLength(1);
+  });
+
+  it('shows no Undo when the backend returns no new completion', async () => {
+    // A completion the response does not carry cannot be named to delete_completion,
+    // so the toast would offer an Undo that does nothing.
+    const { panel } = await mountAt('tiles');
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail));
+    await waitFor(() => tiles(panel).length === 3);
+    await panel._complete(TASKS[1]);
+    expect(toasts).toEqual([]);
+  });
+
+  it('tells the user when the layout cannot be saved', async () => {
+    const { panel, hass } = await mountAt('rows');
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) =>
+      msg.type === 'frontend/set_user_data' ? Promise.reject(new Error('offline')) : inner(msg);
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+    panel._setTaskLayout('board');
+    await waitFor(() => toasts.length);
+    expect(toasts).toEqual(['Could not save the layout. It changes back on your next visit.']);
+  });
+
+  it('gives tiles and board cards a hint that a hold opens the task', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    const hint = 'Tap for actions. Press and hold to open the task.';
+    expect(tiles(panel)[0].getAttribute('title')).toBe(hint);
+    panel._setTaskLayout('board');
+    await waitFor(() => cards(panel).length === 3);
+    expect(cards(panel)[0].getAttribute('title')).toBe(hint);
+  });
+
+  it('fades the board edge only while columns are hidden to the right', async () => {
+    const { panel } = await mountAt('board');
+    await waitFor(() => cards(panel).length === 3);
+    const board = panel.shadowRoot.querySelector('.hk-board');
+    // jsdom has no layout, so give the board the sizes a browser would.
+    let left = 0;
+    Object.defineProperty(board, 'scrollWidth', { value: 900, configurable: true });
+    Object.defineProperty(board, 'clientWidth', { value: 600, configurable: true });
+    Object.defineProperty(board, 'scrollLeft', { get: () => left, configurable: true });
+    board.dispatchEvent(new Event('scroll'));
+    expect(board.classList.contains('hk-more-end')).toBe(true);
+    left = 300;
+    board.dispatchEvent(new Event('scroll'));
+    expect(board.classList.contains('hk-more-end')).toBe(false);
+    left = 298;
+    board.dispatchEvent(new Event('scroll'));
+    expect(board.classList.contains('hk-more-end'), 'within the 1px rounding slack').toBe(true);
+  });
+
+  it('names each state on the board with the words its list pill uses', async () => {
+    // The board's short form covers dated tasks only. A dormant monitored task
+    // takes its pill's own label, so the board and the list never disagree.
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    const pill = panel.shadowRoot
+      .querySelector('.hk-tile[data-id="t3"] ha-assist-chip')
+      .getAttribute('label');
+    expect(pill).toBeTruthy();
+    panel._setTaskLayout('board');
+    await waitFor(() => cards(panel).length === 3);
+    const due = (id) =>
+      panel.shadowRoot.querySelector(`.hk-bcard[data-id="${id}"] .hk-bdue`).textContent;
+    expect(due('t3')).toBe(pill);
+    expect(due('t1')).toMatch(/^\d+d$/);
+  });
+
+  it('shows the status and the meta line at the top of the sheet', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    const pill = panel.shadowRoot
+      .querySelector('.hk-tile[data-id="t1"] ha-assist-chip')
+      .getAttribute('label');
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t1"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    const summary = panel.shadowRoot.querySelector('.hk-sheet-summary');
+    expect(summary.querySelector('ha-assist-chip').getAttribute('label')).toBe(pill);
+    const row = panel.shadowRoot.querySelector('.hk-sheet-summary .hk-meta').textContent;
+    expect(row).toContain('3 months');
+  });
+
+  it('draws a disabled task with no urgency, and says it is off on the board', async () => {
+    const off = [
+      { id: 't9', name: 'Winter hose', recurrence_type: 'floating', interval: 1, unit: 'months', next_due: LATE, enabled: false, completions: [] },
+    ];
+    const { panel } = await mountAt('tiles', off);
+    await waitFor(() => tiles(panel).length === 1);
+    expect(tiles(panel)[0].classList.contains('overdue')).toBe(false);
+    panel._setTaskLayout('board');
+    await waitFor(() => cards(panel).length === 1);
+    expect(cards(panel)[0].classList.contains('overdue')).toBe(false);
+    expect(cards(panel)[0].querySelector('.hk-bdue').textContent).toBe('Disabled');
+  });
+
+  it('opens the sheet in the adaptive dialog when Home Assistant has one', async () => {
+    // Last in this block: a custom element cannot be undefined again.
+    if (!customElements.get('ha-adaptive-dialog')) {
+      customElements.define('ha-adaptive-dialog', class extends HTMLElement {});
+    }
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    expect(panel.shadowRoot.querySelector('.hk-sheet').closest('ha-adaptive-dialog')).toBeTruthy();
+  });
+});

@@ -50,6 +50,7 @@ import {
   showsUsageIntervals,
   sortedCompletions,
   statusChipHtml,
+  statusText,
   taskRecordsReading,
   assetForTask,
   assetsForTask,
@@ -587,6 +588,46 @@ describe('statusChipHtml', () => {
     );
     expect(html).toContain('&quot; onload=&quot;x');
     expect(html).not.toContain('" onload="x');
+  });
+});
+
+describe('statusText', () => {
+  // The plain-text half of the pair `statusChipHtml` wraps in a chip. A tile and a
+  // board card are each one press target, so the status reaches a screen reader
+  // through the card's own label instead of through the pill's colour. The two
+  // read one answer, and this is what holds them to it.
+  const now = new Date('2026-06-13T12:00:00Z');
+  const labelOf = (html) => html.match(/label="([^"]*)"/)[1];
+  const cases = [
+    [
+      'a buy reminder',
+      {
+        recurrence_type: 'one-off',
+        next_due: '2026-06-10T12:00:00Z',
+        source: { buy: { asset_id: 'a1', part_id: 'p1' } },
+      },
+      { now },
+    ],
+    ['an overdue task', { next_due: '2026-06-10T12:00:00Z' }, { now }],
+    ['an overdue task counting days', { next_due: '2026-06-10T12:00:00Z' }, { now, elapsed: true }],
+    ['a plain upcoming task', { next_due: '2026-06-14T12:00:00Z' }, { now }],
+    [
+      'a counted wear item',
+      { recurrence_type: 'use', source: { part: { role: 'use' } } },
+      { now, counted: { count: 17, target: 25, noun: 'wears' } },
+    ],
+  ];
+  for (const [what, task, opts] of cases) {
+    it(`says the same as the chip for ${what}`, () => {
+      expect(statusText(task, undefined, opts)).toBe(labelOf(statusChipHtml(task, undefined, opts)));
+    });
+  }
+
+  it('carries the text unescaped, because an attribute is not where it lands', () => {
+    // The chip escapes for its `label=` attribute. This one is assigned through the
+    // DOM, so escaping it here would show the entities to the reader.
+    const late = { next_due: '2026-06-10T12:00:00Z' };
+    expect(statusText(late, undefined, { now, elapsed: true })).toBe('3 days overdue');
   });
 });
 
@@ -1692,6 +1733,15 @@ describe('recurrenceSummary sentence case (#262)', () => {
 });
 
 describe('toast', () => {
+  it('carries an action button, such as Undo, when one is given', () => {
+    const el = document.createElement('div');
+    let detail;
+    el.addEventListener('hass-notification', (e) => (detail = e.detail));
+    const action = () => {};
+    toast(el, 'Done', { text: 'Undo', action });
+    expect(detail).toEqual({ message: 'Done', action: { text: 'Undo', action } });
+  });
+
   it("emits HA's notification event from the element, escaping the shadow root", () => {
     const el = document.createElement('div');
     const seen = [];

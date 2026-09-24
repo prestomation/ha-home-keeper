@@ -32,6 +32,14 @@ export interface DeclarativeDialogState {
 /** What the inline notes editor on a detail page is currently editing. */
 export type NoteTarget = { kind: 'task' | 'asset'; id: string };
 
+/** The action sheet a task tile or a board card opens on a press. A press held
+ *  instead opens the task's detail page, so the sheet is the short way to the
+ *  actions the list row carries inline (see `panel-lists.ts`). */
+export interface ActionSheetState {
+  open: boolean;
+  task: Task | null;
+}
+
 export interface EditState {
   open: boolean;
   task: Partial<Task> | null;

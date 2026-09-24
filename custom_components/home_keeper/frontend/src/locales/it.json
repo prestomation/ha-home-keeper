@@ -739,5 +739,18 @@
   "part.low": "Basso",
   "part.reorderAt": "Riordina a {n}",
   "toast.stockSet": "Scorte impostate a {n}",
-  "transfer.tooLarge": "Questo documento è più grande del limite di {mb} MB del pannello. Dividilo in file più piccoli, oppure usa il servizio home_keeper.import_data per documenti fino a {max} MB."
+  "transfer.tooLarge": "Questo documento è più grande del limite di {mb} MB del pannello. Dividilo in file più piccoli, oppure usa il servizio home_keeper.import_data per documenti fino a {max} MB.",
+  "layout.label": "Disposizione",
+  "layout.rows": "Righe",
+  "layout.tiles": "Riquadri",
+  "layout.board": "Bacheca",
+  "btn.openTask": "Apri attività",
+  "layout.short.overdue": "{n} g",
+  "layout.short.in": "tra {n} g",
+  "layout.short.today": "Oggi",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} completata.",
+  "btn.undo": "Annulla",
+  "layout.holdHint": "Tocca per le azioni. Tieni premuto per aprire l'attività.",
+  "layout.saveFailed": "Impossibile salvare il layout. Alla prossima visita tornerà quello precedente."
 }

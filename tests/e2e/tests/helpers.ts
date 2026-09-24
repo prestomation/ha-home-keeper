@@ -106,6 +106,35 @@ export async function todoSummaries(): Promise<string[]> {
 }
 
 /**
+ * Write the task list layout straight into Home Assistant's per-user frontend
+ * data store — the same key the Layout menu writes (`home_keeper_task_layout`).
+ *
+ * Arriving in a layout rather than pressing into it is what a phone assertion and
+ * a screenshot step want: the control row is not what they are about, and a
+ * reload then proves the panel reads the stored value on its own.
+ *
+ * The value is a string (`rows`, `tiles`, `board`), never a boolean, so the key
+ * can grow another layout without a migration. An unknown value is the panel's
+ * problem, not this helper's: `parseTaskLayout` falls back to rows.
+ *
+ * Goes through the live `hass` object, which lives on the `<home-assistant>`
+ * element — a brand-new blank page has not mounted it yet. Throws rather than
+ * silently doing nothing, since a swallowed failure here means the layout was
+ * never written and every assertion after it fails somewhere confusing instead.
+ */
+export async function setTaskLayout(page: Page, value: string): Promise<void> {
+  await page.evaluate(async (v) => {
+    const hass = (
+      document.querySelector('home-assistant') as unknown as {
+        hass?: { callWS: (m: unknown) => Promise<unknown> };
+      }
+    )?.hass;
+    if (!hass) throw new Error('setTaskLayout: no `hass` yet — open an HA page first');
+    await hass.callWS({ type: 'frontend/set_user_data', key: 'home_keeper_task_layout', value: v });
+  }, value);
+}
+
+/**
  * Navigate to the Home Keeper panel and wait for the custom element to upgrade.
  * The element renders into its shadow root, so we wait for it to be attached.
  */

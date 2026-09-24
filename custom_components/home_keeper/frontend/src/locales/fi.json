@@ -722,5 +722,18 @@
   "part.low": "Vähissä",
   "part.reorderAt": "Tilausraja: {n}",
   "toast.stockSet": "Varasto asetettu arvoon {n}",
-  "transfer.tooLarge": "Tämä asiakirja on suurempi kuin paneelin {mb} MB:n raja. Jaa se pienempiin tiedostoihin, tai käytä palvelua home_keeper.import_data enintään {max} MB:n asiakirjoille."
+  "transfer.tooLarge": "Tämä asiakirja on suurempi kuin paneelin {mb} MB:n raja. Jaa se pienempiin tiedostoihin, tai käytä palvelua home_keeper.import_data enintään {max} MB:n asiakirjoille.",
+  "layout.label": "Asettelu",
+  "layout.rows": "Rivit",
+  "layout.tiles": "Ruudut",
+  "layout.board": "Taulu",
+  "btn.openTask": "Avaa tehtävä",
+  "layout.short.overdue": "{n} pv",
+  "layout.short.in": "{n} pv päästä",
+  "layout.short.today": "Tänään",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} on tehty.",
+  "btn.undo": "Kumoa",
+  "layout.holdHint": "Napauta nähdäksesi toiminnot. Avaa tehtävä painamalla pitkään.",
+  "layout.saveFailed": "Asettelua ei voitu tallentaa. Se palautuu seuraavalla käyntikerralla."
 }
