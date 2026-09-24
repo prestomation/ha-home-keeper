@@ -398,6 +398,9 @@
               }
             ]
           },
+          "enabled": {
+            "type": "boolean"
+          },
           "task_chips": {
             "anyOf": [
               {
@@ -450,9 +453,6 @@
           },
           "appliance": {
             "type": "string"
-          },
-          "enabled": {
-            "type": "boolean"
           },
           "history": {
             "type": "array",
