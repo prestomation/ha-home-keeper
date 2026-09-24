@@ -19,8 +19,8 @@
 | custom\_components/home\_keeper/config\_flow.py                 |       30 |        7 |        4 |        1 |     71% |143-149, 155, 178 |
 | custom\_components/home\_keeper/const.py                        |      184 |        2 |       12 |        1 |     98% |  896, 908 |
 | custom\_components/home\_keeper/coordinator.py                  |      144 |       84 |       50 |        0 |     35% |58, 63, 79-81, 104-146, 162, 166, 191-208, 211-214, 217-275, 325, 337, 347, 358, 371-381, 412-423, 443-447 |
-| custom\_components/home\_keeper/declarative\_companion\_sync.py |      180 |      180 |       36 |        0 |      0% |    21-507 |
-| custom\_components/home\_keeper/declarative\_companions.py      |      260 |        7 |      130 |        7 |     96% |103, 105, 129, 184, 186, 308, 328 |
+| custom\_components/home\_keeper/declarative\_companion\_sync.py |      184 |      184 |       38 |        0 |      0% |    21-519 |
+| custom\_components/home\_keeper/declarative\_companions.py      |      262 |        7 |      130 |        7 |     96% |103, 105, 129, 184, 186, 320, 340 |
 | custom\_components/home\_keeper/declarative\_presets.py         |       42 |        0 |       18 |        0 |    100% |           |
 | custom\_components/home\_keeper/device\_compat.py               |       17 |        0 |        6 |        0 |    100% |           |
 | custom\_components/home\_keeper/device\_trigger.py              |       69 |       69 |       24 |        0 |      0% |    23-163 |
@@ -60,7 +60,7 @@
 | custom\_components/home\_keeper/transfer\_runner.py             |       43 |       43 |       14 |        0 |      0% |    13-141 |
 | custom\_components/home\_keeper/transitions.py                  |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py               |      564 |      564 |       72 |        0 |      0% |    8-1479 |
-| **TOTAL**                                                       | **8946** | **3743** | **3138** |  **116** | **59%** |           |
+| **TOTAL**                                                       | **8952** | **3747** | **3140** |  **116** | **59%** |           |
 
 
 ## Setup coverage badge
