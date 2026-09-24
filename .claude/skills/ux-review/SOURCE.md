@@ -15,9 +15,18 @@ change the commit in this file.
 - **The screenshots.** Use the Playwright harness in `tests/e2e/` in place of the
   upstream `shoot.mjs` helper. Write review screenshots to the output directory of
   the review, not to `docs/images/`.
-- **The style inventory.** `tools/style-inventory.mjs` needs `playwright-core`.
-  `tests/e2e/node_modules` has it. The panel is behind a login, so give the tool a
-  URL only after you add the session state, or measure from a Playwright script.
+- **The style inventory.** Use `tools/style-inventory-ha.mjs`, not the upstream
+  `tools/style-inventory.mjs`. The upstream tool does not look inside shadow roots,
+  so on Home Assistant it measures only the loading screen. The copy collects the
+  elements in every open shadow root and logs in with the session state that
+  `tests/e2e/global-setup.ts` writes. Run it from `tests/e2e`, so that
+  `playwright-core` resolves:
+  `STORAGE_STATE=.auth/state.json node ../../.claude/skills/ux-review/tools/style-inventory-ha.mjs <scenario.json> <out.md>`.
+  Give the scenario a first `wait` of about 9000 ms. A cold panel is still on the
+  loading screen after 4 s. A scenario that picks a layout changes the stored
+  layout for the e2e user, so end with a scenario that picks `rows` again.
+  The report covers the whole page, with the Home Assistant sidebar, so judge only
+  the elements of the surface that you review.
 - **The brief.** Write the brief for the surface that you review. The persona is a
   Home Assistant user who keeps a house in order. The surface type is usually
   `dashboard` or `list`. The tone words come from the Home Assistant frontend:
