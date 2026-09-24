@@ -1160,7 +1160,7 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   const shopping = panel.locator('#hk-settings-shopping');
   await expect(shopping.locator('.hk-shopping-preview')).toBeVisible();
   await page.waitForTimeout(BEAT);
-  await shopping.getByLabel('Product only').check();
+  await shopping.getByText('Product only', { exact: true }).click();
   await expect(shopping.locator('.hk-shopping-preview-title').first()).not.toContainText(
     'Buy',
   );

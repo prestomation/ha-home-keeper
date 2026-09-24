@@ -212,7 +212,7 @@ test.describe('Home Keeper — buy reminders on the household shopping list', ()
     await panel.locator('#tab-settings').click();
     const card = panel.locator('#hk-settings-shopping');
     await expect(card.locator('.hk-shopping-preview')).toContainText(REMINDER);
-    await card.getByLabel('Product only').check();
+    await card.getByText('Product only', { exact: true }).click();
     // The preview follows the choice at once, before anything is saved.
     await expect(card.locator('.hk-shopping-preview')).toContainText(PRODUCT_LINE);
     await expect(card.locator('.hk-shopping-preview')).not.toContainText(REMINDER);

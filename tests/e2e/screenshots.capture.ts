@@ -1441,7 +1441,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // The preview is asserted, not only photographed: it is what says the choice works.
   const shoppingSettings = panel.locator('#hk-settings-shopping');
   await shoppingSettings.scrollIntoViewIfNeeded();
-  await shoppingSettings.getByLabel('Product only').check();
+  await shoppingSettings.getByText('Product only', { exact: true }).click();
   await expect(shoppingSettings.locator('.hk-shopping-preview-title').first()).toHaveText(
     'Anode rod',
     { timeout: 10_000 },
