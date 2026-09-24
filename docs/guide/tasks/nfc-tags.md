@@ -23,6 +23,10 @@ of the task form, or type the tag ID.
 
 ![The task form's NFC/RFID tag picker and the require-scan toggle](../../images/44-panel-task-tag-form.png)
 
+A task that a wear item creates has no task form. Select the tag on the wear item
+itself, in the appliance's part editor. See [Scan a tag to complete a wear item's
+task](../appliances/appliances.md#scan-a-tag-to-complete-a-wear-items-task).
+
 ![A task row wearing the NFC chip, and a scan-required task with its Done button blocked](../../images/44b-panel-task-nfc-chip.png)
 
 A scan completion fires the `home_keeper_task_completed` event with

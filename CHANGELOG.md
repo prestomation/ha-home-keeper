@@ -6,13 +6,21 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.26.0b1]
+## [0.26.0b2]
 
 ### Added
 
 - **[Task list layouts](https://prestomation.github.io/ha-home-keeper/docs/guide/panel#task-list-layouts).**
   Pick Rows, Tiles or Board in the Layout menu on the Tasks tab. Tap a tile or a board
   card for its actions, or press and hold to open the task. (Fixes #327) (Thanks @joss94!)
+
+## [0.26.0b1]
+
+### Added
+
+- **[Wear item NFC tags](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#scan-a-tag-to-complete-a-wear-items-task).**
+  Scan an NFC/RFID tag to complete the task that a wear item creates. On a counted
+  wear item, a scan records 1 use. (Fixes #364) (Thanks @berezovskyi-oleksandr!)
 
 ## [0.25.0] - 2026-09-24
 

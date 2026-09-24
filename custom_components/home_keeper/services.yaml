@@ -1048,7 +1048,10 @@ add_asset:
         replace_also_every ({interval, unit}) adds a time backstop - "every 25 uses
         or every 12 months, whichever comes first". carried_uses holds a count that
         came in with an import. Home Keeper adds it to the use log until you complete
-        or skip the maintenance task.
+        or skip the maintenance task. tag_id binds a Home Assistant NFC/RFID tag to
+        the task the wear item creates (the use task of a counted wear item), so a
+        scan completes it. require_tag_scan blocks Done on that task until the tag
+        is scanned.
       selector:
         object:
     parent_asset_id:

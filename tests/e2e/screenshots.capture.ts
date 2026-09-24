@@ -40,6 +40,55 @@ async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Pr
 }
 
 /**
+ * Bind (or unbind) an NFC tag on the seeded anode rod, through the public service.
+ *
+ * `update_asset` replaces the whole parts list, so the other parts are sent back as
+ * they are. Undone right after each shot that needs it: the derived "Replace Anode
+ * rod" task wears an NFC chip while the tag is set, and every other shot of the task
+ * list documents that row without one.
+ */
+async function setAnodeTag(page: Page, tagId: string | null): Promise<void> {
+  await page.evaluate(
+    async ({ ASSET: assetIds, PART: partIds, tagId: tag }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      if (!hass) return;
+      if (tag) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tags: any[] = await hass.callWS({ type: 'tag/list' });
+        if (!tags.some((t) => t.id === tag)) {
+          await hass.callWS({ type: 'tag/create', tag_id: tag, name: 'Anode rod' });
+        }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { assets } = (await hass.callWS({ type: 'home_keeper/get_assets' })) as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const heater = assets.find((a: any) => a.id === assetIds.waterHeater);
+      const WRITABLE = [
+        'id', 'name', 'part_number', 'type', 'vendor', 'cost', 'url', 'notes',
+        'replace_interval', 'replace_unit', 'last_replaced', 'stock', 'reorder_at',
+        'stock_unit', 'consume_quantity', 'create_buy_task', 'restock_quantity',
+        'action', 'use_noun', 'use_task_name', 'replace_also_every',
+        'tag_id', 'require_tag_scan',
+      ];
+      await hass.callService('home_keeper', 'update_asset', {
+        asset_id: heater.id,
+        parts: heater.parts.map((p: Record<string, unknown>) => {
+          const out: Record<string, unknown> = {};
+          for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
+          if (p.id === partIds.anode) {
+            out.tag_id = tag;
+            out.require_tag_scan = Boolean(tag);
+          }
+          return out;
+        }),
+      });
+    },
+    { ASSET, PART, tagId },
+  );
+}
+
+/**
  * Put the usage form's "Also come due on a schedule" switch into a known state.
  *
  * Driven by its *effect* — the backstop adds a second number selector ("Or every")
@@ -601,30 +650,30 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // Reset grouping so later list shots are unaffected.
   await panel.locator('select[data-seg-select="group"]').selectOption('status');
 
-  // 70. Tiles — the Layout menu's second entry. Each task is a card with its name
+  // 71. Tiles — the Layout menu's second entry. Each task is a card with its name
   // and its status pill and nothing else, three to a row, so a whole week of work
   // is on one screen. Everything a list row carries inline moves into the action
-  // sheet at 70c.
+  // sheet at 71c.
   const layoutMenu = panel.locator('select[data-seg-select="layout"]');
   await layoutMenu.selectOption('tiles');
   await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(400);
   // Viewport, not full page: a full-page capture of this panel paints Home
-  // Assistant's fixed sidebar twice (see 70c).
+  // Assistant's fixed sidebar twice (see 71c).
   await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
-  await page.screenshot({ path: `${OUT}/70-panel-task-tiles.png` });
+  await page.screenshot({ path: `${OUT}/71-panel-task-tiles.png` });
 
-  // 70b. Board — one column per Group by group, read across rather than down. The
+  // 71b. Board — one column per Group by group, read across rather than down. The
   // grouping is status here, so the columns are the sections the list already has.
   await layoutMenu.selectOption('board');
   await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(400);
   // Viewport, not full page: a full-page capture of this panel paints Home
-  // Assistant's fixed sidebar twice (see 70c).
+  // Assistant's fixed sidebar twice (see 71c).
   await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
-  await page.screenshot({ path: `${OUT}/70b-panel-task-board.png` });
+  await page.screenshot({ path: `${OUT}/71b-panel-task-board.png` });
 
-  // 70c. The action sheet a press on a tile or a board card opens: Done, the two
+  // 71c. The action sheet a press on a tile or a board card opens: Done, the two
   // deferrals, Due today and Open task. It is where the actions a row carries
   // inline went, so it is the shot that says a compact layout costs none of them.
   // Viewport, not full page. The sheet is fixed to the viewport, and a full-page
@@ -639,7 +688,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   });
   await page.waitForTimeout(400);
   await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
-  await page.screenshot({ path: `${OUT}/70c-panel-task-action-sheet.png` });
+  await page.screenshot({ path: `${OUT}/71c-panel-task-action-sheet.png` });
   await page.keyboard.press('Escape');
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
   // Back to rows. The choice is stored per user, so a layout left behind here is
@@ -1021,6 +1070,45 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/5b-panel-appliances-archived-list.png`, fullPage: true });
   // Reset to Active so the remaining appliance shots see the normal list.
   await panel.locator('.hk-seg[data-seg="assetFilter"] button', { hasText: 'Active' }).click();
+
+  // 70. A wear item's NFC/RFID binding. A task derived from a wear part has no Edit
+  //     of its own — its part is its editor — so the tag picker and the require-scan
+  //     switch sit at the foot of the part, above the What this creates box, which
+  //     says what a scan does. Bound through the service first so the picker shows a
+  //     registry tag by name, exactly as the task form's shot (44) does.
+  await setAnodeTag(page, 'anode-rod-tag');
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await panel.locator('.d-edit').click();
+  const tagForm = panel.locator('#hk-asset-form');
+  await expect(tagForm).toBeVisible();
+  const tagParts = tagForm.locator('details.hk-collapsible').filter({ hasText: 'Parts & wear items' });
+  if (!(await tagParts.first().evaluate((d: HTMLDetailsElement) => d.open))) {
+    await tagParts.first().locator('summary').click();
+  }
+  const anodePart = tagParts.locator('.hk-part').first();
+  await openPart(anodePart);
+  const anodeTagToggle = anodePart
+    .locator('ha-selector-boolean')
+    .filter({ hasText: 'Require a tag scan' });
+  await expect(anodeTagToggle).toBeVisible({ timeout: 10_000 });
+  await expect(anodePart.locator('.hk-part-preview .hk-form-summary-fact')).toContainText([
+    /Due every 12 months/,
+    'A tag scan completes it.',
+    'Done is blocked until the tag is scanned.',
+  ]);
+  await centre(anodeTagToggle);
+  await page.waitForTimeout(600);
+  await shotWithDrawer(page, `${OUT}/70-panel-part-tag-field.png`);
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+  await setAnodeTag(page, null);
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 6. Appliance create form — virtual device, metadata, parts and relationships.
   await panel.locator('#add-btn').click();
@@ -1787,32 +1875,32 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
 
-  // 70d. Tiles on a phone. Two to a row rather than three, which is the layout the
+  // 71d. Tiles on a phone. Two to a row rather than three, which is the layout the
   // picker exists for: a phone list row is a tall stacked block, so the same screen
   // holds four times as many tasks as tiles.
   const phoneLayoutMenu = panel.locator('select[data-seg-select="layout"]');
   await phoneLayoutMenu.selectOption('tiles');
   await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/70d-panel-mobile-task-tiles.png` });
+  await page.screenshot({ path: `${OUT}/71d-panel-mobile-task-tiles.png` });
 
-  // 70f. The action sheet on a phone. Below 700px the dialog fills the screen, so
+  // 71f. The action sheet on a phone. Below 700px the dialog fills the screen, so
   // the status and the meta line above the actions are the first thing a press
-  // shows. The desktop sheet at 70c documents none of that.
+  // shows. The desktop sheet at 71c documents none of that.
   await panel.locator(`.hk-tile[data-id="${TASK.furnaceFilter}"]`).click();
   await expect(panel.locator('ha-dialog[open] .hk-sheet-summary')).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/70f-panel-mobile-task-action-sheet.png` });
+  await page.screenshot({ path: `${OUT}/71f-panel-mobile-task-action-sheet.png` });
   await page.keyboard.press('Escape');
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
 
-  // 70e. The board on a phone. There is no room for columns side by side, so a
+  // 71e. The board on a phone. There is no room for columns side by side, so a
   // column takes most of the width and the next one is a swipe away, snapping to
   // the column edge — a different layout from the desktop board, not a narrower one.
   await phoneLayoutMenu.selectOption('board');
   await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/70e-panel-mobile-task-board.png` });
+  await page.screenshot({ path: `${OUT}/71e-panel-mobile-task-board.png` });
   // Back to rows for the phone shots below, which are all of the list.
   await phoneLayoutMenu.selectOption('rows');
   await expect(panel.locator('#hk-list ha-card.hk-card').first()).toBeVisible({ timeout: 10_000 });
@@ -2004,6 +2092,37 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/69c-panel-mobile-task-enable-banner.png` });
   await panel.locator('.d-enable').click();
   await expect(panel.locator('.hk-disabled-banner')).toHaveCount(0);
+
+  // 70c. The wear item's tag binding on a phone. Below 700px the appliance editor is
+  //      a page rather than a drawer, and the part's fields stack one to a row, so
+  //      the picker, the switch and the What this creates box share one screen the
+  //      desktop shot cannot show. Bound and unbound around the shot, as 70 is.
+  await setAnodeTag(page, 'anode-rod-tag');
+  await openPanel(page);
+  await panel.locator('#mtab-appliances').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await panel.locator('.d-edit').click();
+  const tagFormPhone = panel.locator('#hk-asset-form');
+  await expect(tagFormPhone).toBeVisible();
+  const tagPartsPhone = tagFormPhone
+    .locator('details.hk-collapsible')
+    .filter({ hasText: 'Parts & wear items' });
+  if (!(await tagPartsPhone.first().evaluate((d: HTMLDetailsElement) => d.open))) {
+    await tagPartsPhone.first().locator('summary').click();
+  }
+  const anodePartPhone = tagPartsPhone.locator('.hk-part').first();
+  await openPart(anodePartPhone);
+  const anodeTagTogglePhone = anodePartPhone
+    .locator('ha-selector-boolean')
+    .filter({ hasText: 'Require a tag scan' });
+  await expect(anodeTagTogglePhone).toBeVisible({ timeout: 10_000 });
+  await centre(anodeTagTogglePhone);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/70c-panel-mobile-part-tag-field.png` });
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await setAnodeTag(page, null);
 
   // The task layout is stored per user on the server, so it outlives this capture
   // and would greet the next run — and the e2e suite — in whatever the last shot
