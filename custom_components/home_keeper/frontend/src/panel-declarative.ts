@@ -8,9 +8,12 @@
  *   it and `wireDeclarativeSection` wires Add / Add from preset / Edit / Delete;
  * - the preset picker: one card per bundled recipe, disabled when the integration it
  *   needs has no config entry;
- * - the add/edit dialog: four `ha-form`s (identity, selection, trigger, template) over
+ * - the add/edit dialog: `ha-form`s (identity, selection, trigger, template) over
  *   one draft, and beneath them a live preview of what the recipe would match. The
- *   preview also warns when another stored recipe already covers those entities.
+ *   selection section shows integration and domain; a **More filters** row opens the
+ *   other filters and the four exclusion lists (#373). Each preview row has an
+ *   Exclude button, and an excluded entity is listed under the rows with Include.
+ *   The preview also warns when another stored recipe already covers those entities.
  *   `declarativeOverlap` works that out from the tasks the panel already holds, so
  *   the warning costs no extra backend call.
  *
@@ -25,6 +28,15 @@
 
 import * as api from './api';
 import {
+  EXCLUSION_FIELDS,
+  exclusionsSchema,
+  hasMoreFilters,
+  idList,
+  moreFiltersSchema,
+  moreFiltersSummary,
+  toggleId,
+} from './declarative-filters';
+import {
   pickFormData,
   selBool,
   selNumber,
@@ -33,9 +45,10 @@ import {
   selText,
   type FormField,
 } from './forms';
-import { t } from './i18n';
+import { t, tn } from './i18n';
 import { makeDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
+import { indentGroup } from './panel-indent';
 import type {
   DeclarativeCompanion,
   DeclarativeCompanionPreset,
@@ -473,7 +486,11 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     // `refreshPreview` would return early, leaving "Loading preview…" on screen for
     // good. Switching the mode is exactly the flow #230 reported.
     if (!preview.isConnected) return;
-    p._debounce('decl-preview', () => void refreshPreview(p, draft, preview), PREVIEW_DEBOUNCE_MS);
+    p._debounce(
+      'decl-preview',
+      () => void refreshPreview(p, draft, preview, (id) => toggleExcluded(id)),
+      PREVIEW_DEBOUNCE_MS,
+    );
   };
 
   // Every field is labelled from its own key rather than `field.<name>`, and the
@@ -487,16 +504,22 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   // Each section is its own `ha-form` (one heading between two fields is only
   // reachable by splitting the schema) and carries `data-decl-section` so a test can
   // address the form that owns a field rather than counting elements.
+  // *parent* and *titled* let a section sit inside **More filters** without a heading
+  // of its own: the row above it, or the indent head, already names it.
   const section = (
     key: string,
     schema: FormField[],
     data: Record<string, unknown>,
     onChange: (value: Record<string, unknown>) => void,
-  ): void => {
-    const title = document.createElement('div');
-    title.className = 'hk-decl-section-title';
-    title.textContent = t('declarative.companions.section_' + key);
-    body.appendChild(title);
+    parent: HTMLElement = body,
+    titled = true,
+  ): HTMLElement & { data?: Record<string, unknown> } => {
+    if (titled) {
+      const title = document.createElement('div');
+      title.className = 'hk-decl-section-title';
+      title.textContent = t('declarative.companions.section_' + key);
+      parent.appendChild(title);
+    }
     const form = p._makeForm(
       schema,
       // `ha-form` echoes its whole `data` back on every change, so seed it with this
@@ -511,7 +534,8 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     );
     form.classList.add('hk-decl-form');
     form.dataset.declSection = key;
-    body.appendChild(form);
+    parent.appendChild(form);
+    return form;
   };
   const str = (v: unknown): string | undefined => {
     const s = String(v ?? '').trim();
@@ -545,22 +569,99 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     [
       { name: 'integration', selector: selSelectCustom(integrations) },
       { name: 'domain', selector: selSelectCustom(DOMAINS.map((d) => ({ value: d, label: d }))) },
-      { name: 'device_class', selector: selText() },
-      { name: 'entity_regex', selector: selText() },
     ],
-    {
-      integration: sel.target_integration,
-      domain: sel.domain,
-      device_class: sel.device_class,
-      entity_regex: sel.entity_regex,
-    },
+    { integration: sel.target_integration, domain: sel.domain },
     (v) => {
       sel.target_integration = str(v.integration);
       sel.domain = str(v.domain);
-      sel.device_class = str(v.device_class);
-      sel.entity_regex = str(v.entity_regex);
     },
   );
+
+  // 2b. More filters: the rarer filters and the exclusions, behind one row whose
+  //     summary says what is set, so a closed row never hides a filter unseen. It
+  //     opens by default when something in it is set; after a toggle, the choice is
+  //     kept in the dialog state so a trigger-mode re-render does not close it.
+  const open = p._declDialog.moreOpen ?? hasMoreFilters(sel);
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'hk-decl-more';
+  more.setAttribute('aria-expanded', String(open));
+  more.setAttribute('aria-controls', 'hk-decl-more-body');
+  more.innerHTML = `
+      <span class="hk-decl-more-text">
+        <span class="hk-decl-more-title">${escapeHTML(t('declarative.companions.more_filters'))}</span>
+        <span class="hk-decl-more-summary"></span>
+      </span>
+      <ha-icon class="hk-decl-more-chevron" icon="mdi:chevron-down"></ha-icon>`;
+  const summary = more.querySelector('.hk-decl-more-summary') as HTMLElement;
+  const updateSummary = (): void => {
+    summary.textContent = moreFiltersSummary(sel);
+  };
+  updateSummary();
+  const moreBody = document.createElement('div');
+  moreBody.id = 'hk-decl-more-body';
+  moreBody.className = 'hk-decl-more-body';
+  moreBody.hidden = !open;
+  more.addEventListener('click', () => {
+    const next = more.getAttribute('aria-expanded') !== 'true';
+    moreBody.hidden = !next;
+    more.setAttribute('aria-expanded', String(next));
+    p._declDialog.moreOpen = next;
+  });
+  body.append(more, moreBody);
+
+  section(
+    'filters',
+    moreFiltersSchema(),
+    {
+      device_class: sel.device_class,
+      area_ids: sel.area_ids ?? [],
+      label_ids: sel.label_ids ?? [],
+      entity_regex: sel.entity_regex,
+    },
+    (v) => {
+      sel.device_class = str(v.device_class);
+      sel.area_ids = idList(v.area_ids);
+      sel.label_ids = idList(v.label_ids);
+      sel.entity_regex = str(v.entity_regex);
+      updateSummary();
+    },
+    moreBody,
+    false,
+  );
+
+  // The exclusions, indented under the same head Problem sensor sync uses.
+  const exclusionsHost = document.createElement('div');
+  const exclusionsData = (): Record<string, unknown> =>
+    Object.fromEntries(EXCLUSION_FIELDS.map((f) => [f, sel[f] ?? []]));
+  const exclusionsForm = section(
+    'exclusions',
+    exclusionsSchema(),
+    exclusionsData(),
+    (v) => {
+      for (const f of EXCLUSION_FIELDS) if (f in v) sel[f] = idList(v[f]);
+      exclusionsForm.data = exclusionsData();
+      updateSummary();
+    },
+    exclusionsHost,
+    false,
+  );
+  moreBody.appendChild(
+    indentGroup(
+      t('declarative.companions.section_exclusions'),
+      t('declarative.companions.exclusions_note'),
+      exclusionsHost,
+    ),
+  );
+
+  // The preview's Exclude and Include buttons edit the same list the entity picker
+  // above shows, so the two can never disagree.
+  const toggleExcluded = (id: string): void => {
+    sel.exclude_entity_ids = toggleId(sel.exclude_entity_ids, id);
+    exclusionsForm.data = exclusionsData();
+    updateSummary();
+    schedulePreview();
+  };
 
   // 3. Trigger. The schema follows the mode, so a mode change re-renders the dialog:
   //    the draft is edited in place, so nothing typed elsewhere is lost.
@@ -699,6 +800,7 @@ async function refreshPreview(
   p: PanelHost,
   draft: DeclarativeCompanion,
   host: HTMLElement,
+  onToggle: (entityId: string) => void,
 ): Promise<void> {
   // A re-render (a mode change) replaces the dialog; the old preview node is gone
   // and the new dialog schedules its own.
@@ -713,19 +815,59 @@ async function refreshPreview(
       p._declarativeCompanions,
       draft.id,
     );
-    host.innerHTML = previewHtml(result, overlap);
+    host.innerHTML = previewHtml(result, overlap, draft.selection.exclude_entity_ids ?? []);
+    host.querySelectorAll<HTMLElement>('[data-toggle-entity]').forEach((b) =>
+      b.addEventListener('click', () => onToggle(b.dataset.toggleEntity ?? '')),
+    );
   } catch (err) {
     host.innerHTML = `<ha-alert alert-type="error">${escapeHTML(errorMessage(err))}</ha-alert>`;
   }
 }
 
-/** The preview's HTML: the count line, the warnings, and the sample. */
+/** One Exclude or Include button. The label is always there for a screen reader;
+ *  on a phone the CSS hides the text and keeps the icon. */
+function toggleButton(entityId: string, include: boolean): string {
+  const label = t(include ? 'declarative.companions.include' : 'declarative.companions.exclude');
+  const icon = include ? 'mdi:restore' : 'mdi:minus-circle-outline';
+  return `<button type="button" class="hk-decl-toggle ${include ? 'hk-decl-include' : 'hk-decl-exclude'}"
+      data-toggle-entity="${escapeHTML(entityId)}" aria-label="${escapeHTML(label)}">
+      <ha-icon icon="${icon}"></ha-icon><span class="hk-decl-toggle-text">${escapeHTML(label)}</span>
+    </button>`;
+}
+
+/** The entities excluded one by one, each with Include. Empty when there are none. */
+function excludedHtml(excluded: readonly string[]): string {
+  if (!excluded.length) return '';
+  const rows = excluded
+    .map(
+      (id) => `
+        <div class="hk-decl-preview-row hk-decl-excluded-row">
+          <div class="hk-decl-preview-text"><div class="hk-decl-preview-eid">${escapeHTML(id)}</div></div>
+          ${toggleButton(id, true)}
+        </div>`,
+    )
+    .join('');
+  return `
+      <div class="hk-decl-excluded">
+        <div class="hk-decl-excluded-head">${escapeHTML(
+          tn('declarative.companions.excluded_heading', excluded.length),
+        )}</div>
+        ${rows}
+      </div>`;
+}
+
+/** The preview's HTML: the count line, the warnings, the sample, and the entities
+ *  excluded one by one. */
 function previewHtml(
   result: DeclarativeCompanionPreviewResult,
   overlap: DeclarativeOverlap | null,
+  excluded: readonly string[],
 ): string {
   if (result.over_cap) {
-    return `<ha-alert alert-type="error">${escapeHTML(t('declarative.companions.preview_over_cap'))}</ha-alert>`;
+    return (
+      `<ha-alert alert-type="error">${escapeHTML(t('declarative.companions.preview_over_cap'))}</ha-alert>` +
+      excludedHtml(excluded)
+    );
   }
   const count = result.count ?? 0;
   // A `warning`, the same type as the count warning below it. A second recipe over
@@ -749,8 +891,11 @@ function previewHtml(
     .map(
       (m) => `
         <div class="hk-decl-preview-row">
-          <div class="hk-decl-preview-name">${escapeHTML(m.rendered_name)}</div>
-          <div class="hk-decl-preview-eid">${escapeHTML(m.entity_id)}</div>
+          <div class="hk-decl-preview-text">
+            <div class="hk-decl-preview-name">${escapeHTML(m.rendered_name)}</div>
+            <div class="hk-decl-preview-eid">${escapeHTML(m.entity_id)}</div>
+          </div>
+          ${toggleButton(m.entity_id, false)}
         </div>`,
     )
     .join('');
@@ -764,5 +909,6 @@ function previewHtml(
       <div class="hk-decl-preview-header">${summary}</div>
       ${duplicate}
       ${warning}
-      ${rows || `<div class="hk-decl-preview-empty">${escapeHTML(t('declarative.companions.preview_empty'))}</div>`}`;
+      ${rows || `<div class="hk-decl-preview-empty">${escapeHTML(t('declarative.companions.preview_empty'))}</div>`}
+      ${excludedHtml(excluded)}`;
 }

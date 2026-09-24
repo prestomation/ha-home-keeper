@@ -358,6 +358,46 @@ def test_expand_applies_exclude_lists():
     assert kept == ["sensor.kept_total_failed_pings"]
 
 
+@pytest.mark.parametrize(
+    ("own", "device", "expected"),
+    [
+        ("garage", "kitchen", "garage"),  # the entity's own area wins
+        (None, "kitchen", "kitchen"),  # no own area: the device's area
+        ("", "kitchen", "kitchen"),  # an empty own area counts as none
+        (None, None, None),  # neither: no area
+    ],
+)
+def test_effective_area_id_falls_back_to_the_device_area(own, device, expected):
+    assert dc.effective_area_id(own, device) == expected
+
+
+def test_expand_area_filters_reach_an_entity_in_its_device_area():
+    """The sync projects the effective area, so a device-area entity is filtered.
+
+    Before #373 the projection carried only the entity's own area, and an entity
+    that took its area from its device matched no area filter at all.
+    """
+    in_garage = dc.effective_area_id(None, "garage")
+    include = _normalized_spec(
+        selection={"target_integration": "device_pulse", "area_ids": ["garage"]}
+    )
+    exclude = _normalized_spec(
+        selection={"target_integration": "device_pulse", "exclude_area_ids": ["garage"]}
+    )
+    entities = _snapshot(
+        _entity("sensor.garage_total_failed_pings", area_id=in_garage),
+        _entity("sensor.hall_total_failed_pings", area_id="hall"),
+    )
+    kept_in = [
+        m["entity"]["entity_id"] for m in dc.expand_spec(include, entities).values()
+    ]
+    kept_out = [
+        m["entity"]["entity_id"] for m in dc.expand_spec(exclude, entities).values()
+    ]
+    assert kept_in == ["sensor.garage_total_failed_pings"]
+    assert kept_out == ["sensor.hall_total_failed_pings"]
+
+
 def test_expand_applies_area_and_label_include_filters():
     spec = _normalized_spec(
         selection={

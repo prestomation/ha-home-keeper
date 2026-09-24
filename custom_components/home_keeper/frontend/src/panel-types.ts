@@ -27,6 +27,9 @@ export interface DeclarativeDialogState {
   kind: 'picker' | 'form';
   draft: DeclarativeCompanion | null;
   error?: string;
+  /** Whether **More filters** is open. Unset until the user toggles it, so the
+   *  default (open when a filter in it is set) applies on the first render. */
+  moreOpen?: boolean;
 }
 
 /** What the inline notes editor on a detail page is currently editing. */

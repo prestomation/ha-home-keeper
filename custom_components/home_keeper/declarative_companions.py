@@ -270,6 +270,18 @@ def normalize_declarative_companion(data: Any) -> dict[str, Any]:
 # --- Selection (pure) --------------------------------------------------------
 
 
+def effective_area_id(
+    entity_area_id: str | None, device_area_id: str | None
+) -> str | None:
+    """The area an entity is in: its own area, else the area of its device.
+
+    Most entities get their area from their device and have no area of their own.
+    Without this fallback, an area filter or exclusion would miss them, and
+    ``{{ area_name }}`` would render empty. ``problem_sync`` uses the same rule.
+    """
+    return entity_area_id or device_area_id
+
+
 def _labels_intersect(entity_labels: Any, wanted: list[str]) -> bool:
     """Whether *entity_labels* contains any of *wanted*.
 

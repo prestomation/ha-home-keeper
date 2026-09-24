@@ -60,12 +60,16 @@ _LOGGER = logging.getLogger(__name__)
 RECONCILE_DEBOUNCE_SECONDS = 5.0
 
 
-def _project_entry(entry: er.RegistryEntry) -> dict[str, Any]:
+def _project_entry(
+    entry: er.RegistryEntry, dev_reg: dr.DeviceRegistry
+) -> dict[str, Any]:
     """Project one entity-registry entry into the plain-dict shape the pure pass reads.
 
     Kept as a free function so the whole-registry snapshot and the single-entity
     lookup that re-renders one task's notes cannot describe an entity differently.
+    ``area_id`` is the entity's effective area: its own, else its device's.
     """
+    device = dev_reg.async_get(entry.device_id) if entry.device_id else None
     return {
         "entity_registry_id": entry.id,
         "entity_id": entry.entity_id,
@@ -74,7 +78,9 @@ def _project_entry(entry: er.RegistryEntry) -> dict[str, Any]:
         "device_class": entry.device_class,
         "original_device_class": entry.original_device_class,
         "device_id": entry.device_id,
-        "area_id": entry.area_id,
+        "area_id": declarative_companions.effective_area_id(
+            entry.area_id, device.area_id if device else None
+        ),
         "labels": set(entry.labels or []),
         "disabled": bool(entry.disabled),
         "name": entry.name,
@@ -176,10 +182,14 @@ class DeclarativeCompanionSync:
         further HA access is made inside :func:`declarative_companions.expand_spec`.
         Labels come from the entity registry entry's own set (device labels are
         NOT unioned — a device-level filter would reach into per-device labels,
-        which the current filter shape doesn't expose).
+        which the current filter shape doesn't expose). The area is the effective
+        one, so an entity in its device's area matches an area filter.
         """
         ent_reg = er.async_get(self._hass)
-        entries = [_project_entry(entry) for entry in ent_reg.entities.values()]
+        dev_reg = dr.async_get(self._hass)
+        entries = [
+            _project_entry(entry, dev_reg) for entry in ent_reg.entities.values()
+        ]
         return {"entities": entries}
 
     def _entry_for_entity(self, entity_id: str) -> dict[str, Any]:
@@ -193,7 +203,9 @@ class DeclarativeCompanionSync:
         """
         ent_reg = er.async_get(self._hass)
         found = ent_reg.async_get(entity_id)
-        return _project_entry(found) if found is not None else {"entity_id": entity_id}
+        if found is None:
+            return {"entity_id": entity_id}
+        return _project_entry(found, dr.async_get(self._hass))
 
     # ── rendering ────────────────────────────────────────────────────────────
     def _template_variables(self, entry: dict[str, Any]) -> dict[str, Any]:

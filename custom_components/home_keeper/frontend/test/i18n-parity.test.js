@@ -46,14 +46,39 @@ const INTENTIONALLY_IDENTICAL = new Set([
 // ("Preset:" appears literally in several Romance languages; the German panel
 // keeps "Name"; French uses "Description" as a cognate; Dutch keeps "Trigger"
 // where the German UI convention has established the English loanword).
+// The More filters summary (#373) is a count and a noun: "Exclusions" is the French
+// and Catalan word too (as `settings.exclusions` already is), and "filter" is the
+// Dutch, Danish, Norwegian and Swedish word.
 const DECLARATIVE_COGNATES = {
-  ca: ['declarative.companions.preset_badge', 'transfer.documentLabel'],
+  ca: [
+    'declarative.companions.preset_badge',
+    'declarative.companions.section_exclusions',
+    'declarative.companions.summary_exclusions.other',
+    'transfer.documentLabel',
+  ],
+  da: ['declarative.companions.summary_filters.one'],
   de: ['declarative.companions.field_name'],
   es: ['declarative.companions.preset_badge'],
-  fr: ['declarative.companions.field_description', 'field.skipNote', 'transfer.documentLabel'],
+  fr: [
+    'declarative.companions.field_description',
+    'declarative.companions.section_exclusions',
+    'declarative.companions.summary_exclusions.one',
+    'declarative.companions.summary_exclusions.other',
+    'field.skipNote',
+    'transfer.documentLabel',
+  ],
   it: ['declarative.companions.preset_badge'],
-  nl: ['declarative.companions.preset_badge', 'declarative.companions.section_trigger', 'defer.preset.1w', 'transfer.documentLabel'],
+  nb: ['declarative.companions.summary_filters.one'],
+  nl: [
+    'declarative.companions.preset_badge',
+    'declarative.companions.section_trigger',
+    'declarative.companions.summary_filters.one',
+    'declarative.companions.summary_filters.other',
+    'defer.preset.1w',
+    'transfer.documentLabel',
+  ],
   'pt-BR': ['declarative.companions.preset_badge'],
+  sv: ['declarative.companions.summary_filters.one'],
 };
 
 const COGNATE_IDENTICAL = {
