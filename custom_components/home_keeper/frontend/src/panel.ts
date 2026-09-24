@@ -389,6 +389,14 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     root.querySelectorAll('.hk-settings-col ha-card').forEach((card) => {
       card.classList.toggle('hk-sec-current', !!current && card.id === current.card);
     });
+    // The index states what each section is set to, and a section just edited has
+    // autosaved since the index was drawn, so its summary is read again here.
+    const sections = settingsSectionList(this);
+    root.querySelectorAll<HTMLElement>('.hk-index-row').forEach((row) => {
+      const sum = row.querySelector('.hk-index-sum');
+      const summary = sections.find((s) => s.key === row.dataset.section)?.summary;
+      if (sum && summary) sum.textContent = summary;
+    });
     // The back bar belongs to the section that is open, so it is rebuilt rather than
     // retitled — and rewired, since the button it carries is a new element.
     col.querySelector('.hk-settings-backbar')?.remove();

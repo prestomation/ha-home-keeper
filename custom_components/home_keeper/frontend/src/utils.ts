@@ -1,4 +1,4 @@
-import { t, tn } from './i18n';
+import { getLanguage, t, tn } from './i18n';
 import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
@@ -345,17 +345,47 @@ export function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+const decimalMarks = new Map<string, string>();
+
+/**
+ * The decimal mark *lang* writes numbers with: "." in English, "," in German.
+ *
+ * Read from `Intl`, which knows CLDR as Babel does on the Python side
+ * (`assets.decimal_mark`). A language `Intl` cannot place reads as English, never as
+ * whatever the browser happens to default to, so the panel and the shopping list agree.
+ */
+export function decimalMark(lang?: string): string {
+  const key = lang || 'en';
+  const cached = decimalMarks.get(key);
+  if (cached !== undefined) return cached;
+  let mark = '.';
+  try {
+    if (Intl.NumberFormat.supportedLocalesOf([key]).length) {
+      const part = new Intl.NumberFormat(key).formatToParts(1.5).find((p) => p.type === 'decimal');
+      if (part) mark = part.value;
+    }
+  } catch {
+    // An invalid language tag throws a RangeError: read it as English.
+  }
+  decimalMarks.set(key, mark);
+  return mark;
+}
+
 /**
  * A spare quantity as text, with the part's unit appended when it has one.
  *
  * Stock is decimal (a part can be measured in millilitres or in thirds of a bottle),
  * but the ordinary count-the-filters case must still read "3", not "3.000" — so
  * trailing zeros go, and the unit only appears when the part actually set one.
+ *
+ * The decimal mark follows *lang* (the panel's language when it is left out): "1,5 kg"
+ * in German. The Python twin, `assets.format_quantity`, does the same for the line on
+ * the shopping list, and `tests/fixtures/quantity_format_cases.json` holds them to it.
  */
-export function formatQuantity(value: number, unit?: string | null): string {
+export function formatQuantity(value: number, unit?: string | null, lang?: string): string {
   // parseFloat on the fixed form drops trailing zeros without exposing float noise
   // (0.1 + 0.2 would otherwise render as 0.30000000000000004).
-  const text = String(parseFloat(value.toFixed(3)));
+  const text = String(parseFloat(value.toFixed(3))).replace('.', decimalMark(lang ?? getLanguage()));
   const label = (unit || '').trim();
   return label ? `${text} ${label}` : text;
 }

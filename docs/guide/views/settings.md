@@ -71,6 +71,10 @@ The *Add from preset* picker offers 2 presets.
 - **Firmware update available** matches every `update.*` entity that reports `on`.
   This covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab.
 
+A preset writes the task name and notes in the Home Assistant language. A later change
+of the language changes the tasks to the new language. When a recipe has your own name
+or notes, Home Keeper uses your text.
+
 Low batteries have no preset. The [Battery Notes glue
 integration](../../GLUE_INTEGRATIONS.md) already opens a task for each battery and
 also supplies the battery type and the count. Write a recipe for a low-battery

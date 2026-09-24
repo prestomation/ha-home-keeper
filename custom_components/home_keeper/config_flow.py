@@ -36,11 +36,12 @@ from .const import (
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
+    OPTION_SHOPPING_LINE_STYLE,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
     PANEL_TITLE,
 )
-from .shopping import TODO_DOMAIN
+from .shopping import LINE_STYLES, TODO_DOMAIN
 from .shopping_sync import own_todo_entity_ids
 
 
@@ -112,6 +113,18 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
                 selector.EntitySelectorConfig(
                     domain=TODO_DOMAIN,
                     exclude_entities=own_todo_entity_ids(hass),
+                )
+            ),
+            # How a mirrored reminder reads on that list: with the verb ("Buy
+            # fabric softener") or the part name alone ("Fabric softener").
+            vol.Optional(
+                OPTION_SHOPPING_LINE_STYLE,
+                default=current[OPTION_SHOPPING_LINE_STYLE],
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=list(LINE_STYLES),
+                    mode=selector.SelectSelectorMode.LIST,
+                    translation_key=OPTION_SHOPPING_LINE_STYLE,
                 )
             ),
         }

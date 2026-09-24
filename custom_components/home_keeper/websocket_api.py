@@ -1391,14 +1391,19 @@ async def ws_list_declarative_presets(
     lang = hass.config.language
     presets_out = []
     for preset in declarative_presets.CATALOG_PRESETS:
+        name = resolve_string(lang, preset["name_key"])
         presets_out.append(
             {
                 "id": preset["id"],
-                "name": resolve_string(lang, preset["name_key"]),
+                "name": name,
                 "description": resolve_string(lang, preset["description_key"]),
                 "icon": preset["icon"],
                 "requires_integration": preset["requires_integration"],
-                "default_spec": preset["default_spec"],
+                # Seeded in the household's language, so a new recipe is saved
+                # with task text a user can read.
+                "default_spec": declarative_presets.localized_default_spec(
+                    preset, lang, name
+                ),
             }
         )
     connection.send_result(msg["id"], {"presets": presets_out})

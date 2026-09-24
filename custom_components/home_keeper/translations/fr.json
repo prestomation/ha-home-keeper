@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Zones exclues",
           "problem_sensor_exclude_labels": "Étiquettes exclues",
           "one_off_retention_days": "Conservation des tâches ponctuelles (jours)",
-          "shopping_list_entity": "Liste de courses"
+          "shopping_list_entity": "Liste de courses",
+          "shopping_line_style": "Texte sur la liste de courses"
         },
         "data_description": {
           "sync_problem_sensors": "Une tâche synchronisée ne se referme que lorsque l'intégration d'origine résout le problème, pas en appuyant sur Terminé. Ses rappels proposent Reporter au lieu de Terminé.",
           "one_off_retention_days": "Supprime automatiquement une tâche ponctuelle terminée ce nombre de jours après son achèvement. 0 conserve indéfiniment les tâches ponctuelles terminées.",
-          "shopping_list_entity": "Synchronise les rappels d'achat automatiques avec cette liste de tâches. Y cocher un élément termine le rappel Home Keeper et réapprovisionne la pièce. Laissez vide pour désactiver la synchronisation."
+          "shopping_list_entity": "Synchronise les rappels d'achat automatiques avec cette liste de tâches. Y cocher un élément termine le rappel Home Keeper et réapprovisionne la pièce. Laissez vide pour désactiver la synchronisation.",
+          "shopping_line_style": "Comment un rappel d'achat apparaît sur la liste de courses. « Produit seul » affiche le nom de la pièce sans verbe, par exemple « Adoucissant » au lieu de « Acheter adoucissant »."
         }
       }
     }
@@ -688,6 +690,10 @@
           "name": "Liste de courses",
           "description": "Une liste de tâches existante avec laquelle synchroniser les rappels d'achat automatiques. Y cocher un élément termine le rappel et réapprovisionne le stock. Un champ vide désactive la fonction."
         },
+        "shopping_line_style": {
+          "name": "Texte sur la liste de courses",
+          "description": "Comment un rappel d'achat apparaît sur la liste de courses. with_verb (par défaut) affiche le nom du rappel, par exemple « Acheter adoucissant ». product_only affiche seulement le nom de la pièce."
+        },
         "dismissed_companions": {
           "name": "Companions ignorés",
           "description": "Domaines d'intégration de liaison à masquer de la liste « Suggéré » de Paramètres → Companions. Ignorer ne fait que masquer une suggestion ; un appairage connecté est toujours affiché."
@@ -959,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Lister les companions déclaratifs",
       "description": "Retourne chaque spécification de companion déclaratif enregistrée en réponse."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Avec verbe",
+        "product_only": "Produit seul"
+      }
     }
   },
   "entity": {

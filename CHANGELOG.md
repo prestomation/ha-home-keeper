@@ -6,6 +6,29 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.26.0b3]
+
+### Added
+
+- **[Shopping list line style](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#send-buy-reminders-to-your-shopping-list).**
+  Show only the product name on the synced shopping list, without "Buy". (Fixes #369)
+- **[Amount as item description](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#send-buy-reminders-to-your-shopping-list).**
+  On a list that holds item descriptions, the amount to buy shows under the product
+  name.
+
+### Fixed
+
+- **Buy reminder names.** A buy reminder now follows a rename of its part and a
+  change of the Home Assistant language. A name that you typed does not change.
+- **[Renamed list items](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  When you rename a synced item on a to-do list, Home Keeper keeps your name.
+- **Decimal marks in amounts.** An amount uses the decimal mark of your language,
+  such as "1,5 kg" in German.
+- **Preset task text.** The Device Pulse and Firmware update available presets write
+  their tasks in the Home Assistant language.
+- **Settings summaries on a phone.** After you change a setting, the Settings list on
+  a phone shows the new value.
+
 ## [0.26.0b2]
 
 ### Fixed

@@ -1057,6 +1057,18 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
  * gif in the same PR comment, not a second full walkthrough.
  */
 async function phoneTour(page: Page, panel: Locator): Promise<void> {
+  // 0. Point the buy-reminder mirror at the household shopping list, so step 6 can show
+  //    the line style and its preview. Set before the tour proper, and the panel is
+  //    opened again so it reads the new options.
+  await openPanel(page);
+  await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    await hass?.callService('home_keeper', 'set_options', {
+      shopping_list_entity: 'todo.shopping_list',
+    });
+  });
+
   // 1. Land on the task list. The tabs are along the bottom of the screen and Add
   //    floats above them.
   await openPanel(page);
@@ -1141,6 +1153,21 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('#settings-back').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
+
+  //    The Shopping list section: "Product only" drops the verb from each line, and
+  //    the preview under the choice shows the list as it will read (#369).
+  await panel.locator('.hk-index-row[data-section="shopping"]').click();
+  const shopping = panel.locator('#hk-settings-shopping');
+  await expect(shopping.locator('.hk-shopping-preview')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  await shopping.getByText('Product only', { exact: true }).click();
+  await expect(shopping.locator('.hk-shopping-preview-title').first()).not.toContainText(
+    'Buy',
+  );
+  await page.waitForTimeout(BEAT * 3);
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await page.waitForTimeout(BEAT);
 
   //    Then Import and export: a document pasted in, and the preview that says what
   //    importing it would change before anything is written.

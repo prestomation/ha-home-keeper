@@ -35,6 +35,7 @@ from .assets import find_part, part_restock_label
 from .reconcile import buy_source
 from .recurrence import one_off_completed
 from .todo_items import (
+    CAP_DESCRIPTION,
     STATUS_COMPLETED,
     STATUS_NEEDS_ACTION,
     find_open,
@@ -44,6 +45,9 @@ from .todo_items import (
 )
 
 __all__ = [
+    "LINE_STYLES",
+    "LINE_STYLE_PRODUCT_ONLY",
+    "LINE_STYLE_WITH_VERB",
     "STATUS_COMPLETED",
     "STATUS_NEEDS_ACTION",
     "TODO_DOMAIN",
@@ -53,14 +57,24 @@ __all__ = [
     "SyncPlan",
     "UpdateOp",
     "buy_tasks_by_part",
+    "line_for",
     "lists_to_read",
     "needs_pass",
     "normalize_items",
+    "normalize_line_style",
     "normalize_target",
     "part_key",
     "plan_sync",
     "source_key",
 ]
+
+# How a reminder's line is titled on the shopping list: the reminder's own name
+# ("Buy fabric softener"), or the part's name alone ("Fabric softener"). The first is
+# the default; the values are stored in the entry options and accepted by
+# ``set_options``, so they are a contract.
+LINE_STYLE_WITH_VERB = "with_verb"
+LINE_STYLE_PRODUCT_ONLY = "product_only"
+LINE_STYLES = (LINE_STYLE_WITH_VERB, LINE_STYLE_PRODUCT_ONLY)
 
 # The only entity domain a mirror target may live in.
 TODO_DOMAIN = "todo"
@@ -74,6 +88,15 @@ _KEY_SEP = ":"
 def part_key(asset_id: str, part_id: str) -> str:
     """The tracking key for one part's mirrored reminder."""
     return f"{asset_id}{_KEY_SEP}{part_id}"
+
+
+def normalize_line_style(value: Any) -> str:
+    """Coerce a configured line style to one of :data:`LINE_STYLES`.
+
+    Anything unknown reads as the default, so a stored value from a future version
+    (or a typo in a hand-written ``set_options`` call) never stops the mirror.
+    """
+    return value if value in LINE_STYLES else LINE_STYLE_WITH_VERB
 
 
 def normalize_target(value: Any) -> str:
@@ -99,26 +122,27 @@ def normalize_target(value: Any) -> str:
 def buy_tasks_by_part(
     tasks: dict[str, dict[str, Any]],
     assets: dict[str, dict[str, Any]] | None = None,
+    *,
+    style: str = LINE_STYLE_WITH_VERB,
+    lang: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Index the auto-buy reminders in *tasks* by their part key.
 
-    Each value is ``{"task_id", "name", "completed"}`` — everything the planner
-    needs, so it never has to know the task schema. A reminder with no name is
-    skipped: an empty summary is not something a to-do list can hold.
+    Each value is ``{"task_id", "name", "amount", "completed"}`` — everything the
+    planner needs, so it never has to know the task schema. A reminder with no name
+    is skipped: an empty summary is not something a to-do list can hold.
 
-    ``name`` is **the line as it will read on the shopping list**, not the task's
-    own name: when *assets* is given and the part says how much to buy, the amount
-    is appended — "Buy fabric softener (500 ml)", "Buy air filter (×2)". A part
-    that restocks one plain spare adds nothing, so the common line is unchanged.
-    The task keeps its own name everywhere else (the panel, the calendar, a
-    notification): the amount answers "how much do I put in the trolley", which is
-    a question only the shopping list is asking.
+    ``name`` is the title of the line on the shopping list. With the default
+    *style* that is the reminder's own name ("Buy fabric softener"); with
+    ``product_only`` it is the part's name alone ("Fabric softener"), so the line
+    reads like one the household wrote by hand. The reminder keeps its full name
+    everywhere else (the panel, the calendar, a notification), where the verb says
+    what to do. A part that is gone falls back to the reminder's name.
 
-    Keeping this on the existing ``name`` key rather than adding a second one is
-    deliberate. :func:`plan_sync` and :func:`needs_pass` both compare it against
-    what was last mirrored, so a value that meant "the task's name" in one and "the
-    line's text" in the other would leave the mirror permanently dirty — renaming
-    the same item, and re-reading the list, on every single pass.
+    ``amount`` is how much to buy ("500 ml", "×2"), or ``""`` for the ordinary
+    one-spare part, formatted for *lang*. Where it goes — the item's description
+    or a suffix on the title — depends on the list, so :func:`line_for` decides
+    that per list.
     """
     indexed: dict[str, dict[str, Any]] = {}
     for task_id, task in tasks.items():
@@ -128,10 +152,13 @@ def buy_tasks_by_part(
         name = str(task.get("name") or "").strip()
         if not name:
             continue
-        amount = _restock_label(assets, source)
+        part = _source_part(assets, source)
+        if style == LINE_STYLE_PRODUCT_ONLY and part is not None:
+            name = str(part.get("name") or "").strip() or name
         entry = {
             "task_id": str(task.get("id") or task_id),
-            "name": f"{name} ({amount})" if amount else name,
+            "name": name,
+            "amount": part_restock_label(part, lang) if part is not None else "",
             "completed": one_off_completed(task),
         }
         key = source_key(source)
@@ -143,29 +170,44 @@ def buy_tasks_by_part(
     return indexed
 
 
+def line_for(
+    want: dict[str, Any], caps: frozenset[str] = frozenset()
+) -> tuple[str, str | None]:
+    """The ``(summary, description)`` one wanted reminder reads as on a list.
+
+    A list that can hold a description gets the amount there, under the title —
+    "Fabric softener" over "500 ml", the way a shopping app shows a line someone
+    typed. Any other list gets it as a suffix, "Fabric softener (500 ml)", and a
+    description of ``None``: that list is never sent one, and never compared on
+    one, because it would drop the value and the next pass would write it again.
+    """
+    name = str(want["name"])
+    amount = str(want.get("amount") or "")
+    if CAP_DESCRIPTION in caps:
+        return name, amount
+    return (f"{name} ({amount})" if amount else name), None
+
+
 def source_key(source: dict[str, Any]) -> str:
     """The tracking key for a ``buy_source`` mapping."""
     return part_key(str(source["asset_id"]), str(source["part_id"]))
 
 
-def _restock_label(
+def _source_part(
     assets: dict[str, dict[str, Any]] | None, source: dict[str, Any]
-) -> str:
-    """The amount suffix for one reminder's part, or ``""`` when there isn't one.
+) -> dict[str, Any] | None:
+    """The part one reminder points at, or ``None`` when it is gone.
 
     Total by design: an asset or part the reminder points at may be gone by the time
     a pass runs (the reconciler retires the task moments later), and a line that
     briefly loses its amount is far better than a mirror pass that raises.
     """
     if not assets:
-        return ""
+        return None
     asset = assets.get(str(source["asset_id"]))
     if asset is None:
-        return ""
-    part = find_part(asset, str(source["part_id"]))
-    if part is None:
-        return ""
-    return part_restock_label(part)
+        return None
+    return find_part(asset, str(source["part_id"]))
 
 
 def normalize_items(response: Any, entity_id: str) -> list[dict[str, Any]] | None:
@@ -194,17 +236,19 @@ class AddOp:
     key: str
     entity_id: str
     summary: str
+    description: str | None = None
 
 
 @dataclass(frozen=True)
 class UpdateOp:
-    """Tick *item* off, rename it, or both."""
+    """Tick *item* off, rename it, set its description, or a mix of those."""
 
     key: str
     entity_id: str
     item: str
     status: str | None = None
     rename: str | None = None
+    description: str | None = None
 
 
 @dataclass(frozen=True)
@@ -249,13 +293,21 @@ def plan_sync(
     desired: dict[str, dict[str, Any]],
     items_by_entity: dict[str, list[dict[str, Any]]],
     target: str,
+    capabilities: dict[str, frozenset[str]] | None = None,
 ) -> SyncPlan:
     """Decide what to do about the mirror this pass.
 
-    *tracked* is what we mirrored last time (``key -> {entity_id, summary,
-    uid}``), *desired* is :func:`buy_tasks_by_part` over the current task map,
-    *items_by_entity* holds the live contents of every list we could read, and
-    *target* is the configured list (``""`` when the mirror is off).
+    *tracked* is what we mirrored last time (``key -> {entity_id, summary, uid,
+    description?, user_named?}``), *desired* is :func:`buy_tasks_by_part` over the
+    current task map, *items_by_entity* holds the live contents of every list we
+    could read, *target* is the configured list (``""`` when the mirror is off), and
+    *capabilities* says which optional fields each list can hold (see
+    :func:`line_for`).
+
+    ``summary`` in *tracked* is the text Home Keeper last wrote. An item that has a
+    uid and reads differently was renamed by the user, so it is marked
+    ``user_named`` and its title is left alone from then on: the user's name for the
+    thing wins. Completion, the description and removal still sync.
 
     A list absent from *items_by_entity* could not be read — it is unavailable,
     or the integration behind it is not loaded — so nothing is planned for it and
@@ -263,6 +315,7 @@ def plan_sync(
     shopping list from quietly deleting the mirror's memory of it.
     """
     plan = SyncPlan()
+    caps_by_entity = capabilities or {}
     # Item identities already spoken for this pass, so two parts whose reminders
     # happen to read the same can never fight over one list entry.
     claimed: set[tuple[str, str]] = set()
@@ -330,16 +383,47 @@ def plan_sync(
             )
             continue
 
-        name = str(want["name"])
-        if item.get("summary") != name:
-            # Generated reminder names are localized at write time, so the
-            # household changing language renames them.
-            plan.update.append(UpdateOp(key, entity_id, identity, rename=name))
-        plan.tracked[key] = {
+        caps = caps_by_entity.get(entity_id, frozenset())
+        name, description = line_for(want, caps)
+        wanted = description
+        live = str(item.get("summary") or "")
+        # A title that is neither what we last wrote nor what we write now was
+        # typed by someone. One that matches the new name is a list that showed our
+        # rename late, which is not a user rename.
+        user_named = bool(entry.get("user_named")) or (
+            bool(item.get("uid")) and bool(summary) and live not in (summary, name)
+        )
+        rename = name if not user_named and live != name else None
+        current = str(item.get("description") or "")
+        if description is not None and current == description:
+            description = None
+        if description == "" and not entry.get("description"):
+            # Never clear a description Home Keeper did not write: an adopted line
+            # may carry the shopper's own note.
+            description = None
+        if rename is not None or description is not None:
+            plan.update.append(
+                UpdateOp(
+                    key, entity_id, identity, rename=rename, description=description
+                )
+            )
+        new_entry: dict[str, Any] = {
             "entity_id": entity_id,
-            "summary": name,
+            "summary": live if user_named else name,
             "uid": item.get("uid"),
         }
+        if user_named:
+            new_entry["user_named"] = True
+        # Record only a description Home Keeper wrote. Recording the shopper's own
+        # note here would make the next pass read it as ours, and clear it.
+        written: str | None = None
+        if description is not None:
+            written = description
+        elif current and current in (wanted, str(entry.get("description") or "")):
+            written = current
+        if CAP_DESCRIPTION in caps and written:
+            new_entry["description"] = written
+        plan.tracked[key] = new_entry
 
     if not target:
         return plan
@@ -353,7 +437,8 @@ def plan_sync(
         if want["completed"]:
             # Never open a shopping entry for something already bought.
             continue
-        name = str(want["name"])
+        caps = caps_by_entity.get(target, frozenset())
+        name, description = line_for(want, caps)
         existing = find_open(items, entity_id=target, summary=name, claimed=claimed)
         if existing is not None:
             # Adopt a matching entry rather than stacking a duplicate on top of
@@ -366,11 +451,14 @@ def plan_sync(
                 "uid": existing.get("uid"),
             }
             continue
-        plan.add.append(AddOp(key, target, name))
+        plan.add.append(AddOp(key, target, name, description or None))
         # No uid: ``todo.add_item`` answers with nothing. The next pass binds one
         # by summary (see ``todo_items.resolve_tracked``), and until then the
         # summary is a perfectly good handle for ``update_item``/``remove_item``.
-        plan.tracked[key] = {"entity_id": target, "summary": name, "uid": None}
+        added: dict[str, Any] = {"entity_id": target, "summary": name, "uid": None}
+        if description:
+            added["description"] = description
+        plan.tracked[key] = added
     return plan
 
 
@@ -396,8 +484,12 @@ def needs_pass(
     tracked: dict[str, dict[str, Any]],
     desired: dict[str, dict[str, Any]],
     target: str,
+    capabilities: frozenset[str] = frozenset(),
 ) -> bool:
     """Whether Home Keeper's own state has drifted from what it last mirrored.
+
+    *capabilities* belong to *target*, and come from the entity's state, so the
+    answer still costs no list read.
 
     Reading a to-do list means a service call, and most reasons the mirror is
     poked — a completion somewhere else, a stock nudge on an unrelated part —
@@ -414,7 +506,12 @@ def needs_pass(
         want = desired.get(key)
         if want is None or want["completed"]:
             return True
-        if str(want["name"]) != str(entry.get("summary") or ""):
+        name, description = line_for(want, capabilities)
+        if not entry.get("user_named") and name != str(entry.get("summary") or ""):
+            return True
+        if description is not None and description != str(
+            entry.get("description") or ""
+        ):
             return True
     if target:
         for key, want in desired.items():

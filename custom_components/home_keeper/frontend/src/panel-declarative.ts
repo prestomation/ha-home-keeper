@@ -131,7 +131,7 @@ export function emptyDeclarativeCompanion(): DeclarativeCompanion {
     // The same rule that rewrites the trigger on a mode change builds the first one,
     // so a blank draft and a switched one can never carry different keys.
     trigger: triggerForMode({}, 'state') as unknown as DeclarativeCompanion['trigger'],
-    // The same name template every bundled preset uses. `friendly_name` on its own
+    // The device part of the Device Pulse preset's name template. `friendly_name` on its own
     // repeats the device name Home Assistant already prefixes, so a hand-written
     // recipe produced "Replace Roborock S7 Main brush time left" and the entity id
     // `sensor.roborock_s7_replace_roborock_s7_main_brush_time_left_next_due`.

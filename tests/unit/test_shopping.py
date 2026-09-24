@@ -105,7 +105,12 @@ def test_buy_tasks_by_part_indexes_only_buy_reminders():
     }
     indexed = sh.buy_tasks_by_part(tasks)
     assert indexed == {
-        KEY: {"task_id": "t1", "name": "Buy Anode rod", "completed": False}
+        KEY: {
+            "task_id": "t1",
+            "name": "Buy Anode rod",
+            "amount": "",
+            "completed": False,
+        }
     }
 
 
@@ -131,12 +136,12 @@ def test_the_line_carries_the_amount_a_measured_part_wants():
     indexed = sh.buy_tasks_by_part(
         {"t1": _buy_task()}, _assets(stock_unit="ml", restock_quantity=500)
     )
-    assert indexed[KEY]["name"] == "Buy Anode rod (500 ml)"
+    assert sh.line_for(indexed[KEY]) == ("Buy Anode rod (500 ml)", None)
 
 
 def test_the_line_carries_a_multiplier_when_a_part_restocks_several():
     indexed = sh.buy_tasks_by_part({"t1": _buy_task()}, _assets(restock_quantity=3))
-    assert indexed[KEY]["name"] == "Buy Anode rod (×3)"
+    assert sh.line_for(indexed[KEY]) == ("Buy Anode rod (×3)", None)
 
 
 @pytest.mark.parametrize(
@@ -155,14 +160,14 @@ def test_the_line_carries_a_multiplier_when_a_part_restocks_several():
 )
 def test_the_line_stays_a_plain_name_when_there_is_no_amount_to_add(assets):
     indexed = sh.buy_tasks_by_part({"t1": _buy_task()}, assets)
-    assert indexed[KEY]["name"] == "Buy Anode rod"
+    assert sh.line_for(indexed[KEY]) == ("Buy Anode rod", None)
 
 
 def test_the_amount_lands_inside_the_tidied_name():
     indexed = sh.buy_tasks_by_part(
         {"t1": _buy_task(name="  Buy Anode rod  ")}, _assets(stock_unit="ml")
     )
-    assert indexed[KEY]["name"] == "Buy Anode rod (1 ml)"
+    assert sh.line_for(indexed[KEY]) == ("Buy Anode rod (1 ml)", None)
 
 
 def test_buy_tasks_by_part_falls_back_to_the_map_key_for_a_task_without_an_id():
@@ -293,8 +298,8 @@ def test_an_open_reminder_keeps_its_item_and_captures_the_uid():
 
 
 def test_a_renamed_reminder_renames_its_item():
-    # Generated names are localized at write time, so switching the household
-    # language rewrites them.
+    # The reconciler renames an open reminder when its part is renamed or the
+    # household changes language, and the line follows.
     plan = _plan(
         tracked=_tracked(),
         desired=sh.buy_tasks_by_part({"t1": _buy_task(name="Anodenstab kaufen")}),
@@ -749,3 +754,349 @@ def test_a_blank_uid_on_a_tracked_entry_is_not_treated_as_a_uid():
         ],
     )
     assert plan.remove == [sh.RemoveOp(KEY, TARGET, "x")]
+
+
+# ── line style (product_only) ─────────────────────────────────────────────────
+
+
+def test_product_only_titles_the_line_with_the_part_name():
+    indexed = sh.buy_tasks_by_part(
+        {"t1": _buy_task(name="Anodenstab kaufen")},
+        _assets(),
+        style=sh.LINE_STYLE_PRODUCT_ONLY,
+    )
+    assert indexed[KEY]["name"] == "Anode rod"
+
+
+def test_with_verb_keeps_the_reminder_name():
+    indexed = sh.buy_tasks_by_part(
+        {"t1": _buy_task(name="Anodenstab kaufen")},
+        _assets(),
+        style=sh.LINE_STYLE_WITH_VERB,
+    )
+    assert indexed[KEY]["name"] == "Anodenstab kaufen"
+
+
+@pytest.mark.parametrize("assets", [None, {}, _assets(part="some-other-part")])
+def test_product_only_falls_back_to_the_reminder_name_without_a_part(assets):
+    indexed = sh.buy_tasks_by_part(
+        {"t1": _buy_task()}, assets, style=sh.LINE_STYLE_PRODUCT_ONLY
+    )
+    assert indexed[KEY]["name"] == "Buy Anode rod"
+
+
+def test_product_only_falls_back_when_the_part_name_is_blank():
+    assets = _assets()
+    assets["asset1"]["parts"][0]["name"] = "   "
+    indexed = sh.buy_tasks_by_part(
+        {"t1": _buy_task()}, assets, style=sh.LINE_STYLE_PRODUCT_ONLY
+    )
+    assert indexed[KEY]["name"] == "Buy Anode rod"
+
+
+def test_product_only_tidies_the_part_name():
+    assets = _assets()
+    assets["asset1"]["parts"][0]["name"] = "  Anode rod  "
+    indexed = sh.buy_tasks_by_part(
+        {"t1": _buy_task()}, assets, style=sh.LINE_STYLE_PRODUCT_ONLY
+    )
+    assert indexed[KEY]["name"] == "Anode rod"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("with_verb", "with_verb"),
+        ("product_only", "product_only"),
+        ("verb", "with_verb"),
+        ("", "with_verb"),
+        (None, "with_verb"),
+        (["product_only"], "with_verb"),
+    ],
+)
+def test_normalize_line_style(value, expected):
+    assert sh.normalize_line_style(value) == expected
+
+
+def test_the_amount_uses_the_decimal_mark_of_the_language():
+    indexed = sh.buy_tasks_by_part(
+        {"t1": _buy_task()},
+        _assets(stock_unit="kg", restock_quantity=1.5),
+        lang="de",
+    )
+    assert indexed[KEY]["amount"] == "1,5 kg"
+
+
+# ── line_for (amount as description) ──────────────────────────────────────────
+
+_DESC = frozenset({sh.CAP_DESCRIPTION})
+
+
+def test_line_for_puts_the_amount_in_the_description_when_the_list_can_hold_one():
+    want = {"name": "Anode rod", "amount": "500 ml"}
+    assert sh.line_for(want, _DESC) == ("Anode rod", "500 ml")
+
+
+def test_line_for_suffixes_the_amount_when_the_list_has_no_description():
+    want = {"name": "Anode rod", "amount": "500 ml"}
+    assert sh.line_for(want) == ("Anode rod (500 ml)", None)
+
+
+def test_line_for_with_no_amount():
+    want = {"name": "Anode rod", "amount": ""}
+    assert sh.line_for(want, _DESC) == ("Anode rod", "")
+    assert sh.line_for(want) == ("Anode rod", None)
+
+
+def _desired(amount="500 ml", name="Buy Anode rod", completed=False):
+    return {
+        KEY: {"task_id": "t1", "name": name, "amount": amount, "completed": completed}
+    }
+
+
+def _plan_caps(tracked=None, desired=None, items=None, caps=_DESC):
+    return sh.plan_sync(
+        tracked=tracked or {},
+        desired=desired or {},
+        items_by_entity={TARGET: items or []},
+        target=TARGET,
+        capabilities={TARGET: caps},
+    )
+
+
+def test_a_new_line_carries_its_amount_as_the_description():
+    plan = _plan_caps(desired=_desired())
+    assert plan.add == [sh.AddOp(KEY, TARGET, "Buy Anode rod", "500 ml")]
+    assert plan.tracked[KEY] == {
+        "entity_id": TARGET,
+        "summary": "Buy Anode rod",
+        "uid": None,
+        "description": "500 ml",
+    }
+
+
+def test_a_new_line_without_an_amount_sends_no_description():
+    plan = _plan_caps(desired=_desired(amount=""))
+    assert plan.add == [sh.AddOp(KEY, TARGET, "Buy Anode rod", None)]
+    assert "description" not in plan.tracked[KEY]
+
+
+def test_a_list_without_descriptions_gets_the_suffix():
+    plan = _plan_caps(desired=_desired(), caps=frozenset())
+    assert plan.add == [sh.AddOp(KEY, TARGET, "Buy Anode rod (500 ml)", None)]
+
+
+def test_an_old_suffixed_line_moves_its_amount_into_the_description():
+    # The upgrade path on a list that holds descriptions: the line mirrored with a
+    # suffix is ours (it still reads as we wrote it), so it is renamed, not
+    # mistaken for a user rename.
+    item = {**_item(summary="Buy Anode rod (500 ml)"), "description": ""}
+    plan = _plan_caps(
+        tracked=_tracked(summary="Buy Anode rod (500 ml)"),
+        desired=_desired(),
+        items=[item],
+    )
+    assert plan.update == [
+        sh.UpdateOp(KEY, TARGET, "i1", rename="Buy Anode rod", description="500 ml")
+    ]
+    assert plan.tracked[KEY] == {
+        "entity_id": TARGET,
+        "summary": "Buy Anode rod",
+        "uid": "i1",
+        "description": "500 ml",
+    }
+
+
+def test_a_changed_amount_updates_only_the_description():
+    item = {**_item(), "description": "500 ml"}
+    tracked = {KEY: {**_tracked()[KEY], "description": "500 ml"}}
+    plan = _plan_caps(tracked=tracked, desired=_desired(amount="1 l"), items=[item])
+    assert plan.update == [sh.UpdateOp(KEY, TARGET, "i1", description="1 l")]
+
+
+def test_a_settled_line_with_a_description_needs_no_update():
+    item = {**_item(), "description": "500 ml"}
+    tracked = {KEY: {**_tracked()[KEY], "description": "500 ml"}}
+    plan = _plan_caps(tracked=tracked, desired=_desired(), items=[item])
+    assert plan.update == []
+    assert plan.tracked == tracked
+
+
+def test_a_description_home_keeper_wrote_is_cleared_when_the_amount_goes():
+    item = {**_item(), "description": "500 ml"}
+    tracked = {KEY: {**_tracked()[KEY], "description": "500 ml"}}
+    plan = _plan_caps(tracked=tracked, desired=_desired(amount=""), items=[item])
+    assert plan.update == [sh.UpdateOp(KEY, TARGET, "i1", description="")]
+    assert "description" not in plan.tracked[KEY]
+
+
+def test_a_description_home_keeper_did_not_write_is_never_cleared():
+    # An adopted line may carry the shopper's own note.
+    item = {**_item(), "description": "the blue one"}
+    plan = _plan_caps(tracked=_tracked(), desired=_desired(amount=""), items=[item])
+    assert plan.update == []
+
+
+def test_a_list_without_descriptions_is_never_compared_on_one():
+    item = {**_item(summary="Buy Anode rod (500 ml)"), "description": "junk"}
+    plan = _plan_caps(
+        tracked=_tracked(summary="Buy Anode rod (500 ml)"),
+        desired=_desired(),
+        items=[item],
+        caps=frozenset(),
+    )
+    assert plan.update == []
+    assert "description" not in plan.tracked[KEY]
+
+
+# ── a line the user renamed on the list ───────────────────────────────────────
+
+
+def test_a_line_renamed_on_the_list_keeps_the_new_name():
+    item = _item(summary="Anode rod, magnesium")
+    plan = _plan(
+        tracked=_tracked(),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items=[item],
+    )
+    assert plan.update == []
+    assert plan.tracked[KEY] == {
+        "entity_id": TARGET,
+        "summary": "Anode rod, magnesium",
+        "uid": "i1",
+        "user_named": True,
+    }
+
+
+def test_a_user_named_line_is_not_renamed_by_a_later_change():
+    # Home Keeper renames the reminder (a language change), but the user already
+    # named the line: their name stays.
+    tracked = {
+        KEY: {
+            "entity_id": TARGET,
+            "summary": "Anode rod, magnesium",
+            "uid": "i1",
+            "user_named": True,
+        }
+    }
+    plan = _plan(
+        tracked=tracked,
+        desired=sh.buy_tasks_by_part({"t1": _buy_task(name="Anodenstab kaufen")}),
+        items=[_item(summary="Anode rod, magnesium")],
+    )
+    assert plan.update == []
+    assert plan.tracked == tracked
+
+
+def test_a_user_named_line_still_gets_its_amount():
+    item = {**_item(summary="Anode rod, magnesium"), "description": ""}
+    plan = _plan_caps(tracked=_tracked(), desired=_desired(), items=[item])
+    assert plan.update == [sh.UpdateOp(KEY, TARGET, "i1", description="500 ml")]
+    assert plan.tracked[KEY]["user_named"] is True
+
+
+def test_a_user_named_line_is_still_completed_from_the_list():
+    item = _item(summary="Anode rod, magnesium", status=sh.STATUS_COMPLETED)
+    plan = _plan(
+        tracked=_tracked(),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items=[item],
+    )
+    assert plan.complete == [sh.CompleteOp(KEY, "t1")]
+
+
+def test_needs_pass_ignores_the_title_of_a_user_named_line():
+    tracked = {
+        KEY: {
+            "entity_id": TARGET,
+            "summary": "Anode rod, magnesium",
+            "uid": "i1",
+            "user_named": True,
+        }
+    }
+    desired = sh.buy_tasks_by_part({"t1": _buy_task()})
+    assert sh.needs_pass(tracked=tracked, desired=desired, target=TARGET) is False
+
+
+def test_needs_pass_notices_a_new_description():
+    tracked = {KEY: {**_tracked()[KEY]}}
+    assert (
+        sh.needs_pass(
+            tracked=tracked, desired=_desired(), target=TARGET, capabilities=_DESC
+        )
+        is True
+    )
+    tracked[KEY]["description"] = "500 ml"
+    assert (
+        sh.needs_pass(
+            tracked=tracked, desired=_desired(), target=TARGET, capabilities=_DESC
+        )
+        is False
+    )
+
+
+def test_product_only_falls_back_when_the_part_has_no_name():
+    assets = _assets()
+    assets["asset1"]["parts"][0]["name"] = None
+    indexed = sh.buy_tasks_by_part(
+        {"t1": _buy_task()}, assets, style=sh.LINE_STYLE_PRODUCT_ONLY
+    )
+    assert indexed[KEY]["name"] == "Buy Anode rod"
+
+
+def test_needs_pass_is_quiet_for_a_line_with_no_amount_and_no_description():
+    # A list that holds descriptions, a part with no amount, and nothing written:
+    # there is nothing to do, so no list is read.
+    assert (
+        sh.needs_pass(
+            tracked=_tracked(),
+            desired=_desired(amount=""),
+            target=TARGET,
+            capabilities=_DESC,
+        )
+        is False
+    )
+
+
+def test_a_shopper_note_is_not_recorded_as_ours_and_survives_the_next_pass():
+    # Found in review: the note was copied into the bookkeeping on pass 1, so
+    # pass 2 read it as Home Keeper's own description and cleared it.
+    item = {**_item(), "description": "blue bottle"}
+    first = _plan_caps(tracked=_tracked(), desired=_desired(amount=""), items=[item])
+    assert first.update == []
+    assert "description" not in first.tracked[KEY]
+    assert (
+        sh.needs_pass(
+            tracked=first.tracked,
+            desired=_desired(amount=""),
+            target=TARGET,
+            capabilities=_DESC,
+        )
+        is False
+    )
+    second = _plan_caps(
+        tracked=first.tracked, desired=_desired(amount=""), items=[item]
+    )
+    assert second.update == []
+
+
+def test_a_description_already_in_step_is_recorded_as_ours():
+    # The line already reads what we want: record it, so a later empty amount
+    # clears it.
+    item = {**_item(), "description": "500 ml"}
+    plan = _plan_caps(tracked=_tracked(), desired=_desired(), items=[item])
+    assert plan.update == []
+    assert plan.tracked[KEY]["description"] == "500 ml"
+
+
+def test_a_late_rename_on_the_list_is_not_taken_for_a_user_rename():
+    # The list still shows our new title from the last pass only now: it matches
+    # the name we want, so it is ours.
+    plan = _plan(
+        tracked=_tracked(summary="Buy Anode rod (×4)"),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items=[_item(summary="Buy Anode rod")],
+    )
+    assert plan.update == []
+    assert "user_named" not in plan.tracked[KEY]
+    assert plan.tracked[KEY]["summary"] == "Buy Anode rod"

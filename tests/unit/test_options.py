@@ -208,6 +208,7 @@ _PROBES: dict[str, Any] = {
     const.OPTION_ALLOW_DUE_TODAY: False,
     const.OPTION_ONE_OFF_RETENTION_DAYS: 9,
     const.OPTION_SHOPPING_LIST_ENTITY: "todo.somewhere",
+    const.OPTION_SHOPPING_LINE_STYLE: "product_only",
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES: ["binary_sensor.x"],
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: ["dev-x"],
     const.OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS: ["area-x"],
@@ -358,8 +359,8 @@ def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
     Spelled out rather than compared against ``_empty_options``, which would be
     tautological. Each of these is a user-visible promise: syncing is opt-in, ``0``
     retention days keeps completed one-offs forever (any other number would start
-    deleting them for people who never touched the setting), and an empty shopping
-    target leaves the sync off.
+    deleting them for people who never touched the setting), an empty shopping
+    target leaves the sync off, and a line keeps the reminder's own name.
 
     ``allow_snooze`` / ``allow_skip`` / ``allow_due_today`` are the ones that
     default **on**, and for the same reason the rest default off: nothing changes
@@ -374,6 +375,7 @@ def test_the_defaults_change_nothing_for_an_unconfigured_entry() -> None:
         "allow_due_today": True,
         "one_off_retention_days": 0,
         "shopping_list_entity": "",
+        "shopping_line_style": "with_verb",
         "profiles": [],
         "notifications": [],
         "problem_sensor_exclude_entities": [],

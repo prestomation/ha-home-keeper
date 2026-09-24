@@ -468,6 +468,29 @@ export const STYLES = `
   .hk-settings-value {
     color: var(--hk-ink); font-size: 0.88rem; margin: 2px 0 8px;
   }
+  /* The Shopping list card's preview: the lines as the synced list will show them,
+     drawn as a plain to-do list so it reads as "the other app", not as a form. */
+  .hk-shopping-preview {
+    margin-top: 12px; border: 1px solid var(--hk-line);
+    border-radius: 8px; overflow: hidden;
+  }
+  .hk-shopping-preview-head {
+    padding: 8px 12px; font-size: 0.78rem; font-weight: 500;
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--hk-ink-2);
+    background: var(--secondary-background-color);
+    border-bottom: 1px solid var(--hk-line);
+  }
+  .hk-shopping-preview-row {
+    display: flex; align-items: flex-start; gap: 12px; padding: 8px 12px;
+    border-bottom: 1px solid var(--hk-line);
+  }
+  .hk-shopping-preview-row:last-child { border-bottom: 0; }
+  .hk-shopping-preview-box {
+    flex: none; width: 14px; height: 14px; margin-top: 3px;
+    border: 2px solid var(--hk-ink-2); border-radius: 3px;
+  }
+  .hk-shopping-preview-title { font-size: 0.92rem; color: var(--hk-ink); }
+  .hk-shopping-preview-desc { font-size: 0.8rem; color: var(--hk-ink-2); }
 
   /* ── Settings: anchor rail beside the sections ─────────────────────────────
      Settings is a long page, and the questions people bring to it ("is the mirror

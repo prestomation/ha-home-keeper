@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.26.0b2"
+PANEL_VERSION = "0.26.0b3"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -305,6 +305,10 @@ OPTION_NOTIFICATIONS = "notifications"
 # mirror is two-way: ticking the item off there completes the Home Keeper
 # reminder, which restocks the part. See shopping.py / shopping_sync.py.
 OPTION_SHOPPING_LIST_ENTITY = "shopping_list_entity"
+# How a mirrored reminder's line is titled on that list: ``"with_verb"`` (the default,
+# the reminder's own name, "Buy fabric softener") or ``"product_only"`` (the part's
+# name alone, "Fabric softener"). The values live in ``shopping.LINE_STYLES``.
+OPTION_SHOPPING_LINE_STYLE = "shopping_line_style"
 
 # Opaque ``origin`` marker the shopping-list mirror passes to ``complete_task``
 # when a mirrored buy reminder is ticked off on the external list. Like
