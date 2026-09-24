@@ -26,6 +26,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   such as "1,5 kg" in German.
 - **Preset task text.** The Device Pulse and Firmware update available presets write
   their tasks in the Home Assistant language.
+- **Settings summaries on a phone.** After you change a setting, the Settings list on
+  a phone shows the new value.
 
 ## [0.26.0b2]
 
