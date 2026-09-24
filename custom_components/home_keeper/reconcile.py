@@ -54,6 +54,27 @@ _DEFAULT_NAME_TEMPLATE = WEAR_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 _DEFAULT_BUY_NAME_TEMPLATE = BUY_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 
 
+# The name the reconciler last gave a buy reminder, kept in its ``source.buy`` so a
+# later pass can tell its own name from one a user typed. Internal: buy reminders are
+# not exported (``transfer.is_portable_task``), so this is not a contract.
+BUY_GENERATED_NAME = "generated_name"
+
+
+def _name_is_ours(task: dict[str, Any], name: str) -> bool:
+    """Whether *name* is the one the reconciler gave *task*, so it may rename it.
+
+    A reminder minted by this version records the name it was given
+    (:data:`BUY_GENERATED_NAME`), and only that exact name is ours: a user who types
+    "Buy Sheba" keeps it, although it reads like a generated one. A reminder from an
+    older version has no record, so the shape of the name decides
+    (:func:`is_generated_buy_name`).
+    """
+    buy = task["source"][TASK_SOURCE_BUY]
+    if BUY_GENERATED_NAME in buy:
+        return name == buy[BUY_GENERATED_NAME]
+    return is_generated_buy_name(name)
+
+
 def is_generated_buy_name(name: str) -> bool:
     """Whether *name* still reads as a generated "Buy {part}" name, in any language.
 
@@ -846,9 +867,13 @@ def reconcile_buy_tasks(
             if (
                 stored != name
                 and not recurrence.one_off_completed(current)
-                and is_generated_buy_name(stored)
+                and _name_is_ours(current, stored)
             ):
-                result[tid] = models.merge_update(current, {"name": name}, now=now)
+                source = current["source"]
+                buy = {**source[TASK_SOURCE_BUY], BUY_GENERATED_NAME: name}
+                renamed = models.merge_update(current, {"name": name}, now=now)
+                renamed["source"] = {**source, TASK_SOURCE_BUY: buy}
+                result[tid] = renamed
                 changed = True
             continue
         task = models.build_task(
@@ -857,7 +882,13 @@ def reconcile_buy_tasks(
                 "recurrence_type": REC_ONE_OFF,
                 "device_id": asset.get("device_id"),
                 "area_id": asset.get("area_id"),
-                "source": {"buy": {"asset_id": asset["id"], "part_id": part["id"]}},
+                "source": {
+                    "buy": {
+                        "asset_id": asset["id"],
+                        "part_id": part["id"],
+                        BUY_GENERATED_NAME: name,
+                    }
+                },
             },
             now=now,
         )

@@ -400,8 +400,9 @@ def test_creates_buy_task_when_low():
     assert task["name"] == "Buy Filter"
     assert task["recurrence_type"] == "one-off"
     assert task["device_id"] == "dev1"
-    assert task["source"]["buy"] == {"asset_id": "a1", "part_id": "p1"}
-    assert rc.buy_source(task) == {"asset_id": "a1", "part_id": "p1"}
+    buy = {"asset_id": "a1", "part_id": "p1", "generated_name": "Buy Filter"}
+    assert task["source"]["buy"] == buy
+    assert rc.buy_source(task) == buy
 
 
 def test_no_buy_task_when_not_low():
@@ -482,9 +483,13 @@ def test_an_open_buy_task_follows_a_part_rename():
     assert changed is True
     after = _only(tasks2)
     assert after["name"] == "Buy Pleated filter"
-    # Renamed in place: the same reminder, not a delete and a fresh one.
+    # Renamed in place: the same reminder, not a delete and a fresh one, and it
+    # records the new name as its own.
     assert after["id"] == before["id"]
-    assert after["source"] == before["source"]
+    assert after["source"]["buy"] == {
+        **before["source"]["buy"],
+        "generated_name": "Buy Pleated filter",
+    }
 
 
 def test_an_open_buy_task_follows_a_language_change():
@@ -576,3 +581,36 @@ def test_renaming_one_buy_task_does_not_stop_the_next_part_getting_one():
         "Buy Gasket",
         "Buy Pleated filter",
     ]
+
+
+def test_a_typed_name_that_reads_like_a_generated_one_is_kept():
+    # "Buy Sheba" has the shape of a generated name, but it is not the name the
+    # reconciler gave this reminder, so it is the user's (#372 review).
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    task = _only(tasks)
+    task["name"] = "Buy Sheba"
+    tasks2, changed = _buy_reconcile({"a1": asset}, {task["id"]: task})
+    assert changed is False
+    assert _only(tasks2)["name"] == "Buy Sheba"
+
+
+def test_a_reminder_from_an_older_version_is_judged_by_its_shape():
+    # No record of the generated name: the shape decides, so an old generated name
+    # still follows a part rename, and a typed name without the verb is kept.
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    task = _only(tasks)
+    del task["source"]["buy"]["generated_name"]
+    asset["parts"][0]["name"] = "Pleated filter"
+    tasks2, changed = _buy_reconcile({"a1": asset}, {task["id"]: task})
+    assert changed is True
+    assert _only(tasks2)["name"] == "Buy Pleated filter"
+    assert _only(tasks2)["source"]["buy"]["generated_name"] == "Buy Pleated filter"
+
+    old = _only(_buy_reconcile({"a1": asset})[0])
+    del old["source"]["buy"]["generated_name"]
+    old["name"] = "Nassfutter"
+    tasks3, changed = _buy_reconcile({"a1": asset}, {old["id"]: old})
+    assert changed is False
+    assert _only(tasks3)["name"] == "Nassfutter"
