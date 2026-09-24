@@ -249,8 +249,9 @@ export interface Hass {
   labels?: Record<string, HassLabel>;
   states?: Record<string, HassEntity>;
   language?: string;
-  // The instance's configured currency, used to format a completion's cost.
-  config?: { currency?: string };
+  // The instance's configured currency, used to format a completion's cost, and its
+  // language, which the backend formats the shopping-list lines in.
+  config?: { currency?: string; language?: string };
   // Auth token, used to POST a document upload to the Home Keeper HTTP view with an
   // Authorization header (the real `hass` object exposes this; we under-declare it).
   //

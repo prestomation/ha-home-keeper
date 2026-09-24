@@ -1056,3 +1056,47 @@ def test_needs_pass_is_quiet_for_a_line_with_no_amount_and_no_description():
         )
         is False
     )
+
+
+def test_a_shopper_note_is_not_recorded_as_ours_and_survives_the_next_pass():
+    # Found in review: the note was copied into the bookkeeping on pass 1, so
+    # pass 2 read it as Home Keeper's own description and cleared it.
+    item = {**_item(), "description": "blue bottle"}
+    first = _plan_caps(tracked=_tracked(), desired=_desired(amount=""), items=[item])
+    assert first.update == []
+    assert "description" not in first.tracked[KEY]
+    assert (
+        sh.needs_pass(
+            tracked=first.tracked,
+            desired=_desired(amount=""),
+            target=TARGET,
+            capabilities=_DESC,
+        )
+        is False
+    )
+    second = _plan_caps(
+        tracked=first.tracked, desired=_desired(amount=""), items=[item]
+    )
+    assert second.update == []
+
+
+def test_a_description_already_in_step_is_recorded_as_ours():
+    # The line already reads what we want: record it, so a later empty amount
+    # clears it.
+    item = {**_item(), "description": "500 ml"}
+    plan = _plan_caps(tracked=_tracked(), desired=_desired(), items=[item])
+    assert plan.update == []
+    assert plan.tracked[KEY]["description"] == "500 ml"
+
+
+def test_a_late_rename_on_the_list_is_not_taken_for_a_user_rename():
+    # The list still shows our new title from the last pass only now: it matches
+    # the name we want, so it is ours.
+    plan = _plan(
+        tracked=_tracked(summary="Buy Anode rod (×4)"),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items=[_item(summary="Buy Anode rod")],
+    )
+    assert plan.update == []
+    assert "user_named" not in plan.tracked[KEY]
+    assert plan.tracked[KEY]["summary"] == "Buy Anode rod"

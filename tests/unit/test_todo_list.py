@@ -1352,3 +1352,13 @@ def test_needs_pass_ignores_the_title_of_a_user_named_line():
     tracked = _tracked({**_entry(summary="Filter, the big one"), "user_named": True})
     renamed = _desired([_want(name="Change the water filter")])
     assert _needs(tracked=tracked, desired=renamed) is False
+
+
+def test_a_title_that_already_reads_as_the_new_name_is_not_a_user_rename():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want(name="Change the water filter")]),
+        items=[_item(summary="Change the water filter")],
+    )
+    assert plan.update == []
+    assert "user_named" not in plan.tracked[KEY]

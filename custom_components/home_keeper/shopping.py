@@ -385,9 +385,13 @@ def plan_sync(
 
         caps = caps_by_entity.get(entity_id, frozenset())
         name, description = line_for(want, caps)
+        wanted = description
         live = str(item.get("summary") or "")
+        # A title that is neither what we last wrote nor what we write now was
+        # typed by someone. One that matches the new name is a list that showed our
+        # rename late, which is not a user rename.
         user_named = bool(entry.get("user_named")) or (
-            bool(item.get("uid")) and bool(summary) and live != summary
+            bool(item.get("uid")) and bool(summary) and live not in (summary, name)
         )
         rename = name if not user_named and live != name else None
         current = str(item.get("description") or "")
@@ -410,9 +414,15 @@ def plan_sync(
         }
         if user_named:
             new_entry["user_named"] = True
-        written = description if description is not None else item.get("description")
+        # Record only a description Home Keeper wrote. Recording the shopper's own
+        # note here would make the next pass read it as ours, and clear it.
+        written: str | None = None
+        if description is not None:
+            written = description
+        elif current and current in (wanted, str(entry.get("description") or "")):
+            written = current
         if CAP_DESCRIPTION in caps and written:
-            new_entry["description"] = str(written)
+            new_entry["description"] = written
         plan.tracked[key] = new_entry
 
     if not target:

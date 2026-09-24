@@ -574,7 +574,9 @@ function renderShoppingPreview(
     p._assets,
     normalizeLineStyle(value.shopping_line_style),
     supportsDescription(p._hass?.states?.[entity]?.attributes?.supported_features),
-    p._lang(),
+    // The sync formats the amount in the server language, not the viewer's, so the
+    // preview does too: an English UI on a German server still reads "1,5 kg".
+    p._hass?.config?.language || p._lang(),
   );
   host.hidden = false;
   host.innerHTML =

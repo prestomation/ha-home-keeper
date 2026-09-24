@@ -534,11 +534,12 @@ def plan_sync(
         name = str(want["name"])
         live = str(item.get("summary") or "")
         written = str(entry.get("summary") or "")
-        # An item with a uid that no longer reads as what we last wrote was renamed
-        # by someone on the list. Their name wins: the title is left alone from now
-        # on, while completion, the due date and the notes still sync.
+        # An item with a uid that reads as neither what we last wrote nor what we
+        # write now was renamed by someone on the list. Their name wins: the title
+        # is left alone from now on, while completion, the due date and the notes
+        # still sync.
         user_named = bool(entry.get("user_named")) or (
-            bool(item.get("uid")) and bool(written) and live != written
+            bool(item.get("uid")) and bool(written) and live not in (written, name)
         )
         rename = name if not user_named and live != name else None
         due = None
