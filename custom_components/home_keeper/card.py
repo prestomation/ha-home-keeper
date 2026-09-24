@@ -1,26 +1,38 @@
-"""Deliver the Home Keeper dashboard card to every browser, by two paths.
+"""Deliver the Home Keeper dashboard card to every browser.
 
-Two independent delivery mechanisms, because one of them is not enough (#228):
+There are two delivery mechanisms, and an install uses exactly one of them:
 
-1. ``frontend.add_extra_js_url`` — the bundle goes into the app-shell HTML that
-   ``IndexView`` renders, as one inline ``import("...")`` per extra module. It is
-   the only path available when Lovelace runs with ``resource_mode: yaml``.
-2. A real Lovelace **resource** — which the frontend fetches over the websocket on
-   every dashboard load, before it renders the config.
+1. A real Lovelace **resource**, which the frontend fetches over the websocket on
+   every dashboard load, after the frontend has started. This is the path for every
+   install that keeps its resources in storage, which is the default.
+2. ``frontend.add_extra_js_url``, which puts one inline ``import("...")`` into the
+   app-shell HTML that ``IndexView`` renders. This is the path only when Lovelace
+   runs with ``resource_mode: yaml``, where Home Keeper must not write resources, or
+   when the resource sync fails.
 
-Path 1 on its own is a cache hazard. Home Assistant's own service worker serves
+Path 2 alone is a cache hazard (#228). Home Assistant's own service worker serves
 navigations ``StaleWhileRevalidate`` out of a 24h ``file-cache``, and ``IndexView``
 sends the shell with no ``Cache-Control`` and no ETag. So a shell snapshot taken
 *before* Home Keeper first registered the card carries no import for it, and that
-snapshot is replayed on every ordinary reload: "Configuration error: Custom element
-doesn't exist: home-keeper-card", cleared by a cache-bypassing reload and back on
-the next normal one. Every HACS card on the reporter's identical shell kept working,
-because HACS cards are resources. Path 2 puts the bundled card on the same footing,
-and is the only method Home Assistant's own docs describe for loading a custom card.
+snapshot is replayed on every ordinary reload. HACS cards on the same shell kept
+working, because HACS cards are resources.
 
-Registering both is safe: they name the same URL, so the browser's module map runs
-the module body once, and ``card-index.ts`` guards both its ``customElements.define``
-calls and its ``window.customCards`` push for the case where the two can diverge.
+The two paths together are a race (#368). Home Assistant 2026.9 replaces
+``window.customElements`` with the ``@webcomponents/scoped-custom-element-registry``
+polyfill, which does not see elements defined in the native registry before it was
+installed. The shell import starts right after the frontend's own bundles, and with
+the card bundle in the browser cache it can run *first*. The card is then defined in
+the native registry. The resource import of the same URL does nothing, because the
+browser runs a module once, and the card factory, which asks the polyfilled
+registry, shows "Custom element doesn't exist: home-keeper-card". So storage mode
+must not use path 2 at all.
+
+After an upgrade, a shell that the service worker cached from an older version can
+still import the card. That import names the old ``?v=`` token and the resource names
+the new one. Different URLs are different modules, so the resource import runs the
+module again, and that run defines the card in the registry the frontend now uses.
+``card-index.ts`` checks that registry before it defines anything, so the second run
+is safe. ``card-scoped-registry.spec.ts`` forces this case.
 
 Reconciliation assumes **one config entry**, which the single-instance config flow
 enforces (``_abort_if_unique_id_configured`` on ``home_keeper_local``). Two entries
@@ -55,9 +67,14 @@ from .panel import cache_token
 
 _LOGGER = logging.getLogger(__name__)
 
-# Holds the registered URL, so removal can undo both paths. Doubles as the guard
-# that keeps registration to once per HA run rather than once per entry reload.
+# Holds the registered URL, so removal can undo what registration did. Doubles as
+# the guard that keeps registration to once per HA run rather than once per entry
+# reload.
 _CARD_REGISTERED = f"{DOMAIN}_card_registered"
+
+# True only while the app shell imports the card (path 2), so removal calls
+# `remove_extra_js_url` only for a URL it added.
+_CARD_EXTRA_JS = f"{DOMAIN}_card_extra_js"
 
 # The query-less path the bundle is served from. Stored resources are matched on
 # *this*, so a rebuilt bundle's new `?v=` token updates the existing row rather
@@ -78,7 +95,7 @@ def _storage_resources(hass: HomeAssistant) -> ResourceStorageCollection | None:
     ``resource_mode`` is yaml when the user declares a ``resources:`` block under
     ``lovelace:``. That collection has no create, update or delete at all — those
     installs manage every resource in YAML and Home Keeper has no business rewriting
-    their file. They keep path 1 only, which is exactly what they had before this fix.
+    their file. They get path 2 only.
     """
     if (data := hass.data.get(LOVELACE_DATA)) is None:
         return None
@@ -90,15 +107,8 @@ def _storage_resources(hass: HomeAssistant) -> ResourceStorageCollection | None:
     return cast("ResourceStorageCollection", data.resources)
 
 
-async def _async_sync_resource(hass: HomeAssistant, url: str) -> None:
+async def _async_sync_resource(resources: ResourceStorageCollection, url: str) -> None:
     """Leave the Lovelace resources holding exactly one row for *url*."""
-    if (resources := _storage_resources(hass)) is None:
-        _LOGGER.debug(
-            "Lovelace resources are not storage-backed; the card is delivered by "
-            "the frontend module URL alone"
-        )
-        return
-
     # The storage collection loads lazily: async_items() is empty until the store
     # has been read, and async_get_info() is the public call that reads it. Skip
     # this and every start looks like a fresh install and adds a duplicate.
@@ -117,8 +127,16 @@ async def _async_sync_resource(hass: HomeAssistant, url: str) -> None:
         _LOGGER.info("Removed a duplicate Home Keeper card Lovelace resource")
 
 
+def _add_extra_js(hass: HomeAssistant, url: str) -> None:
+    """Put the card import into the app shell (path 2), once."""
+    if hass.data.get(_CARD_EXTRA_JS):
+        return
+    frontend.add_extra_js_url(hass, url)
+    hass.data[_CARD_EXTRA_JS] = True
+
+
 async def async_register_card(hass: HomeAssistant) -> None:
-    """Publish the card bundle by both delivery paths (idempotent).
+    """Publish the card bundle by the one path this install uses (idempotent).
 
     Assumes the static path that serves the bundle has already been registered by
     ``panel.async_register_panel`` (called first during entry setup). The ``?v=``
@@ -128,29 +146,36 @@ async def async_register_card(hass: HomeAssistant) -> None:
     if hass.data.get(_CARD_REGISTERED):
         return
     url = await _async_card_url(hass)
-    frontend.add_extra_js_url(hass, url)
     hass.data[_CARD_REGISTERED] = url
     _LOGGER.info("Registered Home Keeper dashboard card module at %s", url)
 
     async def _sync(hass: HomeAssistant, _component: str) -> None:
+        if (resources := _storage_resources(hass)) is None:
+            _LOGGER.debug(
+                "Lovelace resources are not storage-backed; the card is delivered by "
+                "the frontend module URL"
+            )
+            _add_extra_js(hass, url)
+            return
         try:
-            await _async_sync_resource(hass, url)
+            await _async_sync_resource(resources, url)
         except Exception:
             _LOGGER.exception(
                 "Could not register the Home Keeper card as a Lovelace resource. "
-                "The card is still delivered through the frontend module URL, so a "
+                "The card is delivered through the frontend module URL instead, so a "
                 "dashboard loaded from a stale cached page may not render it (#228)"
             )
+            _add_extra_js(hass, url)
 
     # Off the config-entry setup path on purpose: a storage write must never be able
     # to delay or fail setup. `frontend` hard-depends on `lovelace`, so in practice
     # this fires immediately; the callback form keeps us correct if that ever stops
-    # being true, and does nothing at all if lovelace is never set up.
+    # being true. Nothing reaches the app shell before it runs (#368).
     async_when_setup(hass, LOVELACE_DOMAIN, _sync)
 
 
 async def async_unregister_card_resource(hass: HomeAssistant) -> None:
-    """Undo both delivery paths. Integration *removal* only, never unload/reload.
+    """Undo card delivery. Integration *removal* only, never unload/reload.
 
     A reload must leave the resource alone: it is shared state that outlives the
     entry, and rewriting it on every reload would churn ``.storage`` and briefly
@@ -159,8 +184,9 @@ async def async_unregister_card_resource(hass: HomeAssistant) -> None:
     Home Assistant complains about on every dashboard load.
     """
     url = hass.data.pop(_CARD_REGISTERED, None)
+    added_extra_js = hass.data.pop(_CARD_EXTRA_JS, False)
     try:
-        if isinstance(url, str):
+        if isinstance(url, str) and added_extra_js:
             frontend.remove_extra_js_url(hass, url)
         if (resources := _storage_resources(hass)) is None:
             return

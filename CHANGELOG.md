@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.26.0b2]
+
+### Fixed
+
+- **[Intermittent card error](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  On Home Assistant 2026.9, the dashboard card no longer shows "Custom element
+  doesn't exist: home-keeper-card" on some page loads. (Fixes #368) (Thanks @DDomnick!)
+
 ## [0.26.0b1]
 
 ### Added
