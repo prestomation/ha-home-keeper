@@ -180,6 +180,19 @@
                 "use_task_name": {
                   "type": "string"
                 },
+                "tag_id": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "require_tag_scan": {
+                  "type": "boolean"
+                },
                 "replace_also_every": {
                   "anyOf": [
                     {
