@@ -88,6 +88,12 @@ export function controls(p: PanelHost): string {
         TASK_LAYOUTS.map((value) => ({ value, label: t(`layout.${value}`) })),
       )
     : '';
+  // One box for the pair, so a row that wraps moves both together. When a Profile
+  // menu shares the row, the Layout menu would otherwise wrap alone to the next
+  // line, away from the Group by it belongs beside.
+  const menuPair = layoutControl
+    ? `<div class="hk-menu-pair">${groupControl}${layoutControl}</div>`
+    : groupControl;
   // A saved Profile, when picked, drives the status/label/area/device filter, so
   // the inline all/overdue/soon segment is hidden while one is active.
   const profile = activeProfile(p);
@@ -155,7 +161,7 @@ export function controls(p: PanelHost): string {
   const actions = `
       <span class="hk-controls-spacer"></span>
       <ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
-  return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${groupControl}${layoutControl}${actions}</div>`;
+  return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${menuPair}${actions}</div>`;
 }
 
 /**

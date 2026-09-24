@@ -1238,6 +1238,7 @@ export const STYLES = `
   }
   .hk-controls-spacer { flex: 1 1 auto; min-width: 0; }
   .hk-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .hk-menu-pair { display: flex; align-items: center; gap: inherit; min-width: 0; }
   .hk-seg-label {
     font-size: 0.8rem; font-weight: 600; color: var(--hk-ink-2);
     text-transform: uppercase; letter-spacing: 0.04em;

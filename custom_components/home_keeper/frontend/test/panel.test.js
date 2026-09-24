@@ -2170,6 +2170,13 @@ describe('Task layouts', () => {
     expect(panel.shadowRoot.activeElement?.dataset.id).toBe('t2');
   });
 
+  it('keeps Group by and Layout in one box, so a wrapping row moves them together', async () => {
+    const { panel } = await mountAt('rows');
+    const pair = layoutSelect(panel).closest('.hk-menu-pair');
+    expect(pair).toBeTruthy();
+    expect(pair.querySelector('select[data-seg-select="group"]')).toBeTruthy();
+  });
+
   it('names each state on the board with the words its list pill uses', async () => {
     // The board's short form covers dated tasks only. A dormant monitored task
     // takes its pill's own label, so the board and the list never disagree.
