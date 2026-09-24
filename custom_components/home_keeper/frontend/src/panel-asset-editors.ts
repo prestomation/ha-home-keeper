@@ -772,6 +772,10 @@ function partBox(
       dep.schema = schema;
       dep.data = pickFormData(partFormData(next), schema);
       dep.style.display = schema.length ? '' : 'none';
+    } else if (!next.tag_id && dep.data?.part_require_tag_scan) {
+      // Clearing the tag clears the scan requirement (see `mergePartForm`). Show
+      // that, or the switch stays on while the part saves it off.
+      dep.data = pickFormData(partFormData(next), partDependentSchema(next, p._tags));
     }
   };
   const baseSchema = partBaseSchema();

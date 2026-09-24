@@ -361,7 +361,11 @@ export function decimalMark(lang?: string): string {
   let mark = '.';
   try {
     if (Intl.NumberFormat.supportedLocalesOf([key]).length) {
-      const part = new Intl.NumberFormat(key).formatToParts(1.5).find((p) => p.type === 'decimal');
+      // Latin digits, as Babel's default on the backend: Persian's native mark
+      // is "٫", but the shopping list gets "." from Babel.
+      const part = new Intl.NumberFormat(key, { numberingSystem: 'latn' })
+        .formatToParts(1.5)
+        .find((p) => p.type === 'decimal');
       if (part) mark = part.value;
     }
   } catch {

@@ -6,6 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.26.0b5]
+
+### Fixed
+
+- **Recipe area and label picks.** When you pick a second area or label in More
+  filters, the first one stays.
+- **Device labels in recipes.** A recipe label filter or exclusion now also matches
+  the labels of an entity's device, as in Problem sensor sync.
+- **Shopper notes on synced lines.** Home Keeper does not write the amount over a
+  note that you typed on a shopping list item.
+- **Decimal mark in the Persian preview.** The shopping list preview uses the same
+  decimal mark as the list.
+- **Tag scan switch.** When you clear a wear item's tag, the Require a tag scan
+  switch turns off.
+- **Card error after a failed update.** When an update of the card's Lovelace
+  resource fails in part, the card no longer shows "Custom element doesn't exist".
+
 ## [0.26.0b4]
 
 ### Added

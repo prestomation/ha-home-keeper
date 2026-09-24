@@ -2011,6 +2011,12 @@ describe('decimalMark', () => {
     expect(decimalMark('zh-Hans')).toBe('.');
   });
 
+  it('reads the mark for Latin digits, as the backend does', () => {
+    // Persian's native mark is "٫". Babel gives the shopping list ".", so the
+    // preview must too.
+    expect(decimalMark('fa')).toBe('.');
+  });
+
   it('reads anything it cannot place as English', () => {
     expect(decimalMark()).toBe('.');
     expect(decimalMark('')).toBe('.');
