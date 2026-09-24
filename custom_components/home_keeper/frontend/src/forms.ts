@@ -1880,6 +1880,11 @@ export function mergePartForm(prev: Part, value: Record<string, unknown>): Part 
     next.replace_interval = null;
     next.replace_unit = null;
     if (next.action) next.action = 'replace';
+    // A consumable makes no task for a tag to complete, and its form hides the tag
+    // fields. Clear them with the schedule, so the part stores no binding the user
+    // cannot see.
+    next.tag_id = null;
+    next.require_tag_scan = false;
   }
   // A wear item with no interval yet **keeps** its chosen unit. It used to be
   // cleared here, which was invisible while every unit measured time — the field

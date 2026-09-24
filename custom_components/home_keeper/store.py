@@ -77,11 +77,13 @@ from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks
 from .reconcile import adopt_part_tags as _adopt_part_tags
 from .reconcile import buy_source as _buy_source
 from .reconcile import is_manual_part_link as _is_manual_part_link
+from .reconcile import is_part_owned_tag_update as _is_part_owned_tag_update
 from .reconcile import is_use_task as _is_use_task
 from .reconcile import part_source as _part_source
 from .reconcile import reconcile_buy_tasks as _reconcile_buy_tasks
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 from .reconcile import settle_use_tasks as _settle_use_tasks
+from .reconcile import stray_part_tags as _stray_part_tags
 
 # Stock transition -> the bus event it fires (STOCK_NONE maps to nothing).
 _STOCK_EVENT = {
@@ -263,11 +265,21 @@ class HomeKeeperStore:
         if self._clean_relationship_links():
             changed = True
         # A tag bound to a wear part's derived task before parts carried one moves
-        # onto the part, once, here — the first reconcile after the upgrade would
-        # otherwise clear it. Load-time only: on every pass it would also undo a tag
-        # a user just cleared on the part (see reconcile.adopt_part_tags).
+        # onto the part here, or the first reconcile after the upgrade would clear
+        # it. Load-time only: on every pass it would also undo a tag a user just
+        # cleared on the part (see reconcile.adopt_part_tags). A tag the part cannot
+        # hold is logged, because the next reconcile clears it.
         if _adopt_part_tags(self._assets, self._tasks):
             changed = True
+        for stray in _stray_part_tags(self._assets, self._tasks):
+            _LOGGER.warning(
+                "Task %s (%s) has NFC/RFID tag %s, but its wear part now sets the "
+                "tag of its tasks. The tag is removed from the task. Set it on the "
+                "part in the appliance editor",
+                stray["task_id"],
+                stray["name"],
+                stray["tag_id"],
+            )
         if changed:
             await self._save()
 
@@ -395,6 +407,14 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
+        # The reconciler writes a wear part task's tag from its part, so a change
+        # made here would be undone on the next pass without a message.
+        if _is_part_owned_tag_update(existing, updates):
+            raise models.TaskValidationError(
+                "This task is auto-generated from an appliance wear part, and the "
+                "part sets its NFC/RFID tag. Set the tag on the part in the "
+                "appliance editor."
+            )
         merged = models.merge_update(existing, updates, now=dt_util.now())
         self._tasks[task_id] = merged
         # Mirror a problem-sensor task's note into the durable, entity-keyed side-store

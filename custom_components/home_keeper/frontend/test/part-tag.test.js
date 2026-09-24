@@ -151,6 +151,14 @@ describe('the binding round-trips through the form data', () => {
     expect(next.tag_id).toBe('anode-tag');
     expect(next.require_tag_scan).toBe(true);
   });
+
+  it('clears the binding when the part becomes a consumable', () => {
+    // A consumable's form hides the tag fields, so a kept tag could not be seen or cleared.
+    const prev = wear({ tag_id: 'anode-tag', require_tag_scan: true });
+    const next = mergePartForm(prev, { type: 'consumable' });
+    expect(next.tag_id).toBeNull();
+    expect(next.require_tag_scan).toBe(false);
+  });
 });
 
 describe('the preview says what a scan does', () => {

@@ -348,3 +348,93 @@ def test_a_skipped_task_does_not_stop_the_sweep():
     assert rc.adopt_part_tags({"a1": asset}, ordered) is True
     assert taken["tag_id"] == "own-tag"
     assert bare["tag_id"] == "legacy-tag"
+
+
+# ── a tag the part cannot hold, named for the upgrade log ─────────────────────
+def test_names_a_tag_on_a_counted_parts_maintenance_task():
+    """Both halves tagged before the upgrade: the use task's tag moves to the part,
+    and the maintenance task's tag is named, because the next pass clears it."""
+    part = _counted_part()
+    asset = _asset(parts=[part])
+    tasks = _derived(asset, part, tag_id="use-tag", role="use")
+    replace = _by_role(tasks)["replace"]
+    replace["tag_id"] = "replace-tag"
+    rc.adopt_part_tags({"a1": asset}, tasks)
+    assert rc.stray_part_tags({"a1": asset}, tasks) == [
+        {"task_id": replace["id"], "name": replace["name"], "tag_id": "replace-tag"}
+    ]
+    tasks, _ = _reconcile({"a1": asset}, tasks)
+    assert _binding(_by_role(tasks)["replace"]) == (None, False)
+    assert _binding(_by_role(tasks)["use"]) == ("use-tag", False)
+
+
+def test_names_a_task_tag_that_differs_from_the_parts_own():
+    part = _wear_part(tag_id="part-tag")
+    asset = _asset(parts=[part])
+    tasks = _derived(asset, part)
+    _only(tasks)["tag_id"] = "task-tag"
+    stray = rc.stray_part_tags({"a1": asset}, tasks)
+    assert [s["tag_id"] for s in stray] == ["task-tag"]
+
+
+def test_names_nothing_once_the_part_holds_the_tag():
+    part = _wear_part()
+    asset = _asset(parts=[part])
+    tasks = _derived(asset, part, tag_id="legacy-tag")
+    rc.adopt_part_tags({"a1": asset}, tasks)
+    assert rc.stray_part_tags({"a1": asset}, tasks) == []
+
+
+def test_names_no_manual_link_no_untagged_task_and_no_orphan():
+    part = _wear_part()
+    asset = _asset(parts=[part])
+    tasks = _derived(asset, part)
+    tasks["t-manual"] = {
+        "id": "t-manual",
+        "tag_id": "my-own-tag",
+        "source": {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+    }
+    tasks["t-orphan"] = {
+        "id": "t-orphan",
+        "tag_id": "gone-tag",
+        "source": {"part": {"asset_id": "a1", "part_id": "gone", "role": "replace"}},
+    }
+    assert rc.stray_part_tags({"a1": asset}, tasks) == []
+
+
+# ── update_task may not change a tag the part owns ────────────────────────────
+def _tagged_task(tag_id="anode-tag", require=True):
+    part = _wear_part(tag_id=tag_id, require_tag_scan=require)
+    return _only(_reconcile({"a1": _asset(parts=[part])})[0])
+
+
+def test_changing_the_tag_on_a_derived_task_is_refused():
+    task = _tagged_task()
+    assert rc.is_part_owned_tag_update(task, {"tag_id": "other"}) is True
+    assert rc.is_part_owned_tag_update(task, {"tag_id": None}) is True
+
+
+def test_changing_the_flag_on_a_derived_task_is_refused():
+    task = _tagged_task()
+    assert rc.is_part_owned_tag_update(task, {"require_tag_scan": False}) is True
+
+
+def test_sending_the_current_binding_back_is_not_a_change():
+    """A caller that sends the whole task back, tag included, is not refused."""
+    task = _tagged_task()
+    updates = {"tag_id": " anode-tag ", "require_tag_scan": True, "notes": "x"}
+    assert rc.is_part_owned_tag_update(task, updates) is False
+
+
+def test_an_update_without_tag_keys_is_not_refused():
+    assert rc.is_part_owned_tag_update(_tagged_task(), {"notes": "x"}) is False
+
+
+def test_a_manual_link_and_a_plain_task_keep_their_own_tag():
+    manual = {
+        "id": "t-manual",
+        "tag_id": None,
+        "source": {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+    }
+    assert rc.is_part_owned_tag_update(manual, {"tag_id": "x"}) is False
+    assert rc.is_part_owned_tag_update({"id": "t"}, {"tag_id": "x"}) is False

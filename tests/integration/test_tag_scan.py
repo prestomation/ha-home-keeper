@@ -17,6 +17,7 @@ from conftest import HA_URL, call_service, poll_state
 TAG = "hk-itest-tag"
 OTHER_TAG = "hk-itest-tag-unknown"
 PART_TAG = "hk-itest-part-tag"
+USE_TAG = "hk-itest-use-tag"
 
 
 def _fire_scan(ha, tag_id):
@@ -131,6 +132,64 @@ def test_tag_scan_completes_the_task_a_wear_part_creates(ha):
             lambda: _list_assets(ha),
             lambda a: a["id"] == asset["id"] and a["parts"][0].get("last_replaced"),
         )
+    finally:
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
+
+
+def test_tag_scan_counts_a_use_on_a_counted_wear_part(ha):
+    # A counted wear item puts its tag on the use task: a scan records 1 use and
+    # leaves the replacement task alone. update_task may not move the tag, because
+    # the part sets it and the next reconcile would undo the change.
+    name = f"Tag scan jacket {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": name,
+            "parts": [
+                {
+                    "name": "DWR",
+                    "type": "wear",
+                    "replace_interval": 25,
+                    "replace_unit": "uses",
+                    "tag_id": USE_TAG,
+                }
+            ],
+        },
+    )
+    asset = _poll(lambda: _list_assets(ha), lambda a: a["name"] == name)
+    try:
+
+        def _role(role):
+            def match(task):
+                src = (task.get("source") or {}).get("part") or {}
+                # An absent role reads as "replace" (reconcile.part_role).
+                got = "use" if src.get("role") == "use" else "replace"
+                return src.get("asset_id") == asset["id"] and got == role
+
+            return match
+
+        use = _poll(lambda: _list_tasks(ha), _role("use"))
+        replace = _poll(lambda: _list_tasks(ha), _role("replace"))
+        assert use["tag_id"] == USE_TAG
+        assert replace["tag_id"] is None
+
+        refused = ha.post(
+            f"{HA_URL}/api/services/home_keeper/update_task",
+            json={"task_id": replace["id"], "tag_id": USE_TAG},
+        )
+        assert refused.status_code >= 400, (
+            f"update_task on a derived task's tag should be refused, "
+            f"got {refused.status_code}"
+        )
+
+        _fire_scan(ha, USE_TAG)
+        use = _poll_task(ha, use["id"], lambda t: t["completions"])
+        assert len(use["completions"]) == 1
+        replace = _get_task(ha, replace["id"])
+        assert not replace["completions"]
+        assert replace["tag_id"] is None
     finally:
         call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})
 

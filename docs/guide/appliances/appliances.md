@@ -192,6 +192,9 @@ type the tag ID.
 - A counted wear item puts the tag on its use task, so a scan counts 1 use. Put the
   sticker on the thing you use.
 
+The part sets the tag of its tasks. The `home_keeper.update_task` action cannot change
+the tag of a task that a wear item creates.
+
 Turn on **Require a tag scan to complete** to block **Done** on that task until the
 tag is scanned. The **What this creates** box says what a scan does before you save.
 

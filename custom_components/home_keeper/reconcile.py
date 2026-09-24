@@ -448,11 +448,15 @@ def adopt_part_tags(
     one to a wear part's task, and the 0.24 notes said a tag scan counts a use. Now
     that :func:`reconcile_part_tasks` writes the task's binding from the part, such a
     tag would be cleared on the first pass after the upgrade. The store runs this
-    **once, when it loads**, and copies the tag up instead: a part that already names
-    a tag keeps its own, and a task whose role is not the one the part's tag goes to
-    is left for the reconciler to clear. Never on every pass — there it would put back
-    a tag a user had just cleared on the part, because the task still wore it. Mutates
-    *assets* in place and returns ``True`` when a part changed.
+    **when it loads** and copies the tag up instead: a part that already names a tag
+    keeps its own, and a task whose role is not the one the part's tag goes to is left
+    for the reconciler to clear (:func:`stray_part_tags` names those). It runs on every
+    load, but only the first one after the upgrade finds anything: from then on the
+    reconciler writes the task's tag from the part, and ``update_task`` refuses to
+    change it (:func:`is_part_owned_tag_update`). Never on every reconcile pass —
+    there it would put back a tag a user had just cleared on the part, because the
+    task still wore it. Mutates *assets* in place and returns ``True`` when a part
+    changed.
     """
     parts = {
         (asset["id"], part["id"]): part
@@ -472,6 +476,64 @@ def adopt_part_tags(
         part["require_tag_scan"] = bool(task.get("require_tag_scan"))
         changed = True
     return changed
+
+
+def stray_part_tags(
+    assets: dict[str, dict[str, Any]], tasks: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """The derived tasks whose tag the next reconcile pass will clear or replace.
+
+    Run after :func:`adopt_part_tags`. What is left is a tag the part cannot hold: a
+    tag on a counted wear item's maintenance task (the part's tag goes to its use
+    task), or a second tag when the part already names one. The store logs each one,
+    so a sticker that stops working after the upgrade is not a silent change.
+    Returns ``{task_id, name, tag_id}`` for each.
+    """
+    parts = {
+        (asset["id"], part["id"]): part
+        for asset in assets.values()
+        for part in asset.get("parts", [])
+        if part.get("id")
+    }
+    stray: list[dict[str, Any]] = []
+    for task in tasks.values():
+        src = part_source(task)
+        if src is None or src.get("manual") or not task.get("tag_id"):
+            continue
+        part = parts.get((src["asset_id"], src["part_id"]))
+        if part is None:
+            continue
+        if task["tag_id"] != _tag_fields(part, part_role(task))["tag_id"]:
+            stray.append(
+                {
+                    "task_id": task["id"],
+                    "name": task.get("name"),
+                    "tag_id": task["tag_id"],
+                }
+            )
+    return stray
+
+
+def is_part_owned_tag_update(task: dict[str, Any], updates: dict[str, Any]) -> bool:
+    """Whether *updates* would change a tag that the task's wear part owns.
+
+    A wear part's derived task takes its ``tag_id`` / ``require_tag_scan`` from the
+    part on every reconcile pass. A change made on the task itself would stay until
+    the next pass and then go away without a message, so ``update_task`` refuses it
+    and points to the part. A value equal to the current one is not a change, so a
+    caller that sends the whole task back is not refused. A manual consumable link is
+    the user's own task and keeps its tag.
+    """
+    src = part_source(task)
+    if src is None or src.get("manual"):
+        return False
+    if "tag_id" in updates and models.normalize_tag_id(updates["tag_id"]) != task.get(
+        "tag_id"
+    ):
+        return True
+    return "require_tag_scan" in updates and bool(updates["require_tag_scan"]) != bool(
+        task.get("require_tag_scan")
+    )
 
 
 def reconcile_part_tasks(

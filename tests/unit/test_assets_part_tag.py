@@ -66,8 +66,9 @@ def test_a_falsy_flag_reads_as_false(raw):
 
 
 def test_a_consumable_keeps_its_tag():
-    """Stored whatever the type, like ``replace_interval``: no task reads it until the
-    part is a wear item again, and flipping the type back restores the binding."""
+    """The backend stores it whatever the type: no task reads it until the part is a
+    wear item again. The panel clears it when a part stops being a wear item
+    (``mergePartForm``), as it clears the schedule."""
     part = _part(type="consumable", tag_id="anode-tag", require_tag_scan=True)
     assert part["tag_id"] == "anode-tag"
     assert part["require_tag_scan"] is True

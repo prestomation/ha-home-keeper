@@ -60,6 +60,7 @@ from .const import (
     UNIT_USES,
     UNITS,
 )
+from .models import TaskValidationError, normalize_tag_id
 
 
 class AssetValidationError(ValueError):
@@ -593,17 +594,15 @@ def _normalize_replace_also_every(value: Any) -> dict[str, Any] | None:
 
 
 def _normalize_part_tag_id(value: Any) -> str | None:
-    """Normalize a wear part's ``tag_id`` — the NFC/RFID tag its task answers to.
+    """Normalize a wear part's ``tag_id``: the NFC/RFID tag its task answers to.
 
-    The twin of ``models.normalize_tag_id``, with the asset error type: ``None``, an
-    empty string or whitespace means "no tag", and anything that is not a string
-    fails at the edge rather than persisting a value no scan could ever match.
+    Uses ``models.normalize_tag_id``, so a part and a task accept the same values,
+    and raises its error as the asset error type.
     """
-    if value is None:
-        return None
-    if not isinstance(value, str):
-        raise AssetValidationError("tag_id must be a string")
-    return value.strip() or None
+    try:
+        return normalize_tag_id(value)
+    except TaskValidationError as err:
+        raise AssetValidationError(str(err)) from err
 
 
 def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
