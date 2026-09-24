@@ -180,6 +180,26 @@ count is derived from, and a larger target could lose them.
 
 ![The appliance page Parts tab, the coating showing 17 of 25 wears above a progress meter](../../images/63-panel-counted-part-row.png)
 
+##### Scan a tag to complete a wear item's task
+
+A task that Home Keeper creates from a wear item has no **Edit** button. Set its tag
+in the part editor. To complete that task with an [NFC or RFID tag](../tasks/nfc-tags.md),
+open the wear item in the part editor and select the tag in the **NFC/RFID tag** field,
+or type the tag ID.
+
+- For a wear item with an interval in months, the tag completes the maintenance task.
+  A scan marks the part replaced.
+- For a counted wear item, the tag completes the use task. A scan records 1 use. Put
+  the tag on the item that you use.
+
+The part sets the tag of its tasks. The `home_keeper.update_task` action cannot change
+the tag of a task that a wear item creates.
+
+Turn on **Require a tag scan to complete** to block **Done** on that task until the
+tag is scanned. The **What this creates** box says what a scan does before you save.
+
+![The part editor for a wear item, with the NFC/RFID tag picker and the require-scan toggle above the What this creates box](../../images/70-panel-part-tag-field.png)
+
 ##### Auto-create a buy task when a part runs low
 
 Turn on **Auto-create buy task** on a stock-tracked part. The option is shown when

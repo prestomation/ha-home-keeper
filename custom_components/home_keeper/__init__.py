@@ -411,6 +411,11 @@ _PART_SCHEMA = vol.Schema(
         vol.Optional("action"): cv.string,
         vol.Optional("use_noun"): cv.string,
         vol.Optional("use_task_name"): cv.string,
+        # The NFC/RFID tag bound to the task the wear item generates (the use task of
+        # a counted wear item). ``tag_id: null`` clears it; the pure model refuses
+        # ``require_tag_scan`` without a tag, as ``add_task`` does.
+        vol.Optional("tag_id"): vol.Any(None, cv.string),
+        vol.Optional("require_tag_scan"): cv.boolean,
         vol.Optional("replace_also_every"): vol.Any(
             None,
             vol.Schema(

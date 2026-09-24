@@ -567,6 +567,7 @@ _KNOWN_ISSUES = frozenset(
         342,
         344,
         352,
+        364,
     }
 )
 
