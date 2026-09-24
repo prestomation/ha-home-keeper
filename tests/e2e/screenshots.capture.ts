@@ -683,14 +683,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await layoutMenu.selectOption('tiles');
   await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
   await panel.locator(`.hk-tile[data-id="${TASK.furnaceFilter}"]`).click();
-  await expect(panel.locator('ha-dialog[open] .hk-sheet-row[data-action="open"]')).toBeVisible({
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open] .hk-sheet-row[data-action="open"]')).toBeVisible({
     timeout: 10_000,
   });
   await page.waitForTimeout(400);
   await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
   await page.screenshot({ path: `${OUT}/71c-panel-task-action-sheet.png` });
   await page.keyboard.press('Escape');
-  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0, { timeout: 10_000 });
   // Back to rows. The choice is stored per user, so a layout left behind here is
   // the layout every later list shot in this file is taken in.
   await layoutMenu.selectOption('rows');
@@ -1884,15 +1884,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/71d-panel-mobile-task-tiles.png` });
 
-  // 71f. The action sheet on a phone. Below 700px the dialog fills the screen, so
+  // 71f. The action sheet on a phone. Below 700px it is a bottom sheet, so
   // the status and the meta line above the actions are the first thing a press
   // shows. The desktop sheet at 71c documents none of that.
   await panel.locator(`.hk-tile[data-id="${TASK.furnaceFilter}"]`).click();
-  await expect(panel.locator('ha-dialog[open] .hk-sheet-summary')).toBeVisible({ timeout: 10_000 });
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open] .hk-sheet-summary')).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/71f-panel-mobile-task-action-sheet.png` });
   await page.keyboard.press('Escape');
-  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0, { timeout: 10_000 });
 
   // 71e. The board on a phone. There is no room for columns side by side, so a
   // column takes most of the width and the next one is a swipe away, snapping to

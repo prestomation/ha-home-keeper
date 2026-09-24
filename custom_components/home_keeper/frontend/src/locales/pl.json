@@ -765,5 +765,9 @@
   "layout.short.overdue": "{n} d",
   "layout.short.in": "za {n} d",
   "layout.short.today": "Dzisiaj",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} — wykonane.",
+  "btn.undo": "Cofnij",
+  "layout.holdHint": "Dotknij, aby zobaczyć akcje. Przytrzymaj, aby otworzyć zadanie.",
+  "layout.saveFailed": "Nie udało się zapisać układu. Przy następnej wizycie wróci poprzedni."
 }

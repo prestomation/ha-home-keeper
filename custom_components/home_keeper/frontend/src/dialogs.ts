@@ -42,8 +42,12 @@ export interface DialogParts {
  * dialog is never the one the user closed. See `panel-dialogs.ts`'s own copy of
  * this shell, which carries the same guard for the same reason (#144/#262).
  */
-export function makeDialog(title: string, onClosed: () => void): DialogParts {
-  const dialog = document.createElement('ha-dialog');
+export function makeDialog(
+  title: string,
+  onClosed: () => void,
+  tag: 'ha-dialog' | 'ha-adaptive-dialog' = 'ha-dialog',
+): DialogParts {
+  const dialog = document.createElement(tag);
   dialog.setAttribute('open', '');
   dialog.setAttribute('heading', title);
   const heading = document.createElement('span');

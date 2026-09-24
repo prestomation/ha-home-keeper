@@ -1020,7 +1020,7 @@ export const STYLES = `
   /* 2 lines of name, then an ellipsis. A tile is a fixed height, and a name that
      grew the tile would break the grid's rows into a ragged edge. */
   .hk-tile .hk-name {
-    font-size: 0.92rem; font-weight: 500; line-height: 1.3;
+    font-weight: 500; line-height: 1.3;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
     overflow: hidden;
   }
@@ -1037,8 +1037,16 @@ export const STYLES = `
     grid-auto-columns: minmax(220px, 1fr);
     gap: 12px; align-items: start; overflow-x: auto;
   }
+  /* A board with more columns to the right fades out at its edge (see
+     wireBoardEdges), so the cut column does not look like the last one. */
+  .hk-board.hk-more-end {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent);
+  }
+  /* The same surfaces as Rows: a white card on the grey page. The column is only
+     an outline around its cards. */
   .hk-board-col {
-    background: var(--hk-surface);
+    background: transparent;
     border: 1px solid var(--hk-line);
     border-radius: var(--hk-r-row);
     padding: 10px;
@@ -1059,9 +1067,9 @@ export const STYLES = `
   .hk-bcard {
     display: flex; align-items: center; gap: 8px; width: 100%;
     min-height: 36px; padding: 6px 8px;
-    font: inherit; font-size: 0.86rem; color: var(--hk-ink);
-    background: var(--hk-page); border: 1px solid transparent;
-    border-radius: var(--hk-r-btn);
+    font: inherit; color: var(--hk-ink);
+    background: var(--hk-surface); border: 1px solid var(--hk-line);
+    border-radius: var(--hk-r-row);
     cursor: pointer; text-align: start;
     -webkit-user-select: none; user-select: none;
   }
@@ -1074,7 +1082,7 @@ export const STYLES = `
   /* 2 lines of name before the ellipsis, as on a tile. One line cut the part of a
      name that tells 2 tasks apart ("Replace battery: Hall…"). */
   .hk-bname {
-    flex: 1; min-width: 0; overflow: hidden;
+    flex: 1; min-width: 0; overflow: hidden; font-weight: 500;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
     line-height: 1.3;
   }
@@ -1086,8 +1094,12 @@ export const STYLES = `
   }
   .hk-bcard.overdue .hk-bdue { color: var(--hk-danger-ink); font-weight: 500; }
   /* A card opens a menu, so it answers a pointer the way a row does. */
-  ha-card.hk-card.hk-tile:hover, .hk-bcard:hover { border-color: var(--hk-line); }
-  .hk-bcard:hover { background: var(--hk-surface); }
+  /* Not the left side of a tile: that is the urgency rail. */
+  ha-card.hk-card.hk-tile:hover {
+    border-top-color: var(--hk-ink-2); border-right-color: var(--hk-ink-2);
+    border-bottom-color: var(--hk-ink-2);
+  }
+  .hk-bcard:hover { border-color: var(--hk-ink-2); }
   /* A press still down, before the hold resolves to "open the task". */
   /* A long touch is the hold that opens the task, so the phone must not select
      the text or show its own callout menu. */

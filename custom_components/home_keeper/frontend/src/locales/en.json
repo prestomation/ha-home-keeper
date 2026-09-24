@@ -731,5 +731,9 @@
   "layout.short.overdue": "{n}d",
   "layout.short.in": "in {n}d",
   "layout.short.today": "Today",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} is done.",
+  "btn.undo": "Undo",
+  "layout.holdHint": "Tap for actions. Press and hold to open the task.",
+  "layout.saveFailed": "Could not save the layout. It changes back on your next visit."
 }

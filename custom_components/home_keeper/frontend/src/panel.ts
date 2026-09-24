@@ -597,9 +597,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Pick the layout the task list is drawn in.
    *
    *  Optimistic: it renders first and saves after, so the list changes under the
-   *  press rather than after a round trip. A failed save only means the choice
-   *  does not follow this user to another device, because `_taskLayoutPicked`
-   *  stops a reload from reading the old value back. It goes through `_render`
+   *  press rather than after a round trip. A failed save keeps the choice for this
+   *  visit, because `_taskLayoutPicked` stops a reload from reading the old value
+   *  back, and a toast says it will not be kept. It goes through `_render`
    *  rather than `_applyQuery`, because the control row changes as well as the
    *  list. */
   _setTaskLayout(value: TaskLayout): void {
@@ -609,7 +609,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._render();
     if (this._hass) {
       void api.setTaskLayout(this._hass, value).catch(() => {
-        // Best-effort — see above.
+        // The layout stays for this visit. Tell the user it will not be kept.
+        toast(this, t('layout.saveFailed'));
       });
     }
   }
@@ -1113,10 +1114,32 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       openCompletionDialog(this, task);
       return;
     }
+    const before = new Set((task.completions ?? []).map((c) => c.ts));
     try {
-      await api.completeTask(this._hass, task.id);
+      const done = await api.completeTask(this._hass, task.id);
+      // Say which task is done, and offer Undo. In Tiles and Board the task moves to
+      // another section, so without this the only sign of the tap is a reflow.
+      const added = done?.completions?.find((c) => !before.has(c.ts));
+      if (added) {
+        toast(this, t('done.toast', { name: task.name }), {
+          text: t('btn.undo'),
+          action: () => void this._undoComplete(task.id, added.ts),
+        });
+      }
     } catch (err) {
       console.error('home-keeper: complete failed', err);
+      toast(this, t('error.actionFailed'));
+    }
+    await this._refresh();
+  }
+
+  /** Remove the completion that Done just added, from the toast's Undo. */
+  async _undoComplete(taskId: string, ts: string): Promise<void> {
+    if (!this._hass) return;
+    try {
+      await api.deleteCompletion(this._hass, taskId, ts);
+    } catch (err) {
+      console.error('home-keeper: undo failed', err);
       toast(this, t('error.actionFailed'));
     }
     await this._refresh();

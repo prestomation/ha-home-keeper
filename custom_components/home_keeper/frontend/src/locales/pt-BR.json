@@ -748,5 +748,9 @@
   "layout.short.overdue": "{n} d",
   "layout.short.in": "em {n} d",
   "layout.short.today": "Hoje",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} concluída.",
+  "btn.undo": "Desfazer",
+  "layout.holdHint": "Toque para ver as ações. Mantenha pressionado para abrir a tarefa.",
+  "layout.saveFailed": "Não foi possível salvar o layout. Ele volta ao anterior na próxima visita."
 }

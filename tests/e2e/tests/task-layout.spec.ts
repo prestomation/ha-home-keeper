@@ -223,9 +223,11 @@ test.describe('Home Keeper panel — task list layouts', () => {
     // the detail page's caret — the sheet has to withhold what the caret withholds,
     // or a tile is a way around it.
     await panel.locator(`.hk-tile[data-id="${TASK.furnaceFilter}"]`).click();
-    // The `ha-dialog` host portals its surface and has no box of its own, so the
-    // rows are what a test can see — the host is only ever counted.
-    const sheet = panel.locator('ha-dialog[open]');
+    // The dialog host portals its surface and has no box of its own, so the rows
+    // are what a test can see — the host is only ever counted. The sheet is Home
+    // Assistant's adaptive dialog, which holds an `ha-dialog` of its own in its
+    // shadow root, so a selector for both would count one sheet twice.
+    const sheet = panel.locator('ha-adaptive-dialog[open]');
     await expect(sheet).toHaveCount(1);
     await expect(sheet.locator('.hk-sheet-row[data-action="done"]')).toBeVisible();
     await expect(sheet.locator('.hk-sheet-row[data-action="dueToday"]')).toBeVisible();
@@ -233,7 +235,7 @@ test.describe('Home Keeper panel — task list layouts', () => {
 
     // Escape closes it, and nothing happened to the task.
     await page.keyboard.press('Escape');
-    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+    await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0);
 
     // The water filter is already overdue, so there is no due date to pull forward.
     await panel.locator(`.hk-tile[data-id="${TASK.waterFilter}"]`).click();
@@ -241,7 +243,7 @@ test.describe('Home Keeper panel — task list layouts', () => {
     await expect(sheet.locator('.hk-sheet-row[data-action="done"]')).toBeVisible();
     await expect(sheet.locator('.hk-sheet-row[data-action="dueToday"]')).toHaveCount(0);
     await page.keyboard.press('Escape');
-    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+    await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0);
 
     expect(errors).toEqual([]);
   });
@@ -266,8 +268,8 @@ test.describe('Home Keeper panel — task list layouts', () => {
     const tile = panel.locator(`.hk-tile[data-id="${id}"]`);
     await expect(tile).toBeVisible();
     await tile.click();
-    await panel.locator('ha-dialog[open] .hk-sheet-row[data-action="done"]').click();
-    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+    await panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open] .hk-sheet-row[data-action="done"]').click();
+    await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0);
 
     // The store is the answer, not the tile: a completion that only redrew the card
     // is the failure this is looking for.
@@ -277,6 +279,18 @@ test.describe('Home Keeper panel — task list layouts', () => {
         { timeout: 20_000 },
       )
       .toBe(true);
+
+    // Home Assistant's own toast says which task is done, and its Undo removes the
+    // completion again. In Tiles the task moves to another section, so the toast
+    // is the only sign of which one was done.
+    const toast = page.locator('ha-toast');
+    await expect(toast).toContainText('Wipe the tile layout bench is done.');
+    await toast.getByText('Undo').click();
+    await expect
+      .poll(async () => (await listTasks()).find((x) => x.id === id)?.completions?.length ?? -1, {
+        timeout: 20_000,
+      })
+      .toBe(0);
 
     expect(errors).toEqual([]);
   });
@@ -301,7 +315,7 @@ test.describe('Home Keeper panel — task list layouts', () => {
     // on top of it.
     await expect(page).toHaveURL(new RegExp(`/home-keeper/tasks/${TASK.waterFilter}$`));
     await expect(panel.locator('#back-btn')).toBeVisible();
-    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+    await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0);
 
     expect(errors).toEqual([]);
   });

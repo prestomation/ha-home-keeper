@@ -731,5 +731,9 @@
   "layout.short.overdue": "{n} d",
   "layout.short.in": "om {n} d",
   "layout.short.today": "I dag",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} är klar.",
+  "btn.undo": "Ångra",
+  "layout.holdHint": "Tryck för åtgärder. Håll ned för att öppna uppgiften.",
+  "layout.saveFailed": "Layouten kunde inte sparas. Den återställs vid nästa besök."
 }

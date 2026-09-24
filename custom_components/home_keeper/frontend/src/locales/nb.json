@@ -731,5 +731,9 @@
   "layout.short.overdue": "{n} d",
   "layout.short.in": "om {n} d",
   "layout.short.today": "I dag",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} er utført.",
+  "btn.undo": "Angre",
+  "layout.holdHint": "Trykk for handlinger. Hold inne for å åpne oppgaven.",
+  "layout.saveFailed": "Oppsettet ble ikke lagret. Det går tilbake ved neste besøk."
 }

@@ -246,10 +246,15 @@ export async function copyText(value: string): Promise<boolean> {
  * listener further up the tree receives it. The panel and the card both need this and
  * had a byte-identical copy each.
  */
-export function toast(el: EventTarget, message: string): void {
+export function toast(
+  el: EventTarget,
+  message: string,
+  action?: { text: string; action: () => void },
+): void {
   el.dispatchEvent(
     new CustomEvent('hass-notification', {
-      detail: { message },
+      // Home Assistant draws `action` as a button on the toast, e.g. Undo.
+      detail: action ? { message, action } : { message },
       bubbles: true,
       composed: true,
     }),

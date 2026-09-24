@@ -748,5 +748,9 @@
   "layout.short.overdue": "{n} g",
   "layout.short.in": "tra {n} g",
   "layout.short.today": "Oggi",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} completata.",
+  "btn.undo": "Annulla",
+  "layout.holdHint": "Tocca per le azioni. Tieni premuto per aprire l'attività.",
+  "layout.saveFailed": "Impossibile salvare il layout. Alla prossima visita tornerà quello precedente."
 }

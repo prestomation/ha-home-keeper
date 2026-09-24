@@ -765,5 +765,9 @@
   "layout.short.overdue": "{n} д",
   "layout.short.in": "через {n} д",
   "layout.short.today": "Сегодня",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "«{name}» выполнено.",
+  "btn.undo": "Отменить",
+  "layout.holdHint": "Нажмите, чтобы увидеть действия. Удерживайте, чтобы открыть задачу.",
+  "layout.saveFailed": "Не удалось сохранить вид. При следующем визите вернётся прежний."
 }

@@ -1733,6 +1733,15 @@ describe('recurrenceSummary sentence case (#262)', () => {
 });
 
 describe('toast', () => {
+  it('carries an action button, such as Undo, when one is given', () => {
+    const el = document.createElement('div');
+    let detail;
+    el.addEventListener('hass-notification', (e) => (detail = e.detail));
+    const action = () => {};
+    toast(el, 'Done', { text: 'Undo', action });
+    expect(detail).toEqual({ message: 'Done', action: { text: 'Undo', action } });
+  });
+
   it("emits HA's notification event from the element, escaping the shadow root", () => {
     const el = document.createElement('div');
     const seen = [];

@@ -377,6 +377,7 @@ function taskCard(p: PanelHost, task: Task): string {
  * names the task and its status. The left rail colours it the way the row's does.
  */
 function taskTile(p: PanelHost, task: Task): string {
+  const hint = escapeHTML(t('layout.holdHint'));
   const opts = { elapsed: true, counted: countedProgress(task, p._assets, p._tasks) };
   const urgency = urgencyClass(task);
   const aria = escapeHTML(
@@ -385,7 +386,7 @@ function taskTile(p: PanelHost, task: Task): string {
   return `
       <ha-card class="hk-card hk-tile hk-press${urgency ? ` ${urgency}` : ''}" data-id="${escapeHTML(
         task.id,
-      )}" role="button" tabindex="0" aria-label="${aria}">
+      )}" role="button" tabindex="0" aria-label="${aria}" title="${hint}">
         <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
         <div class="hk-status">${statusChipHtml(task, p._hass, opts)}</div>
       </ha-card>`;
@@ -400,6 +401,7 @@ function taskTile(p: PanelHost, task: Task): string {
  * the card's own label, which is the same label a tile carries.
  */
 function boardCard(p: PanelHost, task: Task): string {
+  const hint = escapeHTML(t('layout.holdHint'));
   const opts = { elapsed: true, counted: countedProgress(task, p._assets, p._tasks) };
   const status = statusText(task, p._hass, opts);
   const aria = escapeHTML(t('layout.cardAria', { name: task.name, status }));
@@ -411,7 +413,7 @@ function boardCard(p: PanelHost, task: Task): string {
   return `
       <button type="button" class="hk-bcard hk-press${urgency ? ` ${urgency}` : ''}" data-id="${escapeHTML(
         task.id,
-      )}" role="button" tabindex="0" aria-label="${aria}">
+      )}" role="button" tabindex="0" aria-label="${aria}" title="${hint}">
         <span class="hk-bdot" aria-hidden="true"></span>
         <span class="hk-bname">${escapeHTML(task.name)}</span>
         <span class="hk-bdue">${escapeHTML(due)}</span>
@@ -460,9 +462,17 @@ const SHEET_ROWS: Record<SheetAction['id'], { icon: string; key: string }> = {
 export function renderActionSheet(p: PanelHost, host: HTMLElement): void {
   const task = p._actionSheet.task;
   if (!task) return;
-  const { dialog, body, footer, mount } = makeDialog(task.name, () => {
-    if (p._actionSheet.open) closeActionSheet(p);
-  });
+  // Home Assistant's adaptive dialog is a dialog on a desktop and a bottom sheet on
+  // a phone, so the actions sit in reach of the thumb. An older Home Assistant
+  // does not have it, and gets the plain dialog.
+  const tag = customElements.get('ha-adaptive-dialog') ? 'ha-adaptive-dialog' : 'ha-dialog';
+  const { dialog, body, footer, mount } = makeDialog(
+    task.name,
+    () => {
+      if (p._actionSheet.open) closeActionSheet(p);
+    },
+    tag,
+  );
   body.classList.add('hk-sheet');
 
   // What the tile or the card had no room for: the status pill, the chips that
@@ -588,6 +598,25 @@ export function wirePressCards(p: PanelHost, root: ParentNode): void {
         activate();
       }
     });
+  });
+}
+
+/**
+ * Fade the right edge of a board that has more columns to the right.
+ *
+ * A column cut at the edge of the screen looks like the last one, so the fade
+ * says that the board scrolls. It goes away at the end of the scroll, and a board
+ * that fits has none.
+ */
+export function wireBoardEdges(root: ParentNode): void {
+  root.querySelectorAll<HTMLElement>('.hk-board').forEach((board) => {
+    const update = (): void => {
+      const more = board.scrollLeft + board.clientWidth < board.scrollWidth - 1;
+      board.classList.toggle('hk-more-end', more);
+    };
+    board.addEventListener('scroll', update, { passive: true });
+    // After layout, because a board that was just added has no width yet.
+    requestAnimationFrame(update);
   });
 }
 
@@ -735,6 +764,7 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
     p._wireDeferMenus(root);
     // Tiles and board cards carry their actions in a sheet instead of on the card.
     if (p._taskLayout !== 'rows') wirePressCards(p, root);
+    if (p._taskLayout === 'board') wireBoardEdges(root);
     root.querySelectorAll<HTMLElement>('.hk-intro-dismiss').forEach((b) =>
       b.addEventListener('click', () => {
         p._introDismissed = true;

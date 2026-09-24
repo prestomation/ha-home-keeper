@@ -247,10 +247,10 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(firstTile).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
   await firstTile.click();
-  await expect(panel.locator('ha-dialog[open] .hk-sheet-row[data-action="open"]')).toBeVisible();
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open] .hk-sheet-row[data-action="open"]')).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
   await page.keyboard.press('Escape');
-  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+  await expect(panel.locator(':is(ha-dialog, ha-adaptive-dialog)[open]')).toHaveCount(0);
   await layoutMenu.selectOption('board');
   await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);

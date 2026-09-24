@@ -765,5 +765,9 @@
   "layout.short.overdue": "{n} d",
   "layout.short.in": "za {n} d",
   "layout.short.today": "Dnes",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} je hotovo.",
+  "btn.undo": "Zpět",
+  "layout.holdHint": "Klepnutím zobrazíte akce. Podržením otevřete úkol.",
+  "layout.saveFailed": "Rozložení se nepodařilo uložit. Při příští návštěvě se vrátí původní."
 }

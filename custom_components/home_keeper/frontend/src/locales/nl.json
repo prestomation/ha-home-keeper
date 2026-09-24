@@ -731,5 +731,9 @@
   "layout.short.overdue": "{n} d",
   "layout.short.in": "over {n} d",
   "layout.short.today": "Vandaag",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} is klaar.",
+  "btn.undo": "Ongedaan maken",
+  "layout.holdHint": "Tik voor acties. Houd ingedrukt om de taak te openen.",
+  "layout.saveFailed": "De indeling is niet opgeslagen. Bij je volgende bezoek geldt weer de vorige."
 }

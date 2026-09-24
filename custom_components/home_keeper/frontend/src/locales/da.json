@@ -731,5 +731,9 @@
   "layout.short.overdue": "{n} d",
   "layout.short.in": "om {n} d",
   "layout.short.today": "I dag",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} er udført.",
+  "btn.undo": "Fortryd",
+  "layout.holdHint": "Tryk for handlinger. Hold nede for at åbne opgaven.",
+  "layout.saveFailed": "Layoutet kunne ikke gemmes. Det skifter tilbage ved dit næste besøg."
 }

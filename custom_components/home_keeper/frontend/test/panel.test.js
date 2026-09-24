@@ -2177,6 +2177,87 @@ describe('Task layouts', () => {
     expect(pair.querySelector('select[data-seg-select="group"]')).toBeTruthy();
   });
 
+  it('says which task is done, and Undo removes that completion', async () => {
+    const { panel, hass } = await mountAt('tiles');
+    const inner = hass.callWS.bind(hass);
+    const sent = [];
+    hass.callWS = (msg) => {
+      sent.push(msg);
+      if (msg.type === 'home_keeper/complete_task') {
+        return Promise.resolve({
+          task: { ...TASKS[1], completions: [{ ts: '2026-09-24T07:00:00+00:00' }] },
+        });
+      }
+      return inner(msg);
+    };
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail));
+    await waitFor(() => tiles(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    panel.shadowRoot.querySelector('.hk-sheet-row[data-action="done"]').click();
+    await waitFor(() => toasts.length);
+    expect(toasts[0].message).toBe('Clean gutters is done.');
+    expect(toasts[0].action.text).toBe('Undo');
+    toasts[0].action.action();
+    await waitFor(() => sent.some((m) => m.type === 'home_keeper/delete_completion'));
+    const undo = sent.find((m) => m.type === 'home_keeper/delete_completion');
+    expect(undo).toMatchObject({ task_id: 't2', ts: '2026-09-24T07:00:00+00:00' });
+    expect(sent.filter((m) => m.type === 'home_keeper/complete_task')).toHaveLength(1);
+  });
+
+  it('shows no Undo when the backend returns no new completion', async () => {
+    // A completion the response does not carry cannot be named to delete_completion,
+    // so the toast would offer an Undo that does nothing.
+    const { panel } = await mountAt('tiles');
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail));
+    await waitFor(() => tiles(panel).length === 3);
+    await panel._complete(TASKS[1]);
+    expect(toasts).toEqual([]);
+  });
+
+  it('tells the user when the layout cannot be saved', async () => {
+    const { panel, hass } = await mountAt('rows');
+    const inner = hass.callWS.bind(hass);
+    hass.callWS = (msg) =>
+      msg.type === 'frontend/set_user_data' ? Promise.reject(new Error('offline')) : inner(msg);
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+    panel._setTaskLayout('board');
+    await waitFor(() => toasts.length);
+    expect(toasts).toEqual(['Could not save the layout. It changes back on your next visit.']);
+  });
+
+  it('gives tiles and board cards a hint that a hold opens the task', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    const hint = 'Tap for actions. Press and hold to open the task.';
+    expect(tiles(panel)[0].getAttribute('title')).toBe(hint);
+    panel._setTaskLayout('board');
+    await waitFor(() => cards(panel).length === 3);
+    expect(cards(panel)[0].getAttribute('title')).toBe(hint);
+  });
+
+  it('fades the board edge only while columns are hidden to the right', async () => {
+    const { panel } = await mountAt('board');
+    await waitFor(() => cards(panel).length === 3);
+    const board = panel.shadowRoot.querySelector('.hk-board');
+    // jsdom has no layout, so give the board the sizes a browser would.
+    let left = 0;
+    Object.defineProperty(board, 'scrollWidth', { value: 900, configurable: true });
+    Object.defineProperty(board, 'clientWidth', { value: 600, configurable: true });
+    Object.defineProperty(board, 'scrollLeft', { get: () => left, configurable: true });
+    board.dispatchEvent(new Event('scroll'));
+    expect(board.classList.contains('hk-more-end')).toBe(true);
+    left = 300;
+    board.dispatchEvent(new Event('scroll'));
+    expect(board.classList.contains('hk-more-end')).toBe(false);
+    left = 298;
+    board.dispatchEvent(new Event('scroll'));
+    expect(board.classList.contains('hk-more-end'), 'within the 1px rounding slack').toBe(true);
+  });
+
   it('names each state on the board with the words its list pill uses', async () => {
     // The board's short form covers dated tasks only. A dormant monitored task
     // takes its pill's own label, so the board and the list never disagree.
@@ -2219,5 +2300,17 @@ describe('Task layouts', () => {
     await waitFor(() => cards(panel).length === 1);
     expect(cards(panel)[0].classList.contains('overdue')).toBe(false);
     expect(cards(panel)[0].querySelector('.hk-bdue').textContent).toBe('Disabled');
+  });
+
+  it('opens the sheet in the adaptive dialog when Home Assistant has one', async () => {
+    // Last in this block: a custom element cannot be undefined again.
+    if (!customElements.get('ha-adaptive-dialog')) {
+      customElements.define('ha-adaptive-dialog', class extends HTMLElement {});
+    }
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t2"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    expect(panel.shadowRoot.querySelector('.hk-sheet').closest('ha-adaptive-dialog')).toBeTruthy();
   });
 });

@@ -731,5 +731,9 @@
   "layout.short.overdue": "{n} pv",
   "layout.short.in": "{n} pv päästä",
   "layout.short.today": "Tänään",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} on tehty.",
+  "btn.undo": "Kumoa",
+  "layout.holdHint": "Napauta nähdäksesi toiminnot. Avaa tehtävä painamalla pitkään.",
+  "layout.saveFailed": "Asettelua ei voitu tallentaa. Se palautuu seuraavalla käyntikerralla."
 }

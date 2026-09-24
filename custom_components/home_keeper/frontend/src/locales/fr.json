@@ -748,5 +748,9 @@
   "layout.short.overdue": "{n} j",
   "layout.short.in": "dans {n} j",
   "layout.short.today": "Aujourd'hui",
-  "layout.cardAria": "{name}, {status}"
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} est terminée.",
+  "btn.undo": "Annuler",
+  "layout.holdHint": "Touchez pour les actions. Maintenez appuyé pour ouvrir la tâche.",
+  "layout.saveFailed": "Impossible d'enregistrer la disposition. L'ancienne revient à votre prochaine visite."
 }
