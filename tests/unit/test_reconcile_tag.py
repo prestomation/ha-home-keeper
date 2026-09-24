@@ -438,3 +438,24 @@ def test_a_manual_link_and_a_plain_task_keep_their_own_tag():
     }
     assert rc.is_part_owned_tag_update(manual, {"tag_id": "x"}) is False
     assert rc.is_part_owned_tag_update({"id": "t"}, {"tag_id": "x"}) is False
+
+
+def test_a_skipped_task_does_not_stop_the_stray_sweep():
+    """An untagged task and a task whose part is gone come first; the stray tag after
+    them is still named. An asset with no ``parts`` key is skipped, not crashed."""
+    part = _wear_part(tag_id="part-tag")
+    asset = _asset(parts=[part])
+    derived = _only(_derived(asset, part))
+    derived["tag_id"] = "task-tag"
+    tasks = {
+        "t-plain": {"id": "t-plain", "tag_id": None},
+        "t-orphan": {
+            "id": "t-orphan",
+            "tag_id": "gone-tag",
+            "source": {"part": {"asset_id": "a1", "part_id": "gone"}},
+        },
+        derived["id"]: derived,
+    }
+    bare = {"id": "a2", "name": "Bare"}
+    stray = rc.stray_part_tags({"a2": bare, "a1": asset}, tasks)
+    assert [s["task_id"] for s in stray] == [derived["id"]]
