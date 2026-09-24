@@ -17,6 +17,7 @@ worked on the very same stale shell. These assertions pin the registration itsel
 
 import time
 
+import requests
 from conftest import HA_URL
 from ha_registry import ws_command, ws_send
 
@@ -101,3 +102,18 @@ def test_the_card_resource_survives_a_config_entry_reload(ha):
         assert len(after) == 1, f"a reload duplicated the card resource: {after}"
         assert after[0]["url"] == before[0]["url"]
         time.sleep(1)
+
+
+def test_the_app_shell_does_not_import_the_card_bundle(ha):
+    # #368. Home Assistant 2026.9 replaces `window.customElements` with a
+    # scoped-registry polyfill. A shell import of the card can run before the
+    # polyfill is installed, and then it defines the card where the card factory
+    # never looks. This install keeps its resources in storage, so the resource is
+    # the only delivery path and the shell must not import the bundle at all.
+    _await_card_resources(ha)
+    shell = requests.get(f"{HA_URL}/", timeout=10)
+    shell.raise_for_status()
+    assert CARD_FILENAME not in shell.text, (
+        "the app shell imports the card bundle, which can define it outside the "
+        "frontend's scoped registry — issue #368"
+    )
