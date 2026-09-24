@@ -227,6 +227,42 @@ def test_a_failed_resource_sync_falls_back_to_the_shell_import(make):
     assert h.js_calls() == [("add", URL)]
 
 
+def test_a_failure_after_the_row_is_written_adds_no_shell_import(make):
+    # A stale duplicate row makes the sync delete one after it writes ours. If
+    # that delete fails, the resource still delivers the card. A shell import
+    # beside it is the #368 race.
+    h = make(card.MODE_STORAGE)
+    h.resources.items = [
+        {"id": "a", "url": URL, "type": "module"},
+        {"id": "b", "url": "/home_keeper_panel/home-keeper-card.js?v=old"},
+    ]
+
+    async def broken_delete(item_id: str) -> None:
+        raise RuntimeError("storage is broken")
+
+    h.resources.async_delete_item = broken_delete
+    run(h.register())
+    assert h.js_calls() == []
+
+
+def test_removal_during_the_sync_leaves_no_resource(make):
+    # Removal runs while the sync waits on storage. It finds no row yet, so the
+    # sync must delete the row it writes, or it points at a 404.
+    h = make(card.MODE_STORAGE)
+    create = h.resources.async_create_item
+
+    async def create_then_removed(data: dict) -> dict:
+        item = await create(data)
+        await card.async_unregister_card_resource(h.hass)
+        h.resources.items = [item]  # removal ran before this row was stored
+        return item
+
+    h.resources.async_create_item = create_then_removed
+    run(h.register())
+    assert h.resources.items == []
+    assert h.js_calls() == []
+
+
 def test_storage_mode_removal_leaves_the_shell_import_alone(make):
     # Nothing was added to the shell, so there is nothing to remove there.
     h = make(card.MODE_STORAGE)

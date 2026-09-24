@@ -1100,3 +1100,37 @@ def test_a_late_rename_on_the_list_is_not_taken_for_a_user_rename():
     assert plan.update == []
     assert "user_named" not in plan.tracked[KEY]
     assert plan.tracked[KEY]["summary"] == "Buy Anode rod"
+
+
+def test_an_adopted_line_keeps_the_shopper_note_instead_of_the_amount():
+    # Found in review: the amount was written over the note of an adopted line on
+    # the next pass, and needs_pass asked for that pass on every settle.
+    item = {**_item(), "description": "Lenor, blue bottle"}
+    plan = _plan_caps(tracked=_tracked(), desired=_desired(), items=[item])
+    assert plan.update == []
+    assert plan.tracked[KEY]["user_described"] is True
+    assert "description" not in plan.tracked[KEY]
+    assert (
+        sh.needs_pass(
+            tracked=plan.tracked, desired=_desired(), target=TARGET, capabilities=_DESC
+        )
+        is False
+    )
+
+
+def test_the_amount_is_written_when_the_shopper_note_goes():
+    tracked = {KEY: {**_tracked()[KEY], "user_described": True}}
+    item = {**_item(), "description": ""}
+    plan = _plan_caps(tracked=tracked, desired=_desired(), items=[item])
+    assert plan.update == [sh.UpdateOp(KEY, TARGET, "i1", description="500 ml")]
+    assert "user_described" not in plan.tracked[KEY]
+    assert plan.tracked[KEY]["description"] == "500 ml"
+
+
+def test_a_note_home_keeper_wrote_is_still_updated_to_a_new_amount():
+    # Only a note with no description from Home Keeper counts as the shopper's.
+    item = {**_item(), "description": "500 ml"}
+    tracked = {KEY: {**_tracked()[KEY], "description": "500 ml"}}
+    plan = _plan_caps(tracked=tracked, desired=_desired(amount="1 l"), items=[item])
+    assert plan.update == [sh.UpdateOp(KEY, TARGET, "i1", description="1 l")]
+    assert "user_described" not in plan.tracked[KEY]

@@ -298,16 +298,19 @@ def plan_sync(
     """Decide what to do about the mirror this pass.
 
     *tracked* is what we mirrored last time (``key -> {entity_id, summary, uid,
-    description?, user_named?}``), *desired* is :func:`buy_tasks_by_part` over the
-    current task map, *items_by_entity* holds the live contents of every list we
-    could read, *target* is the configured list (``""`` when the mirror is off), and
-    *capabilities* says which optional fields each list can hold (see
-    :func:`line_for`).
+    description?, user_named?, user_described?}``), *desired* is
+    :func:`buy_tasks_by_part` over the current task map, *items_by_entity* holds
+    the live contents of every list we could read, *target* is the configured list
+    (``""`` when the mirror is off), and *capabilities* says which optional fields
+    each list can hold (see :func:`line_for`).
 
     ``summary`` in *tracked* is the text Home Keeper last wrote. An item that has a
     uid and reads differently was renamed by the user, so it is marked
     ``user_named`` and its title is left alone from then on: the user's name for the
     thing wins. Completion, the description and removal still sync.
+
+    A line that holds a note Home Keeper did not write is marked ``user_described``,
+    and its note is not replaced with the amount while the note is there.
 
     A list absent from *items_by_entity* could not be read — it is unavailable,
     or the integration behind it is not loaded — so nothing is planned for it and
@@ -395,11 +398,12 @@ def plan_sync(
         )
         rename = name if not user_named and live != name else None
         current = str(item.get("description") or "")
-        if description is not None and current == description:
-            description = None
-        if description == "" and not entry.get("description"):
-            # Never clear a description Home Keeper did not write: an adopted line
-            # may carry the shopper's own note.
+        # A note on a line that has no description from Home Keeper was typed by
+        # someone (an adopted line, or a note added to a line with no amount).
+        # Never write the amount over it or clear it. The flag is not kept: when
+        # the note goes, the next pass writes the amount.
+        user_described = bool(current) and not entry.get("description")
+        if description is not None and (current == description or user_described):
             description = None
         if rename is not None or description is not None:
             plan.update.append(
@@ -414,6 +418,8 @@ def plan_sync(
         }
         if user_named:
             new_entry["user_named"] = True
+        if user_described and current != wanted:
+            new_entry["user_described"] = True
         # Record only a description Home Keeper wrote. Recording the shopper's own
         # note here would make the next pass read it as ours, and clear it.
         written: str | None = None
@@ -509,8 +515,10 @@ def needs_pass(
         name, description = line_for(want, capabilities)
         if not entry.get("user_named") and name != str(entry.get("summary") or ""):
             return True
-        if description is not None and description != str(
-            entry.get("description") or ""
+        if (
+            description is not None
+            and not entry.get("user_described")
+            and description != str(entry.get("description") or "")
         ):
             return True
     if target:

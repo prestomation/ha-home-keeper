@@ -175,6 +175,22 @@ describe('the filter and exclusion forms', () => {
     expect(lastPreview(previews).exclude_area_ids).toEqual(['garage']);
     expect($(panel, '.hk-decl-more-summary').textContent).toBe('2 filters · 2 exclusions');
   });
+
+  it('writes each filter pick back to its form, so a second pick keeps the first', async () => {
+    // ha-form does not keep its own value. Without the write-back the area picker
+    // builds the next pick from the seed, and the first area is lost. So fire the
+    // event as ha-form does, without setting `data` as emitChange does.
+    const { panel } = await openEditDialog({ domain: 'sensor' });
+    const form = sectionForm(panel, 'filters');
+    const pick = (patch) =>
+      form.dispatchEvent(
+        new CustomEvent('value-changed', { detail: { value: { ...form.data, ...patch } } }),
+      );
+    pick({ area_ids: ['hall'] });
+    expect(form.data.area_ids).toEqual(['hall']);
+    pick({ label_ids: ['battery'] });
+    expect(form.data).toMatchObject({ area_ids: ['hall'], label_ids: ['battery'] });
+  });
 });
 
 describe('Exclude and Include on the preview', () => {

@@ -371,6 +371,35 @@ def test_effective_area_id_falls_back_to_the_device_area(own, device, expected):
     assert dc.effective_area_id(own, device) == expected
 
 
+@pytest.mark.parametrize(
+    ("own", "device", "expected"),
+    [
+        (["a"], ["b"], {"a", "b"}),  # both sets join
+        (None, ["b"], {"b"}),  # no own labels: the device's labels
+        (["a"], None, {"a"}),  # no device: the entity's own labels
+        (None, None, set()),
+    ],
+)
+def test_effective_labels_join_the_device_labels(own, device, expected):
+    assert dc.effective_labels(own, device) == expected
+
+
+def test_expand_label_exclusion_reaches_an_entity_by_its_device_label():
+    """A device label excludes the device's entities, as in Problem sensor sync."""
+    spec = _normalized_spec(
+        selection={"target_integration": "device_pulse", "exclude_label_ids": ["skip"]}
+    )
+    entities = _snapshot(
+        _entity(
+            "sensor.garage_total_failed_pings",
+            labels=dc.effective_labels(None, ["skip"]),
+        ),
+        _entity("sensor.hall_total_failed_pings"),
+    )
+    kept = [m["entity"]["entity_id"] for m in dc.expand_spec(spec, entities).values()]
+    assert kept == ["sensor.hall_total_failed_pings"]
+
+
 def test_expand_area_filters_reach_an_entity_in_its_device_area():
     """The sync projects the effective area, so a device-area entity is filtered.
 
