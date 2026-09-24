@@ -127,6 +127,19 @@ async def _async_sync_resource(resources: ResourceStorageCollection, url: str) -
         _LOGGER.info("Removed a duplicate Home Keeper card Lovelace resource")
 
 
+def _resource_urls(resources: ResourceStorageCollection) -> set[str]:
+    """The URLs the stored resources hold now."""
+    return {str(item.get("url")) for item in resources.async_items()}
+
+
+async def _async_delete_resources(resources: ResourceStorageCollection) -> None:
+    """Delete every stored resource that serves the card bundle."""
+    await resources.async_get_info()
+    for item_id in matching_ids(resources.async_items(), CARD_URL_PATH):
+        await resources.async_delete_item(item_id)
+        _LOGGER.info("Removed the Home Keeper card Lovelace resource")
+
+
 def _add_extra_js(hass: HomeAssistant, url: str) -> None:
     """Put the card import into the app shell (path 2), once."""
     if hass.data.get(_CARD_EXTRA_JS):
@@ -163,12 +176,25 @@ async def async_register_card(hass: HomeAssistant) -> None:
         try:
             await _async_sync_resource(resources, url)
         except Exception:
+            # A failure after the row was written (a duplicate delete, say) still
+            # leaves the resource to deliver the card. Adding the shell import too
+            # would bring back the #368 race.
+            if url in _resource_urls(resources):
+                _LOGGER.exception(
+                    "Could not finish the Home Keeper card Lovelace resource update"
+                )
+                return
             _LOGGER.exception(
                 "Could not register the Home Keeper card as a Lovelace resource. "
                 "The card is delivered through the frontend module URL instead, so a "
                 "dashboard loaded from a stale cached page may not render it (#228)"
             )
             _add_extra_js(hass, url)
+            return
+        # Removal ran during the awaits above and found no row to delete, so the
+        # row this sync wrote would point at a 404 after the uninstall.
+        if hass.data.get(_CARD_REGISTERED) != url:
+            await _async_delete_resources(resources)
 
     # Off the config-entry setup path on purpose: a storage write must never be able
     # to delay or fail setup. `frontend` hard-depends on `lovelace`, so in practice
@@ -193,9 +219,6 @@ async def async_unregister_card_resource(hass: HomeAssistant) -> None:
             frontend.remove_extra_js_url(hass, url)
         if (resources := _storage_resources(hass)) is None:
             return
-        await resources.async_get_info()
-        for item_id in matching_ids(resources.async_items(), CARD_URL_PATH):
-            await resources.async_delete_item(item_id)
-            _LOGGER.info("Removed the Home Keeper card Lovelace resource")
+        await _async_delete_resources(resources)
     except Exception:
         _LOGGER.exception("Could not remove the Home Keeper card Lovelace resource")
