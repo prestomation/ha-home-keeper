@@ -758,7 +758,5 @@
   "layout.short.overdue": "{n} d",
   "layout.short.in": "za {n} d",
   "layout.short.today": "Dzisiaj",
-  "layout.short.armed": "Aktywne",
-  "layout.short.done": "Gotowe",
   "layout.cardAria": "{name}, {status}"
 }

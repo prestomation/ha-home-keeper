@@ -50,14 +50,23 @@ describe('parseTaskLayout', () => {
 });
 
 describe('shortDueLabel', () => {
-  it('says Disabled for a disabled task in place of a count of days', () => {
-    expect(shortDueLabel(task({ next_due: '2020-01-01T00:00:00Z', enabled: false }), NOW)).toBe('Disabled');
-    expect(shortDueLabel(task({ next_due: '2020-01-01T00:00:00Z', enabled: true }), NOW)).not.toBe('Disabled');
+  it('leaves a disabled task to its pill, whatever its frozen date says', () => {
+    expect(shortDueLabel(task({ next_due: '2020-01-01T00:00:00Z', enabled: false }), NOW)).toBe('');
+    expect(shortDueLabel(task({ next_due: '2020-01-01T00:00:00Z', enabled: true }), NOW)).not.toBe('');
   });
 
-  it('counts an overdue task in whole days', () => {
+  it('counts late days as elapsed whole days, as the status pill does', () => {
     expect(shortDueLabel(task({ next_due: '2026-02-04T12:00:00Z' }), NOW)).toBe('129d');
-    expect(shortDueLabel(task({ next_due: '2026-06-12T23:00:00Z' }), NOW)).toBe('1d');
+    // One minute short of 129 days is 128, not the calendar count of 129.
+    expect(shortDueLabel(task({ next_due: '2026-02-04T12:01:00Z' }), NOW)).toBe('128d');
+    expect(shortDueLabel(task({ next_due: '2026-06-12T12:00:00Z' }), NOW)).toBe('1d');
+  });
+
+  it('leaves a task under a day late to its pill, which says Overdue', () => {
+    expect(shortDueLabel(task({ next_due: '2026-06-12T23:00:00Z' }), NOW)).toBe('');
+    expect(shortDueLabel(task({ next_due: '2026-06-13T09:00:00Z' }), NOW)).toBe('');
+    // Due this very moment is overdue to `isOverdue`, so the card is not Today.
+    expect(shortDueLabel(task({ next_due: NOW.toISOString() }), NOW)).toBe('');
   });
 
   it('counts an upcoming task in whole days', () => {
@@ -65,25 +74,17 @@ describe('shortDueLabel', () => {
     expect(shortDueLabel(task({ next_due: '2026-06-14T01:00:00Z' }), NOW)).toBe('in 1d');
   });
 
-  it('reads Today all day, whichever side of the hour it is', () => {
-    // Calendar days, not elapsed hours: a task due at 09:00 must not turn into
-    // "1d" at 09:01 for someone reading the board at lunchtime.
-    expect(shortDueLabel(task({ next_due: '2026-06-13T09:00:00Z' }), NOW)).toBe('Today');
+  it('reads Today for a task due later today', () => {
     expect(shortDueLabel(task({ next_due: '2026-06-13T22:00:00Z' }), NOW)).toBe('Today');
+    expect(shortDueLabel(task({ next_due: '2026-06-13T12:00:01Z' }), NOW)).toBe('Today');
   });
 
-  it('says Armed for a dormant monitored task', () => {
-    expect(shortDueLabel(task({ recurrence_type: 'triggered' }), NOW)).toBe('Armed');
+  it('leaves a dormant monitored task and a finished one-off to their pills', () => {
+    expect(shortDueLabel(task({ recurrence_type: 'triggered' }), NOW)).toBe('');
     const watched = task({ recurrence_type: 'sensor', sensor: { mode: 'threshold' } });
-    expect(shortDueLabel(watched, NOW)).toBe('Armed');
-  });
-
-  it('says Done for a completed one-off', () => {
-    const done = task({
-      recurrence_type: 'one-off',
-      last_completed: '2026-06-01T12:00:00Z',
-    });
-    expect(shortDueLabel(done, NOW)).toBe('Done');
+    expect(shortDueLabel(watched, NOW)).toBe('');
+    const done = task({ recurrence_type: 'one-off', last_completed: '2026-06-01T12:00:00Z' });
+    expect(shortDueLabel(done, NOW)).toBe('');
   });
 
   it('counts in whole days from whatever hour it is read at', () => {
@@ -93,11 +94,7 @@ describe('shortDueLabel', () => {
     expect(shortDueLabel(task({ next_due: nextMorning }), evening)).toBe('in 1d');
   });
 
-  it('says Done only for a one-off that is finished', () => {
-    // Every part of the rule is load-bearing. A repeating task's completion does
-    // not end it, and a one-off still carrying a date is not finished.
-    const repeating = task({ last_completed: '2026-06-01T12:00:00Z' });
-    expect(shortDueLabel(repeating, NOW)).toBe('');
+  it('counts a one-off that still carries a date', () => {
     const again = task({
       recurrence_type: 'one-off',
       next_due: '2026-06-20T12:00:00Z',

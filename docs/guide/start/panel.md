@@ -38,7 +38,7 @@ The **Tasks** tab has a **Layout** menu with 3 choices. **Rows** is the default 
 column for each group in **Group by**.
 
 Tap a tile or a board card to open its actions. The actions are Done, Snooze, Skip, Due
-today, and Open task. Press and hold a card to open the task's page. Home Keeper stores the layout for
+today, and Open task. Above the actions, the task's status and schedule show. Press and hold a card to open the task's page. Home Keeper stores the layout for
 the user, so the choice applies on every device.
 
 ![The Tasks tab in the Tiles layout, with each task as a card that shows the name and the status](../../images/70-panel-task-tiles.png)

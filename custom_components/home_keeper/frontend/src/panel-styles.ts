@@ -1071,11 +1071,23 @@ export const STYLES = `
   }
   .hk-bcard.overdue .hk-bdot { background: var(--hk-danger); }
   .hk-bcard.soon .hk-bdot { background: var(--hk-warn); }
-  .hk-bname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .hk-bdue {
-    flex: none; color: var(--hk-ink-2); font-size: 0.78rem;
-    font-variant-numeric: tabular-nums;
+  /* 2 lines of name before the ellipsis, as on a tile. One line cut the part of a
+     name that tells 2 tasks apart ("Replace battery: Hall…"). */
+  .hk-bname {
+    flex: 1; min-width: 0; overflow: hidden;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    line-height: 1.3;
   }
+  /* The only status a card shows, so it is the card's size and not smaller. Red
+     text on a late card, so urgency is not the dot's colour alone. */
+  .hk-bdue {
+    flex: none; max-width: 45%; color: var(--hk-ink-2); font-size: inherit;
+    font-variant-numeric: tabular-nums; text-align: end;
+  }
+  .hk-bcard.overdue .hk-bdue { color: var(--hk-danger-ink); font-weight: 500; }
+  /* A card opens a menu, so it answers a pointer the way a row does. */
+  ha-card.hk-card.hk-tile:hover, .hk-bcard:hover { border-color: var(--hk-line); }
+  .hk-bcard:hover { background: var(--hk-surface); }
   /* A press still down, before the hold resolves to "open the task". */
   /* A long touch is the hold that opens the task, so the phone must not select
      the text or show its own callout menu. */
@@ -1703,6 +1715,11 @@ export const STYLES = `
   /* The action sheet a tile or a board card opens: one full-width row per verb.
      This is a menu, not a form, so the rows are the whole surface. */
   .hk-sheet { display: flex; flex-direction: column; gap: 2px; min-width: 280px; }
+  .hk-sheet-summary {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 0 12px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--hk-line);
+  }
+  .hk-sheet-summary .hk-chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .hk-sheet-row {
     display: flex; align-items: center; gap: 14px; width: 100%;
     font: inherit; font-size: 0.95rem; color: var(--hk-ink);
@@ -2046,6 +2063,7 @@ export const STYLES = `
     .hk-board {
       grid-auto-columns: 78vw;
       scroll-snap-type: x mandatory;
+      scroll-padding-inline: 12px;
       margin: 0 -12px;
       padding: 0 12px 8px;
     }

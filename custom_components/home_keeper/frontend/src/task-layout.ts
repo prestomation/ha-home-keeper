@@ -52,38 +52,38 @@ function startOfDay(ms: number): number {
 }
 
 /**
- * A task's due state in the few characters a tile or a board card has for it.
+ * A task's due state in the few characters a board card has for it, or `''`.
  *
  * The list row spells this out ("3 days overdue", "in 2 weeks"). A board card is
  * 220px wide and already carries the name, so the due text is cut to a figure and
  * a unit: `129d` late, `in 30d` ahead, `Today` on the day.
  *
- * Counted in whole calendar days, not in elapsed hours. A task due at 09:00 reads
- * `Today` all day rather than turning into `1d` at 09:01, which is how someone
- * looking at the board at lunchtime reads it.
+ * Only a live task with a due date has a short form. Every other state (disabled,
+ * a finished one-off, a dormant monitored task, a buy reminder) answers `''`, and
+ * the card shows the status pill's own words in its place. The board and the list
+ * then never give one state 2 names.
+ *
+ * Late days are whole elapsed days, the count the status pill uses, so a card never
+ * says one day more than its row. Days ahead are calendar days, which is how
+ * `dueLabel` counts them: a task due at 09:00 reads `Today` all day.
  */
 export function shortDueLabel(task: Task, now: Date = new Date()): string {
-  // First, as in `statusChipHtml`. A disabled task keeps its old due date, and a
-  // count of days from that date is urgency that nothing will act on. The board
-  // card has no pill, so this text is the only place the card says it is off.
-  if (task.enabled === false) return t('chip.disabled');
-  // Both states are dateless, so they have to answer before the date arithmetic.
-  // A completed one-off is finished; a dormant monitored task is waiting on its
-  // sensor or its integration, and neither is late.
-  if (task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed) {
-    return t('layout.short.done');
-  }
-  if (isMonitoredDormant(task)) return t('layout.short.armed');
+  if (task.enabled === false || isMonitoredDormant(task)) return '';
   // Stryker disable next-line ConditionalExpression: the NaN guard below answers a
   // dateless task the same way. This one is what keeps `new Date` off an empty value.
   if (!task.next_due) return '';
   const due = new Date(task.next_due).getTime();
   if (Number.isNaN(due)) return '';
+  // `<=`, as `isOverdue` has it: a task due this very moment is late, not Today.
+  if (due <= now.getTime()) {
+    const late = Math.floor((now.getTime() - due) / DAY_MS);
+    // Under a day late, the pill says Overdue with no count. So does the card.
+    return late >= 1 ? t('layout.short.overdue', { n: late }) : '';
+  }
   const days = Math.round((startOfDay(due) - startOfDay(now.getTime())) / DAY_MS);
-  if (days === 0) return t('layout.short.today');
-  // Stryker disable next-line EqualityOperator: the line above has already answered
-  // zero, so `<= 0` selects the same days this does.
-  if (days < 0) return t('layout.short.overdue', { n: -days });
+  // Stryker disable next-line EqualityOperator: a future date is never before
+  // today's midnight, so `days` is never below zero here and `=== 0` is the same.
+  if (days <= 0) return t('layout.short.today');
   return t('layout.short.in', { n: days });
 }
 

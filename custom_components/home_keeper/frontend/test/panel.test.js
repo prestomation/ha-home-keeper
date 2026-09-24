@@ -2170,6 +2170,37 @@ describe('Task layouts', () => {
     expect(panel.shadowRoot.activeElement?.dataset.id).toBe('t2');
   });
 
+  it('names each state on the board with the words its list pill uses', async () => {
+    // The board's short form covers dated tasks only. A dormant monitored task
+    // takes its pill's own label, so the board and the list never disagree.
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    const pill = panel.shadowRoot
+      .querySelector('.hk-tile[data-id="t3"] ha-assist-chip')
+      .getAttribute('label');
+    expect(pill).toBeTruthy();
+    panel._setTaskLayout('board');
+    await waitFor(() => cards(panel).length === 3);
+    const due = (id) =>
+      panel.shadowRoot.querySelector(`.hk-bcard[data-id="${id}"] .hk-bdue`).textContent;
+    expect(due('t3')).toBe(pill);
+    expect(due('t1')).toMatch(/^\d+d$/);
+  });
+
+  it('shows the status and the meta line at the top of the sheet', async () => {
+    const { panel } = await mountAt('tiles');
+    await waitFor(() => tiles(panel).length === 3);
+    const pill = panel.shadowRoot
+      .querySelector('.hk-tile[data-id="t1"] ha-assist-chip')
+      .getAttribute('label');
+    panel.shadowRoot.querySelector('.hk-tile[data-id="t1"]').click();
+    await waitFor(() => sheetRows(panel).length);
+    const summary = panel.shadowRoot.querySelector('.hk-sheet-summary');
+    expect(summary.querySelector('ha-assist-chip').getAttribute('label')).toBe(pill);
+    const row = panel.shadowRoot.querySelector('.hk-sheet-summary .hk-meta').textContent;
+    expect(row).toContain('3 months');
+  });
+
   it('draws a disabled task with no urgency, and says it is off on the board', async () => {
     const off = [
       { id: 't9', name: 'Winter hose', recurrence_type: 'floating', interval: 1, unit: 'months', next_due: LATE, enabled: false, completions: [] },

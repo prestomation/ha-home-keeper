@@ -724,7 +724,5 @@
   "layout.short.overdue": "{n} pv",
   "layout.short.in": "{n} pv päästä",
   "layout.short.today": "Tänään",
-  "layout.short.armed": "Aktiivinen",
-  "layout.short.done": "Valmis",
   "layout.cardAria": "{name}, {status}"
 }

@@ -741,7 +741,5 @@
   "layout.short.overdue": "{n} d",
   "layout.short.in": "d'aquí a {n} d",
   "layout.short.today": "Avui",
-  "layout.short.armed": "Activa",
-  "layout.short.done": "Fet",
   "layout.cardAria": "{name}, {status}"
 }

@@ -724,7 +724,5 @@
   "layout.short.overdue": "{n} d",
   "layout.short.in": "om {n} d",
   "layout.short.today": "I dag",
-  "layout.short.armed": "Aktiv",
-  "layout.short.done": "Klar",
   "layout.cardAria": "{name}, {status}"
 }

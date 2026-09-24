@@ -254,6 +254,31 @@ export function assetsList(p: PanelHost): string {
   return renderGroups(p, groupAssets(p, assets), (asset) => assetCard(p, asset));
 }
 
+/**
+ * A task's meta line: how it recurs, when it is due, and how often it was done.
+ *
+ * The list row and the action sheet both show it, so a tile or a board card
+ * opens onto the same facts the row carries.
+ */
+function taskMetaHtml(p: PanelHost, task: Task): string {
+  const completedOneOff =
+    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  // A switched-off task shows no due date. The stored one is frozen at whatever it was
+  // when the task went off, so printing it states a deadline Home Keeper will not keep:
+  // nothing announces it, no to-do item carries it, and the row's own status chip says
+  // Disabled. The chip is the whole answer, so the meta line says nothing.
+  const dueText =
+    task.enabled === false
+      ? ''
+      : task.next_due
+        ? ` · ${escapeHTML(t('form.task.due', { date: formatDate(task.next_due, p._lang()) }))}`
+        : completedOneOff
+          ? ` · ${escapeHTML(t('form.task.completedOn', { date: formatDate(task.last_completed, p._lang()) }))}`
+          : '';
+  const n = task.completions?.length ?? 0;
+  return `${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}`;
+}
+
 function taskCard(p: PanelHost, task: Task): string {
   // The danger rail follows the status pill: a buy reminder reads "Low stock" rather
   // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge that
@@ -273,18 +298,6 @@ function taskCard(p: PanelHost, task: Task): string {
   // due date.
   const completedOneOff =
     task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-  // A switched-off task shows no due date. The stored one is frozen at whatever it was
-  // when the task went off, so printing it states a deadline Home Keeper will not keep:
-  // nothing announces it, no to-do item carries it, and the row's own status chip says
-  // Disabled. The chip is the whole answer, so the meta line says nothing.
-  const dueText =
-    task.enabled === false
-      ? ''
-      : task.next_due
-        ? ` · ${escapeHTML(t('form.task.due', { date: formatDate(task.next_due, p._lang()) }))}`
-        : completedOneOff
-          ? ` · ${escapeHTML(t('form.task.completedOn', { date: formatDate(task.last_completed, p._lang()) }))}`
-          : '';
   // How overdue it is rides the right-hand status pill rather than the meta line, so
   // urgency reads at the end of the row instead of buried mid-sentence. `elapsed` is
   // the list row's alone: down a long list the count is what separates a week late
@@ -293,7 +306,6 @@ function taskCard(p: PanelHost, task: Task): string {
     elapsed: true,
     counted: countedProgress(task, p._assets, p._tasks),
   });
-  const n = task.completions?.length ?? 0;
   // A monitored task (dormant, not due) has nothing to mark done — its owning
   // integration or the sensor watcher arms it when the condition fires; hide the
   // action. A completed one-off is already done, so it too hides Done. A
@@ -340,7 +352,7 @@ function taskCard(p: PanelHost, task: Task): string {
         <div class="hk-card-row hk-row-task">
           <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
             <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
-            <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
+            <div class="hk-meta">${taskMetaHtml(p, task)}</div>
           </div>
           <div class="hk-chips hk-chips-inline${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
           <span class="hk-row-spacer"></span>
@@ -358,7 +370,7 @@ function taskCard(p: PanelHost, task: Task): string {
  * Three to a row on a desktop and two on a phone, so a household sees a whole
  * week of work without scrolling. Everything the list row carries inline — the
  * chips, the meta line, Done and its caret — moves into the action sheet a press
- * opens (see `openActionSheet`), because none of it fits and a tile that offered
+ * opens (see `renderActionSheet`), because none of it fits and a tile that offered
  * half of it would be a smaller row rather than a different layout.
  *
  * The tile is one press target, so it announces itself as a button whose label
@@ -392,13 +404,17 @@ function boardCard(p: PanelHost, task: Task): string {
   const status = statusText(task, p._hass, opts);
   const aria = escapeHTML(t('layout.cardAria', { name: task.name, status }));
   const urgency = urgencyClass(task);
+  // The pill's own words wherever the short form has none, so a state reads the
+  // same on the board as in the list. A counted item always takes the pill: its
+  // count is the figure that matters, not a date.
+  const due = (opts.counted ? '' : shortDueLabel(task)) || status;
   return `
       <button type="button" class="hk-bcard hk-press${urgency ? ` ${urgency}` : ''}" data-id="${escapeHTML(
         task.id,
       )}" role="button" tabindex="0" aria-label="${aria}">
         <span class="hk-bdot" aria-hidden="true"></span>
         <span class="hk-bname">${escapeHTML(task.name)}</span>
-        <span class="hk-bdue">${escapeHTML(shortDueLabel(task))}</span>
+        <span class="hk-bdue">${escapeHTML(due)}</span>
       </button>`;
 }
 
@@ -448,6 +464,22 @@ export function renderActionSheet(p: PanelHost, host: HTMLElement): void {
     if (p._actionSheet.open) closeActionSheet(p);
   });
   body.classList.add('hk-sheet');
+
+  // What the tile or the card had no room for: the status pill, the chips that
+  // qualify the task (who manages it, whether its integration is offline, its
+  // tag), and the meta line. The actions below act on these facts, so the sheet
+  // shows them first. The device chip stays on the task page, one row below.
+  const counted = countedProgress(task, p._assets, p._tasks);
+  const chips = [
+    statusChipHtml(task, p._hass, { elapsed: true, counted }),
+    managedChip(p, task),
+    tagChip(p, task),
+    ...taskChipsList(task),
+  ].filter(Boolean);
+  const summary = document.createElement('div');
+  summary.className = 'hk-sheet-summary';
+  summary.innerHTML = `<div class="hk-chips">${chips.join('')}</div><div class="hk-meta">${taskMetaHtml(p, task)}</div>`;
+  body.appendChild(summary);
 
   const run = (action: SheetAction): void => {
     if (action.id === 'done') {
