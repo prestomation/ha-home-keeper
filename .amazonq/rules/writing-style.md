@@ -127,6 +127,21 @@ keys the same as the English source (see "Translations" in
   real thing.
 - Do not tell a story. Write what the software does and what the user does.
 - Do not repeat a point in different words.
+- **Do not write mannered prose.** This rule is strict. It applies to `CHANGELOG.md`
+  and to all user documentation. Write each fact as a plain statement. Do not use
+  these forms:
+  - A contrast formula such as "not X, but Y" or "X, not Y". Write Y.
+  - A colon that sets up a reveal, such as "The fix is simple: one field." Write a
+    full sentence.
+  - An aphorism, or a line written to sound neat, such as "Its part is its editor."
+  - A dramatic fragment, such as "No setup. No automation."
+  - Quotation marks around a name that you made up.
+  - A stock phrase such as "worth noting", "in short", "the good news is", or "out of
+    the box".
+  - Alliteration, wordplay, or a pun.
+
+  These examples come from user text. The instructions in this file use "Write X, not
+  Y" to teach a rule, and user text does not.
 - The house rules above are enforced by the `HomeKeeper` Vale style in
   `styles/HomeKeeper/`. It is committed, and `.vale.ini` loads it next to
   `ai-tells`. Add a token there when a new banned word appears in review.
@@ -208,7 +223,9 @@ can be a noun or a verb as listed, and it can appear in a heading.
    Replace them.
 3. Find every synonym for a glossary name. Replace it.
 4. Find every parenthesis, em dash, and semicolon. Remove or split.
-5. Find every sentence that opens with "it", "this", or "there". Cut the subject and
+5. Find every contrast formula, colon reveal, aphorism, and dramatic fragment.
+   Rewrite each one as a plain statement.
+6. Find every sentence that opens with "it", "this", or "there". Cut the subject and
    the verb, and keep the phrase.
-6. Check that every instruction is a command in the active voice.
-7. Run `vale <file>` on a documentation file.
+7. Check that every instruction is a command in the active voice.
+8. Run `vale <file>` on a documentation file.

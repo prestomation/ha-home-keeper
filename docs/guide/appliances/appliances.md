@@ -182,15 +182,15 @@ count is derived from, and a larger target could lose them.
 
 ##### Scan a tag to complete a wear item's task
 
-A task that Home Keeper creates from a wear item has no **Edit** button. Its part is
-its editor. To complete that task with an [NFC or RFID tag](../tasks/nfc-tags.md), open
-the wear item in the part editor and select the tag in the **NFC/RFID tag** field, or
-type the tag ID.
+A task that Home Keeper creates from a wear item has no **Edit** button. Set its tag
+in the part editor. To complete that task with an [NFC or RFID tag](../tasks/nfc-tags.md),
+open the wear item in the part editor and select the tag in the **NFC/RFID tag** field,
+or type the tag ID.
 
-- A wear item that repeats every so many months puts the tag on its maintenance task,
-  so a scan marks the part replaced.
-- A counted wear item puts the tag on its use task, so a scan counts 1 use. Put the
-  sticker on the thing you use.
+- For a wear item with an interval in months, the tag completes the maintenance task.
+  A scan marks the part replaced.
+- For a counted wear item, the tag completes the use task. A scan records 1 use. Put
+  the tag on the item that you use.
 
 The part sets the tag of its tasks. The `home_keeper.update_task` action cannot change
 the tag of a task that a wear item creates.

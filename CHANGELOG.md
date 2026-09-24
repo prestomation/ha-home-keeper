@@ -11,8 +11,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **[Wear item NFC tags](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#scan-a-tag-to-complete-a-wear-items-task).**
-  Set an NFC/RFID tag on a wear item, and a scan completes the task it creates. For
-  a counted wear item, a scan counts 1 use. (Fixes #364) (Thanks @berezovskyi-oleksandr!)
+  Scan an NFC/RFID tag to complete the task that a wear item creates. On a counted
+  wear item, a scan records 1 use. (Fixes #364) (Thanks @berezovskyi-oleksandr!)
 
 ## [0.25.0] - 2026-09-24
 
