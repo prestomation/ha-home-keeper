@@ -1033,3 +1033,26 @@ def test_needs_pass_notices_a_new_description():
         )
         is False
     )
+
+
+def test_product_only_falls_back_when_the_part_has_no_name():
+    assets = _assets()
+    assets["asset1"]["parts"][0]["name"] = None
+    indexed = sh.buy_tasks_by_part(
+        {"t1": _buy_task()}, assets, style=sh.LINE_STYLE_PRODUCT_ONLY
+    )
+    assert indexed[KEY]["name"] == "Buy Anode rod"
+
+
+def test_needs_pass_is_quiet_for_a_line_with_no_amount_and_no_description():
+    # A list that holds descriptions, a part with no amount, and nothing written:
+    # there is nothing to do, so no list is read.
+    assert (
+        sh.needs_pass(
+            tracked=_tracked(),
+            desired=_desired(amount=""),
+            target=TARGET,
+            capabilities=_DESC,
+        )
+        is False
+    )

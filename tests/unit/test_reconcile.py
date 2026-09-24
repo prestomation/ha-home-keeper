@@ -560,3 +560,19 @@ def test_a_generated_buy_name_is_recognized_in_any_language(name):
 )
 def test_a_typed_name_is_not_mistaken_for_a_generated_one(name):
     assert rc.is_generated_buy_name(name) is False
+
+
+def test_renaming_one_buy_task_does_not_stop_the_next_part_getting_one():
+    # The rename of an existing reminder must not end the walk over the parts: a
+    # second part that just went low still gets its own reminder in the same pass.
+    first = _consumable(pid="p1", name="Filter", stock=0, reorder_at=1)
+    asset = _asset(parts=[first])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    first["name"] = "Pleated filter"
+    asset["parts"].append(_consumable(pid="p2", name="Gasket", stock=0, reorder_at=1))
+    tasks2, changed = _buy_reconcile({"a1": asset}, tasks)
+    assert changed is True
+    assert sorted(t["name"] for t in tasks2.values()) == [
+        "Buy Gasket",
+        "Buy Pleated filter",
+    ]
