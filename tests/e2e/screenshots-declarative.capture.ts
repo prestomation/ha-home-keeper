@@ -21,6 +21,7 @@
 import { test, expect } from '@playwright/test';
 import { callService, listTasks, openPanel, openSettingsSection } from './tests/helpers';
 import { centre } from './shots';
+import { PHONE } from './viewports';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
@@ -191,7 +192,9 @@ test('capture a declarative-companion task page', async ({ page }) => {
 
     // 21f. Edit recipe opens the recipe itself, over the task page. The dialog is
     // tall, so give it room and photograph its own surface (same treatment as 21d).
-    await page.setViewportSize({ width: 1280, height: 1800 });
+    // The recipe has a device class, so More filters opens and the dialog grows by
+    // the filter and exclusion pickers (#373).
+    await page.setViewportSize({ width: 1280, height: 2600 });
     await actions.locator('.d-edit-recipe').click();
     const dialog = panel.locator('ha-dialog.hk-decl-dialog');
     await expect(dialog.locator('[data-decl-section="identity"]')).toBeVisible({
@@ -279,6 +282,90 @@ test('capture the declarative recipe row at both widths', async ({ page }) => {
     await phoneRow.locator('.hk-companion-actions').scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${OUT}/21i-panel-mobile-recipe-row.png` });
+    await page.setViewportSize({ width: 1280, height: 720 });
+  } finally {
+    await callService('home_keeper', 'delete_declarative_companion', { id: specId });
+  }
+});
+
+/**
+ * The recipe dialog's More filters block and the preview's Exclude button (#373),
+ * at both widths.
+ *
+ * The recipe watches every demo binary sensor, so the preview has several rows. One
+ * row is excluded with its own Exclude button, which is the flow the shots document:
+ * the entity leaves the matches, shows under them with Include, and lands in the
+ * Excluded entities picker above. The recipe is added over the service and deleted
+ * again, so the container is left as it was found.
+ */
+test('capture the recipe filters and exclusions at both widths', async ({ page }) => {
+  const created = await callService(
+    'home_keeper',
+    'add_declarative_companion',
+    {
+      name: 'Low battery',
+      selection: { domain: 'binary_sensor', entity_regex: 'binary_sensor\\.hk_demo_.*' },
+      trigger: { mode: 'state', state: 'on', clear_on_recover: true },
+      task_template: { name_template: 'Check {{ friendly_name }}' },
+    },
+    true,
+  );
+  const specId = created.companion.id as string;
+
+  const openRecipe = async () => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await openSettingsSection(panel, 'companions');
+    await panel.locator(`.hk-decl-row[data-spec-id="${specId}"] .hk-decl-edit`).click();
+    const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+    await expect(dialog.locator('[data-decl-section="identity"]')).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(/Showing \d+ of \d+/, {
+      timeout: 20_000,
+    });
+    // The regex is under More filters, so the row is open on this recipe.
+    await expect(dialog.locator('.hk-decl-more')).toHaveAttribute('aria-expanded', 'true');
+    await dialog.locator('.hk-decl-exclude').first().click();
+    await expect(dialog.locator('.hk-decl-excluded-head')).toHaveText('1 entity excluded', {
+      timeout: 20_000,
+    });
+    return dialog;
+  };
+
+  try {
+    // 21j. Desktop. Tall enough for the whole dialog to lay out, then clipped to the
+    // dialog surface, the same way 21d is.
+    await page.setViewportSize({ width: 1280, height: 2600 });
+    const dialog = await openRecipe();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(600);
+    const surface = await dialog.locator('dialog').first().boundingBox();
+    if (!surface) throw new Error('the recipe dialog has no rendered surface to photograph');
+    const pad = 16;
+    await page.screenshot({
+      path: `${OUT}/21j-panel-declarative-filters.png`,
+      clip: {
+        x: Math.max(0, surface.x - pad),
+        y: Math.max(0, surface.y - pad),
+        width: surface.width + pad * 2,
+        height: surface.height + pad * 2,
+      },
+    });
+    await dialog.locator('.hk-decl-cancel').click();
+
+    // 21k. A phone. The dialog fills the screen and scrolls; scroll to the preview,
+    // where each row has an icon-only Exclude button and the excluded entity is listed
+    // with Include.
+    await page.setViewportSize(PHONE);
+    const phoneDialog = await openRecipe();
+    await phoneDialog.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
+    // The click leaves the pointer over the next row's button; move it off, so the
+    // shot shows the buttons at rest rather than one in its hover state.
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${OUT}/21k-panel-mobile-declarative-filters.png` });
+    await phoneDialog.locator('.hk-decl-cancel').click();
     await page.setViewportSize({ width: 1280, height: 720 });
   } finally {
     await callService('home_keeper', 'delete_declarative_companion', { id: specId });

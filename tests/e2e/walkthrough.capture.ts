@@ -822,6 +822,16 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   const declForm = panel.locator('ha-dialog.hk-decl-dialog');
   await expect(declForm.locator('.hk-decl-preview-header')).toBeVisible();
   await page.waitForTimeout(BEAT * 3);
+  // More filters opens the other filters and the Exclusions block (#373), and
+  // Exclude on a preview row leaves that entity out of the recipe.
+  await declForm.locator('.hk-decl-more').click();
+  await declForm.locator('[data-decl-section="exclusions"]').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+  await declForm.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
+  await declForm.locator('.hk-decl-exclude').first().click();
+  await expect(declForm.locator('.hk-decl-excluded-head')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
   await declForm.locator('.hk-decl-cancel').click();
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
   await page.waitForTimeout(BEAT);

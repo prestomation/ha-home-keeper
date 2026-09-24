@@ -102,6 +102,22 @@ async function fillSection(
     .fill(value);
 }
 
+/**
+ * Type a regex into the recipe's entity id filter.
+ *
+ * The regex lives under **More filters** (#373), which is closed on a new recipe, so
+ * open it first. Device class is the first text box there and the regex the second.
+ */
+async function fillRegex(dialog: Locator, value: string): Promise<void> {
+  const more = dialog.locator('.hk-decl-more');
+  if ((await more.getAttribute('aria-expanded')) !== 'true') await more.click();
+  await expect(dialog.locator('[data-decl-section="filters"]')).toBeVisible();
+  await fillSection(dialog, 'filters', 1, value);
+}
+
+/** Every demo binary sensor the container seeds: a recipe with several matches. */
+const DEMO_BINARY_REGEX = 'binary_sensor\\.hk_demo_.*';
+
 test.describe('Home Keeper panel — declarative companions', () => {
   /** Spec ids present before the test, so only what a test created is torn down. */
   let seeded: Set<string>;
@@ -297,7 +313,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
     const dialog = panel.locator('ha-dialog.hk-decl-dialog');
     await expectDialogOpen(dialog, '[data-decl-section="identity"]');
     await fillSection(dialog, 'identity', 0, 'E2E overlap duplicate');
-    await fillSection(dialog, 'selection', 1, MOISTURE_REGEX);
+    await fillRegex(dialog, MOISTURE_REGEX);
 
     // The warning is computed in the panel from the tasks and the recipes it already
     // holds, so it lands with the preview rather than after a second round trip.
@@ -335,7 +351,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
     // and unmake for one assertion. Selection schema: integration, domain (both
     // dropdowns), then device_class and entity_regex as the two text fields.
     await fillSection(dialog, 'identity', 0, 'E2E mode switch probe');
-    await fillSection(dialog, 'selection', 1, DEMO_BATTERY.replace('.', '\\.'));
+    await fillRegex(dialog, DEMO_BATTERY.replace('.', '\\.'));
 
     // State → Threshold: the threshold's own fields appear. A field label is drawn
     // inside the HA component's own shadow root, so it is reachable through
@@ -365,6 +381,64 @@ test.describe('Home Keeper panel — declarative companions', () => {
     expect(saved!.trigger.mode).toBe('state');
     expect(saved!.trigger).not.toHaveProperty('comparison');
     expect(saved!.trigger).not.toHaveProperty('value');
+
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+  test('Exclude on a preview row leaves that entity out of the recipe (#373)', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    const created = await callService(
+      'home_keeper',
+      'add_declarative_companion',
+      {
+        name: 'E2E exclusion probe',
+        selection: { domain: 'binary_sensor', entity_regex: DEMO_BINARY_REGEX },
+        trigger: { mode: 'state', state: 'on', clear_on_recover: true },
+        task_template: { name_template: 'E2E exclusion probe: {{ friendly_name }}' },
+      },
+      true,
+    );
+    const specId = created.companion.id as string;
+    const probeEntities = async (): Promise<string[]> =>
+      (await listTasks())
+        .filter((t) => t.source?.declarative_companion?.spec_id === specId)
+        .map((t) => t.source.declarative_companion.entity_id as string)
+        .sort();
+    await expect.poll(async () => (await probeEntities()).length, { timeout: 30_000 }).toBeGreaterThan(1);
+    const before = await probeEntities();
+
+    const panel = await openDeclarativeSection(page);
+    await panel.locator(`.hk-decl-row[data-spec-id="${specId}"] .hk-decl-edit`).click();
+    const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+    await expectDialogOpen(dialog, '[data-decl-section="identity"]');
+    const header = dialog.locator('.hk-decl-preview-header');
+    await expect(header).toHaveText(`Showing ${before.length} of ${before.length} matches`, {
+      timeout: 20_000,
+    });
+
+    // The regex is one of the filters under More filters, so the row opens by
+    // default on this recipe and counts it.
+    const more = dialog.locator('.hk-decl-more');
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+    await expect(more.locator('.hk-decl-more-summary')).toHaveText('1 filter');
+
+    const excluded = before[0];
+    await dialog.locator(`.hk-decl-exclude[data-toggle-entity="${excluded}"]`).click();
+    const left = before.length - 1;
+    await expect(header).toHaveText(`Showing ${left} of ${left} matches`, { timeout: 20_000 });
+    await expect(dialog.locator('.hk-decl-excluded-head')).toHaveText('1 entity excluded');
+    await expect(dialog.locator(`.hk-decl-include[data-toggle-entity="${excluded}"]`)).toBeVisible();
+    await expect(more.locator('.hk-decl-more-summary')).toHaveText('1 filter · 1 exclusion');
+
+    // The four exclusion pickers are under More filters, below the other filters.
+    const exclusions = dialog.locator('[data-decl-section="exclusions"]');
+    await expect(exclusions).toBeVisible();
+    await expect(dialog.locator('.hk-decl-more-body .hk-indent-head')).toContainText('Exclusions');
+
+    await dialog.locator('.hk-decl-save').click();
+    await expect(dialog).toHaveCount(0, { timeout: 20_000 });
+    const stored = (await listSpecs()).find((s) => s.id === specId);
+    expect(stored?.selection.exclude_entity_ids).toEqual([excluded]);
+    await expect.poll(probeEntities, { timeout: 30_000 }).toEqual(before.slice(1));
 
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });

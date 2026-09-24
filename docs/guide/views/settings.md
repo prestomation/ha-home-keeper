@@ -84,6 +84,26 @@ The *Add companion* dialog shows a live preview of the matches before you save. 
 warning shows above 50 matches. A recipe cannot match more than 500 entities. See
 [INTEGRATING.md](../../INTEGRATING.md) for the service reference.
 
+The *Which entities?* section of the dialog has the integration and the entity domain.
+Click **More filters** to see the other filters. Set a device class there, or write an
+entity id regex. You can also limit the recipe to some areas or to some labels. An
+entity that has no area of its own uses the area of its device. When **More filters**
+is closed, its row shows how many filters and exclusions are set.
+
+The **Exclusions** block under the filters removes entities from the recipe. Select
+the entities, devices, areas or labels to exclude. Home Keeper then makes no task for
+an entity that matches one of them. This is the same as the exclusions of Problem
+sensor sync.
+
+Each row in the preview has an **Exclude** button. Click it to exclude that entity.
+The entity then shows under the matches with an **Include** button, which adds it
+back. The preview shows 10 matches at most. To exclude an entity that is not in the
+preview, select it in the excluded entities list.
+
+![The recipe dialog with More filters open and one excluded entity in the Exclusions block](../../images/21j-panel-declarative-filters.png)
+
+![The same dialog on a phone, with an Exclude button on each preview row](../../images/21k-panel-mobile-declarative-filters.png)
+
 ![The two-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](../../images/21c-panel-declarative-preset-picker.png)
 
 ![The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right](../../images/21d-panel-declarative-add-dialog.png)
