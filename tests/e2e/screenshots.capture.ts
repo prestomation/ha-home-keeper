@@ -609,14 +609,20 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await layoutMenu.selectOption('tiles');
   await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/70-panel-task-tiles.png`, fullPage: true });
+  // Viewport, not full page: a full-page capture of this panel paints Home
+  // Assistant's fixed sidebar twice (see 70c).
+  await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
+  await page.screenshot({ path: `${OUT}/70-panel-task-tiles.png` });
 
   // 70b. Board — one column per Group by group, read across rather than down. The
   // grouping is status here, so the columns are the sections the list already has.
   await layoutMenu.selectOption('board');
   await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/70b-panel-task-board.png`, fullPage: true });
+  // Viewport, not full page: a full-page capture of this panel paints Home
+  // Assistant's fixed sidebar twice (see 70c).
+  await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
+  await page.screenshot({ path: `${OUT}/70b-panel-task-board.png` });
 
   // 70c. The action sheet a press on a tile or a board card opens: Done, the two
   // deferrals, Due today and Open task. It is where the actions a row carries
@@ -1789,6 +1795,16 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/70d-panel-mobile-task-tiles.png` });
+
+  // 70f. The action sheet on a phone. Below 700px the dialog fills the screen, so
+  // the status and the meta line above the actions are the first thing a press
+  // shows. The desktop sheet at 70c documents none of that.
+  await panel.locator(`.hk-tile[data-id="${TASK.furnaceFilter}"]`).click();
+  await expect(panel.locator('ha-dialog[open] .hk-sheet-summary')).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/70f-panel-mobile-task-action-sheet.png` });
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
 
   // 70e. The board on a phone. There is no room for columns side by side, so a
   // column takes most of the width and the next one is a swipe away, snapping to
