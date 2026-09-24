@@ -1443,9 +1443,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await shoppingSettings.scrollIntoViewIfNeeded();
   await shoppingSettings.getByText('Product only', { exact: true }).click();
   await expect(shoppingSettings.locator('.hk-shopping-preview-title').first()).toHaveText(
-    'Anode rod',
+    /^Anode rod/,
     { timeout: 10_000 },
   );
+  await expect(shoppingSettings.locator('.hk-shopping-preview')).not.toContainText('Buy');
   await expect(shoppingSettings.locator('.hk-settings-value')).toContainText(
     'product names only',
   );
