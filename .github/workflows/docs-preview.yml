@@ -41,7 +41,7 @@ jobs:
     # Forked PRs cannot get a preview (no write token); skip them gracefully.
     if: github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Need history back to the PR base so we can diff which docs changed.
           fetch-depth: 0

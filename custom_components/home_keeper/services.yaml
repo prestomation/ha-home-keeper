@@ -181,6 +181,14 @@ add_task:
       example: '[{"start": "04-01", "end": "05-31"}, {"start": "09-01", "end": "10-31"}]'
       selector:
         object:
+    enabled:
+      name: Enabled
+      description: >-
+        Disable or enable this task. A disabled task keeps its history and its
+        settings, and its due date stays where it was. Home Keeper keeps it out of your
+        reminders and your lists until you enable it again.
+      selector:
+        boolean:
     source:
       name: Source
       description: >-
@@ -358,6 +366,14 @@ update_task:
       example: '[{"start": "04-01", "end": "05-31"}, {"start": "09-01", "end": "10-31"}]'
       selector:
         object:
+    enabled:
+      name: Enabled
+      description: >-
+        Disable or enable this task. A disabled task keeps its history and its
+        settings, and its due date stays where it was. Home Keeper keeps it out of your
+        reminders and your lists until you enable it again.
+      selector:
+        boolean:
     source:
       name: Source
       description: >-

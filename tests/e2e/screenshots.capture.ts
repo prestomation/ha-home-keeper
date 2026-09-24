@@ -601,24 +601,24 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // Reset grouping so later list shots are unaffected.
   await panel.locator('select[data-seg-select="group"]').selectOption('status');
 
-  // 68. Tiles — the Layout menu's second entry. Each task is a card with its name
+  // 70. Tiles — the Layout menu's second entry. Each task is a card with its name
   // and its status pill and nothing else, three to a row, so a whole week of work
   // is on one screen. Everything a list row carries inline moves into the action
-  // sheet at 68c.
+  // sheet at 70c.
   const layoutMenu = panel.locator('select[data-seg-select="layout"]');
   await layoutMenu.selectOption('tiles');
   await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/68-panel-task-tiles.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/70-panel-task-tiles.png`, fullPage: true });
 
-  // 68b. Board — one column per Group by group, read across rather than down. The
+  // 70b. Board — one column per Group by group, read across rather than down. The
   // grouping is status here, so the columns are the sections the list already has.
   await layoutMenu.selectOption('board');
   await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${OUT}/68b-panel-task-board.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/70b-panel-task-board.png`, fullPage: true });
 
-  // 68c. The action sheet a press on a tile or a board card opens: Done, the two
+  // 70c. The action sheet a press on a tile or a board card opens: Done, the two
   // deferrals, Due today and Open task. It is where the actions a row carries
   // inline went, so it is the shot that says a compact layout costs none of them.
   // Viewport, not full page. The sheet is fixed to the viewport, and a full-page
@@ -633,7 +633,7 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   });
   await page.waitForTimeout(400);
   await page.evaluate(() => document.scrollingElement?.scrollTo({ top: 0, left: 0 }));
-  await page.screenshot({ path: `${OUT}/68c-panel-task-action-sheet.png` });
+  await page.screenshot({ path: `${OUT}/70c-panel-task-action-sheet.png` });
   await page.keyboard.press('Escape');
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
   // Back to rows. The choice is stored per user, so a layout left behind here is
@@ -1709,6 +1709,59 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(1500); // let cards settle
   await page.screenshot({ path: `${OUT}/4-usage-todo-and-calendar.png`, fullPage: true });
 
+  // 68/69. A switched-off task (issue #344). `enabled` is a field on
+  // `home_keeper.update_task`, so an automation on a helper can take a pool's tasks
+  // out of every list for the winter. There is no control for it in the panel and
+  // there is deliberately never going to be one, so the only way to reach this state
+  // is the action — which is also how a user reaches it. Both halves are photographed:
+  // the Disabled section on the list, where the rows carry a Disabled label instead of
+  // a due date, and the task's own page, which is where the one control the panel does
+  // offer lives. Switched back on afterwards, so the phone block below photographs the
+  // same list every earlier shot did.
+  await page.evaluate(async (IDS) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    for (const id of [IDS.TASK.waterFilter, IDS.TASK.carRegistration]) {
+      await hass.callService('home_keeper', 'update_task', { task_id: id, enabled: false });
+    }
+  }, { TASK });
+  await openPanel(page);
+  // Shot 23 left a Profile selected, and a Profile excludes a switched-off task by
+  // definition — `matches_filter` requires `enabled` before it looks at anything else.
+  // Clear it and stand on All, which is the one scope that keeps these rows.
+  await panel.locator('select[data-profile-filter]').selectOption('');
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+  const disabledGroup = panel.locator('details.hk-group[data-group-key="status:disabled"]');
+  await expandGroup(disabledGroup);
+  await expect(disabledGroup.locator('ha-card.hk-card')).toHaveCount(2);
+  await expect(
+    disabledGroup.locator('ha-assist-chip.hk-disabled').first(),
+  ).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/68-panel-task-disabled-list.png`, fullPage: true });
+
+  await openRow(page, panel, `.detail-open[data-detail-id="${TASK.waterFilter}"]`);
+  await expect(panel.locator('.hk-disabled-banner')).toBeVisible();
+  await expect(panel.locator('.d-enable')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/69-panel-task-enable-banner.png`, fullPage: true });
+
+  // Enable is the panel's own control, so use it rather than a second action call:
+  // the button is the thing under test, and pressing it proves the way back works.
+  await panel.locator('.d-enable').click();
+  await expect(panel.locator('.hk-disabled-banner')).toHaveCount(0);
+  await page.evaluate(async (IDS) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'update_task', {
+      task_id: IDS.TASK.carRegistration,
+      enabled: true,
+    });
+  }, { TASK });
+
   // 50-53. The phone layout, which is different enough from the desktop one that the
   // shots above document none of it: the tabs are along the bottom, Add floats, and
   // Settings opens on an index rather than six expanded sections. Asserted in
@@ -1728,22 +1781,22 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
 
-  // 68d. Tiles on a phone. Two to a row rather than three, which is the layout the
+  // 70d. Tiles on a phone. Two to a row rather than three, which is the layout the
   // picker exists for: a phone list row is a tall stacked block, so the same screen
   // holds four times as many tasks as tiles.
   const phoneLayoutMenu = panel.locator('select[data-seg-select="layout"]');
   await phoneLayoutMenu.selectOption('tiles');
   await expect(panel.locator('.hk-tiles .hk-tile').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/68d-panel-mobile-task-tiles.png` });
+  await page.screenshot({ path: `${OUT}/70d-panel-mobile-task-tiles.png` });
 
-  // 68e. The board on a phone. There is no room for columns side by side, so a
+  // 70e. The board on a phone. There is no room for columns side by side, so a
   // column takes most of the width and the next one is a swipe away, snapping to
   // the column edge — a different layout from the desktop board, not a narrower one.
   await phoneLayoutMenu.selectOption('board');
   await expect(panel.locator('.hk-board-col .hk-bcard').first()).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/68e-panel-mobile-task-board.png` });
+  await page.screenshot({ path: `${OUT}/70e-panel-mobile-task-board.png` });
   // Back to rows for the phone shots below, which are all of the list.
   await phoneLayoutMenu.selectOption('rows');
   await expect(panel.locator('#hk-list ha-card.hk-card').first()).toBeVisible({ timeout: 10_000 });
@@ -1904,6 +1957,37 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await tooLarge.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60d-panel-mobile-transfer-too-large.png` });
+
+  // 68c/69c. The switched-off task on a phone. Below 700px the Disabled label and the
+  // row's name share a column that the desktop row splits into three, and the banner's
+  // Enable button drops under its own text rather than sitting beside it — so the
+  // desktop pair documents neither. Last in the phone block, and left switched on
+  // after, so nothing here changes what an earlier shot photographed.
+  await page.evaluate(async (IDS) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'update_task', {
+      task_id: IDS.TASK.waterFilter,
+      enabled: false,
+    });
+  }, { TASK });
+  await openPanel(page);
+  await panel.locator('#mtab-tasks').click();
+  const disabledPhone = panel.locator('details.hk-group[data-group-key="status:disabled"]');
+  await expandGroup(disabledPhone);
+  await expect(disabledPhone.locator('ha-assist-chip.hk-disabled').first()).toBeVisible();
+  await disabledPhone.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/68c-panel-mobile-task-disabled.png` });
+
+  await openRow(page, panel, `.detail-open[data-detail-id="${TASK.waterFilter}"]`);
+  await expect(panel.locator('.hk-disabled-banner')).toBeVisible();
+  await expect(panel.locator('.d-enable')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/69c-panel-mobile-task-enable-banner.png` });
+  await panel.locator('.d-enable').click();
+  await expect(panel.locator('.hk-disabled-banner')).toHaveCount(0);
 
   // The task layout is stored per user on the server, so it outlives this capture
   // and would greet the next run — and the e2e suite — in whatever the last shot

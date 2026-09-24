@@ -170,6 +170,13 @@ ADD_TASK_SCHEMA = vol.Schema(
         # passed as one object, and ``None`` clears the season. Validated by
         # models.normalize_active_season.
         vol.Optional("active_season"): vol.Any(None, dict, [dict]),
+        # Off keeps the task and everything recorded on it, and takes it out of every
+        # surface that reads a schedule: the to-do list, the calendar, the per-task
+        # entities, the profiles, the announcements, the sensor watcher and a tag
+        # scan. It does not move ``next_due``, so a task switched back on is as late
+        # as its stored date says. Home Keeper offers no switch for this: a service
+        # call is what turns a task off, and the panel only turns one back on.
+        vol.Optional("enabled"): cv.boolean,
         vol.Optional("source"): dict,
         vol.Optional("managed_by"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
@@ -201,6 +208,9 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("require_tag_scan"): cv.boolean,
         # See ADD_TASK_SCHEMA: ``None`` clears the season, one object is one window.
         vol.Optional("active_season"): vol.Any(None, dict, [dict]),
+        # See ADD_TASK_SCHEMA. Off takes the task out of every schedule surface and
+        # leaves ``next_due`` where it was.
+        vol.Optional("enabled"): cv.boolean,
         vol.Optional("source"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
     }
@@ -619,7 +629,6 @@ TRANSFER_TASK_RECORD_SCHEMA = vol.Schema(
         # to read on an install whose registry ids are all different.
         vol.Optional("area"): cv.string,
         vol.Optional("appliance"): cv.string,
-        vol.Optional("enabled"): cv.boolean,
         # Spelled out rather than inherited: ``vol.Any(None, dict, [dict])`` carries no
         # shape at all, and a schema that says "object" would reject the list every
         # export actually writes.

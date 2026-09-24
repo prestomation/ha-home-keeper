@@ -132,6 +132,9 @@ export interface PanelHost extends HTMLElement {
    *  open and kept; null until then. */
   _declarativePresets: DeclarativeCompanionPreset[] | null;
   /** Delete a task outright (already confirmed). */
+  /** Switch a task back on. The panel offers no way to switch one off — that is a
+   *  service call — so this is the way back from one aimed at the wrong task. */
+  _enableTask(task: Task): Promise<void>;
   _delete(task: Task): Promise<void>;
   /** Delete an appliance outright (already confirmed). */
   _deleteAsset(asset: Asset): Promise<void>;

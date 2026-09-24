@@ -251,6 +251,46 @@ def test_merge_update_name_only_keeps_schedule():
     assert updated["next_due"] == original_due  # schedule untouched
 
 
+def test_merge_update_switches_a_task_off_and_leaves_its_date_alone():
+    # ``enabled`` ships as a field on ``home_keeper.update_task`` so an automation can
+    # follow a helper — a pool's tasks go off when the pool closes. Switching a task
+    # off must not touch ``next_due``: the date is what ``set_due_today`` is for, and a
+    # silent reschedule here would move a schedule under whoever paired the two.
+    task = m.build_task(
+        {
+            "name": "Backwash the filter",
+            "recurrence_type": "floating",
+            "interval": 2,
+            "unit": "weeks",
+            "last_completed": NOW.isoformat(),
+        },
+        now=NOW,
+    )
+    assert task["enabled"] is True
+    original_due = task["next_due"]
+
+    off = m.merge_update(task, {"enabled": False}, now=NOW)
+    assert off["enabled"] is False
+    assert off["next_due"] == original_due
+
+    # Four months later the date has not moved, so the task comes back as late as it
+    # was left. That is the whole difference from an active season, which clamps the
+    # date forward to the next window start.
+    later = datetime(2026, 10, 13, 10, tzinfo=TZ)
+    on = m.merge_update(off, {"enabled": True}, now=later)
+    assert on["enabled"] is True
+    assert on["next_due"] == original_due
+
+
+def test_merge_update_leaves_enabled_alone_when_the_call_does_not_send_it():
+    # Every other field on ``update_task`` is only-when-sent, and this one has to be
+    # too: an edit from the panel's task form sends no ``enabled`` at all, and a form
+    # save that quietly switched a task back on would undo an automation.
+    task = m.build_task({"name": "Filter", "enabled": False}, now=NOW)
+    assert task["enabled"] is False
+    assert m.merge_update(task, {"name": "Renamed"}, now=NOW)["enabled"] is False
+
+
 def test_merge_update_interval_recomputes_due():
     # Seed a completion so the recompute measures from a fixed point (a never-completed
     # task would just stay due-now, hiding the interval change).

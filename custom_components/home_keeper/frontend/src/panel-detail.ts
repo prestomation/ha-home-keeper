@@ -444,7 +444,23 @@ function taskDetail(p: PanelHost, task: Task): string {
     history: historySection(p, 'task', task.id),
   };
   const tab = p._taskTab();
+  // Above everything, and only on a task that is off. A switched-off task is absent
+  // from the to-do list, the calendar, its own entities, every profile and every
+  // announcement, so the page that still shows a schedule has to say why none of it
+  // is happening. Enable is the panel's only half of the switch: turning a task off
+  // is a service call, usually from an automation, and this is the way back from one
+  // aimed at the wrong task.
+  const disabledBanner =
+    task.enabled === false
+      ? `<ha-alert alert-type="warning" class="hk-disabled-banner">
+          ${escapeHTML(t('tasks.disabledBanner'))}
+          <ha-button slot="action" ${btnAttrs('primary')} class="d-enable">${escapeHTML(
+            t('btn.enable'),
+          )}</ha-button>
+        </ha-alert>`
+      : '';
   return `
+      ${disabledBanner}
       <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
         <div class="hk-chips">${statusChip}${dev}${area}${tag}${taskChips}${managed}</div>
@@ -1034,6 +1050,9 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
       ?.addEventListener('click', () => p._notifyBlocked(task));
     p._wireDeferMenus(root);
     wireSkipHistoryRows(p, root);
+    root
+      .querySelector('.d-enable')
+      ?.addEventListener('click', () => void p._enableTask(task));
     root.querySelector('.d-edit')?.addEventListener('click', () => p._openEdit(task));
     root.querySelector('.d-dup')?.addEventListener('click', () => p._openDuplicate(task));
     // A greyed Duplicate is a span carrying the tap (a disabled button swallows

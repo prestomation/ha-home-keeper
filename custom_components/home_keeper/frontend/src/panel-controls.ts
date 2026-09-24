@@ -287,6 +287,14 @@ function seg(
  * than no count at all. Takes no `PanelHost`: it is a pure function of the task.
  */
 export function scopeMatches(task: Task, scope: TaskFilter, now = Date.now()): boolean {
+  // A switched-off task belongs to no pill but All. Its `next_due` is frozen where it
+  // was — switching a task off never moves the date — so the clock keeps running
+  // against a task that fires no announcement, leaves no to-do item and holds no
+  // entities. Counted in Overdue, a pool task switched off for the winter would climb
+  // past a hundred days late above a list of work nobody can do. All keeps it, so a
+  // task turned off by a service call is still findable from the panel that cannot
+  // turn one off.
+  if (task.enabled === false) return scope === 'all';
   // A buy reminder is overdue by the clock — it is minted with no due date, and a
   // dateless one-off is due now — but it is not *late work*, and this pill is the
   // panel's word for late work. Counting it here put "Overdue 13" above a list whose
@@ -362,6 +370,7 @@ export function groupTasks(p: PanelHost, tasks: Task[], now = Date.now()): Group
         | 'later'
         | 'monitored'
         | 'completed'
+        | 'disabled'
         | 'none';
       label: string;
     }[] = [
@@ -375,6 +384,10 @@ export function groupTasks(p: PanelHost, tasks: Task[], now = Date.now()): Group
       { bucket: 'monitored', label: t('section.monitored') },
       { bucket: 'none', label: t('section.noSchedule') },
       { bucket: 'completed', label: t('section.completed') },
+      // Last, below even Completed. A switched-off task is the one section with
+      // nothing to do in it: the rows are here so a service call aimed at the wrong
+      // task leaves something findable, not because they need attention.
+      { bucket: 'disabled', label: t('section.disabled') },
     ];
     return order
       .map(({ bucket, label }) => ({

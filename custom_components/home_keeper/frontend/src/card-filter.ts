@@ -29,6 +29,7 @@ export type StatusBucket =
   | 'later'
   | 'monitored'
   | 'completed'
+  | 'disabled'
   | 'none';
 
 /** Lovelace config for `custom:home-keeper-card`. */
@@ -138,6 +139,13 @@ export function statusBucket(
   opts: StatusBucketOptions = {},
 ): StatusBucket {
   const { today = true, completed = false } = opts;
+  // Ahead of everything, because a switched-off task's date is frozen at whatever it
+  // was when the task went off and keeps ageing against work nothing will announce.
+  // Bucketed by that date it heads the Overdue section — a pool task switched off for
+  // the winter sitting above genuinely late maintenance — and "no schedule" is not it
+  // either, since the schedule is intact and only switched off. It gets a section of
+  // its own, which both group tables place last.
+  if (task.enabled === false) return 'disabled';
   // A dormant triggered/sensor task is "monitored" — armed-but-not-due. An armed one
   // (next_due set) flows through the normal overdue/soon/later logic below.
   if (
@@ -574,6 +582,9 @@ const STATUS_ORDER: { bucket: StatusBucket; labelKey: string }[] = [
   { bucket: 'later', labelKey: 'section.later' },
   { bucket: 'monitored', labelKey: 'section.monitored' },
   { bucket: 'none', labelKey: 'section.noSchedule' },
+  // Last. A card is only ever shown these when its own `show_disabled` is on, and
+  // they are the rows there is nothing to do about.
+  { bucket: 'disabled', labelKey: 'section.disabled' },
 ];
 
 /**

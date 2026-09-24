@@ -498,6 +498,43 @@ describe('statusChipHtml', () => {
     );
   });
 
+  it('says Disabled on a switched-off task, whatever its stored date says', () => {
+    // The date is frozen where it was when the task went off, so every other branch
+    // would read it and report urgency nothing will announce. A pool task switched off
+    // in October must not sit in the list all winter counting days late.
+    const off = { enabled: false, next_due: '2026-06-10T12:00:00Z' };
+    const html = statusChipHtml(off, undefined, { now, elapsed: true });
+    expect(html).toContain('label="Disabled"');
+    expect(html).toContain('class="hk-disabled"');
+    expect(html).not.toContain('Overdue');
+    expect(html).not.toContain('3 days overdue');
+  });
+
+  it('puts Disabled ahead of every other status a task could carry', () => {
+    // Off beats each branch that would otherwise win: a counted wear item's progress,
+    // a buy reminder's Low stock, and a plain due date.
+    const counted = { count: 17, target: 25, noun: 'washes' };
+    expect(
+      statusChipHtml({ enabled: false, recurrence_type: 'use' }, undefined, { now, counted }),
+    ).toContain('label="Disabled"');
+    expect(statusChipHtml({ ...buy, enabled: false }, undefined, { now })).toContain(
+      'label="Disabled"',
+    );
+    expect(
+      statusChipHtml({ enabled: false, next_due: '2026-07-10T12:00:00Z' }, undefined, { now }),
+    ).toContain('label="Disabled"');
+  });
+
+  it('leaves a task with no enabled key alone, because absent means on', () => {
+    // Every task stored before the field shipped has no `enabled` key at all, and
+    // `enabled === false` is the only off state — `undefined` must read as on.
+    const late = { next_due: '2026-06-10T12:00:00Z' };
+    expect(statusChipHtml(late, undefined, { now })).not.toContain('Disabled');
+    expect(statusChipHtml({ ...late, enabled: true }, undefined, { now })).not.toContain(
+      'Disabled',
+    );
+  });
+
   it('still says Overdue for real maintenance', () => {
     const late = { next_due: '2026-06-10T12:00:00Z' };
     expect(statusChipHtml(late, undefined, { now })).toContain('label="Overdue"');

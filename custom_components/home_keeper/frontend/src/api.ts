@@ -688,6 +688,65 @@ function postUpload<T>(
   });
 }
 
+/**
+ * Read the bearer token for an upload, refreshing it first when it has expired.
+ *
+ * `hass.auth.data.access_token` is the cached token. Home Assistant expires an access
+ * token after about 30 minutes, and the websocket refreshes it only when it
+ * reconnects — so a panel open longer than that holds a live socket beside a dead
+ * token. Every other panel operation rides the websocket and keeps working; only the
+ * upload, which is the one plain HTTP call, fails with a 401 (issue #352). Read the
+ * `accessToken` getter after a refresh instead of the cached field.
+ *
+ * A failed refresh is not fatal here: send whatever token there is and let the server
+ * decide, so a transient refresh failure reports the real HTTP status.
+ */
+function currentToken(hass: Hass): string | undefined {
+  return hass.auth?.accessToken ?? hass.auth?.data?.access_token;
+}
+
+async function refreshedToken(hass: Hass): Promise<string | undefined> {
+  try {
+    await hass.auth?.refreshAccessToken?.();
+  } catch {
+    /* fall through with the token we have */
+  }
+  return currentToken(hass);
+}
+
+/**
+ * POST an upload with a fresh token, retrying once on a 401.
+ *
+ * The `expired` check above closes the common case, but the token can also expire
+ * between that check and the request, or after a clock change. One retry with a
+ * forced refresh covers that. The retry re-sends the body from the start, so progress
+ * restarts at 0% — a rare event, and better than a failed upload.
+ *
+ * The request is opened synchronously when the token is good, so a caller can still
+ * see the `XMLHttpRequest` in the same tick. Only a refresh puts a turn in front.
+ */
+function postUploadAuthed<T>(
+  hass: Hass,
+  url: string,
+  body: FormData,
+  opts?: UploadOptions,
+): Promise<T> {
+  const send = (token: string | undefined): Promise<T> => postUpload<T>(url, token, body, opts);
+  const first =
+    hass.auth?.expired && hass.auth.refreshAccessToken
+      ? refreshedToken(hass).then(send)
+      : send(currentToken(hass));
+
+  return first.catch((err: unknown) => {
+    const failure = err as UploadError;
+    // Only an expired token is worth a second attempt. An abort is the user's
+    // choice, and any other status is a real answer from the server.
+    if (failure.status !== 401 || failure.aborted || !hass.auth?.refreshAccessToken) throw err;
+    if (opts?.signal?.aborted) throw err;
+    return refreshedToken(hass).then(send);
+  });
+}
+
 /** Build the multipart body shared by both upload views. */
 function uploadBody(file: File, name?: string): FormData {
   const body = new FormData();
@@ -709,9 +768,9 @@ export async function uploadAssetDocument(
   name?: string,
   opts?: UploadOptions,
 ): Promise<Asset> {
-  const res = await postUpload<{ asset: Asset }>(
+  const res = await postUploadAuthed<{ asset: Asset }>(
+    hass,
     `/api/home_keeper/document/${assetId}/${documentId}`,
-    hass.auth?.data?.access_token,
     uploadBody(file, name),
     opts,
   );
@@ -737,9 +796,9 @@ export async function uploadPartFile(
   name?: string,
   opts?: UploadOptions,
 ): Promise<Part> {
-  const res = await postUpload<{ part: Part }>(
+  const res = await postUploadAuthed<{ part: Part }>(
+    hass,
     `/api/home_keeper/part_document/${assetId}/${partId}`,
-    hass.auth?.data?.access_token,
     uploadBody(file, name),
     opts,
   );

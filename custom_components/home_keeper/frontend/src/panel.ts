@@ -1233,6 +1233,29 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const label = t('done.autoClears');
     return `<span class="hk-auto-clear done-blocked-wrap" data-id="${escapeHTML(task.id)}" title="${escapeHTML(reason)}" aria-label="${escapeHTML(`${label}: ${reason}`)}"><ha-icon icon="mdi:autorenew" class="hk-chip-ic"></ha-icon>${escapeHTML(label)}</span>`;
   }
+  /** Switch a task back on.
+   *
+   *  The only half of the switch the panel offers. A service call is what turns a
+   *  task off — `home_keeper.update_task` with `enabled: false`, usually from an
+   *  automation that follows a helper — and the panel deliberately has no control
+   *  for that direction: a task that disappears from every list on one mis-tap is
+   *  worse than one that takes a service call to hide. The way back has to be here,
+   *  though, or a wrong service call strands a task with no way to find it again.
+   *
+   *  The due date is left where it is. A task switched off in October comes back as
+   *  late as its stored date says, which is what `home_keeper.set_due_today` is for.
+   */
+  async _enableTask(task: Task): Promise<void> {
+    if (!this._hass) return;
+    try {
+      await api.updateTask(this._hass, task.id, { enabled: true });
+      await this._refresh();
+    } catch (err) {
+      const msg = String((err as { message?: string })?.message || err);
+      toast(this, msg);
+      await this._refresh();
+    }
+  }
   async _delete(task: Task): Promise<void> {
     if (!this._hass) return;
     try {

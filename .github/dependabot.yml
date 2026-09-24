@@ -38,3 +38,20 @@ updates:
     schedule:
       interval: weekly
     labels: ["dependencies"]
+
+  # The Docusaurus site. This is the fourth npm project in the repository, and the
+  # site build is a gate on every PR. No entry covered it, so its dependencies did
+  # not get updates.
+  - package-ecosystem: npm
+    directory: "/website"
+    schedule:
+      interval: weekly
+    labels: ["dependencies"]
+    ignore:
+      # No CI job runs the site's `npm run typecheck`. docs-preview.yml runs
+      # `npm run build`, and a Docusaurus build does not call `tsc`. A major
+      # TypeScript bump would thus go through dependabot-auto-merge.yml with every
+      # check green and no job having typechecked the site. Remove this rule when a
+      # lane runs `npm run typecheck` in website/.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]

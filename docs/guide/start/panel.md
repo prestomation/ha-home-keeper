@@ -41,9 +41,9 @@ Tap a tile or a board card to open its actions. The actions are Done, Snooze, Sk
 today, and Open task. Press and hold a card to open the task's page. Home Keeper stores the layout for
 the user, so the choice applies on every device.
 
-![The Tasks tab in the Tiles layout, with each task as a card that shows the name and the status](../../images/68-panel-task-tiles.png)
+![The Tasks tab in the Tiles layout, with each task as a card that shows the name and the status](../../images/70-panel-task-tiles.png)
 
-![The Tasks tab in the Board layout, with one column for each group and a card for each task](../../images/68b-panel-task-board.png)
+![The Tasks tab in the Board layout, with one column for each group and a card for each task](../../images/70b-panel-task-board.png)
 
 The task list and the appliance list are compact, so more rows fit on the screen.
 On a phone, each task row keeps the Done button next to the task.

@@ -253,7 +253,18 @@ export interface Hass {
   config?: { currency?: string };
   // Auth token, used to POST a document upload to the Home Keeper HTTP view with an
   // Authorization header (the real `hass` object exposes this; we under-declare it).
-  auth?: { data?: { access_token?: string } };
+  //
+  // `data.access_token` is the *cached* token and it goes stale: Home Assistant mints
+  // an access token that lives about 30 minutes, and the websocket refreshes it only
+  // when it reconnects. A panel left open longer than that keeps a live socket beside
+  // an expired cached token, so websocket work keeps going while an HTTP upload gets
+  // a 401. Read `accessToken` after `refreshAccessToken()` instead — see `api.ts`.
+  auth?: {
+    data?: { access_token?: string };
+    accessToken?: string;
+    expired?: boolean;
+    refreshAccessToken?: () => Promise<void>;
+  };
   // The live websocket connection; used by the card to subscribe to the
   // `home_keeper_task_completed` event so it refreshes when a task is completed
   // from another surface (the panel, a device button, or an automation).

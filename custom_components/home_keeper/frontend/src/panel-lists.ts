@@ -258,7 +258,9 @@ function taskCard(p: PanelHost, task: Task): string {
   // The danger rail follows the status pill: a buy reminder reads "Low stock" rather
   // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge that
   // says this work is late.
-  const overdue = isOverdue(task) && !isBuyTask(task);
+  // A switched-off task is never late work, whatever its frozen date says, so it
+  // never takes the red rail. The row would otherwise argue with its own status chip.
+  const overdue = task.enabled !== false && isOverdue(task) && !isBuyTask(task);
   // The chip opens the appliance the task is about, not the Home Assistant device
   // page behind it — see `deviceChip`. The appliance page's own chip is the one hop
   // on to the device.
@@ -271,11 +273,18 @@ function taskCard(p: PanelHost, task: Task): string {
   // due date.
   const completedOneOff =
     task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
-  const dueText = task.next_due
-    ? ` · ${escapeHTML(t('form.task.due', { date: formatDate(task.next_due, p._lang()) }))}`
-    : completedOneOff
-      ? ` · ${escapeHTML(t('form.task.completedOn', { date: formatDate(task.last_completed, p._lang()) }))}`
-      : '';
+  // A switched-off task shows no due date. The stored one is frozen at whatever it was
+  // when the task went off, so printing it states a deadline Home Keeper will not keep:
+  // nothing announces it, no to-do item carries it, and the row's own status chip says
+  // Disabled. The chip is the whole answer, so the meta line says nothing.
+  const dueText =
+    task.enabled === false
+      ? ''
+      : task.next_due
+        ? ` · ${escapeHTML(t('form.task.due', { date: formatDate(task.next_due, p._lang()) }))}`
+        : completedOneOff
+          ? ` · ${escapeHTML(t('form.task.completedOn', { date: formatDate(task.last_completed, p._lang()) }))}`
+          : '';
   // How overdue it is rides the right-hand status pill rather than the meta line, so
   // urgency reads at the end of the row instead of buried mid-sentence. `elapsed` is
   // the list row's alone: down a long list the count is what separates a week late

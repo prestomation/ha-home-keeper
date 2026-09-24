@@ -951,6 +951,12 @@ function statusInfo(
   opts: StatusChipOptions = {},
 ): { label: string; cls: string } {
   const now = opts.now ?? new Date();
+  // First of all, because a switched-off task is off whatever else it is. Its stored
+  // due date is frozen where it was, so every branch below would read that date and
+  // report urgency that nothing will ever announce — a task switched off in October
+  // would sit in the list all winter saying "165 days overdue". The state replaces the
+  // date rather than sitting beside it.
+  if (task.enabled === false) return { label: t('chip.disabled'), cls: 'hk-disabled' };
   // Ahead of every other branch. A use task is never overdue and never completed in
   // the terminal sense, so nothing below would draw the one number that matters.
   if (opts.counted) {

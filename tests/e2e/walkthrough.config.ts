@@ -44,6 +44,7 @@ export default captureConfig('walkthrough.capture.ts', {
   //
   //     #303 search  +4    #302 notification icons  +3    #309 import/export  +14
   //     #318 due today  +4    #321 counted wear  +7    #333 guide split  +0
+  //     #362 note chip  +5
   //
   // 32 beats at 900ms is ~29s, and the interactions alongside them cover the rest.
   // Every one was correct under the gate that requires a new surface to appear in the
@@ -51,13 +52,17 @@ export default captureConfig('walkthrough.capture.ts', {
   // run with `--timeout=600000 --reporter=list` and read the duration it reports,
   // never the cap it died at.
   //
-  // Measured again, September 2026, after the task layouts PR added 7 beats to the
-  // desktop walk (Tiles, a tile's action sheet, Board, back to Rows) and 3 to the
-  // phone one (the board): **222s in the dev container**, against 210s for the same
-  // container before them. Plus 40% is 311s, which this 360s cap already covers, so
-  // the number stays where it is — but the margin is now ~38% rather than ~54%, and
-  // the rule above still holds: the next tour that outgrows this is paid for by
-  // shortening the walk.
+  // #362 added the note chip's 5 beats and re-measured rather than assuming: **216s and
+  // then 222s in the dev container**, against the 210s the same container gave before
+  // them. 222s plus ~40% is ~311s, so 360s still holds and the number does not move. The
+  // phone tour ran 37s. Read these as the container figures they are: CI ran 204s and
+  // 234s on the 2 samples above, so a CI run of this tour should be read against 222s,
+  // not below it.
+  //
+  // The task layouts PR added 7 beats to the desktop walk (Tiles, a tile's action
+  // sheet, Board, back to Rows) and 3 to the phone one (the board). Measured on its
+  // own branch, before the note chip merged in: 222s in the dev container. The two
+  // together are MEASURED_BELOW.
   //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is
