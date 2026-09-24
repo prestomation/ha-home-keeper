@@ -2006,11 +2006,55 @@ export const STYLES = `
     max-height: 260px; overflow-y: auto; margin-top: 8px;
   }
   .hk-decl-preview-header { font-weight: 500; margin-bottom: 6px; }
-  .hk-decl-preview-row { padding: 6px 0; border-bottom: 1px solid var(--divider-color); }
+  .hk-decl-preview-row {
+    padding: 6px 0; border-bottom: 1px solid var(--divider-color);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hk-decl-preview-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .hk-decl-preview-row:last-child { border-bottom: none; }
   .hk-decl-preview-name { font-weight: 500; }
   .hk-decl-preview-eid {
     color: var(--secondary-text-color); font-family: monospace; font-size: 0.8rem;
   }
   .hk-decl-preview-empty { color: var(--secondary-text-color); font-style: italic; }
+  /* Exclude / Include on a preview row (#373). A plain button, so it is a real tab
+     stop; the text hides on a phone and the icon keeps a 44px tap target. */
+  .hk-decl-toggle {
+    flex: none; display: inline-flex; align-items: center; gap: 4px;
+    border: 0; background: transparent; color: var(--secondary-text-color);
+    font: inherit; font-size: 0.8rem; cursor: pointer;
+    border-radius: 999px; padding: 4px 10px; min-height: 32px;
+    --mdc-icon-size: 18px;
+  }
+  .hk-decl-toggle:hover { background: var(--divider-color); color: var(--primary-text-color); }
+  .hk-decl-toggle:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+  .hk-decl-include { color: var(--hk-accent-ink); }
+  .hk-decl-excluded {
+    margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--divider-color);
+  }
+  .hk-decl-excluded-head { font-weight: 500; color: var(--secondary-text-color); }
+  .hk-decl-excluded-row .hk-decl-preview-eid { text-decoration: line-through; }
+  /* The More filters row: one button, title over a summary of what is set. */
+  .hk-decl-more {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    margin-top: 4px; padding: 10px 2px; text-align: start;
+    border: 0; border-block: 1px solid var(--divider-color);
+    background: transparent; color: var(--primary-text-color);
+    font: inherit; cursor: pointer;
+  }
+  .hk-decl-more:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  .hk-decl-more-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .hk-decl-more-title { font-weight: 500; }
+  .hk-decl-more-summary { font-size: 0.8rem; color: var(--secondary-text-color); }
+  .hk-decl-more-chevron { color: var(--secondary-text-color); transition: transform 0.15s; }
+  .hk-decl-more[aria-expanded='true'] .hk-decl-more-chevron { transform: rotate(180deg); }
+  .hk-decl-more-body { padding-top: 4px; }
+  .hk-decl-more-body .hk-indent { margin-top: 12px; }
+  @media (prefers-reduced-motion: reduce) {
+    .hk-decl-more-chevron { transition: none; }
+  }
+  @media (max-width: 700px) {
+    .hk-decl-toggle { min-width: 44px; min-height: 44px; justify-content: center; padding: 0; }
+    .hk-decl-toggle-text { display: none; }
+  }
 `;

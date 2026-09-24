@@ -6,6 +6,21 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.26.0b4]
+
+### Added
+
+- **[Declarative companion exclusions](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  Leave entities, devices, areas and labels out of a recipe, as in Problem sensor sync.
+  To leave out one entity, click Exclude on its row in the preview. (Fixes #373)
+- **[Recipe area and label filters](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  Limit a recipe to the entities in some areas or with some labels.
+
+### Fixed
+
+- **Recipe area filters.** An entity that gets its area from its device now matches
+  an area filter, and `{{ area_name }}` shows that area.
+
 ## [0.26.0b3]
 
 ### Added

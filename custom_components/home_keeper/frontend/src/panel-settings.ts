@@ -49,6 +49,7 @@ import {
 import { t, tlist, tn } from './i18n';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
+import { indentGroup } from './panel-indent';
 import type { PanelHost } from './panel-host';
 import { normalizeLineStyle, previewLines, supportsDescription } from './shopping-preview';
 import {
@@ -396,18 +397,9 @@ function settingsCard(
     // Fields that only bite while the setting above them is on, indented behind a
     // rule and captioned with that condition — the same treatment the task form
     // gives the fields a recurrence choice reveals.
-    const indent = document.createElement('div');
-    indent.className = 'hk-indent';
-    const body = document.createElement('div');
-    body.className = 'hk-indent-body';
-    const head = document.createElement('div');
-    head.className = 'hk-indent-head';
-    head.innerHTML =
-      `<span class="hk-eyebrow accent">${escapeHTML(t(dependent.labelKey))}</span>` +
-      `<span class="hk-indent-note">${escapeHTML(t(dependent.noteKey))}</span>`;
-    body.append(head, build(dependent.schema));
-    indent.appendChild(body);
-    inner.appendChild(indent);
+    inner.appendChild(
+      indentGroup(t(dependent.labelKey), t(dependent.noteKey), build(dependent.schema)),
+    );
   }
   card.appendChild(inner);
   return card;
