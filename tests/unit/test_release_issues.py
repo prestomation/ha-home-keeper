@@ -151,12 +151,14 @@ class TestIssues:
 
     def test_first_mention_wins_the_summary(self):
         found = issues("- **First.** (Fixes #5)\n- **Second.** (Fixes #5)")
-        assert found == [{"number": 5, "summary": "First."}]
+        assert found == [{"number": 5, "summary": "**First.** (Fixes #5)"}]
 
     def test_summary_travels_with_its_own_bullet(self):
         found = issues(section(CHANGELOG, "0.15.0"))
-        assert found[0]["summary"] == "First fix."
-        assert found[1]["summary"] == "Second fix."
+        assert found[0]["summary"] == "**First fix.** (Fixes #211)"
+        assert found[1]["summary"] == (
+            "**Second fix.** (Closes #212) and also (Resolves #213)"
+        )
 
     def test_section_without_references(self):
         assert _numbers(section(CHANGELOG, "0.14.0")) == []
@@ -180,34 +182,40 @@ class TestBullets:
 
 
 class TestSummarize:
-    def test_bold_lead_wins(self):
-        assert summarize("**The headline.** Then detail. And more.") == "The headline."
+    def test_the_whole_bullet_is_quoted(self):
+        assert (
+            summarize("**The headline.** Then detail. And more.")
+            == "**The headline.** Then detail. And more."
+        )
 
     def test_a_linked_lead_travels_whole_into_the_comment(self):
         # A bullet's lead links to the feature's doc page, so the reporter's comment
-        # carries the link rather than a bare phrase. The bold has to sit *outside*
-        # the link for that: ``_BOLD_LEAD`` anchors on ``^**``.
+        # carries the link as well as the text.
+        bullet = "**[Seasonal tasks](https://example.test/guide/seasons).** Detail."
+        assert summarize(bullet) == bullet
+
+    def test_the_fixes_reference_stays(self):
+        bullet = "**Fix.** Tasks save again. (Fixes #5)"
+        assert summarize(bullet) == bullet
+
+    def test_the_credit_is_removed(self):
+        # An @ mention in the comment would notify the contributor on each release.
         assert (
-            summarize(
-                "**[Seasonal tasks](https://example.test/guide/seasons).** Detail."
-            )
-            == "[Seasonal tasks](https://example.test/guide/seasons)."
+            summarize("**Fix.** Tasks save again. (Fixes #5) (Thanks @someone!)")
+            == "**Fix.** Tasks save again. (Fixes #5)"
         )
 
-    def test_bold_inside_the_link_misses_the_lead(self):
-        # The inverted form is the easy mistake, and it degrades silently to the
-        # first-sentence fallback rather than failing, so pin it.
-        assert (
-            summarize("[**Seasonal tasks**](https://example.test/g). Detail here.")
-            == "[**Seasonal tasks**](https://example.test/g)."
+    def test_a_credit_for_two_people_is_removed(self):
+        assert summarize("**Fix.** Detail. (Thanks @a and @b!)") == "**Fix.** Detail."
+
+    def test_other_parentheses_stay(self):
+        bullet = "**Fix.** Detail (with an aside). (Related to #161)"
+        assert summarize(bullet) == bullet
+
+    def test_a_bullet_without_bold_is_quoted_whole(self):
+        assert summarize("No bold here. Second sentence.") == (
+            "No bold here. Second sentence."
         )
-
-    def test_falls_back_to_the_first_sentence(self):
-        assert summarize("No bold here. Second sentence.") == "No bold here."
-
-    def test_long_unpunctuated_text_is_truncated(self):
-        assert summarize("word " * 100).endswith("…")
-        assert len(summarize("word " * 100)) <= 200
 
 
 class TestScan:
@@ -280,7 +288,7 @@ class TestOrderedLists:
 
     def test_a_reference_in_a_numbered_item_is_found(self):
         assert issues("1. **First.** (Fixes #5)") == [
-            {"number": 5, "summary": "First."}
+            {"number": 5, "summary": "**First.** (Fixes #5)"}
         ]
 
     def test_multi_digit_numbering(self):
@@ -296,14 +304,14 @@ class TestOrderedLists:
     def test_a_numeric_continuation_line_splits_but_keeps_the_reference(self):
         # Known boundary, pinned deliberately. A wrapped line that begins with a
         # number and a period ("30. Then …") is indistinguishable from an ordered
-        # list item, so it starts a new bullet and the quoted summary shifts to it.
+        # list item, so it starts a new bullet and the quoted text shifts to it.
         # The reference is still found, so the issue still closes correctly — the
-        # cost is a less apt sentence in the comment, not a missed fix. Tracking
+        # cost is a shorter quote in the comment, not a missed fix. Tracking
         # indentation to tell the two apart would add more risk than the case is
         # worth: the changelog has no ordered lists and no numeric continuations.
         found = issues("- **Parent.** It takes\n  30. Then the rest. (Fixes #9)")
         assert [entry["number"] for entry in found] == [9]
-        assert found[0]["summary"] == "Then the rest."
+        assert found[0]["summary"] == "Then the rest. (Fixes #9)"
 
 
 class TestNestedBullets:
@@ -314,11 +322,15 @@ class TestNestedBullets:
 
     def test_nested_reference_gets_its_own_summary(self):
         text = "- **Parent headline.** Prose.\n  - **Child headline.** (Fixes #8)"
-        assert issues(text) == [{"number": 8, "summary": "Child headline."}]
+        assert issues(text) == [
+            {"number": 8, "summary": "**Child headline.** (Fixes #8)"}
+        ]
 
     def test_parent_reference_is_unaffected_by_a_nested_bullet(self):
         text = "- **Parent headline.** (Fixes #9)\n  - **Child headline.** Detail."
-        assert issues(text) == [{"number": 9, "summary": "Parent headline."}]
+        assert issues(text) == [
+            {"number": 9, "summary": "**Parent headline.** (Fixes #9)"}
+        ]
 
     def test_continuation_lines_still_join(self):
         # An indented line that is *not* a bullet remains part of the bullet above it.
@@ -463,9 +475,13 @@ class TestCli:
     def test_json_is_parseable(self):
         result = self._run("--version", "0.15.0", "--json")
         assert result.returncode == 0
-        assert json.loads(result.stdout) == [
-            {"number": 211, "summary": "Complete a task by scanning an NFC/RFID tag."}
-        ]
+        found = json.loads(result.stdout)
+        assert [entry["number"] for entry in found] == [211]
+        # The whole bullet, from the bold lead to the reference.
+        assert found[0]["summary"].startswith(
+            "**Complete a task by scanning an NFC/RFID tag.** A task can now be"
+        )
+        assert "(Fixes #211)" in found[0]["summary"]
 
     def test_missing_section_fails(self):
         result = self._run("--version", "9.9.9", "--notes")

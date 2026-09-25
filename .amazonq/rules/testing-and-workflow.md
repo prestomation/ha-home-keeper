@@ -42,8 +42,9 @@
   `**Seasons on a task.**`. Aim for 2–5 words; 8 is the hard ceiling. A lead opening
   `Home Keeper can now…`, `A user can now…`, `The panel now…` or `Give a task…` is
   narrating — cut it back to the noun and let the second sentence say what a user
-  notices. `summarize()` in `ci/release-issues.py` quotes only the bold lead into the
-  issue reporter's comment, so it has to stand alone as a headline. Write the lead as a
+  notices. `summarize()` in `ci/release-issues.py` quotes the whole bullet into the
+  issue reporter's comment, and the lead comes first, so it has to stand alone as a
+  headline. Write the lead as a
   heading and drop the articles and prepositions: `**Seasonal tasks.**`, not `**Seasons
   on a task.**`. ("Do not omit articles" governs sentences; a lead is a heading.)
 - **The bullet says what a user gets, not how the feature works.** A headline plus at
@@ -55,7 +56,7 @@
   writes the lead as a Markdown link to the page documenting the feature, e.g.
   `**[Import and export](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**`.
   It costs nothing against the three-sentence budget, and `summarize()` quotes the
-  lead into the issue reporter's comment, so the reporter gets the docs link too. Use
+  bullet into the issue reporter's comment, so the reporter gets the docs link too. Use
   the absolute site URL — the bullet is read on GitHub and in a release body. A
   user-guide page is `.../docs/guide/<slug>`, where the slug is the section's
   `USER_SECTIONS` entry in `website/scripts/doc-map.mjs`; a deeper anchor adds the
@@ -65,18 +66,16 @@
   never republishes the site and the bullet's link 404s for beta testers until then.
   Write it in the feature PR regardless; that is the cost of pinning the site to the
   latest stable. Nothing validates these URLs, so check the shape against a live page. Put the bold **outside** the
-  link, `**[Text](url).**`, never `[**Text**](url)`: `_BOLD_LEAD` in
-  `ci/release-issues.py` anchors on `^\*\*`, so the inverted form misses the bold match
-  and degrades to quoting the bullet's first sentence.
+  link, `**[Text](url).**`, never `[**Text**](url)`, so every lead has the same shape.
 - **Credit an outside contributor in the bullet for their change.** End the bullet
   with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
   not count against the three-sentence budget. An outside contributor is anyone
   without write access to the repository when the PR opens. Their change gets a
   credit in the same PR that writes the bullet. If a maintainer and a contributor
   share the work, the contributor gets the credit. `summarize()` in
-  `ci/release-issues.py` quotes only the bold lead. The credit stays in the
-  CHANGELOG. It does not reach the issue comment, and it does not notify the
-  contributor on each release.
+  `ci/release-issues.py` quotes the whole bullet but removes the `(Thanks @user!)`
+  credit. The credit stays in the CHANGELOG. It does not reach the issue comment,
+  and it does not notify the contributor on each release.
 - Post screenshots to the PR for any change that adds/changes/fixes UI (capture
   via `tests/e2e/screenshots.capture.ts`, commit under `docs/images/`, embed via
   a `raw.githubusercontent.com/.../<commit-sha>/docs/images/<file>.png` URL).
