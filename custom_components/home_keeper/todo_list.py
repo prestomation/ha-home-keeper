@@ -25,14 +25,15 @@ The rules that shape a plan:
   is also the sync's timing — ``overdue`` puts a task on the list when it falls
   due, ``due_soon`` three days ahead, ``all`` as soon as it is scheduled. A task
   that stops matching (completed, rescheduled, disabled, filtered out) has its
-  open item removed. Two kinds are skipped whatever the profile says, because a
-  sync is a *delivery* surface and decides for itself what belongs on a to-do
-  list (the split ``profiles.matches_filter`` documents): auto-buy reminders,
-  which the shopping-list sync owns and would otherwise fight over one line,
-  and **completion-blocked** tasks — today a synced ``problem`` sensor, which
-  belongs in a Profile but not on a list, since only the integration that owns
-  the sensor can decide it is fixed. An item nobody can ever tick off is worse
-  than no item, the same call ``notifications.actions_for`` makes about buttons.
+  open item removed. Auto-buy reminders are skipped whatever the profile says:
+  the shopping-list sync owns them, and two syncs would fight over one line.
+* **A completion-blocked task is on the list, but a tick does not take.** A
+  synced ``problem`` sensor and a recipe that clears on recover close only when
+  their sensor recovers. They are on the list as a reminder of what to fix (#370),
+  so the household sees the same tasks the Profile shows. A tick on such an item
+  never completes the task: the entry is dropped and pass two puts a fresh open
+  item back, the same result a refused ``require_tag_scan`` completion gets. The
+  item goes away when the sensor recovers and the task completes or is removed.
 * **A completed item is never touched.** Whoever ticked it off, the entry stays as
   their record. When the task recurs and falls due again, a *fresh* item is added
   alongside the old one — that is the history Todoist users expect.
@@ -267,6 +268,8 @@ def desired_by_sync(
 
     Auto-buy reminders are skipped whatever a profile says: the shopping-list
     sync owns those, and two syncs fighting over one line helps nobody. A
+    completion-blocked task is wanted like any other, with ``blocked`` set so
+    :func:`plan_sync` knows a tick on its item must not complete it. A
     nameless task is skipped too — an empty summary is not something a to-do list
     can hold. The ``due`` a want carries is date-only, because that is the
     granularity a to-do list works in and a time would leave the item drifting.
@@ -282,8 +285,6 @@ def desired_by_sync(
                 continue
             if buy_source(task) is not None:
                 continue
-            if is_completion_blocked(task):
-                continue
             name = str(task.get("name") or "").strip()
             if not name:
                 continue
@@ -295,6 +296,7 @@ def desired_by_sync(
                 "due": due,
                 "notes": str(task.get("notes") or ""),
                 "last_completed": task.get("last_completed"),
+                "blocked": is_completion_blocked(task),
             }
         wanted[str(profile["id"])] = wants
     return wanted
@@ -461,7 +463,11 @@ def plan_sync(
                 continue
             if entry.get("uid"):
                 sync = profile["sync"]
-                if sync["two_way"] and sync["vanish_as_completed"]:
+                if (
+                    sync["two_way"]
+                    and sync["vanish_as_completed"]
+                    and not want["blocked"]
+                ):
                     plan.complete.append(CompleteOp(key, task_id))
                     settled.add(key)
                 continue
@@ -502,6 +508,10 @@ def plan_sync(
                     plan.tracked[key] = dict(entry)
                     continue
                 if profile["sync"]["two_way"]:
+                    if want["blocked"]:
+                        # Only the sensor recovering clears this task. Drop the
+                        # entry so pass two puts a fresh open item back.
+                        continue
                     plan.complete.append(CompleteOp(key, task_id))
                     settled.add(key)
                 else:

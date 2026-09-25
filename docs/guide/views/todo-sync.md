@@ -47,6 +47,13 @@ completion state is read back from the list.
 Tasks that require an NFC or RFID tag scan are synchronized, but a completion on the
 to-do list does not complete the task. The item is re-added on the next sync.
 
+Tasks that clear only when a sensor recovers are synchronized the same way. These are
+[synced problem sensors](../tasks/triggered-tasks.md#sync-problem-binary-sensors-as-tasks)
+and tasks from a [declarative companion](./settings.md#declarative-companions-config-driven-no-separate-integration)
+that clears on recovery. The item shows what to fix. A completion on the to-do list
+does not complete the task, and the item is re-added on the next sync. When the
+sensor recovers, Home Keeper clears the task and the item is no longer open.
+
 #### Options
 
 2 switches are under the picker. Both are on by default.

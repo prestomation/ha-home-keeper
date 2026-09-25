@@ -80,6 +80,8 @@ notification digest to the maintenance tasks.
 A task synced from a [`problem` binary sensor](../tasks/triggered-tasks.md#sync-problem-binary-sensors-as-tasks)
 is included in a Profile while its sensor reports a problem. A notification for this
 task shows **Snooze** instead of **Mark done** and **Skip**.
+A [synced to-do list](./todo-sync.md#two-way-sync) shows the task, but a
+completion on the list does not complete it.
 
 ![The Settings → Profiles card with saved filters](../../images/profiles-card.png)
 

@@ -72,14 +72,19 @@ def _task(tid=T1, name=NAME, due=OVERDUE_ISO, **extra):
     }
 
 
-def _want(tid=T1, name=NAME, due=DUE, notes="", last_completed=None):
+def _want(tid=T1, name=NAME, due=DUE, notes="", last_completed=None, blocked=False):
     return {
         "task_id": tid,
         "name": name,
         "due": due,
         "notes": notes,
         "last_completed": last_completed,
+        "blocked": blocked,
     }
+
+
+# What a recipe that clears on recover stamps on its task (#370).
+RECIPE_MANAGED_BY = {"integration": "home_keeper", "completion_blocked": True}
 
 
 def _desired(wants, profile_id=M1):
@@ -201,16 +206,6 @@ def test_desired_by_sync_selects_what_its_profile_surfaces():
     tasks = [
         _task("off", name="Disabled", enabled=False),
         _task("dormant", name="Dormant", due=None),
-        # A synced problem sensor belongs to the Profile (#248) but not on a to-do
-        # list: only the integration that owns the sensor can mark it done, so an
-        # item for it could never be ticked off. Keyed off the same
-        # ``managed_by.completion_blocked`` the panel and notification buttons read.
-        _task(
-            "sensor",
-            name="Leak detected",
-            source={"problem_sensor": {"entity_id": "binary_sensor.leak"}},
-            managed_by={"integration": "home_keeper", "completion_blocked": True},
-        ),
         _task(
             "buy",
             name="Buy anode rod",
@@ -230,7 +225,36 @@ def test_desired_by_sync_selects_what_its_profile_surfaces():
                 "due": DUE,
                 "notes": "Under the sink",
                 "last_completed": None,
+                "blocked": False,
             }
+        }
+    }
+
+
+def test_desired_by_sync_wants_a_completion_blocked_task_and_flags_it():
+    # A synced problem sensor and a recipe that clears on recover close only when
+    # their sensor recovers. They go on the list as a reminder (#370), flagged so
+    # the planner never reads a tick on their item as a completion. Keyed off the
+    # same ``managed_by.completion_blocked`` the panel and notifications read.
+    tasks = [
+        _task(
+            "sensor",
+            name="Leak detected",
+            source={"problem_sensor": {"entity_id": "binary_sensor.leak"}},
+            managed_by=RECIPE_MANAGED_BY,
+        ),
+        _task("recipe", name="Update the router", managed_by=RECIPE_MANAGED_BY),
+        _task(
+            "manual",
+            name="Reset the meter",
+            managed_by={"integration": "home_keeper", "completion_blocked": False},
+        ),
+    ]
+    assert tm.desired_by_sync([_synced_profile()], tasks, now=NOW) == {
+        M1: {
+            "sensor": _want("sensor", name="Leak detected", blocked=True),
+            "recipe": _want("recipe", name="Update the router", blocked=True),
+            "manual": _want("manual", name="Reset the meter"),
         }
     }
 
@@ -483,6 +507,31 @@ def test_a_one_way_sync_never_completes_a_task_from_a_tick():
     assert plan.tracked == tracked
 
 
+def test_a_tick_on_a_completion_blocked_item_bounces_back_open():
+    # Only the sensor recovering clears this task (#370). The tick does not
+    # complete it: the entry is dropped and a fresh open item goes back on.
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want(blocked=True)]),
+        items=[_item(status=tm.STATUS_COMPLETED)],
+    )
+    assert plan.complete == []
+    assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
+    assert plan.update == [] and plan.remove == []
+
+
+def test_a_one_way_tick_on_a_completion_blocked_item_is_frozen_as_ever():
+    tracked = _tracked()
+    plan = _plan(
+        synced=[_synced_profile(two_way=False)],
+        tracked=tracked,
+        desired=_desired([_want(blocked=True)]),
+        items=[_item(status=tm.STATUS_COMPLETED)],
+    )
+    assert plan.complete == [] and plan.add == []
+    assert plan.tracked == tracked
+
+
 def test_a_frozen_entry_is_released_once_its_task_stops_being_synced():
     plan = _plan(
         synced=[_synced_profile(two_way=False)],
@@ -574,6 +623,14 @@ def test_a_vanished_item_completes_the_task_when_the_sync_opted_in():
     assert plan.complete == [tm.CompleteOp(KEY, T1)]
     assert plan.add == [] and plan.remove == [] and plan.update == []
     assert plan.tracked == {}
+
+
+def test_a_vanished_completion_blocked_item_is_put_back_rather_than_completed():
+    # Todoist drops a ticked item, but only the sensor recovering clears this
+    # task (#370), so the vanish is read as a deletion and the item goes back.
+    plan = _plan(tracked=_tracked(), desired=_desired([_want(blocked=True)]), items=[])
+    assert plan.complete == []
+    assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
 
 
 def test_a_vanished_item_we_never_confirmed_is_never_completed():
