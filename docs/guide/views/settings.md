@@ -134,9 +134,14 @@ template renders true. This example opens a task for a sensor that has not repor
 for a day:
 
 ```jinja
-{{ state not in ['unknown', 'unavailable', none]
-   and (now() - as_datetime(state)) >= timedelta(hours=24) }}
+{{ (now() - as_datetime(state)) >= timedelta(hours=24) }}
 ```
+
+When the sensor is `unavailable` or `unknown`, `as_datetime` cannot read the state and
+the template does not render. Then the template decides nothing, and a task that is
+open stays open. Do not add a check such as `state not in ['unavailable']`. That check
+makes the template render false, and with **Auto-clear** a false result completes the
+task.
 
 The template reads the same values as the task name template and the task notes
 template: `state`, `attributes.<key>`, `friendly_name`, `entity_id`, `device_name`,

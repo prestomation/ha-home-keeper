@@ -1056,10 +1056,9 @@ def _register_services(hass: HomeAssistant) -> None:
         cannot otherwise enumerate. So the mode alone is admin-only, and the rest of
         the service stays open.
 
-        The panel's own route to this mode is already admin-only twice over: the
-        panel is ``require_admin`` and every websocket task command carries
-        ``@websocket_api.require_admin``. This closes the ``call_service`` path that
-        walks around both.
+        The websocket ``add_task`` and ``update_task`` commands apply the same rule
+        in ``websocket_api._check_template_binding``, so neither path walks around
+        the other.
         """
         sensor = call.data.get("sensor")
         if not isinstance(sensor, dict):

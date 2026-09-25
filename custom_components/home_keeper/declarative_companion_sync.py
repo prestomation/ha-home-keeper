@@ -61,6 +61,9 @@ _LOGGER = logging.getLogger(__name__)
 # single pass, short enough that a rename shows on the task within a breath.
 RECONCILE_DEBOUNCE_SECONDS = 5.0
 
+# The most render errors ``_render_one`` remembers before it starts again.
+_RENDER_ERRORS_MAX = 1024
+
 
 def _project_entry(
     entry: er.RegistryEntry, dev_reg: dr.DeviceRegistry
@@ -109,11 +112,14 @@ class DeclarativeCompanionSync:
         self._unsub_area_registry: CALLBACK_TYPE | None = None
         self._unsub_specs: CALLBACK_TYPE | None = None
         self._reload_scheduled = False
-        # The last render error logged per entity id, so a broken name or notes
-        # template is reported once instead of on every pass and every preview
-        # keystroke. See ``_render_one``. Bounded by the entity registry, and an entry
-        # goes as soon as that entity renders cleanly again.
-        self._render_errors: dict[str, str] = {}
+        # The last render error logged per (entity id, template source), so a broken
+        # name or notes template is reported once instead of on every pass and every
+        # preview keystroke. See ``_render_one``. The source is part of the key: name
+        # and notes render one after the other for the same entity, so with the entity
+        # alone a working notes template cleared the record of a broken name, and the
+        # name logged again on every pass. An entry goes when that pair renders
+        # cleanly again, and the whole map is capped by ``_RENDER_ERRORS_MAX``.
+        self._render_errors: dict[tuple[str, str], str] = {}
         # One reconcile per burst of registry events. Home Assistant fires an entity
         # registry event per entity, so an integration loading 50 of them used to run
         # 50 full passes — each one walking every spec over every entity, rendering
@@ -238,10 +244,11 @@ class DeclarativeCompanionSync:
         the WS ``preview_declarative_companion`` command) reports the template
         error explicitly so the user can fix it before saving.
 
-        Logged once per (entity, message) rather than per render. This runs per matched
-        entity per reconcile pass, and the preview runs it for 10 sampled entities on
-        every keystroke of the Add dialog's debounce, so one broken name template used
-        to write the same line hundreds of times while the user was still typing it.
+        Logged once per (entity, source, message) rather than per render. This runs
+        per matched entity per reconcile pass, and the preview runs it for 10 sampled
+        entities on every keystroke of the Add dialog's debounce, so one broken name
+        template used to write the same line hundreds of times while the user was
+        still typing it.
         """
         if not source:
             return ""
@@ -254,15 +261,21 @@ class DeclarativeCompanionSync:
         except TemplateError as err:
             entity_id = str(variables.get("entity_id") or "")
             message = str(err)
-            if self._render_errors.get(entity_id) != message:
-                self._render_errors[entity_id] = message
+            key = (entity_id, source)
+            if self._render_errors.get(key) != message:
+                if len(self._render_errors) >= _RENDER_ERRORS_MAX:
+                    # Each preview draft is a new source, so typing a broken template
+                    # adds keys that never render cleanly again. Start again rather
+                    # than grow: the worst case is one repeated warning.
+                    self._render_errors.clear()
+                self._render_errors[key] = message
                 _LOGGER.warning(
                     "Declarative-companion template render failed for %s: %s",
                     entity_id,
                     message,
                 )
             return source
-        self._render_errors.pop(str(variables.get("entity_id") or ""), None)
+        self._render_errors.pop((str(variables.get("entity_id") or ""), source), None)
         return rendered
 
     def _render_match(

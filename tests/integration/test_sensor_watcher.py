@@ -8,8 +8,10 @@ its target), and cleared again when the task is completed. Driving a real
 subscription + evaluation path that the pure unit tests can't.
 """
 
+import importlib.util
 import time
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from conftest import HA_URL, call_service, get_state
 
@@ -1149,6 +1151,54 @@ def test_a_broken_template_never_completes_an_armed_auto_clearing_task(ha):
     finally:
         _delete(ha, task_id)
         _set_flag(ha, False)
+
+
+def test_the_stopped_reporting_preset_keeps_its_task_open_when_the_device_drops(ha):
+    """The shipped preset, on the case it exists for.
+
+    A Zigbee2MQTT device that drops off the mesh makes its ``_last_seen`` sensor
+    ``unavailable``. An earlier version of the preset guarded on that state, which
+    rendered false, and ``clear_on_recover`` then completed the open task. The
+    template must fail to render there instead, which decides nothing.
+    """
+    # Read from the component source, so the test covers the template that ships.
+    # ``declarative_presets.py`` imports only ``typing``, so it loads by path.
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "home_keeper"
+        / "declarative_presets.py"
+    )
+    spec = importlib.util.spec_from_file_location("hk_presets_for_watcher", path)
+    assert spec and spec.loader
+    presets = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(presets)
+    trigger = presets.preset_by_id("device_stopped_reporting")["default_spec"][
+        "trigger"
+    ]
+    probe = "sensor.hk_probe_last_seen"
+    quiet_since = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+    ha.post(
+        f"{HA_URL}/api/states/{probe}", json={"state": quiet_since}
+    ).raise_for_status()
+    task_id = _add_sensor_task(ha, {"entity_id": probe, **trigger})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+
+        _force_unavailable(ha, probe)
+        ha.post(f"{HA_URL}/api/states/{probe}", json={"state": "unknown"})
+        time.sleep(3)
+
+        still = _require_task(ha, task_id)
+        assert still["next_due"] is not None, (
+            "the preset closed its task when the device went unavailable"
+        )
+        assert not still.get("completions"), (
+            "the preset recorded a completion for a device that went unavailable"
+        )
+    finally:
+        _delete(ha, task_id)
+        ha.delete(f"{HA_URL}/api/states/{probe}")
 
 
 def test_a_repaired_template_still_clears_the_task(ha):

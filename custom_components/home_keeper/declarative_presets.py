@@ -153,15 +153,19 @@ CATALOG_PRESETS: list[PresetDefinition] = [
             # holding the timestamp it went quiet. No other mode can compare that
             # timestamp with the clock.
             #
-            # The ``state not in`` guard is not padding. ``as_datetime('unavailable')``
-            # raises, and a raising template is *indeterminate* — it neither arms nor
-            # clears — so without the guard a healthy-but-restarting entity would make
-            # the preset stop deciding rather than read false.
+            # The template has no guard for ``unknown`` or ``unavailable`` on purpose.
+            # A guard such as ``state not in [...] and ...`` renders **false** for
+            # those states, and false with ``clear_on_recover`` completes the task.
+            # A Zigbee2MQTT device that drops off the mesh makes its ``_last_seen``
+            # sensor unavailable, and after a restart the sensor of a dead device
+            # stays unknown. So a guard would close the tasks this preset exists
+            # to keep open. Without it, ``as_datetime`` cannot read the state, the
+            # render fails, and a failed render is *indeterminate*: it opens no
+            # task and closes no task.
             "trigger": {
                 "mode": "template",
                 "template": (
-                    "{{ state not in ['unknown', 'unavailable', none] "
-                    "and (now() - as_datetime(state)) >= timedelta(hours=24) }}"
+                    "{{ (now() - as_datetime(state)) >= timedelta(hours=24) }}"
                 ),
                 "clear_on_recover": True,
             },

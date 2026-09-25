@@ -294,6 +294,96 @@ def test_an_admin_can_still_add_a_template_task(ha):
         call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
 
 
+def _list_task_named(ha, name):
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    return next(
+        (t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name),
+        None,
+    )
+
+
+def test_the_websocket_add_task_refuses_a_template_binding_from_a_non_admin(
+    ha, non_admin_token
+):
+    # The websocket twin of the service gate. ``home_keeper/add_task`` is open to
+    # every signed-in user, like the service, so gating only the service left this
+    # command as the path around it.
+    name = f"Gate ws template probe {uuid.uuid4().hex[:8]}"
+    msg = ws_send(
+        non_admin_token, {"type": "home_keeper/add_task", "task": _template_task(name)}
+    )
+    task = _list_task_named(ha, name)
+    if task is not None:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+    assert not msg.get("success"), "a non-admin created a template task over ws"
+    assert msg["error"]["code"] == "unauthorized", msg
+    assert task is None
+
+
+def test_the_websocket_update_task_refuses_a_template_binding_from_a_non_admin(
+    ha, non_admin_token
+):
+    name = f"Gate ws template update probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": name,
+            "recurrence_type": "sensor",
+            "sensor": {"entity_id": TANK, "mode": "state", "state": "on"},
+        },
+    )
+    task = _list_task_named(ha, name)
+    try:
+        msg = ws_send(
+            non_admin_token,
+            {
+                "type": "home_keeper/update_task",
+                "task_id": task["id"],
+                "updates": {"sensor": dict(TEMPLATE_BINDING)},
+            },
+        )
+        assert not msg.get("success"), "a non-admin set a template on a task over ws"
+        assert msg["error"]["code"] == "unauthorized", msg
+        assert _list_task_named(ha, name)["sensor"]["mode"] == "state"
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
+def test_the_websocket_add_task_still_takes_a_plain_task_from_a_non_admin(
+    ha, non_admin_token
+):
+    # The gate refuses the mode, not the command.
+    name = f"Gate ws plain probe {uuid.uuid4().hex[:8]}"
+    msg = ws_send(
+        non_admin_token,
+        {
+            "type": "home_keeper/add_task",
+            "task": {
+                "name": name,
+                "recurrence_type": "sensor",
+                "sensor": {"entity_id": TANK, "mode": "state", "state": "on"},
+            },
+        },
+    )
+    assert msg.get("success"), f"a non-admin could not add a task over ws: {msg}"
+    call_service(
+        ha, "home_keeper", "delete_task", {"task_id": msg["result"]["task"]["id"]}
+    )
+
+
+def test_the_websocket_add_task_takes_a_template_binding_from_an_admin(ha):
+    name = f"Gate ws template admin probe {uuid.uuid4().hex[:8]}"
+    msg = ws_send(
+        _owner_token(ha), {"type": "home_keeper/add_task", "task": _template_task(name)}
+    )
+    assert msg.get("success"), f"an admin could not add a template task over ws: {msg}"
+    call_service(
+        ha, "home_keeper", "delete_task", {"task_id": msg["result"]["task"]["id"]}
+    )
+
+
 def test_a_non_admin_cannot_author_an_automation_or_a_script(non_admin):
     """The Home Assistant contract the template gate rests on.
 

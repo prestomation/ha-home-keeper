@@ -14,6 +14,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import Unauthorized
 from homeassistant.util import dt as dt_util
 
 from . import (
@@ -27,7 +28,7 @@ from . import (
 )
 from .assets import AssetValidationError, card_projection
 from .backend_i18n import resolve_exception
-from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES
+from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES, SENSOR_MODE_TEMPLATE
 from .coordinator import (
     HomeKeeperCoordinator,
     entity_set_key,
@@ -85,6 +86,26 @@ def _area_ok(
         return True
     _err(hass, connection, msg, "invalid_area", "unknown_area", area_id=area_id)
     return False
+
+
+def _check_template_binding(
+    connection: websocket_api.ActiveConnection, payload: dict
+) -> None:
+    """Refuse a ``template``-mode sensor binding from a non-admin connection.
+
+    The websocket twin of ``_verify_template_binding`` in ``__init__.py``. These task
+    commands are open to every signed-in user, like the services, but Home Keeper
+    renders a template binding, and Jinja reaches registry helpers a non-admin cannot
+    otherwise enumerate. So only the mode is admin-only. Home Assistant answers the
+    raised ``Unauthorized`` with the ``unauthorized`` error code.
+    """
+    sensor = payload.get("sensor")
+    if (
+        isinstance(sensor, dict)
+        and sensor.get("mode") == SENSOR_MODE_TEMPLATE
+        and not connection.user.is_admin
+    ):
+        raise Unauthorized
 
 
 # The three-argument shape Home Assistant calls a command with, and the
@@ -255,6 +276,7 @@ async def ws_add_task(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
+    _check_template_binding(connection, msg["task"])
     if not _area_ok(hass, connection, msg, msg["task"]):
         return
     task = await coord.store.add_task(msg["task"])
@@ -281,6 +303,7 @@ async def ws_update_task(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
+    _check_template_binding(connection, msg["updates"])
     if not _area_ok(hass, connection, msg, msg["updates"]):
         return
     before = entity_set_key(coord.store.get_task(msg["task_id"]))

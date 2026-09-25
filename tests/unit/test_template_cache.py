@@ -103,3 +103,43 @@ def test_the_oldest_entry_is_the_one_evicted():
     cache = hass.data[template_context._TEMPLATE_CACHE]
     assert (False, oldest) not in cache
     assert (False, f"{{{{ {cap - 1} }}}}") in cache
+
+
+# ── the registry projection a template-mode task renders against ─────────────
+
+
+def _registries(monkeypatch, *, entity_area, device_area):
+    entity = SimpleNamespace(
+        entity_id="sensor.probe",
+        device_id="dev1",
+        area_id=entity_area,
+        platform="mqtt",
+        name=None,
+        original_name="Probe",
+    )
+    device = SimpleNamespace(area_id=device_area)
+    monkeypatch.setattr(
+        template_context.er,
+        "async_get",
+        lambda hass: SimpleNamespace(async_get=lambda eid: entity),
+    )
+    monkeypatch.setattr(
+        template_context.dr,
+        "async_get",
+        lambda hass: SimpleNamespace(async_get=lambda did: device),
+    )
+
+
+def test_the_projection_takes_the_area_of_the_device(monkeypatch):
+    # Most entities have no area of their own and sit in their device's. A recipe's
+    # selection pass projects that effective area, so the trigger must see it too, or
+    # `{{ area_id == 'garage' }}` reads true in the preview and false in the watcher.
+    _registries(monkeypatch, entity_area=None, device_area="garage")
+    projection = template_context.registry_projection(_hass(), "sensor.probe")
+    assert projection["area_id"] == "garage"
+
+
+def test_the_projection_prefers_the_area_of_the_entity(monkeypatch):
+    _registries(monkeypatch, entity_area="attic", device_area="garage")
+    projection = template_context.registry_projection(_hass(), "sensor.probe")
+    assert projection["area_id"] == "attic"

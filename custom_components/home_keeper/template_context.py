@@ -35,6 +35,8 @@ from homeassistant.helpers import (
 from homeassistant.helpers.template import Template
 from homeassistant.util.hass_dict import HassKey
 
+from .declarative_companions import effective_area_id
+
 # Templates Home Keeper has already compiled, per config entry's Home Assistant.
 #
 # Home Assistant caches compiled template code on its shared environment, but
@@ -105,10 +107,15 @@ def registry_projection(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:
     found = er.async_get(hass).async_get(entity_id)
     if found is None:
         return {"entity_id": entity_id}
+    device = dr.async_get(hass).async_get(found.device_id) if found.device_id else None
     return {
         "entity_id": found.entity_id,
         "device_id": found.device_id,
-        "area_id": found.area_id,
+        # The effective area, as a recipe's selection pass projects it: most entities
+        # take their area from their device. With the entity's own area alone, a
+        # trigger that reads ``area_id`` would disagree with the recipe preview and
+        # with the task notes for the same entity.
+        "area_id": effective_area_id(found.area_id, device.area_id if device else None),
         "platform": found.platform,
         "name": found.name,
         "original_name": found.original_name,
