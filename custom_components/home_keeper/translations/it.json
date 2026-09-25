@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Aree escluse",
           "problem_sensor_exclude_labels": "Etichette escluse",
           "one_off_retention_days": "Conservazione delle attività singole (giorni)",
-          "shopping_list_entity": "Lista della spesa"
+          "shopping_list_entity": "Lista della spesa",
+          "shopping_line_style": "Testo nella lista della spesa"
         },
         "data_description": {
           "sync_problem_sensors": "Un'attività sincronizzata si chiude solo quando l'integrazione di origine risolve il problema, non toccando Fatto. I suoi promemoria offrono Posticipa invece di Fatto.",
           "one_off_retention_days": "Elimina automaticamente un'attività singola completata dopo questo numero di giorni dal suo completamento. 0 conserva le attività singole completate per sempre.",
-          "shopping_list_entity": "Sincronizza i promemoria di acquisto automatico con questa lista attività. Spuntare una voce lì completa il promemoria di Home Keeper e ripristina la scorta del ricambio. Lascia vuoto per disattivare."
+          "shopping_list_entity": "Sincronizza i promemoria di acquisto automatico con questa lista attività. Spuntare una voce lì completa il promemoria di Home Keeper e ripristina la scorta del ricambio. Lascia vuoto per disattivare.",
+          "shopping_line_style": "Come appare un promemoria di acquisto nella lista della spesa. «Solo prodotto» mostra il nome del ricambio senza il verbo, per esempio «Ammorbidente» invece di «Comprare ammorbidente»."
         }
       }
     }
@@ -120,6 +122,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "Attiva",
+          "description": "Disattiva o attiva questa attività. Un'attività disattivata conserva la sua cronologia e le sue impostazioni, e la sua data di scadenza non si sposta. Home Keeper la tiene fuori dai tuoi promemoria e dai tuoi elenchi finché non la riattivi."
         }
       }
     },
@@ -210,6 +216,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "Attiva",
+          "description": "Disattiva o attiva questa attività. Un'attività disattivata conserva la sua cronologia e le sue impostazioni, e la sua data di scadenza non si sposta. Home Keeper la tiene fuori dai tuoi promemoria e dai tuoi elenchi finché non la riattivi."
         }
       }
     },
@@ -680,6 +690,10 @@
           "name": "Lista della spesa",
           "description": "Una lista attività esistente con cui sincronizzare i promemoria di acquisto automatico. Spuntare una voce lì completa il promemoria e ripristina la scorta. Un campo vuoto disattiva la funzione."
         },
+        "shopping_line_style": {
+          "name": "Testo nella lista della spesa",
+          "description": "Come appare un promemoria di acquisto nella lista della spesa. with_verb (predefinito) mostra il nome del promemoria, per esempio «Comprare ammorbidente». product_only mostra solo il nome del ricambio."
+        },
         "dismissed_companions": {
           "name": "Companion ignorati",
           "description": "Domini delle integrazioni di collegamento da nascondere dall'elenco «Suggeriti» in Impostazioni → Companions. Ignorare silenzia solo un suggerimento; un abbinamento connesso viene sempre mostrato."
@@ -951,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Elenca companion dichiarativi",
       "description": "Restituisce ogni specifica di companion dichiarativo memorizzata come risposta."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Con verbo",
+        "product_only": "Solo prodotto"
+      }
     }
   },
   "entity": {

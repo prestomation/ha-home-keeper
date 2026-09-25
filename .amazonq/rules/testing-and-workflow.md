@@ -431,7 +431,8 @@ the branch touched.
 - **The surface is an allowlist, in one place per language:** `only_mutate` in
   `[tool.mutmut]` (pyproject.toml) and `mutate` in `stryker.conf.json`. It holds
   only what the fast tiers cover — the pure core, and the focused frontend modules
-  (`utils`, `forms`, `card-filter`, `documents`, `markdown`, `i18n`, `limits`).
+  (`utils`, `forms`, `card-filter`, `documents`, `markdown`, `i18n`, `limits`,
+  `defer`, `shopping-preview`, `declarative-filters`).
   Out: everything importing Home Assistant (Docker-tier only), `const.py` /
   `companions_catalog.py` (data), `backend_i18n.py` (no unit entry point),
   `testing.py`, and `panel.ts` + its `panel-*.ts` region modules / `card.ts` / `api.ts` (indirectly covered only).

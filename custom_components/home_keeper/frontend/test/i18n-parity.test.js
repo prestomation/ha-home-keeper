@@ -46,6 +46,9 @@ const INTENTIONALLY_IDENTICAL = new Set([
 // ("Preset:" appears literally in several Romance languages; the German panel
 // keeps "Name"; French uses "Description" as a cognate; Dutch keeps "Trigger"
 // where the German UI convention has established the English loanword).
+// The More filters summary (#373) is a count and a noun: "Exclusions" is the French
+// and Catalan word too (as `settings.exclusions` already is), and "filter" is the
+// Dutch, Danish, Norwegian and Swedish word.
 // `declarative.companions.chip_error` is "Error" in Catalan and Spanish, which take
 // the Latin noun unchanged. Every other locale inflects or translates it ("Errore",
 // "Erreur", "Fehler", "Chyba", "Virhe", "Fout", "Błąd", "Feil", "Fel", "Ошибка").
@@ -53,24 +56,43 @@ const DECLARATIVE_COGNATES = {
   ca: [
     'declarative.companions.chip_error',
     'declarative.companions.preset_badge',
+    'declarative.companions.section_exclusions',
+    'declarative.companions.summary_exclusions.other',
     'transfer.documentLabel',
   ],
+  da: ['declarative.companions.summary_filters.one'],
   de: ['declarative.companions.field_name'],
   es: ['declarative.companions.chip_error', 'declarative.companions.preset_badge'],
-  fr: ['declarative.companions.field_description', 'field.skipNote', 'transfer.documentLabel'],
+  fr: [
+    'declarative.companions.field_description',
+    'declarative.companions.section_exclusions',
+    'declarative.companions.summary_exclusions.one',
+    'declarative.companions.summary_exclusions.other',
+    'field.skipNote',
+    'transfer.documentLabel',
+  ],
   it: ['declarative.companions.preset_badge'],
-  nl: ['declarative.companions.preset_badge', 'declarative.companions.section_trigger', 'defer.preset.1w', 'transfer.documentLabel'],
+  nb: ['declarative.companions.summary_filters.one'],
+  nl: [
+    'declarative.companions.preset_badge',
+    'declarative.companions.section_trigger',
+    'declarative.companions.summary_filters.one',
+    'declarative.companions.summary_filters.other',
+    'defer.preset.1w',
+    'transfer.documentLabel',
+  ],
   'pt-BR': ['declarative.companions.preset_badge'],
+  sv: ['declarative.companions.summary_filters.one'],
 };
 
 const COGNATE_IDENTICAL = {
   ca: ['detail.id', 'field.cost', 'field.doc_url', 'field.model', 'field.notes', 'field.sensor_entity_id', 'meta.seed.notes', 'notify.opt.normal', 'opt.meta.text', 'section.notes', 'settings.exclusions', 'settings.general_heading', 'tab.documents'],
   cs: ['detail.id', 'field.doc_url', 'field.model', 'opt.meta.text'],
-  da: ['chip.orphaned', 'detail.id', 'field.doc_url', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.skipNote', 'field.type', 'group.integration', 'group.status', 'notify.opt.normal', 'notify.test', 'opt.meta.link', 'opt.month.11', 'opt.month.12', 'opt.month.4', 'opt.month.8', 'opt.month.9'],
+  da: ['chip.note', 'chip.orphaned', 'detail.id', 'field.doc_url', 'field.kind', 'field.model', 'field.note', 'field.sensor_entity_id', 'field.skipNote', 'field.type', 'group.integration', 'group.status', 'notify.opt.normal', 'notify.test', 'opt.meta.link', 'opt.month.11', 'opt.month.12', 'opt.month.4', 'opt.month.8', 'opt.month.9'],
   de: ['chip.orphaned', 'detail.about', 'detail.id', 'due.in_units', 'field.doc_name', 'field.doc_url', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'notify.opt.normal', 'opt.meta.link', 'opt.meta.text', 'opt.month.11', 'opt.month.4', 'opt.month.8', 'opt.month.9'],
   es: ['detail.id', 'field.doc_url', 'field.sensor_entity_id', 'notify.opt.normal', 'settings.general_heading'],
   fi: ['field.doc_url'],
-  fr: ['completion.photo', 'detail.id', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'section.notes', 'settings.exclusions', 'tab.documents'],
+  fr: ['chip.note', 'completion.photo', 'detail.id', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'section.notes', 'settings.exclusions', 'tab.documents'],
   it: ['detail.id', 'field.area_id', 'field.doc_url', 'group.area', 'opt.meta.link'],
   // `part.taskName.service` is "Service {part} ({asset})" in Norwegian, which takes
   // the English verb unchanged ("service bilen"). Danish and Swedish inflect it

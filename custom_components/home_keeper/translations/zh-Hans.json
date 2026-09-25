@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "排除的区域",
           "problem_sensor_exclude_labels": "排除的标签",
           "one_off_retention_days": "一次性任务保留天数",
-          "shopping_list_entity": "购物清单"
+          "shopping_list_entity": "购物清单",
+          "shopping_line_style": "购物清单上的文字"
         },
         "data_description": {
           "sync_problem_sensors": "同步任务只有在来源集成解决问题后才会清除，点按“完成”不会清除它。相关提醒会用“稍后提醒”代替“完成”。",
           "one_off_retention_days": "在一次性任务完成后经过此天数自动删除该任务。设为 0 则永久保留已完成的一次性任务。",
-          "shopping_list_entity": "将自动购买提醒同步到此待办清单。在该清单上勾选条目会完成 Home Keeper 的提醒并补充备件库存。留空即可关闭同步。"
+          "shopping_list_entity": "将自动购买提醒同步到此待办清单。在该清单上勾选条目会完成 Home Keeper 的提醒并补充备件库存。留空即可关闭同步。",
+          "shopping_line_style": "购买提醒在购物清单上的显示方式。“仅产品”只显示备件名称，不带动词，例如显示“柔顺剂”而不是“购买 柔顺剂”。"
         }
       }
     }
@@ -120,6 +122,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "已启用",
+          "description": "停用或启用此任务。已停用的任务会保留它的历史记录和设置，到期日期也不会改变。在你重新启用之前，Home Keeper 不会把它放进你的提醒和列表中。"
         }
       }
     },
@@ -210,6 +216,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "已启用",
+          "description": "停用或启用此任务。已停用的任务会保留它的历史记录和设置，到期日期也不会改变。在你重新启用之前，Home Keeper 不会把它放进你的提醒和列表中。"
         }
       }
     },
@@ -680,6 +690,10 @@
           "name": "购物清单",
           "description": "用于同步自动购买提醒的现有待办清单。在该清单上勾选条目会完成提醒并补充库存。留空即可关闭此功能。"
         },
+        "shopping_line_style": {
+          "name": "购物清单上的文字",
+          "description": "购买提醒在购物清单上的显示方式。with_verb（默认）显示提醒名称，例如“购买 柔顺剂”。product_only 只显示备件名称。"
+        },
         "dismissed_companions": {
           "name": "已忽略的搭档",
           "description": "要从 设置 → 搭档 的“建议”列表中隐藏的粘合集成域。忽略仅会静默某个建议；已连接的配对始终会显示。"
@@ -951,6 +965,14 @@
     "list_declarative_companions": {
       "name": "列出声明式搭档",
       "description": "以响应形式返回每个已存储的声明式搭档规范。"
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "带动词",
+        "product_only": "仅产品"
+      }
     }
   },
   "entity": {

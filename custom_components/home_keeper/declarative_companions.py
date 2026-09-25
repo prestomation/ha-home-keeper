@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
@@ -280,6 +281,29 @@ def normalize_declarative_companion(
 
 
 # --- Selection (pure) --------------------------------------------------------
+
+
+def effective_area_id(
+    entity_area_id: str | None, device_area_id: str | None
+) -> str | None:
+    """The area an entity is in: its own area, else the area of its device.
+
+    Most entities get their area from their device and have no area of their own.
+    Without this fallback, an area filter or exclusion would miss them, and
+    ``{{ area_name }}`` would render empty. ``problem_sync`` uses the same rule.
+    """
+    return entity_area_id or device_area_id
+
+
+def effective_labels(
+    entity_labels: Iterable[str] | None, device_labels: Iterable[str] | None
+) -> set[str]:
+    """The labels an entity carries: its own and the labels of its device.
+
+    The label picker lists device labels too, so a label filter or exclusion that
+    names one must reach the device's entities. ``problem_sync`` uses the same rule.
+    """
+    return set(entity_labels or ()) | set(device_labels or ())
 
 
 def _labels_intersect(entity_labels: Any, wanted: list[str]) -> bool:

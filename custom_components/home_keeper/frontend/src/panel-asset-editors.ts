@@ -768,10 +768,14 @@ function partBox(
     const key = partDependentKey(next);
     if (key !== depKey) {
       depKey = key;
-      const schema = partDependentSchema(next);
+      const schema = partDependentSchema(next, p._tags);
       dep.schema = schema;
       dep.data = pickFormData(partFormData(next), schema);
       dep.style.display = schema.length ? '' : 'none';
+    } else if (!next.tag_id && dep.data?.part_require_tag_scan) {
+      // Clearing the tag clears the scan requirement (see `mergePartForm`). Show
+      // that, or the switch stays on while the part saves it off.
+      dep.data = pickFormData(partFormData(next), partDependentSchema(next, p._tags));
     }
   };
   const baseSchema = partBaseSchema();
@@ -781,7 +785,7 @@ function partBox(
   base.id = `hk-part-form-${i}`;
   bodyEl.appendChild(base);
   notePreview = p._attachNotePreview(bodyEl, String(part.notes ?? ''));
-  const depSchema = partDependentSchema(part);
+  const depSchema = partDependentSchema(part, p._tags);
   dep = p._makeForm(depSchema, pickFormData(partFormData(part), depSchema), merge);
   dep.className = 'hk-part-dep';
   if (!depSchema.length) dep.style.display = 'none';

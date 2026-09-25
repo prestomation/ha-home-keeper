@@ -1,4 +1,4 @@
-import { t, tn } from './i18n';
+import { getLanguage, t, tn } from './i18n';
 import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
@@ -355,17 +355,51 @@ export function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+const decimalMarks = new Map<string, string>();
+
+/**
+ * The decimal mark *lang* writes numbers with: "." in English, "," in German.
+ *
+ * Read from `Intl`, which knows CLDR as Babel does on the Python side
+ * (`assets.decimal_mark`). A language `Intl` cannot place reads as English, never as
+ * whatever the browser happens to default to, so the panel and the shopping list agree.
+ */
+export function decimalMark(lang?: string): string {
+  const key = lang || 'en';
+  const cached = decimalMarks.get(key);
+  if (cached !== undefined) return cached;
+  let mark = '.';
+  try {
+    if (Intl.NumberFormat.supportedLocalesOf([key]).length) {
+      // Latin digits, as Babel's default on the backend: Persian's native mark
+      // is "٫", but the shopping list gets "." from Babel.
+      const part = new Intl.NumberFormat(key, { numberingSystem: 'latn' })
+        .formatToParts(1.5)
+        .find((p) => p.type === 'decimal');
+      if (part) mark = part.value;
+    }
+  } catch {
+    // An invalid language tag throws a RangeError: read it as English.
+  }
+  decimalMarks.set(key, mark);
+  return mark;
+}
+
 /**
  * A spare quantity as text, with the part's unit appended when it has one.
  *
  * Stock is decimal (a part can be measured in millilitres or in thirds of a bottle),
  * but the ordinary count-the-filters case must still read "3", not "3.000" — so
  * trailing zeros go, and the unit only appears when the part actually set one.
+ *
+ * The decimal mark follows *lang* (the panel's language when it is left out): "1,5 kg"
+ * in German. The Python twin, `assets.format_quantity`, does the same for the line on
+ * the shopping list, and `tests/fixtures/quantity_format_cases.json` holds them to it.
  */
-export function formatQuantity(value: number, unit?: string | null): string {
+export function formatQuantity(value: number, unit?: string | null, lang?: string): string {
   // parseFloat on the fixed form drops trailing zeros without exposing float noise
   // (0.1 + 0.2 would otherwise render as 0.30000000000000004).
-  const text = String(parseFloat(value.toFixed(3)));
+  const text = String(parseFloat(value.toFixed(3))).replace('.', decimalMark(lang ?? getLanguage()));
   const label = (unit || '').trim();
   return label ? `${text} ${label}` : text;
 }
@@ -937,6 +971,12 @@ export function statusChipHtml(
   const now = opts.now ?? new Date();
   const chip = (label: string, cls = '') =>
     `<ha-assist-chip${cls ? ` class="${cls}"` : ''} label="${escapeHTML(label)}"></ha-assist-chip>`;
+  // First of all, because a switched-off task is off whatever else it is. Its stored
+  // due date is frozen where it was, so every branch below would read that date and
+  // report urgency that nothing will ever announce — a task switched off in October
+  // would sit in the list all winter saying "165 days overdue". The state replaces the
+  // date rather than sitting beside it.
+  if (task.enabled === false) return chip(t('chip.disabled'), 'hk-disabled');
   // Ahead of every other branch. A use task is never overdue and never completed in
   // the terminal sense, so nothing below would draw the one number that matters.
   if (opts.counted) {

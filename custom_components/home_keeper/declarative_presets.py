@@ -187,3 +187,210 @@ def preset_by_id(preset_id: str) -> PresetDefinition | None:
         if preset["id"] == preset_id:
             return preset
     return None
+
+
+# "Check on <device>", which two presets use as their task name.
+_DEVICE_CHECK_NAMES: dict[str, str] = {
+    "en": "Check on {{ device_name or friendly_name }}",
+    "ca": "Comprovar {{ device_name or friendly_name }}",
+    "cs": "Zkontrolovat {{ device_name or friendly_name }}",
+    "da": "Tjek {{ device_name or friendly_name }}",
+    "de": "{{ device_name or friendly_name }} prüfen",
+    "es": "Revisar {{ device_name or friendly_name }}",
+    "fi": "Tarkista {{ device_name or friendly_name }}",
+    "fr": "Vérifier {{ device_name or friendly_name }}",
+    "it": "Controllare {{ device_name or friendly_name }}",
+    "nb": "Sjekk {{ device_name or friendly_name }}",
+    "nl": "{{ device_name or friendly_name }} controleren",
+    "pl": "Sprawdź {{ device_name or friendly_name }}",
+    "pt-BR": "Verificar {{ device_name or friendly_name }}",
+    "ru": "Проверить {{ device_name or friendly_name }}",
+    "sv": "Kontrollera {{ device_name or friendly_name }}",
+    "zh-Hans": "检查 {{ device_name or friendly_name }}",
+}
+
+
+# The task text each preset seeds, per language. A preset's ``default_spec`` holds the
+# English; the panel is handed the household's language (``localized_default_spec``),
+# and a saved recipe whose template is still one of these, in any language, renders
+# in the current language (``localized_task_template``). A template the user edited
+# matches none of them and is rendered as written. Translators: keep every Jinja
+# expression between ``{{ }}`` exactly as it is, except the quoted fallback word.
+PRESET_TASK_TEXT: dict[str, dict[str, dict[str, str]]] = {
+    "device_pulse": {
+        "name_template": _DEVICE_CHECK_NAMES,
+        "notes_template": {
+            "en": (
+                "Device Pulse reports {{ state }} failed pings for {{ friendly_name }}."
+            ),
+            "ca": (
+                "Device Pulse informa de {{ state }} "
+                "pings fallits per a {{ friendly_name }}."
+            ),
+            "cs": (
+                "Device Pulse hlásí {{ state }} "
+                "neúspěšných pingů pro {{ friendly_name }}."
+            ),
+            "da": (
+                "Device Pulse rapporterer {{ state }} "
+                "mislykkede ping for {{ friendly_name }}."
+            ),
+            "de": (
+                "Device Pulse meldet {{ state }} "
+                "fehlgeschlagene Pings für {{ friendly_name }}."
+            ),
+            "es": (
+                "Device Pulse informa de {{ state }} "
+                "pings fallidos para {{ friendly_name }}."
+            ),
+            "fi": (
+                "Device Pulse ilmoittaa {{ state }} epäonnistunutta "
+                "pingiä kohteelle {{ friendly_name }}."
+            ),
+            "fr": (
+                "Device Pulse signale {{ state }} pings "
+                "échoués pour {{ friendly_name }}."
+            ),
+            "it": (
+                "Device Pulse segnala {{ state }} ping falliti per {{ friendly_name }}."
+            ),
+            "nb": (
+                "Device Pulse rapporterer {{ state }} "
+                "mislykkede ping for {{ friendly_name }}."
+            ),
+            "nl": (
+                "Device Pulse meldt {{ state }} mislukte "
+                "pings voor {{ friendly_name }}."
+            ),
+            "pl": (
+                "Device Pulse zgłasza {{ state }} "
+                "nieudanych pingów dla {{ friendly_name }}."
+            ),
+            "pt-BR": (
+                "O Device Pulse informa {{ state }} pings "
+                "com falha para {{ friendly_name }}."
+            ),
+            "ru": (
+                "Device Pulse сообщает: {{ state }} "
+                "неудачных пингов для {{ friendly_name }}."
+            ),
+            "sv": (
+                "Device Pulse rapporterar {{ state }} "
+                "misslyckade ping för {{ friendly_name }}."
+            ),
+            "zh-Hans": (
+                "Device Pulse 报告 {{ friendly_name }} 有 {{ state }} 次 ping 失败。"
+            ),
+        },
+    },
+    # The name is the Device Pulse name on purpose: both presets ask the user to go
+    # and look at a device, and one wording per language keeps the task lists alike.
+    "device_stopped_reporting": {
+        "name_template": _DEVICE_CHECK_NAMES,
+        "notes_template": {
+            "en": "This device last reported at {{ state }}.",
+            "ca": "Aquest dispositiu va informar per última vegada a les {{ state }}.",
+            "cs": "Toto zařízení se naposledy ozvalo v {{ state }}.",
+            "da": "Denne enhed rapporterede sidst {{ state }}.",
+            "de": "Dieses Gerät hat zuletzt um {{ state }} gemeldet.",
+            "es": "Este dispositivo informó por última vez a las {{ state }}.",
+            "fi": "Tämä laite raportoi viimeksi {{ state }}.",
+            "fr": "Cet appareil a communiqué pour la dernière fois à {{ state }}.",
+            "it": "Questo dispositivo ha comunicato l'ultima volta alle {{ state }}.",
+            "nb": "Denne enheten rapporterte sist {{ state }}.",
+            "nl": "Dit apparaat meldde zich voor het laatst om {{ state }}.",
+            "pl": "To urządzenie ostatnio zgłosiło się o {{ state }}.",
+            "pt-BR": "Este dispositivo se comunicou pela última vez às {{ state }}.",
+            "ru": "Это устройство последний раз выходило на связь в {{ state }}.",
+            "sv": "Den här enheten rapporterade senast {{ state }}.",
+            "zh-Hans": "此设备最后一次报告的时间为 {{ state }}。",
+        },
+    },
+    "firmware_update_available": {
+        "name_template": {
+            "en": "Update {{ friendly_name }}",
+            "ca": "Actualitzar {{ friendly_name }}",
+            "cs": "Aktualizovat {{ friendly_name }}",
+            "da": "Opdater {{ friendly_name }}",
+            "de": "{{ friendly_name }} aktualisieren",
+            "es": "Actualizar {{ friendly_name }}",
+            "fi": "Päivitä {{ friendly_name }}",
+            "fr": "Mettre à jour {{ friendly_name }}",
+            "it": "Aggiornare {{ friendly_name }}",
+            "nb": "Oppdater {{ friendly_name }}",
+            "nl": "{{ friendly_name }} bijwerken",
+            "pl": "Zaktualizuj {{ friendly_name }}",
+            "pt-BR": "Atualizar {{ friendly_name }}",
+            "ru": "Обновить {{ friendly_name }}",
+            "sv": "Uppdatera {{ friendly_name }}",
+            "zh-Hans": "更新 {{ friendly_name }}",
+        },
+        "notes_template": {
+            "en": "Latest version: {{ attributes.latest_version or 'unknown' }}",
+            "ca": "Darrera versió: {{ attributes.latest_version or 'desconeguda' }}",
+            "cs": "Nejnovější verze: {{ attributes.latest_version or 'neznámá' }}",
+            "da": "Nyeste version: {{ attributes.latest_version or 'ukendt' }}",
+            "de": "Neueste Version: {{ attributes.latest_version or 'unbekannt' }}",
+            "es": "Última versión: {{ attributes.latest_version or 'desconocida' }}",
+            "fi": "Uusin versio: {{ attributes.latest_version or 'tuntematon' }}",
+            "fr": "Dernière version : {{ attributes.latest_version or 'inconnue' }}",
+            "it": "Ultima versione: {{ attributes.latest_version or 'sconosciuta' }}",
+            "nb": "Nyeste versjon: {{ attributes.latest_version or 'ukjent' }}",
+            "nl": "Nieuwste versie: {{ attributes.latest_version or 'onbekend' }}",
+            "pl": "Najnowsza wersja: {{ attributes.latest_version or 'nieznana' }}",
+            "pt-BR": (
+                "Versão mais recente: {{ attributes.latest_version or 'desconhecida' }}"
+            ),
+            "ru": "Последняя версия: {{ attributes.latest_version or 'неизвестна' }}",
+            "sv": "Senaste version: {{ attributes.latest_version or 'okänd' }}",
+            "zh-Hans": "最新版本：{{ attributes.latest_version or '未知' }}",  # noqa: RUF001
+        },
+    },
+}
+_TEMPLATE_FIELDS = ("name_template", "notes_template")
+_DEFAULT_LANG = "en"
+
+
+def _pick(table: dict[str, str], lang: str | None) -> str:
+    """*table*'s text for *lang*: exact, then the base language, then English."""
+    if lang:
+        if lang in table:
+            return table[lang]
+        base = lang.split("-")[0].lower()
+        for key, value in table.items():
+            if key.lower() == lang.lower() or key.lower() == base:
+                return value
+    return table[_DEFAULT_LANG]
+
+
+def localized_task_template(spec: dict[str, Any], lang: str | None) -> dict[str, Any]:
+    """*spec*'s task template, with unchanged preset text put into *lang*.
+
+    A field is replaced only when the spec names a known preset and the field still
+    reads as that preset's text in **some** language — so a recipe saved in English
+    renders in German after the household switches, and back again. A field the user
+    edited matches none of them and is returned as written. The input is not mutated.
+    """
+    template = dict(spec.get("task_template") or {})
+    texts = PRESET_TASK_TEXT.get(str(spec.get("preset_id") or ""))
+    if not texts:
+        return template
+    for field in _TEMPLATE_FIELDS:
+        variants = texts[field]
+        if template.get(field) in variants.values():
+            template[field] = _pick(variants, lang)
+    return template
+
+
+def localized_default_spec(
+    preset: PresetDefinition, lang: str | None, name: str
+) -> dict[str, Any]:
+    """A copy of *preset*'s ``default_spec`` in *lang*, named *name*.
+
+    This is what the panel seeds the Add dialog with, so a new recipe is saved in
+    the household's language from the start.
+    """
+    spec = dict(preset["default_spec"])
+    spec["name"] = name
+    spec["task_template"] = localized_task_template(spec, lang)
+    return spec

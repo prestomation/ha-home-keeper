@@ -253,8 +253,9 @@ export interface Hass {
   labels?: Record<string, HassLabel>;
   states?: Record<string, HassEntity>;
   language?: string;
-  // The instance's configured currency, used to format a completion's cost.
-  config?: { currency?: string };
+  // The instance's configured currency, used to format a completion's cost, and its
+  // language, which the backend formats the shopping-list lines in.
+  config?: { currency?: string; language?: string };
   // Auth token, used to POST a document upload to the Home Keeper HTTP view with an
   // Authorization header (the real `hass` object exposes this; we under-declare it).
   //
@@ -359,6 +360,12 @@ export interface Part {
   // replacement task has never been completed or skipped, so it retires itself. Not a
   // form field: the panel reads it and never writes it.
   carried_uses?: number | null;
+  // The NFC/RFID tag bound to the task this wear item creates: the use task of a
+  // counted wear item, else the maintenance task. The reconciler copies both onto
+  // that task, so this is where the binding is edited. `require_tag_scan` blocks
+  // Done on it until the tag is scanned; the backend refuses it without a tag.
+  tag_id?: string | null;
+  require_tag_scan?: boolean;
   last_replaced?: string | null;
   // Spare-inventory tracking. `stock` is how much is on hand (drawn down when a
   // wear-part replacement or a linked task is completed); `reorder_at` is the
@@ -577,6 +584,9 @@ export interface HomeKeeperOptions {
   one_off_retention_days: number;
   // The to-do list auto-buy reminders are mirrored onto; '' = mirror off.
   shopping_list_entity: string;
+  // How a mirrored reminder's line reads on that list: the reminder's own name, or the
+  // part name alone. Absent reads as 'with_verb'.
+  shopping_line_style?: 'with_verb' | 'product_only';
   // Catalog glue domains dismissed from the Companions "Suggested" list.
   dismissed_companions?: string[];
   // Saved filters (each carrying its own to-do list sync) and the notifications

@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Àrees excloses",
           "problem_sensor_exclude_labels": "Etiquetes excloses",
           "one_off_retention_days": "Retenció de tasques úniques (dies)",
-          "shopping_list_entity": "Llista de la compra"
+          "shopping_list_entity": "Llista de la compra",
+          "shopping_line_style": "Text a la llista de la compra"
         },
         "data_description": {
           "sync_problem_sensors": "Una tasca sincronitzada només es tanca quan la integració d'origen resol el problema, no quan toques Fet. Els recordatoris n'ofereixen Ajorna en lloc de Fet.",
           "one_off_retention_days": "Elimina automàticament una tasca única completada aquest nombre de dies després d'haver-se completat. El valor 0 manté les tasques úniques completades per sempre.",
-          "shopping_list_entity": "Sincronitza els recordatoris de compra automàtica amb aquesta llista de tasques. Marcar-hi un element completa el recordatori de Home Keeper i reposa l'estoc de la peça. Deixa-ho buit per desactivar-ho."
+          "shopping_list_entity": "Sincronitza els recordatoris de compra automàtica amb aquesta llista de tasques. Marcar-hi un element completa el recordatori de Home Keeper i reposa l'estoc de la peça. Deixa-ho buit per desactivar-ho.",
+          "shopping_line_style": "Com apareix un recordatori de compra a la llista de la compra. «Només producte» mostra el nom del recanvi sense el verb, per exemple «Suavitzant» en lloc de «Comprar suavitzant»."
         }
       }
     }
@@ -120,6 +122,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "Activada",
+          "description": "Desactiva o activa aquesta tasca. Una tasca desactivada conserva el seu historial i la seva configuració, i la seva data de venciment no es mou. Home Keeper la manté fora dels teus recordatoris i de les teves llistes fins que la tornis a activar."
         }
       }
     },
@@ -210,6 +216,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "Activada",
+          "description": "Desactiva o activa aquesta tasca. Una tasca desactivada conserva el seu historial i la seva configuració, i la seva data de venciment no es mou. Home Keeper la manté fora dels teus recordatoris i de les teves llistes fins que la tornis a activar."
         }
       }
     },
@@ -680,6 +690,10 @@
           "name": "Llista de la compra",
           "description": "Una llista de tasques existent on sincronitzar els recordatoris de compra automàtica. Marcar-hi un element completa el recordatori i reposa l'estoc. Deixa-ho buit per desactivar-ho."
         },
+        "shopping_line_style": {
+          "name": "Text a la llista de la compra",
+          "description": "Com apareix un recordatori de compra a la llista de la compra. with_verb (per defecte) mostra el nom del recordatori, per exemple «Comprar suavitzant». product_only mostra només el nom del recanvi."
+        },
         "dismissed_companions": {
           "name": "Companys descartats",
           "description": "Dominis d'integracions de connexió a amagar de la llista «Suggerits» a Configuració → Companys. Descartar només silencia un suggeriment; un aparellament connectat es mostra sempre."
@@ -951,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Llista els companions declaratius",
       "description": "Retorna com a resposta cada especificació de companion declaratiu emmagatzemada."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Amb verb",
+        "product_only": "Només producte"
+      }
     }
   },
   "entity": {

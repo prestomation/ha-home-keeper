@@ -840,6 +840,7 @@ OPTIONS: tuple[OptionSpec, ...] = (
     OptionSpec(const.OPTION_ALLOW_DUE_TODAY, in_flow=False),
     OptionSpec(const.OPTION_ONE_OFF_RETENTION_DAYS, in_flow=True),
     OptionSpec(const.OPTION_SHOPPING_LIST_ENTITY, in_flow=True),
+    OptionSpec(const.OPTION_SHOPPING_LINE_STYLE, in_flow=True),
     OptionSpec(const.OPTION_PROFILES, in_flow=False),
     OptionSpec(const.OPTION_NOTIFICATIONS, in_flow=False),
     OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, in_flow=True),

@@ -23,6 +23,7 @@ import {
   formatCost,
   formatDate,
   formatDateTime,
+  decimalMark,
   formatQuantity,
   isArmedTriggered,
   isBuyTask,
@@ -58,6 +59,7 @@ import {
   toast,
   usageIntervalStats,
 } from '../src/utils.ts';
+import { setLanguage } from '../src/i18n';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
@@ -162,6 +164,22 @@ describe('formatQuantity', () => {
     expect(formatQuantity(0.5, ' bottles ')).toBe('0.5 bottles');
   });
 
+  it('writes the decimal mark of the language it is given', () => {
+    expect(formatQuantity(1.5, 'kg', 'de')).toBe('1,5 kg');
+    expect(formatQuantity(1.5, 'kg', 'en')).toBe('1.5 kg');
+    expect(formatQuantity(3, '', 'de')).toBe('3');
+  });
+
+  it('follows the panel language when none is given', () => {
+    setLanguage('de');
+    try {
+      expect(formatQuantity(0.5)).toBe('0,5');
+    } finally {
+      setLanguage('en');
+    }
+    expect(formatQuantity(0.5)).toBe('0.5');
+  });
+
   it('drops trailing zeros and float noise', () => {
     expect(formatQuantity(1.5)).toBe('1.5');
     expect(formatQuantity(2.0)).toBe('2');
@@ -186,7 +204,7 @@ describe('formatQuantity', () => {
 
     for (const c of cases) {
       it(c.name, () => {
-        expect(formatQuantity(c.value, c.unit)).toBe(c.expected);
+        expect(formatQuantity(c.value, c.unit, c.lang ?? 'en')).toBe(c.expected);
       });
     }
   });
@@ -521,6 +539,43 @@ describe('statusChipHtml', () => {
     // Never completed — a fresh reminder that simply has no due date yet.
     expect(statusChipHtml({ ...bought, last_completed: null }, undefined, { now })).toContain(
       lowStock,
+    );
+  });
+
+  it('says Disabled on a switched-off task, whatever its stored date says', () => {
+    // The date is frozen where it was when the task went off, so every other branch
+    // would read it and report urgency nothing will announce. A pool task switched off
+    // in October must not sit in the list all winter counting days late.
+    const off = { enabled: false, next_due: '2026-06-10T12:00:00Z' };
+    const html = statusChipHtml(off, undefined, { now, elapsed: true });
+    expect(html).toContain('label="Disabled"');
+    expect(html).toContain('class="hk-disabled"');
+    expect(html).not.toContain('Overdue');
+    expect(html).not.toContain('3 days overdue');
+  });
+
+  it('puts Disabled ahead of every other status a task could carry', () => {
+    // Off beats each branch that would otherwise win: a counted wear item's progress,
+    // a buy reminder's Low stock, and a plain due date.
+    const counted = { count: 17, target: 25, noun: 'washes' };
+    expect(
+      statusChipHtml({ enabled: false, recurrence_type: 'use' }, undefined, { now, counted }),
+    ).toContain('label="Disabled"');
+    expect(statusChipHtml({ ...buy, enabled: false }, undefined, { now })).toContain(
+      'label="Disabled"',
+    );
+    expect(
+      statusChipHtml({ enabled: false, next_due: '2026-07-10T12:00:00Z' }, undefined, { now }),
+    ).toContain('label="Disabled"');
+  });
+
+  it('leaves a task with no enabled key alone, because absent means on', () => {
+    // Every task stored before the field shipped has no `enabled` key at all, and
+    // `enabled === false` is the only off state — `undefined` must read as on.
+    const late = { next_due: '2026-06-10T12:00:00Z' };
+    expect(statusChipHtml(late, undefined, { now })).not.toContain('Disabled');
+    expect(statusChipHtml({ ...late, enabled: true }, undefined, { now })).not.toContain(
+      'Disabled',
     );
   });
 
@@ -1972,5 +2027,31 @@ describe('notifyRowChip', () => {
     // escaped after the fact: the icon by its character set, the color by its shape.
     const html = notifyRowChip('mdi:pill" onload="alert(1)', '#000000"onload="alert(1)');
     expect(html).toBe('');
+  });
+});
+
+describe('decimalMark', () => {
+  it('reads the mark from the language', () => {
+    expect(decimalMark('en')).toBe('.');
+    expect(decimalMark('de')).toBe(',');
+    expect(decimalMark('pt-BR')).toBe(',');
+    expect(decimalMark('zh-Hans')).toBe('.');
+  });
+
+  it('reads the mark for Latin digits, as the backend does', () => {
+    // Persian's native mark is "٫". Babel gives the shopping list ".", so the
+    // preview must too.
+    expect(decimalMark('fa')).toBe('.');
+  });
+
+  it('reads anything it cannot place as English', () => {
+    expect(decimalMark()).toBe('.');
+    expect(decimalMark('')).toBe('.');
+    expect(decimalMark('!!')).toBe('.');
+  });
+
+  it('answers the same twice', () => {
+    expect(decimalMark('fr')).toBe(',');
+    expect(decimalMark('fr')).toBe(',');
   });
 });

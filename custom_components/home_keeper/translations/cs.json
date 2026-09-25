@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Vyloučené oblasti",
           "problem_sensor_exclude_labels": "Vyloučené štítky",
           "one_off_retention_days": "Uchování jednorázových úkolů (dny)",
-          "shopping_list_entity": "Nákupní seznam"
+          "shopping_list_entity": "Nákupní seznam",
+          "shopping_line_style": "Text na nákupním seznamu"
         },
         "data_description": {
           "sync_problem_sensors": "Synchronizovaný úkol se uzavře, až když zdrojová integrace problém vyřeší, ne když klepnete na Hotovo. Připomenutí u něj nabízejí Odložit místo Hotovo.",
           "one_off_retention_days": "Automaticky smazat dokončený jednorázový úkol tolik dní po jeho dokončení. Hodnota 0 ponechá dokončené jednorázové úkoly navždy.",
-          "shopping_list_entity": "Synchronizuje automatické nákupní připomínky do tohoto seznamu úkolů. Odškrtnutí položky tam dokončí připomínku v Home Keeperu a doplní zásobu dílu. Ponechte prázdné pro vypnutí."
+          "shopping_list_entity": "Synchronizuje automatické nákupní připomínky do tohoto seznamu úkolů. Odškrtnutí položky tam dokončí připomínku v Home Keeperu a doplní zásobu dílu. Ponechte prázdné pro vypnutí.",
+          "shopping_line_style": "Jak se nákupní připomínka zobrazí na nákupním seznamu. „Jen produkt“ zobrazí název dílu bez slovesa, například „Aviváž“ místo „Koupit aviváž“."
         }
       }
     }
@@ -120,6 +122,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "Povoleno",
+          "description": "Zakažte nebo povolte tento úkol. Vypnutý úkol si zachová svou historii i nastavení a datum splnění zůstane beze změny. Home Keeper jej nechá mimo vaše připomínky a seznamy, dokud jej znovu nezapnete."
         }
       }
     },
@@ -210,6 +216,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "Povoleno",
+          "description": "Zakažte nebo povolte tento úkol. Vypnutý úkol si zachová svou historii i nastavení a datum splnění zůstane beze změny. Home Keeper jej nechá mimo vaše připomínky a seznamy, dokud jej znovu nezapnete."
         }
       }
     },
@@ -680,6 +690,10 @@
           "name": "Nákupní seznam",
           "description": "Existující seznam úkolů, do kterého se synchronizují automatické nákupní připomínky. Odškrtnutí položky tam připomínku dokončí a doplní zásobu. Prázdné pole funkci vypne."
         },
+        "shopping_line_style": {
+          "name": "Text na nákupním seznamu",
+          "description": "Jak se nákupní připomínka zobrazí na nákupním seznamu. with_verb (výchozí) zobrazí název připomínky, například „Koupit aviváž“. product_only zobrazí jen název dílu."
+        },
         "dismissed_companions": {
           "name": "Zamítnutí společníci",
           "description": "Domény propojovacích integrací, které se mají skrýt ze seznamu „Navrhované“ v Nastavení → Společníci. Zamítnutí pouze umlčí návrh; propojené párování se zobrazuje vždy."
@@ -951,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Vypsat deklarativní společníky",
       "description": "Vrátí každou uloženou specifikaci deklarativního společníka jako odpověď."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Se slovesem",
+        "product_only": "Jen produkt"
+      }
     }
   },
   "entity": {

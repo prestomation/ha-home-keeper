@@ -56,7 +56,12 @@ from homeassistant.core import (
 )
 
 from .shopping import normalize_items
-from .todo_items import STATUS_COMPLETED, STATUS_NEEDS_ACTION
+from .todo_items import (
+    CAP_DESCRIPTION,
+    CAP_DUE_DATE,
+    STATUS_COMPLETED,
+    STATUS_NEEDS_ACTION,
+)
 
 if TYPE_CHECKING:
     from .coordinator import HomeKeeperCoordinator
@@ -252,6 +257,20 @@ class TodoSyncDriver(ABC):
             self._logger.debug("todo.%s on %s failed: %s", service, entity_id, err)
             return False
         return True
+
+    def _capabilities(self, entity_id: str) -> frozenset[str]:
+        """Which optional item fields *entity_id* can actually hold.
+
+        The planner neither writes nor diffs a field outside this set, so a list
+        without due dates is never told one — otherwise every pass would "fix" the
+        same item forever, because the value it wrote was dropped on arrival.
+        """
+        caps: set[str] = set()
+        if self._supports(entity_id, TodoListEntityFeature.SET_DUE_DATE_ON_ITEM):
+            caps.add(CAP_DUE_DATE)
+        if self._supports(entity_id, TodoListEntityFeature.SET_DESCRIPTION_ON_ITEM):
+            caps.add(CAP_DESCRIPTION)
+        return frozenset(caps)
 
     def _supports(self, entity_id: str, feature: TodoListEntityFeature) -> bool:
         state = self._hass.states.get(entity_id)

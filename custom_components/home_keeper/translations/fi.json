@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Poissuljetut alueet",
           "problem_sensor_exclude_labels": "Poissuljetut tunnisteet",
           "one_off_retention_days": "Kertaluonteisten säilytys (päivää)",
-          "shopping_list_entity": "Ostoslista"
+          "shopping_list_entity": "Ostoslista",
+          "shopping_line_style": "Teksti ostoslistalla"
         },
         "data_description": {
           "sync_problem_sensors": "Synkronoitu tehtävä sulkeutuu vasta, kun lähdeintegraatio ratkaisee ongelman, ei Valmis-painikkeesta. Sen muistutukset tarjoavat Torkun Valmis-painikkeen sijaan.",
           "one_off_retention_days": "Poista valmis kertaluonteinen tehtävä automaattisesti näin monen päivän kuluttua sen suorittamisesta. Arvo 0 säilyttää valmiit kertaluonteiset tehtävät pysyvästi.",
-          "shopping_list_entity": "Synkronoi automaattiset ostomuistutukset tähän tehtävälistaan. Kun merkitset kohteen siellä tehdyksi, Home Keeperin muistutus kuittautuu ja varaosan varasto täydentyy. Jätä tyhjäksi ottaaksesi synkronoinnin pois käytöstä."
+          "shopping_list_entity": "Synkronoi automaattiset ostomuistutukset tähän tehtävälistaan. Kun merkitset kohteen siellä tehdyksi, Home Keeperin muistutus kuittautuu ja varaosan varasto täydentyy. Jätä tyhjäksi ottaaksesi synkronoinnin pois käytöstä.",
+          "shopping_line_style": "Miten ostomuistutus näkyy ostoslistalla. ”Vain tuote” näyttää varaosan nimen ilman verbiä, esimerkiksi ”Huuhteluaine” eikä ”Osta huuhteluaine”."
         }
       }
     }
@@ -120,6 +122,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "Käytössä",
+          "description": "Poista tämä tehtävä käytöstä tai ota se käyttöön. Käytöstä poistettu tehtävä säilyttää historiansa ja asetuksensa, eikä sen eräpäivä siirry. Home Keeper pitää sen poissa muistutuksistasi ja listoiltasi, kunnes otat sen uudelleen käyttöön."
         }
       }
     },
@@ -210,6 +216,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "Käytössä",
+          "description": "Poista tämä tehtävä käytöstä tai ota se käyttöön. Käytöstä poistettu tehtävä säilyttää historiansa ja asetuksensa, eikä sen eräpäivä siirry. Home Keeper pitää sen poissa muistutuksistasi ja listoiltasi, kunnes otat sen uudelleen käyttöön."
         }
       }
     },
@@ -680,6 +690,10 @@
           "name": "Ostoslista",
           "description": "Olemassa oleva tehtävälista, johon automaattiset ostomuistutukset synkronoidaan. Siellä tehdyksi merkitty kohde kuittaa muistutuksen ja täydentää varaston. Tyhjä kenttä poistaa toiminnon käytöstä."
         },
+        "shopping_line_style": {
+          "name": "Teksti ostoslistalla",
+          "description": "Miten ostomuistutus näkyy ostoslistalla. with_verb (oletus) näyttää muistutuksen nimen, esimerkiksi ”Osta huuhteluaine”. product_only näyttää vain varaosan nimen."
+        },
         "dismissed_companions": {
           "name": "Hylätyt kumppanit",
           "description": "Glue-integraatiodomeenit, jotka piilotetaan kohdan Asetukset → Kumppanit \"Ehdotetut\"-luettelosta. Hylkääminen vain vaimentaa ehdotuksen; yhdistetty pariliitos näytetään aina."
@@ -951,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Listaa deklaratiiviset kumppanit",
       "description": "Palauttaa vastauksena jokaisen tallennetun deklaratiivisen kumppanimäärittelyn."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Verbin kanssa",
+        "product_only": "Vain tuote"
+      }
     }
   },
   "entity": {

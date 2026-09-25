@@ -436,7 +436,7 @@ describe('previewHtml', () => {
   });
 
   it('draws a neutral hint, not an error, for a box the user has not filled in', () => {
-    const html = previewHtml(result([row('sensor.a'), row('sensor.b')]), null, true);
+    const html = previewHtml(result([row('sensor.a'), row('sensor.b')]), null, [], true);
 
     expect(html).toContain('hk-decl-template-hint');
     expect(html).toContain('alert-type="info"');
@@ -450,6 +450,7 @@ describe('previewHtml', () => {
     const html = previewHtml(
       result([row('sensor.a', { trigger_error: 'boom' })]),
       null,
+      [],
       true,
     );
 

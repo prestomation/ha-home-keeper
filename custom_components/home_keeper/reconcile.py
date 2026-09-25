@@ -23,6 +23,7 @@ from .assets import (
     part_counts_uses,
     part_is_low,
     part_replace_backstop,
+    part_tag_role,
     part_use_target,
     part_wants_buy_task,
     use_retention_cap,
@@ -51,6 +52,49 @@ from .const import (
 # resolved from ``hass.config.language`` (see const.resolve_wear_task_naming).
 _DEFAULT_NAME_TEMPLATE = WEAR_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 _DEFAULT_BUY_NAME_TEMPLATE = BUY_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
+
+
+# The name the reconciler last gave a buy reminder, kept in its ``source.buy`` so a
+# later pass can tell its own name from one a user typed. Internal: buy reminders are
+# not exported (``transfer.is_portable_task``), so this is not a contract.
+BUY_GENERATED_NAME = "generated_name"
+
+
+def _name_is_ours(task: dict[str, Any], name: str) -> bool:
+    """Whether *name* is the one the reconciler gave *task*, so it may rename it.
+
+    A reminder minted by this version records the name it was given
+    (:data:`BUY_GENERATED_NAME`), and only that exact name is ours: a user who types
+    "Buy Sheba" keeps it, although it reads like a generated one. A reminder from an
+    older version has no record, so the shape of the name decides
+    (:func:`is_generated_buy_name`).
+    """
+    buy = task["source"][TASK_SOURCE_BUY]
+    if BUY_GENERATED_NAME in buy:
+        return name == buy[BUY_GENERATED_NAME]
+    return is_generated_buy_name(name)
+
+
+def is_generated_buy_name(name: str) -> bool:
+    """Whether *name* still reads as a generated "Buy {part}" name, in any language.
+
+    The reconciler renames a buy reminder when its part is renamed or the household
+    changes language, but only while the name is still one it wrote. A name that
+    matches none of :data:`BUY_TASK_NAME_TEMPLATES` was typed by someone (through
+    ``update_task``), and that name is theirs to keep. The check is on the shape,
+    not the part: after a part rename the old name holds the *old* part name.
+    """
+    for template in BUY_TASK_NAME_TEMPLATES.values():
+        prefix, _, suffix = template.partition("{part}")
+        if (
+            len(name) > len(prefix) + len(suffix)
+            and name.startswith(prefix)
+            and name.endswith(suffix)
+        ):
+            return True
+    return False
+
+
 _DEFAULT_APPLIANCE_FALLBACK = APPLIANCE_FALLBACK_NAMES[DEFAULT_LANGUAGE]
 _DEFAULT_USE_NAME_TEMPLATE = USE_TASK_NAME_TEMPLATES[DEFAULT_LANGUAGE]
 
@@ -420,6 +464,121 @@ def _replace_name_template(
     return resolve_action_task_naming(action, language)
 
 
+def _tag_fields(part: dict[str, Any], role: str) -> dict[str, Any]:
+    """The ``tag_id``/``require_tag_scan`` pair a derived task of *role* carries.
+
+    The part's binding goes to exactly one of its tasks — :func:`assets.part_tag_role`
+    says which — and the other gets the empty pair, so switching a part between
+    months and uses moves the tag from one task to the other rather than leaving it on
+    both. ``require_tag_scan`` is tied to the tag here as well as at validation: a
+    ``True`` beside a ``None`` tag is what ``models.merge_update`` refuses.
+    """
+    if role != part_tag_role(part):
+        return {"tag_id": None, "require_tag_scan": False}
+    tag_id = part.get("tag_id") or None
+    return {
+        "tag_id": tag_id,
+        "require_tag_scan": tag_id is not None and bool(part.get("require_tag_scan")),
+    }
+
+
+def adopt_part_tags(
+    assets: dict[str, dict[str, Any]], tasks: dict[str, dict[str, Any]]
+) -> bool:
+    """Move a tag bound to a derived task straight onto the part that owns it.
+
+    Before parts carried a tag, ``home_keeper.update_task`` was the only way to bind
+    one to a wear part's task, and the 0.24 notes said a tag scan counts a use. Now
+    that :func:`reconcile_part_tasks` writes the task's binding from the part, such a
+    tag would be cleared on the first pass after the upgrade. The store runs this
+    **when it loads** and copies the tag up instead: a part that already names a tag
+    keeps its own, and a task whose role is not the one the part's tag goes to is left
+    for the reconciler to clear (:func:`stray_part_tags` names those). It runs on every
+    load, but only the first one after the upgrade finds anything: from then on the
+    reconciler writes the task's tag from the part, and ``update_task`` refuses to
+    change it (:func:`is_part_owned_tag_update`). Never on every reconcile pass —
+    there it would put back a tag a user had just cleared on the part, because the
+    task still wore it. Mutates *assets* in place and returns ``True`` when a part
+    changed.
+    """
+    parts = {
+        (asset["id"], part["id"]): part
+        for asset in assets.values()
+        for part in asset.get("parts", [])
+        if part.get("id")
+    }
+    changed = False
+    for task in tasks.values():
+        src = part_source(task)
+        if src is None or src.get("manual") or not task.get("tag_id"):
+            continue
+        part = parts.get((src["asset_id"], src["part_id"]))
+        if part is None or part.get("tag_id") or part_role(task) != part_tag_role(part):
+            continue
+        part["tag_id"] = task["tag_id"]
+        part["require_tag_scan"] = bool(task.get("require_tag_scan"))
+        changed = True
+    return changed
+
+
+def stray_part_tags(
+    assets: dict[str, dict[str, Any]], tasks: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """The derived tasks whose tag the next reconcile pass will clear or replace.
+
+    Run after :func:`adopt_part_tags`. What is left is a tag the part cannot hold: a
+    tag on a counted wear item's maintenance task (the part's tag goes to its use
+    task), or a second tag when the part already names one. The store logs each one,
+    so a sticker that stops working after the upgrade is not a silent change.
+    Returns ``{task_id, name, tag_id}`` for each.
+    """
+    parts = {
+        (asset["id"], part["id"]): part
+        for asset in assets.values()
+        for part in asset.get("parts", [])
+        if part.get("id")
+    }
+    stray: list[dict[str, Any]] = []
+    for task in tasks.values():
+        src = part_source(task)
+        if src is None or src.get("manual") or not task.get("tag_id"):
+            continue
+        part = parts.get((src["asset_id"], src["part_id"]))
+        if part is None:
+            continue
+        if task["tag_id"] != _tag_fields(part, part_role(task))["tag_id"]:
+            stray.append(
+                {
+                    "task_id": task["id"],
+                    "name": task.get("name"),
+                    "tag_id": task["tag_id"],
+                }
+            )
+    return stray
+
+
+def is_part_owned_tag_update(task: dict[str, Any], updates: dict[str, Any]) -> bool:
+    """Whether *updates* would change a tag that the task's wear part owns.
+
+    A wear part's derived task takes its ``tag_id`` / ``require_tag_scan`` from the
+    part on every reconcile pass. A change made on the task itself would stay until
+    the next pass and then go away without a message, so ``update_task`` refuses it
+    and points to the part. A value equal to the current one is not a change, so a
+    caller that sends the whole task back is not refused. A manual consumable link is
+    the user's own task and keeps its tag.
+    """
+    src = part_source(task)
+    if src is None or src.get("manual"):
+        return False
+    if "tag_id" in updates and models.normalize_tag_id(updates["tag_id"]) != task.get(
+        "tag_id"
+    ):
+        return True
+    return "require_tag_scan" in updates and bool(updates["require_tag_scan"]) != bool(
+        task.get("require_tag_scan")
+    )
+
+
 def reconcile_part_tasks(
     assets: dict[str, dict[str, Any]],
     tasks: dict[str, dict[str, Any]],
@@ -532,6 +691,7 @@ def reconcile_part_tasks(
                 "device_id": asset.get("device_id"),
                 "area_id": asset.get("area_id"),
                 "source": {"part": part_link},
+                **_tag_fields(part, role),
             }
             if rec_type == REC_FLOATING:
                 payload["interval"] = part["replace_interval"]
@@ -579,6 +739,14 @@ def reconcile_part_tasks(
                 updates["device_id"] = asset.get("device_id")
             if before.get("area_id") != asset.get("area_id"):
                 updates["area_id"] = asset.get("area_id")
+            tag = _tag_fields(part, role)
+            if (
+                before.get("tag_id") != tag["tag_id"]
+                or bool(before.get("require_tag_scan")) != tag["require_tag_scan"]
+            ):
+                # Both keys together, always: ``merge_update`` validates the pair, and
+                # a tag cleared on its own while the flag stood would be refused.
+                updates.update(tag)
             merged = (
                 models.merge_update(before, updates, now=now) if updates else before
             )
@@ -657,10 +825,11 @@ def reconcile_buy_tasks(
     out, or was deleted — which also ends the episode and re-arms the next one.
 
     Pure: the input maps are not mutated, and the name is localized by the caller
-    (``store.reconcile_buy_tasks`` resolves ``hass.config.language``). Buy tasks are
-    never *updated* here (a one-off has no cadence to re-derive); only created and
-    removed, so a rename after a language change is picked up as a delete + recreate
-    on the next reconcile — acceptable for a transient reminder.
+    (``store.reconcile_buy_tasks`` resolves ``hass.config.language``). The only update
+    is the name of an **open** reminder: it follows a part rename and a change of
+    language, the same drift the wear-part reconciler corrects, but only while it is
+    still a generated name (:func:`is_generated_buy_name`). A name someone typed is
+    kept, and a completed reminder is a record, so it is left as it was.
     """
     result = dict(tasks)
 
@@ -687,17 +856,39 @@ def reconcile_buy_tasks(
             existing_by_key.pop(key, None)
             changed = True
 
-    # Create a buy task for each desired key that doesn't already have one.
+    # Create a buy task for each desired key that has none, and keep the name of an
+    # open one in step with its part and the language.
     for key, (asset, part) in desired.items():
+        name = name_template.format(part=part["name"])
         if key in existing_by_key:
+            tid = existing_by_key[key]
+            current = result[tid]
+            stored = str(current.get("name") or "")
+            if (
+                stored != name
+                and not recurrence.one_off_completed(current)
+                and _name_is_ours(current, stored)
+            ):
+                source = current["source"]
+                buy = {**source[TASK_SOURCE_BUY], BUY_GENERATED_NAME: name}
+                renamed = models.merge_update(current, {"name": name}, now=now)
+                renamed["source"] = {**source, TASK_SOURCE_BUY: buy}
+                result[tid] = renamed
+                changed = True
             continue
         task = models.build_task(
             {
-                "name": name_template.format(part=part["name"]),
+                "name": name,
                 "recurrence_type": REC_ONE_OFF,
                 "device_id": asset.get("device_id"),
                 "area_id": asset.get("area_id"),
-                "source": {"buy": {"asset_id": asset["id"], "part_id": part["id"]}},
+                "source": {
+                    "buy": {
+                        "asset_id": asset["id"],
+                        "part_id": part["id"],
+                        BUY_GENERATED_NAME: name,
+                    }
+                },
             },
             now=now,
         )

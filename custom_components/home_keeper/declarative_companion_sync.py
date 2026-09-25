@@ -38,7 +38,13 @@ from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.template import TemplateError
 
-from . import declarative_companions, sensor_tasks, sensor_watcher, template_context
+from . import (
+    declarative_companions,
+    declarative_presets,
+    sensor_tasks,
+    sensor_watcher,
+    template_context,
+)
 from .const import (
     DOMAIN,
     SENSOR_MODE_TEMPLATE,
@@ -56,12 +62,16 @@ _LOGGER = logging.getLogger(__name__)
 RECONCILE_DEBOUNCE_SECONDS = 5.0
 
 
-def _project_entry(entry: er.RegistryEntry) -> dict[str, Any]:
+def _project_entry(
+    entry: er.RegistryEntry, dev_reg: dr.DeviceRegistry
+) -> dict[str, Any]:
     """Project one entity-registry entry into the plain-dict shape the pure pass reads.
 
     Kept as a free function so the whole-registry snapshot and the single-entity
     lookup that re-renders one task's notes cannot describe an entity differently.
+    ``area_id`` is the entity's effective area: its own, else its device's.
     """
+    device = dev_reg.async_get(entry.device_id) if entry.device_id else None
     return {
         "entity_registry_id": entry.id,
         "entity_id": entry.entity_id,
@@ -70,8 +80,12 @@ def _project_entry(entry: er.RegistryEntry) -> dict[str, Any]:
         "device_class": entry.device_class,
         "original_device_class": entry.original_device_class,
         "device_id": entry.device_id,
-        "area_id": entry.area_id,
-        "labels": set(entry.labels or []),
+        "area_id": declarative_companions.effective_area_id(
+            entry.area_id, device.area_id if device else None
+        ),
+        "labels": declarative_companions.effective_labels(
+            entry.labels, device.labels if device else None
+        ),
         "disabled": bool(entry.disabled),
         "name": entry.name,
         "original_name": entry.original_name,
@@ -175,12 +189,14 @@ class DeclarativeCompanionSync:
 
         Everything the pure selection pass needs sits in this snapshot; no
         further HA access is made inside :func:`declarative_companions.expand_spec`.
-        Labels come from the entity registry entry's own set (device labels are
-        NOT unioned — a device-level filter would reach into per-device labels,
-        which the current filter shape doesn't expose).
+        The labels and the area are the effective ones (the device's are included),
+        so an entity matches a filter set on its device, as in Problem sensor sync.
         """
         ent_reg = er.async_get(self._hass)
-        entries = [_project_entry(entry) for entry in ent_reg.entities.values()]
+        dev_reg = dr.async_get(self._hass)
+        entries = [
+            _project_entry(entry, dev_reg) for entry in ent_reg.entities.values()
+        ]
         return {"entities": entries}
 
     def _entry_for_entity(self, entity_id: str) -> dict[str, Any]:
@@ -194,7 +210,9 @@ class DeclarativeCompanionSync:
         """
         ent_reg = er.async_get(self._hass)
         found = ent_reg.async_get(entity_id)
-        return _project_entry(found) if found is not None else {"entity_id": entity_id}
+        if found is None:
+            return {"entity_id": entity_id}
+        return _project_entry(found, dr.async_get(self._hass))
 
     # ── rendering ────────────────────────────────────────────────────────────
     def _template_variables(self, entry: dict[str, Any]) -> dict[str, Any]:
@@ -205,6 +223,12 @@ class DeclarativeCompanionSync:
         name and the trigger that opened it always read the same ``{{ state }}``.
         """
         return template_context.template_variables(self._hass, entry)
+
+    def _task_template(self, spec: dict[str, Any]) -> dict[str, Any]:
+        """*spec*'s task template, with unchanged preset text in the HA language."""
+        return declarative_presets.localized_task_template(
+            spec, self._hass.config.language
+        )
 
     def _render_one(self, source: str, variables: dict[str, Any]) -> str:
         """Render one Jinja template, returning the source on any error.
@@ -246,7 +270,7 @@ class DeclarativeCompanionSync:
     ) -> tuple[str, str]:
         """Return ``(rendered_name, rendered_notes)`` for one match."""
         variables = self._template_variables(match["entity"])
-        template = spec.get("task_template") or {}
+        template = self._task_template(spec)
         name = self._render_one(template.get("name_template", ""), variables)
         notes = self._render_one(template.get("notes_template", ""), variables)
         return name, notes
@@ -339,7 +363,7 @@ class DeclarativeCompanionSync:
         spec = store.get_declarative_companion(source.get("spec_id") or "")
         if spec is None:
             return
-        template = (spec.get("task_template") or {}).get("notes_template") or ""
+        template = self._task_template(spec).get("notes_template") or ""
         if not template:
             return
         entity_id = sensor_tasks.bound_entity_id(task)
@@ -457,11 +481,12 @@ class DeclarativeCompanionSync:
         sample: list[dict[str, Any]] = []
         for (_spec_id_key, ent_reg_id), match in list(matches.items())[:10]:
             variables = self._template_variables(match["entity"])
+            template = self._task_template(spec)
             rendered_name = self._render_one(
-                spec.get("task_template", {}).get("name_template", ""), variables
+                template.get("name_template", ""), variables
             )
             rendered_notes = self._render_one(
-                spec.get("task_template", {}).get("notes_template", ""), variables
+                template.get("notes_template", ""), variables
             )
             trigger_now: bool | None = None
             trigger_error: str | None = None

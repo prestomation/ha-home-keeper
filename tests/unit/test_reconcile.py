@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 import hk_reconcile as rc
 import hk_recurrence as r
+import pytest
 
 TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 13, 10, tzinfo=TZ)
@@ -399,8 +400,9 @@ def test_creates_buy_task_when_low():
     assert task["name"] == "Buy Filter"
     assert task["recurrence_type"] == "one-off"
     assert task["device_id"] == "dev1"
-    assert task["source"]["buy"] == {"asset_id": "a1", "part_id": "p1"}
-    assert rc.buy_source(task) == {"asset_id": "a1", "part_id": "p1"}
+    buy = {"asset_id": "a1", "part_id": "p1", "generated_name": "Buy Filter"}
+    assert task["source"]["buy"] == buy
+    assert rc.buy_source(task) == buy
 
 
 def test_no_buy_task_when_not_low():
@@ -470,3 +472,145 @@ def test_buy_task_carries_area_from_asset():
     asset = _asset(area_id="garage", parts=[_consumable()])
     task = _only(_buy_reconcile({"a1": asset})[0])
     assert task["area_id"] == "garage"
+
+
+def test_an_open_buy_task_follows_a_part_rename():
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    before = _only(tasks)
+    asset["parts"][0]["name"] = "Pleated filter"
+    tasks2, changed = _buy_reconcile({"a1": asset}, tasks)
+    assert changed is True
+    after = _only(tasks2)
+    assert after["name"] == "Buy Pleated filter"
+    # Renamed in place: the same reminder, not a delete and a fresh one, and it
+    # records the new name as its own.
+    assert after["id"] == before["id"]
+    assert after["source"]["buy"] == {
+        **before["source"]["buy"],
+        "generated_name": "Buy Pleated filter",
+    }
+
+
+def test_an_open_buy_task_follows_a_language_change():
+    # The household switches Home Assistant to German: the English name was
+    # generated, so it drifts to the German template on the next reconcile.
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    tasks2, changed = rc.reconcile_buy_tasks(
+        {"a1": asset}, tasks, name_template="{part} kaufen", now=NOW
+    )
+    assert changed is True
+    assert _only(tasks2)["name"] == "Filter kaufen"
+    # …and back again, because "Filter kaufen" is generated too.
+    tasks3, changed = _buy_reconcile({"a1": asset}, tasks2)
+    assert changed is True
+    assert _only(tasks3)["name"] == "Buy Filter"
+
+
+def test_a_buy_task_name_the_user_typed_is_kept():
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    task = _only(tasks)
+    task["name"] = "Nassfutter"
+    asset["parts"][0]["name"] = "Wet food"
+    tasks2, changed = _buy_reconcile({"a1": asset}, {task["id"]: task})
+    assert changed is False
+    assert _only(tasks2)["name"] == "Nassfutter"
+
+
+def test_a_completed_buy_task_keeps_its_name():
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    task = _only(tasks)
+    # Completing a one-off stamps it and clears its due date.
+    task["last_completed"] = NOW.isoformat()
+    task["next_due"] = None
+    asset["parts"][0]["name"] = "Pleated filter"
+    tasks2, changed = _buy_reconcile({"a1": asset}, {task["id"]: task})
+    assert changed is False
+    assert _only(tasks2)["name"] == "Buy Filter"
+
+
+def test_an_unchanged_buy_task_name_is_not_rewritten():
+    # A generated name that already matches is not "drift": the pass reports no
+    # change, so the store does not save for nothing.
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    tasks2, changed = _buy_reconcile({"a1": asset}, tasks)
+    assert changed is False
+    assert tasks2 == tasks
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Buy Filter", "Filter kaufen", "Filter kopen", "Kup Filter", "购买 Filter"],
+)
+def test_a_generated_buy_name_is_recognized_in_any_language(name):
+    assert rc.is_generated_buy_name(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Nassfutter",
+        # Only the verb, with no part in it, is not a generated name.
+        "Buy ",
+        " kaufen",
+        "",
+        # The verb must sit where the template puts it.
+        "Filter Buy",
+        "kaufen Filter",
+    ],
+)
+def test_a_typed_name_is_not_mistaken_for_a_generated_one(name):
+    assert rc.is_generated_buy_name(name) is False
+
+
+def test_renaming_one_buy_task_does_not_stop_the_next_part_getting_one():
+    # The rename of an existing reminder must not end the walk over the parts: a
+    # second part that just went low still gets its own reminder in the same pass.
+    first = _consumable(pid="p1", name="Filter", stock=0, reorder_at=1)
+    asset = _asset(parts=[first])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    first["name"] = "Pleated filter"
+    asset["parts"].append(_consumable(pid="p2", name="Gasket", stock=0, reorder_at=1))
+    tasks2, changed = _buy_reconcile({"a1": asset}, tasks)
+    assert changed is True
+    assert sorted(t["name"] for t in tasks2.values()) == [
+        "Buy Gasket",
+        "Buy Pleated filter",
+    ]
+
+
+def test_a_typed_name_that_reads_like_a_generated_one_is_kept():
+    # "Buy Sheba" has the shape of a generated name, but it is not the name the
+    # reconciler gave this reminder, so it is the user's (#372 review).
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    task = _only(tasks)
+    task["name"] = "Buy Sheba"
+    tasks2, changed = _buy_reconcile({"a1": asset}, {task["id"]: task})
+    assert changed is False
+    assert _only(tasks2)["name"] == "Buy Sheba"
+
+
+def test_a_reminder_from_an_older_version_is_judged_by_its_shape():
+    # No record of the generated name: the shape decides, so an old generated name
+    # still follows a part rename, and a typed name without the verb is kept.
+    asset = _asset(parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    task = _only(tasks)
+    del task["source"]["buy"]["generated_name"]
+    asset["parts"][0]["name"] = "Pleated filter"
+    tasks2, changed = _buy_reconcile({"a1": asset}, {task["id"]: task})
+    assert changed is True
+    assert _only(tasks2)["name"] == "Buy Pleated filter"
+    assert _only(tasks2)["source"]["buy"]["generated_name"] == "Buy Pleated filter"
+
+    old = _only(_buy_reconcile({"a1": asset})[0])
+    del old["source"]["buy"]["generated_name"]
+    old["name"] = "Nassfutter"
+    tasks3, changed = _buy_reconcile({"a1": asset}, {old["id"]: old})
+    assert changed is False
+    assert _only(tasks3)["name"] == "Nassfutter"

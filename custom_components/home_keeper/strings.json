@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Excluded areas",
           "problem_sensor_exclude_labels": "Excluded labels",
           "one_off_retention_days": "One-off retention (days)",
-          "shopping_list_entity": "Shopping list"
+          "shopping_list_entity": "Shopping list",
+          "shopping_line_style": "Shopping list line text"
         },
         "data_description": {
           "sync_problem_sensors": "A synced task clears only when the source integration resolves the problem, not when you tap Done. Reminders for one offer Snooze in place of Mark done.",
           "one_off_retention_days": "Auto-delete a completed one-off task this many days after it is completed. 0 keeps completed one-offs forever.",
-          "shopping_list_entity": "Sync auto-buy reminders onto this to-do list. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the sync off."
+          "shopping_list_entity": "Sync auto-buy reminders onto this to-do list. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the sync off.",
+          "shopping_line_style": "How a buy reminder reads on the shopping list. Product only shows the part name without the verb, such as \"Fabric softener\" in place of \"Buy fabric softener\"."
         }
       }
     }
@@ -120,6 +122,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings. Pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Disable or enable this task. A disabled task keeps its history and its settings, and its due date stays where it was. Home Keeper keeps it out of your reminders and your lists until you enable it again."
         }
       }
     },
@@ -210,6 +216,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings. Pass a list or a single object. Send null to clear the season."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Disable or enable this task. A disabled task keeps its history and its settings, and its due date stays where it was. Home Keeper keeps it out of your reminders and your lists until you enable it again."
         }
       }
     },
@@ -768,6 +778,10 @@
           "name": "Shopping list",
           "description": "An existing to-do list to sync auto-buy reminders onto. Ticking an item off there completes the Home Keeper reminder and restocks the part. Leave empty to turn the sync off."
         },
+        "shopping_line_style": {
+          "name": "Shopping list line text",
+          "description": "How a buy reminder reads on the shopping list. with_verb (the default) shows the reminder name, such as \"Buy fabric softener\". product_only shows only the part name."
+        },
         "dismissed_companions": {
           "name": "Dismissed companions",
           "description": "Glue integration domains to hide from the Settings → Companions \"Suggested\" list. Dismissing only silences a suggestion. A connected pairing is always shown."
@@ -951,6 +965,14 @@
     "list_declarative_companions": {
       "name": "List declarative companions",
       "description": "Return every stored declarative-companion spec as a response."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "With verb",
+        "product_only": "Product only"
+      }
     }
   },
   "entity": {

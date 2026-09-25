@@ -866,6 +866,16 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 3);
 
+  // More filters opens the other filters and the Exclusions block (#373), and
+  // Exclude on a preview row leaves that entity out of the recipe.
+  await declForm.locator('.hk-decl-more').click();
+  await declForm.locator('[data-decl-section="exclusions"]').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+  await declForm.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
+  await declForm.locator('.hk-decl-exclude').first().click();
+  await expect(declForm.locator('.hk-decl-excluded-head')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
   await declForm.locator('.hk-decl-cancel').click();
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
@@ -1054,6 +1064,23 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(page.locator('ha-dialog[open] .hk-snooze-hint')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
+  // 8b. The note chip (#340). A long note used to make a row too tall for a dashboard,
+  //     so the note now sits behind a tinted chip that reads like the document links
+  //     beside it. Hold on the open dialog long enough to read the note, then Escape
+  //     out, so the closing shot still frames the cards.
+  //     The fridge-filter task by id, not `.first()`: its note is the long Markdown one
+  //     this feature exists for. The water-filter row sorts first and carries a 1-line
+  //     note, which shows the dialog but argues nothing for it.
+  const noteChip = hkCard.locator(`.hk-note-chip[data-id="${TASK.fridgeFilter}"]`);
+  await expect(noteChip).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  await noteChip.click();
+  await expect(page.locator('ha-dialog[open] .hk-note-body').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('ha-dialog[open] .hk-note-body')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   const familyCard = page
     .locator('hui-todo-list-card, todo-list-card')
     .filter({ hasText: 'Family chores' })
@@ -1084,6 +1111,18 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
  * gif in the same PR comment, not a second full walkthrough.
  */
 async function phoneTour(page: Page, panel: Locator): Promise<void> {
+  // 0. Point the buy-reminder mirror at the household shopping list, so step 6 can show
+  //    the line style and its preview. Set before the tour proper, and the panel is
+  //    opened again so it reads the new options.
+  await openPanel(page);
+  await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    await hass?.callService('home_keeper', 'set_options', {
+      shopping_list_entity: 'todo.shopping_list',
+    });
+  });
+
   // 1. Land on the task list. The tabs are along the bottom of the screen and Add
   //    floats above them.
   await openPanel(page);
@@ -1168,6 +1207,21 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('#settings-back').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
+
+  //    The Shopping list section: "Product only" drops the verb from each line, and
+  //    the preview under the choice shows the list as it will read (#369).
+  await panel.locator('.hk-index-row[data-section="shopping"]').click();
+  const shopping = panel.locator('#hk-settings-shopping');
+  await expect(shopping.locator('.hk-shopping-preview')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  await shopping.getByText('Product only', { exact: true }).click();
+  await expect(shopping.locator('.hk-shopping-preview-title').first()).not.toContainText(
+    'Buy',
+  );
+  await page.waitForTimeout(BEAT * 3);
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await page.waitForTimeout(BEAT);
 
   //    Then Import and export: a document pasted in, and the preview that says what
   //    importing it would change before anything is written.

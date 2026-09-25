@@ -932,6 +932,22 @@ describe('shoppingSchema', () => {
     const [field] = shoppingSchema([]);
     expect('exclude_entities' in field.selector.entity).toBe(false);
   });
+
+  it('offers the line style as a radio list once a list is picked', () => {
+    const fields = shoppingSchema([], 'todo.shopping_list');
+    expect(fields.map((f) => f.name)).toEqual(['shopping_list_entity', 'shopping_line_style']);
+    expect(fields[1].selector).toEqual({
+      select: {
+        mode: 'list',
+        options: [
+          { value: 'with_verb', label: 'With verb' },
+          { value: 'product_only', label: 'Product only' },
+        ],
+        sort: false,
+        multiple: false,
+      },
+    });
+  });
 });
 
 // A profile's "Sync to a to-do list" group. Configuring it is a standing instruction
@@ -1347,11 +1363,13 @@ describe('partSchema', () => {
   it('adds the replacement schedule for a wear item only', () => {
     expect(names(partSchema(consumable))).not.toContain('replace_interval');
     const wear = partSchema({ name: 'Filter', type: 'wear' });
-    expect(names(wear).slice(-4)).toEqual([
+    expect(names(wear).slice(-6)).toEqual([
       'replace_interval',
       'replace_unit',
       'action',
       'last_replaced',
+      'part_tag_id',
+      'part_require_tag_scan',
     ]);
     // The interval and its unit share a line, in an unnamed grid like the others.
     const wearGrid = wear.filter((f) => f.type === 'grid').at(-1);
@@ -1969,6 +1987,8 @@ describe('partBaseSchema / partDependentSchema', () => {
       'replace_unit',
       'action',
       'last_replaced',
+      'part_tag_id',
+      'part_require_tag_scan',
     ]);
   });
 
@@ -2022,6 +2042,8 @@ describe('partFormData', () => {
       also_every_interval: 1,
       also_every_unit: 'months',
       last_replaced: undefined,
+      part_tag_id: undefined,
+      part_require_tag_scan: false,
     });
   });
 
@@ -2315,6 +2337,8 @@ describe('partFormData — zeros and blanks survive the seeding', () => {
       also_every_interval: 1,
       also_every_unit: 'months',
       last_replaced: undefined,
+      part_tag_id: undefined,
+      part_require_tag_scan: false,
     });
   });
 });
@@ -2338,6 +2362,8 @@ describe('mergePartForm — every field is guarded by its own key', () => {
     replace_interval: 12,
     replace_unit: 'months',
     last_replaced: '2025-05-01',
+    tag_id: 'anode-tag',
+    require_tag_scan: true,
     file_name: 'r.pdf',
   };
 
@@ -2390,6 +2416,8 @@ describe('mergePartForm — every field is guarded by its own key', () => {
       ['replace_interval', '6', 'replace_interval', 6],
       ['replace_unit', 'weeks', 'replace_unit', 'weeks'],
       ['last_replaced', '2026-02-03', 'last_replaced', '2026-02-03'],
+      ['part_tag_id', ' anode-tag-2 ', 'tag_id', 'anode-tag-2'],
+      ['part_require_tag_scan', false, 'require_tag_scan', false],
     ];
     for (const [key, given, field, expected] of cases) {
       const next = mergePartForm(full, { [key]: given });

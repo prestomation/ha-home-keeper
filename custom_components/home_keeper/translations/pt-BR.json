@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Áreas excluídas",
           "problem_sensor_exclude_labels": "Etiquetas excluídas",
           "one_off_retention_days": "Retenção de tarefas avulsas (dias)",
-          "shopping_list_entity": "Lista de compras"
+          "shopping_list_entity": "Lista de compras",
+          "shopping_line_style": "Texto na lista de compras"
         },
         "data_description": {
           "sync_problem_sensors": "Uma tarefa sincronizada só se encerra quando a integração de origem resolve o problema, não ao tocar em Concluído. Os lembretes dela oferecem Adiar no lugar de Concluído.",
           "one_off_retention_days": "Excluir automaticamente uma tarefa avulsa concluída este número de dias após sua conclusão. 0 mantém as tarefas avulsas concluídas para sempre.",
-          "shopping_list_entity": "Sincroniza os lembretes de compra automática com esta lista de tarefas. Marcar um item ali conclui o lembrete do Home Keeper e repõe o estoque da peça. Deixe vazio para desativar a sincronização."
+          "shopping_list_entity": "Sincroniza os lembretes de compra automática com esta lista de tarefas. Marcar um item ali conclui o lembrete do Home Keeper e repõe o estoque da peça. Deixe vazio para desativar a sincronização.",
+          "shopping_line_style": "Como um lembrete de compra aparece na lista de compras. \"Só o produto\" mostra o nome da peça sem o verbo, por exemplo \"Amaciante\" em vez de \"Comprar amaciante\"."
         }
       }
     }
@@ -120,6 +122,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "Ativada",
+          "description": "Desative ou ative esta tarefa. Uma tarefa desativada mantém seu histórico e suas configurações, e a data de vencimento não muda. O Home Keeper a mantém fora dos seus lembretes e das suas listas até você ativá-la novamente."
         }
       }
     },
@@ -210,6 +216,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "Ativada",
+          "description": "Desative ou ative esta tarefa. Uma tarefa desativada mantém seu histórico e suas configurações, e a data de vencimento não muda. O Home Keeper a mantém fora dos seus lembretes e das suas listas até você ativá-la novamente."
         }
       }
     },
@@ -680,6 +690,10 @@
           "name": "Lista de compras",
           "description": "Uma lista de tarefas existente para sincronizar os lembretes de compra automática. Marcar um item ali conclui o lembrete e repõe o estoque. Um campo vazio desativa o recurso."
         },
+        "shopping_line_style": {
+          "name": "Texto na lista de compras",
+          "description": "Como um lembrete de compra aparece na lista de compras. with_verb (padrão) mostra o nome do lembrete, por exemplo \"Comprar amaciante\". product_only mostra só o nome da peça."
+        },
         "dismissed_companions": {
           "name": "Companions dispensados",
           "description": "Domínios de integrações de conexão a ocultar da lista \"Sugeridos\" em Configurações → Companions. Dispensar apenas silencia uma sugestão; um pareamento conectado é sempre exibido."
@@ -951,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Listar companions declarativos",
       "description": "Retorna cada especificação de companion declarativo armazenada como resposta."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Com verbo",
+        "product_only": "Só o produto"
+      }
     }
   },
   "entity": {

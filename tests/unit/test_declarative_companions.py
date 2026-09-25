@@ -377,6 +377,75 @@ def test_expand_applies_exclude_lists():
     assert kept == ["sensor.kept_total_failed_pings"]
 
 
+@pytest.mark.parametrize(
+    ("own", "device", "expected"),
+    [
+        ("garage", "kitchen", "garage"),  # the entity's own area wins
+        (None, "kitchen", "kitchen"),  # no own area: the device's area
+        ("", "kitchen", "kitchen"),  # an empty own area counts as none
+        (None, None, None),  # neither: no area
+    ],
+)
+def test_effective_area_id_falls_back_to_the_device_area(own, device, expected):
+    assert dc.effective_area_id(own, device) == expected
+
+
+@pytest.mark.parametrize(
+    ("own", "device", "expected"),
+    [
+        (["a"], ["b"], {"a", "b"}),  # both sets join
+        (None, ["b"], {"b"}),  # no own labels: the device's labels
+        (["a"], None, {"a"}),  # no device: the entity's own labels
+        (None, None, set()),
+    ],
+)
+def test_effective_labels_join_the_device_labels(own, device, expected):
+    assert dc.effective_labels(own, device) == expected
+
+
+def test_expand_label_exclusion_reaches_an_entity_by_its_device_label():
+    """A device label excludes the device's entities, as in Problem sensor sync."""
+    spec = _normalized_spec(
+        selection={"target_integration": "device_pulse", "exclude_label_ids": ["skip"]}
+    )
+    entities = _snapshot(
+        _entity(
+            "sensor.garage_total_failed_pings",
+            labels=dc.effective_labels(None, ["skip"]),
+        ),
+        _entity("sensor.hall_total_failed_pings"),
+    )
+    kept = [m["entity"]["entity_id"] for m in dc.expand_spec(spec, entities).values()]
+    assert kept == ["sensor.hall_total_failed_pings"]
+
+
+def test_expand_area_filters_reach_an_entity_in_its_device_area():
+    """The sync projects the effective area, so a device-area entity is filtered.
+
+    Before #373 the projection carried only the entity's own area, and an entity
+    that took its area from its device matched no area filter at all.
+    """
+    in_garage = dc.effective_area_id(None, "garage")
+    include = _normalized_spec(
+        selection={"target_integration": "device_pulse", "area_ids": ["garage"]}
+    )
+    exclude = _normalized_spec(
+        selection={"target_integration": "device_pulse", "exclude_area_ids": ["garage"]}
+    )
+    entities = _snapshot(
+        _entity("sensor.garage_total_failed_pings", area_id=in_garage),
+        _entity("sensor.hall_total_failed_pings", area_id="hall"),
+    )
+    kept_in = [
+        m["entity"]["entity_id"] for m in dc.expand_spec(include, entities).values()
+    ]
+    kept_out = [
+        m["entity"]["entity_id"] for m in dc.expand_spec(exclude, entities).values()
+    ]
+    assert kept_in == ["sensor.garage_total_failed_pings"]
+    assert kept_out == ["sensor.hall_total_failed_pings"]
+
+
 def test_expand_applies_area_and_label_include_filters():
     spec = _normalized_spec(
         selection={
@@ -1199,3 +1268,98 @@ def test_reconcile_indexes_every_task_of_this_spec_past_a_foreign_one():
 
     assert changed is False
     assert ops == []
+
+
+# ── preset task text in the household language ────────────────────────────────
+
+
+def _preset_spec(preset_id="firmware_update_available", **template):
+    base = dict(presets.preset_by_id(preset_id)["default_spec"])
+    base["task_template"] = {**base["task_template"], **template}
+    return base
+
+
+def test_every_preset_ships_its_task_text_in_every_language():
+    for preset in presets.CATALOG_PRESETS:
+        texts = presets.PRESET_TASK_TEXT[preset["id"]]
+        for field in ("name_template", "notes_template"):
+            # The English entry is the default_spec itself, so the two cannot drift.
+            assert texts[field]["en"] == preset["default_spec"]["task_template"][field]
+            assert len(texts[field]) == 16
+
+
+def test_every_translation_keeps_the_jinja_variables():
+    import re
+
+    for texts in presets.PRESET_TASK_TEXT.values():
+        for variants in texts.values():
+            english = set(re.findall(r"\{\{ ([a-z_.]+)", variants["en"]))
+            for lang, text in variants.items():
+                assert set(re.findall(r"\{\{ ([a-z_.]+)", text)) == english, lang
+
+
+def test_an_unchanged_english_template_renders_in_german():
+    template = presets.localized_task_template(_preset_spec(), "de")
+    assert template["name_template"] == "{{ friendly_name }} aktualisieren"
+    assert template["notes_template"] == (
+        "Neueste Version: {{ attributes.latest_version or 'unbekannt' }}"
+    )
+
+
+def test_an_unchanged_template_in_another_language_follows_a_language_change():
+    spec = _preset_spec(name_template="{{ friendly_name }} aktualisieren")
+    template = presets.localized_task_template(spec, "fr")
+    assert template["name_template"] == "Mettre à jour {{ friendly_name }}"
+
+
+def test_an_edited_template_is_rendered_as_written():
+    spec = _preset_spec(name_template="Flash {{ friendly_name }}")
+    template = presets.localized_task_template(spec, "de")
+    assert template["name_template"] == "Flash {{ friendly_name }}"
+    # The other field was not edited, so it still follows the language.
+    assert template["notes_template"].startswith("Neueste Version")
+
+
+def test_a_recipe_without_a_preset_is_rendered_as_written():
+    spec = _preset_spec()
+    spec["preset_id"] = None
+    template = presets.localized_task_template(spec, "de")
+    assert template["name_template"] == "Update {{ friendly_name }}"
+
+
+def test_localizing_does_not_mutate_the_spec():
+    spec = _preset_spec()
+    presets.localized_task_template(spec, "de")
+    assert spec["task_template"]["name_template"] == "Update {{ friendly_name }}"
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
+        ("de", "{{ friendly_name }} aktualisieren"),
+        ("pt-BR", "Atualizar {{ friendly_name }}"),
+        ("pt-br", "Atualizar {{ friendly_name }}"),
+        ("zh-Hans", "更新 {{ friendly_name }}"),
+        ("de-CH", "{{ friendly_name }} aktualisieren"),
+        ("xx", "Update {{ friendly_name }}"),
+        (None, "Update {{ friendly_name }}"),
+        ("", "Update {{ friendly_name }}"),
+    ],
+)
+def test_the_language_is_matched_exactly_then_by_base(lang, expected):
+    template = presets.localized_task_template(_preset_spec(), lang)
+    assert template["name_template"] == expected
+
+
+def test_the_seeded_spec_carries_the_localized_name_and_text():
+    preset = presets.preset_by_id("device_pulse")
+    spec = presets.localized_default_spec(preset, "de", "Gerätepuls")
+    assert spec["name"] == "Gerätepuls"
+    assert spec["task_template"]["name_template"] == (
+        "{{ device_name or friendly_name }} prüfen"
+    )
+    # The shipped preset itself is untouched.
+    assert preset["default_spec"]["name"] == "Device Pulse"
+    assert preset["default_spec"]["task_template"]["name_template"].startswith("Check")
+    # And the seeded spec still passes validation.
+    dc.normalize_declarative_companion(spec)

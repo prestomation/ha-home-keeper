@@ -141,7 +141,8 @@
   bullets, `README.md`, `docs/guide/**/*.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml`
   descriptions and the frontend locale are all read by users, so each one has to
   satisfy the STE100 rules in `.amazonq/rules/writing-style.md`, the three-sentence
-  CHANGELOG budget, the `(Fixes #N)` placement, and the vale AI-tells style. Read the
+  CHANGELOG budget, the `(Fixes #N)` placement, the strict ban on mannered prose, and
+  the vale AI-tells style. Read the
   surrounding section for voice before you add to it. Commit messages, PR bodies and
   code comments are *not* user-facing text and are not held to this.
 - **A plan starts with the CHANGELOG entry it will ship.** Write the proposed bullet
@@ -593,7 +594,8 @@ bash ci/test-mutation-frontend.sh --all
   `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
   `problem_tasks`, `appliance_report`, `profiles`, `documents`, `events`, `transitions`,
   `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
-  `card-filter`, `documents`, `markdown`, `i18n`, `limits`). `options.py` counts as
+  `card-filter`, `documents`, `markdown`, `i18n`, `limits`, `defer`, `shopping-preview`, `declarative-filters`).
+  `options.py` counts as
   pure because its Home Assistant imports are `TYPE_CHECKING`-only. Excluded on
   purpose: everything else importing Home Assistant
   (only the Docker tiers cover it — far too slow to run once per mutant),

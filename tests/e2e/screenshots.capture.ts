@@ -40,6 +40,55 @@ async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Pr
 }
 
 /**
+ * Bind (or unbind) an NFC tag on the seeded anode rod, through the public service.
+ *
+ * `update_asset` replaces the whole parts list, so the other parts are sent back as
+ * they are. Undone right after each shot that needs it: the derived "Replace Anode
+ * rod" task wears an NFC chip while the tag is set, and every other shot of the task
+ * list documents that row without one.
+ */
+async function setAnodeTag(page: Page, tagId: string | null): Promise<void> {
+  await page.evaluate(
+    async ({ ASSET: assetIds, PART: partIds, tagId: tag }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      if (!hass) return;
+      if (tag) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tags: any[] = await hass.callWS({ type: 'tag/list' });
+        if (!tags.some((t) => t.id === tag)) {
+          await hass.callWS({ type: 'tag/create', tag_id: tag, name: 'Anode rod' });
+        }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { assets } = (await hass.callWS({ type: 'home_keeper/get_assets' })) as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const heater = assets.find((a: any) => a.id === assetIds.waterHeater);
+      const WRITABLE = [
+        'id', 'name', 'part_number', 'type', 'vendor', 'cost', 'url', 'notes',
+        'replace_interval', 'replace_unit', 'last_replaced', 'stock', 'reorder_at',
+        'stock_unit', 'consume_quantity', 'create_buy_task', 'restock_quantity',
+        'action', 'use_noun', 'use_task_name', 'replace_also_every',
+        'tag_id', 'require_tag_scan',
+      ];
+      await hass.callService('home_keeper', 'update_asset', {
+        asset_id: heater.id,
+        parts: heater.parts.map((p: Record<string, unknown>) => {
+          const out: Record<string, unknown> = {};
+          for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
+          if (p.id === partIds.anode) {
+            out.tag_id = tag;
+            out.require_tag_scan = Boolean(tag);
+          }
+          return out;
+        }),
+      });
+    },
+    { ASSET, PART, tagId },
+  );
+}
+
+/**
  * Put the usage form's "Also come due on a schedule" switch into a known state.
  *
  * Driven by its *effect* — the backstop adds a second number selector ("Or every")
@@ -974,6 +1023,45 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // Reset to Active so the remaining appliance shots see the normal list.
   await panel.locator('.hk-seg[data-seg="assetFilter"] button', { hasText: 'Active' }).click();
 
+  // 70. A wear item's NFC/RFID binding. A task derived from a wear part has no Edit
+  //     of its own — its part is its editor — so the tag picker and the require-scan
+  //     switch sit at the foot of the part, above the What this creates box, which
+  //     says what a scan does. Bound through the service first so the picker shows a
+  //     registry tag by name, exactly as the task form's shot (44) does.
+  await setAnodeTag(page, 'anode-rod-tag');
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await panel.locator('.d-edit').click();
+  const tagForm = panel.locator('#hk-asset-form');
+  await expect(tagForm).toBeVisible();
+  const tagParts = tagForm.locator('details.hk-collapsible').filter({ hasText: 'Parts & wear items' });
+  if (!(await tagParts.first().evaluate((d: HTMLDetailsElement) => d.open))) {
+    await tagParts.first().locator('summary').click();
+  }
+  const anodePart = tagParts.locator('.hk-part').first();
+  await openPart(anodePart);
+  const anodeTagToggle = anodePart
+    .locator('ha-selector-boolean')
+    .filter({ hasText: 'Require a tag scan' });
+  await expect(anodeTagToggle).toBeVisible({ timeout: 10_000 });
+  await expect(anodePart.locator('.hk-part-preview .hk-form-summary-fact')).toContainText([
+    /Due every 12 months/,
+    'A tag scan completes it.',
+    'Done is blocked until the tag is scanned.',
+  ]);
+  await centre(anodeTagToggle);
+  await page.waitForTimeout(600);
+  await shotWithDrawer(page, `${OUT}/70-panel-part-tag-field.png`);
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await panel.locator('#back-btn').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+  await setAnodeTag(page, null);
+  await openPanel(page);
+  await panel.locator('#tab-appliances').click();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
   // 6. Appliance create form — virtual device, metadata, parts and relationships.
   await panel.locator('#add-btn').click();
   await expect(panel.locator('#hk-asset-form')).toBeVisible();
@@ -1347,13 +1435,27 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${OUT}/17-panel-settings.png`, fullPage: true });
 
-  // 17s. The Shopping list card on its own, for the README section about mirroring
-  // buy reminders onto an existing to-do list.
-  await panel.locator('#hk-settings-shopping').scrollIntoViewIfNeeded();
-  await page.waitForTimeout(400);
-  await panel
-    .locator('#hk-settings-shopping')
-    .screenshot({ path: `${OUT}/45-panel-settings-shopping.png` });
+  // 17s. The Shopping list card on its own, for the guide section about mirroring
+  // buy reminders onto an existing to-do list. "Product only" is picked so the shot
+  // shows the line style and the preview under it with the part name alone (#369).
+  // The preview is asserted, not only photographed: it is what says the choice works.
+  const shoppingSettings = panel.locator('#hk-settings-shopping');
+  await shoppingSettings.scrollIntoViewIfNeeded();
+  await shoppingSettings.getByText('Product only', { exact: true }).click();
+  await expect(shoppingSettings.locator('.hk-shopping-preview-title').first()).toHaveText(
+    /^Anode rod/,
+    { timeout: 10_000 },
+  );
+  await expect(shoppingSettings.locator('.hk-shopping-preview')).not.toContainText('Buy');
+  await expect(shoppingSettings.locator('.hk-settings-value')).toContainText(
+    'product names only',
+  );
+  // The choice autosaves; wait for it to land so shot 46 finds the renamed line.
+  await expect(shoppingSettings.locator('.hk-save-status.saved')).toBeVisible({
+    timeout: 30_000,
+  });
+  await page.waitForTimeout(600);
+  await shoppingSettings.screenshot({ path: `${OUT}/45-panel-settings-shopping.png` });
 
   // 17t. The Skip, snooze & pull forward card on its own — now 3 switches, Pull
   // forward being the newest.
@@ -1658,7 +1760,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
     .locator('hui-todo-list-card, todo-list-card')
     .filter({ hasText: 'Shopping list' })
     .first();
-  await expect(shoppingCard).toContainText('Buy Anode rod', { timeout: 30_000 });
+  // Shot 17s picked "Product only", so the line is the part name without the verb.
+  await expect(shoppingCard).toContainText('Anode rod', { timeout: 30_000 });
+  await expect(shoppingCard).not.toContainText('Buy Anode rod', { timeout: 30_000 });
   await page.waitForTimeout(600);
   await shoppingCard.screenshot({ path: `${OUT}/46-shopping-list-buy-reminder.png` });
 
@@ -1666,6 +1770,59 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await openDashboard(page);
   await page.waitForTimeout(1500); // let cards settle
   await page.screenshot({ path: `${OUT}/4-usage-todo-and-calendar.png`, fullPage: true });
+
+  // 68/69. A switched-off task (issue #344). `enabled` is a field on
+  // `home_keeper.update_task`, so an automation on a helper can take a pool's tasks
+  // out of every list for the winter. There is no control for it in the panel and
+  // there is deliberately never going to be one, so the only way to reach this state
+  // is the action — which is also how a user reaches it. Both halves are photographed:
+  // the Disabled section on the list, where the rows carry a Disabled label instead of
+  // a due date, and the task's own page, which is where the one control the panel does
+  // offer lives. Switched back on afterwards, so the phone block below photographs the
+  // same list every earlier shot did.
+  await page.evaluate(async (IDS) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    for (const id of [IDS.TASK.waterFilter, IDS.TASK.carRegistration]) {
+      await hass.callService('home_keeper', 'update_task', { task_id: id, enabled: false });
+    }
+  }, { TASK });
+  await openPanel(page);
+  // Shot 23 left a Profile selected, and a Profile excludes a switched-off task by
+  // definition — `matches_filter` requires `enabled` before it looks at anything else.
+  // Clear it and stand on All, which is the one scope that keeps these rows.
+  await panel.locator('select[data-profile-filter]').selectOption('');
+  await panel.locator('.hk-seg[data-seg="filter"] .hk-seg-btn[data-seg-val="all"]').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+  const disabledGroup = panel.locator('details.hk-group[data-group-key="status:disabled"]');
+  await expandGroup(disabledGroup);
+  await expect(disabledGroup.locator('ha-card.hk-card')).toHaveCount(2);
+  await expect(
+    disabledGroup.locator('ha-assist-chip.hk-disabled').first(),
+  ).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/68-panel-task-disabled-list.png`, fullPage: true });
+
+  await openRow(page, panel, `.detail-open[data-detail-id="${TASK.waterFilter}"]`);
+  await expect(panel.locator('.hk-disabled-banner')).toBeVisible();
+  await expect(panel.locator('.d-enable')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/69-panel-task-enable-banner.png`, fullPage: true });
+
+  // Enable is the panel's own control, so use it rather than a second action call:
+  // the button is the thing under test, and pressing it proves the way back works.
+  await panel.locator('.d-enable').click();
+  await expect(panel.locator('.hk-disabled-banner')).toHaveCount(0);
+  await page.evaluate(async (IDS) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'update_task', {
+      task_id: IDS.TASK.carRegistration,
+      enabled: true,
+    });
+  }, { TASK });
 
   // 50-53. The phone layout, which is different enough from the desktop one that the
   // shots above document none of it: the tabs are along the bottom, Add floats, and
@@ -1777,6 +1934,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/45d-panel-mobile-settings-skipsnooze.png` });
 
+  // 45e. The Shopping list section on a phone: the list picker, the line style below
+  // it, and the preview, one under the other in a single column.
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await panel.locator('.hk-index-row[data-section="shopping"]').click();
+  await expect(panel.locator('#hk-settings-shopping .hk-shopping-preview')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/45e-panel-mobile-settings-shopping.png` });
+
   // 22b. One notification open on a phone. This is where the pair that #313 confused
   // has to read: the line under the profile picker naming what that profile sends, and
   // the Triggers group saying that a trigger sets the moment rather than the contents.
@@ -1842,6 +2008,68 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await tooLarge.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/60d-panel-mobile-transfer-too-large.png` });
+
+  // 68c/69c. The switched-off task on a phone. Below 700px the Disabled label and the
+  // row's name share a column that the desktop row splits into three, and the banner's
+  // Enable button drops under its own text rather than sitting beside it — so the
+  // desktop pair documents neither. Last in the phone block, and left switched on
+  // after, so nothing here changes what an earlier shot photographed.
+  await page.evaluate(async (IDS) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    if (!hass) return;
+    await hass.callService('home_keeper', 'update_task', {
+      task_id: IDS.TASK.waterFilter,
+      enabled: false,
+    });
+  }, { TASK });
+  await openPanel(page);
+  await panel.locator('#mtab-tasks').click();
+  const disabledPhone = panel.locator('details.hk-group[data-group-key="status:disabled"]');
+  await expandGroup(disabledPhone);
+  await expect(disabledPhone.locator('ha-assist-chip.hk-disabled').first()).toBeVisible();
+  await disabledPhone.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/68c-panel-mobile-task-disabled.png` });
+
+  await openRow(page, panel, `.detail-open[data-detail-id="${TASK.waterFilter}"]`);
+  await expect(panel.locator('.hk-disabled-banner')).toBeVisible();
+  await expect(panel.locator('.d-enable')).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/69c-panel-mobile-task-enable-banner.png` });
+  await panel.locator('.d-enable').click();
+  await expect(panel.locator('.hk-disabled-banner')).toHaveCount(0);
+
+  // 70c. The wear item's tag binding on a phone. Below 700px the appliance editor is
+  //      a page rather than a drawer, and the part's fields stack one to a row, so
+  //      the picker, the switch and the What this creates box share one screen the
+  //      desktop shot cannot show. Bound and unbound around the shot, as 70 is.
+  await setAnodeTag(page, 'anode-rod-tag');
+  await openPanel(page);
+  await panel.locator('#mtab-appliances').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await panel.locator('.d-edit').click();
+  const tagFormPhone = panel.locator('#hk-asset-form');
+  await expect(tagFormPhone).toBeVisible();
+  const tagPartsPhone = tagFormPhone
+    .locator('details.hk-collapsible')
+    .filter({ hasText: 'Parts & wear items' });
+  if (!(await tagPartsPhone.first().evaluate((d: HTMLDetailsElement) => d.open))) {
+    await tagPartsPhone.first().locator('summary').click();
+  }
+  const anodePartPhone = tagPartsPhone.locator('.hk-part').first();
+  await openPart(anodePartPhone);
+  const anodeTagTogglePhone = anodePartPhone
+    .locator('ha-selector-boolean')
+    .filter({ hasText: 'Require a tag scan' });
+  await expect(anodeTagTogglePhone).toBeVisible({ timeout: 10_000 });
+  await centre(anodeTagTogglePhone);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/70c-panel-mobile-part-tag-field.png` });
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await setAnodeTag(page, null);
 
   await page.setViewportSize(DESKTOP);
 });

@@ -44,6 +44,7 @@ export default captureConfig('walkthrough.capture.ts', {
   //
   //     #303 search  +4    #302 notification icons  +3    #309 import/export  +14
   //     #318 due today  +4    #321 counted wear  +7    #333 guide split  +0
+  //     #362 note chip  +5
   //     #346 template trigger  +6
   //
   // Re-measured for #346, which added 6 beats for the template trigger:
@@ -57,6 +58,13 @@ export default captureConfig('walkthrough.capture.ts', {
   // tour; none moved this number. **A PR that adds a beat re-measures and moves it** —
   // run with `--timeout=600000 --reporter=list` and read the duration it reports,
   // never the cap it died at.
+  //
+  // #362 added the note chip's 5 beats and re-measured rather than assuming: **216s and
+  // then 222s in the dev container**, against the 210s the same container gave before
+  // them. 222s plus ~40% is ~311s, so 360s still holds and the number does not move. The
+  // phone tour ran 37s. Read these as the container figures they are: CI ran 204s and
+  // 234s on the 2 samples above, so a CI run of this tour should be read against 222s,
+  // not below it.
   //
   // **This cap is the last thing that bounds a hung tour**, and the aim is that it
   // never has to: a wait the tour controls cannot hang, because `waitForTimeout` is

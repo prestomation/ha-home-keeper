@@ -24,6 +24,7 @@ export const USER_SECTIONS = [
   {slug: 'nfc-tags', title: 'NFC and RFID tags', label: 'NFC and RFID tags', group: 'tasks'},
   {slug: 'triggered-tasks', title: 'Triggered tasks', label: 'Triggered tasks', group: 'tasks'},
   {slug: 'sensor-tasks', title: 'Sensor-based tasks', label: 'Sensor-based tasks', group: 'tasks'},
+  {slug: 'disabled-tasks', title: 'Disabled tasks', label: 'Disabled tasks', group: 'tasks'},
   {slug: 'appliances', title: 'Appliances', label: 'Appliances', group: 'appliances'},
   {slug: 'profiles', title: 'Profiles', label: 'Profiles', group: 'views'},
   {slug: 'todo-sync', title: 'To-do list sync', label: 'To-do list sync', group: 'views'},

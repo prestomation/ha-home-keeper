@@ -31,12 +31,16 @@ by the caller.
 from __future__ import annotations
 
 import decimal
+import functools
 import math
 import re
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
+
+from babel import Locale, UnknownLocaleError
+from babel.numbers import get_decimal_symbol
 
 from .const import (
     ASSET_IDENTIFIER_PREFIX,
@@ -53,11 +57,14 @@ from .const import (
     PART_ACTIONS,
     PART_CONSUMABLE,
     PART_REPLACE_UNITS,
+    PART_ROLE_REPLACE,
+    PART_ROLE_USE,
     PART_TYPES,
     PART_WEAR,
     UNIT_USES,
     UNITS,
 )
+from .models import TaskValidationError, normalize_tag_id
 
 
 class AssetValidationError(ValueError):
@@ -590,6 +597,18 @@ def _normalize_replace_also_every(value: Any) -> dict[str, Any] | None:
     return {"interval": interval, "unit": unit}
 
 
+def _normalize_part_tag_id(value: Any) -> str | None:
+    """Normalize a wear part's ``tag_id``: the NFC/RFID tag its task answers to.
+
+    Uses ``models.normalize_tag_id``, so a part and a task accept the same values,
+    and raises its error as the asset error type.
+    """
+    try:
+        return normalize_tag_id(value)
+    except TaskValidationError as err:
+        raise AssetValidationError(str(err)) from err
+
+
 def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
     """Validate and normalize a single part dict.
 
@@ -638,6 +657,14 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
         # What the generated maintenance task is called. A wear item is not always
         # replaced: a jacket is renewed, a chain is cleaned, a blade is sharpened.
         "action": _normalize_part_action(raw.get("action")),
+        # The NFC/RFID tag bound to the task this wear item generates — the use task
+        # of a counted wear item, else the maintenance task (see ``part_tag_role``).
+        # The reconciler copies both onto that task and clears them from its twin, so
+        # the part is the one place the binding is edited. ``require_tag_scan``
+        # without a tag is refused for the same reason ``models.build_task`` refuses
+        # it: a task that demands a scan with nothing to scan can never be completed.
+        "tag_id": _normalize_part_tag_id(raw.get("tag_id")),
+        "require_tag_scan": bool(raw.get("require_tag_scan")),
         # Naming for the use task a counted wear item generates. ``use_noun`` is what
         # 1 use is called ("wear", "hike"); ``use_task_name`` overrides the whole
         # generated name. Both empty means the localized "Use {asset}" and "use".
@@ -699,6 +726,8 @@ def _normalize_part(raw: Any, *, today: date | None = None) -> dict:
         # unit from uses back to months drops the now-meaningless field instead of
         # failing the save with an error about a control the form just hid.
         part["replace_also_every"] = None
+    if part["require_tag_scan"] and part["tag_id"] is None:
+        raise AssetValidationError("require_tag_scan needs a tag_id")
     # A future "last replaced" would push the derived maintenance task far out and
     # silently hide it; it can only be a past (or today's) date.
     if part["last_replaced"] and date.fromisoformat(part["last_replaced"]) > (
@@ -903,7 +932,23 @@ def part_restock_quantity(part: dict) -> float:
     return _positive_quantity(part.get("restock_quantity"), 1)
 
 
-def format_quantity(value: float, unit: str = "") -> str:
+@functools.cache
+def decimal_mark(lang: str | None) -> str:
+    """The decimal mark for *lang*: ``"."`` in English, ``","`` in German.
+
+    ``None``, an empty string and a language Babel does not know all read as English.
+    The panel's ``decimalMark`` (``frontend/src/utils.ts``) asks ``Intl`` the same
+    question; both read CLDR, so the two agree for every language Home Keeper ships.
+    """
+    if not lang:
+        return "."
+    try:
+        return str(get_decimal_symbol(Locale.parse(lang.replace("-", "_"))))
+    except (UnknownLocaleError, ValueError):
+        return "."
+
+
+def format_quantity(value: float, unit: str = "", lang: str | None = None) -> str:
     """A spare quantity as text, with *unit* appended when the part has one.
 
     The Python twin of the panel's ``formatQuantity`` (``frontend/src/utils.ts``), and
@@ -944,12 +989,13 @@ def format_quantity(value: float, unit: str = "") -> str:
             )
         whole = int(quantized)
         text = str(whole if quantized == whole else quantized)
+        text = text.replace(".", decimal_mark(lang))
     else:
         text = str(number)
     return f"{text} {label}" if label else text
 
 
-def part_restock_label(part: dict) -> str:
+def part_restock_label(part: dict, lang: str | None = None) -> str:
     """How much a buy reminder is asking for, as a short suffix — or ``""``.
 
     Three cases, and the empty one is the point: a part measured in something reads
@@ -962,9 +1008,9 @@ def part_restock_label(part: dict) -> str:
     unit = part_stock_unit(part)
     quantity = part_restock_quantity(part)
     if unit:
-        return format_quantity(quantity, unit)
+        return format_quantity(quantity, unit, lang)
     if quantity > 1:
-        return f"×{format_quantity(quantity)}"
+        return f"×{format_quantity(quantity, lang=lang)}"
     return ""
 
 
@@ -991,6 +1037,18 @@ def part_counts_uses(part: dict) -> bool:
         and part.get("replace_unit") == UNIT_USES
         and bool(part.get("replace_interval"))
     )
+
+
+def part_tag_role(part: dict) -> str:
+    """Which of a wear part's derived tasks its ``tag_id`` completes.
+
+    A counted wear item's tag is on the thing that is *used* — the jacket, the boots —
+    so a scan records 1 use and goes to the **use task**; its replacement task is
+    armed by the count, not by a tap. A time-measured part has only the maintenance
+    task, so the tag goes there. One tag, one task: the reconciler clears the binding
+    from the other half, so a scan never completes both.
+    """
+    return PART_ROLE_USE if part_counts_uses(part) else PART_ROLE_REPLACE
 
 
 def part_use_target(part: dict) -> int:

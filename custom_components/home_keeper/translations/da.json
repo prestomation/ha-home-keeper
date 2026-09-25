@@ -22,12 +22,14 @@
           "problem_sensor_exclude_areas": "Udeladte områder",
           "problem_sensor_exclude_labels": "Udeladte etiketter",
           "one_off_retention_days": "Opbevaring af engangsopgaver (dage)",
-          "shopping_list_entity": "Indkøbsliste"
+          "shopping_list_entity": "Indkøbsliste",
+          "shopping_line_style": "Tekst på indkøbslisten"
         },
         "data_description": {
           "sync_problem_sensors": "En synkroniseret opgave lukkes først, når kildeintegrationen løser problemet, ikke når du trykker Færdig. Påmindelser for den tilbyder Udsæt i stedet for Færdig.",
           "one_off_retention_days": "Slet automatisk en fuldført engangsopgave så mange dage efter, at den er fuldført. 0 beholder fuldførte engangsopgaver for evigt.",
-          "shopping_list_entity": "Synkroniserer automatiske indkøbspåmindelser til denne opgaveliste. Når du krydser et punkt af der, fuldføres påmindelsen i Home Keeper, og reservedelen fyldes op. Lad feltet stå tomt for at slå det fra."
+          "shopping_list_entity": "Synkroniserer automatiske indkøbspåmindelser til denne opgaveliste. Når du krydser et punkt af der, fuldføres påmindelsen i Home Keeper, og reservedelen fyldes op. Lad feltet stå tomt for at slå det fra.",
+          "shopping_line_style": "Sådan vises en indkøbspåmindelse på indkøbslisten. \"Kun produkt\" viser reservedelens navn uden verbum, for eksempel \"Skyllemiddel\" i stedet for \"Køb skyllemiddel\"."
         }
       }
     }
@@ -120,6 +122,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Outside the active windows the next due date moves to the nearest upcoming window start. Each object has start and end as MM-DD strings; pass a list or a single object. Wrapping seasons (Nov through Mar) are supported. Null clears the season."
+        },
+        "enabled": {
+          "name": "Aktiveret",
+          "description": "Deaktivér eller aktivér denne opgave. En deaktiveret opgave beholder sin historik og sine indstillinger, og dens forfaldsdato bliver stående. Home Keeper holder den ude af dine påmindelser og dine lister, indtil du aktiverer den igen."
         }
       }
     },
@@ -210,6 +216,10 @@
         "active_season": {
           "name": "Active season",
           "description": "Restrict this task to one or more date ranges each year. Each object has start and end as MM-DD strings; pass a list, a single object, or null to clear."
+        },
+        "enabled": {
+          "name": "Aktiveret",
+          "description": "Deaktivér eller aktivér denne opgave. En deaktiveret opgave beholder sin historik og sine indstillinger, og dens forfaldsdato bliver stående. Home Keeper holder den ude af dine påmindelser og dine lister, indtil du aktiverer den igen."
         }
       }
     },
@@ -680,6 +690,10 @@
           "name": "Indkøbsliste",
           "description": "En eksisterende opgaveliste at synkronisere automatiske indkøbspåmindelser til. Krydser du et punkt af der, fuldføres påmindelsen, og lageret fyldes op. Et tomt felt slår det fra."
         },
+        "shopping_line_style": {
+          "name": "Tekst på indkøbslisten",
+          "description": "Sådan vises en indkøbspåmindelse på indkøbslisten. with_verb (standard) viser påmindelsens navn, for eksempel \"Køb skyllemiddel\". product_only viser kun reservedelens navn."
+        },
         "dismissed_companions": {
           "name": "Afviste ledsagere",
           "description": "Glue-integrationsdomæner, der skal skjules fra listen \"Foreslået\" under Indstillinger → Ledsagere. Afvisning dæmper kun et forslag; en tilsluttet parring vises altid."
@@ -951,6 +965,14 @@
     "list_declarative_companions": {
       "name": "Vis deklarative companions",
       "description": "Returnerer hver gemt deklarativ companion-specifikation som svar."
+    }
+  },
+  "selector": {
+    "shopping_line_style": {
+      "options": {
+        "with_verb": "Med verbum",
+        "product_only": "Kun produkt"
+      }
     }
   },
   "entity": {

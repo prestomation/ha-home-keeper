@@ -287,6 +287,18 @@ export const STYLES = `
     --ha-assist-chip-outline-color: transparent;
     font-weight: 500;
   }
+  /* Off is not a fault and not a nudge, so the disabled chip stays out of the warn
+     and danger families entirely: the page ground with muted ink, which is what the
+     neutral rule further down already gives every uncoloured status chip. Only the
+     label colour is set here, so the chip reads as switched off rather than as
+     something needing attention. */
+  ha-assist-chip.hk-disabled {
+    --md-assist-chip-label-text-color: var(--hk-ink-2);
+    --ha-assist-chip-label-text-color: var(--hk-ink-2);
+    --md-assist-chip-outline-color: transparent;
+    --ha-assist-chip-outline-color: transparent;
+    font-weight: 500;
+  }
   /* Counting is neutral news, so the counted chip reads in the accent family rather
      than the warn one the shopping chip uses: "17 of 25 wears" is progress, not a
      nudge and not a fault. It goes solid (ok, then warn at the target) only once the
@@ -456,6 +468,29 @@ export const STYLES = `
   .hk-settings-value {
     color: var(--hk-ink); font-size: 0.88rem; margin: 2px 0 8px;
   }
+  /* The Shopping list card's preview: the lines as the synced list will show them,
+     drawn as a plain to-do list so it reads as "the other app", not as a form. */
+  .hk-shopping-preview {
+    margin-top: 12px; border: 1px solid var(--hk-line);
+    border-radius: 8px; overflow: hidden;
+  }
+  .hk-shopping-preview-head {
+    padding: 8px 12px; font-size: 0.78rem; font-weight: 500;
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--hk-ink-2);
+    background: var(--secondary-background-color);
+    border-bottom: 1px solid var(--hk-line);
+  }
+  .hk-shopping-preview-row {
+    display: flex; align-items: flex-start; gap: 12px; padding: 8px 12px;
+    border-bottom: 1px solid var(--hk-line);
+  }
+  .hk-shopping-preview-row:last-child { border-bottom: 0; }
+  .hk-shopping-preview-box {
+    flex: none; width: 14px; height: 14px; margin-top: 3px;
+    border: 2px solid var(--hk-ink-2); border-radius: 3px;
+  }
+  .hk-shopping-preview-title { font-size: 0.92rem; color: var(--hk-ink); }
+  .hk-shopping-preview-desc { font-size: 0.8rem; color: var(--hk-ink-2); }
 
   /* ── Settings: anchor rail beside the sections ─────────────────────────────
      Settings is a long page, and the questions people bring to it ("is the mirror
@@ -1971,18 +2006,17 @@ export const STYLES = `
     max-height: 260px; overflow-y: auto; margin-top: 8px;
   }
   .hk-decl-preview-header { font-weight: 500; margin-bottom: 6px; }
-  .hk-decl-preview-row { padding: 6px 0; border-bottom: 1px solid var(--divider-color); }
-  .hk-decl-preview-row:last-child { border-bottom: none; }
-  /* A template trigger's rows carry a verdict chip. Two columns rather than a flex
-     row, so the chip keeps its own column and the task name wraps under itself
-     instead of pushing the chip off the edge on a phone. */
-  .hk-decl-preview-row.hk-decl-preview-verdicted {
-    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center;
+  .hk-decl-preview-row {
+    padding: 6px 0; border-bottom: 1px solid var(--divider-color);
+    display: flex; align-items: center; gap: 8px;
   }
-  .hk-decl-preview-verdicted .hk-decl-preview-name,
-  .hk-decl-preview-verdicted .hk-decl-preview-eid { grid-column: 1; min-width: 0; }
+  .hk-decl-preview-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .hk-decl-preview-row:last-child { border-bottom: none; }
+  /* A template trigger's rows carry a verdict chip between the text and the Exclude
+     button. The chip does not shrink or wrap, so on a phone the task name wraps under
+     itself in the flexible text block and the chip stays in view. */
   .hk-decl-chip {
-    grid-column: 2; grid-row: 1 / span 2; justify-self: end;
+    flex: none;
     font-size: 0.72rem; font-weight: 500; border-radius: var(--hk-r-pill);
     padding: 2px 10px; white-space: nowrap;
   }
@@ -1996,4 +2030,44 @@ export const STYLES = `
     color: var(--secondary-text-color); font-family: monospace; font-size: 0.8rem;
   }
   .hk-decl-preview-empty { color: var(--secondary-text-color); font-style: italic; }
+  /* Exclude / Include on a preview row (#373). A plain button, so it is a real tab
+     stop; the text hides on a phone and the icon keeps a 44px tap target. */
+  .hk-decl-toggle {
+    flex: none; display: inline-flex; align-items: center; gap: 4px;
+    border: 0; background: transparent; color: var(--secondary-text-color);
+    font: inherit; font-size: 0.8rem; cursor: pointer;
+    border-radius: 999px; padding: 4px 10px; min-height: 32px;
+    --mdc-icon-size: 18px;
+  }
+  .hk-decl-toggle:hover { background: var(--divider-color); color: var(--primary-text-color); }
+  .hk-decl-toggle:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+  .hk-decl-include { color: var(--hk-accent-ink); }
+  .hk-decl-excluded {
+    margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--divider-color);
+  }
+  .hk-decl-excluded-head { font-weight: 500; color: var(--secondary-text-color); }
+  .hk-decl-excluded-row .hk-decl-preview-eid { text-decoration: line-through; }
+  /* The More filters row: one button, title over a summary of what is set. */
+  .hk-decl-more {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    margin-top: 4px; padding: 10px 2px; text-align: start;
+    border: 0; border-block: 1px solid var(--divider-color);
+    background: transparent; color: var(--primary-text-color);
+    font: inherit; cursor: pointer;
+  }
+  .hk-decl-more:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  .hk-decl-more-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .hk-decl-more-title { font-weight: 500; }
+  .hk-decl-more-summary { font-size: 0.8rem; color: var(--secondary-text-color); }
+  .hk-decl-more-chevron { color: var(--secondary-text-color); transition: transform 0.15s; }
+  .hk-decl-more[aria-expanded='true'] .hk-decl-more-chevron { transform: rotate(180deg); }
+  .hk-decl-more-body { padding-top: 4px; }
+  .hk-decl-more-body .hk-indent { margin-top: 12px; }
+  @media (prefers-reduced-motion: reduce) {
+    .hk-decl-more-chevron { transition: none; }
+  }
+  @media (max-width: 700px) {
+    .hk-decl-toggle { min-width: 44px; min-height: 44px; justify-content: center; padding: 0; }
+    .hk-decl-toggle-text { display: none; }
+  }
 `;
