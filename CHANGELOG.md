@@ -6,6 +6,17 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.27.0b2]
+
+### Fixed
+
+- **[Recipe entity names](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  On a device page, the entity names of a recipe task start with the recipe name. New
+  entity IDs no longer repeat the device name. (Fixes #377)
+- **Mark done on self-clearing recipe tasks.** A recipe task that clears itself when
+  its condition recovers has no Mark done button on its device page. Home Keeper also
+  refuses a completion by hand from a service call.
+
 ## [0.27.0b1]
 
 ### Added

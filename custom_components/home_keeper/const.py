@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.27.0b1"
+PANEL_VERSION = "0.27.0b2"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -332,9 +332,10 @@ ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"
 
 # Opaque ``origin`` marker the sensor watcher passes to ``complete_task`` when a
 # ``clear_on_recover`` sensor task clears itself because its bound entity went back to
-# normal. Unlike ``ORIGIN_PROBLEM_SENSOR_SYNC`` this authorizes nothing — the task is
-# user-owned and completable by hand — it exists so an automation can tell "Home Keeper
-# noticed the condition cleared" apart from "somebody pressed Done".
+# normal. It lets an automation tell "Home Keeper noticed the condition cleared" apart
+# from "somebody pressed Done". It also *authorizes* one thing: a recipe task with
+# ``managed_by.completion_blocked`` refuses every completion but this one (and the
+# problem-sensor sync's), because the recipe owns both ends of that task (#377).
 ORIGIN_SENSOR_RECOVER = f"{DOMAIN}_sensor_recover"
 
 # Opaque ``origin`` marker the tag listener passes to ``complete_task`` when an

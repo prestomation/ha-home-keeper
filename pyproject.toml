@@ -109,6 +109,9 @@ only_mutate = [
     # The HA-bound reconciler that wires it up (``declarative_companion_sync.py``) is
     # not on this list — same rule as the other HA-importing modules.
     "custom_components/home_keeper/declarative_companions.py",
+    # Per-task entity names and the entity-set key that decides an entry reload.
+    # Pure and covered by tests/unit/test_task_entities.py.
+    "custom_components/home_keeper/task_entities.py",
     # Also TYPE_CHECKING-only, and driven by tests/unit/test_device_compat.py: the two
     # device-registry shapes it reconciles are only distinguishable by behaviour, so a
     # mutant that iterates the wrong one has to be caught by an assertion.

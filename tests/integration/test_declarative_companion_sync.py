@@ -39,7 +39,8 @@ import time
 from pathlib import Path
 
 import pytest
-from conftest import HA_URL, call_service, poll_state
+import requests
+from conftest import HA_URL, call_service, list_states, poll_state
 
 TANK = "binary_sensor.hk_demo_water_tank_low"
 BATTERY = "binary_sensor.hk_demo_remote_battery"
@@ -468,6 +469,95 @@ def test_a_task_that_survived_a_reload_stays_dormant_while_the_sensor_is_still_m
     )
 
 
+# ── (b2) device-page entities (#377) ────────────────────────────────────────
+
+
+def _next_due_sensor(ha, task_id, predicate=lambda s: True, timeout=SETTLE):
+    """The next-due sensor state of *task_id* once *predicate* holds for it."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        for s in list_states(ha):
+            attrs = s.get("attributes", {})
+            if (
+                s["entity_id"].startswith("sensor.")
+                and attrs.get("task_id") == task_id
+                and predicate(s)
+            ):
+                return s
+        time.sleep(2)
+    raise AssertionError(f"no next-due sensor for task {task_id} matched in time")
+
+
+def _mark_done_buttons(ha, label):
+    """Friendly names of Mark done buttons whose entity name starts with *label*."""
+    return [
+        s["attributes"].get("friendly_name", "")
+        for s in list_states(ha)
+        if s["entity_id"].startswith("button.")
+        and s["attributes"].get("friendly_name", "").endswith(f"{label}: Mark done")
+    ]
+
+
+def test_device_page_entities_are_named_after_the_recipe(ha, specs):
+    """The entity names start with the recipe name, not the rendered task name.
+
+    The task name here is "Change the <device> battery", so the old prefix put the
+    device name in twice. A recipe rename renames the entities as well: an
+    ``updated`` reconcile op whose entity-set key changed reloads the entry.
+    """
+    spec = specs(_device_battery_spec(name="HK battery recipe"))
+    task = _one_task(ha, spec["id"])
+    sensor = _next_due_sensor(ha, task["id"])
+    name = sensor["attributes"]["friendly_name"]
+    assert name.endswith(" HK battery recipe: Next due"), name
+    assert task["name"] not in name
+    # This recipe does not clear on recover, so the button stays.
+    assert len(_mark_done_buttons(ha, "HK battery recipe")) == 1
+
+    _update_spec(ha, spec["id"], {"name": "HK battery renamed"})
+    renamed = _next_due_sensor(
+        ha,
+        task["id"],
+        lambda s: (
+            s["attributes"]
+            .get("friendly_name", "")
+            .endswith(" HK battery renamed: Next due")
+        ),
+    )
+    assert renamed["entity_id"] == sensor["entity_id"], "the entity_id must not change"
+
+
+def test_a_recipe_that_clears_itself_has_no_mark_done_button(ha, specs):
+    """No button, and the service refuses a completion by hand (#377).
+
+    The recipe completes the task when the condition recovers. A Done pressed while
+    the battery is still low would record work nobody did.
+    """
+    spec = specs(
+        _device_battery_spec(
+            name="HK self-clearing battery",
+            trigger={
+                "mode": "threshold",
+                "comparison": "<=",
+                "value": 50,
+                "clear_on_recover": True,
+            },
+        )
+    )
+    task = _one_task(ha, spec["id"])
+    assert task["managed_by"]["completion_blocked"] is True
+    # The next-due sensor is the proof the per-task entities were made.
+    _next_due_sensor(ha, task["id"])
+    assert _mark_done_buttons(ha, "HK self-clearing battery") == []
+
+    # Home Assistant's REST API answers a ServiceValidationError with an error
+    # status; the store refused it, so no completion was recorded.
+    with pytest.raises(requests.HTTPError):
+        call_service(ha, "home_keeper", "complete_task", {"task_id": task["id"]})
+    after = _poll_task(ha, spec["id"], lambda t: True)
+    assert after.get("last_completed") == task.get("last_completed")
+
+
 # ── (c) re-selection ─────────────────────────────────────────────────────────
 
 
@@ -485,8 +575,12 @@ def test_narrowing_the_selection_removes_the_task_and_widening_makes_a_new_one(
     spec = specs(_tank_spec())
     first = _one_task(ha, spec["id"])
 
-    # Record a completion so the history has something to lose.
-    call_service(ha, "home_keeper", "complete_task", {"task_id": first["id"]})
+    # Record a completion so the history has something to lose. The recipe clears on
+    # recover, so Done by hand is refused (#377): arm it and let the recovery clear it.
+    _let_the_watcher_subscribe()
+    _set_flag(ha, True)
+    _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
+    _set_flag(ha, False)
     _poll_task(ha, spec["id"], lambda t: len(t.get("completions") or []) == 1)
 
     # Narrow: exclude the only entity that matched. The task is orphaned and gone.

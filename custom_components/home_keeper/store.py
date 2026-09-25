@@ -24,6 +24,7 @@ from . import (
     declarative_companions,
     events,
     models,
+    notifications,
     recurrence,
     sensor_tasks,
     sensor_watcher,
@@ -57,6 +58,7 @@ from .const import (
     EVENT_TASK_UPDATED,
     MAX_DECLARATIVE_COMPANIONS,
     ORIGIN_PROBLEM_SENSOR_SYNC,
+    ORIGIN_SENSOR_RECOVER,
     REC_SENSOR,
     REC_TRIGGERED,
     SENSOR_MODE_USAGE,
@@ -84,6 +86,7 @@ from .reconcile import reconcile_buy_tasks as _reconcile_buy_tasks
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 from .reconcile import settle_use_tasks as _settle_use_tasks
 from .reconcile import stray_part_tags as _stray_part_tags
+from .task_entities import entity_set_key
 
 # Stock transition -> the bus event it fires (STOCK_NONE maps to nothing).
 _STOCK_EVENT = {
@@ -128,6 +131,32 @@ def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
         f"This task mirrors the problem sensor {entity_id} and can't be cleared in "
         "Home Keeper. Resolve the problem in the originating integration — the task "
         "clears automatically when the sensor returns to OK."
+    )
+
+
+# The system origins that may complete a ``completion_blocked`` task: the sensor
+# watcher when the condition recovers, and the problem-sensor sync.
+_BLOCKED_COMPLETION_ORIGINS: Final = frozenset(
+    {ORIGIN_SENSOR_RECOVER, ORIGIN_PROBLEM_SENSOR_SYNC}
+)
+
+
+def _reject_completion_blocked(task: dict[str, Any], origin: str | None) -> None:
+    """Raise unless *origin* may complete a task whose owner withholds Done.
+
+    A recipe with ``clear_on_recover`` owns both ends of its task: the watcher arms
+    it on the crossing and completes it on the recovery. A completion by hand while
+    the condition is still true records work that was not done (#377). The panel,
+    the card, the to-do list and the notification already withhold Done; this stops
+    the device-page button, the service and an automation too.
+    """
+    if not notifications.is_completion_blocked(task):
+        return
+    if origin in _BLOCKED_COMPLETION_ORIGINS:
+        return
+    raise models.TaskValidationError(
+        "Home Keeper completes this task when the watched condition recovers, so it "
+        "can't be marked done by hand."
     )
 
 
@@ -1664,6 +1693,14 @@ class HomeKeeperStore:
         the sensor watcher so its next baseline pass leaves their edge unset — a
         task made a moment ago must arm on a condition that is already true.
         """
+        # Taken before the pass, because the reconcile rewrites a matched task in
+        # place: reading the old key off ``self._tasks`` afterwards sees the new one.
+        # Only a task that owns per-task entities can need a reload.
+        keys_before = {
+            tid: entity_set_key(t)
+            for tid, t in self._tasks.items()
+            if _task_owns_entities(t)
+        }
         new_tasks, ops, changed = declarative_companions.reconcile_declarative_tasks(
             spec,
             matches,
@@ -1712,6 +1749,14 @@ class HomeKeeperStore:
                     EVENT_TASK_UPDATED,
                     events.task_event_data(task, extra={"changed_fields": []}),
                 )
+                # A new rendered name, a recipe rename or a new ``clear_on_recover``
+                # changes the names or the button on the device page, which only an
+                # entry reload makes again.
+                old_key = keys_before.get(task["id"])
+                if (old_key is not None or _task_owns_entities(task)) and (
+                    old_key != entity_set_key(task)
+                ):
+                    entity_set_changed = True
         return entity_set_changed, created_ids
 
     async def complete_task(
@@ -1740,7 +1785,8 @@ class HomeKeeperStore:
         — is what makes completion observable from anywhere. ``origin`` is a
         caller-supplied marker echoed back in the event so a contributing integration
         can ignore the echo of a completion it initiated. Two gates also read it:
-        a problem-sensor-synced task accepts only the sync's marker, and a
+        a problem-sensor-synced task accepts only the sync's marker, a
+        ``completion_blocked`` task accepts only the watcher's recovery marker, and a
         ``require_tag_scan`` task accepts only ``tags.SCAN_ALLOWED_ORIGINS``. It is
         trusted as given (any service caller may pass any marker), so those gates are
         household accountability, not a security boundary — the same trust level as
@@ -1750,6 +1796,7 @@ class HomeKeeperStore:
         if existing is None:
             raise KeyError(task_id)
         _reject_synced_problem(existing, origin)
+        _reject_completion_blocked(existing, origin)
         _reject_scan_required(existing, origin)
         now = dt_util.now()
         when = completed_at or now

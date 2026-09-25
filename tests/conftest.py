@@ -85,6 +85,9 @@ _PURE_MODULES = (
     # ``from . import models``.
     "declarative_companions",
     "declarative_presets",
+    # ``task_entities`` names the per-task device-page entities. It imports
+    # ``declarative_companions`` and ``notifications``, so it comes after both.
+    "task_entities",
     # ``api_surface`` is the index of every integrator-facing surface. Pure like the
     # rest, and last because it does ``from . import options``.
     "api_surface",
