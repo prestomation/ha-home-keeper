@@ -876,6 +876,12 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(declForm.locator('.hk-decl-excluded-head')).toBeVisible();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 2);
+  // Task labels at the foot of the Task template section: every task the companion
+  // makes gets them, so a Profile can select that companion's tasks (#378).
+  const declTemplateSection = declForm.locator('[data-decl-section="template"]');
+  await declTemplateSection.scrollIntoViewIfNeeded();
+  await expect(declTemplateSection).toContainText('Task labels');
+  await page.waitForTimeout(BEAT * 2);
   await declForm.locator('.hk-decl-cancel').click();
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
   await page.waitForTimeout(BEAT);

@@ -593,3 +593,125 @@ test('capture a template-mode sensor task page at both widths', async ({ page })
     await callService('home_keeper', 'delete_task', { task_id: taskId });
   }
 });
+
+/**
+ * Task labels on a declarative companion, and the task's own Edit form, at both
+ * widths (#378).
+ *
+ * Two real Home Assistant labels are made for the shot, so the pickers draw them as
+ * the coloured chips a user sees, and removed again with the companion. The companion
+ * watches the demo moisture sensor, the leak case the issue asks for. Its notes
+ * template is empty, so the Edit form offers the notes too.
+ */
+test('capture task labels and the task Edit form at both widths', async ({ page }) => {
+  await openPanel(page);
+  const panel = page.locator('home-keeper-panel').first();
+  const ws = (msg: Record<string, unknown>): Promise<Record<string, any>> =>
+    panel.evaluate((el, m) => (el as any).hass.callWS(m), msg);
+  const leak = await ws({ type: 'config/label_registry/create', name: 'Leak', color: 'red' });
+  const urgent = await ws({
+    type: 'config/label_registry/create',
+    name: 'Urgent',
+    color: 'orange',
+  });
+  const created = await callService(
+    'home_keeper',
+    'add_declarative_companion',
+    {
+      name: 'Leak sensors',
+      selection: { domain: 'binary_sensor', device_class: 'moisture' },
+      trigger: { mode: 'state', state: 'on', clear_on_recover: true },
+      task_template: {
+        name_template: 'Check {{ friendly_name }}',
+        notes_template: '',
+        labels: [leak.label_id, urgent.label_id],
+      },
+    },
+    true,
+  );
+  const specId = created.companion.id as string;
+
+  try {
+    const mine = async (): Promise<Array<Record<string, any>>> =>
+      (await listTasks()).filter((t) => t.source?.declarative_companion?.spec_id === specId);
+    await expect.poll(async () => (await mine()).length, { timeout: 30_000 }).toBe(1);
+    const task = (await mine())[0];
+    // The labels reached the task the companion made.
+    expect(task.labels).toEqual([leak.label_id, urgent.label_id]);
+    const taskId = task.id as string;
+
+    // 21s. The Task template section of the dialog, with the two labels picked.
+    await page.setViewportSize({ width: 1280, height: 2600 });
+    await openSettingsSection(panel, 'companions');
+    await panel.locator(`.hk-decl-row[data-spec-id="${specId}"] .hk-decl-edit`).click();
+    const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+    const template = dialog.locator('[data-decl-section="template"]');
+    await expect(template).toBeVisible({ timeout: 20_000 });
+    await expect(template).toContainText('Task labels');
+    await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(/Showing \d+ of \d+/, {
+      timeout: 20_000,
+    });
+    await page.waitForTimeout(800);
+    const surface = await dialog.locator('dialog').first().boundingBox();
+    if (!surface) throw new Error('the companion dialog has no rendered surface to photograph');
+    const pad = 16;
+    await page.screenshot({
+      path: `${OUT}/21s-panel-declarative-task-labels.png`,
+      clip: {
+        x: Math.max(0, surface.x - pad),
+        y: Math.max(0, surface.y - pad),
+        width: surface.width + pad * 2,
+        height: surface.height + pad * 2,
+      },
+    });
+    await dialog.locator('.hk-decl-cancel').click();
+    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
+
+    // 21t. The task's own Edit form: only the fields the companion leaves free.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/home-keeper/tasks/${taskId}`, { waitUntil: 'domcontentloaded' });
+    const actions = panel.locator('.hk-detail-actions').first();
+    await expect(actions.locator('.d-edit')).toBeVisible({ timeout: 45_000 });
+    await actions.locator('.d-edit').click();
+    const form = panel.locator('#hk-form');
+    await expect(form).toBeVisible({ timeout: 20_000 });
+    await expect(form).toContainText('Labels');
+    await expect(panel.locator('.hk-drawer-delete')).toHaveCount(0);
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${OUT}/21t-panel-declarative-task-edit.png` });
+
+    // The phone layout: the task page, the Edit form, and the Task template section.
+    await page.setViewportSize(PHONE);
+    await page.goto(`/home-keeper/tasks/${taskId}`, { waitUntil: 'domcontentloaded' });
+    const phoneActions = panel.locator('.hk-detail-actions').first();
+    await expect(phoneActions.locator('.d-edit-companion')).toBeVisible({ timeout: 45_000 });
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(600);
+    await page.screenshot({
+      path: `${OUT}/21e-panel-mobile-declarative-task-detail.png`,
+      fullPage: true,
+    });
+
+    await phoneActions.locator('.d-edit').click();
+    await expect(panel.locator('#hk-form')).toBeVisible({ timeout: 20_000 });
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${OUT}/21t-panel-mobile-declarative-task-edit.png` });
+
+    await openPanel(page);
+    await openSettingsSection(panel, 'companions');
+    await panel.locator(`.hk-decl-row[data-spec-id="${specId}"] .hk-decl-edit`).click();
+    const phoneTemplate = panel.locator('ha-dialog.hk-decl-dialog [data-decl-section="template"]');
+    await expect(phoneTemplate).toBeVisible({ timeout: 20_000 });
+    await phoneTemplate.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${OUT}/21s-panel-mobile-declarative-task-labels.png` });
+    await panel.locator('ha-dialog.hk-decl-dialog .hk-decl-cancel').click();
+    await page.setViewportSize({ width: 1280, height: 720 });
+  } finally {
+    await callService('home_keeper', 'delete_declarative_companion', { id: specId });
+    for (const label of [leak, urgent]) {
+      await ws({ type: 'config/label_registry/delete', label_id: label.label_id });
+    }
+  }
+});

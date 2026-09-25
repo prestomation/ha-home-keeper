@@ -362,7 +362,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "{name} définit tous les champs de cette tâche.",
   "managed.deleteBlocked": "Supprimer plutôt depuis {name}",
-  "managed.deleteFromCompanion": "Modifier ou supprimer plutôt le companion déclaratif « {name} »",
+  "managed.deleteFromCompanion": "Pour retirer cette tâche, supprimez le companion déclaratif « {name} ».",
   "managed.fieldLocked": "Défini par {name}",
   "managed.orphanBanner.many": "{n} tâches sont gérées par des intégrations qui ne sont plus installées.",
   "managed.orphanBanner.one": "{n} tâche est gérée par une intégration qui n'est plus installée.",

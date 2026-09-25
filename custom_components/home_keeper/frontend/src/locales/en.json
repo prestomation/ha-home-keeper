@@ -353,7 +353,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "{name} sets every field on this task.",
   "managed.deleteBlocked": "Delete from {name} instead",
-  "managed.deleteFromCompanion": "Edit or delete the declarative companion “{name}” instead",
+  "managed.deleteFromCompanion": "To remove this task, delete the declarative companion “{name}”.",
   "managed.fieldLocked": "Set by {name}",
   "managed.orphanBanner.one": "{n} task is managed by an integration that's no longer installed.",
   "managed.orphanBanner.other": "{n} tasks are managed by integrations that are no longer installed.",

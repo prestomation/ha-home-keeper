@@ -371,7 +371,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "Wszystkie pola tego zadania ustawia {name}.",
   "managed.deleteBlocked": "Zamiast tego usuń z {name}",
-  "managed.deleteFromCompanion": "Zamiast tego edytuj lub usuń deklaratywnego towarzysza „{name}”",
+  "managed.deleteFromCompanion": "Aby usunąć to zadanie, usuń deklaratywnego towarzysza „{name}”.",
   "managed.fieldLocked": "Ustawione przez {name}",
   "managed.orphanBanner.few": "{n} zadania są zarządzane przez integracje, które nie są już zainstalowane.",
   "managed.orphanBanner.many": "{n} zadań jest zarządzanych przez integracje, które nie są już zainstalowane.",

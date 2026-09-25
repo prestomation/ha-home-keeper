@@ -507,6 +507,73 @@ def test_a_spec_with_a_notes_template_locks_the_notes(ha, specs):
     assert _one_task(ha, spec["id"])["notes"] == f"Reported by {TANK}."
 
 
+def test_a_profile_selects_the_tasks_of_one_declarative_companion(ha, specs):
+    """``home_keeper:declarative:<spec_id>`` in a Profile selects that spec's tasks.
+
+    Checked through the Profile's count sensor, which the backend matcher feeds, so
+    a real Profile over a real materialized task is what is counted (#378).
+    """
+    from conftest import get_state
+    from ha_registry import entity_registry
+
+    spec = specs(_battery_spec(name="Remote battery profile"))
+    # A Profile counts only a task with a due date, and the battery flag is already
+    # on, so the watcher arms the task on its first evaluation.
+    _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
+    before = call_service(ha, "home_keeper", "list_profiles", {}, return_response=True)
+    saved = before.get("service_response", before).get("profiles", [])
+    key = f"home_keeper:declarative:{spec['id']}"
+    probe = {
+        "id": "it_declarative_profile",
+        "name": "Declarative probe",
+        "filter": {"status": "all", "companions": [key]},
+    }
+    excluded = {
+        "id": "it_declarative_excluded",
+        "name": "Declarative excluded",
+        "filter": {
+            "status": "all",
+            "companions": ["home_keeper"],
+            "exclude_companions": [key],
+        },
+    }
+
+    def _count(unique_id):
+        for entry in entity_registry(ha):
+            if entry.get("unique_id") == unique_id:
+                state = get_state(ha, entry["entity_id"])
+                return state and state["attributes"].get("total")
+        return None
+
+    call_service(
+        ha, "home_keeper", "set_options", {"profiles": [*saved, probe, excluded]}
+    )
+    try:
+        deadline = time.monotonic() + SETTLE
+        total = None
+        while time.monotonic() < deadline:
+            total = _count("home_keeper_profile_it_declarative_profile_tasks")
+            if total == 1:
+                break
+            time.sleep(1)
+        assert total == 1, f"the Profile should count the one task, got {total}"
+        tasks_of_spec = {t["id"] for t in _spec_tasks(ha, spec["id"])}
+        home_keeper_tasks = [
+            t
+            for t in _list_tasks(ha)
+            if (t.get("managed_by") or {}).get("integration") == "home_keeper"
+            and t.get("enabled", True)
+            and t.get("next_due")
+            and t["id"] not in tasks_of_spec
+        ]
+        excluded_total = _count("home_keeper_profile_it_declarative_excluded_tasks")
+        assert excluded_total == len(home_keeper_tasks), (
+            "excluding the spec key drops its task and keeps every other one"
+        )
+    finally:
+        call_service(ha, "home_keeper", "set_options", {"profiles": saved})
+
+
 def test_a_device_backed_companion_arms_on_a_condition_that_is_already_true(ha, specs):
     """A companion made for a condition standing right now must arm, device or not.
 

@@ -353,7 +353,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "{name} fastsætter alle felter på denne opgave.",
   "managed.deleteBlocked": "Slet i {name} i stedet",
-  "managed.deleteFromCompanion": "Rediger eller slet den deklarative companion »{name}« i stedet",
+  "managed.deleteFromCompanion": "Slet den deklarative companion »{name}« for at fjerne denne opgave.",
   "managed.fieldLocked": "Indstillet af {name}",
   "managed.orphanBanner.one": "{n} opgave administreres af en integration, der ikke længere er installeret.",
   "managed.orphanBanner.other": "{n} opgaver administreres af integrationer, der ikke længere er installeret.",

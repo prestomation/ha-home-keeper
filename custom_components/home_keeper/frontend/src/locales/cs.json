@@ -371,7 +371,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "Všechna pole tohoto úkolu nastavuje {name}.",
   "managed.deleteBlocked": "Smažte v {name}",
-  "managed.deleteFromCompanion": "Upravte nebo smažte deklarativního společníka „{name}“",
+  "managed.deleteFromCompanion": "Chcete-li tuto úlohu odstranit, smažte deklarativního společníka „{name}“.",
   "managed.fieldLocked": "Nastaveno integrací {name}",
   "managed.orphanBanner.few": "{n} úkoly jsou spravovány integracemi, které již nejsou nainstalovány.",
   "managed.orphanBanner.many": "{n} úkolu je spravováno integracemi, které již nejsou nainstalovány.",

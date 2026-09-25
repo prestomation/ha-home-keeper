@@ -353,7 +353,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "此任务的所有字段均由 {name} 设置。",
   "managed.deleteBlocked": "请改为从 {name} 中删除",
-  "managed.deleteFromCompanion": "请改为编辑或删除声明式搭档“{name}”",
+  "managed.deleteFromCompanion": "要移除此任务，请删除声明式搭档“{name}”。",
   "managed.fieldLocked": "由 {name} 设置",
   "managed.orphanBanner.one": "有 {n} 个任务由不再安装的集成管理。",
   "managed.orphanBanner.other": "有 {n} 个任务由不再安装的集成管理。",

@@ -362,7 +362,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "{name} imposta tutti i campi di questa attività.",
   "managed.deleteBlocked": "Elimina invece da {name}",
-  "managed.deleteFromCompanion": "Modifica o elimina invece il companion dichiarativo «{name}»",
+  "managed.deleteFromCompanion": "Per rimuovere questa attività, elimina il companion dichiarativo «{name}».",
   "managed.fieldLocked": "Impostato da {name}",
   "managed.orphanBanner.many": "{n} attività sono gestite da integrazioni che non sono più installate.",
   "managed.orphanBanner.one": "{n} attività è gestita da un'integrazione che non è più installata.",

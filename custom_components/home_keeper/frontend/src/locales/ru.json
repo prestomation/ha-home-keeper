@@ -371,7 +371,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "Все поля этой задачи задаёт {name}.",
   "managed.deleteBlocked": "Вместо этого удалите из {name}",
-  "managed.deleteFromCompanion": "Вместо этого измените или удалите декларативного компаньона «{name}»",
+  "managed.deleteFromCompanion": "Чтобы удалить эту задачу, удалите декларативного компаньона «{name}».",
   "managed.fieldLocked": "Задано {name}",
   "managed.orphanBanner.few": "{n} задачи управляются интеграциями, которые больше не установлены.",
   "managed.orphanBanner.many": "{n} задач управляются интеграциями, которые больше не установлены.",

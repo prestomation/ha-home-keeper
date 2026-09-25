@@ -53,7 +53,7 @@
   mechanism: which buttons the feature hides or shows, what it rewrites internally,
   which surfaces it touches, or which fields it added. `**Declarative companions.**
   Define a pattern over existing entities to create tasks automatically.` is the whole
-  bullet — that the recipe's task shows Edit recipe rather than Edit and Duplicate,
+  bullet — that its task shows Edit companion rather than Duplicate,
   and that Home Keeper rewrites the task on each run, are `README.md` facts. When a
   feature is big enough that trimming it loses something real, **split it into 2
   bullets** rather than growing one: declarative companions and their shipped presets

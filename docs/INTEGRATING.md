@@ -695,12 +695,24 @@ entities are added, renamed, or removed.
 
 The bundled presets are **device_pulse** (per-device ping sensors from
 studiobts/home-assistant-device-pulse) and **firmware_update_available** (update
-domain, covers UniFi, ESPHome, HACS, Reolink, Bambu Lab in one recipe). Full config
-surface via `home_keeper.add_declarative_companion` /
+domain, covers UniFi, ESPHome, HACS, Reolink, Bambu Lab in one declarative
+companion). Full config surface via `home_keeper.add_declarative_companion` /
 `update_declarative_companion` / `delete_declarative_companion` /
 `list_declarative_companions` services (admin-only). Managed tasks fire the ordinary
 `home_keeper_task_*` events. Filter to declarative tasks via
 `managed_by.integration == "home_keeper"` and `source.declarative_companion.spec_id`.
+
+`task_template.labels` puts labels on each task. An `update_declarative_companion`
+call that changes this list adds the new labels to the existing tasks and removes the
+dropped ones, and fires `home_keeper_task_updated` with `changed_fields: ["labels"]`
+for each task. Other labels on a task stay. `labels` is never in the task's
+`managed_by.locked_fields`, so `update_task` can add a label to one task. `notes` is
+locked only when the spec has a `notes_template`.
+
+A Profile selects the tasks of one declarative companion with
+`home_keeper:declarative:<spec_id>` in its `companions` or `exclude_companions` list.
+`home_keeper:problem_sensors` selects the synced problem sensors. Both are derived from
+the task's `source`; plain `home_keeper` still selects all of them.
 
 **When to build a hand-coded companion instead.** A declarative companion is a good fit
 when the trigger is "an entity crosses a condition." It's the wrong fit when your

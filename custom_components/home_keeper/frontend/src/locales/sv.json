@@ -353,7 +353,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "{name} anger alla fält i den här uppgiften.",
   "managed.deleteBlocked": "Ta bort i {name} i stället",
-  "managed.deleteFromCompanion": "Redigera eller ta bort den deklarativa companion ”{name}” i stället",
+  "managed.deleteFromCompanion": "Ta bort den deklarativa companion ”{name}” för att ta bort denna uppgift.",
   "managed.fieldLocked": "Inställt av {name}",
   "managed.orphanBanner.one": "{n} uppgift hanteras av en integration som inte längre är installerad.",
   "managed.orphanBanner.other": "{n} uppgifter hanteras av integrationer som inte längre är installerade.",

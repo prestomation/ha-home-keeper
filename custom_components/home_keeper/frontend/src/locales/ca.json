@@ -362,7 +362,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "{name} defineix tots els camps d'aquesta tasca.",
   "managed.deleteBlocked": "Elimina-la des de {name}",
-  "managed.deleteFromCompanion": "Edita o elimina el companion declaratiu «{name}»",
+  "managed.deleteFromCompanion": "Per eliminar aquesta tasca, elimina el companion declaratiu «{name}».",
   "managed.fieldLocked": "Definit per {name}",
   "managed.orphanBanner.many": "{n} tasques estan gestionades per integracions que ja no estan instal·lades.",
   "managed.orphanBanner.one": "{n} tasca està gestionada per una integració que ja no està instal·lada.",

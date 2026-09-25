@@ -227,7 +227,7 @@ shown with `ha-assist-chip`, empty/error states use `ha-alert`, and actions use
   versions.~~ **Shipped** for tasks (with history) and appliances: pure `transfer.py`
   (`build_document` + `plan_import`), the `export_data`/`import_data` services and
   their websocket twins, and a **Import and export** section on the Settings tab.
-  Upsert on an id / `external_id` / name ladder. Still open: recipes, profiles,
+  Upsert on an id / `external_id` / name ladder. Still open: declarative companions, profiles,
   notifications and options, plus uploaded document blobs (a text file has no room
   for a binary).
 
@@ -329,7 +329,7 @@ ship rather than adding a parallel system.
 - **Portable source-owned tasks**, for all 4 reconciler namespaces at once.
   `transfer.is_portable_task` refuses any task carrying a reserved `source`, and
   `_plan_task` refuses one on the way in, because a reconciler regenerates them. That
-  is right for a recipe's task and a problem-sensor mirror, and too broad for a wear
+  is right for a declarative companion task and a problem-sensor mirror, and too broad for a wear
   part's pair: `reconcile_part_tasks` keys on `(asset_id, part_id, role)` and *updates*
   a task it finds rather than re-minting it, so an imported one would be adopted. What
   a document cannot carry today is the **history** — a wear item's renewal log, cost,

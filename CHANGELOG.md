@@ -6,6 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.27.0b4]
+
+### Added
+
+- **[Declarative companion task labels](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#task-labels-and-notes).**
+  Set task labels on a declarative companion, and each task it makes gets them. Click
+  Edit on one task to add labels to that task only. (Fixes #378)
+- **[Declarative companion Profile filter](https://prestomation.github.io/ha-home-keeper/docs/guide/profiles#filter-by-companion).**
+  The Companions filter of a Profile lists each declarative companion and the synced
+  problem sensors. Select one to show only its tasks.
+
+### Fixed
+
+- **[Declarative companion task notes](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#task-labels-and-notes).**
+  A declarative companion with no notes template no longer clears the notes of its
+  tasks. You can now write notes on those tasks.
+
 ## [0.27.0b3]
 
 ### Fixed

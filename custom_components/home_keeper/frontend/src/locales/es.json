@@ -362,7 +362,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "{name} define todos los campos de esta tarea.",
   "managed.deleteBlocked": "Eliminar desde {name} en su lugar",
-  "managed.deleteFromCompanion": "Editar o eliminar el companion declarativo «{name}» en su lugar",
+  "managed.deleteFromCompanion": "Para quitar esta tarea, elimina el companion declarativo «{name}».",
   "managed.fieldLocked": "Definido por {name}",
   "managed.orphanBanner.many": "{n} tareas están gestionadas por integraciones que ya no están instaladas.",
   "managed.orphanBanner.one": "{n} tarea está gestionada por una integración que ya no está instalada.",

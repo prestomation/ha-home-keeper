@@ -353,7 +353,7 @@
   "managed.completionHint": "{prompt}",
   "managed.allLocked": "{name} bepaalt alle velden van deze taak.",
   "managed.deleteBlocked": "Verwijder in plaats daarvan in {name}",
-  "managed.deleteFromCompanion": "Bewerk of verwijder de declaratieve companion „{name}“ in plaats daarvan",
+  "managed.deleteFromCompanion": "Verwijder de declaratieve companion „{name}“ om deze taak te verwijderen.",
   "managed.fieldLocked": "Ingesteld door {name}",
   "managed.orphanBanner.one": "{n} taak wordt beheerd door een integratie die niet meer geïnstalleerd is.",
   "managed.orphanBanner.other": "{n} taken worden beheerd door integraties die niet meer geïnstalleerd zijn.",
