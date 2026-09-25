@@ -79,7 +79,6 @@ from .const import (
 from .coordinator import (
     HomeKeeperCoordinator,
     discard_edge_state,
-    entity_set_key,
     find_coordinator,
     task_has_entities,
 )
@@ -101,6 +100,7 @@ from .sensor_watcher import (
 )
 from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
+from .task_entities import entity_set_key
 from .todo_list_sync import TodoListSync
 from .transfer_runner import (
     async_export_document,

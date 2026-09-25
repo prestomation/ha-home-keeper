@@ -31,12 +31,12 @@ from .backend_i18n import resolve_exception
 from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES, SENSOR_MODE_TEMPLATE
 from .coordinator import (
     HomeKeeperCoordinator,
-    entity_set_key,
     find_coordinator,
     task_has_entities,
 )
 from .models import TaskValidationError
 from .shopping_sync import own_todo_entity_ids
+from .task_entities import entity_set_key
 from .transfer_runner import (
     async_export_document,
     async_import_document,

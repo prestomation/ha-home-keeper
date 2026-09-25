@@ -5,9 +5,10 @@ Two families live on a device page, and each has a base here:
 * :class:`HomeKeeperTaskEntity` — per-task (mark-done button, next-due sensor,
   overdue binary sensor). Each lives on a device page, so when several tasks are
   attached to the same existing device their entity names would otherwise collide
-  ("Mark done", "Mark done", …). This base prefixes the translated name with the
-  task name in that case (and leaves it bare for a self-owned task device, which is
-  already named after the task).
+  ("Mark done", "Mark done", …). This base prefixes the translated name with a
+  short task label in that case (see :func:`task_entities.entity_name_prefix`: the
+  recipe name for a recipe task, else the task name without the device name), and
+  leaves it bare for a self-owned task device, which is already named after the task.
 * :class:`HomeKeeperPartEntity` — per-part on a virtual appliance (spare-stock
   number, low-stock binary sensor). Part names are free-form, so the translated
   name carries the part name as a placeholder rather than localizing it.
@@ -15,7 +16,7 @@ Two families live on a device page, and each has a base here:
 The name placeholder is fixed at construction via the supported
 ``_attr_translation_placeholders`` attribute. Home Assistant caches an entity's
 computed ``name``, so a rename takes effect by reloading the config entry (see
-:func:`coordinator.entity_set_key`), which recreates these entities with the new name.
+:func:`task_entities.entity_set_key`), which recreates these entities with the new name.
 
 :func:`prune_registry_entries` is the other half of the platforms' shared shape: every
 one of them drops the registry entries whose source (task, part, metadata entry) is
@@ -35,6 +36,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import assets as asset_model
 from .coordinator import HomeKeeperCoordinator
+from .task_entities import entity_name_prefix
 
 
 class HomeKeeperTaskEntity(CoordinatorEntity[HomeKeeperCoordinator]):
@@ -53,11 +55,11 @@ class HomeKeeperTaskEntity(CoordinatorEntity[HomeKeeperCoordinator]):
         self._attr_device_info, self.device_entry = coordinator.device_link_for_task(
             task
         )
-        if coordinator.task_uses_existing_device(task):
-            name = task.get("name") or ""
-            prefix = f"{name}: " if name else ""
-        else:
-            prefix = ""
+        prefix = ""
+        if self.device_entry is not None:
+            device = self.device_entry
+            label = entity_name_prefix(task, device.name_by_user or device.name)
+            prefix = f"{label}: " if label else ""
         self._attr_translation_placeholders = {"task_name": prefix}
 
     @property

@@ -3,6 +3,9 @@
 Tasks linked to an existing device get a button on that device's page so the
 maintenance action lives right next to the device it concerns. Pressing it
 completes the task and advances its recurrence.
+
+A task that nothing in Home Keeper can mark done gets no button: a problem-sensor
+task, and a recipe task that clears itself when its condition recovers (#377).
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN
 from .coordinator import HomeKeeperCoordinator
 from .entity import HomeKeeperTaskEntity, prune_registry_entries
+from .notifications import is_completion_blocked
 from .problem_tasks import problem_source
 
 
@@ -25,16 +29,25 @@ async def async_setup_entry(
 ) -> None:
     """Create a mark-done button for each device-attached task.
 
-    Problem-sensor-synced tasks are skipped: they can't be completed in Home Keeper
-    (the originating integration clears them), so a mark-done button would only ever
-    error. Their next-due sensor / overdue binary sensor still appear on the device.
+    A task that can't be completed in Home Keeper is skipped, so its button would
+    only ever error: a problem-sensor-synced task (the originating integration
+    clears it) and a recipe task that clears itself when its condition recovers
+    (``managed_by.completion_blocked``). Their next-due sensor and overdue binary
+    sensor still appear on the device.
     """
     coordinator: HomeKeeperCoordinator = entry.runtime_data
 
+    button_ids = [
+        task_id
+        for task_id in coordinator.device_attached_task_ids()
+        if problem_source(coordinator.data[task_id]) is None
+        and not is_completion_blocked(coordinator.data[task_id])
+    ]
+
     # Remove entity-registry entries for per-task buttons whose task no longer
-    # exists (e.g. after disabling Problem Sensor Sync or deleting a task).
-    task_ids = coordinator.device_attached_task_ids()
-    live_ids = set(task_ids)
+    # exists or no longer gets a button (e.g. after disabling Problem Sensor Sync,
+    # deleting a task, or a recipe that now clears its tasks itself).
+    live_ids = set(button_ids)
     prefix = f"{DOMAIN}_"
     suffix = "_done"
 
@@ -46,9 +59,7 @@ async def async_setup_entry(
     prune_registry_entries(hass, entry, "button", keep)
 
     async_add_entities(
-        HomeKeeperMarkDoneButton(coordinator, task_id)
-        for task_id in task_ids
-        if problem_source(coordinator.data[task_id]) is None
+        HomeKeeperMarkDoneButton(coordinator, task_id) for task_id in button_ids
     )
 
 
