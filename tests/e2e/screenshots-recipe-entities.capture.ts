@@ -10,6 +10,10 @@
  *    Mark done button.
  *  - "Replace battery" does not clear itself, so its task keeps the button.
  * Each entity name starts with the recipe name, not the rendered task name.
+ *
+ * Run it against a fresh container (`docker compose down -v`, then
+ * `git checkout -- tests/integration/ha_config/`). It does not delete the 2
+ * recipes, so a second run on the same container adds 2 more tasks to the device.
  */
 import { test, expect } from '@playwright/test';
 import { openPanel } from './tests/helpers';
