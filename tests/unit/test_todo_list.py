@@ -520,6 +520,35 @@ def test_a_tick_on_a_completion_blocked_item_bounces_back_open():
     assert plan.update == [] and plan.remove == []
 
 
+def test_a_bounced_tick_does_not_stop_the_walk_before_the_next_task():
+    # The blocked key sorts first, so a walk that stopped at it would never see
+    # the ordinary tick behind it, or the vanish behind that.
+    blocked, ticked, gone = (tm.sync_key(M1, t) for t in ("a", "b", "c"))
+    plan = _plan(
+        tracked={
+            blocked: _entry(uid="ia", summary="A"),
+            ticked: _entry(uid="ib", summary="B"),
+            gone: _entry(uid="ic", summary="C"),
+        },
+        desired=_desired(
+            [
+                _want("a", name="A", blocked=True),
+                _want("b", name="B"),
+                _want("c", name="C", blocked=True),
+            ]
+        ),
+        items=[
+            _item("A", uid="ia", status=tm.STATUS_COMPLETED),
+            _item("B", uid="ib", status=tm.STATUS_COMPLETED),
+        ],
+    )
+    assert plan.complete == [tm.CompleteOp(ticked, "b")]
+    assert plan.add == [
+        tm.AddOp(blocked, LIST, "A", due=DUE),
+        tm.AddOp(gone, LIST, "C", due=DUE),
+    ]
+
+
 def test_a_one_way_tick_on_a_completion_blocked_item_is_frozen_as_ever():
     tracked = _tracked()
     plan = _plan(
