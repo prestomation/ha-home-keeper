@@ -47,7 +47,7 @@ documents the feature:
   one YAML file, and reads one back.
 ```
 
-- **Why the lead.** `summarize()` in `ci/release-issues.py` quotes only the bold lead
+- **Why the lead.** `summarize()` in `ci/release-issues.py` quotes the whole bullet
   into the comment the issue reporter gets, so a linked lead carries the docs link
   into that comment too. A link also costs nothing against the three-sentence bullet
   budget.
