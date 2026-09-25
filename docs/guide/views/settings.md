@@ -124,7 +124,7 @@ preview, select it in the excluded entities list.
 
 ![The page of a task a declarative companion made, with Edit and Edit companion buttons and no Done button while the task is monitored](../../images/21e-panel-declarative-task-detail.png)
 
-![The same task page on a phone](../../images/21e-panel-mobile-declarative-task-detail.png)
+![The same task page on a phone](../../images/21e-mobile-companion-task.png)
 
 A declarative companion you switch off keeps the tasks it made. The tasks stop until
 you switch it on again. Their history stays with them. Delete the declarative
@@ -163,11 +163,11 @@ and Home Keeper keeps them.
 
 ![The Task template section with two task labels](../../images/21s-panel-declarative-task-labels.png)
 
-![The same section on a phone](../../images/21s-panel-mobile-declarative-task-labels.png)
+![The same section on a phone](../../images/21s-mobile-task-labels.png)
 
 ![The Edit form of a declarative companion task. It shows only the labels, the tag, the completion detail and the notes](../../images/21t-panel-declarative-task-edit.png)
 
-![The same form on a phone](../../images/21t-panel-mobile-declarative-task-edit.png)
+![The same form on a phone](../../images/21t-mobile-companion-task-edit.png)
 
 ##### Template triggers
 

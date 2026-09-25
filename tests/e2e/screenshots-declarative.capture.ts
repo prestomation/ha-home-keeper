@@ -689,14 +689,14 @@ test('capture task labels and the task Edit form at both widths', async ({ page 
     await page.mouse.move(0, 0);
     await page.waitForTimeout(600);
     await page.screenshot({
-      path: `${OUT}/21e-panel-mobile-declarative-task-detail.png`,
+      path: `${OUT}/21e-mobile-companion-task.png`,
       fullPage: true,
     });
 
     await phoneActions.locator('.d-edit').click();
     await expect(panel.locator('#hk-form')).toBeVisible({ timeout: 20_000 });
     await page.waitForTimeout(800);
-    await page.screenshot({ path: `${OUT}/21t-panel-mobile-declarative-task-edit.png` });
+    await page.screenshot({ path: `${OUT}/21t-mobile-companion-task-edit.png` });
 
     await openPanel(page);
     await openSettingsSection(panel, 'companions');
@@ -705,7 +705,7 @@ test('capture task labels and the task Edit form at both widths', async ({ page 
     await expect(phoneTemplate).toBeVisible({ timeout: 20_000 });
     await phoneTemplate.scrollIntoViewIfNeeded();
     await page.waitForTimeout(800);
-    await page.screenshot({ path: `${OUT}/21s-panel-mobile-declarative-task-labels.png` });
+    await page.screenshot({ path: `${OUT}/21s-mobile-task-labels.png` });
     await panel.locator('ha-dialog.hk-decl-dialog .hk-decl-cancel').click();
     await page.setViewportSize({ width: 1280, height: 720 });
   } finally {
