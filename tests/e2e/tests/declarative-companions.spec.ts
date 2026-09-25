@@ -145,7 +145,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await expect(companions.locator('.hk-companion-group-decl')).toHaveText(
       'Declarative companions',
     );
-    await expect(companions).toContainText('one managed sensor task per match');
+    await expect(companions).toContainText('one managed sensor task for each match');
     await expect(companions.locator('.hk-decl-add')).toBeVisible();
     await expect(companions.locator('.hk-decl-preset')).toBeVisible();
 
