@@ -7,8 +7,9 @@ Two families live on a device page, and each has a base here:
   attached to the same existing device their entity names would otherwise collide
   ("Mark done", "Mark done", …). This base prefixes the translated name with a
   short task label in that case (see :func:`task_entities.entity_name_prefix`: the
-  recipe name for a recipe task, else the task name without the device name), and
-  leaves it bare for a self-owned task device, which is already named after the task.
+  companion name for a declarative companion task, else the task name without the
+  device name), and leaves it bare for a self-owned task device, which is already
+  named after the task.
 * :class:`HomeKeeperPartEntity` — per-part on a virtual appliance (spare-stock
   number, low-stock binary sensor). Part names are free-form, so the translated
   name carries the part name as a placeholder rather than localizing it.

@@ -15,7 +15,7 @@ Three presets ship:
   Requires the Device Pulse integration to be installed.
 * ``firmware_update_available`` — watches every ``update.*`` entity reporting
   ``on`` (HA's built-in firmware/software-update surface). Covers UniFi, ESPHome,
-  HACS, Reolink, Bambu Lab firmware updates in one recipe.
+  HACS, Reolink, Bambu Lab firmware updates in one declarative companion.
 * ``device_stopped_reporting`` — watches every ``sensor.*_last_seen`` entity through the
   ``template`` mode and opens a task once one is a day stale. Needs no upstream
   integration, and it is the worked example for what a template trigger is for.
@@ -216,7 +216,7 @@ _DEVICE_CHECK_NAMES: dict[str, str] = {
 
 # The task text each preset seeds, per language. A preset's ``default_spec`` holds the
 # English; the panel is handed the household's language (``localized_default_spec``),
-# and a saved recipe whose template is still one of these, in any language, renders
+# and a saved companion whose template is still one of these, in any language, renders
 # in the current language (``localized_task_template``). A template the user edited
 # matches none of them and is rendered as written. Translators: keep every Jinja
 # expression between ``{{ }}`` exactly as it is, except the quoted fallback word.
@@ -371,7 +371,7 @@ def localized_task_template(spec: dict[str, Any], lang: str | None) -> dict[str,
     """*spec*'s task template, with unchanged preset text put into *lang*.
 
     A field is replaced only when the spec names a known preset and the field still
-    reads as that preset's text in **some** language — so a recipe saved in English
+    reads as that preset's text in **some** language — so a companion saved in English
     renders in German after the household switches, and back again. A field the user
     edited matches none of them and is returned as written. The input is not mutated.
     """
@@ -391,7 +391,7 @@ def localized_default_spec(
 ) -> dict[str, Any]:
     """A copy of *preset*'s ``default_spec`` in *lang*, named *name*.
 
-    This is what the panel seeds the Add dialog with, so a new recipe is saved in
+    This is what the panel seeds the Add dialog with, so a new companion is saved in
     the household's language from the start.
     """
     spec = dict(preset["default_spec"])

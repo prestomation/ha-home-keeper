@@ -929,7 +929,7 @@ def test_template_keeps_an_armed_task_when_auto_clear_is_off():
 
 def test_template_that_did_not_render_never_clears_an_armed_task():
     # The dangerous half of the indeterminate rule. Reading a broken template as "the
-    # condition went away" would complete every clear_on_recover task a recipe made,
+    # condition went away" would complete every clear_on_recover task a companion made,
     # across every entity it matched, and the completions would look like real ones.
     now = dt(2026, 6, 1, 10)
     out = s.evaluate_template(

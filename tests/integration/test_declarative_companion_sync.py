@@ -1,7 +1,7 @@
 """Integration coverage for the declarative-companion reconciler (real HA container).
 
-A declarative companion is a recipe, not a task. The reconciler reads the **entity
-registry**, matches it against the recipe's filters, renders the Jinja name/notes
+A declarative companion is a spec, not a task. The reconciler reads the **entity
+registry**, matches it against the companion's filters, renders the Jinja name/notes
 templates against live state, and materializes one managed sensor task per match.
 Every part of that rests on a Home Assistant framework contract — the registry, the
 template engine, the state machine, the dispatcher signal the store fires after a
@@ -13,7 +13,7 @@ The container config ships two template binary sensors this suite drives:
 * ``binary_sensor.hk_demo_water_tank_low`` (device_class ``moisture``) follows
   ``input_boolean.hk_demo_flag``, so a test can make a real off -> on transition.
 * ``binary_sensor.hk_demo_remote_battery`` (device_class ``battery``) is always
-  ``on``, so a recipe that selects it meets its trigger condition from the start.
+  ``on``, so a companion that selects it meets its trigger condition from the start.
 
 The config also ships one template update entity,
 ``update.hk_demo_router_firmware``, whose latest version differs from its installed
@@ -198,7 +198,7 @@ def _let_the_watcher_subscribe():
 
 
 def _tank_spec(**overrides):
-    """A ``state``-mode recipe that matches the one moisture sensor in the config."""
+    """A ``state``-mode companion that matches the one moisture sensor in the config."""
     spec = {
         "name": "Water tank",
         "description": "One task per water-tank sensor",
@@ -214,10 +214,10 @@ def _tank_spec(**overrides):
 
 
 def _battery_spec(**overrides):
-    """A ``state``-mode recipe that matches the one battery sensor in the config.
+    """A ``state``-mode companion that matches the one battery sensor in the config.
 
-    ``binary_sensor.hk_demo_remote_battery`` is already ``on`` when the recipe is
-    added, so this recipe covers the case where the trigger condition holds from
+    ``binary_sensor.hk_demo_remote_battery`` is already ``on`` when the companion is
+    added, so this companion covers the case where the trigger condition holds from
     the first evaluation. The sensor has no device.
     """
     spec = {
@@ -235,10 +235,10 @@ def _battery_spec(**overrides):
 
 
 def _device_battery_spec(**overrides):
-    """A ``threshold`` recipe matching the one device-backed sensor in the config.
+    """A ``threshold`` companion matching the one device-backed sensor in the config.
 
     The sensor reads a static 42%, so the condition (``<= 50``) is **already true**
-    when the recipe is added. The task it makes carries the sensor's device, which is
+    when the companion is added. The task it makes carries the sensor's device, which is
     what forces the entry reload the arming tests below are about.
     """
     spec = {
@@ -296,8 +296,8 @@ def specs(ha):
 # ── (a) materialization ──────────────────────────────────────────────────────
 
 
-def test_a_state_recipe_materializes_one_managed_task_per_matching_entity(ha, specs):
-    """The recipe reaches the registry, renders its templates, and owns the result."""
+def test_a_state_companion_materializes_one_managed_task_per_matching_entity(ha, specs):
+    """The spec reaches the registry, renders its templates, and owns the result."""
     _set_flag(ha, False)
     spec = specs(_tank_spec())
     task = _one_task(ha, spec["id"])
@@ -306,7 +306,7 @@ def test_a_state_recipe_materializes_one_managed_task_per_matching_entity(ha, sp
     assert task["name"] == "Fill HK demo water tank low"
     assert task["notes"] == f"Reported by {TANK}."
 
-    # Provenance: which recipe made it, and which registry entry it follows.
+    # Provenance: which companion made it, and which registry entry it follows.
     src = task["source"]["declarative_companion"]
     assert src["spec_id"] == spec["id"]
     assert src["entity_id"] == TANK
@@ -320,7 +320,7 @@ def test_a_state_recipe_materializes_one_managed_task_per_matching_entity(ha, sp
     assert task["sensor"]["clear_on_recover"] is True
 
     # Ownership: Home Keeper made it, the reconciler rewrites these fields, and a
-    # user may neither delete nor complete it. This recipe clears on recover, so
+    # user may neither delete nor complete it. This companion clears on recover, so
     # Home Keeper owns the completion and the panel greys Done with a reason.
     managed_by = task["managed_by"]
     assert managed_by["integration"] == "home_keeper"
@@ -507,11 +507,11 @@ def test_a_spec_with_a_notes_template_locks_the_notes(ha, specs):
     assert _one_task(ha, spec["id"])["notes"] == f"Reported by {TANK}."
 
 
-def test_a_device_backed_recipe_arms_on_a_condition_that_is_already_true(ha, specs):
-    """A recipe made for a condition standing right now must arm, device or not.
+def test_a_device_backed_companion_arms_on_a_condition_that_is_already_true(ha, specs):
+    """A companion made for a condition standing right now must arm, device or not.
 
     This is the case the device-less tests above cannot see. The battery reads 42%,
-    the recipe wants ``<= 50``, and the task it makes owns per-task entities — so the
+    the companion wants ``<= 50``, and the task it makes owns per-task entities — so the
     reconciler reloads the entry, the reload re-runs setup, and setup calls
     ``SensorTaskWatcher.async_baseline``. That pass records every already-matching
     sensor task as met-without-a-crossing, which is right after a restart and wrong
@@ -530,7 +530,7 @@ def test_a_device_backed_recipe_arms_on_a_condition_that_is_already_true(ha, spe
         "the whole point of this test is the device-backed reload path; "
         "without a device the reconciler never reloads"
     )
-    # The other half of the completion contract: this recipe does not clear on
+    # The other half of the completion contract: this companion does not clear on
     # recover, so nothing else will ever close the task and Done stays the user's.
     assert task["managed_by"]["completion_blocked"] is False
     assert "completion_prompt" not in task["managed_by"]
@@ -600,21 +600,21 @@ def _mark_done_buttons(ha, label):
     ]
 
 
-def test_device_page_entities_are_named_after_the_recipe(ha, specs):
-    """The entity names start with the recipe name, not the rendered task name.
+def test_device_page_entities_are_named_after_the_companion(ha, specs):
+    """The entity names start with the companion name, not the rendered task name.
 
     The task name here is "Change the <device> battery", so the old prefix put the
-    device name in twice. A recipe rename renames the entities as well: an
+    device name in twice. A companion rename renames the entities as well: an
     ``updated`` reconcile op whose entity-set key changed reloads the entry.
     """
-    spec = specs(_device_battery_spec(name="HK battery recipe"))
+    spec = specs(_device_battery_spec(name="HK battery companion"))
     task = _one_task(ha, spec["id"])
     sensor = _next_due_sensor(ha, task["id"])
     name = sensor["attributes"]["friendly_name"]
-    assert name.endswith(" HK battery recipe: Next due"), name
+    assert name.endswith(" HK battery companion: Next due"), name
     assert task["name"] not in name
-    # This recipe does not clear on recover, so the button stays.
-    assert len(_mark_done_buttons(ha, "HK battery recipe")) == 1
+    # This companion does not clear on recover, so the button stays.
+    assert len(_mark_done_buttons(ha, "HK battery companion")) == 1
 
     _update_spec(ha, spec["id"], {"name": "HK battery renamed"})
     renamed = _next_due_sensor(
@@ -629,10 +629,10 @@ def test_device_page_entities_are_named_after_the_recipe(ha, specs):
     assert renamed["entity_id"] == sensor["entity_id"], "the entity_id must not change"
 
 
-def test_a_recipe_that_clears_itself_has_no_mark_done_button(ha, specs):
+def test_a_companion_that_clears_itself_has_no_mark_done_button(ha, specs):
     """No button, and the service refuses a completion by hand (#377).
 
-    The recipe completes the task when the condition recovers. A Done pressed while
+    The companion completes the task when the condition recovers. A Done pressed while
     the battery is still low would record work nobody did.
     """
     spec = specs(
@@ -670,14 +670,14 @@ def test_narrowing_the_selection_removes_the_task_and_widening_makes_a_new_one(
 
     Widening again re-creates the task, but it is a **fresh** task: the orphan pass
     deletes, it does not tombstone, so completions recorded before the narrowing do
-    not come back. Narrowing a live recipe therefore throws history away, which is
+    not come back. Narrowing a live companion therefore throws history away, which is
     what this pins.
     """
     _set_flag(ha, False)
     spec = specs(_tank_spec())
     first = _one_task(ha, spec["id"])
 
-    # Record a completion so the history has something to lose. The recipe clears on
+    # Record a completion so the history has something to lose. The companion clears on
     # recover, so Done by hand is refused (#377): arm it and let the recovery clear it.
     _let_the_watcher_subscribe()
     _set_flag(ha, True)
@@ -699,7 +699,7 @@ def test_narrowing_the_selection_removes_the_task_and_widening_makes_a_new_one(
     )
     _poll_spec_tasks(ha, spec["id"], lambda tasks: tasks == [])
 
-    # Widen back: the entity matches again, so the recipe materializes it again.
+    # Widen back: the entity matches again, so the companion materializes it again.
     _update_spec(
         ha,
         spec["id"],
@@ -713,9 +713,9 @@ def test_narrowing_the_selection_removes_the_task_and_widening_makes_a_new_one(
 
 
 def test_disabling_the_spec_switches_its_tasks_off_and_keeps_their_history(ha, specs):
-    """``enabled: false`` stops the recipe without throwing away what it recorded.
+    """``enabled: false`` stops the companion without throwing away what it recorded.
 
-    The tasks used to be deleted, so a recipe switched off for a week came back with
+    The tasks used to be deleted, so a companion switched off for a week came back with
     every completion on its tasks gone. A disabled task is already ignored by the
     watcher and by every due-date surface, which is all "off" has to mean.
     """
@@ -725,7 +725,7 @@ def test_disabling_the_spec_switches_its_tasks_off_and_keeps_their_history(ha, s
     _let_the_watcher_subscribe()
 
     # Record real history first: the tank empties and is filled again, and the
-    # recipe's own clear-on-recover writes the completion.
+    # companion's own clear-on-recover writes the completion.
     _set_flag(ha, True)
     _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
     _set_flag(ha, False)
@@ -736,7 +736,7 @@ def test_disabling_the_spec_switches_its_tasks_off_and_keeps_their_history(ha, s
     assert off["id"] == task["id"], "the task must survive, not be remade"
     assert len(off["completions"]) == 1, "the history must survive the switch"
     stored = [s for s in _list_specs(ha) if s["id"] == spec["id"]]
-    assert stored and stored[0]["enabled"] is False, "the recipe itself must survive"
+    assert stored and stored[0]["enabled"] is False, "the companion itself must survive"
 
     _update_spec(ha, spec["id"], {"enabled": True})
     back = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is True)
@@ -747,7 +747,7 @@ def test_disabling_the_spec_switches_its_tasks_off_and_keeps_their_history(ha, s
 # ── (d) deletion ─────────────────────────────────────────────────────────────
 
 
-def test_deleting_the_spec_removes_the_recipe_and_every_task_it_made(ha, specs):
+def test_deleting_the_spec_removes_the_companion_and_every_task_it_made(ha, specs):
     _set_flag(ha, False)
     spec = specs(_tank_spec())
     _one_task(ha, spec["id"])
@@ -761,14 +761,15 @@ def test_deleting_the_spec_removes_the_recipe_and_every_task_it_made(ha, specs):
 # ── (e) already-true conditions, and a shipped preset ────────────────────────
 
 
-def test_a_battery_recipe_materializes_and_arms_on_the_battery_sensor(ha, specs):
-    """A ``state`` recipe on a live registry, on a sensor that is already ``on``.
+def test_a_battery_companion_materializes_and_arms_on_the_battery_sensor(ha, specs):
+    """A ``state`` companion on a live registry, on a sensor that is already ``on``.
 
-    ``binary_sensor.hk_demo_remote_battery`` is already ``on`` when the recipe is
-    added, and the task **arms**. The sensor has no device, so this recipe never
+    ``binary_sensor.hk_demo_remote_battery`` is already ``on`` when the companion is
+    added, and the task **arms**. The sensor has no device, so this companion never
     reloads the entry and the first evaluation reads the standing ``on`` as a fresh
-    crossing. ``test_a_device_backed_recipe_arms_on_a_condition_that_is_already_true``
-    covers the harder path, where the reload runs the baseline in between.
+    crossing.
+    ``test_a_device_backed_companion_arms_on_a_condition_that_is_already_true`` covers
+    the harder path, where the reload runs the baseline in between.
 
     The other half of the same rule is covered by
     ``test_a_task_that_survived_a_reload_stays_dormant_while_the_sensor_is_still_met``
@@ -806,7 +807,7 @@ def test_a_shipped_preset_installs_and_materializes_as_the_picker_installs_it(
 
     ``test_every_preset_normalizes`` already runs every shipped default_spec through
     ``normalize_declarative_companion``, and so through ``normalize_sensor``. This
-    test covers the other half: the recipe materializes a task on a live registry,
+    test covers the other half: the companion materializes a task on a live registry,
     and the task arms.
 
     ``update.hk_demo_router_firmware`` is the one update entity in the container. It

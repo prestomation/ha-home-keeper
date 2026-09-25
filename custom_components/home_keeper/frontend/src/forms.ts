@@ -511,9 +511,9 @@ export function taskSchemaSections(
             { value: 'threshold', label: t('opt.sensor_mode.threshold') },
             { value: 'state', label: t('opt.sensor_mode.state') },
             { value: 'availability', label: t('opt.sensor_mode.availability') },
-            // Last, like the recipe dialog's own list: the four above each answer one
-            // plain question, and a user who wants one of those must not have to read
-            // past Jinja to find it.
+            // Last, like the declarative companion dialog's own list: the four above
+            // each answer one plain question, and a user who wants one of those must
+            // not have to read past Jinja to find it.
             { value: 'template', label: t('opt.sensor_mode.template') },
           ]),
         },

@@ -191,7 +191,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _ownTodoEntities: string[] = [];
   // Companion integrations shown on the Settings tab (loaded with the rest).
   _companions: Companion[] = [];
-  // Declarative-companion recipes (loaded with the rest), the bundled presets and the
+  // Declarative companions (loaded with the rest), the bundled presets and the
   // installed-integration list their dialogs need (fetched on first open), and the
   // dialogs' own state.
   _declarativeCompanions: DeclarativeCompanion[] = [];
@@ -727,9 +727,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    *
    * These fallbacks exist so one soft command can't stop the panel from loading. A
    * `not_loaded` error is not that: the entry is mid-reload and every command is
-   * failing, so falling back would render "no companions, no options, no recipes" —
-   * a confident answer that is wrong. Rethrowing puts the whole batch on the retry
-   * path in `_reload`, which waits for the reload to finish and asks again.
+   * failing, so falling back would render "no companions, no options, no declarative
+   * companions" — a confident answer that is wrong. Rethrowing puts the whole batch on
+   * the retry path in `_reload`, which waits for the reload to finish and asks again.
    */
   private _soft<T, F>(p: Promise<T>, fallback: F): Promise<T | F> {
     return p.catch((err) => {
@@ -799,8 +799,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       // The integration is mid-reload. Wait for it and read again rather than keep
       // what is on screen: every field above is left untouched by this catch, so a
       // load that gives up here leaves the *whole* panel — task list, appliances,
-      // options, companions, recipes — showing what it held before, with nothing to
-      // say so and nothing to retry it. Home Keeper reloads itself (adding a
+      // options, companions, declarative companions — showing what it held before, with
+      // nothing to say so and nothing to retry it. Home Keeper reloads itself (adding a
       // declarative companion that matches an entity materializes tasks, and the
       // reconciler reloads the entry to baseline the sensor watcher), so the refresh
       // that follows such a save is the most likely one to land in the window.

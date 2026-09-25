@@ -748,7 +748,7 @@ def test_an_availability_hold_completes_while_the_entity_stays_away(ha):
 def test_a_hold_starts_again_after_the_entity_stops_reporting(ha):
     """A gap in the readings must not be banked as hold time (#336).
 
-    The reporter kept the Device Pulse recipe's hour-long hold, and the task opened
+    The reporter kept the Device Pulse preset's hour-long hold, and the task opened
     anyway each time the monitored entity reached the trigger state for a minute. The
     watcher skipped a task whose entity had no reading, so the crossing that started
     the hold survived the whole blackout: the entity came back over the threshold, the
@@ -1073,7 +1073,7 @@ def test_a_state_mode_task_records_no_reading(ha):
 # raises really reaches the evaluator as "indeterminate" rather than as False. That is
 # the #183 argument — a unit test mocks the framework and cannot watch the contract
 # change — and it matters more here than anywhere else in the feature, because reading
-# a broken template as False auto-completes every `clear_on_recover` task a recipe
+# a broken template as False auto-completes every `clear_on_recover` task a companion
 # made.
 
 
@@ -1102,7 +1102,7 @@ def test_a_broken_template_never_completes_an_armed_auto_clearing_task(ha):
     Arm the task, then break the template, then move the bound entity so the watcher
     re-evaluates. A template that raises must decide nothing: if it read as False, the
     binding's `clear_on_recover` would complete the task and the completion would look
-    like a real one, on every entity a recipe matched.
+    like a real one, on every entity a companion matched.
     """
     _set_flag(ha, False)
     task_id = _add_sensor_task(
@@ -1244,7 +1244,7 @@ def test_a_template_that_renders_a_number_never_arms_the_task(ha):
     """A number is not a verdict, whatever its value.
 
     ``{{ state }}`` on a numeric sensor is the mistake a beginner makes, and it read
-    as "due" for every entity a recipe matched: the verdict went through
+    as "due" for every entity a companion matched: the verdict went through
     ``cv.boolean``, which maps any number to ``value != 0``. The preview drew a
     confident green chip and no error, and with ``clear_on_recover`` the task would
     only ever close if the reading happened to land on exactly zero.

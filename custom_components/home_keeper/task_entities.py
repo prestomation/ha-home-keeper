@@ -24,11 +24,11 @@ from .notifications import is_completion_blocked
 _TRIM = " \t:-\u2013\u2014,"
 
 
-def recipe_name(task: dict[str, Any]) -> str | None:
-    """The name of the recipe that owns *task*, or ``None`` for any other task.
+def companion_name(task: dict[str, Any]) -> str | None:
+    """The name of the declarative companion that owns *task*, else ``None``.
 
-    ``build_managed_by`` stamps the recipe name as ``managed_by.display_name``. A
-    problem-sensor task stamps a display name too, so the recipe source is what
+    ``build_managed_by`` stamps the companion name as ``managed_by.display_name``. A
+    problem-sensor task stamps a display name too, so the companion source is what
     decides, not the display name alone.
     """
     if declarative_source(task) is None:
@@ -53,15 +53,15 @@ def _strip_device_name(name: str, device_name: str) -> str:
 def entity_name_prefix(task: dict[str, Any], device_name: str | None) -> str:
     """The label for *task* in front of its entity names on *device_name*'s page.
 
-    A recipe task uses the recipe name: it is short, the user chose it, and it says
-    which rule opened the task. The rendered task name usually holds the device name,
-    which Home Assistant adds again, so it made long, repeated names and entity_ids
-    (#377). Any other task uses its name without the device name at its start or end,
-    or its whole name when nothing else is left. The caller adds the ``": "``.
+    A declarative companion task uses the companion name: it is short, the user chose
+    it, and it says which rule opened the task. The rendered task name usually holds the
+    device name, which Home Assistant adds again, so it made long, repeated names and
+    entity_ids (#377). Any other task uses its name without the device name at its start
+    or end, or its whole name when nothing else is left. The caller adds the ``": "``.
     """
-    recipe = recipe_name(task)
-    if recipe is not None:
-        return recipe
+    companion = companion_name(task)
+    if companion is not None:
+        return companion
     name = str(task.get("name") or "").strip()
     if not name or not device_name or not device_name.strip():
         return name
@@ -76,7 +76,7 @@ def entity_set_key(task: dict[str, Any] | None) -> tuple[Any, ...]:
     the entry must be reloaded so entities are created, removed or renamed; otherwise
     a plain coordinator refresh is enough.
 
-    * ``name`` and the recipe name are in the key because Home Assistant caches an
+    * ``name`` and the companion name are in the key because Home Assistant caches an
       entity's computed ``name``. Making the entity again on reload is how a rename
       reaches the device page (and how a self-owned task device gets its new name).
     * ``completion_blocked`` is in the key because it decides whether the task has a
@@ -88,6 +88,6 @@ def entity_set_key(task: dict[str, Any] | None) -> tuple[Any, ...]:
         task.get("device_id"),
         bool(task.get("enabled", True)),
         task.get("name"),
-        recipe_name(task),
+        companion_name(task),
         is_completion_blocked(task),
     )

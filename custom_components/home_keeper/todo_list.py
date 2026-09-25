@@ -28,12 +28,12 @@ The rules that shape a plan:
   open item removed. Auto-buy reminders are skipped whatever the profile says:
   the shopping-list sync owns them, and two syncs would fight over one line.
 * **A completion-blocked task is on the list, but a tick does not take.** A
-  synced ``problem`` sensor and a recipe that clears on recover close only when
-  their sensor recovers. They are on the list as a reminder of what to fix (#370),
-  so the household sees the same tasks the Profile shows. A tick on such an item
-  never completes the task: the entry is dropped and pass two puts a fresh open
-  item back, the same result a refused ``require_tag_scan`` completion gets. The
-  item goes away when the sensor recovers and the task completes or is removed.
+  synced ``problem`` sensor and a declarative companion that clears on recover close
+  only when their sensor recovers. They are on the list as a reminder of what to fix
+  (#370), so the household sees the same tasks the Profile shows. A tick on such an item
+  never completes the task: the entry is dropped and pass two puts a fresh open item
+  back, the same result a refused ``require_tag_scan`` completion gets. The item goes
+  away when the sensor recovers and the task completes or is removed.
 * **A completed item is never touched.** Whoever ticked it off, the entry stays as
   their record. When the task recurs and falls due again, a *fresh* item is added
   alongside the old one — that is the history Todoist users expect.

@@ -11,7 +11,7 @@ import {
  * Changing a declarative companion's trigger mode rewrites its trigger block.
  *
  * `models.normalize_sensor` does not ignore a key that belongs to another mode — it
- * raises on it. A recipe seeded from the Device Pulse preset carries a `threshold`
+ * raises on it. A companion seeded from the Device Pulse preset carries a `threshold`
  * trigger (`comparison`, `value`); switching the dropdown to *state* kept both, and
  * the save came back "sensor.comparison is not valid for a state-mode sensor task"
  * (issues #230 / #231). `triggerForMode` is the rule the form applies on every mode
@@ -165,7 +165,7 @@ describe('triggerForMode', () => {
   it('gives a fresh template trigger no template but keeps auto-clear on', () => {
     // A template is genuinely the user's to write, so the box starts empty and its
     // required marker says so. Seeding one would put a condition nobody chose into a
-    // recipe that then opens tasks.
+    // companion that then opens tasks.
     const next = triggerForMode({}, 'template');
 
     expect(next).toEqual({ mode: 'template', clear_on_recover: true });
@@ -212,13 +212,13 @@ describe('emptyDeclarativeCompanion', () => {
 });
 
 /**
- * Two recipes can cover the same entities, and each one materializes its own task.
+ * Two companions can cover the same entities, and each one materializes its own task.
  * The same entity then gets two identical tasks, and the task list says nothing about
- * why. Add the same recipe twice and every task is duplicated.
+ * why. Add the same companion twice and every task is duplicated.
  *
  * `declarativeOverlap` is what the add/edit dialog's preview warns from. It reads the
- * tasks and recipes the panel already holds, so no backend call is added: a
- * materialized task carries its recipe id in `source.declarative_companion.spec_id`
+ * tasks and companions the panel already holds, so no backend call is added: a
+ * materialized task carries its spec id in `source.declarative_companion.spec_id`
  * and the entity it watches in `sensor.entity_id`.
  */
 describe('declarativeOverlap', () => {
@@ -237,7 +237,7 @@ describe('declarativeOverlap', () => {
     { id: 'spec-b', name: 'Batteries again' },
   ];
 
-  it('names the recipe that already covers the matches', () => {
+  it('names the companion that already covers the matches', () => {
     const overlap = declarativeOverlap(
       [{ entity_id: BATTERY }, { entity_id: LOCK }],
       [managed('spec-a', BATTERY), managed('spec-a', LOCK)],
@@ -249,7 +249,7 @@ describe('declarativeOverlap', () => {
   });
 
   it('counts only the entities this draft matches', () => {
-    // The other recipe is wider than the draft. Only the shared entity counts.
+    // The other companion is wider than the draft. Only the shared entity counts.
     const overlap = declarativeOverlap(
       [{ entity_id: BATTERY }],
       [managed('spec-a', BATTERY), managed('spec-a', LOCK)],
@@ -260,18 +260,18 @@ describe('declarativeOverlap', () => {
     expect(overlap).toEqual({ name: 'Low battery', count: 1 });
   });
 
-  it('reports nothing when no other recipe covers a match', () => {
+  it('reports nothing when no other companion covers a match', () => {
     const elsewhere = [managed('spec-a', LOCK)];
     const overlap = declarativeOverlap([{ entity_id: BATTERY }], elsewhere, SPECS, '');
 
     expect(overlap).toBeNull();
   });
 
-  it('reports nothing when the recipe matches no entity', () => {
+  it('reports nothing when the companion matches no entity', () => {
     expect(declarativeOverlap([], [managed('spec-a', BATTERY)], SPECS, '')).toBeNull();
   });
 
-  it('ignores a task that no recipe made', () => {
+  it('ignores a task that no companion made', () => {
     // A hand-made sensor task on the same entity is the user's own. It is not a
     // duplicate of anything, so the dialog must stay quiet about it.
     const byHand = { id: 't1', name: 'Replace it', sensor: { entity_id: BATTERY } };
@@ -289,8 +289,8 @@ describe('declarativeOverlap', () => {
     expect(declarativeOverlap([{ entity_id: BATTERY }], [noSensor], SPECS, '')).toBeNull();
   });
 
-  it('does not count the edited recipe against itself', () => {
-    // Editing a recipe re-renders the preview over the tasks that recipe already
+  it('does not count the edited companion against itself', () => {
+    // Editing a companion re-renders the preview over the tasks that companion already
     // made. Those are the tasks the save rebuilds, not a second copy of them.
     const overlap = declarativeOverlap(
       [{ entity_id: BATTERY }],
@@ -302,7 +302,7 @@ describe('declarativeOverlap', () => {
     expect(overlap).toBeNull();
   });
 
-  it('names the recipe with the most overlap', () => {
+  it('names the companion with the most overlap', () => {
     const overlap = declarativeOverlap(
       [{ entity_id: BATTERY }, { entity_id: LOCK }],
       [managed('spec-a', BATTERY), managed('spec-b', BATTERY), managed('spec-b', LOCK)],
@@ -313,7 +313,7 @@ describe('declarativeOverlap', () => {
     expect(overlap).toEqual({ name: 'Batteries again', count: 2 });
   });
 
-  it('counts an entity once even if the recipe has two tasks for it', () => {
+  it('counts an entity once even if the companion has two tasks for it', () => {
     const overlap = declarativeOverlap(
       [{ entity_id: BATTERY }],
       [managed('spec-a', BATTERY), { ...managed('spec-a', BATTERY), id: 'copy' }],
@@ -324,8 +324,8 @@ describe('declarativeOverlap', () => {
     expect(overlap).toEqual({ name: 'Low battery', count: 1 });
   });
 
-  it('falls back to the recipe id when the recipe is gone', () => {
-    // A task outlives its recipe only between a delete and the reconcile that
+  it('falls back to the spec id when the companion is gone', () => {
+    // A task outlives its companion only between a delete and the reconcile that
     // removes it, but an id says more than an empty name.
     const overlap = declarativeOverlap(
       [{ entity_id: BATTERY }],
@@ -386,7 +386,7 @@ describe('verdictChip', () => {
  * count the render never produced. And an *empty* box, which is what every draft has
  * the instant a user picks Template mode, failed the whole websocket command: the
  * panel painted one raw `sensor.template is required` and threw away the match list
- * at the moment the user most wants to see what the recipe covers.
+ * at the moment the user most wants to see what the companion covers.
  */
 describe('previewHtml', () => {
   const row = (entity_id, rest = {}) => ({
@@ -431,7 +431,7 @@ describe('previewHtml', () => {
 
     expect(html).toContain('hk-decl-template-error');
     expect(html).not.toContain('due now');
-    // The rows still list what the recipe matches.
+    // The rows still list what the companion matches.
     expect(html).toContain('sensor.a');
   });
 

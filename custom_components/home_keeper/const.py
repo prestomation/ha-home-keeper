@@ -333,9 +333,10 @@ ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"
 # Opaque ``origin`` marker the sensor watcher passes to ``complete_task`` when a
 # ``clear_on_recover`` sensor task clears itself because its bound entity went back to
 # normal. It lets an automation tell "Home Keeper noticed the condition cleared" apart
-# from "somebody pressed Done". It also *authorizes* one thing: a recipe task with
-# ``managed_by.completion_blocked`` refuses every completion but this one (and the
-# problem-sensor sync's), because the recipe owns both ends of that task (#377).
+# from "somebody pressed Done". It also *authorizes* one thing: a declarative
+# companion task with ``managed_by.completion_blocked`` refuses every completion but
+# this one (and the problem-sensor sync's), because the declarative companion owns
+# both ends of that task (#377).
 ORIGIN_SENSOR_RECOVER = f"{DOMAIN}_sensor_recover"
 
 # Opaque ``origin`` marker the tag listener passes to ``complete_task`` when an
@@ -595,7 +596,7 @@ EVENT_COMPANION_CONNECTED = f"{DOMAIN}_companion_connected"
 EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
 
 # ── Declarative companions ─────────────────────────────────────────────────────
-# A **declarative companion** is a Home-Keeper-owned recipe (target integration +
+# A **declarative companion** is a Home-Keeper-owned spec (target integration +
 # entity filters + sensor-task trigger + Jinja-templated task fields) that expands
 # into one managed sensor task per matching entity. Unlike a hand-coded glue
 # integration (see EVENT_REGISTER_COMPANIONS above) it needs no separate repo —

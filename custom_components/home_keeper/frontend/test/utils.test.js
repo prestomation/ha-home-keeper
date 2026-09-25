@@ -377,7 +377,7 @@ describe('isMonitoredDormant', () => {
     expect(
       isMonitoredDormant({
         recurrence_type: 'triggered',
-        source: { declarative_companion: { recipe_id: 'r1' } },
+        source: { declarative_companion: { spec_id: 's1' } },
       }),
     ).toBe(true);
     expect(isMonitoredDormant({ recurrence_type: 'triggered', source: {} })).toBe(true);

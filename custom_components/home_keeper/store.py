@@ -144,11 +144,11 @@ _BLOCKED_COMPLETION_ORIGINS: Final = frozenset(
 def _reject_completion_blocked(task: dict[str, Any], origin: str | None) -> None:
     """Raise unless *origin* may complete a task whose owner withholds Done.
 
-    A recipe with ``clear_on_recover`` owns both ends of its task: the watcher arms
-    it on the crossing and completes it on the recovery. A completion by hand while
-    the condition is still true records work that was not done (#377). The panel,
-    the card, the to-do list and the notification already withhold Done; this stops
-    the device-page button, the service and an automation too.
+    A declarative companion with ``clear_on_recover`` owns both ends of its task: the
+    watcher arms it on the crossing and completes it on the recovery. A completion by
+    hand while the condition is still true records work that was not done (#377). The
+    panel, the card, the to-do list and the notification already withhold Done; this
+    stops the device-page button, the service and an automation too.
     """
     if not notifications.is_completion_blocked(task):
         return
@@ -1688,7 +1688,7 @@ class HomeKeeperStore:
         return entity_set_changed
 
     async def pause_declarative_companion_tasks(self, spec_id: str) -> bool:
-        """Switch off the tasks of a disabled recipe, keeping them and their history.
+        """Switch off the tasks of a disabled companion, keeping them and their history.
 
         The disabled half of :meth:`reconcile_declarative_companion_tasks`. Delegates
         the decision to :func:`declarative_companions.pause_spec_tasks` and fires the
@@ -1750,7 +1750,7 @@ class HomeKeeperStore:
             rendered_by_key,
             config_entry_id=config_entry_id,
             now=dt_util.now(),
-            # Localizes the completion prompt on a recipe that auto-clears, the
+            # Localizes the completion prompt on a companion that auto-clears, the
             # same way the problem-sensor sync localizes its own.
             lang=self._hass.config.language,
         )
@@ -1775,10 +1775,10 @@ class HomeKeeperStore:
                 if _task_owns_entities(task):
                     entity_set_changed = True
             elif kind == "resumed":
-                # The recipe that had paused this task is on again. It is an update
+                # The companion that had paused this task is on again. It is an update
                 # to everything that reads tasks, and a task made just now to the
                 # sensor watcher, which must arm it on a condition that became true
-                # while the recipe was off.
+                # while the companion was off.
                 created_ids.append(task["id"])
                 self._hass.bus.async_fire(
                     EVENT_TASK_UPDATED,
@@ -1791,7 +1791,7 @@ class HomeKeeperStore:
                     EVENT_TASK_UPDATED,
                     events.task_event_data(task, extra={"changed_fields": []}),
                 )
-                # A new rendered name, a recipe rename or a new ``clear_on_recover``
+                # A new rendered name, a companion rename or a new ``clear_on_recover``
                 # changes the names or the button on the device page, which only an
                 # entry reload makes again.
                 old_key = keys_before.get(task["id"])

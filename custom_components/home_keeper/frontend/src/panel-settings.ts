@@ -119,7 +119,7 @@ export function settingsSectionList(p: PanelHost): {
         )}"></span>`;
   const count = (n: number): string =>
     n ? `<span class="hk-rail-count">${escapeHTML(String(n))}</span>` : '';
-  // A declarative recipe counts as a companion of its own: it is doing the job a
+  // A declarative companion counts as a companion of its own: it is doing the job a
   // glue integration would, and the card lists it beside them.
   const companionsOn =
     p._companions.filter((c) => c.status === 'connected').length +
@@ -1785,7 +1785,7 @@ function renderCompanions(p: PanelHost, host: HTMLElement): void {
       ...suggested.map((c) => companionRow(c)),
     );
   }
-  // Declarative companions close the card: recipes Home Keeper runs itself, so they
+  // Declarative companions close the card: Home Keeper runs them itself, so they
   // belong beside the integrations they stand in for. Always rendered, empty or not,
   // so a first-time reader learns they exist.
   sections.push(declarativeSection(p));

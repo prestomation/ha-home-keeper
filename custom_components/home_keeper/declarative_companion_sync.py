@@ -124,7 +124,7 @@ class DeclarativeCompanionSync:
         # registry event per entity, so an integration loading 50 of them used to run
         # 50 full passes — each one walking every spec over every entity, rendering
         # Jinja per match and writing the store. ``immediate`` keeps the first pass
-        # prompt (a recipe saved in the panel must show its tasks at once) and folds
+        # prompt (a companion saved in the panel must show its tasks at once) and folds
         # the rest of the burst into one trailing pass.
         self._reconcile_debouncer = Debouncer(
             hass,
@@ -225,7 +225,7 @@ class DeclarativeCompanionSync:
         """The Jinja render context for one matched entity.
 
         Delegates to :func:`template_context.template_variables`, which the
-        ``template``-mode sensor trigger renders against as well, so a recipe's task
+        ``template``-mode sensor trigger renders against as well, so a companion's task
         name and the trigger that opened it always read the same ``{{ state }}``.
         """
         return template_context.template_variables(self._hass, entry)
@@ -315,9 +315,9 @@ class DeclarativeCompanionSync:
         for spec in list(specs.values()):
             if not spec.get("enabled", True):
                 # A disabled spec's managed tasks are switched off rather than
-                # removed, so a recipe can be turned off for a week without losing
+                # removed, so a companion can be turned off for a week without losing
                 # the completions recorded on the tasks it made. Re-enabling the
-                # recipe brings them back (see ``pause_spec_tasks``).
+                # companion brings them back (see ``pause_spec_tasks``).
                 await self._coordinator.store.pause_declarative_companion_tasks(
                     spec["id"]
                 )

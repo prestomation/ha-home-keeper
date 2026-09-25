@@ -4,7 +4,7 @@ Home Assistant caches compiled template code on a shared environment, but
 ``TemplateEnvironment.template_cache`` is a **WeakValueDictionary**: the only strong
 reference to the compiled code is the ``Template`` object's own ``_compiled_code``.
 Build a fresh ``Template`` per entity and each one re-parses the Jinja source, which
-measures ~90x the cost of the render it precedes. A recipe at the 500-entity cap
+measures ~90x the cost of the render it precedes. A companion at the 500-entity cap
 therefore spent about a quarter of a second of event-loop time per pass parsing one
 expression that never changed.
 
@@ -81,7 +81,7 @@ def test_each_home_assistant_keeps_its_own_cache():
 
 
 def test_the_cache_is_capped_so_a_preview_cannot_grow_it_forever():
-    # The recipe preview renders on every keystroke, and each draft is a different
+    # The companion preview renders on every keystroke, and each draft is a different
     # source. Without a bound, typing one template would leave a compiled copy of
     # every prefix of it behind for the life of the process.
     hass = _hass()
@@ -93,7 +93,7 @@ def test_the_cache_is_capped_so_a_preview_cannot_grow_it_forever():
 
 def test_the_oldest_entry_is_the_one_evicted():
     # FIFO: the newest drafts are the ones a preview is still typing, and a saved
-    # recipe that renders every pass is re-added on its next render.
+    # companion that renders every pass is re-added on its next render.
     hass = _hass()
     cap = template_context._TEMPLATE_CACHE_MAX
     oldest = "{{ 'first' }}"
@@ -131,7 +131,7 @@ def _registries(monkeypatch, *, entity_area, device_area):
 
 
 def test_the_projection_takes_the_area_of_the_device(monkeypatch):
-    # Most entities have no area of their own and sit in their device's. A recipe's
+    # Most entities have no area of their own and sit in their device's. A companion's
     # selection pass projects that effective area, so the trigger must see it too, or
     # `{{ area_id == 'garage' }}` reads true in the preview and false in the watcher.
     _registries(monkeypatch, entity_area=None, device_area="garage")

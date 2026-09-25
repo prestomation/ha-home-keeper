@@ -4,10 +4,10 @@ import { definePanelStubs, waitFor } from './panel-harness.js';
 /**
  * The page of a task a declarative companion built (issue #231).
  *
- * A recipe materializes one managed sensor task per matching entity. The task is
- * Home Keeper's own — `managed_by.integration` is `home_keeper` and
+ * A declarative companion materializes one managed sensor task per matching entity. The
+ * task is Home Keeper's own — `managed_by.integration` is `home_keeper` and
  * `config_entry_id` is Home Keeper's entry — but `display_name` carries the
- * *recipe's* name. The page read that as a foreign integration and offered two ways
+ * *companion's* name. The page read that as a foreign integration and offered two ways
  * to nowhere: "Edit in Device Pulse", which opened the Home Keeper integration page,
  * and "Delete from Device Pulse instead", which named a place that does not exist.
  *
@@ -39,7 +39,7 @@ const SPEC = {
 };
 
 /** Exactly what `declarative_companions.build_managed_by` stamps on a materialized
- *  task: Home Keeper's own integration and entry, under the recipe's name. */
+ *  task: Home Keeper's own integration and entry, under the companion's name. */
 const MANAGED_BY = {
   integration: 'home_keeper',
   display_name: 'Device Pulse',
@@ -49,12 +49,12 @@ const MANAGED_BY = {
   completion_blocked: false,
 };
 
-/** What the backend stamps once the recipe's trigger sets `clear_on_recover`. */
+/** What the backend stamps once the companion's trigger sets `clear_on_recover`. */
 const BLOCKED_MANAGED_BY = {
   ...MANAGED_BY,
   completion_blocked: true,
   completion_prompt:
-    'Opened by the “Device Pulse” recipe. Home Keeper completes this task when the watched condition recovers, so it cannot be marked done by hand.',
+    'Opened by the declarative companion “Device Pulse”. Home Keeper completes this task when the watched condition recovers, so it cannot be marked done by hand.',
 };
 
 function task(overrides = {}) {
@@ -195,7 +195,7 @@ describe('a declarative companion task’s page', () => {
     expect(names).not.toContain('notes');
   });
 
-  // Done on an armed task the recipe auto-clears is worse than a no-op: the
+  // Done on an armed task the companion auto-clears is worse than a no-op: the
   // watcher will not re-arm while the condition stays true, so pressing it
   // dismisses a firmware update that is still pending. A greyed Done that
   // explains itself is the honest affordance.
@@ -209,7 +209,7 @@ describe('a declarative companion task’s page', () => {
     expect(panel.shadowRoot.textContent).toContain('recovers');
   });
 
-  it('names the recipe as the way to remove the task', async () => {
+  it('names the companion as the way to remove the task', async () => {
     const panel = await mountTask([task()]);
     const caption = panel.shadowRoot.querySelector('.hk-managed-info');
 
@@ -230,16 +230,16 @@ describe('a declarative companion task’s page', () => {
     expect(dialog, 'the companion editor should open over the task page').toBeTruthy();
   });
 
-  // The recipe can be deleted while a task it built is still on screen. Falling back
-  // to the generic captions beats offering an editor for a recipe that is gone.
-  it('falls back to the managed captions when the recipe is no longer stored', async () => {
+  // The companion can be deleted while a task it built is still on screen. Falling back
+  // to the generic captions beats offering an editor for a companion that is gone.
+  it('falls back to the managed captions when the companion is no longer stored', async () => {
     const panel = await mountTask([task()], []);
 
     expect(panel.shadowRoot.querySelector('.d-edit-companion')).toBeNull();
     expect(panel.shadowRoot.querySelector('.d-open-in'), 'Home Keeper is never the link').toBeNull();
   });
 
-  // The deep link is suppressed for Home Keeper's *domain*, not for the recipe
+  // The deep link is suppressed for Home Keeper's *domain*, not for the companion
   // source — so a task Home Keeper owns by some other route gets the same
   // treatment. Without that, "Edit in Home Keeper" would send the reader from the
   // panel to the integration page and back again.

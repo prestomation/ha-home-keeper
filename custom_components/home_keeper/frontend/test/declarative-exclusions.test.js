@@ -2,10 +2,10 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { definePanelStubs, emitChange, waitFor } from './panel-harness.js';
 
 /**
- * The recipe dialog's More filters block and the preview's Exclude and Include
+ * The companion dialog's More filters block and the preview's Exclude and Include
  * buttons (#373).
  *
- * The backend already applied a recipe's exclusion lists; the dialog had no field
+ * The backend already applied a companion's exclusion lists; the dialog had no field
  * for them, so the only way to leave an entity out was the entity id regex. These
  * tests mount the real panel and check that each new control writes the list the
  * backend reads, and that the preview and the pickers stay in step.
@@ -82,7 +82,7 @@ async function openEditDialog(selection) {
   document.body.appendChild(panel);
   panel.hass = fake.hass;
   const edit = await waitFor(() => panel.shadowRoot?.querySelector('.hk-decl-edit'), 5000);
-  expect(edit, 'the seeded recipe should render a row with an Edit button').toBeTruthy();
+  expect(edit, 'the seeded companion should render a row with an Edit button').toBeTruthy();
   edit.click();
   await waitFor(() => panel.shadowRoot?.querySelector('ha-dialog.hk-decl-dialog'));
   await waitFor(() => panel.shadowRoot.querySelector('.hk-decl-preview-header'), 5000);
@@ -101,7 +101,7 @@ async function nextPreview(panel, previews, before) {
 }
 
 describe('the More filters row', () => {
-  it('is closed for a recipe with nothing in it, and says so', async () => {
+  it('is closed for a companion with nothing in it, and says so', async () => {
     const { panel } = await openEditDialog({ domain: 'sensor' });
     const more = $(panel, '.hk-decl-more');
     expect(more.getAttribute('aria-expanded')).toBe('false');
@@ -109,7 +109,7 @@ describe('the More filters row', () => {
     expect($(panel, '.hk-decl-more-summary').textContent).toBe('No other filters set');
   });
 
-  it('is open for a recipe that uses a filter in it, and counts what is set', async () => {
+  it('is open for a companion that uses a filter in it, and counts what is set', async () => {
     const { panel } = await openEditDialog({
       domain: 'sensor',
       device_class: 'battery',

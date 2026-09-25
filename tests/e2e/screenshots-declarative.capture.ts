@@ -43,7 +43,7 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
   await page.waitForTimeout(500);
   await companions.screenshot({ path: `${OUT}/21-panel-companions.png` });
 
-  // 21c. The preset picker: one card per bundled recipe. Device Pulse is greyed out
+  // 21c. The preset picker: one card per bundled preset. Device Pulse is greyed out
   // and says which integration it needs, because the e2e container does not have it.
   await panel.locator('.hk-decl-preset').click();
   const picker = panel.locator('ha-dialog.hk-decl-picker');
@@ -99,10 +99,10 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
 });
 
 /**
- * The page of a task a recipe built (issue #231).
+ * The page of a task a declarative companion built (issue #231).
  *
- * Its own test, and its own recipe, because it needs a *materialized* task and the
- * capture above deliberately saves nothing. The recipe is added over the service,
+ * Its own test, and its own companion, because it needs a *materialized* task and the
+ * capture above deliberately saves nothing. The companion is added over the service,
  * photographed, then deleted — which takes its task with it — so the container is
  * left exactly as it was found.
  *
@@ -116,7 +116,7 @@ test('capture a declarative-companion task page', async ({ page }) => {
     'home_keeper',
     'add_declarative_companion',
     {
-      // The recipe's name is the user's own label; this is the one the issue reports.
+      // The companion's name is the user's own label; this is the one the issue reports.
       name: 'Device Pulse',
       selection: { domain: 'binary_sensor', device_class: 'battery' },
       trigger: { mode: 'availability', for_seconds: 3600, clear_on_recover: true },
@@ -144,12 +144,13 @@ test('capture a declarative-companion task page', async ({ page }) => {
     // hand-built fixture: the unit tests build `source.declarative_companion`
     // themselves, so only this one proves the reconciler writes the shape
     // `sourceOwnedTask` reads.
-    await expect(actions.locator('.d-edit-recipe')).toBeVisible();
+    await expect(actions.locator('.d-edit-companion')).toBeVisible();
+    await expect(actions.locator('.d-edit-companion')).toHaveText('Edit companion');
     await expect(actions.locator('.d-open-in')).toHaveCount(0);
     await expect(actions.locator('.d-done')).toHaveCount(0);
-    // The recipe owns name, device, area and the binding, so the task's own Edit
-    // and Delete are gone and Duplicate is greyed.
-    await expect(actions.locator('.d-edit')).toHaveCount(0);
+    // The companion owns name, device, area and the binding. The task's own Edit
+    // stays for the fields it leaves free, Delete is gone and Duplicate is greyed.
+    await expect(actions.locator('.d-edit')).toHaveCount(1);
     await expect(actions.locator('.d-del')).toHaveCount(0);
     await expect(panel.locator('.hk-detail-card').first()).toContainText('Monitored');
 
@@ -161,7 +162,7 @@ test('capture a declarative-companion task page', async ({ page }) => {
     });
 
     // 21g. The same task once the watcher arms it. This is the state the Monitored
-    // shot cannot show: Done is greyed rather than absent, because the recipe
+    // shot cannot show: Done is greyed rather than absent, because the companion
     // auto-clears and a hand-pressed Done would dismiss a condition that still
     // stands. It has to sit flush against the snooze caret — the blocked Done is a
     // wrapped button, and the split pill's rules only reached a bare one, so the
@@ -190,12 +191,12 @@ test('capture a declarative-companion task page', async ({ page }) => {
       fullPage: true,
     });
 
-    // 21f. Edit recipe opens the recipe itself, over the task page. The dialog is
-    // tall, so give it room and photograph its own surface (same treatment as 21d).
-    // The recipe has a device class, so More filters opens and the dialog grows by
+    // 21f. Edit companion opens the companion itself, over the task page. The dialog
+    // is tall, so give it room and photograph its own surface (same treatment as 21d).
+    // The companion has a device class, so More filters opens and the dialog grows by
     // the filter and exclusion pickers (#373).
     await page.setViewportSize({ width: 1280, height: 2600 });
-    await actions.locator('.d-edit-recipe').click();
+    await actions.locator('.d-edit-companion').click();
     const dialog = panel.locator('ha-dialog.hk-decl-dialog');
     await expect(dialog.locator('[data-decl-section="identity"]')).toBeVisible({
       timeout: 20_000,
@@ -205,10 +206,10 @@ test('capture a declarative-companion task page', async ({ page }) => {
     });
     await page.waitForTimeout(600);
     const surface = await dialog.locator('dialog').first().boundingBox();
-    if (!surface) throw new Error('the recipe dialog has no rendered surface to photograph');
+    if (!surface) throw new Error('the companion dialog has no rendered surface to photograph');
     const pad = 16;
     await page.screenshot({
-      path: `${OUT}/21f-panel-declarative-recipe-dialog.png`,
+      path: `${OUT}/21f-panel-declarative-companion-dialog.png`,
       clip: {
         x: Math.max(0, surface.x - pad),
         y: Math.max(0, surface.y - pad),
@@ -223,7 +224,8 @@ test('capture a declarative-companion task page', async ({ page }) => {
 });
 
 /**
- * The recipe row in Settings → Companions, at both widths (the phone-layout fix).
+ * The declarative companion row in Settings → Companions, at both widths (the
+ * phone-layout fix).
  *
  * The row is the surface the maintainer reported: below 700px it kept the desktop's
  * single-line layout, the status and preset chips came out of their box over the Edit
@@ -232,10 +234,10 @@ test('capture a declarative-companion task page', async ({ page }) => {
  * badge on the name line, which is the chip that did the covering.
  *
  * Both shots come from here rather than the main capture because only this file
- * creates a recipe, and it deletes it again so the container is left as it was found.
+ * creates a companion, and it deletes it again so the container is left as it was found.
  * `tests/responsive-layout.spec.ts` asserts the layout; these only photograph it.
  */
-test('capture the declarative recipe row at both widths', async ({ page }) => {
+test('capture the declarative companion row at both widths', async ({ page }) => {
   const created = await callService(
     'home_keeper',
     'add_declarative_companion',
@@ -281,7 +283,7 @@ test('capture the declarative recipe row at both widths', async ({ page }) => {
     // fix the shot exists to show.
     await phoneRow.locator('.hk-companion-actions').scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
-    await page.screenshot({ path: `${OUT}/21i-panel-mobile-recipe-row.png` });
+    await page.screenshot({ path: `${OUT}/21i-panel-mobile-declarative-row.png` });
     await page.setViewportSize({ width: 1280, height: 720 });
   } finally {
     await callService('home_keeper', 'delete_declarative_companion', { id: specId });
@@ -289,16 +291,16 @@ test('capture the declarative recipe row at both widths', async ({ page }) => {
 });
 
 /**
- * The recipe dialog's More filters block and the preview's Exclude button (#373),
- * at both widths.
+ * The declarative companion dialog's More filters block and the preview's Exclude
+ * button (#373), at both widths.
  *
- * The recipe watches every demo binary sensor, so the preview has several rows. One
+ * The companion watches every demo binary sensor, so the preview has several rows. One
  * row is excluded with its own Exclude button, which is the flow the shots document:
  * the entity leaves the matches, shows under them with Include, and lands in the
- * Excluded entities picker above. The recipe is added over the service and deleted
+ * Excluded entities picker above. The companion is added over the service and deleted
  * again, so the container is left as it was found.
  */
-test('capture the recipe filters and exclusions at both widths', async ({ page }) => {
+test('capture the companion filters and exclusions at both widths', async ({ page }) => {
   const created = await callService(
     'home_keeper',
     'add_declarative_companion',
@@ -312,7 +314,7 @@ test('capture the recipe filters and exclusions at both widths', async ({ page }
   );
   const specId = created.companion.id as string;
 
-  const openRecipe = async () => {
+  const openCompanion = async () => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await openSettingsSection(panel, 'companions');
@@ -324,7 +326,7 @@ test('capture the recipe filters and exclusions at both widths', async ({ page }
     await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(/Showing \d+ of \d+/, {
       timeout: 20_000,
     });
-    // The regex is under More filters, so the row is open on this recipe.
+    // The regex is under More filters, so the row is open on this companion.
     await expect(dialog.locator('.hk-decl-more')).toHaveAttribute('aria-expanded', 'true');
     await dialog.locator('.hk-decl-exclude').first().click();
     await expect(dialog.locator('.hk-decl-excluded-head')).toHaveText('1 entity excluded', {
@@ -337,11 +339,11 @@ test('capture the recipe filters and exclusions at both widths', async ({ page }
     // 21j. Desktop. Tall enough for the whole dialog to lay out, then clipped to the
     // dialog surface, the same way 21d is.
     await page.setViewportSize({ width: 1280, height: 2600 });
-    const dialog = await openRecipe();
+    const dialog = await openCompanion();
     await page.mouse.move(0, 0);
     await page.waitForTimeout(600);
     const surface = await dialog.locator('dialog').first().boundingBox();
-    if (!surface) throw new Error('the recipe dialog has no rendered surface to photograph');
+    if (!surface) throw new Error('the companion dialog has no rendered surface to photograph');
     const pad = 16;
     await page.screenshot({
       path: `${OUT}/21j-panel-declarative-filters.png`,
@@ -358,7 +360,7 @@ test('capture the recipe filters and exclusions at both widths', async ({ page }
     // where each row has an icon-only Exclude button and the excluded entity is listed
     // with Include.
     await page.setViewportSize(PHONE);
-    const phoneDialog = await openRecipe();
+    const phoneDialog = await openCompanion();
     await phoneDialog.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
     // The click leaves the pointer over the next row's button; move it off, so the
     // shot shows the buttons at rest rather than one in its hover state.
@@ -381,7 +383,7 @@ test('capture the recipe filters and exclusions at both widths', async ({ page }
  * entity and each row says what it got. A shot of the box alone would document none
  * of that.
  *
- * Seeded over the service and deleted again, like the captures above: a recipe saved
+ * Seeded over the service and deleted again, like the captures above: a companion saved
  * by the dialog would leave tasks behind in the container the other specs read.
  */
 test('capture the template trigger at both widths', async ({ page }) => {
@@ -439,7 +441,7 @@ test('capture the template trigger at both widths', async ({ page }) => {
     await page.waitForTimeout(600);
     const shoot = async (name: string): Promise<void> => {
       const surface = await dialog.locator('dialog').first().boundingBox();
-      if (!surface) throw new Error('the recipe dialog has no rendered surface');
+      if (!surface) throw new Error('the companion dialog has no rendered surface');
       const pad = 16;
       await page.screenshot({
         path: `${OUT}/${name}`,
@@ -497,7 +499,7 @@ test('capture the template trigger at both widths', async ({ page }) => {
     // 21n / 21o. The box a user has not written yet, at both widths. This is the first
     // thing anyone picking Template mode sees, and it used to be a red
     // `sensor.template is required` with no match list under it. The match list is the
-    // point of the shot: the preview says what the recipe covers before the template
+    // point of the shot: the preview says what the companion covers before the template
     // decides anything.
     await box.fill('');
     await box.blur();

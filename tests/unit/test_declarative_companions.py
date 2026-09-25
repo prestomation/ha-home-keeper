@@ -1,6 +1,6 @@
 """Unit tests for the pure declarative-companion surface.
 
-Covers the recipe-shape module (spec normalization, entity selection,
+Covers the spec-shape module (spec normalization, entity selection,
 reconciler diff, dedupe key) and the shipped presets (round-tripping every
 preset through the normalizer to guarantee they stay valid). The HA-bound
 reconciler (``declarative_companion_sync.py``) — with its entity-registry
@@ -141,7 +141,7 @@ def test_normalize_passes_allow_missing_template_through():
 
 
 def test_normalize_requires_a_template_by_default():
-    """Saving a recipe still refuses a blank template — only the preview waives it."""
+    """Saving a spec still refuses a blank template — only the preview waives it."""
     with raises_exactly(TaskValidationError, "sensor.template is required"):
         dc.normalize_declarative_companion(
             _spec(trigger={"mode": "template", "template": ""})
@@ -587,7 +587,7 @@ def test_reconcile_creates_missing_tasks():
     assert created["next_due"] is None
     assert created["source"]["declarative_companion"]["spec_id"] == spec["id"]
     assert created["managed_by"]["deletion_protected"] is True
-    # The fixture's trigger sets clear_on_recover, so the recipe owns the clear.
+    # The fixture's trigger sets clear_on_recover, so the companion owns the clear.
     assert created["managed_by"]["completion_blocked"] is True
 
 
@@ -599,10 +599,10 @@ def _usage_match(entity_id, spec_id):
 
 
 def test_reconcile_keeps_the_meter_baseline_the_watcher_stamped():
-    # The recipe owns every key on the binding except this one: the watcher writes
+    # The companion owns every key on the binding except this one: the watcher writes
     # ``baseline`` from the first live reading and moves it on each completion.
     # Rewriting the block wholesale dropped it on any registry event, so a "every 300
-    # hours" recipe restarted its meter over and over and could never come due.
+    # hours" companion restarted its meter over and over and could never come due.
     spec = _normalized_spec()
     key, m = _usage_match("sensor.printer_pages", spec["id"])
     stored, _ops, _changed = dc.reconcile_declarative_tasks(
@@ -621,7 +621,7 @@ def test_reconcile_keeps_the_meter_baseline_the_watcher_stamped():
     assert ops == []
 
 
-def test_reconcile_drops_the_baseline_when_the_recipe_leaves_meter_mode():
+def test_reconcile_drops_the_baseline_when_the_companion_leaves_meter_mode():
     # ``baseline`` is a usage-only field, so carrying it into a threshold binding
     # would make the task fail validation on its next write.
     spec = _normalized_spec()
@@ -640,8 +640,8 @@ def test_reconcile_drops_the_baseline_when_the_recipe_leaves_meter_mode():
     assert "baseline" not in new_tasks[tid]["sensor"]
 
 
-def test_reconcile_seeds_a_baseline_the_recipe_states_only_on_a_fresh_task():
-    # A recipe may name a starting reading. It anchors the task it makes, and the
+def test_reconcile_seeds_a_baseline_the_companion_states_only_on_a_fresh_task():
+    # A companion may name a starting reading. It anchors the task it makes, and the
     # watcher's own anchor wins from then on — otherwise every pass would drag the
     # meter back to the seed.
     spec = _normalized_spec()
@@ -768,7 +768,7 @@ def test_reconcile_created_task_has_full_source_and_managed_by_shape():
         "entity_registry_id": m["entity_registry_id"],
         "entity_id": "sensor.hub_total_failed_pings",
     }
-    # The fixture spec sets ``clear_on_recover``, so the recipe owns the whole
+    # The fixture spec sets ``clear_on_recover``, so the companion owns the whole
     # lifecycle and Done is withheld — see the completion-ownership tests below.
     assert created["managed_by"] == {
         "integration": "home_keeper",
@@ -896,7 +896,7 @@ def test_collect_orphans_deletes_all_specs_tasks():
     assert new_tasks == {}
 
 
-# --- Pausing a disabled recipe ----------------------------------------------
+# --- Pausing a disabled companion -------------------------------------------
 
 
 def _stored_task(spec, entity_id="sensor.hub_total_failed_pings"):
@@ -908,9 +908,9 @@ def _stored_task(spec, entity_id="sensor.hub_total_failed_pings"):
     return stored, next(iter(stored)), key, m
 
 
-def test_pausing_a_recipe_switches_its_tasks_off_and_keeps_them():
-    # Disabling a recipe used to delete its tasks, and the completions recorded on
-    # them went too. Switching a recipe off for a week is not a request to forget the
+def test_pausing_a_companion_switches_its_tasks_off_and_keeps_them():
+    # Disabling a companion used to delete its tasks, and the completions recorded on
+    # them went too. Switching a companion off for a week is not a request to forget the
     # work it tracked.
     spec = _normalized_spec()
     stored, tid, _key, _m = _stored_task(spec)
@@ -942,7 +942,7 @@ def test_pausing_leaves_another_specs_tasks_alone():
 
 
 def test_pausing_walks_past_a_task_that_is_already_off():
-    # One of the recipe's tasks was switched off by hand and sits before the rest.
+    # One of the companion's tasks was switched off by hand and sits before the rest.
     # The pass has to carry on to them.
     spec = _normalized_spec()
     off, off_tid, _key, _m = _stored_task(spec, "sensor.first_pings")
@@ -958,7 +958,7 @@ def test_pausing_walks_past_a_task_that_is_already_off():
 
 def test_pausing_a_task_that_never_stated_enabled_treats_it_as_on():
     # An imported or hand-edited task can arrive without the key. Absent means on
-    # everywhere else in Home Keeper, so the recipe pauses it like any other.
+    # everywhere else in Home Keeper, so the companion pauses it like any other.
     spec = _normalized_spec()
     stored, tid, _key, _m = _stored_task(spec)
     del stored[tid]["enabled"]
@@ -970,10 +970,10 @@ def test_pausing_a_task_that_never_stated_enabled_treats_it_as_on():
 
 
 def test_pausing_reaches_this_specs_tasks_past_a_foreign_one():
-    # A task belonging to another recipe sits first in the map. Walking past it has
-    # to be a skip, not a stop, or the recipe's own task keeps running.
+    # A task belonging to another companion sits first in the map. Walking past it has
+    # to be a skip, not a stop, or the companion's own task keeps running.
     spec = _normalized_spec()
-    other = dc.normalize_declarative_companion(_spec(name="Another recipe"))
+    other = dc.normalize_declarative_companion(_spec(name="Another companion"))
     foreign, _foreign_tid, _key, _m = _stored_task(other, "sensor.other_pings")
     mine, tid, _key, _m = _stored_task(spec)
     tasks = {**foreign, **mine}
@@ -984,7 +984,7 @@ def test_pausing_reaches_this_specs_tasks_past_a_foreign_one():
     assert new_tasks[tid]["enabled"] is False
 
 
-def test_enabling_the_recipe_again_brings_back_the_tasks_it_paused():
+def test_enabling_the_companion_again_brings_back_the_tasks_it_paused():
     spec = _normalized_spec()
     stored, tid, key, m = _stored_task(spec)
     paused, _ops, _changed = dc.pause_spec_tasks(spec["id"], stored)
@@ -994,14 +994,14 @@ def test_enabling_the_recipe_again_brings_back_the_tasks_it_paused():
     )
     assert changed is True
     # "resumed", not "updated": the watcher must treat it as a task made just now and
-    # arm it on a condition that became true while the recipe was off.
+    # arm it on a condition that became true while the companion was off.
     assert [kind for kind, _task in ops] == ["resumed"]
     assert resumed[tid]["enabled"] is True
     assert "paused" not in resumed[tid]["source"]["declarative_companion"]
 
 
-def test_a_task_switched_off_by_hand_stays_off_when_the_recipe_comes_back():
-    # No ``paused`` marker, so this one is the person's choice, not the recipe's.
+def test_a_task_switched_off_by_hand_stays_off_when_the_companion_comes_back():
+    # No ``paused`` marker, so this one is the person's choice, not the companion's.
     spec = _normalized_spec()
     stored, tid, key, m = _stored_task(spec)
     stored[tid]["enabled"] = False
@@ -1049,7 +1049,7 @@ def test_firmware_has_no_integration_gate():
 
 # --- Completion ownership (#231 follow-up) ----------------------------------
 #
-# A recipe whose trigger sets ``clear_on_recover`` owns its tasks' whole
+# A companion whose trigger sets ``clear_on_recover`` owns its tasks' whole
 # lifecycle: the watcher arms on the crossing and completes on the recovery. A
 # hand-pressed Done on such a task is worse than a no-op — ``_evaluate_edge``
 # will not re-arm while the condition merely stays true, so completing an
@@ -1058,11 +1058,11 @@ def test_firmware_has_no_integration_gate():
 # appears. ``completion_blocked`` is what tells the panel, the card, the to-do
 # list and the notification builder to withhold Done.
 #
-# A recipe *without* ``clear_on_recover`` is the opposite case: pressing Done is
+# A companion *without* ``clear_on_recover`` is the opposite case: pressing Done is
 # the only way its task ever clears, so blocking it would strand the task.
 
 
-def test_managed_by_blocks_completion_when_the_recipe_auto_clears():
+def test_managed_by_blocks_completion_when_the_companion_auto_clears():
     spec = dc.normalize_declarative_companion(_spec())
 
     managed_by = dc.build_managed_by(spec, ENTRY)
@@ -1072,7 +1072,7 @@ def test_managed_by_blocks_completion_when_the_recipe_auto_clears():
     assert spec["name"] in managed_by["completion_prompt"]
 
 
-def test_managed_by_keeps_completion_when_the_recipe_does_not_auto_clear():
+def test_managed_by_keeps_completion_when_the_companion_does_not_auto_clear():
     spec = dc.normalize_declarative_companion(
         _spec(
             trigger={
@@ -1185,7 +1185,7 @@ def test_reconcile_carries_the_language_to_an_updated_task():
 
 
 def test_created_task_takes_device_area_and_labels_from_the_match():
-    # `_build_task` copies the entity's placement onto the task and the recipe's
+    # `_build_task` copies the entity's placement onto the task and the companion's
     # labels from the template. Nothing asserted any of the three, so a mutant
     # that read the wrong registry key produced an unplaced task in silence.
     spec = _normalized_spec(
@@ -1320,7 +1320,7 @@ def test_an_edited_template_is_rendered_as_written():
     assert template["notes_template"].startswith("Neueste Version")
 
 
-def test_a_recipe_without_a_preset_is_rendered_as_written():
+def test_a_companion_without_a_preset_is_rendered_as_written():
     spec = _preset_spec()
     spec["preset_id"] = None
     template = presets.localized_task_template(spec, "de")

@@ -10,9 +10,9 @@ import pytest
 DEVICE = "Dishwasher Leak Sensor"
 
 
-def _recipe_task(
+def _companion_task(
     name: str = "Check on Dishwasher Leak Sensor",
-    recipe: Any = "Leak",
+    companion: Any = "Leak",
     *,
     blocked: bool = True,
 ) -> dict[str, Any]:
@@ -28,7 +28,7 @@ def _recipe_task(
                 "entity_id": "binary_sensor.dishwasher_leak_sensor_water_leak",
             }
         },
-        "managed_by": {"display_name": recipe, "completion_blocked": blocked},
+        "managed_by": {"display_name": companion, "completion_blocked": blocked},
     }
 
 
@@ -36,42 +36,44 @@ def _task(name: str) -> dict[str, Any]:
     return {"id": "t2", "name": name, "device_id": "dev1", "enabled": True}
 
 
-# ── recipe_name ────────────────────────────────────────────────────────────────
+# ── companion_name ─────────────────────────────────────────────────────────────
 
 
-def test_recipe_name_reads_display_name_of_a_recipe_task() -> None:
-    assert te.recipe_name(_recipe_task(recipe="  Low battery ")) == "Low battery"
+def test_companion_name_reads_display_name_of_a_companion_task() -> None:
+    assert (
+        te.companion_name(_companion_task(companion="  Low battery ")) == "Low battery"
+    )
 
 
-def test_recipe_name_is_none_without_a_recipe_source() -> None:
-    # A problem-sensor task stamps a display name too; it is not a recipe.
+def test_companion_name_is_none_without_a_companion_source() -> None:
+    # A problem-sensor task stamps a display name too; it is not a companion.
     task = _task("Water leak")
     task["managed_by"] = {"display_name": "Home Keeper", "completion_blocked": True}
-    assert te.recipe_name(task) is None
+    assert te.companion_name(task) is None
 
 
-@pytest.mark.parametrize("recipe", ["", "   ", None, 5])
-def test_recipe_name_is_none_for_a_blank_or_bad_display_name(recipe: Any) -> None:
-    assert te.recipe_name(_recipe_task(recipe=recipe)) is None
+@pytest.mark.parametrize("companion", ["", "   ", None, 5])
+def test_companion_name_is_none_for_a_blank_or_bad_display_name(companion: Any) -> None:
+    assert te.companion_name(_companion_task(companion=companion)) is None
 
 
-def test_recipe_name_is_none_without_managed_by() -> None:
-    task = _recipe_task()
+def test_companion_name_is_none_without_managed_by() -> None:
+    task = _companion_task()
     del task["managed_by"]
-    assert te.recipe_name(task) is None
+    assert te.companion_name(task) is None
     task["managed_by"] = "not a dict"
-    assert te.recipe_name(task) is None
+    assert te.companion_name(task) is None
 
 
 # ── entity_name_prefix ─────────────────────────────────────────────────────────
 
 
-def test_recipe_task_uses_the_recipe_name() -> None:
-    assert te.entity_name_prefix(_recipe_task(), DEVICE) == "Leak"
+def test_companion_task_uses_the_companion_name() -> None:
+    assert te.entity_name_prefix(_companion_task(), DEVICE) == "Leak"
 
 
-def test_recipe_task_without_a_recipe_name_falls_back_to_the_task_name() -> None:
-    task = _recipe_task(name="Battery: Dishwasher Leak Sensor", recipe="")
+def test_companion_task_without_a_companion_name_falls_back_to_the_task_name() -> None:
+    task = _companion_task(name="Battery: Dishwasher Leak Sensor", companion="")
     assert te.entity_name_prefix(task, DEVICE) == "Battery"
 
 
@@ -141,7 +143,7 @@ def test_entity_set_key_of_no_task() -> None:
 
 
 def test_entity_set_key_fields() -> None:
-    assert te.entity_set_key(_recipe_task()) == (
+    assert te.entity_set_key(_companion_task()) == (
         "dev1",
         True,
         "Check on Dishwasher Leak Sensor",
@@ -152,19 +154,19 @@ def test_entity_set_key_fields() -> None:
     assert te.entity_set_key({"id": "x", "enabled": False})[1] is False
 
 
-def test_entity_set_key_changes_on_recipe_rename() -> None:
-    assert te.entity_set_key(_recipe_task(recipe="Leak")) != te.entity_set_key(
-        _recipe_task(recipe="Water leak")
+def test_entity_set_key_changes_on_companion_rename() -> None:
+    assert te.entity_set_key(_companion_task(companion="Leak")) != te.entity_set_key(
+        _companion_task(companion="Water leak")
     )
 
 
 def test_entity_set_key_changes_on_completion_blocked() -> None:
-    assert te.entity_set_key(_recipe_task(blocked=True)) != te.entity_set_key(
-        _recipe_task(blocked=False)
+    assert te.entity_set_key(_companion_task(blocked=True)) != te.entity_set_key(
+        _companion_task(blocked=False)
     )
 
 
 def test_entity_set_key_ignores_other_fields() -> None:
-    a = _recipe_task()
-    b = {**_recipe_task(), "notes": "new", "next_due": "2026-01-01T00:00:00+00:00"}
+    a = _companion_task()
+    b = {**_companion_task(), "notes": "new", "next_due": "2026-01-01T00:00:00+00:00"}
     assert te.entity_set_key(a) == te.entity_set_key(b)

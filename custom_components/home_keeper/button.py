@@ -5,7 +5,8 @@ maintenance action lives right next to the device it concerns. Pressing it
 completes the task and advances its recurrence.
 
 A task that nothing in Home Keeper can mark done gets no button: a problem-sensor
-task, and a recipe task that clears itself when its condition recovers (#377).
+task, and a declarative companion task that clears itself when its condition
+recovers (#377).
 """
 
 from __future__ import annotations
@@ -31,9 +32,9 @@ async def async_setup_entry(
 
     A task that can't be completed in Home Keeper is skipped, so its button would
     only ever error: a problem-sensor-synced task (the originating integration
-    clears it) and a recipe task that clears itself when its condition recovers
-    (``managed_by.completion_blocked``). Their next-due sensor and overdue binary
-    sensor still appear on the device.
+    clears it) and a declarative companion task that clears itself when its
+    condition recovers (``managed_by.completion_blocked``). Their next-due sensor and
+    overdue binary sensor still appear on the device.
     """
     coordinator: HomeKeeperCoordinator = entry.runtime_data
 
@@ -46,7 +47,7 @@ async def async_setup_entry(
 
     # Remove entity-registry entries for per-task buttons whose task no longer
     # exists or no longer gets a button (e.g. after disabling Problem Sensor Sync,
-    # deleting a task, or a recipe that now clears its tasks itself).
+    # deleting a task, or a declarative companion that now clears its tasks itself).
     live_ids = set(button_ids)
     prefix = f"{DOMAIN}_"
     suffix = "_done"

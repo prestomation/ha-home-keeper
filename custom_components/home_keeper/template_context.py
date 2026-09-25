@@ -11,7 +11,7 @@ The context lived in ``DeclarativeCompanionSync`` while only the first surface
 existed. It moved here rather than growing a second copy, because
 ``declarative_companion_sync`` imports ``sensor_watcher`` (for
 ``async_mark_tasks_new``), so the watcher cannot import it back. A second copy is
-worse than the import cycle it avoids: the two would drift, and a recipe's task name
+worse than the import cycle it avoids: the two would drift, and a companion's task name
 would then read a different ``{{ state }}`` from the trigger that opened it.
 
 HA-bound: it reads the entity, device and area registries. The pure side never calls
@@ -46,11 +46,11 @@ from .declarative_companions import effective_area_id
 # cache entry goes with it, and every render re-parses the Jinja source.
 #
 # That is 90x the cost of the render it precedes — ~500us to parse against ~6us to
-# render — so a recipe at the 500-entity cap spent about a quarter of a second of
+# render — so a companion at the 500-entity cap spent about a quarter of a second of
 # event-loop time parsing one unchanged expression, on every pass. Holding the
 # ``Template`` keeps Home Assistant's own cache warm and the parse happens once.
 #
-# Capped, because the recipe preview renders on every keystroke and each draft is a
+# Capped, because the companion preview renders on every keystroke and each draft is a
 # different source: without a bound, typing a template would grow this forever.
 #
 # Keyed by ``(strict, source)`` rather than by source alone. ``Template`` asserts that
@@ -87,7 +87,7 @@ def cached_template(
     if template is None:
         if len(cache) >= _TEMPLATE_CACHE_MAX:
             # Plain FIFO rather than an LRU: the entries worth keeping are the handful
-            # of saved recipes that render every pass, and they are re-added the next
+            # of saved companions that render every pass, and they are re-added the next
             # time they render. The churn this bounds is a preview draft, which is
             # never rendered twice.
             cache.pop(next(iter(cache)))
@@ -111,9 +111,9 @@ def registry_projection(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:
     return {
         "entity_id": found.entity_id,
         "device_id": found.device_id,
-        # The effective area, as a recipe's selection pass projects it: most entities
+        # The effective area, as a companion's selection pass projects it: most entities
         # take their area from their device. With the entity's own area alone, a
-        # trigger that reads ``area_id`` would disagree with the recipe preview and
+        # trigger that reads ``area_id`` would disagree with the companion preview and
         # with the task notes for the same entity.
         "area_id": effective_area_id(found.area_id, device.area_id if device else None),
         "platform": found.platform,
@@ -136,8 +136,8 @@ def template_variables(hass: HomeAssistant, entry: dict[str, Any]) -> dict[str, 
     ``{{ attributes.latest_version }}``.
 
     These names are a public contract: they appear in the panel's helper text, in the
-    User Guide, and in every recipe a user has already saved. Add to them freely;
-    never rename one.
+    User Guide, and in every declarative companion a user has already saved. Add to
+    them freely; never rename one.
     """
     entity_id = entry["entity_id"]
     state = hass.states.get(entity_id)

@@ -463,7 +463,7 @@ def test_a_non_admin_can_rename_an_admin_s_template_task(ha, non_admin):
         call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
 
 
-# ── the recipe preview, which renders caller-supplied Jinja ─────────────────
+# ── the companion preview, which renders caller-supplied Jinja ──────────────
 
 
 def _preview_spec(template):
@@ -480,7 +480,7 @@ def _preview_spec(template):
     }
 
 
-def test_the_recipe_preview_refuses_a_non_admin(non_admin_token):
+def test_the_companion_preview_refuses_a_non_admin(non_admin_token):
     """The gate `_verify_template_binding` exists for, on the surface that renders.
 
     The preview was filed under "read-only helpers for the panel's Add dialog" and
@@ -495,12 +495,12 @@ def test_the_recipe_preview_refuses_a_non_admin(non_admin_token):
         _preview_spec("{{ device_id is not none }}"),
     )
     assert not msg.get("success"), (
-        "a non-admin rendered a template through the recipe preview"
+        "a non-admin rendered a template through the companion preview"
     )
     assert msg["error"]["code"] == "unauthorized", msg
 
 
-def test_the_recipe_preview_still_answers_an_admin(ha):
+def test_the_companion_preview_still_answers_an_admin(ha):
     # The gate has to refuse the right people only — the dialog it feeds must work.
     msg = ws_send(_owner_token(ha), _preview_spec("{{ state == 'on' }}"))
     assert msg.get("success"), f"preview failed for an admin: {msg}"
@@ -512,8 +512,8 @@ def test_the_preview_answers_an_admin_before_the_template_is_written(ha):
 
     The command used to normalize the draft the way a save does, so the instant a user
     picked Template mode it failed with `sensor.template is required` and the panel
-    dropped the match list — at the moment the user most wants to see which entities
-    the recipe covers. Saving a blank template still fails; only the preview waives it.
+    dropped the match list — at the moment the user most wants to see which entities the
+    companion covers. Saving a blank template still fails; only the preview waives it.
     """
     msg = ws_send(_owner_token(ha), _preview_spec(""))
     assert msg.get("success"), f"preview refused an unwritten template: {msg}"
@@ -524,7 +524,7 @@ def test_the_preview_answers_an_admin_before_the_template_is_written(ha):
         assert row["trigger_error"] is None
 
 
-def test_saving_a_recipe_with_no_template_still_fails(ha):
+def test_saving_a_companion_with_no_template_still_fails(ha):
     """The other side of the waiver. The preview is the only caller that passes it.
 
     Asserted over the websocket, which is the panel's own save path and the one that
@@ -537,7 +537,7 @@ def test_saving_a_recipe_with_no_template_still_fails(ha):
             "companion": _preview_spec("")["companion"],
         },
     )
-    assert not msg.get("success"), "a recipe saved with no template"
+    assert not msg.get("success"), "a companion saved with no template"
     assert "sensor.template is required" in str(msg["error"]), msg
 
 
