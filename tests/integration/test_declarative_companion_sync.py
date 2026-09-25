@@ -375,6 +375,31 @@ def test_the_bound_sensor_arms_the_task_and_recovery_clears_it(ha, specs):
     assert len(cleared["completions"]) == 1
 
 
+def test_a_task_that_clears_on_recover_refuses_a_skip_by_hand(ha, specs):
+    """Skip is refused like Done (#370, #377).
+
+    A skip sends the armed task dormant, and the watcher does not re-arm while the
+    condition stays true, so it dismisses the condition the same way a Done would.
+    """
+    _set_flag(ha, False)
+    spec = specs(_tank_spec())
+    task = _one_task(ha, spec["id"])
+    _let_the_watcher_subscribe()
+    _set_flag(ha, True)
+    _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
+
+    with pytest.raises(requests.HTTPError):
+        call_service(ha, "home_keeper", "skip_task", {"task_id": task["id"]})
+    still = _poll_task(ha, spec["id"], lambda t: t["id"] == task["id"])
+    assert still["next_due"] is not None
+    assert not still.get("skips")
+
+    # The sensor recovering is still the one way out.
+    _set_flag(ha, False)
+    cleared = _poll_task(ha, spec["id"], lambda t: t.get("next_due") is None)
+    assert len(cleared["completions"]) == 1
+
+
 def test_the_notes_are_rendered_again_from_the_reading_that_armed_the_task(ha, specs):
     """The note must describe the reading that armed the task, not an older one.
 

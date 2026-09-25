@@ -6,6 +6,17 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.27.0b3]
+
+### Fixed
+
+- **[Self-clearing task sync](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  Tasks that Home Keeper cannot complete now show on synced to-do lists, such as synced
+  problem sensors and declarative companion tasks. A ticked item comes back until you
+  fix the problem in your home and Home Keeper completes the task. (Fixes #370)
+- **Skip on self-clearing recipe tasks.** A skip by hand from a service call now fails,
+  the same as a completion.
+
 ## [0.27.0b2]
 
 ### Fixed

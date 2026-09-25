@@ -681,7 +681,9 @@ class HomeKeeperStore:
         ``completions`` and ``last_completed`` are untouched, so a skip never counts
         as a completion anywhere; the skip itself is logged in ``skips`` with the
         optional *metadata* (``note``/``who``, plus ``reading`` for a meter task).
-        Rejects a synced problem-sensor task. Fires ``home_keeper_task_skipped``.
+        Rejects a synced problem-sensor task, and a ``completion_blocked`` task
+        unless the watcher's recovery marker comes with it. Fires
+        ``home_keeper_task_skipped``.
 
         For a **usage** sensor task it also resets the meter, exactly as a completion
         does: skipping "every 5,000 miles" starts the next 5,000 from the reading the
@@ -693,6 +695,8 @@ class HomeKeeperStore:
         if existing is None:
             raise KeyError(task_id)
         _reject_synced_problem(existing, origin)
+        # A skip sends the armed task dormant, so it dismisses the condition too.
+        _reject_completion_blocked(existing, origin)
         now = dt_util.now()
         records_reading = models.task_records_reading(existing)
         clean_metadata = models.normalize_completion_metadata(

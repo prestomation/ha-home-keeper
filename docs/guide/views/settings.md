@@ -66,7 +66,7 @@ task automatically when the condition recovers, so those tasks offer no Done but
 A task on a device also gets entities on the device page. Their names start with the
 recipe name, then Next due, Overdue or Mark done. When the recipe completes its tasks
 itself, the device page has no **Mark done** button for them. Home Keeper also refuses
-a completion by hand from a service call or an automation. Home Assistant sets the
+a completion or a skip by hand from a service call or an automation. Home Assistant sets the
 entity ID when the entity is first made and does not change it later. To get a
 shorter entity ID for an older entity, rename it in Home Assistant.
 
