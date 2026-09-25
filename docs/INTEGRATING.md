@@ -712,7 +712,7 @@ locked only when the spec has a `notes_template`.
 A Profile selects the tasks of one declarative companion with
 `home_keeper:declarative:<spec_id>` in its `companions` or `exclude_companions` list.
 `home_keeper:problem_sensors` selects the synced problem sensors. Both are derived from
-the task's `source`; plain `home_keeper` still selects all of them.
+the task's `source`. Plain `home_keeper` still selects all of them.
 
 **When to build a hand-coded companion instead.** A declarative companion is a good fit
 when the trigger is "an entity crosses a condition." It's the wrong fit when your

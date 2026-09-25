@@ -222,11 +222,10 @@ data is empty. A companion answers it by calling `home_keeper.register_companion
 ### Declarative companion CRUD
 
 A **declarative companion** is a Home-Keeper-owned spec (target integration + entity
-filters + Jinja-templated task name/notes; see [INTEGRATING.md](INTEGRATING.md) §7)
+filters + Jinja-templated task name/notes, described in [INTEGRATING.md](INTEGRATING.md) §7)
 that materializes one managed sensor task per matching entity. Spec-level CRUD fires
 its own bus events so an automation can react to the list of declarative companions
-changing; the
-materialized sensor tasks themselves emit the ordinary `home_keeper_task_created` /
+changing. The materialized sensor tasks themselves emit the ordinary `home_keeper_task_created` /
 `_updated` / `_deleted` / `_triggered` / `_completed` events, so an automation that
 already listens to `home_keeper_task_completed` just works. Automations that want to
 filter to declarative tasks read `managed_by.integration == "home_keeper"` and
