@@ -1170,6 +1170,26 @@ class HomeKeeperStore:
             await self._save()
         return changed
 
+    async def async_set_declarative_notes(self, task_id: str, notes: str) -> bool:
+        """Write the notes a declarative companion rendered; return whether they moved.
+
+        Bypasses ``models.merge_update`` on purpose, like
+        :meth:`async_repoint_device_ids`: a spec with a notes template locks ``notes``
+        so a person's edit cannot be undone on the next pass, and that same lock would
+        drop the reconciler's own write. Only the reconciler calls this, for a task it
+        owns.
+        """
+        task = self._tasks.get(task_id)
+        if task is None or task.get("notes") == notes:
+            return False
+        task["notes"] = notes
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_TASK_UPDATED,
+            events.task_event_data(task, extra={"changed_fields": ["notes"]}),
+        )
+        return True
+
     async def async_repoint_asset_device_ids(self, mapping: dict[str, str]) -> int:
         """Rewrite dead asset device ids to their live replacements; return how many.
 
@@ -1608,7 +1628,25 @@ class HomeKeeperStore:
         spec["created"] = existing.get("created") or dt_util.now().isoformat()
         spec["updated"] = dt_util.now().isoformat()
         self._declarative_companions[spec_id] = spec
+        # A change to the task labels reaches the tasks that exist now. Only this
+        # method holds both label sets, and the reconcile pass leaves labels alone
+        # (see ``declarative_companions.apply_template_label_diff``).
+        new_tasks, label_ops, labels_changed = (
+            declarative_companions.apply_template_label_diff(
+                spec_id,
+                (existing.get("task_template") or {}).get("labels") or [],
+                spec["task_template"]["labels"],
+                self._tasks,
+            )
+        )
+        if labels_changed:
+            self._tasks = new_tasks
         await self._save()
+        for _kind, task in label_ops:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": ["labels"]}),
+            )
         self._hass.bus.async_fire(
             EVENT_DECLARATIVE_COMPANION_UPDATED,
             events.declarative_companion_event_data(spec),

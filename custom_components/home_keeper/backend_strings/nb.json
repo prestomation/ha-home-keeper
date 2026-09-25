@@ -16,5 +16,5 @@
   "declarative_preset.firmware_update_available.description": "Overvåker hver oppdateringsentitet (UniFi, ESPHome, HACS, kameraer, skrivere osv.) og åpner en oppgave for å installere den nye versjonen.",
   "declarative_preset.device_stopped_reporting.name": "Enhet har blitt stille",
   "declarative_preset.device_stopped_reporting.description": "Overvåker alle sist sett-sensorer og oppretter en oppgave for hver enhet som ikke har meldt seg på 24 timer. Bruk den til å finne Zigbee- eller Z-Wave-enhetene som har falt av nettet.",
-  "declarative_task.completion_prompt": "Åpnet av oppskriften «{name}». Home Keeper fullfører denne oppgaven automatisk når betingelsen forsvinner, så den kan ikke fullføres manuelt."
+  "declarative_task.completion_prompt": "Åpnet av den deklarative companion-en «{name}». Home Keeper fullfører denne oppgaven automatisk når betingelsen forsvinner, så den kan ikke fullføres manuelt."
 }

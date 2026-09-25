@@ -30,6 +30,7 @@ import {
   taskSchemaSections,
 } from './forms';
 import { t } from './i18n';
+import { isManagedOrphan } from './panel-chips';
 import { openConfirmDialog } from './panel-dialogs';
 import { setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
@@ -558,7 +559,13 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
     );
     const spacer = document.createElement('span');
     spacer.className = 'hk-drawer-foot-spacer';
-    foot.append(del, spacer);
+    // A deletion-protected task keeps its owner's rule here too: the page offers no
+    // Delete for it while the owner is present, and a declarative-companion task now
+    // reaches this drawer through Edit.
+    const deleteBlocked =
+      !!task.managed_by?.deletion_protected && !isManagedOrphan(p, task as Task);
+    if (deleteBlocked) foot.append(spacer);
+    else foot.append(del, spacer);
     // History is a way to the task's own page, so it is only offered from somewhere
     // else. Editing on that page already has the history under the form.
     if (!onThisTasksPage) {

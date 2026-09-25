@@ -55,8 +55,11 @@ from .const import (
 from .models import TaskValidationError
 
 # Fields the reconciler owns and rewrites from the spec on every pass; user edits
-# through the update_task service are stripped by ``models.merge_update``. The
-# panel additionally hides edit/delete for source-owned tasks.
+# through the update_task service are stripped by ``models.merge_update``, and the
+# panel's task form leaves them out. ``notes`` joins them only when the spec has a
+# notes template (see :func:`owns_notes`). ``labels`` never does: the spec adds and
+# removes its own labels when it is saved (:func:`apply_template_label_diff`), and
+# any other label on a task belongs to the person who put it there.
 _LOCKED_FIELDS = ["name", "recurrence_type", "device_id", "area_id", "sensor"]
 
 
@@ -420,6 +423,17 @@ def expand_spec(
 # --- Managed-by + reconcile -------------------------------------------------
 
 
+def owns_notes(spec: dict[str, Any]) -> bool:
+    """Whether *spec* writes the notes of its tasks.
+
+    Only a spec with a notes template does. Without one the rendered notes are always
+    empty, and writing that on each pass erased any note a person wrote on the task.
+    Such a task's notes are the person's, so the field stays unlocked and the
+    reconciler leaves it alone.
+    """
+    return bool((spec.get("task_template") or {}).get("notes_template"))
+
+
 def build_managed_by(
     spec: dict[str, Any], config_entry_id: str, *, lang: str = "en"
 ) -> dict[str, Any]:
@@ -428,7 +442,8 @@ def build_managed_by(
     ``deletion_protected`` requires ``config_entry_id`` (see
     :func:`models.validate_managed_by`) so the task stays cleanable if Home Keeper
     is removed. ``locked_fields`` reflect that the reconciler owns
-    name/device/area/sensor from the spec's template.
+    name/device/area/sensor from the spec's template, and the notes when the spec
+    has a notes template (:func:`owns_notes`).
 
     ``completion_blocked`` follows the trigger's ``clear_on_recover``, because that
     flag is what decides who owns the task's lifecycle:
@@ -456,7 +471,7 @@ def build_managed_by(
         "display_name": spec["name"],
         "config_entry_id": config_entry_id,
         "deletion_protected": True,
-        "locked_fields": list(_LOCKED_FIELDS),
+        "locked_fields": [*_LOCKED_FIELDS, *(["notes"] if owns_notes(spec) else [])],
         "completion_blocked": auto_clears,
     }
     if auto_clears:
@@ -659,15 +674,19 @@ def reconcile_declarative_tasks(
             }
         }
         task_changed = False
-        for field, value in (
-            ("name", rendered_name),
-            ("notes", rendered_notes),
+        owned: list[tuple[str, Any]] = [("name", rendered_name)]
+        # A spec with no notes template does not own the notes: the task keeps
+        # whatever a person wrote there (see :func:`owns_notes`).
+        if owns_notes(spec):
+            owned.append(("notes", rendered_notes))
+        owned += [
             ("device_id", entry.get("device_id")),
             ("area_id", entry.get("area_id")),
             ("sensor", merge_sensor_binding(task.get("sensor"), match["sensor"])),
             ("managed_by", managed_by),
             ("source", new_source),
-        ):
+        ]
+        for field, value in owned:
             if task.get(field) != value:
                 task[field] = value
                 task_changed = True
@@ -723,6 +742,52 @@ def pause_spec_tasks(
         task["enabled"] = False
         # ``task_key`` above already proved the provenance block is a mapping.
         task["source"][TASK_SOURCE_DECLARATIVE_COMPANION]["paused"] = True
+        ops.append(("updated", task))
+        changed = True
+    return result, ops, changed
+
+
+def apply_template_label_diff(
+    spec_id: str,
+    old_labels: Iterable[str],
+    new_labels: Iterable[str],
+    tasks: dict[str, dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], list[tuple[str, dict[str, Any]]], bool]:
+    """Carry a change to a spec's task labels onto the tasks it already made.
+
+    Called when a spec is saved, the one moment both the old and the new label set are
+    known. Each task of *spec_id* loses the labels the spec dropped and gains the ones
+    it added. Every other label on the task is left as it is, so a label a person put
+    on one task survives, and so does their removal of a spec label from one task.
+
+    The reconcile pass never touches labels on a task that exists, which is what makes
+    this the only writer: a pass that put the spec labels back each time would undo a
+    person's removal on the next registry event. A task the pass *creates* takes the
+    spec's current labels (:func:`_build_task`).
+
+    Paused tasks are included, so a spec switched off and edited comes back with the
+    labels it has now. Same ``(new_tasks, ops, changed)`` shape as
+    :func:`pause_spec_tasks`; the ops are always ``"updated"``.
+    """
+    old = list(dict.fromkeys(old_labels))
+    new = list(dict.fromkeys(new_labels))
+    removed = set(old) - set(new)
+    added = [label for label in new if label not in old]
+    result = dict(tasks)
+    ops: list[tuple[str, dict[str, Any]]] = []
+    changed = False
+    if not removed and not added:
+        return result, ops, changed
+    for task in result.values():
+        key = task_key(task)
+        if key is None or key[0] != spec_id:
+            continue
+        current = list(task.get("labels") or [])
+        labels = [label for label in current if label not in removed]
+        labels += [label for label in added if label not in labels]
+        if labels == current:
+            continue
+        task["labels"] = labels
         ops.append(("updated", task))
         changed = True
     return result, ops, changed

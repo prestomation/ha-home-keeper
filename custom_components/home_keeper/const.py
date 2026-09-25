@@ -629,6 +629,14 @@ MAX_DECLARATIVE_MATCH_HARD = 500
 # {"spec_id", "entity_registry_id", "entity_id"}}``. The reconciler exclusively
 # owns these tasks; ``entity_registry_id`` is the survives-rename dedupe key.
 TASK_SOURCE_DECLARATIVE_COMPANION = "declarative_companion"
+# Profile filter values that name one Home Keeper source more narrowly than the
+# ``home_keeper`` integration domain, which every declarative-companion task and every
+# synced problem-sensor task shares. A Profile stores them in ``filter.companions`` /
+# ``filter.exclude_companions`` beside the integration domains. Nothing new is stored
+# on a task: ``profiles.companion_keys`` derives them from the task's ``source``. The
+# colon keeps them apart from every real domain, which is ``[a-z0-9_]`` only.
+COMPANION_KEY_DECLARATIVE_PREFIX = f"{DOMAIN}:declarative:"
+COMPANION_KEY_PROBLEM_SENSORS = f"{DOMAIN}:problem_sensors"
 # Dispatcher signal the store fires when a spec is added / updated / deleted /
 # toggled; the reconciler subscribes to re-materialize managed tasks without
 # needing a config-entry reload.

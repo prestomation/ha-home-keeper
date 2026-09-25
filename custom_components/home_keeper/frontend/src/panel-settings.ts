@@ -1173,7 +1173,12 @@ function profileEditor(p: PanelHost, profile: Profile): HTMLElement {
 
       body.appendChild(
         p._makeForm(
-          profileSchema(companionOptions(p._companions ?? [], p._tasks ?? [])),
+          profileSchema(
+            companionOptions(p._companions ?? [], p._tasks ?? [], p._declarativeCompanions, [
+              ...(profile.filter?.companions ?? []),
+              ...(profile.filter?.exclude_companions ?? []),
+            ]),
+          ),
           filter,
           (value) => {
             filter = value;

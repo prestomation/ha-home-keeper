@@ -1363,3 +1363,232 @@ def test_the_seeded_spec_carries_the_localized_name_and_text():
     assert preset["default_spec"]["task_template"]["name_template"].startswith("Check")
     # And the seeded spec still passes validation.
     dc.normalize_declarative_companion(spec)
+
+
+# --- Who owns the notes -----------------------------------------------------
+#
+# A spec with a notes template writes the notes on every pass, so it locks them. A
+# spec without one used to write an empty string on every pass, which erased any
+# note a person wrote on the task. Now it leaves the notes to that person.
+
+
+def test_a_spec_with_a_notes_template_owns_and_locks_the_notes():
+    spec = _normalized_spec(
+        task_template={"name_template": "n", "notes_template": "{{ state }}"}
+    )
+    assert dc.owns_notes(spec) is True
+    assert dc.build_managed_by(spec, ENTRY)["locked_fields"] == [
+        "name",
+        "recurrence_type",
+        "device_id",
+        "area_id",
+        "sensor",
+        "notes",
+    ]
+
+
+def test_a_spec_without_a_notes_template_leaves_the_notes_unlocked():
+    spec = _normalized_spec()
+    assert dc.owns_notes(spec) is False
+    assert dc.build_managed_by(spec, ENTRY)["locked_fields"] == [
+        "name",
+        "recurrence_type",
+        "device_id",
+        "area_id",
+        "sensor",
+    ]
+
+
+def test_owns_notes_reads_a_spec_with_no_task_template_as_not_owning():
+    assert dc.owns_notes({}) is False
+
+
+def test_the_pass_keeps_a_hand_written_note_when_the_spec_has_no_template():
+    spec = _normalized_spec()
+    stored, tid, key, m = _stored_task(spec)
+    stored[tid]["notes"] = "Shut-off valve is under the sink"
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, stored, {key: ("Rendered", "")}, config_entry_id=ENTRY, now=NOW
+    )
+    assert new_tasks[tid]["notes"] == "Shut-off valve is under the sink"
+    # Only the name moved, so the note is not what made the pass report a change.
+    assert [kind for kind, _task in ops] == ["updated"]
+    assert changed is True
+
+
+def test_the_pass_rewrites_the_notes_when_the_spec_has_a_template():
+    spec = _normalized_spec(
+        task_template={"name_template": "n", "notes_template": "{{ state }}"}
+    )
+    stored, tid, key, m = _stored_task(spec)
+    stored[tid]["notes"] = "edited by hand"
+    rendered = _rendered(key)
+
+    new_tasks, _ops, changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, stored, rendered, config_entry_id=ENTRY, now=NOW
+    )
+    assert changed is True
+    assert new_tasks[tid]["notes"] == rendered[key][1]
+
+
+def test_a_task_created_by_a_spec_with_no_template_starts_with_empty_notes():
+    spec = _normalized_spec()
+    key, m = _match("sensor.hub_total_failed_pings", spec["id"])
+    _new, ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, {}, {key: ("Rendered", "")}, config_entry_id=ENTRY, now=NOW
+    )
+    assert ops[0][1]["notes"] == ""
+
+
+# --- Task labels carried to existing tasks on save --------------------------
+
+
+def _labelled_task(spec, labels, entity_id="sensor.hub_total_failed_pings"):
+    stored, tid, _key, _m = _stored_task(spec, entity_id)
+    stored[tid]["labels"] = list(labels)
+    return stored, tid
+
+
+def test_a_label_added_to_the_spec_reaches_its_tasks():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, ["leak"])
+
+    new_tasks, ops, changed = dc.apply_template_label_diff(
+        spec["id"], ["leak"], ["leak", "urgent"], stored
+    )
+    assert changed is True
+    assert [kind for kind, _task in ops] == ["updated"]
+    assert new_tasks[tid]["labels"] == ["leak", "urgent"]
+
+
+def test_a_label_removed_from_the_spec_leaves_its_tasks():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, ["leak", "urgent"])
+
+    new_tasks, _ops, changed = dc.apply_template_label_diff(
+        spec["id"], ["leak", "urgent"], ["leak"], stored
+    )
+    assert changed is True
+    assert new_tasks[tid]["labels"] == ["leak"]
+
+
+def test_a_label_a_person_added_to_one_task_survives_a_spec_change():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, ["leak", "upstairs"])
+
+    new_tasks, _ops, _changed = dc.apply_template_label_diff(
+        spec["id"], ["leak"], ["urgent"], stored
+    )
+    assert new_tasks[tid]["labels"] == ["upstairs", "urgent"]
+
+
+def test_a_spec_label_a_person_removed_stays_removed_when_another_changes():
+    # The person took "leak" off this one task. A later change that only adds
+    # "urgent" must not put "leak" back.
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, [])
+
+    new_tasks, _ops, _changed = dc.apply_template_label_diff(
+        spec["id"], ["leak"], ["leak", "urgent"], stored
+    )
+    assert new_tasks[tid]["labels"] == ["urgent"]
+
+
+def test_an_added_label_the_task_already_has_is_not_repeated():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, ["urgent"])
+
+    new_tasks, ops, changed = dc.apply_template_label_diff(
+        spec["id"], [], ["urgent"], stored
+    )
+    assert (changed, ops) == (False, [])
+    assert new_tasks[tid]["labels"] == ["urgent"]
+
+
+def test_an_unchanged_label_set_changes_nothing():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, ["leak"])
+
+    _new, ops, changed = dc.apply_template_label_diff(
+        spec["id"], ["leak"], ["leak"], stored
+    )
+    assert (changed, ops) == (False, [])
+    assert stored[tid]["labels"] == ["leak"]
+
+
+def test_a_reordered_label_set_changes_nothing():
+    spec = _normalized_spec()
+    stored, _tid = _labelled_task(spec, ["a", "b"])
+
+    _new, ops, changed = dc.apply_template_label_diff(
+        spec["id"], ["a", "b"], ["b", "a"], stored
+    )
+    assert (changed, ops) == (False, [])
+
+
+def test_the_label_diff_leaves_another_specs_tasks_alone():
+    spec = _normalized_spec()
+    other = dc.normalize_declarative_companion(_spec(name="Other"))
+    foreign, foreign_tid = _labelled_task(other, ["leak"], "sensor.other_pings")
+    mine, tid = _labelled_task(spec, ["leak"])
+    tasks = {**foreign, **mine}
+
+    new_tasks, ops, changed = dc.apply_template_label_diff(
+        spec["id"], ["leak"], [], tasks
+    )
+    assert changed is True
+    assert [task["id"] for _kind, task in ops] == [tid]
+    assert new_tasks[tid]["labels"] == []
+    assert new_tasks[foreign_tid]["labels"] == ["leak"]
+
+
+def test_the_label_diff_skips_a_task_no_spec_owns():
+    spec = _normalized_spec()
+    mine, tid = _labelled_task(spec, [])
+    tasks = {"plain": {"id": "plain", "labels": ["x"]}, **mine}
+
+    new_tasks, ops, _changed = dc.apply_template_label_diff(
+        spec["id"], ["x"], ["y"], tasks
+    )
+    assert new_tasks["plain"]["labels"] == ["x"]
+    assert [task["id"] for _kind, task in ops] == [tid]
+
+
+def test_the_label_diff_reaches_a_paused_task():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, [])
+    paused, _ops, _changed = dc.pause_spec_tasks(spec["id"], stored)
+
+    new_tasks, _ops, changed = dc.apply_template_label_diff(
+        spec["id"], [], ["leak"], paused
+    )
+    assert changed is True
+    assert new_tasks[tid]["labels"] == ["leak"]
+
+
+def test_the_label_diff_handles_a_task_with_no_labels_key():
+    spec = _normalized_spec()
+    stored, tid, _key, _m = _stored_task(spec)
+    del stored[tid]["labels"]
+
+    new_tasks, _ops, _changed = dc.apply_template_label_diff(
+        spec["id"], [], ["leak"], stored
+    )
+    assert new_tasks[tid]["labels"] == ["leak"]
+
+
+def test_the_reconcile_pass_never_puts_back_a_label_a_person_removed():
+    # The pass runs on any registry event. If it restored the spec labels, removing
+    # a label from one task would last only until the next one.
+    spec = _normalized_spec(
+        task_template={"name_template": "n", "notes_template": "", "labels": ["leak"]}
+    )
+    stored, tid, key, m = _stored_task(spec)
+    assert stored[tid]["labels"] == ["leak"]
+    stored[tid]["labels"] = []
+
+    new_tasks, _ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, stored, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    assert new_tasks[tid]["labels"] == []

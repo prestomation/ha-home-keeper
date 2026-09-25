@@ -358,13 +358,11 @@ class DeclarativeCompanionSync:
         gone away, for a spec with no notes template, and when the render matches
         what is stored.
 
-        A note edited by hand is overwritten. ``notes`` is not one of the task's
-        ``managed_by.locked_fields``, but the reconcile pass already rewrites it from
-        the template whenever the registry moves (see
-        ``declarative_companions.reconcile_declarative_tasks``), so the field is
-        owned by the recipe in practice. Keeping the hand-edit here would make the
-        note survive an arm but not a rename of the device, which is a worse rule
-        than the one it replaces.
+        A spec with a notes template owns the notes: ``notes`` is one of the task's
+        ``managed_by.locked_fields`` then, so no hand edit exists to lose. The write
+        goes through ``store.async_set_declarative_notes`` for that reason, because
+        ``update_task`` would drop a locked field. A spec with no template does not
+        own the notes and returns early above.
         """
         store = self._coordinator.store
         task = store.get_tasks().get(task_id)
@@ -384,9 +382,7 @@ class DeclarativeCompanionSync:
             return
         variables = self._template_variables(self._entry_for_entity(entity_id))
         notes = self._render_one(template, variables)
-        if notes == task.get("notes"):
-            return
-        await store.update_task(task_id, {"notes": notes})
+        await store.async_set_declarative_notes(task_id, notes)
 
     # ── event handlers ───────────────────────────────────────────────────────
     @callback

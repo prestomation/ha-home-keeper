@@ -39,6 +39,7 @@ import {
 import {
   pickFormData,
   selBool,
+  selLabel,
   selNumber,
   selSelect,
   selSelectCustom,
@@ -178,13 +179,13 @@ export function declarativeSpecId(task: Task): string | undefined {
 }
 
 /**
- * The stored recipe *task* was materialized from, or undefined for any other task.
+ * The stored declarative companion that made *task*, or undefined for any other task.
  *
- * The task page reads it to answer "where are this task's settings?". A recipe that
- * is no longer stored returns undefined, so the page falls back to the generic
- * managed-task captions rather than offering an editor for a recipe that is gone.
+ * The task page reads it to answer "where are this task's settings?". A declarative
+ * companion that is no longer stored returns undefined, so the page falls back to the
+ * generic managed-task captions rather than offering an editor for one that is gone.
  */
-export function declarativeRecipeFor(
+export function declarativeCompanionFor(
   p: PanelHost,
   task: Task,
 ): DeclarativeCompanion | undefined {
@@ -504,12 +505,14 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     );
   };
 
-  // Every field is labelled from its own key rather than `field.<name>`. Two fields
-  // carry a helper, and both say what a template can read: the notes template, and
-  // the trigger template, which sees the same vocabulary.
+  // Every field is labelled from its own key rather than `field.<name>`. Three fields
+  // carry a helper. Two say what a template can read: the notes template, and the
+  // trigger template, which sees the same vocabulary. The third says what the task
+  // labels do to the tasks that already exist.
   const HELPERS: Record<string, string> = {
     notes_template: 'declarative.companions.template_help',
     template: 'declarative.companions.template_trigger_help',
+    labels: 'declarative.companions.labels_help',
   };
   const labelling = {
     computeLabel: (s: { name: string }): string =>
@@ -773,20 +776,26 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     },
   );
 
-  // 4. Task template.
-  section(
+  // 4. Task template. The label picker builds each pick from the form's data, so the
+  // data is written back on every change, as the filters above do.
+  const templateData = (): Record<string, unknown> => ({
+    name_template: draft.task_template.name_template,
+    notes_template: draft.task_template.notes_template,
+    labels: draft.task_template.labels ?? [],
+  });
+  const templateForm = section(
     'template',
     [
       { name: 'name_template', required: true, selector: selText() },
       { name: 'notes_template', selector: selText(true) },
+      { name: 'labels', selector: selLabel(true) },
     ],
-    {
-      name_template: draft.task_template.name_template,
-      notes_template: draft.task_template.notes_template,
-    },
+    templateData(),
     (v) => {
       draft.task_template.name_template = String(v.name_template ?? '');
       draft.task_template.notes_template = String(v.notes_template ?? '');
+      draft.task_template.labels = idList(v.labels);
+      templateForm.data = templateData();
     },
   );
 

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DUE_SOON_DAYS, profileHasAnyTask, profileMatches } from '../src/card-filter.ts';
+import {
+  DUE_SOON_DAYS,
+  companionKeys,
+  profileHasAnyTask,
+  profileMatches,
+} from '../src/card-filter.ts';
 
 // `profileMatches` decides which tasks a notification profile sends. It has to
 // agree with the backend's windows exactly, or a digest reports a different set
@@ -325,5 +330,76 @@ describe('profileHasAnyTask', () => {
     // Disabled and undated tasks are out under every status, `all` included.
     expect(profileHasAnyTask([task({ enabled: false })], {}, {}, {}, NOW)).toBe(false);
     expect(profileHasAnyTask([task({ next_due: null })], {}, {}, {}, NOW)).toBe(false);
+  });
+});
+
+describe('companionKeys', () => {
+  const hk = (source) =>
+    task({ managed_by: { integration: 'home_keeper', display_name: 'Leak sensors' }, source });
+
+  it('names a declarative companion task by its spec as well as the domain', () => {
+    expect(companionKeys(hk({ declarative_companion: { spec_id: 'leak' } }))).toEqual([
+      'home_keeper',
+      'home_keeper:declarative:leak',
+    ]);
+  });
+
+  it('names a synced problem sensor as well as the domain', () => {
+    expect(companionKeys(hk({ problem_sensor: { entity_id: 'binary_sensor.x' } }))).toEqual([
+      'home_keeper',
+      'home_keeper:problem_sensors',
+    ]);
+  });
+
+  it('reads no Home Keeper key from an outside companion source', () => {
+    const outside = task({
+      managed_by: { integration: 'battery_notes', display_name: 'Battery Notes' },
+      source: {
+        declarative_companion: { spec_id: 'leak' },
+        problem_sensor: { entity_id: 'binary_sensor.x' },
+      },
+    });
+    expect(companionKeys(outside)).toEqual(['battery_notes']);
+  });
+
+  it('adds no key for a problem_sensor value that is not a mapping', () => {
+    expect(companionKeys(hk({ problem_sensor: 'binary_sensor.x' }))).toEqual(['home_keeper']);
+  });
+
+  it('adds no key for a declarative block with no spec id', () => {
+    expect(companionKeys(hk({ declarative_companion: {} }))).toEqual(['home_keeper']);
+  });
+
+  it('copes with no source at all', () => {
+    expect(companionKeys(hk(null))).toEqual(['home_keeper']);
+    expect(companionKeys(hk(undefined))).toEqual(['home_keeper']);
+  });
+
+  it('is empty for a task nobody claims', () => {
+    expect(companionKeys(task())).toEqual([]);
+  });
+});
+
+describe('profileMatches Home Keeper companion keys', () => {
+  const decl = (specId) =>
+    task({
+      managed_by: { integration: 'home_keeper', display_name: 'X' },
+      source: { declarative_companion: { spec_id: specId } },
+    });
+
+  it('selects only the named declarative companion', () => {
+    const filter = { companions: ['home_keeper:declarative:leak'] };
+    expect(profileMatches(decl('leak'), filter, {}, {}, NOW)).toBe(true);
+    expect(profileMatches(decl('pulse'), filter, {}, {}, NOW)).toBe(false);
+  });
+
+  it('drops only the excluded declarative companion', () => {
+    const filter = { exclude_companions: ['home_keeper:declarative:leak'] };
+    expect(profileMatches(decl('leak'), filter, {}, {}, NOW)).toBe(false);
+    expect(profileMatches(decl('pulse'), filter, {}, {}, NOW)).toBe(true);
+  });
+
+  it('still selects both with the plain domain', () => {
+    expect(profileMatches(decl('leak'), { companions: ['home_keeper'] }, {}, {}, NOW)).toBe(true);
   });
 });

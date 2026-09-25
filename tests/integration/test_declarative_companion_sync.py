@@ -430,6 +430,83 @@ def test_the_notes_are_rendered_again_from_the_reading_that_armed_the_task(ha, s
     )
 
 
+def test_a_label_change_on_the_spec_reaches_its_task_and_keeps_a_hand_added_label(
+    ha, specs
+):
+    """Saving the spec's task labels adds and removes them on the task it made.
+
+    The diff runs in the store at save time, the one place both label sets are
+    known. A label a person put on the task by hand is not the spec's, so it stays
+    (#378).
+    """
+    template = {"name_template": "Fill {{ friendly_name }}", "notes_template": ""}
+    spec = specs(
+        _tank_spec(
+            name="Water tank labels",
+            task_template={**template, "labels": ["hk_leak"]},
+        )
+    )
+    task = _one_task(ha, spec["id"])
+    assert task["labels"] == ["hk_leak"]
+    assert "labels" not in task["managed_by"]["locked_fields"]
+
+    call_service(
+        ha,
+        "home_keeper",
+        "update_task",
+        {"task_id": task["id"], "labels": ["hk_leak", "hk_upstairs"]},
+    )
+    _poll_task(ha, spec["id"], lambda t: "hk_upstairs" in t["labels"])
+
+    _update_spec(
+        ha, spec["id"], {"task_template": {**template, "labels": ["hk_urgent"]}}
+    )
+    after = _poll_task(ha, spec["id"], lambda t: "hk_urgent" in t["labels"])
+    assert after["labels"] == ["hk_upstairs", "hk_urgent"]
+
+
+def test_a_hand_written_note_survives_a_pass_when_the_spec_has_no_notes_template(
+    ha, specs
+):
+    """A spec with no notes template no longer owns the notes, so it keeps them.
+
+    Before, each pass wrote the empty render onto the task, and a note a person
+    wrote was gone at the next registry event.
+    """
+    spec = specs(_battery_spec(name="Remote battery notes"))
+    task = _one_task(ha, spec["id"])
+    assert "notes" not in task["managed_by"]["locked_fields"]
+
+    call_service(
+        ha,
+        "home_keeper",
+        "update_task",
+        {"task_id": task["id"], "notes": "Spare cells are in the hall drawer"},
+    )
+    _poll_task(
+        ha, spec["id"], lambda t: t["notes"] == "Spare cells are in the hall drawer"
+    )
+
+    # A spec save runs a reconcile pass over the task.
+    _update_spec(ha, spec["id"], {"description": "Renamed description"})
+    _let_the_watcher_subscribe()
+    kept = _one_task(ha, spec["id"])
+    assert kept["notes"] == "Spare cells are in the hall drawer"
+
+
+def test_a_spec_with_a_notes_template_locks_the_notes(ha, specs):
+    """The template rewrites the notes, so a hand edit is refused rather than lost."""
+    _set_flag(ha, False)
+    spec = specs(_tank_spec(name="Water tank locked notes"))
+    task = _one_task(ha, spec["id"])
+    assert "notes" in task["managed_by"]["locked_fields"]
+
+    call_service(
+        ha, "home_keeper", "update_task", {"task_id": task["id"], "notes": "by hand"}
+    )
+    assert _one_task(ha, spec["id"])["notes"] == f"Reported by {TANK}."
+
+
 def test_a_device_backed_recipe_arms_on_a_condition_that_is_already_true(ha, specs):
     """A recipe made for a condition standing right now must arm, device or not.
 

@@ -6,6 +6,12 @@ import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
  *  panel tells "another integration owns this" from "we do". */
 export const HK_DOMAIN = 'home_keeper';
 
+/** Profile `companions` values that name one of Home Keeper's own sources, which all
+ *  share {@link HK_DOMAIN} (`const.COMPANION_KEY_*`). `card-filter.companionKeys`
+ *  derives them from a task's `source`; nothing new is stored on the task. */
+export const COMPANION_KEY_DECLARATIVE_PREFIX = `${HK_DOMAIN}:declarative:`;
+export const COMPANION_KEY_PROBLEM_SENSORS = `${HK_DOMAIN}:problem_sensors`;
+
 /** Escape user-provided text before injecting into innerHTML. */
 export function escapeHTML(value: unknown): string {
   return String(value ?? '')

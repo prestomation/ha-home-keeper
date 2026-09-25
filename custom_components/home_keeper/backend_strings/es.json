@@ -16,5 +16,5 @@
   "declarative_preset.firmware_update_available.description": "Monitorea cada entidad de actualización (UniFi, ESPHome, HACS, cámaras, impresoras, etc.) y abre una tarea para aplicar la nueva versión.",
   "declarative_preset.device_stopped_reporting.name": "Dispositivo en silencio",
   "declarative_preset.device_stopped_reporting.description": "Vigila todos los sensores de última conexión y abre una tarea por cada dispositivo que no informa desde hace 24 horas. Úsalo para encontrar los dispositivos Zigbee o Z-Wave que se han caído de la red.",
-  "declarative_task.completion_prompt": "Abierta por la receta «{name}». Home Keeper completa esta tarea automáticamente cuando la condición desaparece, así que no se puede completar a mano."
+  "declarative_task.completion_prompt": "Abierta por el companion declarativo «{name}». Home Keeper completa esta tarea automáticamente cuando la condición desaparece, así que no se puede completar a mano."
 }
