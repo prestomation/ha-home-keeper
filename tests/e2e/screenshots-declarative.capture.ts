@@ -513,7 +513,8 @@ test('capture the template trigger at both widths', async ({ page }) => {
     await page.waitForTimeout(600);
     await shoot('21n-panel-template-empty.png');
 
-    await dialog.locator('.hk-decl-cancel').scrollIntoViewIfNeeded();
+    // `click` scrolls the button into view and retries while the preview re-renders
+    // the dialog, where a separate scroll can land on a node that is already gone.
     await dialog.locator('.hk-decl-cancel').click();
     await page.setViewportSize({ width: 1280, height: 720 });
   } finally {
