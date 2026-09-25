@@ -35,8 +35,10 @@ export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
  *  makes a binary sensor usable (`on`/`off` has no numeric reading). Not binary-only:
  *  any state-y entity works, e.g. `vacuum.x === 'docked'`. `availability` reads no
  *  value at all — the entity reporting `unavailable`/`unknown`, or leaving the state
- *  machine, is itself the condition. */
-export type SensorMode = 'usage' | 'threshold' | 'state' | 'availability';
+ *  machine, is itself the condition. `template` renders a Jinja template against the
+ *  bound entity and holds while it is true — the mode for a condition the other four
+ *  cannot say, such as "this entity has not reported for 24 hours". */
+export type SensorMode = 'usage' | 'threshold' | 'state' | 'availability' | 'template';
 export type SensorComparison = '>=' | '<=' | '>' | '<' | '==' | '!=';
 
 /** How a usage task's meter target combines with its time backstop: `any` (the
@@ -52,10 +54,11 @@ export type SensorCombinator = 'any' | 'all';
  *  completion — and `unit` labels the meter ("300 h" rather than a bare "300").
  *  `for_seconds` makes the condition hold before the task arms, and `clear_on_recover`
  *  clears an armed task when the condition goes away instead of waiting for it to be
- *  completed by hand; both belong to the edge-driven modes (threshold, state and
- *  availability) and neither applies to a usage meter. An `availability` binding
- *  carries no condition key of its own — `entity_id` (with an optional `attribute`)
- *  is the whole binding. */
+ *  completed by hand; both belong to the edge-driven modes (threshold, state,
+ *  availability and template) and neither applies to a usage meter. An `availability`
+ *  binding carries no condition key of its own — `entity_id` (with an optional
+ *  `attribute`) is the whole binding. A `template` binding holds its whole condition
+ *  in `template` and takes no `attribute`: it reads `attributes.<key>` itself. */
 export interface SensorBinding {
   entity_id: string;
   mode: SensorMode;
@@ -68,6 +71,7 @@ export interface SensorBinding {
   comparison?: SensorComparison;
   value?: number;
   state?: string;
+  template?: string;
   for_seconds?: number;
   clear_on_recover?: boolean;
 }
@@ -690,6 +694,14 @@ export interface DeclarativeCompanionPreviewMatch {
   rendered_notes: string;
   device_name: string | null;
   area_name: string | null;
+  /**
+   * What a `template` trigger renders for this entity right now: `true` opens the
+   * task, `false` leaves it monitored, `null` says nothing. Every other trigger mode
+   * sends `null` for every row, because they say what they do on their face.
+   */
+  trigger_now: boolean | null;
+  /** The Jinja error, when the template did not render. `null` otherwise. */
+  trigger_error: string | null;
 }
 
 export interface DeclarativeCompanionPreviewResult {

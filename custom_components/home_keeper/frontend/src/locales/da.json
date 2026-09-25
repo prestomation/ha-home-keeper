@@ -749,5 +749,21 @@
   "part.low": "Lavt",
   "part.reorderAt": "Bestil ved {n}",
   "toast.stockSet": "Lager sat til {n}",
-  "transfer.tooLarge": "Dette dokument er større end grænsen på {mb} MB for panelet. Del det op i mindre filer, eller brug tjenesten home_keeper.import_data til dokumenter op til {max} MB."
+  "transfer.tooLarge": "Dette dokument er større end grænsen på {mb} MB for panelet. Del det op i mindre filer, eller brug tjenesten home_keeper.import_data til dokumenter op til {max} MB.",
+  "declarative.companions.chip_due_now": "Forfalder nu",
+  "declarative.companions.chip_error": "Fejl",
+  "declarative.companions.chip_monitored": "Overvåget",
+  "declarative.companions.field_template": "Udløsershabelon (Jinja)",
+  "declarative.companions.preview_summary_due": "Viser {shown} af {total} match. {due} af dem forfalder nu.",
+  "declarative.companions.preview_template_error": "Skabelonen kan ikke gengives: {error}. Ret den, før du gemmer.",
+  "declarative.companions.template_trigger_help": "Opgaven åbner, så længe dette gengives som sandt. Tilgængelige: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "declarative.companions.trigger_mode.template": "Skabelon",
+  "field.sensor_template": "Udløsershabelon (Jinja)",
+  "help.sensor_template": "Opgaven forfalder, så længe denne skabelon gengives som sand. Tilgængelige: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "hint.sensor.template": "Opgaven forfalder, så længe skabelonen er sand.",
+  "hint.sensor.templateFor": "Opgaven forfalder, når skabelonen forbliver sand i {seconds}s.",
+  "opt.sensor_mode.template": "Skabelon",
+  "recurrence.sensorTemplate": "Når skabelonen er sand",
+  "declarative.companions.preview_template_empty": "Skriv en skabelon for at se, hvilke enheder der forfalder.",
+  "declarative.companions.preview_summary_undecided": "Viser {shown} af {total} match. Skabelonen kunne ikke gengives."
 }

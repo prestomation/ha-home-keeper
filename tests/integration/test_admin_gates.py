@@ -196,6 +196,351 @@ def test_non_admin_can_still_complete_a_task(ha, non_admin):
         call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
 
 
+# ── the template trigger, which is admin-only on an otherwise open service ──
+
+TANK = "binary_sensor.hk_demo_water_tank_low"
+TEMPLATE_BINDING = {
+    "entity_id": TANK,
+    "mode": "template",
+    "template": "{{ state == 'on' }}",
+}
+
+
+def _template_task(name):
+    return {
+        "name": name,
+        "recurrence_type": "sensor",
+        "sensor": dict(TEMPLATE_BINDING),
+    }
+
+
+def test_add_task_refuses_a_template_binding_from_a_non_admin(non_admin):
+    # ``add_task`` is open to everyone on purpose — a household member has to be able
+    # to add a chore. A **template** binding is the one part of a task that is not
+    # inert data: Home Keeper renders it, and Jinja reaches registry helpers
+    # (``device_attr``, ``area_id``, ``integration_entities``) that a non-admin cannot
+    # otherwise enumerate. So the mode alone is gated, and only here: the panel's own
+    # route is admin-only twice over, and this is the ``call_service`` path around it.
+    r = _call(non_admin, "add_task", _template_task("Should not exist"))
+    assert r.status_code == 401, f"a non-admin created a template task: {r.status_code}"
+
+
+def test_update_task_refuses_a_template_binding_from_a_non_admin(ha, non_admin):
+    # The other door into the same field. A non-admin who cannot *create* a template
+    # task could otherwise create a plain sensor task and edit a template onto it.
+    name = f"Gate template update probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": name,
+            "recurrence_type": "sensor",
+            "sensor": {"entity_id": TANK, "mode": "state", "state": "on"},
+        },
+    )
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    try:
+        r = _call(
+            non_admin,
+            "update_task",
+            {"task_id": task["id"], "sensor": dict(TEMPLATE_BINDING)},
+        )
+        assert r.status_code == 401, (
+            f"a non-admin set a template on a task: {r.status_code}"
+        )
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
+def test_a_non_admin_can_still_add_a_plain_sensor_task(ha, non_admin):
+    # The gate must refuse the mode, not the service. Refusing every sensor task would
+    # take a feature away from the household to protect one field of it.
+    name = f"Gate plain sensor probe {uuid.uuid4().hex[:8]}"
+    r = _call(
+        non_admin,
+        "add_task",
+        {
+            "name": name,
+            "recurrence_type": "sensor",
+            "sensor": {"entity_id": TANK, "mode": "state", "state": "on"},
+        },
+    )
+    assert r.status_code == 200, f"a non-admin could not add a sensor task: {r.text}"
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
+def test_an_admin_can_still_add_a_template_task(ha):
+    # And the gate must not refuse the right people. An admin's template task is
+    # stored with its template intact, which is also the only assertion here that the
+    # binding survives ``normalize_sensor`` over the real service.
+    name = f"Gate template admin probe {uuid.uuid4().hex[:8]}"
+    call_service(ha, "home_keeper", "add_task", _template_task(name))
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    try:
+        assert task["sensor"]["mode"] == "template"
+        assert task["sensor"]["template"] == TEMPLATE_BINDING["template"]
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
+def _list_task_named(ha, name):
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    return next(
+        (t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name),
+        None,
+    )
+
+
+def test_the_websocket_add_task_refuses_a_template_binding_from_a_non_admin(
+    ha, non_admin_token
+):
+    # The websocket twin of the service gate. ``home_keeper/add_task`` is open to
+    # every signed-in user, like the service, so gating only the service left this
+    # command as the path around it.
+    name = f"Gate ws template probe {uuid.uuid4().hex[:8]}"
+    msg = ws_send(
+        non_admin_token, {"type": "home_keeper/add_task", "task": _template_task(name)}
+    )
+    task = _list_task_named(ha, name)
+    if task is not None:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+    assert not msg.get("success"), "a non-admin created a template task over ws"
+    assert msg["error"]["code"] == "unauthorized", msg
+    assert task is None
+
+
+def test_the_websocket_update_task_refuses_a_template_binding_from_a_non_admin(
+    ha, non_admin_token
+):
+    name = f"Gate ws template update probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {
+            "name": name,
+            "recurrence_type": "sensor",
+            "sensor": {"entity_id": TANK, "mode": "state", "state": "on"},
+        },
+    )
+    task = _list_task_named(ha, name)
+    try:
+        msg = ws_send(
+            non_admin_token,
+            {
+                "type": "home_keeper/update_task",
+                "task_id": task["id"],
+                "updates": {"sensor": dict(TEMPLATE_BINDING)},
+            },
+        )
+        assert not msg.get("success"), "a non-admin set a template on a task over ws"
+        assert msg["error"]["code"] == "unauthorized", msg
+        assert _list_task_named(ha, name)["sensor"]["mode"] == "state"
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
+def test_the_websocket_add_task_still_takes_a_plain_task_from_a_non_admin(
+    ha, non_admin_token
+):
+    # The gate refuses the mode, not the command.
+    name = f"Gate ws plain probe {uuid.uuid4().hex[:8]}"
+    msg = ws_send(
+        non_admin_token,
+        {
+            "type": "home_keeper/add_task",
+            "task": {
+                "name": name,
+                "recurrence_type": "sensor",
+                "sensor": {"entity_id": TANK, "mode": "state", "state": "on"},
+            },
+        },
+    )
+    assert msg.get("success"), f"a non-admin could not add a task over ws: {msg}"
+    call_service(
+        ha, "home_keeper", "delete_task", {"task_id": msg["result"]["task"]["id"]}
+    )
+
+
+def test_the_websocket_add_task_takes_a_template_binding_from_an_admin(ha):
+    name = f"Gate ws template admin probe {uuid.uuid4().hex[:8]}"
+    msg = ws_send(
+        _owner_token(ha), {"type": "home_keeper/add_task", "task": _template_task(name)}
+    )
+    assert msg.get("success"), f"an admin could not add a template task over ws: {msg}"
+    call_service(
+        ha, "home_keeper", "delete_task", {"task_id": msg["result"]["task"]["id"]}
+    )
+
+
+def test_a_non_admin_cannot_author_an_automation_or_a_script(non_admin):
+    """The Home Assistant contract the template gate rests on.
+
+    `_caller_is_admin` treats `context.user_id is None` as trusted, which is Home
+    Assistant's own convention for an internal or automation-triggered call. That is
+    only safe while authoring an automation is itself admin-only: otherwise a
+    non-admin could write one that calls `add_task` with a template of their choosing
+    and let it run unattended with no user attached, which would walk straight around
+    the gate.
+
+    Home Assistant puts `@require_admin` on the config view's `post`, so the hole does
+    not exist. But that is *its* contract rather than Home Keeper's, and a unit test
+    mocking the framework could never see it change — the #183 argument. Asserted here
+    so the day it relaxes, this fails rather than the gate quietly becoming decorative.
+    """
+    body = {
+        "alias": "probe",
+        "trigger": [
+            {"platform": "state", "entity_id": "binary_sensor.hk_demo_water_tank_low"}
+        ],
+        "action": [
+            {
+                "service": "home_keeper.add_task",
+                "data": {
+                    "name": "escalated",
+                    "recurrence_type": "sensor",
+                    "sensor": {
+                        "entity_id": "binary_sensor.hk_demo_water_tank_low",
+                        "mode": "template",
+                        "template": "{{ true }}",
+                    },
+                },
+            }
+        ],
+    }
+    key = uuid.uuid4().hex
+    for kind in ("automation", "script"):
+        r = non_admin.post(f"{HA_URL}/api/config/{kind}/config/{key}", json=body)
+        assert r.status_code == 401, (
+            f"a non-admin authored a {kind}, so the template gate can be bypassed "
+            f"by letting it run with no user attached: {r.status_code}"
+        )
+
+
+def test_a_non_admin_can_rename_an_admin_s_template_task(ha, non_admin):
+    """Renaming is not authoring, and the gate must not confuse the two.
+
+    `_verify_template_binding` reads `call.data.get("sensor")`, so an `update_task`
+    that does not carry one is not checked. That is correct rather than a gap: the
+    template is only reachable through `sensor`, so an update without it cannot
+    introduce or change one, and refusing the rename would take the household's own
+    task list away to protect a field they are not touching.
+    """
+    name = f"Gate rename probe {uuid.uuid4().hex[:8]}"
+    call_service(ha, "home_keeper", "add_task", _template_task(name))
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    try:
+        r = _call(
+            non_admin, "update_task", {"task_id": task["id"], "name": f"{name} renamed"}
+        )
+        assert r.status_code == 200, f"a non-admin could not rename a task: {r.text}"
+
+        # The rename went through and the admin's template is untouched — the
+        # non-admin changed the one field they sent and nothing else.
+        resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+        after = next(
+            t
+            for t in resp.get("service_response", resp)["tasks"]
+            if t["id"] == task["id"]
+        )
+        assert after["name"] == f"{name} renamed"
+        assert after["sensor"]["template"] == TEMPLATE_BINDING["template"]
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
+
+
+# ── the recipe preview, which renders caller-supplied Jinja ─────────────────
+
+
+def _preview_spec(template):
+    return {
+        "type": "home_keeper/preview_declarative_companion",
+        "companion": {
+            "name": "Gate preview probe",
+            "description": "",
+            "enabled": True,
+            "selection": {"domain": "binary_sensor"},
+            "trigger": {"mode": "template", "template": template},
+            "task_template": {"name_template": "{{ friendly_name }}"},
+        },
+    }
+
+
+def test_the_recipe_preview_refuses_a_non_admin(non_admin_token):
+    """The gate `_verify_template_binding` exists for, on the surface that renders.
+
+    The preview was filed under "read-only helpers for the panel's Add dialog" and
+    carried no `require_admin`. It writes nothing, but it takes a Jinja string from
+    the caller, renders it against the entity, device and area registries, and hands
+    back the answer — a general-purpose template oracle for anyone with a login, and
+    the exact power `add_task` refuses a non-admin. No user loses a surface: the panel
+    is `require_admin`, so only an admin ever reaches the dialog.
+    """
+    msg = ws_send(
+        non_admin_token,
+        _preview_spec("{{ device_id is not none }}"),
+    )
+    assert not msg.get("success"), (
+        "a non-admin rendered a template through the recipe preview"
+    )
+    assert msg["error"]["code"] == "unauthorized", msg
+
+
+def test_the_recipe_preview_still_answers_an_admin(ha):
+    # The gate has to refuse the right people only — the dialog it feeds must work.
+    msg = ws_send(_owner_token(ha), _preview_spec("{{ state == 'on' }}"))
+    assert msg.get("success"), f"preview failed for an admin: {msg}"
+    assert "matched" in msg["result"]
+
+
+def test_the_preview_answers_an_admin_before_the_template_is_written(ha):
+    """An empty box is a form mid-typing, not a malformed spec.
+
+    The command used to normalize the draft the way a save does, so the instant a user
+    picked Template mode it failed with `sensor.template is required` and the panel
+    dropped the match list — at the moment the user most wants to see which entities
+    the recipe covers. Saving a blank template still fails; only the preview waives it.
+    """
+    msg = ws_send(_owner_token(ha), _preview_spec(""))
+    assert msg.get("success"), f"preview refused an unwritten template: {msg}"
+    assert msg["result"]["matched"], "the preview answered with no match list"
+    # No verdict and no error: an empty template rendered nothing, so it says nothing.
+    for row in msg["result"]["matched"]:
+        assert row["trigger_now"] is None
+        assert row["trigger_error"] is None
+
+
+def test_saving_a_recipe_with_no_template_still_fails(ha):
+    """The other side of the waiver. The preview is the only caller that passes it.
+
+    Asserted over the websocket, which is the panel's own save path and the one that
+    reports a validation error rather than a bare 500.
+    """
+    msg = ws_send(
+        _owner_token(ha),
+        {
+            "type": "home_keeper/add_declarative_companion",
+            "companion": _preview_spec("")["companion"],
+        },
+    )
+    assert not msg.get("success"), "a recipe saved with no template"
+    assert "sensor.template is required" in str(msg["error"]), msg
+
+
 # ── the non-admin asset projection ──────────────────────────────────────────
 
 

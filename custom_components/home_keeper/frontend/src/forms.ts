@@ -504,6 +504,10 @@ export function taskSchemaSections(
             { value: 'threshold', label: t('opt.sensor_mode.threshold') },
             { value: 'state', label: t('opt.sensor_mode.state') },
             { value: 'availability', label: t('opt.sensor_mode.availability') },
+            // Last, like the recipe dialog's own list: the four above each answer one
+            // plain question, and a user who wants one of those must not have to read
+            // past Jinja to find it.
+            { value: 'template', label: t('opt.sensor_mode.template') },
           ]),
         },
         // Availability watches for the entity to go away, so it has no condition of
@@ -513,6 +517,20 @@ export function taskSchemaSections(
         // keys onto the binding and the backend rejects them.
         ...(sensorMode === 'availability'
           ? [
+              { name: 'sensor_for', selector: selNumber(0) } as FormField,
+              { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
+            ]
+          : sensorMode === 'template'
+          ? [
+              // Multiline: a trigger template is one expression, but it runs long and
+              // a single-line box hides its own tail. No attribute box — the backend
+              // rejects one in this mode, because a template reads
+              // `attributes.<key>` itself.
+              {
+                name: 'sensor_template',
+                required: true,
+                selector: selText(true),
+              } as FormField,
               { name: 'sensor_for', selector: selNumber(0) } as FormField,
               { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
             ]
@@ -596,7 +614,15 @@ export function taskSchemaSections(
                   ]
                 : []),
             ]),
-        { name: 'sensor_attribute', selector: selText() },
+        // Every mode but `template` reads an optional attribute in place of the
+        // state. `normalize_sensor` *rejects* one in template mode, because a
+        // template reads `attributes.<key>` itself and a second, invisible hop would
+        // change what `{{ state }}` means inside it. Offering the box there is the
+        // #230 bug in a new place: the save comes back "sensor.attribute is not valid
+        // for a template-mode sensor task".
+        ...(sensorMode === 'template'
+          ? []
+          : [{ name: 'sensor_attribute', selector: selText() } as FormField]),
       ]
     : [];
 
@@ -1037,7 +1063,13 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       entity_id: String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? ''),
       mode,
     };
-    const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
+    // Not in template mode: the form offers no box there, and the backend rejects
+    // the key rather than ignoring it, so an attribute left in edit state from
+    // another mode would fail the save.
+    const attribute =
+      mode === 'template'
+        ? ''
+        : String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
     if (attribute) sensor.attribute = attribute;
     if (mode === 'usage') {
       sensor.target = Number(sd.sensor_target ?? task.sensor?.target) || 0;
@@ -1066,14 +1098,17 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
         ) || 'any') as SensorCombinator;
       }
     } else {
-      // The edge-driven modes (threshold / state / availability) share the hold and
-      // the clear-on-recover flag; only the condition itself differs. Availability
-      // has no condition at all — the entity going away *is* the condition — so it
-      // adds nothing here. It must still be matched explicitly: falling through to
-      // the threshold leg stamped `comparison` and `value` onto the binding, which
-      // the backend rejects as "not valid for an availability-mode sensor task".
+      // The edge-driven modes (threshold / state / availability / template) share the
+      // hold and the clear-on-recover flag; only the condition itself differs.
+      // Availability has no condition at all — the entity going away *is* the
+      // condition — so it adds nothing here. Each must be matched explicitly: falling
+      // through to the threshold leg stamped `comparison` and `value` onto the
+      // binding, which the backend rejects as "not valid for an availability-mode
+      // sensor task".
       if (mode === 'state') {
         sensor.state = String(sd.sensor_state ?? task.sensor?.state ?? '').trim();
+      } else if (mode === 'template') {
+        sensor.template = String(sd.sensor_template ?? task.sensor?.template ?? '').trim();
       } else if (mode !== 'availability') {
         sensor.comparison = (sd.sensor_comparison as SensorComparison) ||
           task.sensor?.comparison ||
@@ -1337,6 +1372,17 @@ export function sensorHintText(
       forSeconds > 0
         ? t('hint.sensor.availabilityFor', { seconds: forSeconds })
         : t('hint.sensor.availability'),
+    );
+  }
+
+  // A template says its own condition, so the hint says nothing about what is in the
+  // box — only what a true render does, and the hold that gates it.
+  if (mode === 'template') {
+    if (!String(sd.sensor_template ?? task.sensor?.template ?? '').trim()) return '';
+    return withRecovery(
+      forSeconds > 0
+        ? t('hint.sensor.templateFor', { seconds: forSeconds })
+        : t('hint.sensor.template'),
     );
   }
 

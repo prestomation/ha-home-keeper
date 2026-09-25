@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.26.0"
+PANEL_VERSION = "0.27.0b1"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -413,16 +413,34 @@ SENSOR_MODE_STATE = "state"
 # does NOT arm a fresh task (matches ``problem_sync`` "indeterminate does not
 # fabricate").
 SENSOR_MODE_AVAILABILITY = "availability"
+# ``template`` renders a Jinja template against the bound entity and arms while the
+# result is true. It is the escape hatch for a condition the other four modes cannot
+# say: ``state`` compares one string, ``threshold`` compares one number, and neither
+# can do arithmetic on a timestamp ("this sensor has not reported for 24 hours", the
+# request in #346). The template sees the same variables the declarative-companion
+# task templates see — see ``template_context.template_variables``.
+#
+# A render error is **indeterminate**, not false: it neither arms nor clears. Reading
+# a broken template as "the condition went away" would auto-complete every
+# ``clear_on_recover`` task the first time a typo shipped.
+SENSOR_MODE_TEMPLATE = "template"
 SENSOR_MODES = [
     SENSOR_MODE_USAGE,
     SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_STATE,
     SENSOR_MODE_AVAILABILITY,
+    SENSOR_MODE_TEMPLATE,
 ]
 
 # Max length of a ``state`` binding's target state. Home Assistant caps a state string
 # at 255 characters, so anything longer could never match a real entity.
 MAX_SENSOR_STATE_LEN = 255
+
+# Max length of a ``template`` binding's source. A trigger template is one boolean
+# expression, not a document, so this sits well under the 2000 a task's notes template
+# gets. It exists to stop a pasted page ending up in storage and re-rendered on every
+# pass, for every matched entity.
+MAX_SENSOR_TEMPLATE_LEN = 1000
 
 # How a usage task's meter target combines with its optional time backstop
 # (``sensor["also_every"]``): ``any`` = whichever comes first (the common

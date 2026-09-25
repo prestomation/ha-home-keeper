@@ -206,7 +206,9 @@ def _normalize_task_template(data: Any) -> dict[str, Any]:
     return result
 
 
-def normalize_declarative_companion(data: Any) -> dict[str, Any]:
+def normalize_declarative_companion(
+    data: Any, *, allow_missing_template: bool = False
+) -> dict[str, Any]:
     """Validate and normalize a declarative-companion spec.
 
     Assigns a UUID if missing (letting a caller pre-set an ``id`` for updates).
@@ -219,6 +221,12 @@ def normalize_declarative_companion(data: Any) -> dict[str, Any]:
     is a **template** for the sensor binding stamped onto each materialized task,
     with the real ``entity_id`` filled in per matching entity by the reconciler.
     Pure — no HA imports.
+
+    ``allow_missing_template`` is passed straight through to
+    :func:`models.normalize_sensor`, and only the recipe **preview** sets it — a draft
+    that has just switched to Template mode has an empty box by definition, and the
+    preview is more useful showing the match list than refusing to answer. Every path
+    that persists a spec leaves it ``False``.
     """
     if not isinstance(data, dict):
         raise DeclarativeCompanionValidationError(
@@ -235,7 +243,11 @@ def normalize_declarative_companion(data: Any) -> dict[str, Any]:
     enabled = data.get("enabled")
     enabled = True if enabled is None else bool(enabled)
     selection = _normalize_selection(data.get("selection"))
-    trigger = models.normalize_sensor(data.get("trigger"), allow_missing_entity=True)
+    trigger = models.normalize_sensor(
+        data.get("trigger"),
+        allow_missing_entity=True,
+        allow_missing_template=allow_missing_template,
+    )
     task_template = _normalize_task_template(data.get("task_template"))
     # ``per_entity_overrides`` is a reserved v1 field — the panel UI is deferred, but
     # the slot exists on-disk so a follow-up doesn't need a storage migration.

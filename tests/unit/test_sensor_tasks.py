@@ -821,6 +821,169 @@ def test_availability_dormant_missing_never_arms():
     }
 
 
+# ── template mode ────────────────────────────────────────────────────────────
+def _template(
+    source="{{ (now() - as_datetime(state)) >= timedelta(hours=24) }}",
+    *,
+    armed=False,
+    for_seconds=0,
+    clear_on_recover=False,
+):
+    sensor = {
+        "entity_id": "sensor.hub_last_seen",
+        "mode": "template",
+        "template": source,
+    }
+    if for_seconds:
+        sensor["for_seconds"] = for_seconds
+    if clear_on_recover:
+        sensor["clear_on_recover"] = True
+    return {
+        "recurrence_type": "sensor",
+        "sensor": sensor,
+        "next_due": dt(2026, 1, 1).isoformat() if armed else None,
+    }
+
+
+def test_template_arms_on_a_true_render_with_no_hold():
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_template(
+        _template(),
+        result=True,
+        condition_met_prev=False,
+        crossed_at=None,
+        now=now,
+    )
+    assert out == {
+        "action": "arm",
+        "condition_met": True,
+        # Consumed by the arm, so a template that stays true does not re-arm.
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+
+
+def test_template_does_not_rearm_while_it_stays_true():
+    # The condition being true is not the signal — becoming true is. A task the user
+    # completed must not reopen on the next pass just because nothing changed.
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_template(
+        _template(),
+        result=True,
+        condition_met_prev=True,
+        crossed_at=None,
+        now=now,
+    )
+    assert out["action"] is None
+    assert out["condition_met"] is True
+
+
+def test_template_waits_for_its_hold():
+    crossed = dt(2026, 6, 1, 10)
+    task = _template(for_seconds=600)
+    early = s.evaluate_template(
+        task,
+        result=True,
+        condition_met_prev=True,
+        crossed_at=crossed,
+        now=crossed + timedelta(seconds=599),
+    )
+    assert early["action"] is None
+    assert early["crossed_at"] == crossed
+    assert early["hold_due_at"] == crossed + timedelta(seconds=600)
+    late = s.evaluate_template(
+        task,
+        result=True,
+        condition_met_prev=True,
+        crossed_at=crossed,
+        now=crossed + timedelta(seconds=600),
+    )
+    assert late["action"] == "arm"
+
+
+def test_template_clears_on_recover_when_armed():
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_template(
+        _template(armed=True, clear_on_recover=True),
+        result=False,
+        condition_met_prev=True,
+        crossed_at=None,
+        now=now,
+    )
+    assert out["action"] == "clear"
+    assert out["condition_met"] is False
+
+
+def test_template_keeps_an_armed_task_when_auto_clear_is_off():
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_template(
+        _template(armed=True),
+        result=False,
+        condition_met_prev=True,
+        crossed_at=None,
+        now=now,
+    )
+    assert out["action"] is None
+    assert out["condition_met"] is False
+
+
+def test_template_that_did_not_render_never_clears_an_armed_task():
+    # The dangerous half of the indeterminate rule. Reading a broken template as "the
+    # condition went away" would complete every clear_on_recover task a recipe made,
+    # across every entity it matched, and the completions would look like real ones.
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_template(
+        _template(armed=True, clear_on_recover=True),
+        result=None,
+        condition_met_prev=True,
+        crossed_at=None,
+        now=now,
+    )
+    assert out == {
+        "action": None,
+        # The carried answer survives: no reading is not a recovery.
+        "condition_met": True,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+
+
+def test_template_that_did_not_render_never_arms_a_dormant_task():
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_template(
+        _template(),
+        result=None,
+        condition_met_prev=False,
+        crossed_at=None,
+        now=now,
+    )
+    assert out == {
+        "action": None,
+        "condition_met": False,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+
+
+def test_template_that_did_not_render_ends_a_pending_hold():
+    # Time with no render is not time the condition was true. Banking it would arm the
+    # task the moment the template rendered again, whatever the hold said (#336).
+    crossed = dt(2026, 6, 1, 10)
+    out = s.evaluate_template(
+        _template(for_seconds=600),
+        result=None,
+        condition_met_prev=True,
+        crossed_at=crossed,
+        now=crossed + timedelta(seconds=300),
+    )
+    assert out == {
+        "action": None,
+        "condition_met": False,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+
+
 # ── the hold's own timer (a hold ends while the entity is quiet) ─────────────
 
 
@@ -840,6 +1003,7 @@ def test_the_fingerprint_reads_the_keys_that_state_the_condition():
         ">",
         90,
         None,
+        None,
     )
     tank = _state("on")
     assert s.condition_fingerprint(tank) == (
@@ -849,6 +1013,17 @@ def test_the_fingerprint_reads_the_keys_that_state_the_condition():
         None,
         None,
         "on",
+        None,
+    )
+    stale = _template("{{ state != 'ok' }}")
+    assert s.condition_fingerprint(stale) == (
+        "sensor.hub_last_seen",
+        None,
+        "template",
+        None,
+        None,
+        None,
+        "{{ state != 'ok' }}",
     )
 
 
@@ -863,6 +1038,13 @@ def test_the_fingerprint_changes_with_every_part_of_the_condition():
         _state("on"),  # a different mode entirely
     ):
         assert s.condition_fingerprint(changed) != s.condition_fingerprint(base)
+    # A template binding keeps its whole condition in one string, and no other field
+    # moves with it. Leave `template` out of the fingerprint and every edit to it is
+    # invisible, so a task stays dormant against the question the user stopped asking.
+    edited = _template("{{ state != 'ok' }}")
+    assert s.condition_fingerprint(edited) != s.condition_fingerprint(
+        _template("{{ state == 'ok' }}")
+    )
     moved = _threshold(">", 90)
     moved["sensor"]["entity_id"] = "sensor.another"
     assert s.condition_fingerprint(moved) != s.condition_fingerprint(base)
@@ -886,6 +1068,7 @@ def test_the_fingerprint_of_a_task_with_no_binding_is_still_comparable():
     # A task that stopped being a sensor task has no condition. It must not raise:
     # the watcher fingerprints whatever it is handed.
     assert s.condition_fingerprint({"recurrence_type": "floating"}) == (
+        None,
         None,
         None,
         None,
@@ -1087,6 +1270,7 @@ def test_holds_edge_state_is_true_for_every_rising_edge_mode():
     assert s.holds_edge_state("threshold") is True
     assert s.holds_edge_state("state") is True
     assert s.holds_edge_state("availability") is True
+    assert s.holds_edge_state("template") is True
 
 
 def test_holds_edge_state_is_false_for_a_usage_meter():

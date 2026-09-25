@@ -769,5 +769,21 @@
   "part.low": "Baixo",
   "part.reorderAt": "Reabastecer em {n}",
   "toast.stockSet": "Estoque definido para {n}",
-  "transfer.tooLarge": "Este documento está acima do limite de {mb} MB do painel. Divida-o em arquivos menores, ou use o serviço home_keeper.import_data para documentos de até {max} MB."
+  "transfer.tooLarge": "Este documento está acima do limite de {mb} MB do painel. Divida-o em arquivos menores, ou use o serviço home_keeper.import_data para documentos de até {max} MB.",
+  "declarative.companions.chip_due_now": "Vence agora",
+  "declarative.companions.chip_error": "Erro",
+  "declarative.companions.chip_monitored": "Monitorado",
+  "declarative.companions.field_template": "Modelo do gatilho (Jinja)",
+  "declarative.companions.preview_summary_due": "Mostrando {shown} de {total} correspondências. {due} delas estão pendentes agora.",
+  "declarative.companions.preview_template_error": "O modelo não é processado: {error}. Corrija antes de salvar.",
+  "declarative.companions.template_trigger_help": "A tarefa fica aberta enquanto isto resultar em verdadeiro. Disponível: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "declarative.companions.trigger_mode.template": "Modelo",
+  "field.sensor_template": "Modelo do gatilho (Jinja)",
+  "help.sensor_template": "A tarefa vence enquanto este modelo resultar em verdadeiro. Disponível: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "hint.sensor.template": "A tarefa vence enquanto o modelo for verdadeiro.",
+  "hint.sensor.templateFor": "A tarefa vence quando o modelo continua verdadeiro por {seconds}s.",
+  "opt.sensor_mode.template": "Modelo",
+  "recurrence.sensorTemplate": "Quando o modelo for verdadeiro",
+  "declarative.companions.preview_template_empty": "Escreva um modelo para ver quais entidades estão pendentes.",
+  "declarative.companions.preview_summary_undecided": "Mostrando {shown} de {total} correspondências. O modelo não pôde ser processado."
 }

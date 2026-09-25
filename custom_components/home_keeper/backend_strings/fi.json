@@ -14,5 +14,7 @@
   "declarative_preset.device_pulse.description": "Seuraa Device Pulse -integraatiosi laitekohtaisia ping-sensoreita ja avaa tehtävän jokaiselle laitteelle, joka on epäonnistunut pingaamisessa yli tunnin. Vaatii Device Pulse -integraation.",
   "declarative_preset.firmware_update_available.name": "Laiteohjelmistopäivitys saatavilla",
   "declarative_preset.firmware_update_available.description": "Seuraa jokaista päivitysentiteettiä (UniFi, ESPHome, HACS, kamerat, tulostimet jne.) ja avaa tehtävän uuden version asentamiseksi.",
+  "declarative_preset.device_stopped_reporting.name": "Laite on hiljentynyt",
+  "declarative_preset.device_stopped_reporting.description": "Valvoo kaikkia viimeksi nähty -antureita ja avaa tehtävän jokaiselle laitteelle, joka ei ole raportoinut 24 tuntiin. Etsi sillä Zigbee- tai Z-Wave-laitteet, jotka ovat pudonneet verkosta.",
   "declarative_task.completion_prompt": "Avattu reseptillä ”{name}”. Home Keeper suorittaa tämän tehtävän automaattisesti, kun ehto poistuu, joten sitä ei voi merkitä valmiiksi käsin."
 }

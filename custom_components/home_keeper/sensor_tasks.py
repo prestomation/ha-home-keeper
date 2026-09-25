@@ -62,6 +62,7 @@ from .const import (
     SENSOR_COMBINATOR_ALL,
     SENSOR_MODE_AVAILABILITY,
     SENSOR_MODE_STATE,
+    SENSOR_MODE_TEMPLATE,
     SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_USAGE,
 )
@@ -77,7 +78,12 @@ ACTION_CLEAR = "clear"
 # The modes whose decision needs carried edge state (was the condition true last
 # tick, when did it cross). ``usage`` is the odd one out: it compares the live
 # reading against a persisted ``baseline``, so it carries no edge at all.
-_EDGE_MODES = (SENSOR_MODE_THRESHOLD, SENSOR_MODE_STATE, SENSOR_MODE_AVAILABILITY)
+_EDGE_MODES = (
+    SENSOR_MODE_THRESHOLD,
+    SENSOR_MODE_STATE,
+    SENSOR_MODE_AVAILABILITY,
+    SENSOR_MODE_TEMPLATE,
+)
 
 
 def holds_edge_state(mode: Any) -> bool:
@@ -430,6 +436,11 @@ def condition_fingerprint(task: dict[str, Any]) -> tuple[Any, ...]:
         cfg.get("comparison"),
         cfg.get("value"),
         cfg.get("state"),
+        # A ``template`` binding keeps its whole condition in this one string, so
+        # leaving it out would make every template edit invisible here — exactly the
+        # "below 20%" to "below 50%" bug the docstring describes, with no other field
+        # changing to cover for it.
+        cfg.get("template"),
     )
 
 
@@ -668,6 +679,47 @@ def evaluate_availability(
         task,
         cfg,
         met=status == AVAILABILITY_UNAVAILABLE,
+        condition_met_prev=condition_met_prev,
+        crossed_at=crossed_at,
+        now=now,
+    )
+
+
+def evaluate_template(
+    task: dict[str, Any],
+    *,
+    result: bool | None,
+    condition_met_prev: bool,
+    crossed_at: datetime | None,
+    now: datetime,
+) -> dict[str, Any]:
+    """Decide the action for a ``template`` task and return the next edge state.
+
+    The condition is simply *result* — the rendered template, already read as a
+    boolean by the caller (``sensor_watcher.read_template_result``). Keeping the
+    render on the HA-bound side is what lets this module stay pure and unit-testable:
+    the decision here is the same edge/hold machinery the other modes use, and only
+    the way *met* was computed differs. See :func:`_evaluate_edge` for the returned
+    shape.
+
+    ``result`` is ``None`` when the template could not be rendered, or when what it
+    rendered is not a boolean. That is **indeterminate**, the policy
+    :func:`evaluate_state` applies to a missing entity: it decides nothing and it ends
+    a pending hold (see :func:`_evaluate_indeterminate`). Reading a broken template as
+    "the condition went away" is the dangerous half — it would auto-complete every
+    ``clear_on_recover`` task the first time a typo shipped, across every entity the
+    recipe matched, and the completions would look like real ones.
+    """
+    cfg = sensor_config(task)
+    assert cfg is not None
+    if result is None:
+        return _evaluate_indeterminate(
+            condition_met_prev=condition_met_prev, crossed_at=crossed_at
+        )
+    return _evaluate_edge(
+        task,
+        cfg,
+        met=result,
         condition_met_prev=condition_met_prev,
         crossed_at=crossed_at,
         now=now,

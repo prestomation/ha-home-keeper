@@ -749,5 +749,21 @@
   "part.low": "Low",
   "part.reorderAt": "Reorder at {n}",
   "toast.stockSet": "Stock set to {n}",
-  "transfer.tooLarge": "This document is over the panel's {mb} MB limit. Split it into smaller files, or use the home_keeper.import_data service for documents up to {max} MB."
+  "transfer.tooLarge": "This document is over the panel's {mb} MB limit. Split it into smaller files, or use the home_keeper.import_data service for documents up to {max} MB.",
+  "declarative.companions.chip_due_now": "Due now",
+  "declarative.companions.chip_error": "Error",
+  "declarative.companions.chip_monitored": "Monitored",
+  "declarative.companions.field_template": "Trigger template (Jinja)",
+  "declarative.companions.preview_summary_due": "Showing {shown} of {total} matches. {due} of these are due now.",
+  "declarative.companions.preview_template_error": "The template does not render: {error}. Fix it before you save.",
+  "declarative.companions.template_trigger_help": "The task opens while this renders true. Available: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "declarative.companions.trigger_mode.template": "Template",
+  "field.sensor_template": "Trigger template (Jinja)",
+  "help.sensor_template": "The task becomes due while this template renders true. Available: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "hint.sensor.template": "The task becomes due while the template is true.",
+  "hint.sensor.templateFor": "The task becomes due when the template stays true for {seconds}s.",
+  "opt.sensor_mode.template": "Template",
+  "recurrence.sensorTemplate": "When the template is true",
+  "declarative.companions.preview_template_empty": "Write a template to see which entities are due.",
+  "declarative.companions.preview_summary_undecided": "Showing {shown} of {total} matches. The template did not render."
 }

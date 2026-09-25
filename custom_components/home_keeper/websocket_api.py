@@ -14,6 +14,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import Unauthorized
 from homeassistant.util import dt as dt_util
 
 from . import (
@@ -27,7 +28,7 @@ from . import (
 )
 from .assets import AssetValidationError, card_projection
 from .backend_i18n import resolve_exception
-from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES
+from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES, SENSOR_MODE_TEMPLATE
 from .coordinator import (
     HomeKeeperCoordinator,
     entity_set_key,
@@ -85,6 +86,26 @@ def _area_ok(
         return True
     _err(hass, connection, msg, "invalid_area", "unknown_area", area_id=area_id)
     return False
+
+
+def _check_template_binding(
+    connection: websocket_api.ActiveConnection, payload: dict
+) -> None:
+    """Refuse a ``template``-mode sensor binding from a non-admin connection.
+
+    The websocket twin of ``_verify_template_binding`` in ``__init__.py``. These task
+    commands are open to every signed-in user, like the services, but Home Keeper
+    renders a template binding, and Jinja reaches registry helpers a non-admin cannot
+    otherwise enumerate. So only the mode is admin-only. Home Assistant answers the
+    raised ``Unauthorized`` with the ``unauthorized`` error code.
+    """
+    sensor = payload.get("sensor")
+    if (
+        isinstance(sensor, dict)
+        and sensor.get("mode") == SENSOR_MODE_TEMPLATE
+        and not connection.user.is_admin
+    ):
+        raise Unauthorized
 
 
 # The three-argument shape Home Assistant calls a command with, and the
@@ -255,6 +276,7 @@ async def ws_add_task(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
+    _check_template_binding(connection, msg["task"])
     if not _area_ok(hass, connection, msg, msg["task"]):
         return
     task = await coord.store.add_task(msg["task"])
@@ -281,6 +303,7 @@ async def ws_update_task(
     msg: dict[str, Any],
     coord: HomeKeeperCoordinator,
 ) -> None:
+    _check_template_binding(connection, msg["updates"])
     if not _area_ok(hass, connection, msg, msg["updates"]):
         return
     before = entity_set_key(coord.store.get_task(msg["task_id"]))
@@ -1415,6 +1438,7 @@ async def ws_list_declarative_presets(
         vol.Required("companion"): dict,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 async def ws_preview_declarative_companion(
     hass: HomeAssistant,
@@ -1425,9 +1449,25 @@ async def ws_preview_declarative_companion(
 
     The panel's Add/Edit dialog polls this on debounce so the user sees "matches
     out of N" as they narrow the selection. Never writes — read-only introspection
-    over the current entity registry. Malformed specs return the pure validator's
-    error; the 500-match hard cap surfaces as an ``over_cap`` result the panel
-    renders as a red banner.
+    over the current entity registry. The 500-match hard cap surfaces as an
+    ``over_cap`` result the panel renders as a red banner.
+
+    **Admin-only, and it has to be.** "Read-only" stopped being the whole story when a
+    draft spec grew a ``template`` trigger: this command takes caller-supplied Jinja
+    and renders it against the registries, then hands back the answer. That is a
+    general-purpose template oracle, and ``__init__._verify_template_binding`` gates
+    the same power on ``add_task`` for exactly that reason — ``device_attr``,
+    ``area_id`` and ``integration_entities`` reach things a non-admin cannot otherwise
+    enumerate. The panel is ``require_admin`` already, so no user loses a surface; this
+    closes the websocket that walked around it. The name and notes templates were
+    rendered here before the trigger was, so part of this is older than that mode.
+
+    ``api_surface.py`` carries the matching ``admin_only=True`` and
+    ``tests/unit/test_api_surface.py`` fails if the two drift apart.
+
+    A blank ``template`` is deliberately **not** an error here: the preview normalizes
+    with ``allow_missing_template=True`` so the match list still renders while the user
+    is writing one. Saving it still fails, in ``models.normalize_sensor``.
     """
     from . import declarative_companions as dc  # avoid an import cycle at top
 
@@ -1436,8 +1476,11 @@ async def ws_preview_declarative_companion(
         _not_loaded(hass, connection, msg)
         return
     try:
-        # Normalize the draft so bad input fails the same way an add would.
-        spec = dc.normalize_declarative_companion(msg["companion"])
+        # Normalize the draft so bad input fails the same way an add would — except
+        # for the one field a draft is expected to be part-way through.
+        spec = dc.normalize_declarative_companion(
+            msg["companion"], allow_missing_template=True
+        )
     except TaskValidationError as err:
         _err(
             hass,

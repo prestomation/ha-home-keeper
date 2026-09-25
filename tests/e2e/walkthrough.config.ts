@@ -45,6 +45,13 @@ export default captureConfig('walkthrough.capture.ts', {
   //     #303 search  +4    #302 notification icons  +3    #309 import/export  +14
   //     #318 due today  +4    #321 counted wear  +7    #333 guide split  +0
   //     #362 note chip  +5
+  //     #346 template trigger  +6
+  //
+  // Re-measured for #346, which added 6 beats for the template trigger:
+  // **216s in the dev container**, against a 360s cap — a 67% margin, so the cap
+  // stays where it is. That is the whole of what a raise bought: the next tour to
+  // outgrow it still pays by shortening the walk, because the note above about the
+  // 30-minute job cap has not changed.
   //
   // 32 beats at 900ms is ~29s, and the interactions alongside them cover the rest.
   // Every one was correct under the gate that requires a new surface to appear in the

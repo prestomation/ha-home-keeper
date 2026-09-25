@@ -8,8 +8,10 @@ its target), and cleared again when the task is completed. Driving a real
 subscription + evaluation path that the pure unit tests can't.
 """
 
+import importlib.util
 import time
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from conftest import HA_URL, call_service, get_state
 
@@ -1063,3 +1065,240 @@ def test_a_state_mode_task_records_no_reading(ha):
         assert "reading" not in task["completions"][0]
     finally:
         _delete(ha, task_id)
+
+
+# ── template mode, end to end through the watcher ───────────────────────────
+# The unit tests pin `evaluate_template`'s decision table with a mocked reading. What
+# they cannot see is the half that lives in Home Assistant: whether a template that
+# raises really reaches the evaluator as "indeterminate" rather than as False. That is
+# the #183 argument — a unit test mocks the framework and cannot watch the contract
+# change — and it matters more here than anywhere else in the feature, because reading
+# a broken template as False auto-completes every `clear_on_recover` task a recipe
+# made.
+
+
+def test_a_template_task_arms_on_a_real_state_change(ha):
+    _set_flag(ha, False)
+    task_id = _add_sensor_task(
+        ha,
+        {"entity_id": TANK, "mode": "template", "template": "{{ state == 'on' }}"},
+    )
+    try:
+        task = _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        assert task["next_due"] is None
+        assert task["sensor"]["template"] == "{{ state == 'on' }}"
+
+        _set_flag(ha, True)
+        armed = _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+        assert armed["next_due"] is not None
+    finally:
+        _delete(ha, task_id)
+        _set_flag(ha, False)
+
+
+def test_a_broken_template_never_completes_an_armed_auto_clearing_task(ha):
+    """The dangerous half of the indeterminate contract, through the real stack.
+
+    Arm the task, then break the template, then move the bound entity so the watcher
+    re-evaluates. A template that raises must decide nothing: if it read as False, the
+    binding's `clear_on_recover` would complete the task and the completion would look
+    like a real one, on every entity a recipe matched.
+    """
+    _set_flag(ha, False)
+    task_id = _add_sensor_task(
+        ha,
+        {
+            "entity_id": TANK,
+            "mode": "template",
+            "template": "{{ state == 'on' }}",
+            "clear_on_recover": True,
+        },
+    )
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _set_flag(ha, True)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+
+        # `stat` is undefined, so the render raises rather than returning a boolean.
+        call_service(
+            ha,
+            "home_keeper",
+            "update_task",
+            {
+                "task_id": task_id,
+                "sensor": {
+                    "entity_id": TANK,
+                    "mode": "template",
+                    "template": "{{ stat == 'on' }}",
+                    "clear_on_recover": True,
+                },
+            },
+        )
+        # Two state changes, so the watcher evaluates the broken template twice — once
+        # while the old condition was true and once while it was false. Neither may
+        # complete the task.
+        _set_flag(ha, False)
+        _set_flag(ha, True)
+        time.sleep(3)
+
+        still = _get_task(ha, task_id)
+        assert still["next_due"] is not None, (
+            "a template that does not render completed an armed task"
+        )
+        assert not still.get("completions"), (
+            "a template that does not render recorded a completion"
+        )
+    finally:
+        _delete(ha, task_id)
+        _set_flag(ha, False)
+
+
+def test_the_stopped_reporting_preset_keeps_its_task_open_when_the_device_drops(ha):
+    """The shipped preset, on the case it exists for.
+
+    A Zigbee2MQTT device that drops off the mesh makes its ``_last_seen`` sensor
+    ``unavailable``. An earlier version of the preset guarded on that state, which
+    rendered false, and ``clear_on_recover`` then completed the open task. The
+    template must fail to render there instead, which decides nothing.
+    """
+    # Read from the component source, so the test covers the template that ships.
+    # ``declarative_presets.py`` imports only ``typing``, so it loads by path.
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "home_keeper"
+        / "declarative_presets.py"
+    )
+    spec = importlib.util.spec_from_file_location("hk_presets_for_watcher", path)
+    assert spec and spec.loader
+    presets = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(presets)
+    trigger = presets.preset_by_id("device_stopped_reporting")["default_spec"][
+        "trigger"
+    ]
+    probe = "sensor.hk_probe_last_seen"
+    quiet_since = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+    ha.post(
+        f"{HA_URL}/api/states/{probe}", json={"state": quiet_since}
+    ).raise_for_status()
+    task_id = _add_sensor_task(ha, {"entity_id": probe, **trigger})
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+
+        _force_unavailable(ha, probe)
+        ha.post(f"{HA_URL}/api/states/{probe}", json={"state": "unknown"})
+        time.sleep(3)
+
+        still = _require_task(ha, task_id)
+        assert still["next_due"] is not None, (
+            "the preset closed its task when the device went unavailable"
+        )
+        assert not still.get("completions"), (
+            "the preset recorded a completion for a device that went unavailable"
+        )
+    finally:
+        _delete(ha, task_id)
+        ha.delete(f"{HA_URL}/api/states/{probe}")
+
+
+def test_a_repaired_template_still_clears_the_task(ha):
+    # The mirror of the test above: indeterminate must not be a one-way door. Once the
+    # template renders again and reads false, auto-clear does its job.
+    _set_flag(ha, False)
+    good = {
+        "entity_id": TANK,
+        "mode": "template",
+        "template": "{{ state == 'on' }}",
+        "clear_on_recover": True,
+    }
+    task_id = _add_sensor_task(ha, good)
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _set_flag(ha, True)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+
+        call_service(
+            ha,
+            "home_keeper",
+            "update_task",
+            {"task_id": task_id, "sensor": {**good, "template": "{{ stat == 'on' }}"}},
+        )
+        _set_flag(ha, False)
+        time.sleep(3)
+        assert _get_task(ha, task_id)["next_due"] is not None  # still stuck, as above
+
+        call_service(
+            ha, "home_keeper", "update_task", {"task_id": task_id, "sensor": good}
+        )
+        _set_flag(ha, True)
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+        _set_flag(ha, False)
+        cleared = _poll_task(ha, task_id, lambda t: t.get("next_due") is None)
+        assert cleared["next_due"] is None
+    finally:
+        _delete(ha, task_id)
+        _set_flag(ha, False)
+
+
+def test_a_template_that_renders_a_number_never_arms_the_task(ha):
+    """A number is not a verdict, whatever its value.
+
+    ``{{ state }}`` on a numeric sensor is the mistake a beginner makes, and it read
+    as "due" for every entity a recipe matched: the verdict went through
+    ``cv.boolean``, which maps any number to ``value != 0``. The preview drew a
+    confident green chip and no error, and with ``clear_on_recover`` the task would
+    only ever close if the reading happened to land on exactly zero.
+
+    The same template also changed regime under the old reader: the moment the entity
+    reported ``unavailable`` the value became a string it did not recognise, so the
+    task went indeterminate instead. One template, three answers.
+    """
+    _set_meter(ha, 1000)
+    task_id = _add_sensor_task(
+        ha, {"entity_id": METER, "mode": "template", "template": "{{ state }}"}
+    )
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _set_meter(ha, 1100)
+        time.sleep(3)
+        assert _get_task(ha, task_id)["next_due"] is None, (
+            "a template that rendered a number armed the task"
+        )
+        # Zero is not a verdict either — reading it as False was the other half of the
+        # same wrong answer.
+        _set_meter(ha, 0)
+        time.sleep(3)
+        assert _get_task(ha, task_id)["next_due"] is None
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)
+
+
+def test_a_template_rendering_a_true_or_false_word_still_decides(ha):
+    """The words Home Assistant uses for a yes/no answer keep working.
+
+    Only the numbers went. A template that renders ``on`` is answering the question
+    that was asked, and `{% if %}` templates produce exactly these strings.
+    """
+    _set_meter(ha, 0)
+    task_id = _add_sensor_task(
+        ha,
+        {
+            "entity_id": METER,
+            "mode": "template",
+            "template": "{{ 'on' if state | float(0) > 50 else 'off' }}",
+            "clear_on_recover": True,
+        },
+    )
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _set_meter(ha, 100)
+        armed = _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+        assert armed["next_due"] is not None
+
+        _set_meter(ha, 0)
+        cleared = _poll_task(ha, task_id, lambda t: t.get("next_due") is None)
+        assert cleared["next_due"] is None
+    finally:
+        _delete(ha, task_id)
+        _set_meter(ha, 0)

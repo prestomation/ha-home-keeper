@@ -14,5 +14,7 @@
   "declarative_preset.device_pulse.description": "Övervakar ping-sensorerna per enhet från din Device Pulse-integration och öppnar en uppgift för varje enhet som har missat pingar i mer än en timme. Kräver Device Pulse-integrationen.",
   "declarative_preset.firmware_update_available.name": "Firmware-uppdatering tillgänglig",
   "declarative_preset.firmware_update_available.description": "Övervakar varje uppdateringsentitet (UniFi, ESPHome, HACS, kameror, skrivare osv.) och öppnar en uppgift för att installera den nya versionen.",
+  "declarative_preset.device_stopped_reporting.name": "Enhet har tystnat",
+  "declarative_preset.device_stopped_reporting.description": "Bevakar alla senast sedd-sensorer och öppnar en uppgift för varje enhet som inte har hört av sig på 24 timmar. Använd den för att hitta de Zigbee- eller Z-Wave-enheter som har fallit ur nätet.",
   "declarative_task.completion_prompt": "Öppnad av receptet ”{name}”. Home Keeper slutför denna uppgift automatiskt när villkoret försvinner, så den kan inte slutföras manuellt."
 }

@@ -2012,6 +2012,19 @@ export const STYLES = `
   }
   .hk-decl-preview-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .hk-decl-preview-row:last-child { border-bottom: none; }
+  /* A template trigger's rows carry a verdict chip between the text and the Exclude
+     button. The chip does not shrink or wrap, so on a phone the task name wraps under
+     itself in the flexible text block and the chip stays in view. */
+  .hk-decl-chip {
+    flex: none;
+    font-size: 0.72rem; font-weight: 500; border-radius: var(--hk-r-pill);
+    padding: 2px 10px; white-space: nowrap;
+  }
+  .hk-decl-chip.due { background: var(--hk-accent-soft); color: var(--hk-accent-ink); }
+  .hk-decl-chip.quiet {
+    background: color-mix(in srgb, var(--hk-ink) 8%, transparent); color: var(--hk-ink-2);
+  }
+  .hk-decl-chip.bad { background: var(--hk-danger-soft); color: var(--hk-danger-ink); }
   .hk-decl-preview-name { font-weight: 500; }
   .hk-decl-preview-eid {
     color: var(--secondary-text-color); font-family: monospace; font-size: 0.8rem;

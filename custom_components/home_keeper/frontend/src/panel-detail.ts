@@ -145,7 +145,8 @@ function idRow(id: string | null | undefined, compact = false): string {
 /** A human-readable line for a sensor task's binding, with live progress when the
  *  bound entity's current value is known: usage shows "consumed / target (entity)";
  *  threshold shows "entity: current (cmp value)"; state shows "entity: current
- *  (= wanted)". Falls back to the binding alone when the reading is unavailable. */
+ *  (= wanted)"; template shows "entity: current (the Jinja source)". Falls back to the
+ *  binding alone when the reading is unavailable. */
 function sensorProgress(p: PanelHost, task: Task): string {
   const s = task.sensor;
   if (!s) return '';
@@ -172,6 +173,20 @@ function sensorProgress(p: PanelHost, task: Task): string {
     if (!state) return t('sensor.availabilityMissing', { entity });
     const gone = raw == null || raw === '' || raw === 'unavailable' || raw === 'unknown';
     return t(gone ? 'sensor.availabilityUnavailable' : 'sensor.availabilityAvailable', { entity });
+  }
+  // Template comes before the numeric coercion for the same reason the two above do:
+  // the condition is the Jinja source, not a number, and without a case of its own it
+  // fell through to the meter and read "Target 0 (sensor.x)" — a task described as a
+  // meter it is not. The source is shown because it *is* the whole condition; nothing
+  // else on this page says what the task is watching for.
+  if (s.mode === 'template') {
+    // Built inline rather than from a locale key, the same way `state` and `threshold`
+    // above are: the line is the entity, its reading and the condition in brackets,
+    // and there is no word in it to translate.
+    const cond = String(s.template ?? '');
+    return raw == null || raw === ''
+      ? `${entity} (${cond})`
+      : `${entity}: ${String(raw)} (${cond})`;
   }
   const reading = raw == null || raw === '' ? NaN : Number(raw);
   if (s.mode === 'threshold') {

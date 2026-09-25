@@ -52,13 +52,16 @@ import { indentGroup } from './panel-indent';
 import type {
   DeclarativeCompanion,
   DeclarativeCompanionPreset,
+  DeclarativeCompanionPreviewMatch,
   DeclarativeCompanionPreviewResult,
   Task,
 } from './types';
 import { btnAttrs, escapeHTML, setBtnWeight, toast } from './utils';
 
 /** The trigger modes the form offers, in the order the dropdown lists them. */
-const TRIGGER_MODES = ['state', 'threshold', 'usage', 'availability'] as const;
+// `template` goes last on purpose. The four above it each answer one plain question,
+// and a user who wants one of those must not have to read past Jinja to find it.
+const TRIGGER_MODES = ['state', 'threshold', 'usage', 'availability', 'template'] as const;
 const COMPARISONS = ['>=', '<=', '>', '<', '==', '!='] as const;
 /** The domains the entity-domain picker suggests; any other value can be typed. */
 const DOMAINS = ['binary_sensor', 'sensor', 'update', 'switch', 'number'] as const;
@@ -82,13 +85,17 @@ export type Trigger = Record<string, unknown> & { mode?: string };
  * `usage` drops `for_seconds` and `clear_on_recover`: a meter has no condition to
  * hold or to recover from, and `normalize_sensor` reads neither in that mode.
  * `availability` drops `attribute`, because the form offers no attribute box there,
- * and a carried-over one would be a setting nobody can see or clear.
+ * and a carried-over one would be a setting nobody can see or clear. `template` drops
+ * it for a stronger reason: `normalize_sensor` rejects an attribute in that mode,
+ * because a template reads `attributes.<key>` itself and a second, invisible hop
+ * would change what `{{ state }}` means inside it.
  */
 const TRIGGER_KEYS_BY_MODE: Record<string, readonly string[]> = {
   usage: ['attribute', 'target', 'baseline', 'unit', 'also_every', 'combinator'],
   threshold: ['attribute', 'comparison', 'value', 'for_seconds', 'clear_on_recover'],
   state: ['attribute', 'state', 'for_seconds', 'clear_on_recover'],
   availability: ['for_seconds', 'clear_on_recover'],
+  template: ['template', 'for_seconds', 'clear_on_recover'],
 };
 
 /** Kept whatever the mode is. A spec's trigger normally omits `entity_id` — the
@@ -106,6 +113,10 @@ const TRIGGER_DEFAULTS: Record<string, Record<string, unknown>> = {
   threshold: { comparison: '>=', clear_on_recover: true },
   state: { state: 'on', clear_on_recover: true },
   availability: { clear_on_recover: true },
+  // No default `template`: it is genuinely the user's to write, and an empty
+  // required box says so. `clear_on_recover` follows the other edge modes, so a
+  // recipe's tasks close themselves when the condition goes away.
+  template: { clear_on_recover: true },
 };
 
 /**
@@ -493,13 +504,18 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     );
   };
 
-  // Every field is labelled from its own key rather than `field.<name>`, and the
-  // one helper is the template vocabulary under the notes template.
+  // Every field is labelled from its own key rather than `field.<name>`. Two fields
+  // carry a helper, and both say what a template can read: the notes template, and
+  // the trigger template, which sees the same vocabulary.
+  const HELPERS: Record<string, string> = {
+    notes_template: 'declarative.companions.template_help',
+    template: 'declarative.companions.template_trigger_help',
+  };
   const labelling = {
     computeLabel: (s: { name: string }): string =>
       s.name ? t('declarative.companions.field_' + s.name) : '',
     computeHelper: (s: { name: string }): string =>
-      s.name === 'notes_template' ? t('declarative.companions.template_help') : '',
+      s.name in HELPERS ? t(HELPERS[s.name]) : '',
   };
   // Each section is its own `ha-form` (one heading between two fields is only
   // reachable by splitting the schema) and carries `data-decl-section` so a test can
@@ -699,6 +715,11 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   if (mode === 'usage') {
     triggerSchema.push({ name: 'target', required: true, selector: selNumber(0, 'any') });
   }
+  // Multiline, like the notes template: a trigger template is one expression, but it
+  // runs long, and a single-line box hides its own tail.
+  if (mode === 'template') {
+    triggerSchema.push({ name: 'template', required: true, selector: selText(true) });
+  }
   // A hold and an auto-clear belong to the edge-driven modes only; a usage meter has
   // no condition to hold or recover from, and `normalize_sensor` reads neither there.
   if (mode !== 'usage') {
@@ -707,7 +728,11 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       { name: 'clear_on_recover', selector: selBool() },
     );
   }
-  if (mode !== 'availability') triggerSchema.push({ name: 'attribute', selector: selText() });
+  // `template` joins `availability` in offering no attribute box: the backend rejects
+  // one there, and a template reads `attributes.<key>` itself.
+  if (mode !== 'availability' && mode !== 'template') {
+    triggerSchema.push({ name: 'attribute', selector: selText() });
+  }
   section(
     'trigger',
     triggerSchema,
@@ -717,6 +742,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       comparison: trig.comparison ?? '>=',
       value: trig.value,
       target: trig.target,
+      template: trig.template,
       for_seconds: trig.for_seconds ?? 0,
       clear_on_recover: trig.clear_on_recover !== false,
       attribute: trig.attribute,
@@ -728,6 +754,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       if ('comparison' in v) trig.comparison = String(v.comparison ?? '>=');
       if ('value' in v) trig.value = num(v.value);
       if ('target' in v) trig.target = num(v.target);
+      if ('template' in v) trig.template = String(v.template ?? '');
       if ('for_seconds' in v) trig.for_seconds = num(v.for_seconds) ?? 0;
       if ('clear_on_recover' in v) trig.clear_on_recover = v.clear_on_recover !== false;
       if ('attribute' in v) {
@@ -820,7 +847,15 @@ async function refreshPreview(
       p._declarativeCompanions,
       draft.id,
     );
-    host.innerHTML = previewHtml(result, overlap, draft.selection.exclude_entity_ids ?? []);
+    const trig = (draft.trigger ?? {}) as Trigger;
+    const pendingTemplate =
+      trig.mode === 'template' && !String(trig.template ?? '').trim();
+    host.innerHTML = previewHtml(
+      result,
+      overlap,
+      draft.selection.exclude_entity_ids ?? [],
+      pendingTemplate,
+    );
     host.querySelectorAll<HTMLElement>('[data-toggle-entity]').forEach((b) =>
       b.addEventListener('click', () => onToggle(b.dataset.toggleEntity ?? '')),
     );
@@ -862,11 +897,17 @@ function excludedHtml(excluded: readonly string[]): string {
 }
 
 /** The preview's HTML: the count line, the warnings, the sample, and the entities
- *  excluded one by one. */
-function previewHtml(
+ *  excluded one by one.
+ *
+ * `pendingTemplate` says the draft is on Template mode with an empty box — a form the
+ * user has not filled in yet, not a mistake. The backend sends no verdict for those
+ * rows, so the sample still says what the recipe matches while the hint says what is
+ * missing. */
+export function previewHtml(
   result: DeclarativeCompanionPreviewResult,
   overlap: DeclarativeOverlap | null,
-  excluded: readonly string[],
+  excluded: readonly string[] = [],
+  pendingTemplate = false,
 ): string {
   if (result.over_cap) {
     return (
@@ -892,6 +933,13 @@ function previewHtml(
           t('declarative.companions.preview_many', { count: String(count) }),
         )}</ha-alert>`
       : '';
+  // A template trigger is the one condition a user cannot check by reading it:
+  // `{{ state > 24 }}` against a string state renders false forever and opens
+  // nothing. So the backend renders it per sampled entity and each row says what it
+  // got. The other modes send `null` for every row and draw no chip at all.
+  const verdicts = result.matched.some(
+    (m) => m.trigger_now != null || m.trigger_error != null,
+  );
   const rows = result.matched
     .map(
       (m) => `
@@ -900,20 +948,70 @@ function previewHtml(
             <div class="hk-decl-preview-name">${escapeHTML(m.rendered_name)}</div>
             <div class="hk-decl-preview-eid">${escapeHTML(m.entity_id)}</div>
           </div>
+          ${verdicts ? verdictChip(m) : ''}
           ${toggleButton(m.entity_id, false)}
         </div>`,
     )
     .join('');
+  // One alert for the whole sample rather than one per row: a broken template is
+  // broken for every entity, and ten copies of the same Jinja error is noise.
+  const failed = result.matched.find((m) => m.trigger_error);
+  const firing = result.matched.filter((m) => m.trigger_now === true).length;
+  // A template that did not render decided nothing, so the header must not report a
+  // count. "Due now: 0" beside a red Jinja error reads as "nothing is due", which is
+  // the one thing the render did not say.
   const summary = escapeHTML(
-    t('declarative.companions.preview_summary', {
-      shown: String(result.matched.length),
-      total: String(count),
-    }),
+    failed
+      ? t('declarative.companions.preview_summary_undecided', {
+          shown: String(result.matched.length),
+          total: String(count),
+        })
+      : verdicts
+        ? t('declarative.companions.preview_summary_due', {
+            shown: String(result.matched.length),
+            total: String(count),
+            due: String(firing),
+          })
+        : t('declarative.companions.preview_summary', {
+            shown: String(result.matched.length),
+            total: String(count),
+          }),
   );
+  const templateError = failed
+    ? `<ha-alert alert-type="error" class="hk-decl-template-error">${escapeHTML(
+        t('declarative.companions.preview_template_error', {
+          error: String(failed.trigger_error),
+        }),
+      )}</ha-alert>`
+    : '';
+  // An empty box is not an error, so this is `info` and it sits where the red alert
+  // would. It cannot collide with one: an empty template renders nothing, so no row
+  // carries a `trigger_error` for the backend to report.
+  const templateHint =
+    pendingTemplate && !failed
+      ? `<ha-alert alert-type="info" class="hk-decl-template-hint">${escapeHTML(
+          t('declarative.companions.preview_template_empty'),
+        )}</ha-alert>`
+      : '';
   return `
       <div class="hk-decl-preview-header">${summary}</div>
+      ${templateError}
+      ${templateHint}
       ${duplicate}
       ${warning}
       ${rows || `<div class="hk-decl-preview-empty">${escapeHTML(t('declarative.companions.preview_empty'))}</div>`}
       ${excludedHtml(excluded)}`;
+}
+
+/** The chip that says what a template trigger renders for one sampled entity. */
+export function verdictChip(match: DeclarativeCompanionPreviewMatch): string {
+  // Error first: a row that did not render has no verdict to report, and saying
+  // "Monitored" for it would read as "this is fine".
+  if (match.trigger_error) {
+    return `<span class="hk-decl-chip bad">${escapeHTML(t('declarative.companions.chip_error'))}</span>`;
+  }
+  if (match.trigger_now === true) {
+    return `<span class="hk-decl-chip due">${escapeHTML(t('declarative.companions.chip_due_now'))}</span>`;
+  }
+  return `<span class="hk-decl-chip quiet">${escapeHTML(t('declarative.companions.chip_monitored'))}</span>`;
 }

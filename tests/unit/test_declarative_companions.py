@@ -129,6 +129,25 @@ def test_normalize_trigger_allows_missing_entity_id():
     assert "entity_id" not in spec["trigger"]
 
 
+def test_normalize_passes_allow_missing_template_through():
+    """The preview reads a draft mid-typing, so an empty Jinja box is not a mistake.
+
+    The flag has to reach ``models.normalize_sensor``: dropping it on the floor here
+    would look like it worked and still fail the preview.
+    """
+    draft = _spec(trigger={"mode": "template", "template": ""})
+    spec = dc.normalize_declarative_companion(draft, allow_missing_template=True)
+    assert spec["trigger"] == {"mode": "template", "template": ""}
+
+
+def test_normalize_requires_a_template_by_default():
+    """Saving a recipe still refuses a blank template — only the preview waives it."""
+    with raises_exactly(TaskValidationError, "sensor.template is required"):
+        dc.normalize_declarative_companion(
+            _spec(trigger={"mode": "template", "template": ""})
+        )
+
+
 # ── validation-error exact messages ────────────────────────────────────────
 # Every message the panel echoes back to the user is asserted verbatim so a
 # mutation that swaps the string for ``None`` / ``XX...XX`` / uppercase is

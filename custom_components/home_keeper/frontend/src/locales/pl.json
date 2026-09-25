@@ -789,5 +789,21 @@
   "part.low": "Niski",
   "part.reorderAt": "Zamów przy {n}",
   "toast.stockSet": "Ustawiono zapas na {n}",
-  "transfer.tooLarge": "Ten dokument jest większy niż limit {mb} MB panelu. Podziel go na mniejsze pliki, lub użyj usługi home_keeper.import_data dla dokumentów do {max} MB."
+  "transfer.tooLarge": "Ten dokument jest większy niż limit {mb} MB panelu. Podziel go na mniejsze pliki, lub użyj usługi home_keeper.import_data dla dokumentów do {max} MB.",
+  "declarative.companions.chip_due_now": "Termin teraz",
+  "declarative.companions.chip_error": "Błąd",
+  "declarative.companions.chip_monitored": "Monitorowane",
+  "declarative.companions.field_template": "Szablon wyzwalacza (Jinja)",
+  "declarative.companions.preview_summary_due": "Pokazano {shown} z {total} dopasowań. {due} z nich jest do zrobienia teraz.",
+  "declarative.companions.preview_template_error": "Nie można przetworzyć szablonu: {error}. Popraw go przed zapisaniem.",
+  "declarative.companions.template_trigger_help": "Zadanie jest otwarte, dopóki to daje prawdę. Dostępne: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "declarative.companions.trigger_mode.template": "Szablon",
+  "field.sensor_template": "Szablon wyzwalacza (Jinja)",
+  "help.sensor_template": "Zadanie ma termin, dopóki ten szablon daje prawdę. Dostępne: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "hint.sensor.template": "Zadanie ma termin, dopóki szablon jest prawdziwy.",
+  "hint.sensor.templateFor": "Zadanie ma termin, gdy szablon pozostaje prawdziwy przez {seconds}s.",
+  "opt.sensor_mode.template": "Szablon",
+  "recurrence.sensorTemplate": "Gdy szablon jest prawdziwy",
+  "declarative.companions.preview_template_empty": "Napisz szablon, aby zobaczyć, które encje są do zrobienia.",
+  "declarative.companions.preview_summary_undecided": "Pokazano {shown} z {total} dopasowań. Nie udało się przetworzyć szablonu."
 }

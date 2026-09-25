@@ -49,8 +49,12 @@ const INTENTIONALLY_IDENTICAL = new Set([
 // The More filters summary (#373) is a count and a noun: "Exclusions" is the French
 // and Catalan word too (as `settings.exclusions` already is), and "filter" is the
 // Dutch, Danish, Norwegian and Swedish word.
+// `declarative.companions.chip_error` is "Error" in Catalan and Spanish, which take
+// the Latin noun unchanged. Every other locale inflects or translates it ("Errore",
+// "Erreur", "Fehler", "Chyba", "Virhe", "Fout", "Błąd", "Feil", "Fel", "Ошибка").
 const DECLARATIVE_COGNATES = {
   ca: [
+    'declarative.companions.chip_error',
     'declarative.companions.preset_badge',
     'declarative.companions.section_exclusions',
     'declarative.companions.summary_exclusions.other',
@@ -58,7 +62,7 @@ const DECLARATIVE_COGNATES = {
   ],
   da: ['declarative.companions.summary_filters.one'],
   de: ['declarative.companions.field_name'],
-  es: ['declarative.companions.preset_badge'],
+  es: ['declarative.companions.chip_error', 'declarative.companions.preset_badge'],
   fr: [
     'declarative.companions.field_description',
     'declarative.companions.section_exclusions',

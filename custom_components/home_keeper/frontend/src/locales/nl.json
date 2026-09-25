@@ -749,5 +749,21 @@
   "part.low": "Laag",
   "part.reorderAt": "Bijbestellen bij {n}",
   "toast.stockSet": "Voorraad ingesteld op {n}",
-  "transfer.tooLarge": "Dit document is groter dan de limiet van {mb} MB van het paneel. Splits het op in kleinere bestanden, of gebruik de service home_keeper.import_data voor documenten tot {max} MB."
+  "transfer.tooLarge": "Dit document is groter dan de limiet van {mb} MB van het paneel. Splits het op in kleinere bestanden, of gebruik de service home_keeper.import_data voor documenten tot {max} MB.",
+  "declarative.companions.chip_due_now": "Nu te doen",
+  "declarative.companions.chip_error": "Fout",
+  "declarative.companions.chip_monitored": "Bewaakt",
+  "declarative.companions.field_template": "Triggersjabloon (Jinja)",
+  "declarative.companions.preview_summary_due": "{shown} van {total} overeenkomsten getoond. {due} daarvan zijn nu aan de beurt.",
+  "declarative.companions.preview_template_error": "Het sjabloon kan niet worden verwerkt: {error}. Herstel het voor je opslaat.",
+  "declarative.companions.template_trigger_help": "De taak staat open zolang dit waar oplevert. Beschikbaar: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "declarative.companions.trigger_mode.template": "Sjabloon",
+  "field.sensor_template": "Triggersjabloon (Jinja)",
+  "help.sensor_template": "De taak is te doen zolang dit sjabloon waar oplevert. Beschikbaar: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "hint.sensor.template": "De taak is te doen zolang het sjabloon waar is.",
+  "hint.sensor.templateFor": "De taak is te doen als het sjabloon {seconds}s waar blijft.",
+  "opt.sensor_mode.template": "Sjabloon",
+  "recurrence.sensorTemplate": "Wanneer de sjabloon waar is",
+  "declarative.companions.preview_template_empty": "Schrijf een sjabloon om te zien welke entiteiten aan de beurt zijn.",
+  "declarative.companions.preview_summary_undecided": "{shown} van {total} overeenkomsten getoond. De sjabloon kon niet worden verwerkt."
 }

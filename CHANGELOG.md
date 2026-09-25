@@ -6,6 +6,17 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.27.0b1]
+
+### Added
+
+- **[Template triggers](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#template-triggers).**
+  Write a Jinja template for a recipe trigger or a sensor task condition. The task is
+  due while the template renders true. (Fixes #346)
+- **[Stopped reporting preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#template-triggers).**
+  A new recipe preset opens a task for each sensor that stops reporting for a day. It
+  needs no other integration.
+
 ## [0.26.0] - 2026-09-24
 
 ### Added

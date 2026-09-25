@@ -284,19 +284,29 @@ export function isArmedTriggered(task: Task): boolean {
 
 /** The sensor modes that watch a *condition* rather than count a meter — the panel's
  *  twin of `sensor_tasks.holds_edge_state`. Listed rather than derived by excluding
- *  `usage`, so a mode added later does not silently join them. */
-const EDGE_SENSOR_MODES: readonly string[] = ['state', 'threshold', 'availability'];
+ *  `usage`, so a mode added later does not silently join them.
+ *
+ *  Listing it is only half the job, though: a mode left **out** of the list is read as
+ *  a meter, which is how `template` shipped with a live Done button on a dormant task.
+ *  Keep this in step with `_EDGE_MODES` in `sensor_tasks.py`. */
+const EDGE_SENSOR_MODES: readonly string[] = [
+  'state',
+  'threshold',
+  'availability',
+  'template',
+];
 
 /**
  * True when a task is watching a condition that has **not** fired — the state every
  * surface labels "Monitored".
  *
  * Two shapes reach it. A dormant `triggered` task, which its owning integration arms.
- * And a dormant `sensor` task in an edge mode (state / threshold / availability),
- * which the watcher arms on the next crossing. Neither has work waiting, so neither
- * offers Done: pressing it wrote a completion and changed nothing else, because
+ * And a dormant `sensor` task in an edge mode (state / threshold / availability /
+ * template), which the watcher arms on the next crossing. Neither has work waiting, so
+ * neither offers Done: pressing it wrote a completion and changed nothing else, because
  * `next_due_after_completion` leaves a sensor task dormant. That is #231 — a Device
- * Pulse task sat under the Monitored heading with a live Done button.
+ * Pulse task sat under the Monitored heading with a live Done button. `template` put
+ * the same button back, because it reached `EDGE_SENSOR_MODES` a mode late.
  *
  * Two shapes are deliberately **not** monitored-dormant, for one shared reason: each
  * is counting up to a target, and completing it early is real work rather than a
@@ -608,6 +618,11 @@ function recurrenceText(task: Task): string {
     // gone. Without its own case it fell through to the meter below and read "Every
     // of use", because a mode with no `target` renders the usage string empty.
     if (s.mode === 'availability') return t('recurrence.sensorAvailability');
+    // Template has no reading either, and it went the same way: a template task read
+    // "Every of use" in the list and on its detail page. The template itself is too
+    // long to put in a one-line summary, so name the rule rather than quote it — the
+    // detail page's sensor row shows the source.
+    if (s.mode === 'template') return t('recurrence.sensorTemplate');
     const target = s.unit ? `${s.target ?? ''} ${s.unit}` : (s.target ?? '');
     const summary = t('recurrence.sensorUsage', { target });
     if (!s.also_every) return summary;

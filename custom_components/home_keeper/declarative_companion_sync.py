@@ -36,16 +36,18 @@ from homeassistant.helpers import (
 )
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.template import Template, TemplateError
+from homeassistant.helpers.template import TemplateError
 
 from . import (
     declarative_companions,
     declarative_presets,
     sensor_tasks,
     sensor_watcher,
+    template_context,
 )
 from .const import (
     DOMAIN,
+    SENSOR_MODE_TEMPLATE,
     SIGNAL_DECLARATIVE_SPECS_CHANGED,
 )
 
@@ -58,6 +60,9 @@ _LOGGER = logging.getLogger(__name__)
 # runs the trailing pass. Long enough to fold one integration's entity load into a
 # single pass, short enough that a rename shows on the task within a breath.
 RECONCILE_DEBOUNCE_SECONDS = 5.0
+
+# The most render errors ``_render_one`` remembers before it starts again.
+_RENDER_ERRORS_MAX = 1024
 
 
 def _project_entry(
@@ -107,6 +112,14 @@ class DeclarativeCompanionSync:
         self._unsub_area_registry: CALLBACK_TYPE | None = None
         self._unsub_specs: CALLBACK_TYPE | None = None
         self._reload_scheduled = False
+        # The last render error logged per (entity id, template source), so a broken
+        # name or notes template is reported once instead of on every pass and every
+        # preview keystroke. See ``_render_one``. The source is part of the key: name
+        # and notes render one after the other for the same entity, so with the entity
+        # alone a working notes template cleared the record of a broken name, and the
+        # name logged again on every pass. An entry goes when that pair renders
+        # cleanly again, and the whole map is capped by ``_RENDER_ERRORS_MAX``.
+        self._render_errors: dict[tuple[str, str], str] = {}
         # One reconcile per burst of registry events. Home Assistant fires an entity
         # registry event per entity, so an integration loading 50 of them used to run
         # 50 full passes — each one walking every spec over every entity, rendering
@@ -209,49 +222,13 @@ class DeclarativeCompanionSync:
 
     # ── rendering ────────────────────────────────────────────────────────────
     def _template_variables(self, entry: dict[str, Any]) -> dict[str, Any]:
-        """Assemble the Jinja render context for a single matched entity.
+        """The Jinja render context for one matched entity.
 
-        The context flattens registry + state + device + area lookups so a
-        template writer only ever sees ``{{ device_name }}`` — never
-        ``{{ device.name_by_user or device.name }}``. Attribute access on the
-        entity's state is exposed as ``attributes.<key>`` so a Firmware Update
-        template can say ``{{ attributes.latest_version }}``.
+        Delegates to :func:`template_context.template_variables`, which the
+        ``template``-mode sensor trigger renders against as well, so a recipe's task
+        name and the trigger that opened it always read the same ``{{ state }}``.
         """
-        entity_id = entry["entity_id"]
-        state = self._hass.states.get(entity_id)
-        friendly = None
-        state_value: Any = None
-        attributes: dict[str, Any] = {}
-        if state is not None:
-            state_value = state.state
-            attributes = dict(state.attributes)
-            friendly = attributes.get("friendly_name")
-        friendly = (
-            friendly or entry.get("name") or entry.get("original_name") or entity_id
-        )
-        device_name = None
-        if entry.get("device_id"):
-            dev_reg = dr.async_get(self._hass)
-            device = dev_reg.async_get(entry["device_id"])
-            if device:
-                device_name = device.name_by_user or device.name
-        area_name = None
-        if entry.get("area_id"):
-            area_reg = ar.async_get(self._hass)
-            area = area_reg.async_get_area(entry["area_id"])
-            if area:
-                area_name = area.name
-        return {
-            "entity_id": entity_id,
-            "friendly_name": friendly,
-            "device_id": entry.get("device_id"),
-            "device_name": device_name,
-            "area_id": entry.get("area_id"),
-            "area_name": area_name,
-            "integration": entry.get("platform"),
-            "state": state_value,
-            "attributes": attributes,
-        }
+        return template_context.template_variables(self._hass, entry)
 
     def _task_template(self, spec: dict[str, Any]) -> dict[str, Any]:
         """*spec*'s task template, with unchanged preset text in the HA language."""
@@ -266,19 +243,40 @@ class DeclarativeCompanionSync:
         — log the error, fall back to the raw source. The preview surface (see
         the WS ``preview_declarative_companion`` command) reports the template
         error explicitly so the user can fix it before saving.
+
+        Logged once per (entity, source, message) rather than per render. This runs
+        per matched entity per reconcile pass, and the preview runs it for 10 sampled
+        entities on every keystroke of the Add dialog's debounce, so one broken name
+        template used to write the same line hundreds of times while the user was
+        still typing it.
         """
         if not source:
             return ""
         try:
-            template = Template(source, self._hass)
-            return str(template.async_render(variables, parse_result=False))
-        except TemplateError as err:
-            _LOGGER.warning(
-                "Declarative-companion template render failed for %s: %s",
-                variables.get("entity_id"),
-                err,
+            rendered = str(
+                template_context.cached_template(self._hass, source).async_render(
+                    variables, parse_result=False
+                )
             )
+        except TemplateError as err:
+            entity_id = str(variables.get("entity_id") or "")
+            message = str(err)
+            key = (entity_id, source)
+            if self._render_errors.get(key) != message:
+                if len(self._render_errors) >= _RENDER_ERRORS_MAX:
+                    # Each preview draft is a new source, so typing a broken template
+                    # adds keys that never render cleanly again. Start again rather
+                    # than grow: the worst case is one repeated warning.
+                    self._render_errors.clear()
+                self._render_errors[key] = message
+                _LOGGER.warning(
+                    "Declarative-companion template render failed for %s: %s",
+                    entity_id,
+                    message,
+                )
             return source
+        self._render_errors.pop((str(variables.get("entity_id") or ""), source), None)
+        return rendered
 
     def _render_match(
         self, spec: dict[str, Any], match: dict[str, Any]
@@ -473,6 +471,23 @@ class DeclarativeCompanionSync:
         count = len(matches)
         if count > 50:
             warnings.append("too_many_matches")
+        trigger = spec.get("trigger") or {}
+        # A template trigger is the one condition a user cannot check by reading it:
+        # `{{ state > 24 }}` against a string state renders false forever and opens
+        # nothing. So the preview renders it too, per sampled entity, and the panel
+        # draws the verdict beside the task name. The other modes say what they do on
+        # their face and get `None`, which the panel reads as "draw no chip".
+        # An **empty** template renders nothing, and the preview says nothing about it.
+        # A draft has an empty box the instant the user picks Template mode, and that
+        # is not a mistake to report — it is a form they have not filled in. The
+        # command used to refuse outright there (``normalize_sensor`` raised), which
+        # threw away the match list at the one moment the user most wants to see which
+        # entities they are about to write a template against. Now the rows come back
+        # with no verdict, and the panel draws a neutral hint instead of a red alert.
+        template_source = str(trigger.get("template") or "").strip()
+        is_template = trigger.get("mode") == SENSOR_MODE_TEMPLATE and bool(
+            template_source
+        )
         # Sample the first 10 for the preview panel (deterministic order — dicts
         # are insertion-ordered and expand_spec walks the registry in registry
         # order, which is stable across boots for the same HA config).
@@ -486,6 +501,14 @@ class DeclarativeCompanionSync:
             rendered_notes = self._render_one(
                 template.get("notes_template", ""), variables
             )
+            trigger_now: bool | None = None
+            trigger_error: str | None = None
+            if is_template:
+                # The watcher's own renderer, not a second one: what the preview says
+                # is true is what will arm the task.
+                trigger_now, trigger_error = sensor_watcher.render_template_result(
+                    self._hass, template_source, variables
+                )
             sample.append(
                 {
                     "entity_id": match["entity"]["entity_id"],
@@ -494,6 +517,8 @@ class DeclarativeCompanionSync:
                     "rendered_notes": rendered_notes,
                     "device_name": variables["device_name"],
                     "area_name": variables["area_name"],
+                    "trigger_now": trigger_now,
+                    "trigger_error": trigger_error,
                 }
             )
         return {

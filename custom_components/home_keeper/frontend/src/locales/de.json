@@ -749,5 +749,21 @@
   "part.low": "Niedrig",
   "part.reorderAt": "Nachbestellen bei {n}",
   "toast.stockSet": "Bestand auf {n} gesetzt",
-  "transfer.tooLarge": "Dieses Dokument ist größer als das Limit von {mb} MB für das Panel. Teile es in kleinere Dateien auf, oder verwende den Dienst home_keeper.import_data für Dokumente bis {max} MB."
+  "transfer.tooLarge": "Dieses Dokument ist größer als das Limit von {mb} MB für das Panel. Teile es in kleinere Dateien auf, oder verwende den Dienst home_keeper.import_data für Dokumente bis {max} MB.",
+  "declarative.companions.chip_due_now": "Jetzt fällig",
+  "declarative.companions.chip_error": "Fehler",
+  "declarative.companions.chip_monitored": "Überwacht",
+  "declarative.companions.field_template": "Auslöser-Vorlage (Jinja)",
+  "declarative.companions.preview_summary_due": "{shown} von {total} Treffern werden angezeigt. {due} davon sind jetzt fällig.",
+  "declarative.companions.preview_template_error": "Die Vorlage lässt sich nicht auswerten: {error}. Bitte vor dem Speichern beheben.",
+  "declarative.companions.template_trigger_help": "Die Aufgabe ist offen, solange dies wahr ergibt. Verfügbar: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "declarative.companions.trigger_mode.template": "Vorlage",
+  "field.sensor_template": "Auslöser-Vorlage (Jinja)",
+  "help.sensor_template": "Die Aufgabe ist fällig, solange diese Vorlage wahr ergibt. Verfügbar: {{ state }}, {{ attributes.<key> }}, {{ friendly_name }}, {{ entity_id }}, {{ device_name }}, {{ area_name }}, {{ integration }}",
+  "hint.sensor.template": "Die Aufgabe ist fällig, solange die Vorlage wahr ist.",
+  "hint.sensor.templateFor": "Die Aufgabe ist fällig, wenn die Vorlage {seconds}s lang wahr bleibt.",
+  "opt.sensor_mode.template": "Vorlage",
+  "recurrence.sensorTemplate": "Wenn die Vorlage wahr ist",
+  "declarative.companions.preview_template_empty": "Schreiben Sie eine Vorlage, um zu sehen, welche Entitäten fällig sind.",
+  "declarative.companions.preview_summary_undecided": "{shown} von {total} Treffern werden angezeigt. Die Vorlage ließ sich nicht auswerten."
 }
