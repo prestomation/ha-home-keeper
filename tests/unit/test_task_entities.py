@@ -81,7 +81,7 @@ def test_recipe_task_without_a_recipe_name_falls_back_to_the_task_name() -> None
         # Device name at the start, with the separator after it trimmed.
         ("Dishwasher Leak Sensor: Replace battery", "Replace battery"),
         ("Dishwasher Leak Sensor - filter", "filter"),
-        ("Dishwasher Leak Sensor – filter", "filter"),
+        ("Dishwasher Leak Sensor \u2013 filter", "filter"),
         ("Dishwasher Leak Sensor is wet", "is wet"),
         # Device name at the end.
         ("Replace battery: Dishwasher Leak Sensor", "Replace battery"),

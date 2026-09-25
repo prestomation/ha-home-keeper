@@ -518,9 +518,11 @@ def test_device_page_entities_are_named_after_the_recipe(ha, specs):
     renamed = _next_due_sensor(
         ha,
         task["id"],
-        lambda s: s["attributes"]
-        .get("friendly_name", "")
-        .endswith(" HK battery renamed: Next due"),
+        lambda s: (
+            s["attributes"]
+            .get("friendly_name", "")
+            .endswith(" HK battery renamed: Next due")
+        ),
     )
     assert renamed["entity_id"] == sensor["entity_id"], "the entity_id must not change"
 
