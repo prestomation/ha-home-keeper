@@ -1592,3 +1592,20 @@ def test_the_reconcile_pass_never_puts_back_a_label_a_person_removed():
         spec, {key: m}, stored, _rendered(key), config_entry_id=ENTRY, now=NOW
     )
     assert new_tasks[tid]["labels"] == []
+
+
+def test_the_label_diff_reaches_a_task_past_one_that_needs_no_change():
+    # The first task already has the added label. Walking past it has to be a skip,
+    # not a stop, or the rest of the spec's tasks never get the label.
+    spec = _normalized_spec()
+    first, first_tid = _labelled_task(spec, ["urgent"], "sensor.first_pings")
+    second, second_tid = _labelled_task(spec, [], "sensor.second_pings")
+    tasks = {**first, **second}
+
+    new_tasks, ops, changed = dc.apply_template_label_diff(
+        spec["id"], [], ["urgent"], tasks
+    )
+    assert changed is True
+    assert [task["id"] for _kind, task in ops] == [second_tid]
+    assert new_tasks[second_tid]["labels"] == ["urgent"]
+    assert new_tasks[first_tid]["labels"] == ["urgent"]
