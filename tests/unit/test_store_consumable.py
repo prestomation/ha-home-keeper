@@ -283,6 +283,127 @@ def test_completing_a_link_without_a_quantity_takes_the_parts_own_amount(store):
     assert part["stock"] == 0.5
 
 
+# ── undoing a completion gives its stock back ────────────────────────────────
+
+
+def _completed_ts(store, task_id):
+    return store._tasks[task_id]["completions"][-1]["ts"]
+
+
+def test_a_completion_records_what_it_took(store):
+    asset = _asset(store)
+    part = asset["parts"][0]
+    task = _task(store)
+    _run(store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=2))
+    _run(store.complete_task(task["id"]))
+    entry = store._tasks[task["id"]]["completions"][-1]
+    assert entry["stock_drawn"] == {
+        "asset_id": asset["id"],
+        "part_id": part["id"],
+        "quantity": 2,
+    }
+
+
+def test_deleting_a_completion_gives_its_stock_back(store):
+    asset = _asset(store)
+    part = asset["parts"][0]
+    task = _task(store)
+    _run(store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=2))
+    _run(store.complete_task(task["id"]))
+    assert part["stock"] == 2
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["stock"] == 4, "a mistaken tick must not leave the count short"
+
+
+def test_undo_gives_back_only_what_the_empty_part_really_gave(store):
+    # The count stops at zero. A completion that asked for 2 but found 1 took 1, so
+    # its undo adds 1, not 2, and does not make a spare up.
+    asset = _asset(store, parts=[{"name": "AAA", "stock": 1, "reorder_at": 1}])
+    part = asset["parts"][0]
+    task = _task(store)
+    _run(store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=2))
+    _run(store.complete_task(task["id"]))
+    assert part["stock"] == 0
+    assert store._tasks[task["id"]]["completions"][-1]["stock_drawn"]["quantity"] == 1
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["stock"] == 1
+
+
+def test_a_completion_of_an_empty_part_records_nothing(store):
+    asset = _asset(store, parts=[{"name": "AAA", "stock": 0}])
+    part = asset["parts"][0]
+    task = _task(store)
+    _run(store.set_task_consumable(task["id"], asset["id"], part["id"]))
+    _run(store.complete_task(task["id"]))
+    assert "stock_drawn" not in store._tasks[task["id"]]["completions"][-1]
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["stock"] == 0
+
+
+def test_the_undo_fires_the_restocked_event(store):
+    asset = _asset(store, parts=[{"name": "AAA", "stock": 2, "reorder_at": 1}])
+    part = asset["parts"][0]
+    task = _task(store)
+    _run(store.set_task_consumable(task["id"], asset["id"], part["id"]))
+    _run(store.complete_task(task["id"]))
+    assert store._hass.bus.of("home_keeper_part_low_stock")
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    [restocked] = store._hass.bus.of("home_keeper_part_restocked")
+    assert restocked["stock"] == 2
+
+
+def test_the_undo_leaves_a_part_that_stopped_counting(store):
+    # The user cleared the count after the completion. There is no count left to
+    # correct, so the undo must not start one.
+    asset = _asset(store)
+    part = asset["parts"][0]
+    task = _task(store)
+    _run(store.set_task_consumable(task["id"], asset["id"], part["id"]))
+    _run(store.complete_task(task["id"]))
+    part["stock"] = None
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["stock"] is None
+
+
+def test_the_undo_survives_a_deleted_appliance(store):
+    asset = _asset(store)
+    part = asset["parts"][0]
+    task = _task(store)
+    _run(store.set_task_consumable(task["id"], asset["id"], part["id"]))
+    _run(store.complete_task(task["id"]))
+    ts = _completed_ts(store, task["id"])
+    del store._assets[asset["id"]]
+    _run(store.delete_completion(task["id"], ts))
+    assert not store._tasks[task["id"]]["completions"]
+
+
+# ── adjust_part_stock reports the count ──────────────────────────────────────
+
+
+def test_adjust_part_stock_reports_the_new_count(store):
+    asset = _asset(store, parts=[{"name": "Rolls", "stock": 3, "reorder_at": 1}])
+    part = asset["parts"][0]
+    report = _run(store.adjust_part_stock(asset["id"], part["id"], -2))
+    assert report == {
+        "stock": 1,
+        "applied_delta": -2,
+        "reorder_at": 1,
+        "unit": "",
+        "status": "low",
+    }
+
+
+def test_adjust_part_stock_reports_the_delta_it_really_applied(store):
+    asset = _asset(store, parts=[{"name": "Rolls", "stock": 1}])
+    part = asset["parts"][0]
+    report = _run(store.adjust_part_stock(asset["id"], part["id"], -3))
+    assert (report["stock"], report["applied_delta"], report["status"]) == (
+        0,
+        -1,
+        "out",
+    )
+
+
 # ── deleting an appliance ────────────────────────────────────────────────────
 
 

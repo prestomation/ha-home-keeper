@@ -234,17 +234,23 @@ class FakeHomeKeeper:
             events.task_event_data(task, extra={"changed_fields": ["source"]}),
         )
 
-    async def _adjust_part_stock(self, call: ServiceCall) -> None:
+    async def _adjust_part_stock(self, call: ServiceCall) -> dict[str, Any]:
         asset = self.assets[call.data["asset_id"]]
         part = assets_model.find_part(asset, call.data["part_id"])
         if part is None:
             raise assets_model.AssetValidationError(
                 f"asset {call.data['asset_id']!r} has no part {call.data['part_id']!r}"
             )
+        before = part.get("stock")
         self._emit_stock_event(
             assets_model.adjust_part_stock(part, float(call.data["delta"])),
             asset,
             part,
+        )
+        # The same report the real service returns, so a glue can keep the delta it
+        # really applied and undo exactly that.
+        return assets_model.stock_report(
+            part, assets_model.stock_delta(before, part.get("stock"))
         )
 
     def _announce_asset(self, before: dict[str, Any], after: dict[str, Any]) -> None:
@@ -289,8 +295,39 @@ class FakeHomeKeeper:
             if hasattr(when, "date")
             else str(when)[:10]
         )
+        before = part.get("stock")
         self._emit_stock_event(
             assets_model.consume_part_stock(part, quantity=src.get("quantity")),
+            asset,
+            part,
+        )
+        # Record what was really taken on the completion, like the real store, so an
+        # undo gives exactly that back.
+        drawn = assets_model.stock_delta(before, part.get("stock"))
+        ts = when.isoformat() if hasattr(when, "isoformat") else str(when)
+        entry = next(
+            (c for c in task.get("completions", []) if c.get("ts") == ts), None
+        )
+        if before is not None and drawn < 0 and entry is not None:
+            entry["stock_drawn"] = {
+                "asset_id": asset.get("id"),
+                "part_id": part.get("id"),
+                "quantity": -drawn,
+            }
+
+    def _return_stock_drawn(self, entry: dict[str, Any]) -> None:
+        """Give back what a deleted completion took, like the real store does."""
+        drawn = entry.get("stock_drawn")
+        if not isinstance(drawn, dict):
+            return
+        asset = self.assets.get(str(drawn.get("asset_id")))
+        if asset is None:
+            return
+        part = assets_model.find_part(asset, str(drawn.get("part_id")))
+        if part is None or not assets_model.part_tracks_stock(part):
+            return
+        self._emit_stock_event(
+            assets_model.adjust_part_stock(part, float(drawn.get("quantity") or 0)),
             asset,
             part,
         )
@@ -327,10 +364,14 @@ class FakeHomeKeeper:
             raise KeyError(task_id)
         # Mirror the real store: a ``ts`` that isn't in the history is a no-op, and no
         # event announces an undo that didn't happen.
-        if not any(e.get("ts") == ts for e in task.get("completions", [])):
+        removed = next(
+            (e for e in task.get("completions", []) if e.get("ts") == ts), None
+        )
+        if removed is None:
             return task
         updated = recurrence.remove_completion(dict(task), ts, now=dt_util.now())
         self.tasks[task_id] = updated
+        self._return_stock_drawn(removed)
         self.hass.bus.async_fire(
             EVENT_TASK_UNCOMPLETED,
             events.task_event_data(updated, extra={"ts": ts, "origin": origin}),
@@ -400,7 +441,13 @@ class FakeHomeKeeper:
         reg(DOMAIN, "update_asset", self._update_asset, _ANY)
         reg(DOMAIN, "update_managed_asset", self._update_managed_asset, _ANY)
         reg(DOMAIN, "set_task_consumable", self._set_task_consumable, _ANY)
-        reg(DOMAIN, "adjust_part_stock", self._adjust_part_stock, _ANY)
+        reg(
+            DOMAIN,
+            "adjust_part_stock",
+            self._adjust_part_stock,
+            _ANY,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
         reg(
             DOMAIN,
             "list_assets",

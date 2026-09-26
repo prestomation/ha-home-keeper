@@ -308,6 +308,10 @@ The Battery Notes glue links each **Replace battery** task to the battery type t
 the device takes, and the task reads **Takes 2 AAA · 2 left**. Complete the task and
 2 batteries come off the count.
 
+Delete that completion and the 2 batteries go back on the count. Each counted part
+also has a spares entity. Every user in your home can see that count on a dashboard,
+and not only an admin.
+
 ![A Replace battery task with a chip that reads Takes 2 AAA, 2 left](../../images/70d-panel-battery-consumable-chip.png)
 
 **A managed appliance is not in the export file.** The

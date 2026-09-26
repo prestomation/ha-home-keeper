@@ -190,7 +190,7 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("archive_asset", admin_only=True),
     ServiceSpec("restore_asset", admin_only=True),
     ServiceSpec("list_assets", response="only"),
-    ServiceSpec("adjust_part_stock", admin_only=True),
+    ServiceSpec("adjust_part_stock", admin_only=True, response="optional"),
     ServiceSpec("remove_part_file", admin_only=True),
     ServiceSpec("add_asset_document", admin_only=True),
     ServiceSpec("remove_asset_document", admin_only=True),
@@ -286,6 +286,8 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
             "str",
             'what the part counts itself in ("ml", "bottles"), or "" for whole spares',
         ),
+        Field("source", "dict | None", "the appliance's opaque provenance"),
+        Field("managed_by", "dict | None", "the appliance's ownership block, or None"),
     ),
     "asset": (
         Field("asset_id", "str"),
@@ -714,7 +716,16 @@ ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
             Field("unit", "str", "part low-stock sensor"),
         ),
     ),
-    EntityPlatformSpec("number", ("part_spares",)),
+    EntityPlatformSpec(
+        "number",
+        ("part_spares",),
+        attributes=(
+            Field("asset_id", "str"),
+            Field("part_id", "str"),
+            Field("reorder_at", "float | None", "the low-stock threshold, if set"),
+            Field("status", "str", "ok, low, out or untracked"),
+        ),
+    ),
 )
 
 

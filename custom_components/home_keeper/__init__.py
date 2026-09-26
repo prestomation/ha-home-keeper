@@ -1259,7 +1259,9 @@ def _register_services(hass: HomeAssistant) -> None:
                 call.data["ts"],
                 origin=call.data.get("origin"),
             )
-        await coord.async_request_refresh()
+        # The undo can give stock back to a part and lift it above its reorder point,
+        # which removes its Buy task; settle it (else a plain refresh).
+        await coord.async_settle_buy_tasks()
 
     async def handle_move_completion(call: ServiceCall) -> None:
         coord = _coordinator()
@@ -1520,16 +1522,21 @@ def _register_services(hass: HomeAssistant) -> None:
             assets = card_projection(assets)
         return {"assets": assets}
 
-    async def handle_adjust_part_stock(call: ServiceCall) -> None:
+    async def handle_adjust_part_stock(call: ServiceCall) -> dict[str, Any]:
         await _verify_admin(call)
         coord = _coordinator()
         asset_id = _asset_ref(coord, call.data["asset_id"])
         part_id = _part_ref(coord, asset_id, call.data["part_id"])
         with _store_errors(asset_id=asset_id, part_id=part_id):
-            await coord.store.adjust_part_stock(asset_id, part_id, call.data["delta"])
+            report = await coord.store.adjust_part_stock(
+                asset_id, part_id, call.data["delta"]
+            )
         # A crossing may create/remove an auto-buy task; settle it (reload if a buy
         # task's device entities changed, else refresh).
         await coord.async_settle_buy_tasks()
+        # The new count and the delta really applied: the count stops at zero, so a
+        # caller that undoes its change later needs ``applied_delta``, not its own.
+        return report
 
     async def handle_remove_part_file(call: ServiceCall) -> None:
         await _verify_admin(call)
@@ -1776,7 +1783,11 @@ def _register_services(hass: HomeAssistant) -> None:
         supports_response=SupportsResponse.ONLY,
     )
     hass.services.async_register(
-        DOMAIN, "adjust_part_stock", handle_adjust_part_stock, ADJUST_PART_STOCK_SCHEMA
+        DOMAIN,
+        "adjust_part_stock",
+        handle_adjust_part_stock,
+        ADJUST_PART_STOCK_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
         DOMAIN,

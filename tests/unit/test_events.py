@@ -167,7 +167,25 @@ def test_low_stock_payload_has_reorder_fields():
         "vendor": "Acme",
         "stock": 1,
         "reorder_at": 1,
+        "source": None,
+        "managed_by": None,
     }
+
+
+def test_stock_payload_names_the_owner_of_the_appliance():
+    # An integration that manages an appliance tells its own stock events from the
+    # rest by these two, the same way it reads its asset events.
+    source = {"pawsistant": {"role": "supplies"}}
+    managed_by = {"integration": "pawsistant", "display_name": "Pawsistant"}
+    asset = {
+        "id": "a1",
+        "name": "Pet supplies",
+        "source": source,
+        "managed_by": managed_by,
+    }
+    data = ev.stock_event_data(asset, {"id": "p1", "name": "Rolls", "stock": 1})
+    assert data["source"] == source
+    assert data["managed_by"] == managed_by
 
 
 def test_low_stock_payload_tolerates_missing_fields():

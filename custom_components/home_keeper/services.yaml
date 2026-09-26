@@ -1241,7 +1241,7 @@ adjust_part_stock:
     part measured in millilitres or in thirds of a bottle adjusts by its own amounts.
     When a decrease reaches or crosses the part's reorder threshold, a
     home_keeper_part_low_stock event fires so you can automate a shopping-list add or
-    reorder.
+    reorder. The response gives the new count and the change that was really applied.
   fields:
     asset_id:
       name: Appliance name or ID

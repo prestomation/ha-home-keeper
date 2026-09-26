@@ -108,7 +108,8 @@ def stock_event_data(asset: dict[str, Any], part: dict[str, Any]) -> dict[str, A
     part, the part/vendor identifiers needed to rebuy, and the current vs. threshold
     quantities. Those quantities can be fractional, and ``unit`` is the label they are
     counted in (``""`` for plain whole spares) so an automation can say "250 ml left"
-    without looking the part up.
+    without looking the part up. ``source`` and ``managed_by`` are the appliance's,
+    echoed verbatim.
     """
     return {
         "asset_id": asset.get("id"),
@@ -121,6 +122,10 @@ def stock_event_data(asset: dict[str, Any], part: dict[str, Any]) -> dict[str, A
         "stock": part.get("stock"),
         "reorder_at": part.get("reorder_at"),
         "unit": part.get("stock_unit") or "",
+        # The owner of the appliance, as on the asset events, so an integration that
+        # manages an appliance can tell its own stock events from the rest.
+        "source": asset.get("source"),
+        "managed_by": asset.get("managed_by"),
     }
 
 

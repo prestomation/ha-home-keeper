@@ -2141,6 +2141,9 @@ class HomeKeeperStore:
             if cfg is not None:
                 cfg["baseline"] = restored
         self._tasks[task_id] = updated
+        # A completion of a linked task took stock. Its undo gives that stock back, so
+        # a mistaken tick does not leave the count one short.
+        self._return_stock_drawn(removed_entry)
         await self._save()
         self._hass.bus.async_fire(
             EVENT_TASK_UNCOMPLETED,
@@ -2445,11 +2448,63 @@ class HomeKeeperStore:
             # states one, and the part's per-use amount otherwise (one whole spare
             # unless the part says otherwise); signal a low/out-of-stock crossing so
             # users can automate a reorder.
+            before = part.get("stock")
             self._emit_stock_event(
                 assets.consume_part_stock(part, quantity=src.get("quantity")),
                 asset,
                 part,
             )
+            self._stamp_stock_drawn(task, when, asset, part, before)
+
+    def _stamp_stock_drawn(
+        self,
+        task: dict[str, Any],
+        when: Any,
+        asset: dict[str, Any],
+        part: dict[str, Any],
+        before: float | None,
+    ) -> None:
+        """Record on the completion entry how much stock it really took.
+
+        ``stock_drawn`` is what :meth:`delete_completion` gives back. It is the amount
+        the count really moved, not the amount asked for: the count stops at zero, so
+        a completion of an empty part takes nothing and its undo must add nothing.
+        Internal bookkeeping like ``meter_start``, so it survives
+        ``update_completion`` and ``move_completion``.
+        """
+        if before is None:
+            return
+        drawn = assets.stock_delta(before, part.get("stock"))
+        if drawn >= 0:
+            return
+        ts = when.isoformat() if hasattr(when, "isoformat") else str(when)
+        entry = next(
+            (c for c in task.get("completions", []) if c.get("ts") == ts), None
+        )
+        if entry is not None:
+            entry["stock_drawn"] = {
+                "asset_id": asset.get("id"),
+                "part_id": part.get("id"),
+                "quantity": -drawn,
+            }
+
+    def _return_stock_drawn(self, entry: dict[str, Any]) -> None:
+        """Give back the stock a deleted completion took (see ``_stamp_stock_drawn``).
+
+        Does nothing when the appliance, the part or its count has gone since, because
+        there is no count left to correct.
+        """
+        drawn = entry.get("stock_drawn")
+        if not isinstance(drawn, dict):
+            return
+        asset = self._assets.get(str(drawn.get("asset_id")))
+        if asset is None:
+            return
+        part = assets.find_part(asset, str(drawn.get("part_id")))
+        if part is None or not assets.part_tracks_stock(part):
+            return
+        transition = assets.adjust_part_stock(part, float(drawn.get("quantity") or 0))
+        self._emit_stock_event(transition, asset, part)
 
     def _stamp_buy_restock(self, task: dict[str, Any]) -> None:
         """On completing an auto-created buy task, restock its part.
@@ -2499,8 +2554,9 @@ class HomeKeeperStore:
 
         Persists and fires the matching edge-triggered stock event once when the
         adjustment crosses a threshold — low-stock, out-of-stock, or restocked (a
-        decrease while already low never nags). Returns the updated asset. Raises
-        ``KeyError`` for an unknown asset or part.
+        decrease while already low never nags). Returns the part's
+        :func:`assets.stock_report`: the new count and the delta really applied.
+        Raises ``KeyError`` for an unknown asset or part.
         """
         asset = self._assets.get(asset_id)
         if asset is None:
@@ -2508,7 +2564,8 @@ class HomeKeeperStore:
         part = assets.find_part(asset, part_id)
         if part is None:
             raise KeyError(part_id)
+        before = part.get("stock")
         transition = assets.adjust_part_stock(part, delta)
         await self._save()
         self._emit_stock_event(transition, asset, part)
-        return asset
+        return assets.stock_report(part, assets.stock_delta(before, part.get("stock")))

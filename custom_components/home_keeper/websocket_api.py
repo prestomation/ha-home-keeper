@@ -489,7 +489,9 @@ async def ws_delete_completion(
     coord: HomeKeeperCoordinator,
 ) -> None:
     task = await coord.store.delete_completion(msg["task_id"], msg["ts"])
-    await coord.async_request_refresh()
+    # The undo can give stock back to a part and lift it above its reorder point, which
+    # removes its Buy task; settle it (else a plain refresh).
+    await coord.async_settle_buy_tasks()
     connection.send_result(msg["id"], {"task": task})
 
 
@@ -880,7 +882,7 @@ async def ws_adjust_part_stock(
     coord: HomeKeeperCoordinator,
 ) -> None:
     try:
-        asset = await coord.store.adjust_part_stock(
+        report = await coord.store.adjust_part_stock(
             msg["asset_id"], msg["part_id"], msg["delta"]
         )
     except KeyError:
@@ -898,7 +900,11 @@ async def ws_adjust_part_stock(
     # A crossing may create/remove an auto-buy task; settle it (reload if a buy task's
     # device entities changed, else refresh).
     await coord.async_settle_buy_tasks()
-    connection.send_result(msg["id"], {"asset": asset})
+    # The asset for the panel, which redraws the appliance, and the same stock report
+    # the service returns, for any other client.
+    connection.send_result(
+        msg["id"], {"asset": coord.store.get_asset(msg["asset_id"]), **report}
+    )
 
 
 @websocket_api.websocket_command(

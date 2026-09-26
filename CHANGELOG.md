@@ -16,6 +16,19 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **[Consume quantity](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#parts--wear-items).**
   A task linked to a part can take more than 1 spare off the stock. An integration
   sets the amount for the task it links.
+- **[Shared stock counts](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#stock-an-integration-keeps-for-you).**
+  Every user can see how many spares a part has left, and not only an admin. The
+  spares entity of a part also shows its reorder point.
+
+### Changed
+
+- **Stock adjust response.** `home_keeper.adjust_part_stock` returns the new count,
+  and each stock event names the integration that owns the appliance.
+
+### Fixed
+
+- **Undo returns spares.** Delete a completion of a task linked to a part, and the
+  spares it took go back into stock.
 
 ## [0.27.0b4]
 

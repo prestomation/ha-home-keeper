@@ -849,6 +849,10 @@ PART_OWNER_KEYS: tuple[str, ...] = (
     "use_task_name",
     "last_replaced",
     "carried_uses",
+    # The tag that completes the part's wear task. It belongs to the wear schedule
+    # above, which the locked editor does not offer either.
+    "tag_id",
+    "require_tag_scan",
 )
 """What the part is, which the owning integration writes and a user cannot edit."""
 
@@ -1020,6 +1024,55 @@ def part_is_low(part: dict) -> bool:
 def part_stock_unit(part: dict) -> str:
     """The label a part's stock is counted in (``""`` for plain whole spares)."""
     return str(part.get("stock_unit") or "").strip()
+
+
+# What a part's count means right now, for an entity attribute or a service response.
+# ``untracked`` is a part nobody counts; the other three follow the reorder point.
+STATUS_UNTRACKED = "untracked"
+STATUS_OUT = "out"
+STATUS_LOW = "low"
+STATUS_OK = "ok"
+
+
+def part_stock_status(part: dict) -> str:
+    """Return ``untracked``, ``out``, ``low`` or ``ok`` for *part*.
+
+    ``out`` wins over ``low``: a part at zero is out whatever its reorder point, and a
+    part with no reorder point can still run out. ``low`` needs a reorder point, the
+    same rule as :func:`part_is_low`.
+    """
+    stock = part.get("stock")
+    if stock is None:
+        return STATUS_UNTRACKED
+    if stock <= 0:
+        return STATUS_OUT
+    if part_is_low(part):
+        return STATUS_LOW
+    return STATUS_OK
+
+
+def stock_delta(before: float | None, after: float | None) -> float:
+    """How far a count moved from *before* to *after*, an untracked count as 0.
+
+    Rounded like the counts themselves, so a caller that stores it and later gives it
+    back lands on the exact count it started from.
+    """
+    return _round_stock(float(after or 0) - float(before or 0))
+
+
+def stock_report(part: dict, applied_delta: float) -> dict[str, Any]:
+    """The answer to a stock change: the new count and what the change really did.
+
+    ``applied_delta`` differs from the asked delta when the count stops at zero, so a
+    caller that wants to undo its change later must keep this figure, not its own.
+    """
+    return {
+        "stock": part.get("stock"),
+        "applied_delta": applied_delta,
+        "reorder_at": part.get("reorder_at"),
+        "unit": part_stock_unit(part),
+        "status": part_stock_status(part),
+    }
 
 
 def _positive_quantity(value: Any, default: float) -> float:
@@ -1703,10 +1756,11 @@ def tasks_for_asset(asset: dict, tasks: list[dict]) -> list[dict]:
     return [task for task in tasks if task_relates_to_asset(task, asset)]
 
 
-# The only fields of a part the dashboard card reads (to render a linked part's
-# product-URL chip). Everything else about a part — cost, vendor, stock levels, part
-# number, notes — is administration and stays admin-only.
-_CARD_PART_FIELDS = ("id", "name", "url")
+# The fields of a part a non-admin may read: the product-URL chip on the card, and
+# the count, reorder point and unit, which every spares ``number`` entity already
+# shows to any user. Cost, vendor, part number and notes are administration and stay
+# admin-only.
+_CARD_PART_FIELDS = ("id", "name", "url", "stock", "reorder_at", "stock_unit")
 
 
 def card_projection(assets: list[dict]) -> list[dict]:
@@ -1722,8 +1776,9 @@ def card_projection(assets: list[dict]) -> list[dict]:
     The card needs exactly three things: an asset's ``documents`` (a card link can
     point at one), its ``link``-typed ``metadata`` entries (a card link can point at
     one of those too, and its value is a URL the user chose to publish), and a part's
-    id/name/url. This is a **whitelist**: a field added to the asset record later is
-    private until someone adds it here on purpose.
+    id/name/url plus its stock count, reorder point and unit. This is a
+    **whitelist**: a field added to the asset record later is private until someone
+    adds it here on purpose.
     """
     return [
         {

@@ -837,6 +837,36 @@ default. A device that takes 2 AAA batteries links its replacement task with
 
 The link is recorded as `source["part"] = {asset_id, part_id, manual: true, quantity}`.
 
+Deleting a completion (`home_keeper.delete_completion`) gives back the stock that
+completion took. Home Keeper records the amount on the completion as `stock_drawn`. The
+count stops at zero, so the recorded amount can be less than `quantity`.
+
+### Drawing stock down without a task
+
+Not every use is a task. Call `home_keeper.adjust_part_stock` with a negative `delta`,
+and ask for the response:
+
+```yaml
+service: home_keeper.adjust_part_stock
+data:
+  asset_id: "<asset id>"
+  part_id: "<part id>"
+  delta: -1
+response_variable: result
+```
+
+The response is `{stock, applied_delta, reorder_at, unit, status}`. `status` is `ok`,
+`low`, `out` or `untracked`. Keep `applied_delta` if you want to undo the change
+later, and send it back negated. It differs from `delta` when the count stops at zero.
+
+### Showing stock to a user
+
+Each counted part on a virtual appliance has a spares `number` entity, with the unique
+ID `home_keeper_asset_<asset id>_part_<part id>_stock`. Its state is the count. Its
+attributes are `asset_id`, `part_id`, `reorder_at` and `status`. Every user can read
+it, so a dashboard card can show the count without an admin read. Setting the number
+moves the count, the same as `adjust_part_stock`.
+
 ### Every writer merges into `source`, and pops its own key only
 
 `source` is a map of namespaces, on a task and on an appliance alike. Home Keeper owns

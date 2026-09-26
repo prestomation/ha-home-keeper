@@ -1606,6 +1606,9 @@ def test_card_projection_keeps_what_the_card_renders():
             "id": asset["parts"][0]["id"],
             "name": "Water filter",
             "url": "https://example.com/filter",
+            "stock": 2,
+            "reorder_at": 1,
+            "stock_unit": "",
         }
     ]
 
@@ -1617,8 +1620,17 @@ def test_card_projection_drops_report_value_data():
     _, projected = _projected_asset()
     for field in ("cost", "serial_number", "manufacturer", "model", "notes", "name"):
         assert field not in projected, f"{field} leaked to a non-admin"
-    for field in ("cost", "vendor", "stock", "reorder_at", "part_number", "notes"):
+    for field in ("cost", "vendor", "part_number", "notes"):
         assert field not in projected["parts"][0], f"part {field} leaked to a non-admin"
+
+
+def test_card_projection_shows_stock_to_everyone():
+    # Stock is not administration: the spares number entity already shows the count
+    # to every user, and a dashboard card that shows "2 left" needs the same figure
+    # from the read it already makes.
+    _, projected = _projected_asset()
+    part = projected["parts"][0]
+    assert (part["stock"], part["reorder_at"], part["stock_unit"]) == (2, 1, "")
 
 
 def test_card_projection_drops_non_link_metadata():
@@ -2170,3 +2182,54 @@ def test_part_restock_label_is_localized():
     assert a.part_restock_label(part) == "1.5 kg"
     several = {"restock_quantity": 2.5}
     assert a.part_restock_label(several, "de") == "×2,5"
+
+
+# ── Stock status and the stock report ────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("part", "status"),
+    [
+        ({}, "untracked"),
+        ({"stock": None, "reorder_at": 2}, "untracked"),
+        ({"stock": 0}, "out"),
+        ({"stock": 0, "reorder_at": 2}, "out"),
+        ({"stock": 2, "reorder_at": 2}, "low"),
+        ({"stock": 1.5, "reorder_at": 2}, "low"),
+        ({"stock": 3, "reorder_at": 2}, "ok"),
+        ({"stock": 0.5}, "ok"),
+    ],
+)
+def test_part_stock_status(part, status):
+    # Out wins over low, low needs a reorder point, and an uncounted part is its own
+    # state so a card can hide the badge instead of showing a zero nobody counted.
+    assert a.part_stock_status(part) == status
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "delta"),
+    [(3, 2, -1), (None, 4, 4), (2, None, -2), (0.3, 0.1, -0.2), (1, 1, 0)],
+)
+def test_stock_delta(before, after, delta):
+    assert a.stock_delta(before, after) == delta
+
+
+def test_stock_delta_is_rounded_like_the_count():
+    # 0.3 - 0.1 in floats is 0.19999999999999998. Giving that back later would leave
+    # a count that is not the one it started from.
+    assert a.stock_delta(0.1, 0.3) == 0.2
+
+
+def test_stock_report_after_a_clamped_adjustment():
+    part = {"id": "p1", "stock": 1, "reorder_at": 2, "stock_unit": "roll"}
+    before = part["stock"]
+    a.adjust_part_stock(part, -3)
+    report = a.stock_report(part, a.stock_delta(before, part["stock"]))
+    # The count stops at zero, so only 1 was really taken, not 3.
+    assert report == {
+        "stock": 0,
+        "applied_delta": -1,
+        "reorder_at": 2,
+        "unit": "roll",
+        "status": "out",
+    }

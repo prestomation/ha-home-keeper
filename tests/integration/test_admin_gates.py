@@ -105,7 +105,16 @@ def priced_asset(ha):
                 {"type": "text", "label": "Insurer", "value": "Acme Mutual"},
                 {"type": "link", "label": "Product page", "value": "https://ex.com/p"},
             ],
-            "parts": [{"name": "Filter", "cost": 39.5, "url": "https://ex.com/filter"}],
+            "parts": [
+                {
+                    "name": "Filter",
+                    "cost": 39.5,
+                    "url": "https://ex.com/filter",
+                    "vendor": "Acme",
+                    "stock": 3,
+                    "reorder_at": 1,
+                }
+            ],
         },
     )
     resp = call_service(ha, "home_keeper", "list_assets", {}, return_response=True)
@@ -560,6 +569,7 @@ def test_get_assets_withholds_costs_and_serials_from_a_non_admin(
     assert "cost" not in projected
     assert "serial_number" not in projected
     assert "cost" not in projected["parts"][0]
+    assert "vendor" not in projected["parts"][0]
     assert [m["label"] for m in projected["metadata"]] == ["Product page"]
 
 
@@ -571,6 +581,15 @@ def test_get_assets_still_carries_what_the_card_renders(non_admin_token, priced_
     )
     assert projected["parts"][0]["url"] == "https://ex.com/filter"
     assert projected["metadata"][0]["value"] == "https://ex.com/p"
+
+
+def test_get_assets_shows_stock_to_a_non_admin(non_admin_token, priced_asset):
+    # Stock is not administration: a dashboard card shows "3 left" to everyone in the
+    # household, and the spares number entity already does.
+    part = next(
+        a for a in _assets_over_ws(non_admin_token) if a["id"] == priced_asset["id"]
+    )["parts"][0]
+    assert (part["stock"], part["reorder_at"], part["stock_unit"]) == (3, 1, "")
 
 
 def test_get_assets_is_unabridged_for_an_admin(ha, priced_asset):

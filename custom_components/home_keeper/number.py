@@ -100,6 +100,17 @@ class HomeKeeperPartStockNumber(HomeKeeperPartEntity, NumberEntity):
         return float(stock) if stock is not None else None
 
     @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """What a dashboard needs beside the count to colour it and to act on it."""
+        part = self._part() or {}
+        return {
+            "asset_id": self._asset_id,
+            "part_id": self._part_id,
+            "reorder_at": part.get("reorder_at"),
+            "status": asset_model.part_stock_status(part),
+        }
+
+    @property
     def native_unit_of_measurement(self) -> str | None:
         """The part's own unit (``ml``, ``m``…), or none for plain whole spares."""
         return asset_model.part_stock_unit(self._part() or {}) or None
