@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_sensor_watcher_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-25 15:36 +0000
+            created at 2026-09-26 00:24 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -502,10 +502,10 @@
     <p class="pln"><span class="n"><a id="t418" href="#t418">418</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t419" href="#t419">419</a></span><span class="t"><span class="str">    The caller holds &quot;was the condition true last tick&quot; and &quot;when did it cross&quot; in</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t420" href="#t420">420</a></span><span class="t"><span class="str">    memory, and both are answers about **one** condition. Edit the task &#8212; or edit the</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t421" href="#t421">421</a></span><span class="t"><span class="str">    recipe that owns it &#8212; and the answers describe a question nobody is asking any</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t422" href="#t422">422</a></span><span class="t"><span class="str">    more: a task moved from &quot;below 20%&quot; to &quot;below 50%&quot; carried a ``condition_met``</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t423" href="#t423">423</a></span><span class="t"><span class="str">    that had been decided against the old limit, so a battery already at 30% stayed</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t424" href="#t424">424</a></span><span class="t"><span class="str">    dormant until it rose above 50% and fell back through it.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t421" href="#t421">421</a></span><span class="t"><span class="str">    declarative companion that owns it &#8212; and the answers describe a question nobody</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t422" href="#t422">422</a></span><span class="t"><span class="str">    is asking any more: a task moved from &quot;below 20%&quot; to &quot;below 50%&quot; carried a</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t423" href="#t423">423</a></span><span class="t"><span class="str">    ``condition_met`` that had been decided against the old limit, so a battery already</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t424" href="#t424">424</a></span><span class="t"><span class="str">    at 30% stayed dormant until it rose above 50% and fell back through it.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t425" href="#t425">425</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t426" href="#t426">426</a></span><span class="t"><span class="str">    So the caller compares this fingerprint with the one it recorded and starts the</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t427" href="#t427">427</a></span><span class="t"><span class="str">    edge afresh when they differ. The entity and the condition are in it. The hold and</span>&nbsp;</span><span class="r"></span></p>
@@ -792,7 +792,7 @@
     <p class="pln"><span class="n"><a id="t708" href="#t708">708</a></span><span class="t"><span class="str">    a pending hold (see :func:`_evaluate_indeterminate`). Reading a broken template as</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t709" href="#t709">709</a></span><span class="t"><span class="str">    &quot;the condition went away&quot; is the dangerous half &#8212; it would auto-complete every</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t710" href="#t710">710</a></span><span class="t"><span class="str">    ``clear_on_recover`` task the first time a typo shipped, across every entity the</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t711" href="#t711">711</a></span><span class="t"><span class="str">    recipe matched, and the completions would look like real ones.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t711" href="#t711">711</a></span><span class="t"><span class="str">    declarative companion matched, and the completions would look like real ones.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t712" href="#t712">712</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t713" href="#t713">713</a></span><span class="t">    <span class="nam">cfg</span> <span class="op">=</span> <span class="nam">sensor_config</span><span class="op">(</span><span class="nam">task</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t714" href="#t714">714</a></span><span class="t">    <span class="key">assert</span> <span class="nam">cfg</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
@@ -817,7 +817,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_sensor_watcher_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-25 15:36 +0000
+            created at 2026-09-26 00:24 +0000
         </p>
     </div>
 </footer>

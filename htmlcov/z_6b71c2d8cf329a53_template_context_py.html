@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_todo_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-25 15:36 +0000
+            created at 2026-09-26 00:24 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -95,7 +95,7 @@
     <p class="pln"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t"><span class="str">existed. It moved here rather than growing a second copy, because</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t12" href="#t12">12</a></span><span class="t"><span class="str">``declarative_companion_sync`` imports ``sensor_watcher`` (for</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t13" href="#t13">13</a></span><span class="t"><span class="str">``async_mark_tasks_new``), so the watcher cannot import it back. A second copy is</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="str">worse than the import cycle it avoids: the two would drift, and a recipe&#x27;s task name</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="str">worse than the import cycle it avoids: the two would drift, and a companion&#x27;s task name</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t15" href="#t15">15</a></span><span class="t"><span class="str">would then read a different ``{{ state }}`` from the trigger that opened it.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t16" href="#t16">16</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="str">HA-bound: it reads the entity, device and area registries. The pure side never calls</span>&nbsp;</span><span class="r"></span></p>
@@ -130,11 +130,11 @@
     <p class="pln"><span class="n"><a id="t46" href="#t46">46</a></span><span class="t"><span class="com"># cache entry goes with it, and every render re-parses the Jinja source.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t47" href="#t47">47</a></span><span class="t"><span class="com">#</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t48" href="#t48">48</a></span><span class="t"><span class="com"># That is 90x the cost of the render it precedes &#8212; ~500us to parse against ~6us to</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t49" href="#t49">49</a></span><span class="t"><span class="com"># render &#8212; so a recipe at the 500-entity cap spent about a quarter of a second of</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t49" href="#t49">49</a></span><span class="t"><span class="com"># render &#8212; so a companion at the 500-entity cap spent about a quarter of a second of</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t50" href="#t50">50</a></span><span class="t"><span class="com"># event-loop time parsing one unchanged expression, on every pass. Holding the</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t51" href="#t51">51</a></span><span class="t"><span class="com"># ``Template`` keeps Home Assistant&#x27;s own cache warm and the parse happens once.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t52" href="#t52">52</a></span><span class="t"><span class="com">#</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t53" href="#t53">53</a></span><span class="t"><span class="com"># Capped, because the recipe preview renders on every keystroke and each draft is a</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t53" href="#t53">53</a></span><span class="t"><span class="com"># Capped, because the companion preview renders on every keystroke and each draft is a</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t54" href="#t54">54</a></span><span class="t"><span class="com"># different source: without a bound, typing a template would grow this forever.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t55" href="#t55">55</a></span><span class="t"><span class="com">#</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t56" href="#t56">56</a></span><span class="t"><span class="com"># Keyed by ``(strict, source)`` rather than by source alone. ``Template`` asserts that</span>&nbsp;</span><span class="r"></span></p>
@@ -171,7 +171,7 @@
     <p class="run"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">    <span class="key">if</span> <span class="nam">template</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">        <span class="key">if</span> <span class="nam">len</span><span class="op">(</span><span class="nam">cache</span><span class="op">)</span> <span class="op">&gt;=</span> <span class="nam">_TEMPLATE_CACHE_MAX</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t89" href="#t89">89</a></span><span class="t">            <span class="com"># Plain FIFO rather than an LRU: the entries worth keeping are the handful</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t90" href="#t90">90</a></span><span class="t">            <span class="com"># of saved recipes that render every pass, and they are re-added the next</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t90" href="#t90">90</a></span><span class="t">            <span class="com"># of saved companions that render every pass, and they are re-added the next</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t91" href="#t91">91</a></span><span class="t">            <span class="com"># time they render. The churn this bounds is a preview draft, which is</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t92" href="#t92">92</a></span><span class="t">            <span class="com"># never rendered twice.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t93" href="#t93">93</a></span><span class="t">            <span class="nam">cache</span><span class="op">.</span><span class="nam">pop</span><span class="op">(</span><span class="nam">next</span><span class="op">(</span><span class="nam">iter</span><span class="op">(</span><span class="nam">cache</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -195,9 +195,9 @@
     <p class="run"><span class="n"><a id="t111" href="#t111">111</a></span><span class="t">    <span class="key">return</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t112" href="#t112">112</a></span><span class="t">        <span class="str">&quot;entity_id&quot;</span><span class="op">:</span> <span class="nam">found</span><span class="op">.</span><span class="nam">entity_id</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t113" href="#t113">113</a></span><span class="t">        <span class="str">&quot;device_id&quot;</span><span class="op">:</span> <span class="nam">found</span><span class="op">.</span><span class="nam">device_id</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t114" href="#t114">114</a></span><span class="t">        <span class="com"># The effective area, as a recipe&#x27;s selection pass projects it: most entities</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t114" href="#t114">114</a></span><span class="t">        <span class="com"># The effective area, as a companion&#x27;s selection pass projects it: most entities</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t115" href="#t115">115</a></span><span class="t">        <span class="com"># take their area from their device. With the entity&#x27;s own area alone, a</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t116" href="#t116">116</a></span><span class="t">        <span class="com"># trigger that reads ``area_id`` would disagree with the recipe preview and</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t116" href="#t116">116</a></span><span class="t">        <span class="com"># trigger that reads ``area_id`` would disagree with the companion preview and</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t117" href="#t117">117</a></span><span class="t">        <span class="com"># with the task notes for the same entity.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t118" href="#t118">118</a></span><span class="t">        <span class="str">&quot;area_id&quot;</span><span class="op">:</span> <span class="nam">effective_area_id</span><span class="op">(</span><span class="nam">found</span><span class="op">.</span><span class="nam">area_id</span><span class="op">,</span> <span class="nam">device</span><span class="op">.</span><span class="nam">area_id</span> <span class="key">if</span> <span class="nam">device</span> <span class="key">else</span> <span class="key">None</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t119" href="#t119">119</a></span><span class="t">        <span class="str">&quot;platform&quot;</span><span class="op">:</span> <span class="nam">found</span><span class="op">.</span><span class="nam">platform</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -220,8 +220,8 @@
     <p class="pln"><span class="n"><a id="t136" href="#t136">136</a></span><span class="t"><span class="str">    ``{{ attributes.latest_version }}``.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t137" href="#t137">137</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t138" href="#t138">138</a></span><span class="t"><span class="str">    These names are a public contract: they appear in the panel&#x27;s helper text, in the</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t139" href="#t139">139</a></span><span class="t"><span class="str">    User Guide, and in every recipe a user has already saved. Add to them freely;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t140" href="#t140">140</a></span><span class="t"><span class="str">    never rename one.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t139" href="#t139">139</a></span><span class="t"><span class="str">    User Guide, and in every declarative companion a user has already saved. Add to</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t140" href="#t140">140</a></span><span class="t"><span class="str">    them freely; never rename one.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t141" href="#t141">141</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t142" href="#t142">142</a></span><span class="t">    <span class="nam">entity_id</span> <span class="op">=</span> <span class="nam">entry</span><span class="op">[</span><span class="str">&quot;entity_id&quot;</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t143" href="#t143">143</a></span><span class="t">    <span class="nam">state</span> <span class="op">=</span> <span class="nam">hass</span><span class="op">.</span><span class="nam">states</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">entity_id</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -263,7 +263,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_todo_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-25 15:36 +0000
+            created at 2026-09-26 00:24 +0000
         </p>
     </div>
 </footer>
