@@ -254,9 +254,8 @@ is really at. And `unit` is whatever the part counts itself in (`"ml"`, `"bottle
 or `""` for one counted in whole spares, so a notification can read
 `{{ trigger.event.data.stock }} {{ trigger.event.data.unit }}` and be right either way.
 
-A stock event also carries `source` and `managed_by` of the appliance, as the asset
-events do. An integration that manages an appliance uses them to find its own stock
-events.
+A stock event also holds the appliance's `source` and `managed_by`, as the asset
+events do, so an integration that manages an appliance can find its own stock events.
 
 ## Example automations
 
