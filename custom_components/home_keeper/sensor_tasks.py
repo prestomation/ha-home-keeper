@@ -418,10 +418,10 @@ def condition_fingerprint(task: dict[str, Any]) -> tuple[Any, ...]:
 
     The caller holds "was the condition true last tick" and "when did it cross" in
     memory, and both are answers about **one** condition. Edit the task — or edit the
-    recipe that owns it — and the answers describe a question nobody is asking any
-    more: a task moved from "below 20%" to "below 50%" carried a ``condition_met``
-    that had been decided against the old limit, so a battery already at 30% stayed
-    dormant until it rose above 50% and fell back through it.
+    declarative companion that owns it — and the answers describe a question nobody
+    is asking any more: a task moved from "below 20%" to "below 50%" carried a
+    ``condition_met`` that had been decided against the old limit, so a battery already
+    at 30% stayed dormant until it rose above 50% and fell back through it.
 
     So the caller compares this fingerprint with the one it recorded and starts the
     edge afresh when they differ. The entity and the condition are in it. The hold and
@@ -708,7 +708,7 @@ def evaluate_template(
     a pending hold (see :func:`_evaluate_indeterminate`). Reading a broken template as
     "the condition went away" is the dangerous half — it would auto-complete every
     ``clear_on_recover`` task the first time a typo shipped, across every entity the
-    recipe matched, and the completions would look like real ones.
+    declarative companion matched, and the completions would look like real ones.
     """
     cfg = sensor_config(task)
     assert cfg is not None

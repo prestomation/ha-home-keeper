@@ -1,4 +1,4 @@
-"""A broken recipe name or notes template is logged once, not once per pass.
+"""A broken companion name or notes template is logged once, not once per pass.
 
 ``DeclarativeCompanionSync._render_one`` renders the name template and then the notes
 template for each matched entity, on each reconcile pass. The record of what it

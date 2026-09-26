@@ -124,7 +124,7 @@ class DeclarativeCompanionSync:
         # registry event per entity, so an integration loading 50 of them used to run
         # 50 full passes — each one walking every spec over every entity, rendering
         # Jinja per match and writing the store. ``immediate`` keeps the first pass
-        # prompt (a recipe saved in the panel must show its tasks at once) and folds
+        # prompt (a companion saved in the panel must show its tasks at once) and folds
         # the rest of the burst into one trailing pass.
         self._reconcile_debouncer = Debouncer(
             hass,
@@ -225,7 +225,7 @@ class DeclarativeCompanionSync:
         """The Jinja render context for one matched entity.
 
         Delegates to :func:`template_context.template_variables`, which the
-        ``template``-mode sensor trigger renders against as well, so a recipe's task
+        ``template``-mode sensor trigger renders against as well, so a companion's task
         name and the trigger that opened it always read the same ``{{ state }}``.
         """
         return template_context.template_variables(self._hass, entry)
@@ -315,9 +315,9 @@ class DeclarativeCompanionSync:
         for spec in list(specs.values()):
             if not spec.get("enabled", True):
                 # A disabled spec's managed tasks are switched off rather than
-                # removed, so a recipe can be turned off for a week without losing
+                # removed, so a companion can be turned off for a week without losing
                 # the completions recorded on the tasks it made. Re-enabling the
-                # recipe brings them back (see ``pause_spec_tasks``).
+                # companion brings them back (see ``pause_spec_tasks``).
                 await self._coordinator.store.pause_declarative_companion_tasks(
                     spec["id"]
                 )
@@ -358,13 +358,11 @@ class DeclarativeCompanionSync:
         gone away, for a spec with no notes template, and when the render matches
         what is stored.
 
-        A note edited by hand is overwritten. ``notes`` is not one of the task's
-        ``managed_by.locked_fields``, but the reconcile pass already rewrites it from
-        the template whenever the registry moves (see
-        ``declarative_companions.reconcile_declarative_tasks``), so the field is
-        owned by the recipe in practice. Keeping the hand-edit here would make the
-        note survive an arm but not a rename of the device, which is a worse rule
-        than the one it replaces.
+        A spec with a notes template owns the notes: ``notes`` is one of the task's
+        ``managed_by.locked_fields`` then, so no hand edit exists to lose. The write
+        goes through ``store.async_set_declarative_notes`` for that reason, because
+        ``update_task`` would drop a locked field. A spec with no template does not
+        own the notes and returns early above.
         """
         store = self._coordinator.store
         task = store.get_tasks().get(task_id)
@@ -384,9 +382,7 @@ class DeclarativeCompanionSync:
             return
         variables = self._template_variables(self._entry_for_entity(entity_id))
         notes = self._render_one(template, variables)
-        if notes == task.get("notes"):
-            return
-        await store.update_task(task_id, {"notes": notes})
+        await store.async_set_declarative_notes(task_id, notes)
 
     # ── event handlers ───────────────────────────────────────────────────────
     @callback

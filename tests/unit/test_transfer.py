@@ -328,9 +328,9 @@ def test_an_unknown_field_is_a_named_warning_not_a_failure():
 
 
 def test_an_unknown_section_is_a_named_warning_not_a_failure():
-    plan = _plan(_doc(tasks=[], recipes=[{"name": "x"}]))
+    plan = _plan(_doc(tasks=[], declarative_companions=[{"name": "x"}]))
     assert plan.ok
-    assert '"recipes" is not a section' in _warnings(plan)[0]
+    assert '"declarative_companions" is not a section' in _warnings(plan)[0]
 
 
 def test_a_newer_format_is_refused_with_a_version_to_act_on():
@@ -742,13 +742,13 @@ def test_an_unknown_field_warning_names_the_field_in_its_path():
 
 
 def test_an_unknown_section_warning_names_the_section():
-    plan = _plan(_doc(recipes=[]))
+    plan = _plan(_doc(declarative_companions=[]))
     assert _only(plan) == {
-        "section": "recipes",
+        "section": "declarative_companions",
         "index": None,
-        "path": "recipes",
-        "message": '"recipes" is not a section this version of Home Keeper reads, so '
-        "it was left alone",
+        "path": "declarative_companions",
+        "message": '"declarative_companions" is not a section this version of Home '
+        "Keeper reads, so it was left alone",
         "severity": "warning",
     }
 

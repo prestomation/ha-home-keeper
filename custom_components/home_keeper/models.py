@@ -294,14 +294,15 @@ def normalize_sensor(
     when it materializes the task).
 
     ``allow_missing_template`` opts out of the "``sensor.template`` is required" gate,
-    for the recipe **preview** alone. A draft is read on every keystroke, and the
-    instant a user picks Template mode the box is empty by definition — failing the
-    whole command there threw away the match list at the one moment the user most
-    wants to see which entities they are about to write a template against. The empty
-    source reaches ``sensor_watcher.render_template_result``, which answers
-    "sensor.template is empty" per row, so the preview still says what it cannot
-    decide. Nothing that **saves** a binding passes this: ``add_task``,
-    ``update_task`` and the add/update companion commands all leave it at ``False``.
+    for the declarative companion **preview** alone. A draft is read on every
+    keystroke, and the instant a user picks Template mode the box is empty by
+    definition — failing the whole command there threw away the match list at the
+    one moment the user most wants to see which entities they are about to write a
+    template against. The empty source reaches
+    ``sensor_watcher.render_template_result``, which answers "sensor.template is empty"
+    per row, so the preview still says what it cannot decide. Nothing that **saves** a
+    binding passes this: ``add_task``, ``update_task`` and the add/update companion
+    commands all leave it at ``False``.
     """
     if not isinstance(data, dict):
         raise TaskValidationError("a sensor task requires a sensor configuration")

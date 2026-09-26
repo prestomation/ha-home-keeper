@@ -16,5 +16,5 @@
   "declarative_preset.firmware_update_available.description": "Beobachtet jede Update-Entität (UniFi, ESPHome, HACS, Kameras, Drucker etc.) und erstellt eine Aufgabe, um die neue Version zu installieren.",
   "declarative_preset.device_stopped_reporting.name": "Gerät meldet sich nicht mehr",
   "declarative_preset.device_stopped_reporting.description": "Überwacht alle Zuletzt-gesehen-Sensoren und öffnet eine Aufgabe für jedes Gerät, das sich seit 24 Stunden nicht gemeldet hat. Damit finden Sie die Zigbee- oder Z-Wave-Geräte, die aus dem Netz gefallen sind.",
-  "declarative_task.completion_prompt": "Erstellt vom Rezept „{name}“. Diese Aufgabe wird automatisch abgeschlossen, sobald die Bedingung wegfällt, und kann deshalb nicht manuell abgeschlossen werden."
+  "declarative_task.completion_prompt": "Erstellt vom deklarativen Companion „{name}“. Diese Aufgabe wird automatisch abgeschlossen, sobald die Bedingung wegfällt, und kann deshalb nicht manuell abgeschlossen werden."
 }

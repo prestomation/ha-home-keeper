@@ -1,7 +1,8 @@
 /**
  * Fields that only mean something because of a choice above them, indented behind
  * the accent rule (`.hk-indent`) under a small eyebrow and note. Settings uses it for
- * the problem-sensor exclusions, and the recipe dialog for a recipe's exclusions.
+ * the problem-sensor exclusions, and the declarative companion dialog for its own
+ * exclusions.
  */
 
 import { escapeHTML } from './utils';

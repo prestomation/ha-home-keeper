@@ -45,16 +45,17 @@ To add a companion or a [glue integration](../../GLUE_INTEGRATIONS.md) to the ca
 
 ##### Declarative companions (config-driven, no separate integration)
 
-A **declarative companion** is a recipe. The recipe targets an integration, or it
-matches entities through an entity id filter. The recipe sets a trigger mode: usage,
-threshold, state, availability, or template. The recipe also sets a Jinja template for
-the task name and the task notes.
+A **declarative companion** targets an integration, or it matches entities through an
+entity id filter. It sets a trigger mode: usage, threshold, state, availability, or
+template. It also sets a Jinja template for the task name and the task notes, and the
+labels to put on each task.
 
-Home Keeper opens one managed task for each entity that matches the recipe. The task
-clears when the condition recovers. A task that a recipe made has an **Edit recipe**
-button on its detail page. The button opens the recipe that made the task.
+Home Keeper opens one managed task for each entity that matches the declarative
+companion. The task clears when the condition recovers. A task that a declarative
+companion made has an **Edit companion** button on its detail page. The button opens
+the declarative companion that made the task.
 
-Each task that a recipe makes is a sensor-based task, so it has no due date until
+Each task that a declarative companion makes is a sensor-based task, so it has no due date until
 its condition is true. A task with no due date shows as **Monitored** and stays off
 the to-do list and the calendar. When the condition becomes true, Home Keeper sets
 the due date to that moment, so the task is due now and then overdue. The age of an
@@ -64,8 +65,8 @@ device with no update pending shows **Monitored**. All bundled presets complete 
 task automatically when the condition recovers, so those tasks offer no Done button.
 
 A task on a device also gets entities on the device page. Their names start with the
-recipe name, then Next due, Overdue or Mark done. When the recipe completes its tasks
-itself, the device page has no **Mark done** button for them. Home Keeper also refuses
+name of the declarative companion, then Next due, Overdue or Mark done. When the
+declarative companion completes its tasks itself, the device page has no **Mark done** button for them. Home Keeper also refuses
 a completion or a skip by hand from a service call or an automation. Home Assistant sets the
 entity ID when the entity is first made and does not change it later. To get a
 shorter entity ID for an older entity, rename it in Home Assistant.
@@ -82,25 +83,28 @@ The *Add from preset* picker offers 3 presets.
   Z-Wave devices that dropped off the mesh. It needs no other integration.
 
 A preset writes the task name and notes in the Home Assistant language. A later change
-of the language changes the tasks to the new language. When a recipe has your own name
-or notes, Home Keeper uses your text.
+of the language changes the tasks to the new language. When a declarative companion has
+your own name or notes, Home Keeper uses your text.
 
 Low batteries have no preset. The [Battery Notes glue
 integration](../../GLUE_INTEGRATIONS.md) already opens a task for each battery and
-also supplies the battery type and the count. Write a recipe for a low-battery
-`binary_sensor` if you do not use that glue integration.
+also supplies the battery type and the count. Write a declarative companion for a
+low-battery `binary_sensor` if you do not use that glue integration.
 
 The *Add companion* dialog shows a live preview of the matches before you save. A
-warning shows above 50 matches. A recipe cannot match more than 500 entities. See
+warning shows above 50 matches. A declarative companion cannot match more than 500
+entities. See
 [INTEGRATING.md](../../INTEGRATING.md) for the service reference.
 
 The *Which entities?* section of the dialog has the integration and the entity domain.
 Click **More filters** to see the other filters. Set a device class there, or write an
-entity id regex. You can also limit the recipe to some areas or to some labels. An
+entity id regex. You can also limit the declarative companion to some areas or to some
+labels. An
 entity that has no area of its own uses the area of its device. When **More filters**
 is closed, its row shows how many filters and exclusions are set.
 
-The **Exclusions** block under the filters removes entities from the recipe. Select
+The **Exclusions** block under the filters removes entities from the declarative
+companion. Select
 the entities, devices, areas or labels to exclude. Home Keeper then makes no task for
 an entity that matches one of them. This is the same as the exclusions of Problem
 sensor sync.
@@ -110,7 +114,7 @@ The entity then shows under the matches with an **Include** button, which adds i
 back. The preview shows 10 matches at most. To exclude an entity that is not in the
 preview, select it in the excluded entities list.
 
-![The recipe dialog with More filters open and one excluded entity in the Exclusions block](../../images/21j-panel-declarative-filters.png)
+![The declarative companion dialog with More filters open and one excluded entity in the Exclusions block](../../images/21j-panel-declarative-filters.png)
 
 ![The same dialog on a phone, with an Exclude button on each preview row](../../images/21k-panel-mobile-declarative-filters.png)
 
@@ -118,18 +122,52 @@ preview, select it in the excluded entities list.
 
 ![The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right](../../images/21d-panel-declarative-add-dialog.png)
 
-![The page of a task a recipe made, with an Edit recipe button and no Done button while the task is monitored](../../images/21e-panel-declarative-task-detail.png)
+![The page of a task a declarative companion made, with Edit and Edit companion buttons and no Done button while the task is monitored](../../images/21e-panel-declarative-task-detail.png)
 
-A recipe you switch off keeps the tasks it made. The tasks stop until you switch the
-recipe on again. Their history stays with them. Delete the recipe to remove its
-tasks.
+![The same task page on a phone](../../images/21e-mobile-companion-task.png)
 
-Each recipe gets a row under **Settings → Companions** with an Edit button and a
-Delete button. On a phone the row stacks, and the buttons take a line of their own.
+A declarative companion you switch off keeps the tasks it made. The tasks stop until
+you switch it on again. Their history stays with them. Delete the declarative
+companion to remove its tasks.
 
-![A recipe row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete](../../images/21h-panel-declarative-row-actions.png)
+Each declarative companion gets a row under **Settings → Companions** with an Edit
+button and a Delete button. On a phone the row stacks, and the buttons take a line of
+their own.
 
-![The same recipe row on a phone, with Edit and Delete on a line under the name](../../images/21i-panel-mobile-recipe-row.png)
+![A declarative companion row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete](../../images/21h-panel-declarative-row-actions.png)
+
+![The same row on a phone, with Edit and Delete on a line under the name](../../images/21i-panel-mobile-declarative-row.png)
+
+##### Task labels and notes
+
+Use **Task labels** to find the tasks of one declarative companion. Set them in the
+**Task template** section of the dialog. Each task that the declarative companion makes
+gets these labels, and a Profile can then filter on them. Put a *Leak* label on the
+tasks of a declarative companion that watches leak sensors. A Profile with the *Leak*
+label and the Overdue status then shows only the leaks to fix now.
+
+When you save a change to the task labels, Home Keeper changes the tasks that exist too.
+It adds each label you added and removes each label you removed. Other labels on a task
+stay.
+
+You can also change one task. Click **Edit** on the task page. The form shows only the
+fields that the declarative companion does not set: the labels, the NFC tag, the
+completion detail, and the notes. Add a label there to put it on that task only. A
+label that you add to one task stays when the declarative companion changes, unless the
+declarative companion later adds and then removes a label with the same name.
+
+The notes belong to the declarative companion only when it has a notes template. Then
+Home Keeper writes the notes again on each change, and the task form does not show
+them. When the notes template is empty, the notes are yours. Write them on each task,
+and Home Keeper keeps them.
+
+![The Task template section with two task labels](../../images/21s-panel-declarative-task-labels.png)
+
+![The same section on a phone](../../images/21s-mobile-task-labels.png)
+
+![The Edit form of a declarative companion task. It shows only the labels, the tag, the completion detail and the notes](../../images/21t-panel-declarative-task-edit.png)
+
+![The same form on a phone](../../images/21t-mobile-companion-task-edit.png)
 
 ##### Template triggers
 
@@ -169,7 +207,7 @@ attribute can be missing.
 
 A template that does not render decides nothing. Home Keeper opens no task and closes
 no task, and it writes the error to the log once. A typo cannot complete the tasks that
-a recipe already opened.
+a declarative companion already opened.
 
 Home Keeper reads a name it does not know as an error. A misspelled `{{ stat == 'on' }}`
 gives you the same red message as any other broken template. A template that reads
@@ -183,9 +221,9 @@ take up to 5 minutes to open its task.
 The Add dialog renders the template against your own entities. Each row in the preview
 says **Due now** or **Monitored**, and the line above them says how many of the shown
 rows are due. The preview lists the matched entities before you write the template, so
-you can see what the recipe covers first.
+you can see what the declarative companion covers first.
 
-![The recipe dialog on Template mode. The preview shows a Due now chip and a Monitored chip](../../images/21j-panel-template-trigger.png)
+![The declarative companion dialog on Template mode. The preview shows a Due now chip and a Monitored chip](../../images/21j-panel-template-trigger.png)
 
 A template that cannot render shows the Jinja error instead, so you can correct it
 before you save. Such a template opens no task and closes no task.
@@ -195,7 +233,7 @@ before you save. Such a template opens no task and closes no task.
 An empty box is not an error. The preview lists the matched entities and tells you to
 write a template.
 
-![The recipe dialog on Template mode with an empty box. A blue note asks for a template, and the match list is below it](../../images/21n-panel-template-empty.png)
+![The declarative companion dialog on Template mode with an empty box. A blue note asks for a template, and the match list is below it](../../images/21n-panel-template-empty.png)
 
 ![The same empty state on a phone](../../images/21o-panel-mobile-template-empty.png)
 

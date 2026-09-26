@@ -1,6 +1,6 @@
 """Pure logic for declarative companions.
 
-A **declarative companion** is a Home-Keeper-owned recipe (target integration +
+A **declarative companion** is a Home-Keeper-owned spec (target integration +
 entity filters + sensor-task trigger + Jinja-templated task fields) that expands
 into one managed sensor task per matching entity. Unlike a hand-coded glue
 integration (Battery Notes, Pawsistant) it needs no separate repo — users create
@@ -55,8 +55,11 @@ from .const import (
 from .models import TaskValidationError
 
 # Fields the reconciler owns and rewrites from the spec on every pass; user edits
-# through the update_task service are stripped by ``models.merge_update``. The
-# panel additionally hides edit/delete for source-owned tasks.
+# through the update_task service are stripped by ``models.merge_update``, and the
+# panel's task form leaves them out. ``notes`` joins them only when the spec has a
+# notes template (see :func:`owns_notes`). ``labels`` never does: the spec adds and
+# removes its own labels when it is saved (:func:`apply_template_label_diff`), and
+# any other label on a task belongs to the person who put it there.
 _LOCKED_FIELDS = ["name", "recurrence_type", "device_id", "area_id", "sensor"]
 
 
@@ -223,10 +226,10 @@ def normalize_declarative_companion(
     Pure — no HA imports.
 
     ``allow_missing_template`` is passed straight through to
-    :func:`models.normalize_sensor`, and only the recipe **preview** sets it — a draft
-    that has just switched to Template mode has an empty box by definition, and the
-    preview is more useful showing the match list than refusing to answer. Every path
-    that persists a spec leaves it ``False``.
+    :func:`models.normalize_sensor`, and only the companion **preview** sets it — a
+    draft that has just switched to Template mode has an empty box by definition, and
+    the preview is more useful showing the match list than refusing to answer. Every
+    path that persists a spec leaves it ``False``.
     """
     if not isinstance(data, dict):
         raise DeclarativeCompanionValidationError(
@@ -420,6 +423,17 @@ def expand_spec(
 # --- Managed-by + reconcile -------------------------------------------------
 
 
+def owns_notes(spec: dict[str, Any]) -> bool:
+    """Whether *spec* writes the notes of its tasks.
+
+    Only a spec with a notes template does. Without one the rendered notes are always
+    empty, and writing that on each pass erased any note a person wrote on the task.
+    Such a task's notes are the person's, so the field stays unlocked and the
+    reconciler leaves it alone.
+    """
+    return bool((spec.get("task_template") or {}).get("notes_template"))
+
+
 def build_managed_by(
     spec: dict[str, Any], config_entry_id: str, *, lang: str = "en"
 ) -> dict[str, Any]:
@@ -428,12 +442,13 @@ def build_managed_by(
     ``deletion_protected`` requires ``config_entry_id`` (see
     :func:`models.validate_managed_by`) so the task stays cleanable if Home Keeper
     is removed. ``locked_fields`` reflect that the reconciler owns
-    name/device/area/sensor from the spec's template.
+    name/device/area/sensor from the spec's template, and the notes when the spec
+    has a notes template (:func:`owns_notes`).
 
     ``completion_blocked`` follows the trigger's ``clear_on_recover``, because that
     flag is what decides who owns the task's lifecycle:
 
-    * **Set** — the recipe owns both ends. The watcher arms on the crossing and
+    * **Set** — the companion owns both ends. The watcher arms on the crossing and
       completes on the recovery, so a hand-pressed Done is worse than a no-op:
       :func:`sensor_tasks._evaluate_edge` will not re-arm while the condition
       merely stays true, so completing an "Update available" task dismisses a
@@ -456,7 +471,7 @@ def build_managed_by(
         "display_name": spec["name"],
         "config_entry_id": config_entry_id,
         "deletion_protected": True,
-        "locked_fields": list(_LOCKED_FIELDS),
+        "locked_fields": [*_LOCKED_FIELDS, *(["notes"] if owns_notes(spec) else [])],
         "completion_blocked": auto_clears,
     }
     if auto_clears:
@@ -494,22 +509,22 @@ def task_key(task: dict[str, Any]) -> tuple[str, str] | None:
 
 
 def merge_sensor_binding(existing: Any, fresh: dict[str, Any]) -> dict[str, Any]:
-    """The recipe's binding, keeping the meter anchor the watcher owns.
+    """The companion's binding, keeping the meter anchor the watcher owns.
 
-    Every key on a materialized task's ``sensor`` block belongs to the recipe and is
-    rewritten from it on each pass — except ``baseline``, which no recipe writes. The
-    sensor watcher stamps it from the first live reading and moves it forward on each
-    completion, so it is the record of how far the meter has run.
+    Every key on a materialized task's ``sensor`` block belongs to the companion and
+    is rewritten from it on each pass — except ``baseline``, which no companion
+    writes. The sensor watcher stamps it from the first live reading and moves it
+    forward on each completion, so it is the record of how far the meter has run.
 
     Rewriting the block wholesale dropped it, and a reconcile pass runs on **any**
-    entity, device or area registry event, so a ``usage`` recipe restarted its meter
+    entity, device or area registry event, so a ``usage`` companion restarted its meter
     at the current reading whenever anything in Home Assistant changed. A task set to
     "every 300 hours" could never reach 300.
 
-    A stored baseline therefore wins over the recipe's, which is only a seed for a
+    A stored baseline therefore wins over the companion's, which is only a seed for a
     task that has none yet. The carry needs both sides in ``usage`` mode: ``baseline``
     is a usage-only field (see ``models.USAGE_ONLY_SENSOR_FIELDS``), so carrying it
-    into a recipe switched to ``threshold`` would make the binding fail validation.
+    into a companion switched to ``threshold`` would make the binding fail validation.
     """
     if not isinstance(existing, dict):
         return fresh
@@ -594,7 +609,7 @@ def reconcile_declarative_tasks(
       specs are carried through untouched).
     * ``ops`` — ordered ``(kind, task)`` events the store must fire:
       ``"created"`` / ``"deleted"`` / ``"updated"`` / ``"resumed"``. A ``"resumed"``
-      task is an ordinary update that also counts as freshly made, because the recipe
+      task is an ordinary update that also counts as freshly made, because the companion
       that had paused it is on again (see :func:`pause_spec_tasks`). Arm/clear
       transitions are not handled here — the sensor watcher owns those on the
       materialized tasks.
@@ -648,7 +663,7 @@ def reconcile_declarative_tasks(
         # renames / device rehoming / spec-name edits flow through.
         entry = match["entity"]
         managed_by = build_managed_by(spec, config_entry_id, lang=lang)
-        # Whether this task is off because the recipe was off. Rewriting ``source``
+        # Whether this task is off because the companion was off. Rewriting ``source``
         # below drops the marker, which is how it clears.
         was_paused = bool((declarative_source(task) or {}).get("paused"))
         new_source = {
@@ -659,19 +674,23 @@ def reconcile_declarative_tasks(
             }
         }
         task_changed = False
-        for field, value in (
-            ("name", rendered_name),
-            ("notes", rendered_notes),
+        owned: list[tuple[str, Any]] = [("name", rendered_name)]
+        # A spec with no notes template does not own the notes: the task keeps
+        # whatever a person wrote there (see :func:`owns_notes`).
+        if owns_notes(spec):
+            owned.append(("notes", rendered_notes))
+        owned += [
             ("device_id", entry.get("device_id")),
             ("area_id", entry.get("area_id")),
             ("sensor", merge_sensor_binding(task.get("sensor"), match["sensor"])),
             ("managed_by", managed_by),
             ("source", new_source),
-        ):
+        ]
+        for field, value in owned:
             if task.get(field) != value:
                 task[field] = value
                 task_changed = True
-        # A task this recipe paused (see :func:`pause_spec_tasks`) runs again, unless
+        # A task this companion paused (see :func:`pause_spec_tasks`) runs again, unless
         # the person switched this one task off themselves — that choice has no
         # ``paused`` marker, and it is theirs to undo.
         resumed = False
@@ -682,7 +701,7 @@ def reconcile_declarative_tasks(
         if task_changed:
             # ``resumed`` is an update the caller must also treat as a task made just
             # now: the watcher has to arm it on a condition that is true while the
-            # recipe was off, exactly as it would for a task the pass created.
+            # companion was off, exactly as it would for a task the pass created.
             ops.append(("resumed" if resumed else "updated", task))
             changed = True
 
@@ -694,14 +713,14 @@ def pause_spec_tasks(
 ) -> tuple[dict[str, dict[str, Any]], list[tuple[str, dict[str, Any]]], bool]:
     """Switch off every task of *spec_id* instead of removing it.
 
-    What a disabled recipe does to the tasks it made. Deleting them was tidy and it
-    threw away the completions on each one, so switching a recipe off for a week and
+    What a disabled companion does to the tasks it made. Deleting them was tidy and it
+    threw away the completions on each one, so switching a companion off for a week and
     back on lost the history of the work it had tracked. A disabled task is already
     ignored by the sensor watcher and by every due-date surface, which is the whole
     of what "off" has to mean.
 
     The ``paused`` marker on the task's own provenance block records who switched it
-    off, so re-enabling the recipe brings back the tasks it paused and leaves alone
+    off, so re-enabling the companion brings back the tasks it paused and leaves alone
     any task the person switched off by hand. It travels with ``source`` in an export
     like the rest of the provenance.
 
@@ -716,13 +735,59 @@ def pause_spec_tasks(
         if key is None or key[0] != spec_id:
             continue
         if not task.get("enabled", True):
-            # Already off: either this recipe paused it on an earlier pass, or the
+            # Already off: either this companion paused it on an earlier pass, or the
             # person switched this one task off. The first needs nothing, and the
             # second must not get a marker — that choice is theirs to undo.
             continue
         task["enabled"] = False
         # ``task_key`` above already proved the provenance block is a mapping.
         task["source"][TASK_SOURCE_DECLARATIVE_COMPANION]["paused"] = True
+        ops.append(("updated", task))
+        changed = True
+    return result, ops, changed
+
+
+def apply_template_label_diff(
+    spec_id: str,
+    old_labels: Iterable[str],
+    new_labels: Iterable[str],
+    tasks: dict[str, dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], list[tuple[str, dict[str, Any]]], bool]:
+    """Carry a change to a spec's task labels onto the tasks it already made.
+
+    Called when a spec is saved, the one moment both the old and the new label set are
+    known. Each task of *spec_id* loses the labels the spec dropped and gains the ones
+    it added. Every other label on the task is left as it is, so a label a person put
+    on one task survives, and so does their removal of a spec label from one task.
+
+    The reconcile pass never touches labels on a task that exists, which is what makes
+    this the only writer: a pass that put the spec labels back each time would undo a
+    person's removal on the next registry event. A task the pass *creates* takes the
+    spec's current labels (:func:`_build_task`).
+
+    Paused tasks are included, so a spec switched off and edited comes back with the
+    labels it has now. Same ``(new_tasks, ops, changed)`` shape as
+    :func:`pause_spec_tasks`; the ops are always ``"updated"``.
+    """
+    old = list(dict.fromkeys(old_labels))
+    new = list(dict.fromkeys(new_labels))
+    removed = set(old) - set(new)
+    added = [label for label in new if label not in old]
+    result = dict(tasks)
+    ops: list[tuple[str, dict[str, Any]]] = []
+    changed = False
+    if not removed and not added:
+        return result, ops, changed
+    for task in result.values():
+        key = task_key(task)
+        if key is None or key[0] != spec_id:
+            continue
+        current = list(task.get("labels") or [])
+        labels = [label for label in current if label not in removed]
+        labels += [label for label in added if label not in labels]
+        if labels == current:
+            continue
+        task["labels"] = labels
         ops.append(("updated", task))
         changed = True
     return result, ops, changed

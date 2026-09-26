@@ -144,11 +144,11 @@ _BLOCKED_COMPLETION_ORIGINS: Final = frozenset(
 def _reject_completion_blocked(task: dict[str, Any], origin: str | None) -> None:
     """Raise unless *origin* may complete a task whose owner withholds Done.
 
-    A recipe with ``clear_on_recover`` owns both ends of its task: the watcher arms
-    it on the crossing and completes it on the recovery. A completion by hand while
-    the condition is still true records work that was not done (#377). The panel,
-    the card, the to-do list and the notification already withhold Done; this stops
-    the device-page button, the service and an automation too.
+    A declarative companion with ``clear_on_recover`` owns both ends of its task: the
+    watcher arms it on the crossing and completes it on the recovery. A completion by
+    hand while the condition is still true records work that was not done (#377). The
+    panel, the card, the to-do list and the notification already withhold Done; this
+    stops the device-page button, the service and an automation too.
     """
     if not notifications.is_completion_blocked(task):
         return
@@ -1170,6 +1170,26 @@ class HomeKeeperStore:
             await self._save()
         return changed
 
+    async def async_set_declarative_notes(self, task_id: str, notes: str) -> bool:
+        """Write the notes a declarative companion rendered; return whether they moved.
+
+        Bypasses ``models.merge_update`` on purpose, like
+        :meth:`async_repoint_device_ids`: a spec with a notes template locks ``notes``
+        so a person's edit cannot be undone on the next pass, and that same lock would
+        drop the reconciler's own write. Only the reconciler calls this, for a task it
+        owns.
+        """
+        task = self._tasks.get(task_id)
+        if task is None or task.get("notes") == notes:
+            return False
+        task["notes"] = notes
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_TASK_UPDATED,
+            events.task_event_data(task, extra={"changed_fields": ["notes"]}),
+        )
+        return True
+
     async def async_repoint_asset_device_ids(self, mapping: dict[str, str]) -> int:
         """Rewrite dead asset device ids to their live replacements; return how many.
 
@@ -1608,7 +1628,25 @@ class HomeKeeperStore:
         spec["created"] = existing.get("created") or dt_util.now().isoformat()
         spec["updated"] = dt_util.now().isoformat()
         self._declarative_companions[spec_id] = spec
+        # A change to the task labels reaches the tasks that exist now. Only this
+        # method holds both label sets, and the reconcile pass leaves labels alone
+        # (see ``declarative_companions.apply_template_label_diff``).
+        new_tasks, label_ops, labels_changed = (
+            declarative_companions.apply_template_label_diff(
+                spec_id,
+                (existing.get("task_template") or {}).get("labels") or [],
+                spec["task_template"]["labels"],
+                self._tasks,
+            )
+        )
+        if labels_changed:
+            self._tasks = new_tasks
         await self._save()
+        for _kind, task in label_ops:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": ["labels"]}),
+            )
         self._hass.bus.async_fire(
             EVENT_DECLARATIVE_COMPANION_UPDATED,
             events.declarative_companion_event_data(spec),
@@ -1650,7 +1688,7 @@ class HomeKeeperStore:
         return entity_set_changed
 
     async def pause_declarative_companion_tasks(self, spec_id: str) -> bool:
-        """Switch off the tasks of a disabled recipe, keeping them and their history.
+        """Switch off the tasks of a disabled companion, keeping them and their history.
 
         The disabled half of :meth:`reconcile_declarative_companion_tasks`. Delegates
         the decision to :func:`declarative_companions.pause_spec_tasks` and fires the
@@ -1712,7 +1750,7 @@ class HomeKeeperStore:
             rendered_by_key,
             config_entry_id=config_entry_id,
             now=dt_util.now(),
-            # Localizes the completion prompt on a recipe that auto-clears, the
+            # Localizes the completion prompt on a companion that auto-clears, the
             # same way the problem-sensor sync localizes its own.
             lang=self._hass.config.language,
         )
@@ -1737,10 +1775,10 @@ class HomeKeeperStore:
                 if _task_owns_entities(task):
                     entity_set_changed = True
             elif kind == "resumed":
-                # The recipe that had paused this task is on again. It is an update
+                # The companion that had paused this task is on again. It is an update
                 # to everything that reads tasks, and a task made just now to the
                 # sensor watcher, which must arm it on a condition that became true
-                # while the recipe was off.
+                # while the companion was off.
                 created_ids.append(task["id"])
                 self._hass.bus.async_fire(
                     EVENT_TASK_UPDATED,
@@ -1753,7 +1791,7 @@ class HomeKeeperStore:
                     EVENT_TASK_UPDATED,
                     events.task_event_data(task, extra={"changed_fields": []}),
                 )
-                # A new rendered name, a recipe rename or a new ``clear_on_recover``
+                # A new rendered name, a companion rename or a new ``clear_on_recover``
                 # changes the names or the button on the device page, which only an
                 # entry reload makes again.
                 old_key = keys_before.get(task["id"])

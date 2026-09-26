@@ -24,6 +24,13 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from . import recurrence
+from .const import (
+    COMPANION_KEY_DECLARATIVE_PREFIX,
+    COMPANION_KEY_PROBLEM_SENSORS,
+    DOMAIN,
+    TASK_SOURCE_DECLARATIVE_COMPANION,
+    TASK_SOURCE_PROBLEM_SENSOR,
+)
 from .reconcile import buy_source
 from .shopping import normalize_target
 from .transitions import DUE_SOON_WINDOW
@@ -175,6 +182,39 @@ def with_status(filt: dict[str, Any], status: str | None) -> dict[str, Any]:
 # ── filtering & queueing ────────────────────────────────────────────────────────
 
 
+def companion_keys(task: dict[str, Any]) -> set[str]:
+    """The Profile ``companions`` values that name the source of *task*.
+
+    The first is the integration in the task's ``managed_by`` block, the ownership
+    contract a companion sets on ``add_task`` (docs/INTEGRATING.md). Only a task
+    Home Keeper owns has its ``source`` read: an outside integration's ``source`` is
+    its own namespace and stays opaque.
+
+    Home Keeper's own sources add a narrower key, because they all share the
+    ``home_keeper`` domain and a Profile must be able to name one of them:
+
+    * a declarative-companion task adds ``home_keeper:declarative:<spec_id>``;
+    * a synced problem-sensor task adds ``home_keeper:problem_sensors``.
+
+    Both come from the provenance block Home Keeper itself wrote on the task, so no
+    new field is stored. The domain key stays, so a Profile saved with
+    ``home_keeper`` keeps every task it had.
+    """
+    keys: set[str] = set()
+    integration = (task.get("managed_by") or {}).get("integration")
+    if integration:
+        keys.add(str(integration))
+    source = task.get("source")
+    if integration != DOMAIN or not isinstance(source, dict):
+        return keys
+    declarative = source.get(TASK_SOURCE_DECLARATIVE_COMPANION)
+    if isinstance(declarative, dict) and declarative.get("spec_id"):
+        keys.add(f"{COMPANION_KEY_DECLARATIVE_PREFIX}{declarative['spec_id']}")
+    if isinstance(source.get(TASK_SOURCE_PROBLEM_SENSOR), dict):
+        keys.add(COMPANION_KEY_PROBLEM_SENSORS)
+    return keys
+
+
 def matches_filter(
     task: dict[str, Any],
     filt: dict[str, Any],
@@ -204,11 +244,11 @@ def matches_filter(
     as the include lists, so excluding a label also drops a task that merely inherits
     it from its device or area.
 
-    ``companions`` scopes by the integration that owns the task — the ``integration``
-    of its ``managed_by`` block — so "only the battery tasks" is one profile rather
-    than a label every companion has to learn to apply. A task no integration claims
-    has no companion: a ``companions`` list never selects it, and an
-    ``exclude_companions`` list never drops it.
+    ``companions`` scopes by the source that owns the task, read through
+    :func:`companion_keys` — so "only the battery tasks" is one profile rather than a
+    label every companion has to learn to apply. A task matches a list when any of its
+    keys is in it. A task no source claims has no keys: a ``companions`` list never
+    selects it, and an ``exclude_companions`` list never drops it.
 
     ``exclude_shopping`` subtracts alongside them, but by *kind*: it drops the
     auto-created "Buy {part}" reminders, which have no id of their own to name. Off by
@@ -242,12 +282,9 @@ def matches_filter(
     task_labels = set(task.get("labels") or [])
     area_id = task.get("area_id")
     device_id = task.get("device_id")
-    # The integration that owns this task, from the ``managed_by`` block a companion
-    # sets on ``add_task``. That block is the documented ownership contract and the
-    # only provenance Home Keeper reads — ``source`` is the integration's own
-    # namespace and stays opaque (docs/INTEGRATING.md). A task nobody claims has no
-    # companion, so a ``companions`` list never selects it.
-    companion = (task.get("managed_by") or {}).get("integration")
+    # Every companion key this task answers to. A task nobody claims has none, so a
+    # ``companions`` list never selects it.
+    companions_of_task = companion_keys(task)
 
     labels = filt.get("labels") or []
     if labels and not (task_labels & set(labels)):
@@ -259,7 +296,7 @@ def matches_filter(
     if devices and device_id not in devices:
         return False
     companions = filt.get("companions") or []
-    if companions and companion not in companions:
+    if companions and not companions_of_task & set(companions):
         return False
 
     # Exclusions are applied last and win: a task that cleared every include list is
@@ -281,7 +318,7 @@ def matches_filter(
     # digest was a script filtering on ``source.buy`` by hand (#220).
     if filt.get("exclude_shopping") and buy_source(task) is not None:
         return False
-    return companion not in (filt.get("exclude_companions") or [])
+    return not companions_of_task & set(filt.get("exclude_companions") or [])
 
 
 def _due_key(task: dict[str, Any]) -> tuple[datetime, str]:

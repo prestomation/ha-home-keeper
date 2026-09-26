@@ -85,7 +85,7 @@ def async_mark_tasks_new(
 ) -> None:
     """Record tasks made just now so the next baseline pass leaves their edge unset.
 
-    A task made one second ago has no history to protect: the condition its recipe
+    A task made one second ago has no history to protect: the condition its companion
     watches may be true right now, and that is exactly what the user wants a task
     for. Without this the baseline records it as already-met-without-a-crossing and
     the task stays dormant until the condition goes away and comes back.
@@ -184,7 +184,7 @@ def read_availability_status(hass: HomeAssistant, cfg: dict[str, Any] | None) ->
 # The only non-boolean renders read as a verdict. Home Assistant's own vocabulary for
 # a yes/no answer, minus the numbers: a template that renders a *number* is answering
 # some other question, and reading it as "anything but zero is true" is what made
-# ``{{ state }}`` open a task for every entity a recipe matched. Someone who means a
+# ``{{ state }}`` open a task for every entity a companion matched. Someone who means a
 # literal true writes ``{{ true }}``, which never reaches here.
 _TRUE_WORDS = frozenset({"true", "yes", "on", "enable"})
 _FALSE_WORDS = frozenset({"false", "no", "off", "disable"})
@@ -198,7 +198,7 @@ def render_template_result(
     ``result`` is ``None`` with an ``error`` message when the template could not be
     rendered, or when what it rendered is not true or false. Both are
     **indeterminate** for the caller: the task neither arms nor clears. The error text
-    is what the recipe preview shows the user, so it is the message Jinja produced,
+    is what the companion preview shows the user, so it is the message Jinja produced,
     not a summary of it.
 
     ``parse_result=True`` is what makes ``{{ a >= b }}`` come back as a real ``bool``
@@ -210,14 +210,14 @@ def render_template_result(
     own reason. ``result_as_boolean`` reads anything it does not recognise as
     ``False``. ``cv.boolean`` looked right and is not: it maps **any** number to
     ``value != 0``, so ``{{ state }}`` on a printer-hours sensor rendered ``782`` and
-    armed every task a recipe matched, with a confident "Due now" in the preview and no
-    error — and the same template went indeterminate the moment the entity reported
-    ``unavailable``, because that is a string it does not recognise. One template, three
-    regimes, none of them what the user asked for.
+    armed every task a companion matched, with a confident "Due now" in the preview
+    and no error — and the same template went indeterminate the moment the entity
+    reported ``unavailable``, because that is a string it does not recognise. One
+    template, three regimes, none of them what the user asked for.
 
     A template rendering a timestamp, a device name, or a reading is not a condition
     that happens to be true — it is a template answering some other question, and the
-    whole point of the preview is to say so rather than to let the recipe open a task
+    whole point of the preview is to say so rather than to let the companion open a task
     per matched entity.
 
     ``strict=True`` is load-bearing, and the reason is not obvious. Jinja's default
@@ -234,7 +234,7 @@ def render_template_result(
     'unknown' }}`` is a reasonable thing to write for a name, and a name that renders
     oddly is cosmetic where a trigger that renders wrongly closes people's work.
 
-    Split out of the watcher class so the recipe preview can render exactly what the
+    Split out of the watcher class so the companion preview can render exactly what the
     watcher will, without standing one up.
     """
     if not source:
@@ -297,7 +297,7 @@ class SensorTaskWatcher:
         #   {"condition_met": bool, "crossed_at": datetime | None, "condition": tuple}
         # ``condition`` is the binding the other 2 were decided against (see
         # ``sensor_tasks.condition_fingerprint``); an edit to the task or to the
-        # recipe that owns it retires them.
+        # declarative companion that owns it retires them.
         self._edge: dict[str, dict[str, Any]] = {}
         # One pending "the hold is up" timer per task id, keyed the same way. A
         # ``for_seconds`` hold ends in its own time, and the bound entity sends no
@@ -313,11 +313,11 @@ class SensorTaskWatcher:
         # from the current reading rather than acting on a half-seen reset.
         self._usage_reset: dict[str, float | None] = {}
         # The last template-render error logged per task id, so a broken template is
-        # reported once rather than on every pass. A recipe may match up to 500
+        # reported once rather than on every pass. A companion may match up to 500
         # entities, and each one is a task: a single typo wrote 500 warnings every 5
         # minutes, plus a burst on every state change of a bound entity, for as long as
-        # the recipe stayed broken. The message still repeats when the error *changes*,
-        # which is the only time it carries new information. Same shape as
+        # the companion stayed broken. The message still repeats when the error
+        # *changes*, which is the only time it carries new information. Same shape as
         # ``todo_sync_driver._warned``.
         self._template_errors: dict[str, str] = {}
 
@@ -350,7 +350,7 @@ class SensorTaskWatcher:
         Tasks made after the last baseline pass are the one exception (see
         :func:`async_mark_tasks_new`). Materializing a declarative companion's tasks
         reloads the config entry, which runs this method again; baselining a task made
-        a second ago would eat the very edge the user made the recipe for. Their edge
+        a second ago would eat the very edge the user made the companion for. Their edge
         is left unset, so the first evaluation reads a standing condition as a fresh
         crossing and arms them. The set is consumed here, so it can neither grow
         without bound nor reach an unrelated later reload.
@@ -605,7 +605,7 @@ class SensorTaskWatcher:
         """The carried ``(condition_met, crossed_at)`` for *task*, if it still applies.
 
         Edge state answers a question about one condition, so an edit to the task —
-        or to the recipe that owns it — retires it: the fingerprint recorded with the
+        or to the companion that owns it — retires it: the fingerprint recorded with the
         state no longer matches the binding being evaluated, and the pass starts from
         "nothing seen yet". A standing condition then reads as a fresh crossing and
         arms after its hold, which is what a person editing a task expects. The
@@ -679,8 +679,8 @@ class SensorTaskWatcher:
         A template that cannot render decides nothing — the task neither arms nor
         clears — so without a log line the task just sits there and nothing says why.
         But the pass runs every 5 minutes and on every state change of a bound entity,
-        and a recipe materializes one task per matched entity, so logging it each time
-        buried the rest of the log under one typo.
+        and a companion materializes one task per matched entity, so logging it each
+        time buried the rest of the log under one typo.
 
         Keyed by task and compared against the last message, so a template that starts
         failing *differently* is reported again. Clearing the entry on a good render is

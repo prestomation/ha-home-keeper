@@ -2,10 +2,10 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { definePanelStubs, emitChange, waitFor } from './panel-harness.js';
 
 /**
- * The recipe dialog's More filters block and the preview's Exclude and Include
+ * The companion dialog's More filters block and the preview's Exclude and Include
  * buttons (#373).
  *
- * The backend already applied a recipe's exclusion lists; the dialog had no field
+ * The backend already applied a companion's exclusion lists; the dialog had no field
  * for them, so the only way to leave an entity out was the entity id regex. These
  * tests mount the real panel and check that each new control writes the list the
  * backend reads, and that the preview and the pickers stay in step.
@@ -82,7 +82,7 @@ async function openEditDialog(selection) {
   document.body.appendChild(panel);
   panel.hass = fake.hass;
   const edit = await waitFor(() => panel.shadowRoot?.querySelector('.hk-decl-edit'), 5000);
-  expect(edit, 'the seeded recipe should render a row with an Edit button').toBeTruthy();
+  expect(edit, 'the seeded companion should render a row with an Edit button').toBeTruthy();
   edit.click();
   await waitFor(() => panel.shadowRoot?.querySelector('ha-dialog.hk-decl-dialog'));
   await waitFor(() => panel.shadowRoot.querySelector('.hk-decl-preview-header'), 5000);
@@ -101,7 +101,7 @@ async function nextPreview(panel, previews, before) {
 }
 
 describe('the More filters row', () => {
-  it('is closed for a recipe with nothing in it, and says so', async () => {
+  it('is closed for a companion with nothing in it, and says so', async () => {
     const { panel } = await openEditDialog({ domain: 'sensor' });
     const more = $(panel, '.hk-decl-more');
     expect(more.getAttribute('aria-expanded')).toBe('false');
@@ -109,7 +109,7 @@ describe('the More filters row', () => {
     expect($(panel, '.hk-decl-more-summary').textContent).toBe('No other filters set');
   });
 
-  it('is open for a recipe that uses a filter in it, and counts what is set', async () => {
+  it('is open for a companion that uses a filter in it, and counts what is set', async () => {
     const { panel } = await openEditDialog({
       domain: 'sensor',
       device_class: 'battery',
@@ -261,5 +261,52 @@ describe('Exclude and Include on the preview', () => {
     const sel = saves[0].updates.selection;
     expect(sel.exclude_entity_ids).toEqual(['sensor.phone_battery']);
     expect(sel.exclude_label_ids).toEqual(['rechargeable']);
+  });
+});
+
+describe('Task labels in the task template (#378)', () => {
+  it('offers a Task labels picker, seeded from the stored labels', async () => {
+    const fake = makeHass({
+      ...BASE,
+      selection: { domain: 'sensor' },
+      task_template: { ...BASE.task_template, labels: ['leak'] },
+    });
+    const panel = document.createElement('home-keeper-panel');
+    panel.route = { prefix: '/home-keeper', path: '/settings' };
+    document.body.appendChild(panel);
+    panel.hass = fake.hass;
+    (await waitFor(() => panel.shadowRoot?.querySelector('.hk-decl-edit'), 5000)).click();
+    const form = await waitFor(() => sectionForm(panel, 'template'), 5000);
+
+    const field = form.schema.find((f) => f.name === 'labels');
+    expect(field.selector).toEqual({ label: { multiple: true } });
+    expect(form.computeLabel(field)).toBe('Task labels');
+    expect(form.computeHelper(field)).toContain('tasks it already made');
+    expect(form.data.labels).toEqual(['leak']);
+  });
+
+  it('writes each pick back to its form, so a second pick keeps the first', async () => {
+    const { panel } = await openEditDialog({ domain: 'sensor' });
+    const form = sectionForm(panel, 'template');
+    const pick = (patch) =>
+      form.dispatchEvent(
+        new CustomEvent('value-changed', { detail: { value: { ...form.data, ...patch } } }),
+      );
+    pick({ labels: ['leak'] });
+    expect(form.data.labels).toEqual(['leak']);
+    pick({ name_template: 'Check {{ friendly_name }}' });
+    expect(form.data).toMatchObject({
+      labels: ['leak'],
+      name_template: 'Check {{ friendly_name }}',
+    });
+  });
+
+  it('Save sends the task labels', async () => {
+    const { panel, saves } = await openEditDialog({ domain: 'sensor' });
+    emitChange(sectionForm(panel, 'template'), { labels: ['leak', 'urgent'] });
+    $(panel, '.hk-decl-save').click();
+    await waitFor(() => saves.length, 5000);
+    expect(saves[0].updates.task_template.labels).toEqual(['leak', 'urgent']);
+    expect(saves[0].updates.task_template.name_template).toBe('Replace {{ friendly_name }}');
   });
 });

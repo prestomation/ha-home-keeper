@@ -52,11 +52,26 @@ without any manual work:
 The picker lists each connected companion, and each integration that already owns a
 task. A companion that is only a suggestion is not listed, because it owns no tasks.
 
+Home Keeper makes some tasks itself, and the picker lists these sources too:
+
+- Each [declarative companion](./settings.md#declarative-companions-config-driven-no-separate-integration),
+  by its name. Select one to show only the tasks it makes, such as the tasks of a
+  declarative companion that watches leak sensors.
+- **Problem sensors**, for the tasks of
+  [Problem sensor sync](../tasks/triggered-tasks.md#sync-problem-binary-sensors-as-tasks), when one exists.
+- **All Home Keeper tasks**, for the tasks of every declarative companion and every
+  synced problem sensor together.
+
+A declarative companion that you delete stays in a saved Profile as **Deleted
+declarative companion**. It then selects no task. Remove it from the list.
+
 > **A task you create in the panel has no companion.** No integration owns it. A
 > **Companions** filter does not select it and an **Exclude companions** filter does not
 > remove it. Use a label filter for tasks you make yourself.
 
-![A Profile filtered to the Battery Notes companion in Settings → Profiles](../../images/profile-companion-filter.png)
+![A Profile filtered to one declarative companion in Settings → Profiles](../../images/profile-companion-filter.png)
+
+![The same Companions picker on a phone](../../images/profile-mobile-companion-filter.png)
 
 #### Exclusions
 

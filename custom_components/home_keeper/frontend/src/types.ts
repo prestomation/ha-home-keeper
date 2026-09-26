@@ -194,8 +194,8 @@ export interface Task {
       role?: 'use' | 'replace';
     };
     problem_sensor?: { entity_id: string };
-    // The recipe a declarative companion materialized this task from. `spec_id` is
-    // the dedupe key the reconciler owns; the panel reads it to find the recipe and
+    // The declarative companion that materialized this task. `spec_id` is
+    // the dedupe key the reconciler owns; the panel reads it to find the companion and
     // offer its editor in place of the task's own (see `panel-declarative.ts`).
     declarative_companion?: {
       spec_id: string;
@@ -617,7 +617,7 @@ export interface Companion {
 }
 
 /**
- * A declarative-companion spec — Home-Keeper-owned recipe that materializes one
+ * A declarative-companion spec, owned by Home Keeper, that materializes one
  * managed sensor task per matching entity. Persisted in `.storage/home_keeper`
  * under `declarative_companions`, keyed by `id`. See backend
  * `declarative_companions.py`.

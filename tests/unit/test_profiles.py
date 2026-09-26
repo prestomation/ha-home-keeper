@@ -515,6 +515,113 @@ def test_normalize_filter_coerces_companion_lists():
     assert filt["exclude_companions"] == ["dog_glue"]
 
 
+# ── companion keys for Home Keeper's own sources ────────────────────────────
+
+
+def _declarative(spec_id="leak"):
+    return task(
+        "d",
+        "Kitchen leak",
+        dt(2026, 6, 10),
+        managed_by={"integration": "home_keeper", "display_name": "Leak sensors"},
+        source={
+            "declarative_companion": {
+                "spec_id": spec_id,
+                "entity_registry_id": "r1",
+                "entity_id": "binary_sensor.kitchen_leak",
+            }
+        },
+    )
+
+
+def _problem():
+    return task(
+        "p",
+        "NAS problem",
+        dt(2026, 6, 10),
+        managed_by={"integration": "home_keeper", "display_name": "Home Keeper"},
+        source={"problem_sensor": {"entity_id": "binary_sensor.nas_problem"}},
+    )
+
+
+def test_companion_keys_of_a_declarative_companion_task():
+    assert p.companion_keys(_declarative()) == {
+        "home_keeper",
+        "home_keeper:declarative:leak",
+    }
+
+
+def test_companion_keys_of_a_synced_problem_sensor():
+    assert p.companion_keys(_problem()) == {
+        "home_keeper",
+        "home_keeper:problem_sensors",
+    }
+
+
+def test_companion_keys_of_an_outside_companion_ignore_its_source():
+    # An outside integration's ``source`` is its own namespace. A key there that
+    # happens to share a Home Keeper name must not give the task a Home Keeper key.
+    owned = _owned()
+    owned["source"] = {
+        "problem_sensor": {"entity_id": "binary_sensor.x"},
+        "declarative_companion": {"spec_id": "leak"},
+    }
+    assert p.companion_keys(owned) == {"battery_notes"}
+
+
+def test_a_problem_sensor_source_that_is_not_a_mapping_adds_no_key():
+    t = _problem()
+    t["source"] = {"problem_sensor": "binary_sensor.nas_problem"}
+    assert p.companion_keys(t) == {"home_keeper"}
+
+
+def test_a_declarative_source_without_a_spec_id_adds_no_key():
+    t = _declarative()
+    t["source"] = {"declarative_companion": {"entity_id": "binary_sensor.kitchen_leak"}}
+    assert p.companion_keys(t) == {"home_keeper"}
+
+
+def test_companion_keys_of_a_task_nobody_claims_is_empty():
+    assert p.companion_keys(task("h", "Water plants", dt(2026, 6, 10))) == set()
+
+
+def test_companion_keys_tolerate_a_source_that_is_not_a_mapping():
+    t = _declarative()
+    t["source"] = "legacy"
+    assert p.companion_keys(t) == {"home_keeper"}
+
+
+def test_a_declarative_key_selects_only_that_specs_tasks():
+    now = dt(2026, 6, 13, 12)
+    filt = {"status": "all", "companions": ["home_keeper:declarative:leak"]}
+    assert p.matches_filter(_declarative("leak"), filt, now=now)
+    assert not p.matches_filter(_declarative("pulse"), filt, now=now)
+    assert not p.matches_filter(_problem(), filt, now=now)
+
+
+def test_the_problem_sensors_key_selects_only_synced_problem_sensors():
+    now = dt(2026, 6, 13, 12)
+    filt = {"status": "all", "companions": ["home_keeper:problem_sensors"]}
+    assert p.matches_filter(_problem(), filt, now=now)
+    assert not p.matches_filter(_declarative(), filt, now=now)
+
+
+def test_the_home_keeper_domain_still_selects_both_kinds():
+    # A Profile saved before the narrower keys existed keeps every task it had.
+    now = dt(2026, 6, 13, 12)
+    filt = {"status": "all", "companions": ["home_keeper"]}
+    assert p.matches_filter(_declarative(), filt, now=now)
+    assert p.matches_filter(_problem(), filt, now=now)
+
+
+def test_a_declarative_key_in_exclude_companions_drops_only_that_spec():
+    now = dt(2026, 6, 13, 12)
+    filt = {"status": "all", "exclude_companions": ["home_keeper:declarative:leak"]}
+    assert not p.matches_filter(_declarative("leak"), filt, now=now)
+    assert p.matches_filter(_declarative("pulse"), filt, now=now)
+    assert p.matches_filter(_problem(), filt, now=now)
+
+
 # ── the service-only "none" status ──────────────────────────────────────────
 
 

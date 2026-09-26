@@ -18,7 +18,7 @@ import type {
 
 /**
  * The declarative-companion dialogs' state: the preset picker, or the add/edit form.
- * `draft` is the recipe the form edits **in place** (each section's form writes into
+ * `draft` is the companion the form edits **in place** (each section's form writes into
  * the same object), so a mode change can rebuild the dialog without losing what was
  * typed; it is null while the picker is up.
  */

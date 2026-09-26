@@ -313,6 +313,78 @@
       "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "source": {"buy": {"asset_id": "a1"}}},
       "filter": {"status": "all", "labels": [], "areas": [], "devices": [], "exclude_shopping": true},
       "expected": true
+    },
+    {
+      "name": "companions: a declarative companion key selects that spec's task",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Leak sensors"}, "source": {"declarative_companion": {"spec_id": "leak", "entity_registry_id": "r1", "entity_id": "binary_sensor.kitchen_leak"}}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["home_keeper:declarative:leak"]},
+      "expected": true
+    },
+    {
+      "name": "companions: a declarative companion key does not select another spec's task",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Leak sensors"}, "source": {"declarative_companion": {"spec_id": "leak", "entity_registry_id": "r1", "entity_id": "binary_sensor.kitchen_leak"}}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["home_keeper:declarative:pulse"]},
+      "expected": false
+    },
+    {
+      "name": "companions: the home_keeper domain still selects a declarative companion task",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Leak sensors"}, "source": {"declarative_companion": {"spec_id": "leak", "entity_registry_id": "r1", "entity_id": "binary_sensor.kitchen_leak"}}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["home_keeper"]},
+      "expected": true
+    },
+    {
+      "name": "companions: the problem sensors key selects a synced problem sensor",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Home Keeper"}, "source": {"problem_sensor": {"entity_id": "binary_sensor.nas_problem"}}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["home_keeper:problem_sensors"]},
+      "expected": true
+    },
+    {
+      "name": "companions: the problem sensors key does not select a declarative companion task",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Leak sensors"}, "source": {"declarative_companion": {"spec_id": "leak", "entity_registry_id": "r1", "entity_id": "binary_sensor.kitchen_leak"}}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["home_keeper:problem_sensors"]},
+      "expected": false
+    },
+    {
+      "name": "companions: a declarative companion key does not select a task with no source",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Leak sensors"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["home_keeper:declarative:leak"]},
+      "expected": false
+    },
+    {
+      "name": "exclude_companions: a declarative companion key drops that spec's task",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Leak sensors"}, "source": {"declarative_companion": {"spec_id": "leak", "entity_registry_id": "r1", "entity_id": "binary_sensor.kitchen_leak"}}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_companions": ["home_keeper:declarative:leak"]},
+      "expected": false
+    },
+    {
+      "name": "exclude_companions: a declarative companion key keeps another spec's task",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Leak sensors"}, "source": {"declarative_companion": {"spec_id": "leak", "entity_registry_id": "r1", "entity_id": "binary_sensor.kitchen_leak"}}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_companions": ["home_keeper:declarative:pulse"]},
+      "expected": true
+    },
+    {
+      "name": "exclude_companions: the problem sensors key drops a synced problem sensor",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Home Keeper"}, "source": {"problem_sensor": {"entity_id": "binary_sensor.nas_problem"}}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "exclude_companions": ["home_keeper:problem_sensors"]},
+      "expected": false
+    },
+    {
+      "name": "exclude_companions: a spec key wins over the home_keeper domain in the include list",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Leak sensors"}, "source": {"declarative_companion": {"spec_id": "leak", "entity_registry_id": "r1", "entity_id": "binary_sensor.kitchen_leak"}}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["home_keeper"], "exclude_companions": ["home_keeper:declarative:leak"]},
+      "expected": false
+    },
+    {
+      "name": "companions: an outside companion's source never gives it a Home Keeper key",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "battery_notes", "display_name": "Battery Notes"}, "source": {"declarative_companion": {"spec_id": "leak"}, "problem_sensor": {"entity_id": "binary_sensor.x"}}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["home_keeper:declarative:leak", "home_keeper:problem_sensors"]},
+      "expected": false
+    },
+    {
+      "name": "companions: a problem_sensor source that is not a mapping is not a synced problem",
+      "task": {"id": "t", "enabled": true, "next_due": "2026-06-13T12:00:00Z", "labels": [], "managed_by": {"integration": "home_keeper", "display_name": "Home Keeper"}, "source": {"problem_sensor": "binary_sensor.x"}},
+      "filter": {"status": "overdue", "labels": [], "areas": [], "devices": [], "companions": ["home_keeper:problem_sensors"]},
+      "expected": false
     }
   ]
 }

@@ -1422,7 +1422,7 @@ async def ws_list_declarative_presets(
                 "description": resolve_string(lang, preset["description_key"]),
                 "icon": preset["icon"],
                 "requires_integration": preset["requires_integration"],
-                # Seeded in the household's language, so a new recipe is saved
+                # Seeded in the household's language, so a new companion is saved
                 # with task text a user can read.
                 "default_spec": declarative_presets.localized_default_spec(
                     preset, lang, name

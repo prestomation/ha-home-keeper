@@ -1047,7 +1047,7 @@ def test_template_mode_requires_a_template(template):
 
 
 def test_allow_missing_template_accepts_a_blank_box():
-    """The recipe preview reads a draft mid-typing, so a blank box is not a mistake.
+    """The companion preview reads a draft mid-typing, so a blank box is not a mistake.
 
     Failing there took the whole preview with it: the panel showed one raw
     ``sensor.template is required`` and dropped the match list at the moment the user
@@ -1172,7 +1172,7 @@ def test_the_other_edge_modes_reject_a_template(mode):
         m.normalize_sensor(sensor)
 
 
-def test_template_mode_works_without_an_entity_id_for_a_recipe():
+def test_template_mode_works_without_an_entity_id_for_a_companion():
     cfg = m.normalize_sensor(
         {"mode": "template", "template": TEMPLATE_SRC}, allow_missing_entity=True
     )

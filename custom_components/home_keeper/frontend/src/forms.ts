@@ -1,5 +1,9 @@
+import { companionKeys } from './card-filter';
 import { t, tn } from './i18n';
 import {
+  COMPANION_KEY_DECLARATIVE_PREFIX,
+  COMPANION_KEY_PROBLEM_SENSORS,
+  HK_DOMAIN,
   formatDate,
   formatQuantity,
   normalizeIcon,
@@ -9,6 +13,7 @@ import {
 import type {
   Asset,
   Companion,
+  DeclarativeCompanion,
   Hass,
   MetadataEntry,
   Notification,
@@ -494,7 +499,9 @@ export function taskSchemaSections(
   // loaded for editing infers it from whether it actually carries a backstop, so an
   // existing "every 300 h or 6 months" task opens with the switch already on.
   const backstopOn = backstopEnabled(task);
-  const sensorFields: FormField[] = isSensor
+  // A locked binding is its owner's: a declarative companion rewrites it from its own
+  // trigger on every pass, so the form offers none of its parts.
+  const sensorFields: FormField[] = isSensor && !locked.has('sensor')
     ? [
         { name: 'sensor_entity_id', required: true, selector: selEntity({}) },
         {
@@ -504,9 +511,9 @@ export function taskSchemaSections(
             { value: 'threshold', label: t('opt.sensor_mode.threshold') },
             { value: 'state', label: t('opt.sensor_mode.state') },
             { value: 'availability', label: t('opt.sensor_mode.availability') },
-            // Last, like the recipe dialog's own list: the four above each answer one
-            // plain question, and a user who wants one of those must not have to read
-            // past Jinja to find it.
+            // Last, like the declarative companion dialog's own list: the four above
+            // each answer one plain question, and a user who wants one of those must
+            // not have to read past Jinja to find it.
             { value: 'template', label: t('opt.sensor_mode.template') },
           ]),
         },
@@ -1211,6 +1218,14 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   if (!task.id) {
     const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
     if (lastCompleted) payload.last_completed = lastCompleted;
+  }
+  // The fields the managing integration locks are left out. The form never showed
+  // them and `merge_update` drops them anyway, but sending them still put values the
+  // person never touched through the update's own checks: a declarative companion's
+  // template binding is admin-gated, and it failed that check on a save that only
+  // changed a label.
+  for (const field of task.managed_by?.locked_fields ?? []) {
+    delete (payload as Record<string, unknown>)[field];
   }
   return payload;
 }
@@ -2285,8 +2300,8 @@ export interface CompanionOption {
 }
 
 /**
- * The integrations a profile can filter by: every **connected** companion, plus every
- * integration that already owns a task (`managed_by.integration`).
+ * The sources a profile can filter by: every **connected** companion, plus every
+ * source that already owns a task, plus every declarative companion.
  *
  * The union matters in both directions. A companion can own tasks without ever
  * registering — `managed_by` is the ownership contract, registering is only how a
@@ -2296,21 +2311,58 @@ export interface CompanionOption {
  * picker while a saved profile still names it. A domain a task claims but no companion
  * registers has no display name to borrow, so it labels itself.
  *
+ * Home Keeper's own sources all share its domain, so a task's `managed_by` names only
+ * one of them ("Device Pulse"). The domain entry takes a fixed label instead, and each
+ * source gets its own entry under the narrower key `card-filter.companionKeys` reads:
+ * one per declarative companion, listed even before it has made a task, and one for
+ * the synced problem sensors once one exists.
+ *
+ * *selected* is what the profile being edited already names. A value no entry covers
+ * still gets one, so a declarative companion deleted since the profile was saved reads
+ * as deleted rather than as a raw key, and can be removed from the list.
+ *
  * Suggested-but-not-installed companions are deliberately absent: they own no tasks, so
  * filtering by one selects nothing.
  */
-export function companionOptions(companions: Companion[], tasks: Task[]): CompanionOption[] {
+export function companionOptions(
+  companions: Companion[],
+  tasks: Task[],
+  declaratives: DeclarativeCompanion[] = [],
+  selected: string[] = [],
+): CompanionOption[] {
   const names = new Map<string, string>();
   for (const c of companions) {
     if (c.status === 'connected') names.set(c.domain, c.name);
+  }
+  for (const spec of declaratives) {
+    names.set(
+      `${COMPANION_KEY_DECLARATIVE_PREFIX}${spec.id}`,
+      t('companions.option.declarative', { name: spec.name }),
+    );
   }
   for (const task of tasks) {
     const owner = task.managed_by;
     const domain = owner?.integration;
     if (!domain) continue;
+    if (domain === HK_DOMAIN) {
+      names.set(HK_DOMAIN, t('companions.option.home_keeper'));
+      if (companionKeys(task).includes(COMPANION_KEY_PROBLEM_SENSORS)) {
+        names.set(COMPANION_KEY_PROBLEM_SENSORS, t('companions.option.problem_sensors'));
+      }
+      continue;
+    }
     // A registered companion's own name wins: it is the one the user sees under
     // Settings → Companions, and `display_name` is free text the owner sets per task.
     if (!names.has(domain)) names.set(domain, owner.display_name || domain);
+  }
+  for (const value of selected) {
+    if (names.has(value)) continue;
+    names.set(
+      value,
+      value.startsWith(COMPANION_KEY_DECLARATIVE_PREFIX)
+        ? t('companions.option.declarative_deleted')
+        : value,
+    );
   }
   return [...names.entries()]
     .map(([value, label]) => ({ value, label }))

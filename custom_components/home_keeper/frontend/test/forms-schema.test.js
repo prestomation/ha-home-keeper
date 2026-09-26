@@ -2511,3 +2511,140 @@ describe('taskFormIsEmpty', () => {
     expect(taskFormIsEmpty(managed(locked), [], [], [])).toBe(true);
   });
 });
+
+describe('a locked sensor binding', () => {
+  const sensorTask = (locked) => ({
+    id: 't1',
+    recurrence_type: 'sensor',
+    sensor: { entity_id: 'binary_sensor.leak', mode: 'state', state: 'on' },
+    managed_by: { integration: 'home_keeper', locked_fields: locked },
+  });
+
+  it('offers none of the binding when `sensor` is locked', () => {
+    const got = names(taskSchema(sensorTask(['sensor'])));
+    expect(got.filter((n) => n.startsWith('sensor_'))).toEqual([]);
+    expect(got).toContain('labels');
+  });
+
+  it('still offers the binding when it is not locked', () => {
+    expect(names(taskSchema(sensorTask([])))).toContain('sensor_entity_id');
+  });
+
+  it('leaves only what a declarative companion task can change', () => {
+    const got = names(
+      taskSchema(sensorTask(['name', 'recurrence_type', 'device_id', 'area_id', 'sensor'])),
+    );
+    expect(got).toEqual(['notes', 'tag_id', 'require_tag_scan', 'labels', 'completion_detail']);
+  });
+});
+
+describe('buildTaskPayload and locked fields', () => {
+  const edit = (locked) => ({
+    id: 't1',
+    name: 'Kitchen leak',
+    notes: 'Valve is under the sink',
+    recurrence_type: 'sensor',
+    sensor_entity_id: 'binary_sensor.leak',
+    sensor_mode: 'template',
+    sensor_template: '{{ true }}',
+    device_id: 'd1',
+    area_id: 'kitchen',
+    labels: ['leak'],
+    managed_by: { integration: 'home_keeper', locked_fields: locked },
+  });
+
+  it('leaves out every locked field', () => {
+    const payload = buildTaskPayload(
+      edit(['name', 'recurrence_type', 'device_id', 'area_id', 'sensor', 'notes']),
+    );
+    for (const field of ['name', 'recurrence_type', 'device_id', 'area_id', 'sensor', 'notes']) {
+      expect(payload, `${field} is locked`).not.toHaveProperty(field);
+    }
+    expect(payload.labels).toEqual(['leak']);
+  });
+
+  it('keeps a field that is not locked', () => {
+    const payload = buildTaskPayload(edit(['sensor']));
+    expect(payload.notes).toBe('Valve is under the sink');
+    expect(payload.area_id).toBe('kitchen');
+    expect(payload).not.toHaveProperty('sensor');
+  });
+
+  it('sends everything for a task nobody manages', () => {
+    const payload = buildTaskPayload({ ...edit([]), managed_by: undefined });
+    expect(payload.sensor.entity_id).toBe('binary_sensor.leak');
+    expect(payload.name).toBe('Kitchen leak');
+  });
+});
+
+describe('companionOptions for Home Keeper sources', () => {
+  const declarative = (specId, name = 'Leak sensors') => ({
+    id: `d-${specId}`,
+    managed_by: { integration: 'home_keeper', display_name: name },
+    source: { declarative_companion: { spec_id: specId } },
+  });
+  const problem = {
+    id: 'p1',
+    managed_by: { integration: 'home_keeper', display_name: 'Home Keeper' },
+    source: { problem_sensor: { entity_id: 'binary_sensor.nas_problem' } },
+  };
+  const spec = (id, name) => ({ id, name });
+
+  it('gives the Home Keeper domain a fixed label, not the first task name', () => {
+    expect(companionOptions([], [declarative('leak', 'Device Pulse')])).toContainEqual({
+      value: 'home_keeper',
+      label: 'All Home Keeper tasks',
+    });
+  });
+
+  it('lists each declarative companion by name, before it has made a task', () => {
+    const got = companionOptions([], [], [spec('leak', 'Leak sensors'), spec('pulse', 'Pulse')]);
+    expect(got).toEqual([
+      { value: 'home_keeper:declarative:leak', label: 'Leak sensors (declarative companion)' },
+      { value: 'home_keeper:declarative:pulse', label: 'Pulse (declarative companion)' },
+    ]);
+  });
+
+  it('lists the problem sensors once a synced one exists', () => {
+    expect(companionOptions([], [problem])).toEqual([
+      { value: 'home_keeper', label: 'All Home Keeper tasks' },
+      { value: 'home_keeper:problem_sensors', label: 'Problem sensors' },
+    ]);
+    expect(companionOptions([], [declarative('leak')]).map((o) => o.value)).not.toContain(
+      'home_keeper:problem_sensors',
+    );
+  });
+
+  it('names a declarative companion deleted since the profile was saved', () => {
+    const got = companionOptions([], [], [], ['home_keeper:declarative:gone']);
+    expect(got).toEqual([
+      { value: 'home_keeper:declarative:gone', label: 'Deleted declarative companion' },
+    ]);
+  });
+
+  it('shows another saved value no source covers as itself', () => {
+    expect(companionOptions([], [], [], ['old_glue'])).toEqual([
+      { value: 'old_glue', label: 'old_glue' },
+    ]);
+  });
+
+  it('adds nothing for a saved value an entry already covers', () => {
+    const got = companionOptions([], [], [spec('leak', 'Leak sensors')], [
+      'home_keeper:declarative:leak',
+    ]);
+    expect(got).toEqual([
+      { value: 'home_keeper:declarative:leak', label: 'Leak sensors (declarative companion)' },
+    ]);
+  });
+
+  it('sorts every entry by label', () => {
+    const connected = { domain: 'battery_notes', name: 'Battery Notes', status: 'connected' };
+    const got = companionOptions([connected], [problem], [spec('leak', 'Leak sensors')]);
+    expect(got.map((o) => o.label)).toEqual([
+      'All Home Keeper tasks',
+      'Battery Notes',
+      'Leak sensors (declarative companion)',
+      'Problem sensors',
+    ]);
+  });
+});

@@ -16,5 +16,5 @@
   "declarative_preset.firmware_update_available.description": "Bewaakt elke update-entiteit (UniFi, ESPHome, HACS, camera's, printers enz.) en opent een taak om de nieuwe versie te installeren.",
   "declarative_preset.device_stopped_reporting.name": "Apparaat is stil gevallen",
   "declarative_preset.device_stopped_reporting.description": "Bewaakt alle laatst-gezien-sensoren en opent een taak voor elk apparaat dat 24 uur niets heeft gemeld. Gebruik dit om de Zigbee- of Z-Wave-apparaten te vinden die van het netwerk zijn gevallen.",
-  "declarative_task.completion_prompt": "Geopend door het recept „{name}“. Home Keeper rondt deze taak automatisch af zodra de conditie verdwijnt, dus kan de taak niet handmatig worden afgevinkt."
+  "declarative_task.completion_prompt": "Geopend door de declaratieve companion „{name}“. Home Keeper rondt deze taak automatisch af zodra de conditie verdwijnt, dus kan de taak niet handmatig worden afgevinkt."
 }

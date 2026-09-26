@@ -12,8 +12,8 @@ import { definePanelStubs, waitFor } from './panel-harness.js';
  *
  * `_reload` assigns nothing when the batch fails, so a load that gave up there left
  * the **whole** panel on pre-save data: the task list, the appliances, the options,
- * the companions and the recipes, with no message and nothing to retry it. The only
- * way out was reloading the page by hand.
+ * the companions and the declarative companions, with no message and nothing to retry
+ * it. The only way out was reloading the page by hand.
  *
  * Each test here fails the first few commands the way a reload does, and asserts the
  * panel ends up holding what the store actually has.
@@ -98,7 +98,7 @@ async function mount(hass) {
 }
 
 describe('a refresh that lands while the config entry is reloading', () => {
-  it('reads the recipe the save added rather than keeping the empty list', async () => {
+  it('reads the companion the save added rather than keeping the empty list', async () => {
     // The panel is up and holds nothing yet — the state a user is in when they open
     // the preset picker for the first time.
     const first = makeReloadingHass({});
@@ -117,7 +117,7 @@ describe('a refresh that lands while the config entry is reloading', () => {
     expect(after.state.calls, 'the failed batch should have been read again').toBeGreaterThan(1);
   });
 
-  it('renders the new recipe, so the Companions card is not left empty', async () => {
+  it('renders the new companion, so the Companions card is not left empty', async () => {
     const first = makeReloadingHass({});
     const panel = await mount(first.hass);
     expect(await waitFor(() => panel._loaded)).toBe(true);
@@ -131,13 +131,13 @@ describe('a refresh that lands while the config entry is reloading', () => {
     expect(rows[0].getAttribute('data-spec-id')).toBe('spec-1');
   });
 
-  it('carries every other list across the same window, not just the recipes', async () => {
+  it('carries every other list across the same window, not just the companions', async () => {
     const first = makeReloadingHass({});
     const panel = await mount(first.hass);
     expect(await waitFor(() => panel._loaded)).toBe(true);
     expect(panel._tasks).toHaveLength(0);
 
-    // A recipe materializes tasks, so the task list is stale in the same window —
+    // A companion materializes tasks, so the task list is stale in the same window —
     // the report was that *every* list on the panel stayed behind.
     const task = { id: 't1', name: 'Firmware update available: Router', enabled: true };
     const after = makeReloadingHass({ failures: 2, tasks: [task], companions: [SPEC] });

@@ -12,7 +12,7 @@ import {
 } from '../src/declarative-filters.ts';
 
 /**
- * The pure half of the recipe dialog's More filters block (#373): the two schemas,
+ * The pure half of the companion dialog's More filters block (#373): the two schemas,
  * the counts behind the closed row's summary, and the list toggle the preview's
  * Exclude and Include buttons share.
  */

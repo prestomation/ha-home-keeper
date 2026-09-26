@@ -119,9 +119,9 @@ export interface PanelHost extends HTMLElement {
    *  fire a config-entry reload on every character. */
   _debounce(key: string, fn: () => void, ms?: number): void;
   /** The declarative-companion dialogs' state: the preset picker, or the add/edit
-   *  form with the recipe it is editing. */
+   *  form with the companion it is editing. */
   _declDialog: DeclarativeDialogState;
-  /** Declarative-companion recipes stored on the config entry, listed under
+  /** Declarative companions stored on the config entry, listed under
    *  Settings → Companions. */
   _declarativeCompanions: DeclarativeCompanion[];
   /** The bundled presets the "Add from preset" picker offers. Fetched on the first

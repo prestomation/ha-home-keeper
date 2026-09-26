@@ -3,9 +3,9 @@
 A template that cannot render decides nothing — the task neither arms nor clears — so
 a log line is the only thing that says why it is sitting there. But the watcher runs
 on every state change of a bound entity and again on the coordinator's 5-minute pass,
-and a recipe materializes one task per matched entity, up to 500. One typo therefore
-wrote 500 identical warnings every 5 minutes, for as long as the recipe stayed broken,
-and buried everything else in the log.
+and a companion materializes one task per matched entity, up to 500. One typo therefore
+wrote 500 identical warnings every 5 minutes, for as long as the companion stayed
+broken, and buried everything else in the log.
 
 The bookkeeping is a plain dict on the watcher, so this drives it directly rather than
 standing up Home Assistant: what is under test is "when does it log", not "does it
@@ -66,7 +66,7 @@ def test_the_same_error_is_reported_once(caplog):
 
 
 def test_the_message_names_the_task_the_entity_and_the_error(caplog):
-    # The three things a reader needs to find the recipe that is broken.
+    # The three things a reader needs to find the companion that is broken.
     watcher = _watcher()
     with caplog.at_level(logging.WARNING, logger=sensor_watcher.__name__):
         watcher._report_template_error("t1", TASK, CFG, "'stat' is undefined")
@@ -86,7 +86,7 @@ def test_a_different_error_is_reported_again(caplog):
 
 
 def test_each_task_is_tracked_on_its_own(caplog):
-    # A recipe's tasks share a template, so they share an error — but one task going
+    # A companion's tasks share a template, so they share an error — but one task going
     # quiet must not silence its neighbours.
     watcher = _watcher()
     with caplog.at_level(logging.WARNING, logger=sensor_watcher.__name__):

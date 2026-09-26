@@ -16,5 +16,5 @@
   "declarative_preset.firmware_update_available.description": "监控每个更新实体（UniFi、ESPHome、HACS、摄像头、打印机等），并开启一个安装新版本的任务。",
   "declarative_preset.device_stopped_reporting.name": "设备失联",
   "declarative_preset.device_stopped_reporting.description": "监视所有最后在线传感器，为每台超过 24 小时未上报的设备创建任务。用它找出掉出网络的 Zigbee 或 Z-Wave 设备。",
-  "declarative_task.completion_prompt": "由配方“{name}”开启。条件消失时，Home Keeper 会自动完成此任务，因此无法手动完成。"
+  "declarative_task.completion_prompt": "由声明式搭档“{name}”开启。条件消失时，Home Keeper 会自动完成此任务，因此无法手动完成。"
 }

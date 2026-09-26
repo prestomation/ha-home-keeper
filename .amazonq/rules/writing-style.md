@@ -188,6 +188,7 @@ Use these names and no others for these things.
 | counted wear item | usage counter, use counter | A wear item that measures its interval in uses. It makes a use task and a replacement task. |
 | use task | counter task, counting task | The task a household completes to record 1 use. |
 | companion | | An integration that Home Keeper lists under Settings, Companions. |
+| declarative companion | recipe | A companion that Home Keeper runs itself from a spec the user writes. The short forms "the declarative companion" and "the companion" are correct. |
 | glue integration | glue, bridge, connector | The pattern name for a small integration that connects another integration to Home Keeper. A glue integration is one kind of companion. |
 | AI agent | assistant, AI assistant, chatbot, LLM, model | Use it for any tool a user asks to write or read Home Keeper data on their behalf. "Home Assistant" is unrelated and keeps its name. |
 
@@ -203,7 +204,7 @@ can be a noun or a verb as listed, and it can appear in a heading.
 - **A CHANGELOG bullet's bold lead** is a label, not a sentence. Write a noun phrase
   of 2 to 5 words. Do not write more than 8 words. Write "**Declarative
   companions.**", not "**Home Keeper can now open a task for every entity that
-  matches a recipe.**". The sentence after the lead says what a user notices.
+  matches a filter.**". The sentence after the lead says what a user notices.
 - **A bold lead is a heading, so it does not take articles or prepositions.** Write
   "**Seasonal tasks.**", not "**Seasons on a task.**". The rule "Do not omit
   articles" applies to a sentence. It does not apply to a heading.

@@ -1,6 +1,15 @@
 import { t } from './i18n';
 import type { Asset, HassArea, HassDevice, RecurrenceType, Task } from './types';
-import { areaName, deviceName, groupableDeviceId, isBuyTask, isUseTask } from './utils';
+import {
+  COMPANION_KEY_DECLARATIVE_PREFIX,
+  COMPANION_KEY_PROBLEM_SENSORS,
+  HK_DOMAIN,
+  areaName,
+  deviceName,
+  groupableDeviceId,
+  isBuyTask,
+  isUseTask,
+} from './utils';
 
 /**
  * Pure (DOM-free) filtering / sorting / grouping for the dashboard card, and the
@@ -216,9 +225,10 @@ export interface ProfileFilter {
   labels: string[];
   areas: string[];
   devices: string[];
-  /** Integration domains from a task's `managed_by.integration` — the companion that
-   *  owns it. Scopes a profile to one source ("just the battery tasks") without every
-   *  companion having to learn to apply a label. */
+  /** The sources a task must come from, as {@link companionKeys} names them: an
+   *  integration domain from `managed_by.integration`, or a narrower Home Keeper key.
+   *  Scopes a profile to one source ("just the battery tasks") without every companion
+   *  having to learn to apply a label. */
   companions?: string[];
   /** Ids that disqualify a task even when it cleared every include list above.
    *  Empty (or absent, on a profile saved before these existed) excludes nothing. */
@@ -229,6 +239,33 @@ export interface ProfileFilter {
   /** Drop the auto-created "Buy {part}" reminders. Excludes by *kind*, not by id:
    *  a buy reminder has no label or area of its own to name. Absent means off. */
   exclude_shopping?: boolean;
+}
+
+/**
+ * The Profile `companions` values that name the source of *task* — the twin of
+ * `profiles.companion_keys`, pinned to it by `profile_filter_cases.json`.
+ *
+ * The first is the integration in `managed_by`, the ownership contract a companion
+ * sets on `add_task`; an outside integration's `source` stays opaque. Home Keeper's
+ * own sources all share its domain, so each adds a narrower key a Profile can name: a
+ * declarative-companion task adds `home_keeper:declarative:<spec_id>`, and a synced
+ * problem sensor adds `home_keeper:problem_sensors`.
+ */
+export function companionKeys(task: Task): string[] {
+  const keys: string[] = [];
+  const integration = task.managed_by?.integration;
+  if (integration) keys.push(integration);
+  // Only a task Home Keeper owns reads its `source`: another integration's is its own
+  // namespace, and a key there that shares a name proves nothing.
+  if (integration !== HK_DOMAIN) return keys;
+  const source = task.source as Record<string, unknown> | null | undefined;
+  const specId = (source?.declarative_companion as { spec_id?: string } | null | undefined)
+    ?.spec_id;
+  if (specId) keys.push(`${COMPANION_KEY_DECLARATIVE_PREFIX}${specId}`);
+  // A mapping, as on the Python side, which reads nothing else as a synced problem.
+  const problem = source?.problem_sensor;
+  if (problem && typeof problem === 'object') keys.push(COMPANION_KEY_PROBLEM_SENSORS);
+  return keys;
 }
 
 /**
@@ -261,9 +298,10 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  * `exclude_shopping` subtracts beside them but by *kind*, dropping the auto-created
  * buy reminders — they carry no id of their own, only the appliance's.
  *
- * `companions` scopes by the integration that owns a task (`managed_by.integration`),
- * which is how "a card of just the battery tasks" stays one saved profile instead of a
- * setting each companion has to grow.
+ * `companions` scopes by the source that owns a task, read through
+ * {@link companionKeys}: a task matches a list when any of its keys is in it. That is
+ * how "a card of just the battery tasks" stays one saved profile instead of a setting
+ * each companion has to grow.
  *
  * A `problem`-sensor-synced task is an ordinary member of the set. It carries a
  * `next_due` of the moment its sensor went bad while the problem stands, so it reads as
@@ -295,19 +333,21 @@ export function profileMatches(
   if (wantAreas.length && !listHas(wantAreas, areaId)) return false;
   const wantDevices = filter.devices ?? [];
   if (wantDevices.length && !listHas(wantDevices, task.device_id)) return false;
-  // The owning integration, from the `managed_by` block a companion sets on
-  // `add_task`. A task nobody claims has none, so `listHas` rejects it from a
-  // non-empty include list and spares it from every exclude list.
-  const companion = task.managed_by?.integration;
+  // Every companion key of the task. A task nobody claims has none, so it fails a
+  // non-empty include list and is spared by every exclude list.
+  const companions = companionKeys(task);
   const wantCompanions = filter.companions ?? [];
-  if (wantCompanions.length && !listHas(wantCompanions, companion)) return false;
+  if (wantCompanions.length && !companions.some((key) => wantCompanions.includes(key))) {
+    return false;
+  }
   // Exclusions subtract, and win over the include lists above.
   if (filter.exclude_labels?.some((id) => taskLabels.has(id))) return false;
   if (listHas(filter.exclude_areas, areaId)) return false;
   if (listHas(filter.exclude_devices, task.device_id)) return false;
   // By kind rather than by id — a buy reminder has none of its own to name.
   if (filter.exclude_shopping && isBuyTask(task)) return false;
-  return !listHas(filter.exclude_companions, companion);
+  const excluded = filter.exclude_companions ?? [];
+  return !companions.some((key) => excluded.includes(key));
 }
 
 /**

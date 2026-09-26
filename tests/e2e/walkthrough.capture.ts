@@ -824,11 +824,11 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 2);
 
-  // 6a. Declarative companions — the same card's last section: recipes Home Keeper
+  // 6a. Declarative companions — the same card's last section: specs Home Keeper
   //     runs itself, one managed task per matching entity, no glue integration.
-  //     "Add from preset" opens the bundled recipes; picking Firmware update
+  //     "Add from preset" opens the bundled presets; picking Firmware update
   //     available seeds the form, and the preview under it counts the entities the
-  //     recipe would turn into tasks. Cancelled rather than saved, so the tour leaves
+  //     companion would turn into tasks. Cancelled rather than saved, so the tour leaves
   //     the seeded data untouched.
   await panel.locator('.hk-companion-group-decl').scrollIntoViewIfNeeded();
   await page.mouse.move(0, 0);
@@ -867,7 +867,7 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT * 3);
 
   // More filters opens the other filters and the Exclusions block (#373), and
-  // Exclude on a preview row leaves that entity out of the recipe.
+  // Exclude on a preview row leaves that entity out of the companion.
   await declForm.locator('.hk-decl-more').click();
   await declForm.locator('[data-decl-section="exclusions"]').scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT * 2);
@@ -875,6 +875,12 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await declForm.locator('.hk-decl-exclude').first().click();
   await expect(declForm.locator('.hk-decl-excluded-head')).toBeVisible();
   await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+  // Task labels at the foot of the Task template section: every task the companion
+  // makes gets them, so a Profile can select that companion's tasks (#378).
+  const declTemplateSection = declForm.locator('[data-decl-section="template"]');
+  await declTemplateSection.scrollIntoViewIfNeeded();
+  await expect(declTemplateSection).toContainText('Task labels');
   await page.waitForTimeout(BEAT * 2);
   await declForm.locator('.hk-decl-cancel').click();
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);

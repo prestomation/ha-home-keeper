@@ -16,5 +16,5 @@
   "declarative_preset.firmware_update_available.description": "Sleduje každou entitu aktualizace (UniFi, ESPHome, HACS, kamery, tiskárny atd.) a otevře úlohu pro instalaci nové verze.",
   "declarative_preset.device_stopped_reporting.name": "Zařízení se odmlčelo",
   "declarative_preset.device_stopped_reporting.description": "Sleduje všechny senzory posledního kontaktu a otevře úkol pro každé zařízení, které se neozvalo 24 hodin. Slouží k nalezení zařízení Zigbee nebo Z-Wave, která vypadla ze sítě.",
-  "declarative_task.completion_prompt": "Otevřeno recepturou „{name}“. Home Keeper tuto úlohu automaticky dokončí, jakmile podmínka pomine, takže ji nelze dokončit ručně."
+  "declarative_task.completion_prompt": "Otevřeno deklarativním společníkem „{name}“. Home Keeper tuto úlohu automaticky dokončí, jakmile podmínka pomine, takže ji nelze dokončit ručně."
 }

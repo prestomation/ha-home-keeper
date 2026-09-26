@@ -1,19 +1,19 @@
 /**
- * Settings → Companions → **Declarative companions**: recipes that materialize one
+ * Settings → Companions → **Declarative companions**: specs that materialize one
  * managed sensor task per matching entity, with no glue integration in between.
  *
  * Three surfaces, all free functions over a `PanelHost` (see `panel-host.ts`):
  *
  * - the subsection at the foot of the Companions card — `declarativeSection` renders
  *   it and `wireDeclarativeSection` wires Add / Add from preset / Edit / Delete;
- * - the preset picker: one card per bundled recipe, disabled when the integration it
+ * - the preset picker: one card per bundled preset, disabled when the integration it
  *   needs has no config entry;
  * - the add/edit dialog: `ha-form`s (identity, selection, trigger, template) over
- *   one draft, and beneath them a live preview of what the recipe would match. The
+ *   one draft, and beneath them a live preview of what the companion would match. The
  *   selection section shows integration and domain; a **More filters** row opens the
  *   other filters and the four exclusion lists (#373). Each preview row has an
  *   Exclude button, and an excluded entity is listed under the rows with Include.
- *   The preview also warns when another stored recipe already covers those entities.
+ *   The preview also warns when another stored companion already covers those entities.
  *   `declarativeOverlap` works that out from the tasks the panel already holds, so
  *   the warning costs no extra backend call.
  *
@@ -39,6 +39,7 @@ import {
 import {
   pickFormData,
   selBool,
+  selLabel,
   selNumber,
   selSelect,
   selSelectCustom,
@@ -77,7 +78,7 @@ export type Trigger = Record<string, unknown> & { mode?: string };
  * The trigger keys each mode keeps, mirroring `models.normalize_sensor`.
  *
  * The backend does not ignore a key that belongs to another mode — `_reject_fields`
- * raises on it — so a mode change must drop them. A recipe seeded from the Device
+ * raises on it — so a mode change must drop them. A companion seeded from the Device
  * Pulse preset carries `comparison` and `value`; switching it to *state* kept both,
  * and the save came back "sensor.comparison is not valid for a state-mode sensor
  * task" (issues #230 / #231).
@@ -115,7 +116,7 @@ const TRIGGER_DEFAULTS: Record<string, Record<string, unknown>> = {
   availability: { clear_on_recover: true },
   // No default `template`: it is genuinely the user's to write, and an empty
   // required box says so. `clear_on_recover` follows the other edge modes, so a
-  // recipe's tasks close themselves when the condition goes away.
+  // companion's tasks close themselves when the condition goes away.
   template: { clear_on_recover: true },
 };
 
@@ -136,7 +137,7 @@ export function triggerForMode(trigger: Trigger, nextMode: string): Trigger {
   return next;
 }
 
-/** A blank recipe, for the Add-from-scratch path. */
+/** A blank declarative companion, for the Add-from-scratch path. */
 export function emptyDeclarativeCompanion(): DeclarativeCompanion {
   return {
     id: '',
@@ -157,7 +158,7 @@ export function emptyDeclarativeCompanion(): DeclarativeCompanion {
     trigger: triggerForMode({}, 'state') as unknown as DeclarativeCompanion['trigger'],
     // The device part of the Device Pulse preset's name template. `friendly_name` on its own
     // repeats the device name Home Assistant already prefixes, so a hand-written
-    // recipe produced "Replace Roborock S7 Main brush time left" and the entity id
+    // companion produced "Replace Roborock S7 Main brush time left" and the entity id
     // `sensor.roborock_s7_replace_roborock_s7_main_brush_time_left_next_due`.
     task_template: {
       name_template: '{{ device_name or friendly_name }}',
@@ -168,7 +169,7 @@ export function emptyDeclarativeCompanion(): DeclarativeCompanion {
   };
 }
 
-/** The recipe id a managed task was materialized from, or undefined for any other task. */
+/** The spec id a managed task was materialized from, or undefined for any other task. */
 export function declarativeSpecId(task: Task): string | undefined {
   const source = task.source as
     | { declarative_companion?: { spec_id?: string } }
@@ -178,13 +179,13 @@ export function declarativeSpecId(task: Task): string | undefined {
 }
 
 /**
- * The stored recipe *task* was materialized from, or undefined for any other task.
+ * The stored declarative companion that made *task*, or undefined for any other task.
  *
- * The task page reads it to answer "where are this task's settings?". A recipe that
- * is no longer stored returns undefined, so the page falls back to the generic
- * managed-task captions rather than offering an editor for a recipe that is gone.
+ * The task page reads it to answer "where are this task's settings?". A declarative
+ * companion that is no longer stored returns undefined, so the page falls back to the
+ * generic managed-task captions rather than offering an editor for one that is gone.
  */
-export function declarativeRecipeFor(
+export function declarativeCompanionFor(
   p: PanelHost,
   task: Task,
 ): DeclarativeCompanion | undefined {
@@ -192,30 +193,32 @@ export function declarativeRecipeFor(
   return specId ? p._declarativeCompanions.find((s) => s.id === specId) : undefined;
 }
 
-/** What `declarativeOverlap` found: the recipe that already covers the most of the
+/** What `declarativeOverlap` found: the companion that already covers the most of the
  *  draft's matches, and how many of those matches it covers. */
 export interface DeclarativeOverlap {
-  /** The other recipe's name, or its id when the recipe is no longer stored. */
+  /** The other companion's name, or its id when it is no longer stored. */
   name: string;
-  /** How many of the entities in *matched* that recipe already has a task for. */
+  /** How many of the entities in *matched* that companion already has a task for. */
   count: number;
 }
 
 /**
- * The recipe that already covers part of *matched*, or null when none does.
+ * The companion that already covers part of *matched*, or null when none does.
  *
- * Two recipes that select the same entity each materialize their own task for it, so
- * the user gets two identical tasks and the task list says nothing about why. The
- * check runs in the panel: a materialized task carries its recipe id in
+ * Two companions that select the same entity each materialize their own task for it, so
+ * the user gets two identical tasks and the task list says nothing about why. The check
+ * runs in the panel: a materialized task carries its spec id in
  * `source.declarative_companion.spec_id` and the entity it watches in
- * `sensor.entity_id`, and the panel already holds every task and every stored recipe.
+ * `sensor.entity_id`, and the panel already holds every task and every stored
+ * companion.
  *
- * *draftId* is the recipe under edit and is skipped. Its tasks are the tasks the draft
- * rebuilds, not an overlap with another recipe.
+ * *draftId* is the companion under edit and is skipped. Its tasks are the tasks the
+ * draft rebuilds, not an overlap with another companion.
  *
  * *matched* is the preview sample, so the count is a count of the matches on screen.
- * The warning names one recipe, so only the recipe with the most overlap is returned.
- * If two recipes cover the same number, the first one found in *tasks* wins.
+ * The warning names one companion, so only the companion with the most overlap is
+ * returned. If two companions cover the same number, the first one found in *tasks*
+ * wins.
  */
 export function declarativeOverlap(
   matched: readonly { entity_id: string }[],
@@ -249,7 +252,7 @@ function errorMessage(err: unknown): string {
 
 // ── the subsection inside the Companions card ───────────────────────────────
 
-/** The subsection's HTML: heading, help, the two Add buttons, then one row per recipe. */
+/** The subsection's HTML: heading, help, the two Add buttons, then a row per companion. */
 export function declarativeSection(p: PanelHost): string {
   const rows = p._declarativeCompanions.length
     ? p._declarativeCompanions.map((spec) => declarativeRow(p, spec)).join('')
@@ -264,7 +267,7 @@ export function declarativeSection(p: PanelHost): string {
       ${rows}`;
 }
 
-/** One recipe row: name, enabled chip, preset badge, description, match count, actions. */
+/** One companion row: name, enabled chip, preset badge, description, count, actions. */
 function declarativeRow(p: PanelHost, spec: DeclarativeCompanion): string {
   const count = p._tasks.filter((task) => declarativeSpecId(task) === spec.id).length;
   const enabled = spec.enabled
@@ -358,8 +361,8 @@ async function openPresetPicker(p: PanelHost): Promise<void> {
   p._render();
 }
 
-/** Open the form on a copy of *seed* (a stored recipe, or a preset's default), or
- *  on a blank recipe when null. Exported because a task's own page opens the recipe
+/** Open the form on a copy of *seed* (a stored companion, or a preset's default), or
+ *  on a blank one when null. Exported because a task's own page opens the companion
  *  that built it — the dialog host is global, so the form works from any view. */
 export async function openDeclarativeForm(
   p: PanelHost,
@@ -504,12 +507,14 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     );
   };
 
-  // Every field is labelled from its own key rather than `field.<name>`. Two fields
-  // carry a helper, and both say what a template can read: the notes template, and
-  // the trigger template, which sees the same vocabulary.
+  // Every field is labelled from its own key rather than `field.<name>`. Three fields
+  // carry a helper. Two say what a template can read: the notes template, and the
+  // trigger template, which sees the same vocabulary. The third says what the task
+  // labels do to the tasks that already exist.
   const HELPERS: Record<string, string> = {
     notes_template: 'declarative.companions.template_help',
     template: 'declarative.companions.template_trigger_help',
+    labels: 'declarative.companions.labels_help',
   };
   const labelling = {
     computeLabel: (s: { name: string }): string =>
@@ -773,20 +778,26 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     },
   );
 
-  // 4. Task template.
-  section(
+  // 4. Task template. The label picker builds each pick from the form's data, so the
+  // data is written back on every change, as the filters above do.
+  const templateData = (): Record<string, unknown> => ({
+    name_template: draft.task_template.name_template,
+    notes_template: draft.task_template.notes_template,
+    labels: draft.task_template.labels ?? [],
+  });
+  const templateForm = section(
     'template',
     [
       { name: 'name_template', required: true, selector: selText() },
       { name: 'notes_template', selector: selText(true) },
+      { name: 'labels', selector: selLabel(true) },
     ],
-    {
-      name_template: draft.task_template.name_template,
-      notes_template: draft.task_template.notes_template,
-    },
+    templateData(),
     (v) => {
       draft.task_template.name_template = String(v.name_template ?? '');
       draft.task_template.notes_template = String(v.notes_template ?? '');
+      draft.task_template.labels = idList(v.labels);
+      templateForm.data = templateData();
     },
   );
 
@@ -807,7 +818,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     // The dialog stays on screen until the panel has re-read the store, and that
     // read waits out the entry reload the save itself can trigger — a second or
     // two. Say so on the button rather than leave it looking dead, and stop a
-    // second click from adding the recipe twice.
+    // second click from adding the companion twice.
     save.setAttribute('disabled', '');
     save.textContent = t('settings.status_saving');
     void saveDeclarative(p, draft);
@@ -901,7 +912,7 @@ function excludedHtml(excluded: readonly string[]): string {
  *
  * `pendingTemplate` says the draft is on Template mode with an empty box — a form the
  * user has not filled in yet, not a mistake. The backend sends no verdict for those
- * rows, so the sample still says what the recipe matches while the hint says what is
+ * rows, so the sample still says what the companion matches while the hint says what is
  * missing. */
 export function previewHtml(
   result: DeclarativeCompanionPreviewResult,
@@ -916,7 +927,7 @@ export function previewHtml(
     );
   }
   const count = result.count ?? 0;
-  // A `warning`, the same type as the count warning below it. A second recipe over
+  // A `warning`, the same type as the count warning below it. A second companion over
   // the same entities makes a duplicate task for each one. That is a result to
   // prevent, not a fact to read.
   const duplicate = overlap

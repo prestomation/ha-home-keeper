@@ -4,10 +4,10 @@ import { definePanelStubs, waitFor } from './panel-harness.js';
 /**
  * The page of a task a declarative companion built (issue #231).
  *
- * A recipe materializes one managed sensor task per matching entity. The task is
- * Home Keeper's own — `managed_by.integration` is `home_keeper` and
+ * A declarative companion materializes one managed sensor task per matching entity. The
+ * task is Home Keeper's own — `managed_by.integration` is `home_keeper` and
  * `config_entry_id` is Home Keeper's entry — but `display_name` carries the
- * *recipe's* name. The page read that as a foreign integration and offered two ways
+ * *companion's* name. The page read that as a foreign integration and offered two ways
  * to nowhere: "Edit in Device Pulse", which opened the Home Keeper integration page,
  * and "Delete from Device Pulse instead", which named a place that does not exist.
  *
@@ -39,7 +39,7 @@ const SPEC = {
 };
 
 /** Exactly what `declarative_companions.build_managed_by` stamps on a materialized
- *  task: Home Keeper's own integration and entry, under the recipe's name. */
+ *  task: Home Keeper's own integration and entry, under the companion's name. */
 const MANAGED_BY = {
   integration: 'home_keeper',
   display_name: 'Device Pulse',
@@ -49,12 +49,12 @@ const MANAGED_BY = {
   completion_blocked: false,
 };
 
-/** What the backend stamps once the recipe's trigger sets `clear_on_recover`. */
+/** What the backend stamps once the companion's trigger sets `clear_on_recover`. */
 const BLOCKED_MANAGED_BY = {
   ...MANAGED_BY,
   completion_blocked: true,
   completion_prompt:
-    'Opened by the “Device Pulse” recipe. Home Keeper completes this task when the watched condition recovers, so it cannot be marked done by hand.',
+    'Opened by the declarative companion “Device Pulse”. Home Keeper completes this task when the watched condition recovers, so it cannot be marked done by hand.',
 };
 
 function task(overrides = {}) {
@@ -122,29 +122,80 @@ async function mountTask(tasks, companions) {
 }
 
 describe('a declarative companion task’s page', () => {
-  it('offers the recipe, not a deep link into an integration that is not there', async () => {
+  it('offers the declarative companion, not a deep link into an integration that is not there', async () => {
     const panel = await mountTask([task()]);
     const root = panel.shadowRoot;
 
     expect(root.querySelector('.d-open-in'), 'the deep link went to Home Keeper').toBeNull();
-    const recipeBtn = root.querySelector('.d-edit-recipe');
-    expect(recipeBtn, 'the page should offer the recipe that built this task').toBeTruthy();
-    expect(recipeBtn.dataset.specId).toBe(SPEC.id);
+    const companionBtn = root.querySelector('.d-edit-companion');
+    expect(companionBtn, 'the page should offer the companion that built this task').toBeTruthy();
+    expect(companionBtn.dataset.specId).toBe(SPEC.id);
+    expect(companionBtn.textContent).toBe('Edit companion');
     expect(root.textContent).not.toContain('Edit in Device Pulse');
   });
 
-  // The recipe owns name, device, area and the sensor binding, and rewrites them
-  // on every pass. An Edit dialog over those fields is a form whose Save is
-  // undone by the next reconcile, so the page offers the recipe instead.
-  it('offers no Edit or Delete on the task itself', async () => {
+  // The declarative companion owns the fields in `locked_fields` and rewrites them on
+  // every pass, and the Edit form leaves them out. What is left — labels, the tag,
+  // the completion detail — is the person's to change on this one task (#378).
+  it('offers Edit on the task itself, but no Delete', async () => {
     const panel = await mountTask([task()]);
 
-    expect(panel.shadowRoot.querySelector('.d-edit')).toBeNull();
+    expect(panel.shadowRoot.querySelector('.d-edit')).toBeTruthy();
     expect(panel.shadowRoot.querySelector('.d-del')).toBeNull();
-    expect(panel.shadowRoot.querySelector('.d-edit-recipe')).toBeTruthy();
+    expect(panel.shadowRoot.querySelector('.d-edit-companion')).toBeTruthy();
   });
 
-  // Done on an armed task the recipe auto-clears is worse than a no-op: the
+  it('keeps Duplicate greyed, because a copy would be an unmanaged lookalike', async () => {
+    const panel = await mountTask([task()]);
+
+    expect(panel.shadowRoot.querySelector('.d-dup')).toBeNull();
+    expect(panel.shadowRoot.querySelector('.d-dup-blocked')).toBeTruthy();
+  });
+
+  it('orders Edit, Duplicate, Edit companion', async () => {
+    const panel = await mountTask([task()]);
+    const [edit, dup, companion] = ['.d-edit', '.d-dup-blocked', '.d-edit-companion'].map(
+      (sel) => panel.shadowRoot.querySelector(sel),
+    );
+    const before = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+    expect(before(edit, dup), 'Edit comes before Duplicate').toBe(true);
+    expect(before(dup, companion), 'Duplicate comes before Edit companion').toBe(true);
+  });
+
+  it('opens an Edit form without the fields the companion owns, and no Delete', async () => {
+    const panel = await mountTask([task()]);
+    panel.shadowRoot.querySelector('.d-edit').click();
+
+    const form = await waitFor(() => panel.shadowRoot.querySelector('#hk-form'), 5000);
+    expect(form, 'the task form should open').toBeTruthy();
+    const names = [...panel.shadowRoot.querySelectorAll('#hk-form ha-form')]
+      .flatMap((f) => f.schema ?? [])
+      .flatMap((f) => (f.type === 'grid' ? f.schema : [f]))
+      .map((f) => f.name);
+    expect(names).toContain('labels');
+    expect(names, 'no notes template here, so the notes are the person').toContain('notes');
+    for (const owned of ['name', 'recurrence_type', 'device_id', 'area_id', 'sensor_entity_id']) {
+      expect(names, `${owned} belongs to the companion`).not.toContain(owned);
+    }
+    expect(panel.shadowRoot.querySelector('.hk-drawer-delete')).toBeNull();
+  });
+
+  it('leaves the notes out of Edit when a notes template writes them', async () => {
+    const panel = await mountTask([
+      task({ managed_by: { ...MANAGED_BY, locked_fields: [...MANAGED_BY.locked_fields, 'notes'] } }),
+    ]);
+    panel.shadowRoot.querySelector('.d-edit').click();
+
+    await waitFor(() => panel.shadowRoot.querySelector('#hk-form'), 5000);
+    const names = [...panel.shadowRoot.querySelectorAll('#hk-form ha-form')]
+      .flatMap((f) => f.schema ?? [])
+      .map((f) => f.name);
+    expect(names).toContain('labels');
+    expect(names).not.toContain('notes');
+  });
+
+  // Done on an armed task the companion auto-clears is worse than a no-op: the
   // watcher will not re-arm while the condition stays true, so pressing it
   // dismisses a firmware update that is still pending. A greyed Done that
   // explains itself is the honest affordance.
@@ -158,7 +209,7 @@ describe('a declarative companion task’s page', () => {
     expect(panel.shadowRoot.textContent).toContain('recovers');
   });
 
-  it('names the recipe as the way to remove the task', async () => {
+  it('names the companion as the way to remove the task', async () => {
     const panel = await mountTask([task()]);
     const caption = panel.shadowRoot.querySelector('.hk-managed-info');
 
@@ -167,28 +218,28 @@ describe('a declarative companion task’s page', () => {
     expect(panel.shadowRoot.textContent).not.toContain('Delete from Device Pulse instead');
   });
 
-  it('opens the recipe dialog when the button is pressed', async () => {
+  it('opens the declarative companion dialog when Edit companion is pressed', async () => {
     const panel = await mountTask([task()]);
 
-    panel.shadowRoot.querySelector('.d-edit-recipe').click();
+    panel.shadowRoot.querySelector('.d-edit-companion').click();
 
     const dialog = await waitFor(
       () => panel.shadowRoot.querySelector('ha-dialog.hk-decl-dialog'),
       5000,
     );
-    expect(dialog, 'the recipe editor should open over the task page').toBeTruthy();
+    expect(dialog, 'the companion editor should open over the task page').toBeTruthy();
   });
 
-  // The recipe can be deleted while a task it built is still on screen. Falling back
-  // to the generic captions beats offering an editor for a recipe that is gone.
-  it('falls back to the managed captions when the recipe is no longer stored', async () => {
+  // The companion can be deleted while a task it built is still on screen. Falling back
+  // to the generic captions beats offering an editor for a companion that is gone.
+  it('falls back to the managed captions when the companion is no longer stored', async () => {
     const panel = await mountTask([task()], []);
 
-    expect(panel.shadowRoot.querySelector('.d-edit-recipe')).toBeNull();
+    expect(panel.shadowRoot.querySelector('.d-edit-companion')).toBeNull();
     expect(panel.shadowRoot.querySelector('.d-open-in'), 'Home Keeper is never the link').toBeNull();
   });
 
-  // The deep link is suppressed for Home Keeper's *domain*, not for the recipe
+  // The deep link is suppressed for Home Keeper's *domain*, not for the companion
   // source — so a task Home Keeper owns by some other route gets the same
   // treatment. Without that, "Edit in Home Keeper" would send the reader from the
   // panel to the integration page and back again.

@@ -191,7 +191,7 @@ _ENVELOPE = {"home_keeper": {"format": 1}}
         # warning and carries on, so a schema that refused them would contradict the
         # code — which is why additionalProperties is left open at both levels.
         ({**_ENVELOPE, "tasks": [{"name": "A", "whatever": 1}]}, True, "unknown field"),
-        ({**_ENVELOPE, "recipes": []}, True, "unknown section"),
+        ({**_ENVELOPE, "declarative_companions": []}, True, "unknown section"),
         # A YAML boolean in a text field. The schema has always typed `name` as a
         # string, so it refused this from the first day; `plan_import` used to accept
         # it and store `str(False)`, which is the word "False". That made it an

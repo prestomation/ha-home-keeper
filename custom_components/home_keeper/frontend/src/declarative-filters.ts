@@ -1,6 +1,6 @@
 /**
- * The recipe dialog's **More filters** block (#373): the selection filters past
- * integration and domain, and the four exclusion lists.
+ * The declarative companion dialog's **More filters** block (#373): the selection
+ * filters past integration and domain, and the four exclusion lists.
  *
  * Pure helpers only, so the mutation gate can score them. The dialog in
  * `panel-declarative.ts` builds the DOM from these schemas and reads the summary

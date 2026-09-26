@@ -83,8 +83,8 @@ def _want(tid=T1, name=NAME, due=DUE, notes="", last_completed=None, blocked=Fal
     }
 
 
-# What a recipe that clears on recover stamps on its task (#370).
-RECIPE_MANAGED_BY = {"integration": "home_keeper", "completion_blocked": True}
+# What a declarative companion that clears on recover stamps on its task (#370).
+COMPANION_MANAGED_BY = {"integration": "home_keeper", "completion_blocked": True}
 
 
 def _desired(wants, profile_id=M1):
@@ -232,7 +232,7 @@ def test_desired_by_sync_selects_what_its_profile_surfaces():
 
 
 def test_desired_by_sync_wants_a_completion_blocked_task_and_flags_it():
-    # A synced problem sensor and a recipe that clears on recover close only when
+    # A synced problem sensor and a companion that clears on recover close only when
     # their sensor recovers. They go on the list as a reminder (#370), flagged so
     # the planner never reads a tick on their item as a completion. Keyed off the
     # same ``managed_by.completion_blocked`` the panel and notifications read.
@@ -241,9 +241,9 @@ def test_desired_by_sync_wants_a_completion_blocked_task_and_flags_it():
             "sensor",
             name="Leak detected",
             source={"problem_sensor": {"entity_id": "binary_sensor.leak"}},
-            managed_by=RECIPE_MANAGED_BY,
+            managed_by=COMPANION_MANAGED_BY,
         ),
-        _task("recipe", name="Update the router", managed_by=RECIPE_MANAGED_BY),
+        _task("companion", name="Update the router", managed_by=COMPANION_MANAGED_BY),
         _task(
             "manual",
             name="Reset the meter",
@@ -253,7 +253,7 @@ def test_desired_by_sync_wants_a_completion_blocked_task_and_flags_it():
     assert tm.desired_by_sync([_synced_profile()], tasks, now=NOW) == {
         M1: {
             "sensor": _want("sensor", name="Leak detected", blocked=True),
-            "recipe": _want("recipe", name="Update the router", blocked=True),
+            "companion": _want("companion", name="Update the router", blocked=True),
             "manual": _want("manual", name="Reset the meter"),
         }
     }

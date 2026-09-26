@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.27.0b3"
+PANEL_VERSION = "0.27.0b4"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -333,9 +333,10 @@ ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"
 # Opaque ``origin`` marker the sensor watcher passes to ``complete_task`` when a
 # ``clear_on_recover`` sensor task clears itself because its bound entity went back to
 # normal. It lets an automation tell "Home Keeper noticed the condition cleared" apart
-# from "somebody pressed Done". It also *authorizes* one thing: a recipe task with
-# ``managed_by.completion_blocked`` refuses every completion but this one (and the
-# problem-sensor sync's), because the recipe owns both ends of that task (#377).
+# from "somebody pressed Done". It also *authorizes* one thing: a declarative
+# companion task with ``managed_by.completion_blocked`` refuses every completion but
+# this one (and the problem-sensor sync's), because the declarative companion owns
+# both ends of that task (#377).
 ORIGIN_SENSOR_RECOVER = f"{DOMAIN}_sensor_recover"
 
 # Opaque ``origin`` marker the tag listener passes to ``complete_task`` when an
@@ -595,7 +596,7 @@ EVENT_COMPANION_CONNECTED = f"{DOMAIN}_companion_connected"
 EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
 
 # ── Declarative companions ─────────────────────────────────────────────────────
-# A **declarative companion** is a Home-Keeper-owned recipe (target integration +
+# A **declarative companion** is a Home-Keeper-owned spec (target integration +
 # entity filters + sensor-task trigger + Jinja-templated task fields) that expands
 # into one managed sensor task per matching entity. Unlike a hand-coded glue
 # integration (see EVENT_REGISTER_COMPANIONS above) it needs no separate repo —
@@ -629,6 +630,14 @@ MAX_DECLARATIVE_MATCH_HARD = 500
 # {"spec_id", "entity_registry_id", "entity_id"}}``. The reconciler exclusively
 # owns these tasks; ``entity_registry_id`` is the survives-rename dedupe key.
 TASK_SOURCE_DECLARATIVE_COMPANION = "declarative_companion"
+# Profile filter values that name one Home Keeper source more narrowly than the
+# ``home_keeper`` integration domain, which every declarative-companion task and every
+# synced problem-sensor task shares. A Profile stores them in ``filter.companions`` /
+# ``filter.exclude_companions`` beside the integration domains. Nothing new is stored
+# on a task: ``profiles.companion_keys`` derives them from the task's ``source``. The
+# colon keeps them apart from every real domain, which is ``[a-z0-9_]`` only.
+COMPANION_KEY_DECLARATIVE_PREFIX = f"{DOMAIN}:declarative:"
+COMPANION_KEY_PROBLEM_SENSORS = f"{DOMAIN}:problem_sensors"
 # Dispatcher signal the store fires when a spec is added / updated / deleted /
 # toggled; the reconciler subscribes to re-materialize managed tasks without
 # needing a config-entry reload.

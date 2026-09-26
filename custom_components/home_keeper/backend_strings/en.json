@@ -16,5 +16,5 @@
   "declarative_preset.firmware_update_available.description": "Watches every update entity (UniFi, ESPHome, HACS, cameras, printers, etc.) and opens a task to apply the new version.",
   "declarative_preset.device_stopped_reporting.name": "Device stopped reporting",
   "declarative_preset.device_stopped_reporting.description": "Watches every last-seen sensor and opens a task for each device that has not reported for 24 hours. Use it to find the Zigbee or Z-Wave devices that dropped off the mesh.",
-  "declarative_task.completion_prompt": "Opened by the “{name}” recipe. Home Keeper completes this task when the watched condition recovers, so it cannot be marked done by hand."
+  "declarative_task.completion_prompt": "Opened by the declarative companion “{name}”. Home Keeper completes this task when the watched condition recovers, so it cannot be marked done by hand."
 }

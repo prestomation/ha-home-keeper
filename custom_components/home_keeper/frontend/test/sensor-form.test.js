@@ -984,7 +984,7 @@ describe('sensorHintText — the starting-reading arithmetic', () => {
  * option for it, so an availability task opened for editing fell through to the
  * *threshold* leg: Save stamped `comparison` and `value` onto the binding and the
  * backend rejected it as "not valid for an availability-mode sensor task" — the same
- * class of bug #230 reported against the recipe dialog.
+ * class of bug #230 reported against the companion dialog.
  */
 describe('availability mode — the entity going away is the condition', () => {
   it('shows only the hold and the auto-clear, no condition fields', () => {
