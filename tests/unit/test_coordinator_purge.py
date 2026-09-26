@@ -220,3 +220,48 @@ def test_purge_disabled_when_retention_zero():
     asyncio.run(coord._purge_expired_one_offs())
     assert coord.store.deleted == []
     assert coord.hass.created == []
+
+
+# ── settling a stock change ──────────────────────────────────────────────────
+class _SettleStore:
+    def __init__(self, entity_set_changed: bool) -> None:
+        self._changed = entity_set_changed
+
+    async def settle_use_tasks(self) -> None:
+        return None
+
+    async def reconcile_buy_tasks(self) -> bool:
+        return self._changed
+
+
+def _settle_coord(entity_set_changed: bool):
+    coord = object.__new__(coordinator.HomeKeeperCoordinator)
+    coord.store = _SettleStore(entity_set_changed)
+    coord.hass = _FakeHass()
+    coord.shopping_sync = None
+    coord.config_entry = _FakeEntry(30)
+    coord._buy_reload_scheduled = False
+    calls: list[str] = []
+    coord.async_update_listeners = lambda: calls.append("listeners")
+
+    async def _refresh() -> None:
+        calls.append("refresh")
+
+    coord.async_request_refresh = _refresh
+    return coord, calls
+
+
+def test_a_stock_change_shows_at_once_before_the_debounced_refresh():
+    # The spares number reads the store, so it can show the new count now. The
+    # refresh is debounced, and waiting for it left a card's badge a count behind for
+    # up to 10 seconds after the tap that changed it.
+    coord, calls = _settle_coord(entity_set_changed=False)
+    asyncio.run(coord.async_settle_buy_tasks())
+    assert calls == ["listeners", "refresh"]
+
+
+def test_a_buy_task_change_reloads_instead():
+    coord, calls = _settle_coord(entity_set_changed=True)
+    asyncio.run(coord.async_settle_buy_tasks())
+    assert calls == []
+    assert len(coord.hass.created) == 1

@@ -863,7 +863,7 @@ later, and send it back negated. It differs from `delta` when the count stops at
 
 Each counted part on a virtual appliance has a spares `number` entity, with the unique
 ID `home_keeper_asset_<asset id>_part_<part id>_stock`. Its state is the count. Its
-attributes are `asset_id`, `part_id`, `reorder_at` and `status`. Every user can read
+attributes are `asset_id`, `part_id`, `reorder_at`, `restock_quantity` and `status`. Every user can read
 it, so a dashboard card can show the count without an admin read. Setting the number
 moves the count, the same as `adjust_part_stock`.
 

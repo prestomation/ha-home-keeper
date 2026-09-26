@@ -107,6 +107,7 @@ class HomeKeeperPartStockNumber(HomeKeeperPartEntity, NumberEntity):
             "asset_id": self._asset_id,
             "part_id": self._part_id,
             "reorder_at": part.get("reorder_at"),
+            "restock_quantity": part.get("restock_quantity"),
             "status": asset_model.part_stock_status(part),
         }
 

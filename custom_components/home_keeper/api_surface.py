@@ -723,6 +723,11 @@ ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
             Field("asset_id", "str"),
             Field("part_id", "str"),
             Field("reorder_at", "float | None", "the low-stock threshold, if set"),
+            Field(
+                "restock_quantity",
+                "float | None",
+                "what a Buy task adds when it is ticked, if set",
+            ),
             Field("status", "str", "ok, low, out or untracked"),
         ),
     ),
