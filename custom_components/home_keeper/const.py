@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.24.0b9"
+PANEL_VERSION = "0.27.0b5"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -329,6 +329,10 @@ OPTION_NOTIFICATIONS = "notifications"
 # mirror is two-way: ticking the item off there completes the Home Keeper
 # reminder, which restocks the part. See shopping.py / shopping_sync.py.
 OPTION_SHOPPING_LIST_ENTITY = "shopping_list_entity"
+# How a mirrored reminder's line is titled on that list: ``"with_verb"`` (the default,
+# the reminder's own name, "Buy fabric softener") or ``"product_only"`` (the part's
+# name alone, "Fabric softener"). The values live in ``shopping.LINE_STYLES``.
+OPTION_SHOPPING_LINE_STYLE = "shopping_line_style"
 
 # Opaque ``origin`` marker the shopping-list mirror passes to ``complete_task``
 # when a mirrored buy reminder is ticked off on the external list. Like
@@ -352,9 +356,11 @@ ORIGIN_NOTIFICATION_ACTION = f"{DOMAIN}_notification_action"
 
 # Opaque ``origin`` marker the sensor watcher passes to ``complete_task`` when a
 # ``clear_on_recover`` sensor task clears itself because its bound entity went back to
-# normal. Unlike ``ORIGIN_PROBLEM_SENSOR_SYNC`` this authorizes nothing — the task is
-# user-owned and completable by hand — it exists so an automation can tell "Home Keeper
-# noticed the condition cleared" apart from "somebody pressed Done".
+# normal. It lets an automation tell "Home Keeper noticed the condition cleared" apart
+# from "somebody pressed Done". It also *authorizes* one thing: a declarative
+# companion task with ``managed_by.completion_blocked`` refuses every completion but
+# this one (and the problem-sensor sync's), because the declarative companion owns
+# both ends of that task (#377).
 ORIGIN_SENSOR_RECOVER = f"{DOMAIN}_sensor_recover"
 
 # Opaque ``origin`` marker the tag listener passes to ``complete_task`` when an
@@ -433,16 +439,34 @@ SENSOR_MODE_STATE = "state"
 # does NOT arm a fresh task (matches ``problem_sync`` "indeterminate does not
 # fabricate").
 SENSOR_MODE_AVAILABILITY = "availability"
+# ``template`` renders a Jinja template against the bound entity and arms while the
+# result is true. It is the escape hatch for a condition the other four modes cannot
+# say: ``state`` compares one string, ``threshold`` compares one number, and neither
+# can do arithmetic on a timestamp ("this sensor has not reported for 24 hours", the
+# request in #346). The template sees the same variables the declarative-companion
+# task templates see — see ``template_context.template_variables``.
+#
+# A render error is **indeterminate**, not false: it neither arms nor clears. Reading
+# a broken template as "the condition went away" would auto-complete every
+# ``clear_on_recover`` task the first time a typo shipped.
+SENSOR_MODE_TEMPLATE = "template"
 SENSOR_MODES = [
     SENSOR_MODE_USAGE,
     SENSOR_MODE_THRESHOLD,
     SENSOR_MODE_STATE,
     SENSOR_MODE_AVAILABILITY,
+    SENSOR_MODE_TEMPLATE,
 ]
 
 # Max length of a ``state`` binding's target state. Home Assistant caps a state string
 # at 255 characters, so anything longer could never match a real entity.
 MAX_SENSOR_STATE_LEN = 255
+
+# Max length of a ``template`` binding's source. A trigger template is one boolean
+# expression, not a document, so this sits well under the 2000 a task's notes template
+# gets. It exists to stop a pasted page ending up in storage and re-rendered on every
+# pass, for every matched entity.
+MAX_SENSOR_TEMPLATE_LEN = 1000
 
 # How a usage task's meter target combines with its optional time backstop
 # (``sensor["also_every"]``): ``any`` = whichever comes first (the common
@@ -596,7 +620,7 @@ EVENT_COMPANION_CONNECTED = f"{DOMAIN}_companion_connected"
 EVENT_COMPANION_SUGGESTED = f"{DOMAIN}_companion_suggested"
 
 # ── Declarative companions ─────────────────────────────────────────────────────
-# A **declarative companion** is a Home-Keeper-owned recipe (target integration +
+# A **declarative companion** is a Home-Keeper-owned spec (target integration +
 # entity filters + sensor-task trigger + Jinja-templated task fields) that expands
 # into one managed sensor task per matching entity. Unlike a hand-coded glue
 # integration (see EVENT_REGISTER_COMPANIONS above) it needs no separate repo —
@@ -630,6 +654,14 @@ MAX_DECLARATIVE_MATCH_HARD = 500
 # {"spec_id", "entity_registry_id", "entity_id"}}``. The reconciler exclusively
 # owns these tasks; ``entity_registry_id`` is the survives-rename dedupe key.
 TASK_SOURCE_DECLARATIVE_COMPANION = "declarative_companion"
+# Profile filter values that name one Home Keeper source more narrowly than the
+# ``home_keeper`` integration domain, which every declarative-companion task and every
+# synced problem-sensor task shares. A Profile stores them in ``filter.companions`` /
+# ``filter.exclude_companions`` beside the integration domains. Nothing new is stored
+# on a task: ``profiles.companion_keys`` derives them from the task's ``source``. The
+# colon keeps them apart from every real domain, which is ``[a-z0-9_]`` only.
+COMPANION_KEY_DECLARATIVE_PREFIX = f"{DOMAIN}:declarative:"
+COMPANION_KEY_PROBLEM_SENSORS = f"{DOMAIN}:problem_sensors"
 # Dispatcher signal the store fires when a spec is added / updated / deleted /
 # toggled; the reconciler subscribes to re-materialize managed tasks without
 # needing a config-entry reload.

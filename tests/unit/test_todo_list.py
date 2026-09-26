@@ -72,14 +72,19 @@ def _task(tid=T1, name=NAME, due=OVERDUE_ISO, **extra):
     }
 
 
-def _want(tid=T1, name=NAME, due=DUE, notes="", last_completed=None):
+def _want(tid=T1, name=NAME, due=DUE, notes="", last_completed=None, blocked=False):
     return {
         "task_id": tid,
         "name": name,
         "due": due,
         "notes": notes,
         "last_completed": last_completed,
+        "blocked": blocked,
     }
+
+
+# What a declarative companion that clears on recover stamps on its task (#370).
+COMPANION_MANAGED_BY = {"integration": "home_keeper", "completion_blocked": True}
 
 
 def _desired(wants, profile_id=M1):
@@ -201,16 +206,6 @@ def test_desired_by_sync_selects_what_its_profile_surfaces():
     tasks = [
         _task("off", name="Disabled", enabled=False),
         _task("dormant", name="Dormant", due=None),
-        # A synced problem sensor belongs to the Profile (#248) but not on a to-do
-        # list: only the integration that owns the sensor can mark it done, so an
-        # item for it could never be ticked off. Keyed off the same
-        # ``managed_by.completion_blocked`` the panel and notification buttons read.
-        _task(
-            "sensor",
-            name="Leak detected",
-            source={"problem_sensor": {"entity_id": "binary_sensor.leak"}},
-            managed_by={"integration": "home_keeper", "completion_blocked": True},
-        ),
         _task(
             "buy",
             name="Buy anode rod",
@@ -230,7 +225,36 @@ def test_desired_by_sync_selects_what_its_profile_surfaces():
                 "due": DUE,
                 "notes": "Under the sink",
                 "last_completed": None,
+                "blocked": False,
             }
+        }
+    }
+
+
+def test_desired_by_sync_wants_a_completion_blocked_task_and_flags_it():
+    # A synced problem sensor and a companion that clears on recover close only when
+    # their sensor recovers. They go on the list as a reminder (#370), flagged so
+    # the planner never reads a tick on their item as a completion. Keyed off the
+    # same ``managed_by.completion_blocked`` the panel and notifications read.
+    tasks = [
+        _task(
+            "sensor",
+            name="Leak detected",
+            source={"problem_sensor": {"entity_id": "binary_sensor.leak"}},
+            managed_by=COMPANION_MANAGED_BY,
+        ),
+        _task("companion", name="Update the router", managed_by=COMPANION_MANAGED_BY),
+        _task(
+            "manual",
+            name="Reset the meter",
+            managed_by={"integration": "home_keeper", "completion_blocked": False},
+        ),
+    ]
+    assert tm.desired_by_sync([_synced_profile()], tasks, now=NOW) == {
+        M1: {
+            "sensor": _want("sensor", name="Leak detected", blocked=True),
+            "companion": _want("companion", name="Update the router", blocked=True),
+            "manual": _want("manual", name="Reset the meter"),
         }
     }
 
@@ -483,6 +507,60 @@ def test_a_one_way_sync_never_completes_a_task_from_a_tick():
     assert plan.tracked == tracked
 
 
+def test_a_tick_on_a_completion_blocked_item_bounces_back_open():
+    # Only the sensor recovering clears this task (#370). The tick does not
+    # complete it: the entry is dropped and a fresh open item goes back on.
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want(blocked=True)]),
+        items=[_item(status=tm.STATUS_COMPLETED)],
+    )
+    assert plan.complete == []
+    assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
+    assert plan.update == [] and plan.remove == []
+
+
+def test_a_bounced_tick_does_not_stop_the_walk_before_the_next_task():
+    # The blocked key sorts first, so a walk that stopped at it would never see
+    # the ordinary tick behind it, or the vanish behind that.
+    blocked, ticked, gone = (tm.sync_key(M1, t) for t in ("a", "b", "c"))
+    plan = _plan(
+        tracked={
+            blocked: _entry(uid="ia", summary="A"),
+            ticked: _entry(uid="ib", summary="B"),
+            gone: _entry(uid="ic", summary="C"),
+        },
+        desired=_desired(
+            [
+                _want("a", name="A", blocked=True),
+                _want("b", name="B"),
+                _want("c", name="C", blocked=True),
+            ]
+        ),
+        items=[
+            _item("A", uid="ia", status=tm.STATUS_COMPLETED),
+            _item("B", uid="ib", status=tm.STATUS_COMPLETED),
+        ],
+    )
+    assert plan.complete == [tm.CompleteOp(ticked, "b")]
+    assert plan.add == [
+        tm.AddOp(blocked, LIST, "A", due=DUE),
+        tm.AddOp(gone, LIST, "C", due=DUE),
+    ]
+
+
+def test_a_one_way_tick_on_a_completion_blocked_item_is_frozen_as_ever():
+    tracked = _tracked()
+    plan = _plan(
+        synced=[_synced_profile(two_way=False)],
+        tracked=tracked,
+        desired=_desired([_want(blocked=True)]),
+        items=[_item(status=tm.STATUS_COMPLETED)],
+    )
+    assert plan.complete == [] and plan.add == []
+    assert plan.tracked == tracked
+
+
 def test_a_frozen_entry_is_released_once_its_task_stops_being_synced():
     plan = _plan(
         synced=[_synced_profile(two_way=False)],
@@ -574,6 +652,14 @@ def test_a_vanished_item_completes_the_task_when_the_sync_opted_in():
     assert plan.complete == [tm.CompleteOp(KEY, T1)]
     assert plan.add == [] and plan.remove == [] and plan.update == []
     assert plan.tracked == {}
+
+
+def test_a_vanished_completion_blocked_item_is_put_back_rather_than_completed():
+    # Todoist drops a ticked item, but only the sensor recovering clears this
+    # task (#370), so the vanish is read as a deletion and the item goes back.
+    plan = _plan(tracked=_tracked(), desired=_desired([_want(blocked=True)]), items=[])
+    assert plan.complete == []
+    assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
 
 
 def test_a_vanished_item_we_never_confirmed_is_never_completed():
@@ -1302,3 +1388,63 @@ def test_every_tracked_entry_is_planned_independently_in_one_pass():
         "m5:d": _entry(entity_id=GHOST, uid="i5d", summary="Wax the car"),
         "m9:a": _entry(entity_id=OTHER, uid="i9", summary="Rake the leaves"),
     }
+
+
+# ── a line the user renamed on the list ───────────────────────────────────────
+
+
+def test_a_line_renamed_on_the_list_keeps_the_new_name():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want(due="2026-07-01")]),
+        items=[_item(summary="Filter, the big one")],
+    )
+    # The title is left alone; the due date still syncs.
+    assert plan.update == [tm.UpdateOp(KEY, LIST, "i1", due="2026-07-01")]
+    assert plan.tracked == {
+        KEY: {
+            **_entry(summary="Filter, the big one", due="2026-07-01"),
+            "user_named": True,
+        }
+    }
+
+
+def test_a_user_named_line_is_not_renamed_when_the_task_is():
+    tracked = _tracked({**_entry(summary="Filter, the big one"), "user_named": True})
+    plan = _plan(
+        tracked=tracked,
+        desired=_desired([_want(name="Change the water filter")]),
+        items=[_item(summary="Filter, the big one")],
+    )
+    assert plan.update == []
+    assert plan.tracked == tracked
+
+
+def test_a_line_without_a_uid_is_never_taken_for_a_user_rename():
+    # Without a uid the summary is the only handle, so a different title means a
+    # different item; the planner does not guess.
+    plan = _plan(
+        tracked=_tracked(_entry(uid=None)),
+        desired=_desired([_want(name="Change the water filter")]),
+        items=[_item(uid=None)],
+    )
+    assert plan.update == [
+        tm.UpdateOp(KEY, LIST, NAME, rename="Change the water filter")
+    ]
+    assert "user_named" not in plan.tracked[KEY]
+
+
+def test_needs_pass_ignores_the_title_of_a_user_named_line():
+    tracked = _tracked({**_entry(summary="Filter, the big one"), "user_named": True})
+    renamed = _desired([_want(name="Change the water filter")])
+    assert _needs(tracked=tracked, desired=renamed) is False
+
+
+def test_a_title_that_already_reads_as_the_new_name_is_not_a_user_rename():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want(name="Change the water filter")]),
+        items=[_item(summary="Change the water filter")],
+    )
+    assert plan.update == []
+    assert "user_named" not in plan.tracked[KEY]

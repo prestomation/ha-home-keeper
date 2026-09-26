@@ -9,64 +9,32 @@ import { DASHBOARD } from './helpers';
  * app-shell HTML. That response carries no `Cache-Control` and no ETag, and HA's own
  * service worker serves navigations `StaleWhileRevalidate` from a 24h `file-cache` —
  * so a shell cached before Home Keeper was installed has no such import, and the card
- * element is never defined. The error sticks rather than flickering because HA already
- * recovers from a *late* definition (`customElements.whenDefined(tag)` -> `ll-rebuild`),
- * so a permanent error card proves the module never executed at all.
+ * element was never defined.
  *
- * Playwright cannot conjure a day-old cache entry, so this reproduces what that entry
- * *is*: the same shell with the card's import removed. The card must still render —
- * from the Lovelace resource list, which the frontend fetches over the websocket on
- * every dashboard load. That is the path every HACS card uses, which is why the
- * reporter's other cards worked on the very shell that broke ours.
+ * Since #368 a storage-mode install does not put the card into the shell at all: the
+ * Lovelace resource list, which the frontend fetches over the websocket on every
+ * dashboard load, is the only path. So every load of this dashboard is now the
+ * #228 case, with no need to strip anything. The card must render, and the bundle
+ * must cross the wire, which proves the resource delivered it.
+ * `tests/integration/test_card_resource.py` pins that the shell has no import.
  */
 
-// Without this the test is a coin flip. HA registers its service worker on the first
-// load, and a service worker answers navigations *before* `page.route` sees them — so
-// the reload that follows would be served the original, unstripped shell and the card
-// would load for the wrong reason. Blocking it is not dodging the bug: the service
-// worker's caching is what we are simulating, not what we are exercising.
-//
-// The second option is what makes the interception survivable. Chrome classifies a
-// response synthesized by `route.fulfill` as coming from a *public* address space, so
-// its Local Network Access checks then block this page's own
-// `ws://localhost:8123/api/websocket` as a local-network request
-// (`net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`). With no websocket the frontend
-// never fetches the resource list, so the card cannot load by the very path this test
-// exists to prove — a false failure that looks exactly like a real one. It is scoped to
-// this spec rather than the whole project: every other spec leaves the document alone
-// and keeps the check, so a future test of network or CORS behaviour still gets it.
-// (Re-plumbing `CHROMIUM_EXEC` here is the cost — `launchOptions` replaces the config's
-// copy wholesale rather than merging with it.)
-test.use({
-  serviceWorkers: 'block',
-  launchOptions: {
-    args: ['--disable-features=LocalNetworkAccessChecks'],
-    ...(process.env.CHROMIUM_EXEC ? { executablePath: process.env.CHROMIUM_EXEC } : {}),
-  },
-});
+// A service worker answers navigations before Playwright sees them, and a shell it
+// cached earlier in the run is not the one this test means to load.
+test.use({ serviceWorkers: 'block' });
 
 const CARD_BUNDLE = 'home-keeper-card.js';
-// `index.html.template` renders each entry in `extra_modules` as an inline
-// `import("/home_keeper_panel/home-keeper-card.js?v=<hash>")`, and now chains a
-// `.catch` onto it that logs the failure. The optional group has to swallow that
-// handler too: its message repeats the filename, so matching the bare `import(…)`
-// alone leaves a reference behind — and leaves a `.catch` with nothing to its left,
-// which is a syntax error in the shell we hand back rather than a shell missing one
-// import. Both halves have to go for this to simulate what it claims to.
-const CARD_IMPORT =
-  /import\(\s*(["'])[^"']*home-keeper-card\.js[^"']*\1\s*\)(?:\s*\.catch\(\s*function\s*\([^)]*\)\s*\{[\s\S]*?\}\s*\))?\s*;?/g;
 
 test.describe('Home Keeper card — delivery (#228)', () => {
-  test('renders from an app shell that never imported its bundle', async ({ page }) => {
+  test('renders from the Lovelace resource alone', async ({ page }) => {
     // The card can only load once the websocket is up and the resource list has been
-    // fetched, which is later than the shell import the other card specs rely on.
+    // fetched.
     test.setTimeout(120_000);
 
-    // Diagnosing this test from a CI log is otherwise guesswork: the first version
-    // failed on CI and passed locally, and the cause (the websocket never connecting)
-    // was invisible until the console was captured.
+    // Diagnosing this test from a CI log is otherwise guesswork.
     const problems: string[] = [];
     const bundleTraffic: string[] = [];
+    let shell: string | null = null;
     page.on('console', (m) => {
       if (m.type() === 'error') problems.push(`console: ${m.text().slice(0, 300)}`);
     });
@@ -74,50 +42,18 @@ test.describe('Home Keeper card — delivery (#228)', () => {
     page.on('request', (r) => {
       if (r.url().includes(CARD_BUNDLE)) bundleTraffic.push(`request ${r.url()}`);
     });
-    page.on('response', (r) => {
+    page.on('response', async (r) => {
       if (r.url().includes(CARD_BUNDLE)) bundleTraffic.push(`response ${r.status()}`);
+      if (r.request().resourceType() === 'document' && new URL(r.url()).pathname === DASHBOARD) {
+        shell = await r.text().catch(() => null);
+      }
     });
     page.on('requestfailed', (r) => {
       if (r.url().includes(CARD_BUNDLE))
         problems.push(`bundle request failed: ${r.failure()?.errorText}`);
     });
 
-    // Captured in the handler and asserted after navigating: throwing inside a route
-    // handler leaves the request unfulfilled and surfaces as an opaque goto timeout.
-    let original: string | null = null;
-    let stripped: string | null = null;
-
-    await page.route(
-      (url) => url.pathname === DASHBOARD,
-      async (route) => {
-        if (route.request().resourceType() !== 'document') return route.continue();
-        const response = await route.fetch();
-        original = await response.text();
-        stripped = original.replace(CARD_IMPORT, '');
-        const headers = { ...response.headers() };
-        // The body we hand back is decoded text; reusing the original encoding and
-        // length headers would leave the browser unable to parse it.
-        delete headers['content-encoding'];
-        delete headers['content-length'];
-        await route.fulfill({
-          status: response.status(),
-          headers,
-          contentType: 'text/html',
-          body: stripped,
-        });
-      },
-    );
-
     await page.goto(DASHBOARD, { waitUntil: 'domcontentloaded' });
-
-    // Guard the guard. If HA ever stops rendering extra modules as an inline import,
-    // this test would quietly start passing without simulating anything at all.
-    expect(original, 'the dashboard navigation was never intercepted').not.toBeNull();
-    expect(
-      original!,
-      'the app shell no longer carries the card import — re-derive what this simulates',
-    ).toContain(CARD_BUNDLE);
-    expect(stripped!, 'the strip left a reference behind').not.toContain(CARD_BUNDLE);
 
     // Deliberately not `helpers.openCardDashboard`: its 3x reload retry exists to
     // absorb exactly this class of failure and would mask the regression.
@@ -126,8 +62,8 @@ test.describe('Home Keeper card — delivery (#228)', () => {
       await card.waitFor({ state: 'attached', timeout: 60_000 });
     } catch (err) {
       throw new Error(
-        'the card never loaded from the Lovelace resource after its app-shell import ' +
-          `was removed — issue #228.\nbundle traffic: ${
+        'the card never loaded from the Lovelace resource — issue #228.\n' +
+          `bundle traffic: ${
             bundleTraffic.length ? bundleTraffic.join(', ') : '(the bundle was never requested)'
           }\nbrowser problems:\n${problems.join('\n') || '(none)'}`,
         { cause: err },
@@ -136,9 +72,12 @@ test.describe('Home Keeper card — delivery (#228)', () => {
     await expect(card.locator('.hk-row, .hk-empty').first()).toBeVisible({ timeout: 30_000 });
     await expect(card.locator('.hk-title').first()).toContainText('Home maintenance');
 
-    // The element being defined is not on its own proof the *resource* delivered it —
-    // some future shell-side fallback could define it without a fetch. The bundle
-    // crossing the wire after the shell's import was removed is what pins the path.
+    // Guard the guard. If the shell imports the bundle again, this test no longer
+    // proves that the resource alone is enough.
+    expect(shell, 'the dashboard document was never seen').not.toBeNull();
+    expect(shell!, 'the app shell imports the card bundle again — see #368').not.toContain(
+      CARD_BUNDLE,
+    );
     expect(
       bundleTraffic.filter((t) => t.startsWith('response')),
       `the card upgraded without the bundle being fetched: ${bundleTraffic.join(', ')}`,

@@ -31,7 +31,7 @@ import {
   virtualDeviceChip,
   wireDeviceChips,
 } from './panel-chips';
-import { declarativeRecipeFor, openDeclarativeForm } from './panel-declarative';
+import { declarativeCompanionFor, openDeclarativeForm } from './panel-declarative';
 import { openConfirmDialog } from './panel-dialogs';
 import { completionGroupsFor, historyBody, setIcon, wireHistory } from './panel-history';
 import { deferMenu, wireSkipHistoryRows } from './panel-defer';
@@ -149,7 +149,8 @@ function idRow(id: string | null | undefined, compact = false): string {
 /** A human-readable line for a sensor task's binding, with live progress when the
  *  bound entity's current value is known: usage shows "consumed / target (entity)";
  *  threshold shows "entity: current (cmp value)"; state shows "entity: current
- *  (= wanted)". Falls back to the binding alone when the reading is unavailable. */
+ *  (= wanted)"; template shows "entity: current (the Jinja source)". Falls back to the
+ *  binding alone when the reading is unavailable. */
 function sensorProgress(p: PanelHost, task: Task): string {
   const s = task.sensor;
   if (!s) return '';
@@ -176,6 +177,20 @@ function sensorProgress(p: PanelHost, task: Task): string {
     if (!state) return t('sensor.availabilityMissing', { entity });
     const gone = raw == null || raw === '' || raw === 'unavailable' || raw === 'unknown';
     return t(gone ? 'sensor.availabilityUnavailable' : 'sensor.availabilityAvailable', { entity });
+  }
+  // Template comes before the numeric coercion for the same reason the two above do:
+  // the condition is the Jinja source, not a number, and without a case of its own it
+  // fell through to the meter and read "Target 0 (sensor.x)" — a task described as a
+  // meter it is not. The source is shown because it *is* the whole condition; nothing
+  // else on this page says what the task is watching for.
+  if (s.mode === 'template') {
+    // Built inline rather than from a locale key, the same way `state` and `threshold`
+    // above are: the line is the entity, its reading and the condition in brackets,
+    // and there is no word in it to translate.
+    const cond = String(s.template ?? '');
+    return raw == null || raw === ''
+      ? `${entity} (${cond})`
+      : `${entity}: ${String(raw)} (${cond})`;
   }
   const reading = raw == null || raw === '' ? NaN : Number(raw);
   if (s.mode === 'threshold') {
@@ -294,23 +309,18 @@ function taskDetail(p: PanelHost, task: Task): string {
   const dupBtn = p._canDuplicate(task)
     ? `<ha-button ${btnAttrs('secondary')} class="d-dup">${escapeHTML(t('btn.duplicate'))}</ha-button>`
     : p._blockedDuplicate(task);
-  // A declarative-companion task is materialized by a *recipe* Home Keeper holds
-  // itself, so its `managed_by` names the recipe ("Device Pulse") over Home
+  // A declarative-companion task is made by a declarative companion Home Keeper
+  // holds itself, so its `managed_by` names the companion ("Device Pulse") over Home
   // Keeper's own config entry. The captions below read that as a foreign
   // integration and sent the user nowhere: "Edit in Device Pulse" opened the Home
   // Keeper integration page, and "Delete from Device Pulse instead" named a place
-  // that does not exist (#231). The recipe's own editor is the honest destination.
-  //
-  // It is also the *only* editor such a task has. The recipe owns name, device,
-  // area and the sensor binding and rewrites all four on every reconcile pass, so
-  // the task is source-owned and its own Edit dialog would be a form whose Save the
-  // next pass undoes. Built outside the `sourceOwned` branch below for that reason:
-  // it is the one action that survives when Edit and Delete do not.
-  const recipe = declarativeRecipeFor(p, task);
-  const recipeBtn = recipe
-    ? `<ha-button ${btnAttrs('secondary')} class="d-edit-recipe" data-spec-id="${escapeHTML(
-        recipe.id,
-      )}">${escapeHTML(t('btn.editRecipe'))}</ha-button>`
+  // that does not exist (#231). The declarative companion's own editor is the
+  // honest destination for everything the task's Edit form leaves out.
+  const companion = declarativeCompanionFor(p, task);
+  const companionBtn = companion
+    ? `<ha-button ${btnAttrs('secondary')} class="d-edit-companion" data-spec-id="${escapeHTML(
+        companion.id,
+      )}">${escapeHTML(t('btn.editCompanion'))}</ha-button>`
     : '';
   // Say why Edit and Delete are missing rather than just omitting them. Withholding
   // both silently left a wear-part task's page reading "<task name> / Done" and
@@ -321,22 +331,14 @@ function taskDetail(p: PanelHost, task: Task): string {
   // its owner's own `completion_prompt` ("Synced from binary_sensor.x — it clears
   // when the originating integration resolves it"), which says the same thing with
   // the specifics; adding a generic line above it would just be saying it twice.
-  //
-  // A recipe's task names the recipe rather than taking the generic line: "kept in
-  // step with its source" leaves the reader hunting for which source, when the page
-  // already knows and the button beside it opens exactly that.
   let manage =
     sourceOwned && !mb?.completion_prompt
-      ? `<span class="hk-managed-info">${escapeHTML(
-          recipe
-            ? t('managed.deleteFromRecipe', { name: recipe.name })
-            : t('managed.sourceOwned'),
-        )}</span>`
+      ? `<span class="hk-managed-info">${escapeHTML(t('managed.sourceOwned'))}</span>`
       : '';
   // A source-owned task offers no Edit and no Delete, but it still gets the greyed
   // Duplicate: "you can't copy this either, and here is why" is information the
   // sourceOwned caption above doesn't carry.
-  manage = `${dupBtn}${recipeBtn}${manage}`;
+  manage = `${dupBtn}${manage}`;
   if (!sourceOwned) {
     // A companion declares what it owns through `managed_by.locked_fields`, and the
     // form drops every one of them. Claim the lot and the drawer opens with no rows in
@@ -360,14 +362,14 @@ function taskDetail(p: PanelHost, task: Task): string {
     const deleteBtn =
       mb?.deletion_protected && !orphaned
         ? `<span class="hk-managed-info">${escapeHTML(
-            recipe
-              ? t('managed.deleteFromRecipe', { name: recipe.name })
+            companion
+              ? t('managed.deleteFromCompanion', { name: companion.name })
               : t('managed.deleteBlocked', { name: mb.display_name }),
           )}</span>`
         : `<ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
     // "Edit in X" deep link when config_entry_id resolves to a loaded domain. Home
     // Keeper's own domain is never that link: the panel the button sits in *is* that
-    // integration's UI, so a task it owns offers its recipe above instead.
+    // integration's UI, so a task it owns offers Edit companion above instead.
     const domain = mb?.config_entry_id ? p._entryDomains[mb.config_entry_id] : null;
     const openInBtn =
       domain && domain !== HK_DOMAIN && !orphaned
@@ -375,7 +377,7 @@ function taskDetail(p: PanelHost, task: Task): string {
         : '';
     // Duplicate sits between Edit and Delete: it is a non-destructive sibling of Edit,
     // and putting a benign action past a destructive one reads badly.
-    manage = `${editBtn}${dupBtn}${recipeBtn}${deleteBtn}${openInBtn}`;
+    manage = `${editBtn}${dupBtn}${companionBtn}${deleteBtn}${openInBtn}`;
   }
 
   // When orphaned, explain why deletion is now allowed; otherwise show the
@@ -452,7 +454,23 @@ function taskDetail(p: PanelHost, task: Task): string {
     history: historySection(p, 'task', task.id),
   };
   const tab = p._taskTab();
+  // Above everything, and only on a task that is off. A switched-off task is absent
+  // from the to-do list, the calendar, its own entities, every profile and every
+  // announcement, so the page that still shows a schedule has to say why none of it
+  // is happening. Enable is the panel's only half of the switch: turning a task off
+  // is a service call, usually from an automation, and this is the way back from one
+  // aimed at the wrong task.
+  const disabledBanner =
+    task.enabled === false
+      ? `<ha-alert alert-type="warning" class="hk-disabled-banner">
+          ${escapeHTML(t('tasks.disabledBanner'))}
+          <ha-button slot="action" ${btnAttrs('primary')} class="d-enable">${escapeHTML(
+            t('btn.enable'),
+          )}</ha-button>
+        </ha-alert>`
+      : '';
   return `
+      ${disabledBanner}
       <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
         <div class="hk-chips">${statusChip}${dev}${area}${tag}${consumable}${taskChips}${managed}</div>
@@ -1094,6 +1112,9 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
       ?.addEventListener('click', () => p._notifyBlocked(task));
     p._wireDeferMenus(root);
     wireSkipHistoryRows(p, root);
+    root
+      .querySelector('.d-enable')
+      ?.addEventListener('click', () => void p._enableTask(task));
     root.querySelector('.d-edit')?.addEventListener('click', () => p._openEdit(task));
     root.querySelector('.d-dup')?.addEventListener('click', () => p._openDuplicate(task));
     // A greyed Duplicate is a span carrying the tap (a disabled button swallows
@@ -1128,10 +1149,10 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
         if (domain) navigateTo(`/config/integrations/integration/${domain}`);
       });
     });
-    // "Edit recipe": open the declarative companion that materialized this task, in
-    // the same dialog Settings → Companions uses. It overlays whatever view is on
-    // screen, so the user edits the recipe without losing the task they were reading.
-    root.querySelectorAll<HTMLElement>('.d-edit-recipe').forEach((btn) => {
+    // "Edit companion": open the declarative companion that made this task, in the
+    // same dialog Settings → Companions uses. It overlays whatever view is on screen,
+    // so the user edits the companion without losing the task they were reading.
+    root.querySelectorAll<HTMLElement>('.d-edit-companion').forEach((btn) => {
       btn.addEventListener('click', () => {
         const spec = p._declarativeCompanions.find((s) => s.id === btn.dataset.specId);
         if (spec) void openDeclarativeForm(p, spec);

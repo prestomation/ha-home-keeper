@@ -1,5 +1,5 @@
 {
-  "_comment": "Cross-language conformance cases for rendering a spare quantity. Home Keeper formats these numbers twice: in Python (assets.format_quantity) for the line it puts on a household's shopping list, and in TypeScript (utils.formatQuantity) for the panel and the dashboard card. A household reading '500 ml' in the panel must not find '500.0 ml' on their list, so both implementations run these cases and must agree on every one. The halfway values are the interesting ones: Python's round() breaks a tie to the even digit while JavaScript's toFixed breaks it away from zero, which is a real divergence the Python side quantizes around. The cases stay inside the range a quantity can hold (MAX_INTERVAL bounds stock on the way in): past about 1e21 JavaScript switches to exponential notation and Python does not, and neither side can be reached with a value that far out. Non-numbers are likewise out of scope here - the Python formatter's totality for those is pinned in tests/unit/test_assets.py, since the two languages spell them differently. value is the number, unit is the label beside it ('' for a part that counts whole spares), expected is the rendered string.",
+  "_comment": "Cross-language conformance cases for rendering a spare quantity. Home Keeper formats these numbers twice: in Python (assets.format_quantity) for the line it puts on a household's shopping list, and in TypeScript (utils.formatQuantity) for the panel and the dashboard card. A household reading '500 ml' in the panel must not find '500.0 ml' on their list, so both implementations run these cases and must agree on every one. The halfway values are the interesting ones: Python's round() breaks a tie to the even digit while JavaScript's toFixed breaks it away from zero, which is a real divergence the Python side quantizes around. The cases stay inside the range a quantity can hold (MAX_INTERVAL bounds stock on the way in): past about 1e21 JavaScript switches to exponential notation and Python does not, and neither side can be reached with a value that far out. Non-numbers are likewise out of scope here - the Python formatter's totality for those is pinned in tests/unit/test_assets.py, since the two languages spell them differently. value is the number, unit is the label beside it ('' for a part that counts whole spares), expected is the rendered string. A case may name a 'lang': the decimal mark then follows that language (',' in German), which both sides read from CLDR. A case without one is English.",
   "cases": [
     {
       "name": "a whole count keeps no decimal point",
@@ -138,6 +138,62 @@
       "value": 10000,
       "unit": "ml",
       "expected": "10000 ml"
+    },
+    {
+      "name": "German writes a decimal comma",
+      "lang": "de",
+      "value": 1.5,
+      "unit": "kg",
+      "expected": "1,5 kg"
+    },
+    {
+      "name": "a whole count has no decimal mark to localize",
+      "lang": "de",
+      "value": 3,
+      "unit": "",
+      "expected": "3"
+    },
+    {
+      "name": "French writes a decimal comma",
+      "lang": "fr",
+      "value": 0.25,
+      "unit": "l",
+      "expected": "0,25 l"
+    },
+    {
+      "name": "Brazilian Portuguese writes a decimal comma",
+      "lang": "pt-BR",
+      "value": 2.5,
+      "unit": "",
+      "expected": "2,5"
+    },
+    {
+      "name": "Russian writes a decimal comma",
+      "lang": "ru",
+      "value": 0.5,
+      "unit": "кг",
+      "expected": "0,5 кг"
+    },
+    {
+      "name": "Simplified Chinese writes a decimal point",
+      "lang": "zh-Hans",
+      "value": 1.5,
+      "unit": "kg",
+      "expected": "1.5 kg"
+    },
+    {
+      "name": "English writes a decimal point",
+      "lang": "en",
+      "value": 1.5,
+      "unit": "kg",
+      "expected": "1.5 kg"
+    },
+    {
+      "name": "a localized halfway value still rounds away from zero",
+      "lang": "de",
+      "value": 0.0625,
+      "unit": "",
+      "expected": "0,063"
     }
   ]
 }

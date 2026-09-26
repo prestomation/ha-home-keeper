@@ -30,7 +30,7 @@ import type { SkipState, SnoozeState } from './defer';
 import type { DeferDialogHost } from './defer-dialogs';
 import { deferRowActions, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
 import { renderSkipDialog, renderSnoozeDialog } from './defer-dialogs';
-import { makeForm } from './dialogs';
+import { makeDialog, makeForm } from './dialogs';
 import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
 import { setLanguage, t, tn } from './i18n';
@@ -53,6 +53,7 @@ import {
   safeFileHref,
   scanRequired,
   countedProgress,
+  setBtnWeight,
   statusChipHtml,
   toast,
 } from './utils';
@@ -83,6 +84,8 @@ const MDI_PLUS = 'M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z';
 // external-link glyph beside it is `MDI_OPEN_IN_NEW_ICON`, shared with the panel. These
 // are icon attributes, not SVG paths like the buttons above.
 const MDI_FILE = 'mdi:file-document-outline';
+// `ha-icon` name for the note quick-view chip, an icon attribute like `MDI_FILE` above.
+const MDI_NOTE = 'mdi:note-text-outline';
 
 // HA registers many of its components lazily. On a cold dashboard load they may
 // not be defined yet, so we wait (best-effort) before the first paint — exactly
@@ -204,10 +207,13 @@ const STYLES = `
   /* A chip that wraps an <a>: the anchor is invisible (display:contents) so the chip
      itself is the tappable element, opening the linked URL in a new tab. */
   .hk-task-chip-link { display: contents; }
-  /* Link-chips (document / metadata / part-URL links) read as primary-tinted, outlined
-     pills so they sit in the same chip row yet still signal "tap to open externally".
-     Long document names ellipsize instead of blowing out the row. */
-  a.hk-link-chip ha-assist-chip {
+  /* Link-chips read as primary-tinted, outlined pills, so they sit in the same chip row
+     yet still signal "tap me". The document / metadata / part-URL chips wrap an <a> and
+     open a URL; the note chip is the chip itself and opens a dialog. Both shapes need
+     the rule, hence the selector list. Long document names ellipsize instead of blowing
+     out the row. */
+  a.hk-link-chip ha-assist-chip,
+  ha-assist-chip.hk-link-chip {
     --ha-assist-chip-label-text-color: var(--primary-color);
     --md-assist-chip-label-text-color: var(--primary-color);
     --ha-assist-chip-outline-color: var(--primary-color);
@@ -305,6 +311,16 @@ const STYLES = `
     background: var(--secondary-background-color);
     border-radius: 999px; padding: 1px 8px;
   }
+  /* The note chip is a real tap target in a row of otherwise inert chips (area, labels,
+     NFC), so it says so with a pointer cursor. A document chip inherits its cursor from
+     the <a> that wraps it; this chip has no such ancestor. */
+  ha-assist-chip.hk-note-chip { cursor: pointer; }
+  .hk-note-body { min-width: 260px; max-width: 480px; }
+  .hk-note-body .hk-md { word-break: break-word; }
+  /* markdownBlock falls back to a plain <div> when ha-markdown is not registered. The
+     row's own copy of this rule is scoped to .hk-notes, so the dialog needs its own, or
+     the fallback drops the author's line breaks. */
+  .hk-note-body .hk-md-plain { white-space: pre-wrap; }
   .hk-form { padding: 8px 16px 16px; border-bottom: 1px solid var(--divider-color); }
   .hk-form-title { font-size: 1.05rem; font-weight: 500; margin-bottom: 8px; }
   .hk-form-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
@@ -369,6 +385,9 @@ export class HomeKeeperCard extends HTMLElement {
   // record two completions.
   private _completing = new Set<string>();
   private _edit: EditState = { open: false, task: null };
+  // The note quick-view dialog: read-only, so it carries only which task it is
+  // showing, unlike `_edit` (which also carries the form's draft).
+  private _noteView: { open: boolean; task: Task | null } = { open: false, task: null };
   private _collapsed = new Set<string>();
   private _liveHassEls: Array<{ hass?: Hass }> = [];
   private _unsub?: () => void;
@@ -674,6 +693,20 @@ export class HomeKeeperCard extends HTMLElement {
     this._render();
   }
 
+  /**
+   * Open the read-only note quick-view for *task*, so its full note is reachable
+   * without leaving the dashboard or showing it in every row. Editing a note stays
+   * panel-only, so this dialog offers no form, only Close.
+   */
+  private _openNote(task: Task): void {
+    this._noteView = { open: true, task };
+    this._render();
+  }
+  private _closeNote(): void {
+    this._noteView = { open: false, task: null };
+    this._render();
+  }
+
   private async _submitForm(): Promise<void> {
     if (!this._hass || !this._edit.task) return;
     const task = this._edit.task;
@@ -922,6 +955,13 @@ export class HomeKeeperCard extends HTMLElement {
       const icon = locked ? 'mdi:lock' : 'mdi:nfc-variant';
       tagChip = `<ha-assist-chip class="hk-tag" label="${escapeHTML(t('chip.nfc'))}" title="${tip}"><ha-icon slot="icon" icon="${icon}" class="hk-chip-ic"></ha-icon></ha-assist-chip>`;
     }
+    // A task with a note gets a one-tap quick-view, independent of the card's "Show
+    // notes" row setting — the point is a compact row that still reaches the note.
+    // Editing stays panel-only, so this affordance only ever opens a read-only dialog.
+    let noteChip = '';
+    if (task.notes && task.notes.trim()) {
+      noteChip = `<ha-assist-chip class="hk-note-chip hk-link-chip" data-id="${escapeHTML(task.id)}" label="${escapeHTML(t('chip.note'))}"><ha-icon slot="icon" icon="${MDI_NOTE}" class="hk-chip-ic"></ha-icon></ha-assist-chip>`;
+    }
     let labelChips = '';
     if (this._config.show_labels && task.labels?.length) {
       const labels = Object.keys(this._labels).length ? this._labels : this._hass?.labels;
@@ -969,7 +1009,7 @@ export class HomeKeeperCard extends HTMLElement {
           <div class="hk-name">${escapeHTML(task.name)}</div>
           <div class="hk-meta">${meta}</div>
           ${notes}
-          <div class="hk-chips">${statusChip}${areaChip}${tagChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
+          <div class="hk-chips">${statusChip}${areaChip}${tagChip}${noteChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
         </div>
         <div class="hk-acts">${this._deferActions(task)}${done}</div>
       </div>`;
@@ -1055,7 +1095,8 @@ export class HomeKeeperCard extends HTMLElement {
           b.addEventListener(evt, cancel);
         }
         b.addEventListener('click', (e) => {
-          // The row itself opens the task, and these sit inside it.
+          // The card gives the row no click handler, but stop anyway: these buttons sit
+          // inside it, and a future row-level listener must not see their taps.
           e.stopPropagation();
           if (explained) {
             explained = false;
@@ -1096,6 +1137,17 @@ export class HomeKeeperCard extends HTMLElement {
       });
     }
 
+    root.querySelectorAll<HTMLElement>('.hk-note-chip').forEach((chip) => {
+      chip.addEventListener('click', (e) => {
+        // The row has no click handler of its own, but stop anyway, so a future
+        // row-level listener can't turn a note tap into a navigation.
+        e.stopPropagation();
+        const task = this._tasks.find((x) => x.id === chip.dataset.id);
+        if (task) this._openNote(task);
+      });
+    });
+    if (host && this._noteView.open) this._renderNoteDialog(host);
+
     root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
       d.addEventListener('toggle', () => {
         const key = d.dataset.groupKey || '';
@@ -1103,6 +1155,45 @@ export class HomeKeeperCard extends HTMLElement {
         else this._collapsed.add(key);
       }),
     );
+  }
+
+  /**
+   * Render the note quick-view dialog into *host*: the full note, as Markdown, and
+   * a single Close button. Read-only — editing a note stays panel-only, matching
+   * how the card already creates but never edits a task.
+   */
+  private _renderNoteDialog(host: HTMLElement): void {
+    // Re-resolve by id rather than trusting the captured object: a live entity push
+    // re-renders the card while the dialog is open, and `_noteView.task` is then the
+    // task as it was at open time, not as the store has it now. A task deleted from
+    // another surface is gone from `_tasks`, and a note for a task that no longer
+    // exists is worse than no note, so close instead of showing the captured copy.
+    const open = this._noteView.task;
+    if (!open) return;
+    const task = this._tasks.find((x) => x.id === open.id);
+    if (!task) {
+      // Clear the state rather than call `_closeNote`: this runs inside `_hydrate`,
+      // and that would re-render the card part way through hydrating it. This pass
+      // already draws no dialog, so there is nothing to undo.
+      this._noteView = { open: false, task: null };
+      return;
+    }
+    const { dialog, body, footer, mount } = makeDialog(t('note.viewTitle', { name: task.name }), () => {
+      if (this._noteView.open) this._closeNote();
+    });
+    body.classList.add('hk-note-body');
+    body.innerHTML = markdownBlock(task.notes);
+
+    const close = document.createElement('ha-button');
+    close.setAttribute('slot', 'secondaryAction');
+    setBtnWeight(close, 'tertiary');
+    close.textContent = t('btn.close');
+    close.addEventListener('click', () => this._closeNote());
+    footer.appendChild(close);
+
+    mount();
+    host.appendChild(dialog);
+    wireMarkdown(body);
   }
 
   /** Render the card's *create* form (the header "+"). Editing/deleting lives in

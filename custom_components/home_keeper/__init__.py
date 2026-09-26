@@ -46,6 +46,7 @@ from . import (
     panel,
     profiles,
     sensor_tasks,
+    shopping,
     tag_listener,
     transfer,
     websocket_api,
@@ -66,9 +67,11 @@ from .const import (
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_PROFILES,
+    OPTION_SHOPPING_LINE_STYLE,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
     PLATFORMS,
+    SENSOR_MODE_TEMPLATE,
     SENSOR_MODE_USAGE,
     SKIP_ENTRY_FIELDS,
     TRANSFER_FORMAT,
@@ -76,7 +79,6 @@ from .const import (
 from .coordinator import (
     HomeKeeperCoordinator,
     discard_edge_state,
-    entity_set_key,
     find_coordinator,
     task_has_entities,
 )
@@ -98,6 +100,7 @@ from .sensor_watcher import (
 )
 from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
+from .task_entities import entity_set_key
 from .todo_list_sync import TodoListSync
 from .transfer_runner import (
     async_export_document,
@@ -170,6 +173,13 @@ ADD_TASK_SCHEMA = vol.Schema(
         # passed as one object, and ``None`` clears the season. Validated by
         # models.normalize_active_season.
         vol.Optional("active_season"): vol.Any(None, dict, [dict]),
+        # Off keeps the task and everything recorded on it, and takes it out of every
+        # surface that reads a schedule: the to-do list, the calendar, the per-task
+        # entities, the profiles, the announcements, the sensor watcher and a tag
+        # scan. It does not move ``next_due``, so a task switched back on is as late
+        # as its stored date says. Home Keeper offers no switch for this: a service
+        # call is what turns a task off, and the panel only turns one back on.
+        vol.Optional("enabled"): cv.boolean,
         vol.Optional("source"): dict,
         vol.Optional("managed_by"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
@@ -201,6 +211,9 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("require_tag_scan"): cv.boolean,
         # See ADD_TASK_SCHEMA: ``None`` clears the season, one object is one window.
         vol.Optional("active_season"): vol.Any(None, dict, [dict]),
+        # See ADD_TASK_SCHEMA. Off takes the task out of every schedule surface and
+        # leaves ``next_due`` where it was.
+        vol.Optional("enabled"): cv.boolean,
         vol.Optional("source"): dict,
         vol.Optional("task_chips"): vol.All(cv.ensure_list, [TASK_CHIP_SCHEMA]),
     }
@@ -405,6 +418,11 @@ _PART_SCHEMA = vol.Schema(
         vol.Optional("action"): cv.string,
         vol.Optional("use_noun"): cv.string,
         vol.Optional("use_task_name"): cv.string,
+        # The NFC/RFID tag bound to the task the wear item generates (the use task of
+        # a counted wear item). ``tag_id: null`` clears it; the pure model refuses
+        # ``require_tag_scan`` without a tag, as ``add_task`` does.
+        vol.Optional("tag_id"): vol.Any(None, cv.string),
+        vol.Optional("require_tag_scan"): cv.boolean,
         vol.Optional("replace_also_every"): vol.Any(
             None,
             vol.Schema(
@@ -660,7 +678,6 @@ TRANSFER_TASK_RECORD_SCHEMA = vol.Schema(
         # to read on an install whose registry ids are all different.
         vol.Optional("area"): cv.string,
         vol.Optional("appliance"): cv.string,
-        vol.Optional("enabled"): cv.boolean,
         # Spelled out rather than inherited: ``vol.Any(None, dict, [dict])`` carries no
         # shape at all, and a schema that says "object" would reject the list every
         # export actually writes.
@@ -763,6 +780,8 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         # Anything that isn't a ``todo.*`` entity id normalizes to "" (see
         # shopping.normalize_target), so a typo disables rather than half-works.
         vol.Optional(OPTION_SHOPPING_LIST_ENTITY): cv.string,
+        # How a mirrored reminder's line reads on that list (shopping.LINE_STYLES).
+        vol.Optional(OPTION_SHOPPING_LINE_STYLE): vol.In(shopping.LINE_STYLES),
         # Catalog glue domains the user dismissed from the Companions "Suggested"
         # list. A list of domain strings.
         vol.Optional(OPTION_DISMISSED_COMPANIONS): vol.All(cv.ensure_list, [cv.string]),
@@ -1071,6 +1090,28 @@ def _register_services(hass: HomeAssistant) -> None:
         if not await _caller_is_admin(call):
             raise Unauthorized(context=call.context)
 
+    async def _verify_template_binding(call: ServiceCall) -> None:
+        """Reject a non-admin caller who sets a ``template``-mode sensor binding.
+
+        ``add_task`` and ``update_task`` are open to every signed-in user on purpose
+        — ``docs/SECURITY.md`` says a non-admin can create and complete tasks. A
+        ``template`` binding is the one part of a task that is not inert data: Home
+        Keeper renders it, and a Jinja template reaches registry helpers
+        (``device_attr``, ``area_id``, ``integration_entities``) that a non-admin
+        cannot otherwise enumerate. So the mode alone is admin-only, and the rest of
+        the service stays open.
+
+        The websocket ``add_task`` and ``update_task`` commands apply the same rule
+        in ``websocket_api._check_template_binding``, so neither path walks around
+        the other.
+        """
+        sensor = call.data.get("sensor")
+        if not isinstance(sensor, dict):
+            return
+        if sensor.get("mode") != SENSOR_MODE_TEMPLATE:
+            return
+        await _verify_admin(call)
+
     def _check_area(data: dict) -> None:
         if not devices.area_exists(hass, data.get("area_id")):
             raise ServiceValidationError(
@@ -1134,6 +1175,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_add_task(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
+        await _verify_template_binding(call)
         _check_area(call.data)
         with _store_errors():
             task = await coord.store.add_task(dict(call.data))
@@ -1148,6 +1190,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def handle_update_task(call: ServiceCall) -> None:
         coord = _coordinator()
+        await _verify_template_binding(call)
         _check_area(call.data)
         data = dict(call.data)
         task_id = _task_ref(coord, data.pop("task_id"))

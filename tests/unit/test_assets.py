@@ -1209,9 +1209,10 @@ def test_conformance_fixture_format_quantity():
     cases = json.loads(fixture.read_text())["cases"]
     assert cases, "the conformance fixture must not be empty"
     for case in cases:
-        got = a.format_quantity(case["value"], case["unit"])
+        got = a.format_quantity(case["value"], case["unit"], case.get("lang"))
         assert got == case["expected"], (
-            f"{case['name']}: format_quantity({case['value']!r}, {case['unit']!r}) "
+            f"{case['name']}: format_quantity({case['value']!r}, {case['unit']!r}, "
+            f"{case.get('lang')!r}) "
             f"== {got!r}, expected {case['expected']!r}"
         )
 
@@ -2143,3 +2144,29 @@ def test_the_owner_is_held_to_the_injected_clock():
             [{"id": stored["id"], "name": "Filter", "last_replaced": "2026-06-14"}],
             today=NOW.date(),
         )
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
+        ("en", "."),
+        ("de", ","),
+        ("pt-BR", ","),
+        ("zh-Hans", "."),
+        # Anything Babel cannot place reads as English.
+        (None, "."),
+        ("", "."),
+        ("xx-not-a-language", "."),
+        ("!!", "."),
+    ],
+)
+def test_decimal_mark(lang, expected):
+    assert a.decimal_mark(lang) == expected
+
+
+def test_part_restock_label_is_localized():
+    part = {"stock_unit": "kg", "restock_quantity": 1.5}
+    assert a.part_restock_label(part, "de") == "1,5 kg"
+    assert a.part_restock_label(part) == "1.5 kg"
+    several = {"restock_quantity": 2.5}
+    assert a.part_restock_label(several, "de") == "×2,5"

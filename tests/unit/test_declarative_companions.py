@@ -1,6 +1,6 @@
 """Unit tests for the pure declarative-companion surface.
 
-Covers the recipe-shape module (spec normalization, entity selection,
+Covers the spec-shape module (spec normalization, entity selection,
 reconciler diff, dedupe key) and the shipped presets (round-tripping every
 preset through the normalizer to guarantee they stay valid). The HA-bound
 reconciler (``declarative_companion_sync.py``) — with its entity-registry
@@ -127,6 +127,25 @@ def test_normalize_trigger_allows_missing_entity_id():
     """Spec triggers never carry entity_id — the reconciler stamps it per match."""
     spec = dc.normalize_declarative_companion(_spec())
     assert "entity_id" not in spec["trigger"]
+
+
+def test_normalize_passes_allow_missing_template_through():
+    """The preview reads a draft mid-typing, so an empty Jinja box is not a mistake.
+
+    The flag has to reach ``models.normalize_sensor``: dropping it on the floor here
+    would look like it worked and still fail the preview.
+    """
+    draft = _spec(trigger={"mode": "template", "template": ""})
+    spec = dc.normalize_declarative_companion(draft, allow_missing_template=True)
+    assert spec["trigger"] == {"mode": "template", "template": ""}
+
+
+def test_normalize_requires_a_template_by_default():
+    """Saving a spec still refuses a blank template — only the preview waives it."""
+    with raises_exactly(TaskValidationError, "sensor.template is required"):
+        dc.normalize_declarative_companion(
+            _spec(trigger={"mode": "template", "template": ""})
+        )
 
 
 # ── validation-error exact messages ────────────────────────────────────────
@@ -358,6 +377,75 @@ def test_expand_applies_exclude_lists():
     assert kept == ["sensor.kept_total_failed_pings"]
 
 
+@pytest.mark.parametrize(
+    ("own", "device", "expected"),
+    [
+        ("garage", "kitchen", "garage"),  # the entity's own area wins
+        (None, "kitchen", "kitchen"),  # no own area: the device's area
+        ("", "kitchen", "kitchen"),  # an empty own area counts as none
+        (None, None, None),  # neither: no area
+    ],
+)
+def test_effective_area_id_falls_back_to_the_device_area(own, device, expected):
+    assert dc.effective_area_id(own, device) == expected
+
+
+@pytest.mark.parametrize(
+    ("own", "device", "expected"),
+    [
+        (["a"], ["b"], {"a", "b"}),  # both sets join
+        (None, ["b"], {"b"}),  # no own labels: the device's labels
+        (["a"], None, {"a"}),  # no device: the entity's own labels
+        (None, None, set()),
+    ],
+)
+def test_effective_labels_join_the_device_labels(own, device, expected):
+    assert dc.effective_labels(own, device) == expected
+
+
+def test_expand_label_exclusion_reaches_an_entity_by_its_device_label():
+    """A device label excludes the device's entities, as in Problem sensor sync."""
+    spec = _normalized_spec(
+        selection={"target_integration": "device_pulse", "exclude_label_ids": ["skip"]}
+    )
+    entities = _snapshot(
+        _entity(
+            "sensor.garage_total_failed_pings",
+            labels=dc.effective_labels(None, ["skip"]),
+        ),
+        _entity("sensor.hall_total_failed_pings"),
+    )
+    kept = [m["entity"]["entity_id"] for m in dc.expand_spec(spec, entities).values()]
+    assert kept == ["sensor.hall_total_failed_pings"]
+
+
+def test_expand_area_filters_reach_an_entity_in_its_device_area():
+    """The sync projects the effective area, so a device-area entity is filtered.
+
+    Before #373 the projection carried only the entity's own area, and an entity
+    that took its area from its device matched no area filter at all.
+    """
+    in_garage = dc.effective_area_id(None, "garage")
+    include = _normalized_spec(
+        selection={"target_integration": "device_pulse", "area_ids": ["garage"]}
+    )
+    exclude = _normalized_spec(
+        selection={"target_integration": "device_pulse", "exclude_area_ids": ["garage"]}
+    )
+    entities = _snapshot(
+        _entity("sensor.garage_total_failed_pings", area_id=in_garage),
+        _entity("sensor.hall_total_failed_pings", area_id="hall"),
+    )
+    kept_in = [
+        m["entity"]["entity_id"] for m in dc.expand_spec(include, entities).values()
+    ]
+    kept_out = [
+        m["entity"]["entity_id"] for m in dc.expand_spec(exclude, entities).values()
+    ]
+    assert kept_in == ["sensor.garage_total_failed_pings"]
+    assert kept_out == ["sensor.hall_total_failed_pings"]
+
+
 def test_expand_applies_area_and_label_include_filters():
     spec = _normalized_spec(
         selection={
@@ -499,7 +587,7 @@ def test_reconcile_creates_missing_tasks():
     assert created["next_due"] is None
     assert created["source"]["declarative_companion"]["spec_id"] == spec["id"]
     assert created["managed_by"]["deletion_protected"] is True
-    # The fixture's trigger sets clear_on_recover, so the recipe owns the clear.
+    # The fixture's trigger sets clear_on_recover, so the companion owns the clear.
     assert created["managed_by"]["completion_blocked"] is True
 
 
@@ -511,10 +599,10 @@ def _usage_match(entity_id, spec_id):
 
 
 def test_reconcile_keeps_the_meter_baseline_the_watcher_stamped():
-    # The recipe owns every key on the binding except this one: the watcher writes
+    # The companion owns every key on the binding except this one: the watcher writes
     # ``baseline`` from the first live reading and moves it on each completion.
     # Rewriting the block wholesale dropped it on any registry event, so a "every 300
-    # hours" recipe restarted its meter over and over and could never come due.
+    # hours" companion restarted its meter over and over and could never come due.
     spec = _normalized_spec()
     key, m = _usage_match("sensor.printer_pages", spec["id"])
     stored, _ops, _changed = dc.reconcile_declarative_tasks(
@@ -533,7 +621,7 @@ def test_reconcile_keeps_the_meter_baseline_the_watcher_stamped():
     assert ops == []
 
 
-def test_reconcile_drops_the_baseline_when_the_recipe_leaves_meter_mode():
+def test_reconcile_drops_the_baseline_when_the_companion_leaves_meter_mode():
     # ``baseline`` is a usage-only field, so carrying it into a threshold binding
     # would make the task fail validation on its next write.
     spec = _normalized_spec()
@@ -552,8 +640,8 @@ def test_reconcile_drops_the_baseline_when_the_recipe_leaves_meter_mode():
     assert "baseline" not in new_tasks[tid]["sensor"]
 
 
-def test_reconcile_seeds_a_baseline_the_recipe_states_only_on_a_fresh_task():
-    # A recipe may name a starting reading. It anchors the task it makes, and the
+def test_reconcile_seeds_a_baseline_the_companion_states_only_on_a_fresh_task():
+    # A companion may name a starting reading. It anchors the task it makes, and the
     # watcher's own anchor wins from then on — otherwise every pass would drag the
     # meter back to the seed.
     spec = _normalized_spec()
@@ -680,7 +768,7 @@ def test_reconcile_created_task_has_full_source_and_managed_by_shape():
         "entity_registry_id": m["entity_registry_id"],
         "entity_id": "sensor.hub_total_failed_pings",
     }
-    # The fixture spec sets ``clear_on_recover``, so the recipe owns the whole
+    # The fixture spec sets ``clear_on_recover``, so the companion owns the whole
     # lifecycle and Done is withheld — see the completion-ownership tests below.
     assert created["managed_by"] == {
         "integration": "home_keeper",
@@ -808,7 +896,7 @@ def test_collect_orphans_deletes_all_specs_tasks():
     assert new_tasks == {}
 
 
-# --- Pausing a disabled recipe ----------------------------------------------
+# --- Pausing a disabled companion -------------------------------------------
 
 
 def _stored_task(spec, entity_id="sensor.hub_total_failed_pings"):
@@ -820,9 +908,9 @@ def _stored_task(spec, entity_id="sensor.hub_total_failed_pings"):
     return stored, next(iter(stored)), key, m
 
 
-def test_pausing_a_recipe_switches_its_tasks_off_and_keeps_them():
-    # Disabling a recipe used to delete its tasks, and the completions recorded on
-    # them went too. Switching a recipe off for a week is not a request to forget the
+def test_pausing_a_companion_switches_its_tasks_off_and_keeps_them():
+    # Disabling a companion used to delete its tasks, and the completions recorded on
+    # them went too. Switching a companion off for a week is not a request to forget the
     # work it tracked.
     spec = _normalized_spec()
     stored, tid, _key, _m = _stored_task(spec)
@@ -854,7 +942,7 @@ def test_pausing_leaves_another_specs_tasks_alone():
 
 
 def test_pausing_walks_past_a_task_that_is_already_off():
-    # One of the recipe's tasks was switched off by hand and sits before the rest.
+    # One of the companion's tasks was switched off by hand and sits before the rest.
     # The pass has to carry on to them.
     spec = _normalized_spec()
     off, off_tid, _key, _m = _stored_task(spec, "sensor.first_pings")
@@ -870,7 +958,7 @@ def test_pausing_walks_past_a_task_that_is_already_off():
 
 def test_pausing_a_task_that_never_stated_enabled_treats_it_as_on():
     # An imported or hand-edited task can arrive without the key. Absent means on
-    # everywhere else in Home Keeper, so the recipe pauses it like any other.
+    # everywhere else in Home Keeper, so the companion pauses it like any other.
     spec = _normalized_spec()
     stored, tid, _key, _m = _stored_task(spec)
     del stored[tid]["enabled"]
@@ -882,10 +970,10 @@ def test_pausing_a_task_that_never_stated_enabled_treats_it_as_on():
 
 
 def test_pausing_reaches_this_specs_tasks_past_a_foreign_one():
-    # A task belonging to another recipe sits first in the map. Walking past it has
-    # to be a skip, not a stop, or the recipe's own task keeps running.
+    # A task belonging to another companion sits first in the map. Walking past it has
+    # to be a skip, not a stop, or the companion's own task keeps running.
     spec = _normalized_spec()
-    other = dc.normalize_declarative_companion(_spec(name="Another recipe"))
+    other = dc.normalize_declarative_companion(_spec(name="Another companion"))
     foreign, _foreign_tid, _key, _m = _stored_task(other, "sensor.other_pings")
     mine, tid, _key, _m = _stored_task(spec)
     tasks = {**foreign, **mine}
@@ -896,7 +984,7 @@ def test_pausing_reaches_this_specs_tasks_past_a_foreign_one():
     assert new_tasks[tid]["enabled"] is False
 
 
-def test_enabling_the_recipe_again_brings_back_the_tasks_it_paused():
+def test_enabling_the_companion_again_brings_back_the_tasks_it_paused():
     spec = _normalized_spec()
     stored, tid, key, m = _stored_task(spec)
     paused, _ops, _changed = dc.pause_spec_tasks(spec["id"], stored)
@@ -906,14 +994,14 @@ def test_enabling_the_recipe_again_brings_back_the_tasks_it_paused():
     )
     assert changed is True
     # "resumed", not "updated": the watcher must treat it as a task made just now and
-    # arm it on a condition that became true while the recipe was off.
+    # arm it on a condition that became true while the companion was off.
     assert [kind for kind, _task in ops] == ["resumed"]
     assert resumed[tid]["enabled"] is True
     assert "paused" not in resumed[tid]["source"]["declarative_companion"]
 
 
-def test_a_task_switched_off_by_hand_stays_off_when_the_recipe_comes_back():
-    # No ``paused`` marker, so this one is the person's choice, not the recipe's.
+def test_a_task_switched_off_by_hand_stays_off_when_the_companion_comes_back():
+    # No ``paused`` marker, so this one is the person's choice, not the companion's.
     spec = _normalized_spec()
     stored, tid, key, m = _stored_task(spec)
     stored[tid]["enabled"] = False
@@ -961,7 +1049,7 @@ def test_firmware_has_no_integration_gate():
 
 # --- Completion ownership (#231 follow-up) ----------------------------------
 #
-# A recipe whose trigger sets ``clear_on_recover`` owns its tasks' whole
+# A companion whose trigger sets ``clear_on_recover`` owns its tasks' whole
 # lifecycle: the watcher arms on the crossing and completes on the recovery. A
 # hand-pressed Done on such a task is worse than a no-op — ``_evaluate_edge``
 # will not re-arm while the condition merely stays true, so completing an
@@ -970,11 +1058,11 @@ def test_firmware_has_no_integration_gate():
 # appears. ``completion_blocked`` is what tells the panel, the card, the to-do
 # list and the notification builder to withhold Done.
 #
-# A recipe *without* ``clear_on_recover`` is the opposite case: pressing Done is
+# A companion *without* ``clear_on_recover`` is the opposite case: pressing Done is
 # the only way its task ever clears, so blocking it would strand the task.
 
 
-def test_managed_by_blocks_completion_when_the_recipe_auto_clears():
+def test_managed_by_blocks_completion_when_the_companion_auto_clears():
     spec = dc.normalize_declarative_companion(_spec())
 
     managed_by = dc.build_managed_by(spec, ENTRY)
@@ -984,7 +1072,7 @@ def test_managed_by_blocks_completion_when_the_recipe_auto_clears():
     assert spec["name"] in managed_by["completion_prompt"]
 
 
-def test_managed_by_keeps_completion_when_the_recipe_does_not_auto_clear():
+def test_managed_by_keeps_completion_when_the_companion_does_not_auto_clear():
     spec = dc.normalize_declarative_companion(
         _spec(
             trigger={
@@ -1097,7 +1185,7 @@ def test_reconcile_carries_the_language_to_an_updated_task():
 
 
 def test_created_task_takes_device_area_and_labels_from_the_match():
-    # `_build_task` copies the entity's placement onto the task and the recipe's
+    # `_build_task` copies the entity's placement onto the task and the companion's
     # labels from the template. Nothing asserted any of the three, so a mutant
     # that read the wrong registry key produced an unplaced task in silence.
     spec = _normalized_spec(
@@ -1180,3 +1268,344 @@ def test_reconcile_indexes_every_task_of_this_spec_past_a_foreign_one():
 
     assert changed is False
     assert ops == []
+
+
+# ── preset task text in the household language ────────────────────────────────
+
+
+def _preset_spec(preset_id="firmware_update_available", **template):
+    base = dict(presets.preset_by_id(preset_id)["default_spec"])
+    base["task_template"] = {**base["task_template"], **template}
+    return base
+
+
+def test_every_preset_ships_its_task_text_in_every_language():
+    for preset in presets.CATALOG_PRESETS:
+        texts = presets.PRESET_TASK_TEXT[preset["id"]]
+        for field in ("name_template", "notes_template"):
+            # The English entry is the default_spec itself, so the two cannot drift.
+            assert texts[field]["en"] == preset["default_spec"]["task_template"][field]
+            assert len(texts[field]) == 16
+
+
+def test_every_translation_keeps_the_jinja_variables():
+    import re
+
+    for texts in presets.PRESET_TASK_TEXT.values():
+        for variants in texts.values():
+            english = set(re.findall(r"\{\{ ([a-z_.]+)", variants["en"]))
+            for lang, text in variants.items():
+                assert set(re.findall(r"\{\{ ([a-z_.]+)", text)) == english, lang
+
+
+def test_an_unchanged_english_template_renders_in_german():
+    template = presets.localized_task_template(_preset_spec(), "de")
+    assert template["name_template"] == "{{ friendly_name }} aktualisieren"
+    assert template["notes_template"] == (
+        "Neueste Version: {{ attributes.latest_version or 'unbekannt' }}"
+    )
+
+
+def test_an_unchanged_template_in_another_language_follows_a_language_change():
+    spec = _preset_spec(name_template="{{ friendly_name }} aktualisieren")
+    template = presets.localized_task_template(spec, "fr")
+    assert template["name_template"] == "Mettre à jour {{ friendly_name }}"
+
+
+def test_an_edited_template_is_rendered_as_written():
+    spec = _preset_spec(name_template="Flash {{ friendly_name }}")
+    template = presets.localized_task_template(spec, "de")
+    assert template["name_template"] == "Flash {{ friendly_name }}"
+    # The other field was not edited, so it still follows the language.
+    assert template["notes_template"].startswith("Neueste Version")
+
+
+def test_a_companion_without_a_preset_is_rendered_as_written():
+    spec = _preset_spec()
+    spec["preset_id"] = None
+    template = presets.localized_task_template(spec, "de")
+    assert template["name_template"] == "Update {{ friendly_name }}"
+
+
+def test_localizing_does_not_mutate_the_spec():
+    spec = _preset_spec()
+    presets.localized_task_template(spec, "de")
+    assert spec["task_template"]["name_template"] == "Update {{ friendly_name }}"
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
+        ("de", "{{ friendly_name }} aktualisieren"),
+        ("pt-BR", "Atualizar {{ friendly_name }}"),
+        ("pt-br", "Atualizar {{ friendly_name }}"),
+        ("zh-Hans", "更新 {{ friendly_name }}"),
+        ("de-CH", "{{ friendly_name }} aktualisieren"),
+        ("xx", "Update {{ friendly_name }}"),
+        (None, "Update {{ friendly_name }}"),
+        ("", "Update {{ friendly_name }}"),
+    ],
+)
+def test_the_language_is_matched_exactly_then_by_base(lang, expected):
+    template = presets.localized_task_template(_preset_spec(), lang)
+    assert template["name_template"] == expected
+
+
+def test_the_seeded_spec_carries_the_localized_name_and_text():
+    preset = presets.preset_by_id("device_pulse")
+    spec = presets.localized_default_spec(preset, "de", "Gerätepuls")
+    assert spec["name"] == "Gerätepuls"
+    assert spec["task_template"]["name_template"] == (
+        "{{ device_name or friendly_name }} prüfen"
+    )
+    # The shipped preset itself is untouched.
+    assert preset["default_spec"]["name"] == "Device Pulse"
+    assert preset["default_spec"]["task_template"]["name_template"].startswith("Check")
+    # And the seeded spec still passes validation.
+    dc.normalize_declarative_companion(spec)
+
+
+# --- Who owns the notes -----------------------------------------------------
+#
+# A spec with a notes template writes the notes on every pass, so it locks them. A
+# spec without one used to write an empty string on every pass, which erased any
+# note a person wrote on the task. Now it leaves the notes to that person.
+
+
+def test_a_spec_with_a_notes_template_owns_and_locks_the_notes():
+    spec = _normalized_spec(
+        task_template={"name_template": "n", "notes_template": "{{ state }}"}
+    )
+    assert dc.owns_notes(spec) is True
+    assert dc.build_managed_by(spec, ENTRY)["locked_fields"] == [
+        "name",
+        "recurrence_type",
+        "device_id",
+        "area_id",
+        "sensor",
+        "notes",
+    ]
+
+
+def test_a_spec_without_a_notes_template_leaves_the_notes_unlocked():
+    spec = _normalized_spec()
+    assert dc.owns_notes(spec) is False
+    assert dc.build_managed_by(spec, ENTRY)["locked_fields"] == [
+        "name",
+        "recurrence_type",
+        "device_id",
+        "area_id",
+        "sensor",
+    ]
+
+
+def test_owns_notes_reads_a_spec_with_no_task_template_as_not_owning():
+    assert dc.owns_notes({}) is False
+
+
+def test_the_pass_keeps_a_hand_written_note_when_the_spec_has_no_template():
+    spec = _normalized_spec()
+    stored, tid, key, m = _stored_task(spec)
+    stored[tid]["notes"] = "Shut-off valve is under the sink"
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, stored, {key: ("Rendered", "")}, config_entry_id=ENTRY, now=NOW
+    )
+    assert new_tasks[tid]["notes"] == "Shut-off valve is under the sink"
+    # Only the name moved, so the note is not what made the pass report a change.
+    assert [kind for kind, _task in ops] == ["updated"]
+    assert changed is True
+
+
+def test_the_pass_rewrites_the_notes_when_the_spec_has_a_template():
+    spec = _normalized_spec(
+        task_template={"name_template": "n", "notes_template": "{{ state }}"}
+    )
+    stored, tid, key, m = _stored_task(spec)
+    stored[tid]["notes"] = "edited by hand"
+    rendered = _rendered(key)
+
+    new_tasks, _ops, changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, stored, rendered, config_entry_id=ENTRY, now=NOW
+    )
+    assert changed is True
+    assert new_tasks[tid]["notes"] == rendered[key][1]
+
+
+def test_a_task_created_by_a_spec_with_no_template_starts_with_empty_notes():
+    spec = _normalized_spec()
+    key, m = _match("sensor.hub_total_failed_pings", spec["id"])
+    _new, ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, {}, {key: ("Rendered", "")}, config_entry_id=ENTRY, now=NOW
+    )
+    assert ops[0][1]["notes"] == ""
+
+
+# --- Task labels carried to existing tasks on save --------------------------
+
+
+def _labelled_task(spec, labels, entity_id="sensor.hub_total_failed_pings"):
+    stored, tid, _key, _m = _stored_task(spec, entity_id)
+    stored[tid]["labels"] = list(labels)
+    return stored, tid
+
+
+def test_a_label_added_to_the_spec_reaches_its_tasks():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, ["leak"])
+
+    new_tasks, ops, changed = dc.apply_template_label_diff(
+        spec["id"], ["leak"], ["leak", "urgent"], stored
+    )
+    assert changed is True
+    assert [kind for kind, _task in ops] == ["updated"]
+    assert new_tasks[tid]["labels"] == ["leak", "urgent"]
+
+
+def test_a_label_removed_from_the_spec_leaves_its_tasks():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, ["leak", "urgent"])
+
+    new_tasks, _ops, changed = dc.apply_template_label_diff(
+        spec["id"], ["leak", "urgent"], ["leak"], stored
+    )
+    assert changed is True
+    assert new_tasks[tid]["labels"] == ["leak"]
+
+
+def test_a_label_a_person_added_to_one_task_survives_a_spec_change():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, ["leak", "upstairs"])
+
+    new_tasks, _ops, _changed = dc.apply_template_label_diff(
+        spec["id"], ["leak"], ["urgent"], stored
+    )
+    assert new_tasks[tid]["labels"] == ["upstairs", "urgent"]
+
+
+def test_a_spec_label_a_person_removed_stays_removed_when_another_changes():
+    # The person took "leak" off this one task. A later change that only adds
+    # "urgent" must not put "leak" back.
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, [])
+
+    new_tasks, _ops, _changed = dc.apply_template_label_diff(
+        spec["id"], ["leak"], ["leak", "urgent"], stored
+    )
+    assert new_tasks[tid]["labels"] == ["urgent"]
+
+
+def test_an_added_label_the_task_already_has_is_not_repeated():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, ["urgent"])
+
+    new_tasks, ops, changed = dc.apply_template_label_diff(
+        spec["id"], [], ["urgent"], stored
+    )
+    assert (changed, ops) == (False, [])
+    assert new_tasks[tid]["labels"] == ["urgent"]
+
+
+def test_an_unchanged_label_set_changes_nothing():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, ["leak"])
+
+    _new, ops, changed = dc.apply_template_label_diff(
+        spec["id"], ["leak"], ["leak"], stored
+    )
+    assert (changed, ops) == (False, [])
+    assert stored[tid]["labels"] == ["leak"]
+
+
+def test_a_reordered_label_set_changes_nothing():
+    spec = _normalized_spec()
+    stored, _tid = _labelled_task(spec, ["a", "b"])
+
+    _new, ops, changed = dc.apply_template_label_diff(
+        spec["id"], ["a", "b"], ["b", "a"], stored
+    )
+    assert (changed, ops) == (False, [])
+
+
+def test_the_label_diff_leaves_another_specs_tasks_alone():
+    spec = _normalized_spec()
+    other = dc.normalize_declarative_companion(_spec(name="Other"))
+    foreign, foreign_tid = _labelled_task(other, ["leak"], "sensor.other_pings")
+    mine, tid = _labelled_task(spec, ["leak"])
+    tasks = {**foreign, **mine}
+
+    new_tasks, ops, changed = dc.apply_template_label_diff(
+        spec["id"], ["leak"], [], tasks
+    )
+    assert changed is True
+    assert [task["id"] for _kind, task in ops] == [tid]
+    assert new_tasks[tid]["labels"] == []
+    assert new_tasks[foreign_tid]["labels"] == ["leak"]
+
+
+def test_the_label_diff_skips_a_task_no_spec_owns():
+    spec = _normalized_spec()
+    mine, tid = _labelled_task(spec, [])
+    tasks = {"plain": {"id": "plain", "labels": ["x"]}, **mine}
+
+    new_tasks, ops, _changed = dc.apply_template_label_diff(
+        spec["id"], ["x"], ["y"], tasks
+    )
+    assert new_tasks["plain"]["labels"] == ["x"]
+    assert [task["id"] for _kind, task in ops] == [tid]
+
+
+def test_the_label_diff_reaches_a_paused_task():
+    spec = _normalized_spec()
+    stored, tid = _labelled_task(spec, [])
+    paused, _ops, _changed = dc.pause_spec_tasks(spec["id"], stored)
+
+    new_tasks, _ops, changed = dc.apply_template_label_diff(
+        spec["id"], [], ["leak"], paused
+    )
+    assert changed is True
+    assert new_tasks[tid]["labels"] == ["leak"]
+
+
+def test_the_label_diff_handles_a_task_with_no_labels_key():
+    spec = _normalized_spec()
+    stored, tid, _key, _m = _stored_task(spec)
+    del stored[tid]["labels"]
+
+    new_tasks, _ops, _changed = dc.apply_template_label_diff(
+        spec["id"], [], ["leak"], stored
+    )
+    assert new_tasks[tid]["labels"] == ["leak"]
+
+
+def test_the_reconcile_pass_never_puts_back_a_label_a_person_removed():
+    # The pass runs on any registry event. If it restored the spec labels, removing
+    # a label from one task would last only until the next one.
+    spec = _normalized_spec(
+        task_template={"name_template": "n", "notes_template": "", "labels": ["leak"]}
+    )
+    stored, tid, key, m = _stored_task(spec)
+    assert stored[tid]["labels"] == ["leak"]
+    stored[tid]["labels"] = []
+
+    new_tasks, _ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, stored, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    assert new_tasks[tid]["labels"] == []
+
+
+def test_the_label_diff_reaches_a_task_past_one_that_needs_no_change():
+    # The first task already has the added label. Walking past it has to be a skip,
+    # not a stop, or the rest of the spec's tasks never get the label.
+    spec = _normalized_spec()
+    first, first_tid = _labelled_task(spec, ["urgent"], "sensor.first_pings")
+    second, second_tid = _labelled_task(spec, [], "sensor.second_pings")
+    tasks = {**first, **second}
+
+    new_tasks, ops, changed = dc.apply_template_label_diff(
+        spec["id"], [], ["urgent"], tasks
+    )
+    assert changed is True
+    assert [task["id"] for _kind, task in ops] == [second_tid]
+    assert new_tasks[second_tid]["labels"] == ["urgent"]
+    assert new_tasks[first_tid]["labels"] == ["urgent"]

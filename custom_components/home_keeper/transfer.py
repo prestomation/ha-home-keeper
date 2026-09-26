@@ -144,7 +144,7 @@ EXCLUDED_STORE_KEYS: tuple[tuple[str, str], ...] = (
     ("todo_list_items", "the same — a mirror's bookkeeping, rebuilt by the sync"),
     (
         "declarative_companions",
-        "deferred to a later `recipes:` section rather than "
+        "deferred to a later `declarative_companions:` section rather than "
         "dropped; format 1 leaves the top level open for it",
     ),
 )
@@ -164,9 +164,10 @@ has no device id until it is provisioned.
 """
 
 # Reserved ``source`` namespaces. A task carrying one belongs to a reconciler that
-# regenerates it from a part, a sensor or a recipe — all of which the document either
-# carries (parts) or deliberately does not (recipes). Exporting such a task would
-# promise to restore something the reconciler would immediately overwrite or delete.
+# regenerates it from a part, a sensor or a declarative companion — all of which the
+# document either carries (parts) or deliberately does not (declarative companions).
+# Exporting such a task would promise to restore something the reconciler would
+# immediately overwrite or delete.
 _RECONCILER_SOURCES = frozenset(
     {
         TASK_SOURCE_PART,
@@ -177,9 +178,7 @@ _RECONCILER_SOURCES = frozenset(
 )
 
 # Document-only keys on a record: everything that is not simply a service field.
-_TASK_EXTRA_KEYS = frozenset(
-    {"external_id", "appliance", "area", "enabled", "history", "skips"}
-)
+_TASK_EXTRA_KEYS = frozenset({"external_id", "appliance", "area", "history", "skips"})
 _ASSET_EXTRA_KEYS = frozenset({"external_id", "area", "archived"})
 
 # The two ``add_task`` fields the published schema does not offer. ``normalize_fields``
@@ -297,10 +296,11 @@ def is_portable_task(task: dict[str, Any]) -> bool:
     """Whether *task* is the user's to move, rather than an integration's to rebuild.
 
     A reconciler-owned task (a wear part's replacement reminder, a buy reminder, a
-    problem-sensor mirror, a recipe's task) and a task an integration declares itself
-    the owner of are both regenerated on the other side from the things that *are* in
-    the document — the appliance and its parts — or by the integration itself. Copying
-    them across would restore a record that the next reconcile pass deletes.
+    problem-sensor mirror, a declarative companion's task) and a task an integration
+    declares itself the owner of are both regenerated on the other side from the
+    things that *are* in the document — the appliance and its parts — or by the
+    integration itself. Copying them across would restore a record that the next
+    reconcile pass deletes.
     """
     source = task.get("source")
     if isinstance(source, dict) and _RECONCILER_SOURCES & set(source):

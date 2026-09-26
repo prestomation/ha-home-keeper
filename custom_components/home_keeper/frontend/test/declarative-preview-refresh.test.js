@@ -2,7 +2,7 @@ import { beforeAll, afterEach, describe, expect, it } from 'vitest';
 import { definePanelStubs, emitChange, waitFor } from './panel-harness.js';
 
 /**
- * The recipe dialog's live preview survives a trigger-mode change.
+ * The companion dialog's live preview survives a trigger-mode change.
  *
  * Changing the Trigger mode dropdown re-renders the whole dialog from *inside* the
  * trigger section's change handler, because the mode decides which fields exist. The
@@ -12,7 +12,7 @@ import { definePanelStubs, emitChange, waitFor } from './panel-harness.js';
  * `refreshPreview` skips a disconnected node, so neither preview ever landed and the
  * dialog sat on "Loading preview…" until it was closed.
  *
- * That is the same flow issue #230 reported (a Device Pulse recipe switched to
+ * That is the same flow issue #230 reported (a Device Pulse companion switched to
  * *state* mode), which is why it is worth a test of its own rather than trusting the
  * dialog's other coverage: the exploratory walk found it by waiting on the preview,
  * and the e2e spec never did — it switched the mode and pressed Save straight away.
@@ -76,7 +76,7 @@ function makeDeclHass() {
   };
 }
 
-/** Boot the panel on Settings and open the edit dialog for the seeded recipe. */
+/** Boot the panel on Settings and open the edit dialog for the seeded companion. */
 async function openEditDialog() {
   const { hass, previews } = makeDeclHass();
   const panel = document.createElement('home-keeper-panel');
@@ -84,10 +84,10 @@ async function openEditDialog() {
   document.body.appendChild(panel);
   panel.hass = hass;
   const edit = await waitFor(() => panel.shadowRoot?.querySelector('.hk-decl-edit'), 5000);
-  expect(edit, 'the seeded recipe should render a row with an Edit button').toBeTruthy();
+  expect(edit, 'the seeded companion should render a row with an Edit button').toBeTruthy();
   edit.click();
   const dialog = await waitFor(() => panel.shadowRoot?.querySelector('ha-dialog.hk-decl-dialog'));
-  expect(dialog, 'Edit should open the recipe dialog').toBeTruthy();
+  expect(dialog, 'Edit should open the companion dialog').toBeTruthy();
   return { panel, previews };
 }
 
@@ -98,7 +98,7 @@ const previewNode = (panel) => panel.shadowRoot.querySelector('.hk-decl-preview'
 const sectionForm = (panel, key) =>
   panel.shadowRoot.querySelector(`[data-decl-section="${key}"]`);
 
-describe('the recipe dialog’s live preview', () => {
+describe('the companion dialog’s live preview', () => {
   it('fills in when the dialog opens', async () => {
     const { panel } = await openEditDialog();
     const header = await waitFor(

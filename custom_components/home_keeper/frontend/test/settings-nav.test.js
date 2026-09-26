@@ -114,6 +114,22 @@ describe('Settings — moving between sections', () => {
     expect(root.querySelector('.hk-settings-backbar')).toBeNull();
   });
 
+  it('states the new value on the index after a section autosaved a change', async () => {
+    // The index is patched rather than rebuilt on the way back, so the summary a
+    // section just changed has to be read again, or it reads the old value.
+    const { panel } = await mountSettings();
+    const root = panel.shadowRoot;
+    routeTo(panel, '/settings/shopping');
+    panel._options = {
+      ...panel._options,
+      shopping_list_entity: 'todo.shopping_list',
+      shopping_line_style: 'product_only',
+    };
+    routeTo(panel, '/settings');
+    const sum = root.querySelector('.hk-index-row[data-section="shopping"] .hk-index-sum');
+    expect(sum.textContent).toContain('product names only');
+  });
+
   it('still renders from scratch when the destination is another view', async () => {
     // The patch is for a lateral move along the Settings page. Anything else is a
     // different page and has to be built, or the panel would show Settings forever.

@@ -285,20 +285,6 @@ class TodoListSync(TodoSyncDriver):
             resolved.append(profile)
         return resolved
 
-    def _capabilities(self, entity_id: str) -> frozenset[str]:
-        """Which optional item fields *entity_id* can actually hold.
-
-        The planner neither writes nor diffs a field outside this set, so a list
-        without due dates is never told one — otherwise every pass would "fix" the
-        same item forever, because the value it wrote was dropped on arrival.
-        """
-        caps: set[str] = set()
-        if self._supports(entity_id, TodoListEntityFeature.SET_DUE_DATE_ON_ITEM):
-            caps.add(todo_list.CAP_DUE_DATE)
-        if self._supports(entity_id, TodoListEntityFeature.SET_DESCRIPTION_ON_ITEM):
-            caps.add(todo_list.CAP_DESCRIPTION)
-        return frozenset(caps)
-
     # ── writing ──────────────────────────────────────────────────────────────
     async def _apply(
         self, plan: todo_list.TodoListPlan, *, before: dict[str, dict[str, Any]]

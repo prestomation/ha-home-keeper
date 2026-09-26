@@ -11,6 +11,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { callService, createTask, deleteTask, openPanel } from './tests/helpers';
+import { PHONE } from './viewports';
 
 const OUT = process.env.SHOT_DIR || '/tmp/hk-shots';
 
@@ -26,6 +27,8 @@ const OWNERS = [
 
 let taskIds: string[] = [];
 let savedProfiles: unknown[] = [];
+// A declarative companion, so the picker also shows Home Keeper's own entries (#378).
+let specId = '';
 
 test.beforeAll(async () => {
   taskIds = [];
@@ -40,6 +43,18 @@ test.beforeAll(async () => {
       }),
     );
   }
+  const created = await callService(
+    'home_keeper',
+    'add_declarative_companion',
+    {
+      name: 'Leak sensors',
+      selection: { domain: 'binary_sensor', device_class: 'moisture' },
+      trigger: { mode: 'state', state: 'on', clear_on_recover: true },
+      task_template: { name_template: 'Check {{ friendly_name }}', notes_template: '' },
+    },
+    true,
+  );
+  specId = created.companion.id as string;
   // The container's store and options are the committed seed fixture, so remember what
   // the profile list held and put it back afterwards.
   savedProfiles = (await callService('home_keeper', 'list_profiles', {}, true)).profiles ?? [];
@@ -51,9 +66,9 @@ test.beforeAll(async () => {
     profiles: [
       ...savedProfiles,
       {
-        id: 'shot-battery-tasks',
-        name: 'Battery tasks',
-        filter: { status: 'all', companions: ['battery_notes'] },
+        id: 'shot-leak-tasks',
+        name: 'Active leaks',
+        filter: { status: 'all', companions: [`home_keeper:declarative:${specId}`] },
       },
     ],
   });
@@ -61,27 +76,43 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   await callService('home_keeper', 'set_options', { profiles: savedProfiles });
+  if (specId) await callService('home_keeper', 'delete_declarative_companion', { id: specId });
   for (const id of taskIds) await deleteTask(id);
 });
 
 test('capture the profile companion filter', async ({ page }) => {
-  await openPanel(page);
-  await page.goto('/home-keeper/settings/profiles', { waitUntil: 'domcontentloaded' });
-  const panel = page.locator('home-keeper-panel').first();
-
-  const card = panel.locator('#hk-profiles');
-  await expect(card).toBeVisible({ timeout: 30_000 });
-  await card.scrollIntoViewIfNeeded();
-
-  // Open the seeded profile's editor, which is where the filter form lives.
-  await card.getByText('Battery tasks', { exact: true }).first().click();
-  const form = panel.locator('ha-form').filter({ hasText: /Companions/ }).first();
-  await expect(form).toBeVisible({ timeout: 20_000 });
-  await expect(form.getByText('Battery Notes').first()).toBeVisible();
-  await page.waitForTimeout(1200);
+  const open = async (): Promise<ReturnType<typeof page.locator>> => {
+    await openPanel(page);
+    await page.goto('/home-keeper/settings/profiles', { waitUntil: 'domcontentloaded' });
+    const panel = page.locator('home-keeper-panel').first();
+    const card = panel.locator('#hk-profiles');
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    await card.scrollIntoViewIfNeeded();
+    // Open the seeded profile's editor, which is where the filter form lives.
+    await card.getByText('Active leaks', { exact: true }).first().click();
+    const form = panel.locator('ha-form').filter({ hasText: /Companions/ }).first();
+    await expect(form).toBeVisible({ timeout: 20_000 });
+    // The declarative companion is named in the picker, not as a raw key.
+    await expect(form.getByText('Leak sensors (declarative companion)').first()).toBeVisible();
+    await page.waitForTimeout(1200);
+    return card;
+  };
 
   // The Profiles card only, not the whole Settings tab: a fullPage shot of this page
   // buries the feature and drags HA's position:fixed sidebar into the middle of it.
+  const card = await open();
   await card.scrollIntoViewIfNeeded();
   await card.screenshot({ path: `${OUT}/profile-companion-filter.png` });
+
+  // On a phone the bottom tab bar is fixed over the page, so an element shot of the
+  // tall card draws it across the middle. Open the picker instead and photograph the
+  // screen: the menu is what shows Home Keeper's own entries.
+  await page.setViewportSize(PHONE);
+  const phoneCard = await open();
+  const add = phoneCard.getByText('Companions', { exact: true }).first();
+  await add.scrollIntoViewIfNeeded();
+  await add.click();
+  await expect(page.getByText('All Home Keeper tasks').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${OUT}/profile-mobile-companion-filter.png` });
 });

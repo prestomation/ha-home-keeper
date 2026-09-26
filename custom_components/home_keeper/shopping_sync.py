@@ -26,7 +26,12 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 
 from . import shopping
-from .const import DOMAIN, OPTION_SHOPPING_LIST_ENTITY, ORIGIN_SHOPPING_LIST
+from .const import (
+    DOMAIN,
+    OPTION_SHOPPING_LINE_STYLE,
+    OPTION_SHOPPING_LIST_ENTITY,
+    ORIGIN_SHOPPING_LIST,
+)
 from .models import TaskValidationError
 from .options import current_options
 from .shopping import TODO_DOMAIN
@@ -110,10 +115,20 @@ class ShoppingListSync(TodoSyncDriver):
             return False
         store = self._coordinator.store
         tracked = store.get_shopping_items()
-        desired = shopping.buy_tasks_by_part(store.get_tasks(), store.get_assets())
+        desired = shopping.buy_tasks_by_part(
+            store.get_tasks(),
+            store.get_assets(),
+            style=shopping.normalize_line_style(
+                current_options(self._entry).get(OPTION_SHOPPING_LINE_STYLE)
+            ),
+            lang=self._hass.config.language,
+        )
         target = self._resolve_target()
         if not force and not shopping.needs_pass(
-            tracked=tracked, desired=desired, target=target
+            tracked=tracked,
+            desired=desired,
+            target=target,
+            capabilities=self._capabilities(target) if target else frozenset(),
         ):
             return False
 
@@ -128,6 +143,7 @@ class ShoppingListSync(TodoSyncDriver):
             desired=desired,
             items_by_entity=items_by_entity,
             target=target,
+            capabilities={eid: self._capabilities(eid) for eid in items_by_entity},
         )
         settled = await self._apply(plan, before=tracked)
         if self._stopped:
@@ -214,6 +230,8 @@ class ShoppingListSync(TodoSyncDriver):
                 data["status"] = update.status
             if update.rename is not None:
                 data["rename"] = update.rename
+            if update.description is not None:
+                data["description"] = update.description
             ok = await self._call(
                 update.entity_id,
                 TodoListEntityFeature.UPDATE_TODO_ITEM,
@@ -227,8 +245,15 @@ class ShoppingListSync(TodoSyncDriver):
                 add.entity_id,
                 TodoListEntityFeature.CREATE_TODO_ITEM,
                 "add_item",
-                {"entity_id": add.entity_id, "item": add.summary},
+                self._add_payload(add),
             )
             if not ok:
                 settled.pop(add.key, None)
         return settled
+
+    @staticmethod
+    def _add_payload(add: shopping.AddOp) -> dict[str, Any]:
+        payload: dict[str, Any] = {"entity_id": add.entity_id, "item": add.summary}
+        if add.description is not None:
+            payload["description"] = add.description
+        return payload

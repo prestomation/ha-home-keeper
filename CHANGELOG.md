@@ -6,7 +6,7 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
-## [0.24.0b9]
+## [0.27.0b5]
 
 ### Added
 
@@ -16,6 +16,264 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **[Consume quantity](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#parts--wear-items).**
   A task linked to a part can take more than 1 spare off the stock. An integration
   sets the amount for the task it links.
+
+## [0.27.0b4]
+
+### Added
+
+- **[Declarative companion task labels](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#task-labels-and-notes).**
+  Set task labels on a declarative companion, and each task it makes gets them. Click
+  Edit on one task to add labels to that task only. (Fixes #378)
+- **[Declarative companion Profile filter](https://prestomation.github.io/ha-home-keeper/docs/guide/profiles#filter-by-companion).**
+  The Companions filter of a Profile lists each declarative companion and the synced
+  problem sensors. Select one to show only its tasks.
+
+### Fixed
+
+- **[Declarative companion task notes](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#task-labels-and-notes).**
+  A declarative companion with no notes template no longer clears the notes of its
+  tasks. You can now write notes on those tasks.
+
+## [0.27.0b3]
+
+### Fixed
+
+- **[Self-clearing task sync](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  Tasks that Home Keeper cannot complete now show on synced to-do lists, such as synced
+  problem sensors and declarative companion tasks. A ticked item comes back until you
+  fix the problem in your home and Home Keeper completes the task. (Fixes #370)
+- **Skip on self-clearing recipe tasks.** A skip by hand from a service call now fails,
+  the same as a completion.
+
+## [0.27.0b2]
+
+### Fixed
+
+- **[Recipe entity names](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  On a device page, the entity names of a recipe task start with the recipe name. New
+  entity IDs no longer repeat the device name. (Fixes #377)
+- **Mark done on self-clearing recipe tasks.** A recipe task that clears itself when
+  its condition recovers has no Mark done button on its device page. Home Keeper also
+  refuses a completion by hand from a service call.
+
+## [0.27.0b1]
+
+### Added
+
+- **[Template triggers](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#template-triggers).**
+  Write a Jinja template for a recipe trigger or a sensor task condition. The task is
+  due while the template renders true. (Fixes #346)
+- **[Stopped reporting preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#template-triggers).**
+  A new recipe preset opens a task for each sensor that stops reporting for a day. It
+  needs no other integration.
+
+## [0.26.0] - 2026-09-24
+
+### Added
+
+- **[Wear item NFC tags](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#scan-a-tag-to-complete-a-wear-items-task).**
+  Scan an NFC/RFID tag to complete the task that a wear item creates. On a counted
+  wear item, a scan records 1 use. (Fixes #364) (Thanks @berezovskyi-oleksandr!)
+- **[Shopping list line style](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#send-buy-reminders-to-your-shopping-list).**
+  Show only the product name on the synced shopping list, without "Buy". (Fixes #369)
+- **[Amount as item description](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#send-buy-reminders-to-your-shopping-list).**
+  On a list that holds item descriptions, the amount to buy shows under the product
+  name.
+- **[Declarative companion exclusions](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  Leave entities, devices, areas and labels out of a recipe, as in Problem sensor sync.
+  To leave out one entity, click Exclude on its row in the preview. (Fixes #373)
+- **[Recipe area and label filters](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  Limit a recipe to the entities in some areas or with some labels.
+
+### Fixed
+
+- **[Intermittent card error](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  On Home Assistant 2026.9, the dashboard card no longer shows "Custom element
+  doesn't exist: home-keeper-card" on some page loads. (Fixes #368) (Thanks @DDomnick!)
+- **Card error after a failed update.** When an update of the card's Lovelace
+  resource fails in part, the card no longer shows "Custom element doesn't exist".
+- **Buy reminder names.** A buy reminder now follows a rename of its part and a
+  change of the Home Assistant language. A name that you typed does not change.
+- **[Renamed list items](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  When you rename a synced item on a to-do list, Home Keeper keeps your name.
+- **Decimal marks in amounts.** An amount uses the decimal mark of your language,
+  such as "1,5 kg" in German.
+- **Preset task text.** The Device Pulse and Firmware update available presets write
+  their tasks in the Home Assistant language.
+- **Settings summaries on a phone.** After you change a setting, the Settings list on
+  a phone shows the new value.
+
+## [0.26.0b5]
+
+### Fixed
+
+- **Recipe area and label picks.** When you pick a second area or label in More
+  filters, the first one stays.
+- **Device labels in recipes.** A recipe label filter or exclusion now also matches
+  the labels of an entity's device, as in Problem sensor sync.
+- **Shopper notes on synced lines.** Home Keeper does not write the amount over a
+  note that you typed on a shopping list item.
+- **Decimal mark in the Persian preview.** The shopping list preview uses the same
+  decimal mark as the list.
+- **Tag scan switch.** When you clear a wear item's tag, the Require a tag scan
+  switch turns off.
+- **Card error after a failed update.** When an update of the card's Lovelace
+  resource fails in part, the card no longer shows "Custom element doesn't exist".
+
+## [0.26.0b4]
+
+### Added
+
+- **[Declarative companion exclusions](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  Leave entities, devices, areas and labels out of a recipe, as in Problem sensor sync.
+  To leave out one entity, click Exclude on its row in the preview. (Fixes #373)
+- **[Recipe area and label filters](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  Limit a recipe to the entities in some areas or with some labels.
+
+### Fixed
+
+- **Recipe area filters.** An entity that gets its area from its device now matches
+  an area filter, and `{{ area_name }}` shows that area.
+
+## [0.26.0b3]
+
+### Added
+
+- **[Shopping list line style](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#send-buy-reminders-to-your-shopping-list).**
+  Show only the product name on the synced shopping list, without "Buy". (Fixes #369)
+- **[Amount as item description](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#send-buy-reminders-to-your-shopping-list).**
+  On a list that holds item descriptions, the amount to buy shows under the product
+  name.
+
+### Fixed
+
+- **Buy reminder names.** A buy reminder now follows a rename of its part and a
+  change of the Home Assistant language. A name that you typed does not change.
+- **[Renamed list items](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  When you rename a synced item on a to-do list, Home Keeper keeps your name.
+- **Decimal marks in amounts.** An amount uses the decimal mark of your language,
+  such as "1,5 kg" in German.
+- **Preset task text.** The Device Pulse and Firmware update available presets write
+  their tasks in the Home Assistant language.
+- **Settings summaries on a phone.** After you change a setting, the Settings list on
+  a phone shows the new value.
+
+## [0.26.0b2]
+
+### Fixed
+
+- **[Intermittent card error](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  On Home Assistant 2026.9, the dashboard card no longer shows "Custom element
+  doesn't exist: home-keeper-card" on some page loads. (Fixes #368) (Thanks @DDomnick!)
+
+## [0.26.0b1]
+
+### Added
+
+- **[Wear item NFC tags](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#scan-a-tag-to-complete-a-wear-items-task).**
+  Scan an NFC/RFID tag to complete the task that a wear item creates. On a counted
+  wear item, a scan records 1 use. (Fixes #364) (Thanks @berezovskyi-oleksandr!)
+
+## [0.25.0] - 2026-09-24
+
+### Added
+
+- **[Disabled tasks](https://prestomation.github.io/ha-home-keeper/docs/guide/disabled-tasks).**
+  Disable a task from an automation and enable it again later. A disabled task keeps
+  its history and stays out of your reminders and your lists. (Fixes #344)
+- **[Note chip](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#read-a-tasks-note-from-the-card).**
+  A task with a note now shows a Note chip on the card. Select the chip to read the
+  full note in a dialog. (Fixes #340) (Thanks @baratrax!)
+
+### Fixed
+
+- **Document upload token.** A document upload no longer fails with `Upload failed
+  (401)` after the panel has been open for a long time. Home Keeper refreshes the
+  access token before it sends the file. (Fixes #352)
+
+## [0.25.0b3]
+
+### Added
+
+- **[Disabled tasks](https://prestomation.github.io/ha-home-keeper/docs/guide/disabled-tasks).**
+  Disable a task from an automation and enable it again later. A disabled task keeps
+  its history and stays out of your reminders and your lists. (Fixes #344)
+
+## [0.25.0b2]
+
+### Added
+
+- **[Note chip](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#read-a-tasks-note-from-the-card).**
+  A task with a note now shows a Note chip on the card. Select the chip to read the
+  full note in a dialog. (Fixes #340) (Thanks @baratrax!)
+
+## [0.25.0b1]
+
+### Fixed
+
+- **Document upload token.** A document upload no longer fails with `Upload failed
+  (401)` after the panel has been open for a long time. Home Keeper refreshes the
+  access token before it sends the file. (Fixes #352)
+
+## [0.24.0] - 2026-09-20
+
+### Added
+
+- **[Counted wear items](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#count-uses-instead-of-months).**
+  Set a wear item to repeat every so many uses, or after so many months, whichever
+  comes first. Complete its use task from an automation, a tag scan or the panel to
+  count 1 use. (Fixes #306)
+- **[Wear item actions](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#count-uses-instead-of-months).**
+  Pick the verb a wear item's task uses. The choices are Clean, Service, Renew,
+  Sharpen, Rotate, Inspect and the default Replace.
+- **[Wear item preview](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#parts--wear-items).**
+  A wear item now says what it will create before you save it. The box names each
+  task, its schedule, and the count a use task feeds.
+- **[Due today](https://prestomation.github.io/ha-home-keeper/docs/guide/snooze-and-skip).**
+  Move a task's due date to today, whatever its schedule says. Home Keeper records no
+  completion, so the recurrence is unchanged. (Fixes #312) (Thanks @joss94!)
+- **[Task count sensors](https://prestomation.github.io/ha-home-keeper/docs/guide/profiles#task-count-sensors).**
+  Home Keeper gives each profile a sensor that counts the tasks it shows, and adds one
+  more for every task it keeps. Put the overdue count on a dashboard badge, with no
+  template. (Fixes #342)
+
+### Changed
+
+- **[Appliance report](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export#appliance-report).**
+  The inventory export is now the appliance report, and its button moved to
+  Settings, Import and export, beside the backup it is not a copy of. The
+  `home_keeper.export_inventory` action is now
+  `home_keeper.export_appliance_report` and returns its rows under `report`.
+- **Meter task validation.** A meter task now refuses a hold time and an auto-clear
+  switch. A meter has no condition to hold, so Home Keeper used to drop both without
+  a word.
+
+### Fixed
+
+- **Fixed schedules.** A task on a fixed schedule now moves to its next occurrence when
+  you mark it done. A task due later in the same day used to stay due today.
+  (Fixes #331)
+- **Daylight saving time.** A fixed schedule now keeps its time of day when the clocks
+  change. A task set for 10am used to move to 9am each autumn.
+- **Snoozed fixed schedules.** A task on a fixed schedule now moves to its next
+  occurrence when you snooze it and then mark it done. It used to jump past every
+  occurrence before the snooze date.
+- **Sensor hold time.** A hold now counts only the time an entity reported the
+  trigger condition. An entity that stopped reporting part way through kept its
+  hold running, so the task opened as soon as the entity came back. (Fixes #336)
+- **Recipe meter progress.** A recipe that meters a sensor now keeps the reading it
+  counts from. Home Keeper reset that reading on each change to the entity list, so
+  the task could never reach its target.
+- **Disabled recipes.** A recipe you switch off now keeps its tasks and everything
+  recorded on them. The tasks stop until you switch the recipe on again.
+- **Edited conditions.** A sensor task now opens when you change its condition to one
+  the entity already meets. It used to wait for the condition to go away and come
+  back.
+- **Recipe updates.** Home Keeper now runs one pass for each group of entity changes.
+  An integration that added many entities at once made it repeat the same work for
+  each one.
+- **Task names in a narrow list.** A task name no longer collapses into a column of
+  single letters when the edit drawer is open beside the list.
 
 ## [0.24.0b8]
 

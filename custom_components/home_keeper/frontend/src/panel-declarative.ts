@@ -1,16 +1,19 @@
 /**
- * Settings → Companions → **Declarative companions**: recipes that materialize one
+ * Settings → Companions → **Declarative companions**: specs that materialize one
  * managed sensor task per matching entity, with no glue integration in between.
  *
  * Three surfaces, all free functions over a `PanelHost` (see `panel-host.ts`):
  *
  * - the subsection at the foot of the Companions card — `declarativeSection` renders
  *   it and `wireDeclarativeSection` wires Add / Add from preset / Edit / Delete;
- * - the preset picker: one card per bundled recipe, disabled when the integration it
+ * - the preset picker: one card per bundled preset, disabled when the integration it
  *   needs has no config entry;
- * - the add/edit dialog: four `ha-form`s (identity, selection, trigger, template) over
- *   one draft, and beneath them a live preview of what the recipe would match. The
- *   preview also warns when another stored recipe already covers those entities.
+ * - the add/edit dialog: `ha-form`s (identity, selection, trigger, template) over
+ *   one draft, and beneath them a live preview of what the companion would match. The
+ *   selection section shows integration and domain; a **More filters** row opens the
+ *   other filters and the four exclusion lists (#373). Each preview row has an
+ *   Exclude button, and an excluded entity is listed under the rows with Include.
+ *   The preview also warns when another stored companion already covers those entities.
  *   `declarativeOverlap` works that out from the tasks the panel already holds, so
  *   the warning costs no extra backend call.
  *
@@ -25,27 +28,41 @@
 
 import * as api from './api';
 import {
+  EXCLUSION_FIELDS,
+  exclusionsSchema,
+  hasMoreFilters,
+  idList,
+  moreFiltersSchema,
+  moreFiltersSummary,
+  toggleId,
+} from './declarative-filters';
+import {
   pickFormData,
   selBool,
+  selLabel,
   selNumber,
   selSelect,
   selSelectCustom,
   selText,
   type FormField,
 } from './forms';
-import { t } from './i18n';
+import { t, tn } from './i18n';
 import { makeDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
+import { indentGroup } from './panel-indent';
 import type {
   DeclarativeCompanion,
   DeclarativeCompanionPreset,
+  DeclarativeCompanionPreviewMatch,
   DeclarativeCompanionPreviewResult,
   Task,
 } from './types';
 import { btnAttrs, escapeHTML, setBtnWeight, toast } from './utils';
 
 /** The trigger modes the form offers, in the order the dropdown lists them. */
-const TRIGGER_MODES = ['state', 'threshold', 'usage', 'availability'] as const;
+// `template` goes last on purpose. The four above it each answer one plain question,
+// and a user who wants one of those must not have to read past Jinja to find it.
+const TRIGGER_MODES = ['state', 'threshold', 'usage', 'availability', 'template'] as const;
 const COMPARISONS = ['>=', '<=', '>', '<', '==', '!='] as const;
 /** The domains the entity-domain picker suggests; any other value can be typed. */
 const DOMAINS = ['binary_sensor', 'sensor', 'update', 'switch', 'number'] as const;
@@ -61,7 +78,7 @@ export type Trigger = Record<string, unknown> & { mode?: string };
  * The trigger keys each mode keeps, mirroring `models.normalize_sensor`.
  *
  * The backend does not ignore a key that belongs to another mode — `_reject_fields`
- * raises on it — so a mode change must drop them. A recipe seeded from the Device
+ * raises on it — so a mode change must drop them. A companion seeded from the Device
  * Pulse preset carries `comparison` and `value`; switching it to *state* kept both,
  * and the save came back "sensor.comparison is not valid for a state-mode sensor
  * task" (issues #230 / #231).
@@ -69,13 +86,17 @@ export type Trigger = Record<string, unknown> & { mode?: string };
  * `usage` drops `for_seconds` and `clear_on_recover`: a meter has no condition to
  * hold or to recover from, and `normalize_sensor` reads neither in that mode.
  * `availability` drops `attribute`, because the form offers no attribute box there,
- * and a carried-over one would be a setting nobody can see or clear.
+ * and a carried-over one would be a setting nobody can see or clear. `template` drops
+ * it for a stronger reason: `normalize_sensor` rejects an attribute in that mode,
+ * because a template reads `attributes.<key>` itself and a second, invisible hop
+ * would change what `{{ state }}` means inside it.
  */
 const TRIGGER_KEYS_BY_MODE: Record<string, readonly string[]> = {
   usage: ['attribute', 'target', 'baseline', 'unit', 'also_every', 'combinator'],
   threshold: ['attribute', 'comparison', 'value', 'for_seconds', 'clear_on_recover'],
   state: ['attribute', 'state', 'for_seconds', 'clear_on_recover'],
   availability: ['for_seconds', 'clear_on_recover'],
+  template: ['template', 'for_seconds', 'clear_on_recover'],
 };
 
 /** Kept whatever the mode is. A spec's trigger normally omits `entity_id` — the
@@ -93,6 +114,10 @@ const TRIGGER_DEFAULTS: Record<string, Record<string, unknown>> = {
   threshold: { comparison: '>=', clear_on_recover: true },
   state: { state: 'on', clear_on_recover: true },
   availability: { clear_on_recover: true },
+  // No default `template`: it is genuinely the user's to write, and an empty
+  // required box says so. `clear_on_recover` follows the other edge modes, so a
+  // companion's tasks close themselves when the condition goes away.
+  template: { clear_on_recover: true },
 };
 
 /**
@@ -112,7 +137,7 @@ export function triggerForMode(trigger: Trigger, nextMode: string): Trigger {
   return next;
 }
 
-/** A blank recipe, for the Add-from-scratch path. */
+/** A blank declarative companion, for the Add-from-scratch path. */
 export function emptyDeclarativeCompanion(): DeclarativeCompanion {
   return {
     id: '',
@@ -131,9 +156,9 @@ export function emptyDeclarativeCompanion(): DeclarativeCompanion {
     // The same rule that rewrites the trigger on a mode change builds the first one,
     // so a blank draft and a switched one can never carry different keys.
     trigger: triggerForMode({}, 'state') as unknown as DeclarativeCompanion['trigger'],
-    // The same name template every bundled preset uses. `friendly_name` on its own
+    // The device part of the Device Pulse preset's name template. `friendly_name` on its own
     // repeats the device name Home Assistant already prefixes, so a hand-written
-    // recipe produced "Replace Roborock S7 Main brush time left" and the entity id
+    // companion produced "Replace Roborock S7 Main brush time left" and the entity id
     // `sensor.roborock_s7_replace_roborock_s7_main_brush_time_left_next_due`.
     task_template: {
       name_template: '{{ device_name or friendly_name }}',
@@ -144,7 +169,7 @@ export function emptyDeclarativeCompanion(): DeclarativeCompanion {
   };
 }
 
-/** The recipe id a managed task was materialized from, or undefined for any other task. */
+/** The spec id a managed task was materialized from, or undefined for any other task. */
 export function declarativeSpecId(task: Task): string | undefined {
   const source = task.source as
     | { declarative_companion?: { spec_id?: string } }
@@ -154,13 +179,13 @@ export function declarativeSpecId(task: Task): string | undefined {
 }
 
 /**
- * The stored recipe *task* was materialized from, or undefined for any other task.
+ * The stored declarative companion that made *task*, or undefined for any other task.
  *
- * The task page reads it to answer "where are this task's settings?". A recipe that
- * is no longer stored returns undefined, so the page falls back to the generic
- * managed-task captions rather than offering an editor for a recipe that is gone.
+ * The task page reads it to answer "where are this task's settings?". A declarative
+ * companion that is no longer stored returns undefined, so the page falls back to the
+ * generic managed-task captions rather than offering an editor for one that is gone.
  */
-export function declarativeRecipeFor(
+export function declarativeCompanionFor(
   p: PanelHost,
   task: Task,
 ): DeclarativeCompanion | undefined {
@@ -168,30 +193,32 @@ export function declarativeRecipeFor(
   return specId ? p._declarativeCompanions.find((s) => s.id === specId) : undefined;
 }
 
-/** What `declarativeOverlap` found: the recipe that already covers the most of the
+/** What `declarativeOverlap` found: the companion that already covers the most of the
  *  draft's matches, and how many of those matches it covers. */
 export interface DeclarativeOverlap {
-  /** The other recipe's name, or its id when the recipe is no longer stored. */
+  /** The other companion's name, or its id when it is no longer stored. */
   name: string;
-  /** How many of the entities in *matched* that recipe already has a task for. */
+  /** How many of the entities in *matched* that companion already has a task for. */
   count: number;
 }
 
 /**
- * The recipe that already covers part of *matched*, or null when none does.
+ * The companion that already covers part of *matched*, or null when none does.
  *
- * Two recipes that select the same entity each materialize their own task for it, so
- * the user gets two identical tasks and the task list says nothing about why. The
- * check runs in the panel: a materialized task carries its recipe id in
+ * Two companions that select the same entity each materialize their own task for it, so
+ * the user gets two identical tasks and the task list says nothing about why. The check
+ * runs in the panel: a materialized task carries its spec id in
  * `source.declarative_companion.spec_id` and the entity it watches in
- * `sensor.entity_id`, and the panel already holds every task and every stored recipe.
+ * `sensor.entity_id`, and the panel already holds every task and every stored
+ * companion.
  *
- * *draftId* is the recipe under edit and is skipped. Its tasks are the tasks the draft
- * rebuilds, not an overlap with another recipe.
+ * *draftId* is the companion under edit and is skipped. Its tasks are the tasks the
+ * draft rebuilds, not an overlap with another companion.
  *
  * *matched* is the preview sample, so the count is a count of the matches on screen.
- * The warning names one recipe, so only the recipe with the most overlap is returned.
- * If two recipes cover the same number, the first one found in *tasks* wins.
+ * The warning names one companion, so only the companion with the most overlap is
+ * returned. If two companions cover the same number, the first one found in *tasks*
+ * wins.
  */
 export function declarativeOverlap(
   matched: readonly { entity_id: string }[],
@@ -225,7 +252,7 @@ function errorMessage(err: unknown): string {
 
 // ── the subsection inside the Companions card ───────────────────────────────
 
-/** The subsection's HTML: heading, help, the two Add buttons, then one row per recipe. */
+/** The subsection's HTML: heading, help, the two Add buttons, then a row per companion. */
 export function declarativeSection(p: PanelHost): string {
   const rows = p._declarativeCompanions.length
     ? p._declarativeCompanions.map((spec) => declarativeRow(p, spec)).join('')
@@ -240,7 +267,7 @@ export function declarativeSection(p: PanelHost): string {
       ${rows}`;
 }
 
-/** One recipe row: name, enabled chip, preset badge, description, match count, actions. */
+/** One companion row: name, enabled chip, preset badge, description, count, actions. */
 function declarativeRow(p: PanelHost, spec: DeclarativeCompanion): string {
   const count = p._tasks.filter((task) => declarativeSpecId(task) === spec.id).length;
   const enabled = spec.enabled
@@ -334,8 +361,8 @@ async function openPresetPicker(p: PanelHost): Promise<void> {
   p._render();
 }
 
-/** Open the form on a copy of *seed* (a stored recipe, or a preset's default), or
- *  on a blank recipe when null. Exported because a task's own page opens the recipe
+/** Open the form on a copy of *seed* (a stored companion, or a preset's default), or
+ *  on a blank one when null. Exported because a task's own page opens the companion
  *  that built it — the dialog host is global, so the form works from any view. */
 export async function openDeclarativeForm(
   p: PanelHost,
@@ -473,30 +500,47 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     // `refreshPreview` would return early, leaving "Loading preview…" on screen for
     // good. Switching the mode is exactly the flow #230 reported.
     if (!preview.isConnected) return;
-    p._debounce('decl-preview', () => void refreshPreview(p, draft, preview), PREVIEW_DEBOUNCE_MS);
+    p._debounce(
+      'decl-preview',
+      () => void refreshPreview(p, draft, preview, (id) => toggleExcluded(id)),
+      PREVIEW_DEBOUNCE_MS,
+    );
   };
 
-  // Every field is labelled from its own key rather than `field.<name>`, and the
-  // one helper is the template vocabulary under the notes template.
+  // Every field is labelled from its own key rather than `field.<name>`. Three fields
+  // carry a helper. Two say what a template can read: the notes template, and the
+  // trigger template, which sees the same vocabulary. The third says what the task
+  // labels do to the tasks that already exist.
+  const HELPERS: Record<string, string> = {
+    notes_template: 'declarative.companions.template_help',
+    template: 'declarative.companions.template_trigger_help',
+    labels: 'declarative.companions.labels_help',
+  };
   const labelling = {
     computeLabel: (s: { name: string }): string =>
       s.name ? t('declarative.companions.field_' + s.name) : '',
     computeHelper: (s: { name: string }): string =>
-      s.name === 'notes_template' ? t('declarative.companions.template_help') : '',
+      s.name in HELPERS ? t(HELPERS[s.name]) : '',
   };
   // Each section is its own `ha-form` (one heading between two fields is only
   // reachable by splitting the schema) and carries `data-decl-section` so a test can
   // address the form that owns a field rather than counting elements.
+  // *parent* and *titled* let a section sit inside **More filters** without a heading
+  // of its own: the row above it, or the indent head, already names it.
   const section = (
     key: string,
     schema: FormField[],
     data: Record<string, unknown>,
     onChange: (value: Record<string, unknown>) => void,
-  ): void => {
-    const title = document.createElement('div');
-    title.className = 'hk-decl-section-title';
-    title.textContent = t('declarative.companions.section_' + key);
-    body.appendChild(title);
+    parent: HTMLElement = body,
+    titled = true,
+  ): HTMLElement & { data?: Record<string, unknown> } => {
+    if (titled) {
+      const title = document.createElement('div');
+      title.className = 'hk-decl-section-title';
+      title.textContent = t('declarative.companions.section_' + key);
+      parent.appendChild(title);
+    }
     const form = p._makeForm(
       schema,
       // `ha-form` echoes its whole `data` back on every change, so seed it with this
@@ -511,7 +555,8 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     );
     form.classList.add('hk-decl-form');
     form.dataset.declSection = key;
-    body.appendChild(form);
+    parent.appendChild(form);
+    return form;
   };
   const str = (v: unknown): string | undefined => {
     const s = String(v ?? '').trim();
@@ -545,22 +590,104 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     [
       { name: 'integration', selector: selSelectCustom(integrations) },
       { name: 'domain', selector: selSelectCustom(DOMAINS.map((d) => ({ value: d, label: d }))) },
-      { name: 'device_class', selector: selText() },
-      { name: 'entity_regex', selector: selText() },
     ],
-    {
-      integration: sel.target_integration,
-      domain: sel.domain,
-      device_class: sel.device_class,
-      entity_regex: sel.entity_regex,
-    },
+    { integration: sel.target_integration, domain: sel.domain },
     (v) => {
       sel.target_integration = str(v.integration);
       sel.domain = str(v.domain);
-      sel.device_class = str(v.device_class);
-      sel.entity_regex = str(v.entity_regex);
     },
   );
+
+  // 2b. More filters: the rarer filters and the exclusions, behind one row whose
+  //     summary says what is set, so a closed row never hides a filter unseen. It
+  //     opens by default when something in it is set; after a toggle, the choice is
+  //     kept in the dialog state so a trigger-mode re-render does not close it.
+  const open = p._declDialog.moreOpen ?? hasMoreFilters(sel);
+  const more = document.createElement('button');
+  more.type = 'button';
+  more.className = 'hk-decl-more';
+  more.setAttribute('aria-expanded', String(open));
+  more.setAttribute('aria-controls', 'hk-decl-more-body');
+  more.innerHTML = `
+      <span class="hk-decl-more-text">
+        <span class="hk-decl-more-title">${escapeHTML(t('declarative.companions.more_filters'))}</span>
+        <span class="hk-decl-more-summary"></span>
+      </span>
+      <ha-icon class="hk-decl-more-chevron" icon="mdi:chevron-down"></ha-icon>`;
+  const summary = more.querySelector('.hk-decl-more-summary') as HTMLElement;
+  const updateSummary = (): void => {
+    summary.textContent = moreFiltersSummary(sel);
+  };
+  updateSummary();
+  const moreBody = document.createElement('div');
+  moreBody.id = 'hk-decl-more-body';
+  moreBody.className = 'hk-decl-more-body';
+  moreBody.hidden = !open;
+  more.addEventListener('click', () => {
+    const next = more.getAttribute('aria-expanded') !== 'true';
+    moreBody.hidden = !next;
+    more.setAttribute('aria-expanded', String(next));
+    p._declDialog.moreOpen = next;
+  });
+  body.append(more, moreBody);
+
+  // ha-form does not keep its own value, so each change is written back. Without
+  // it the area and label pickers build the next pick from the seed and drop the
+  // earlier ones.
+  const filtersData = (): Record<string, unknown> => ({
+    device_class: sel.device_class,
+    area_ids: sel.area_ids ?? [],
+    label_ids: sel.label_ids ?? [],
+    entity_regex: sel.entity_regex,
+  });
+  const filtersForm = section(
+    'filters',
+    moreFiltersSchema(),
+    filtersData(),
+    (v) => {
+      sel.device_class = str(v.device_class);
+      sel.area_ids = idList(v.area_ids);
+      sel.label_ids = idList(v.label_ids);
+      sel.entity_regex = str(v.entity_regex);
+      filtersForm.data = filtersData();
+      updateSummary();
+    },
+    moreBody,
+    false,
+  );
+
+  // The exclusions, indented under the same head Problem sensor sync uses.
+  const exclusionsHost = document.createElement('div');
+  const exclusionsData = (): Record<string, unknown> =>
+    Object.fromEntries(EXCLUSION_FIELDS.map((f) => [f, sel[f] ?? []]));
+  const exclusionsForm = section(
+    'exclusions',
+    exclusionsSchema(),
+    exclusionsData(),
+    (v) => {
+      for (const f of EXCLUSION_FIELDS) if (f in v) sel[f] = idList(v[f]);
+      exclusionsForm.data = exclusionsData();
+      updateSummary();
+    },
+    exclusionsHost,
+    false,
+  );
+  moreBody.appendChild(
+    indentGroup(
+      t('declarative.companions.section_exclusions'),
+      t('declarative.companions.exclusions_note'),
+      exclusionsHost,
+    ),
+  );
+
+  // The preview's Exclude and Include buttons edit the same list the entity picker
+  // above shows, so the two can never disagree.
+  const toggleExcluded = (id: string): void => {
+    sel.exclude_entity_ids = toggleId(sel.exclude_entity_ids, id);
+    exclusionsForm.data = exclusionsData();
+    updateSummary();
+    schedulePreview();
+  };
 
   // 3. Trigger. The schema follows the mode, so a mode change re-renders the dialog:
   //    the draft is edited in place, so nothing typed elsewhere is lost.
@@ -593,6 +720,11 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   if (mode === 'usage') {
     triggerSchema.push({ name: 'target', required: true, selector: selNumber(0, 'any') });
   }
+  // Multiline, like the notes template: a trigger template is one expression, but it
+  // runs long, and a single-line box hides its own tail.
+  if (mode === 'template') {
+    triggerSchema.push({ name: 'template', required: true, selector: selText(true) });
+  }
   // A hold and an auto-clear belong to the edge-driven modes only; a usage meter has
   // no condition to hold or recover from, and `normalize_sensor` reads neither there.
   if (mode !== 'usage') {
@@ -601,7 +733,11 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       { name: 'clear_on_recover', selector: selBool() },
     );
   }
-  if (mode !== 'availability') triggerSchema.push({ name: 'attribute', selector: selText() });
+  // `template` joins `availability` in offering no attribute box: the backend rejects
+  // one there, and a template reads `attributes.<key>` itself.
+  if (mode !== 'availability' && mode !== 'template') {
+    triggerSchema.push({ name: 'attribute', selector: selText() });
+  }
   section(
     'trigger',
     triggerSchema,
@@ -611,6 +747,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       comparison: trig.comparison ?? '>=',
       value: trig.value,
       target: trig.target,
+      template: trig.template,
       for_seconds: trig.for_seconds ?? 0,
       clear_on_recover: trig.clear_on_recover !== false,
       attribute: trig.attribute,
@@ -622,6 +759,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       if ('comparison' in v) trig.comparison = String(v.comparison ?? '>=');
       if ('value' in v) trig.value = num(v.value);
       if ('target' in v) trig.target = num(v.target);
+      if ('template' in v) trig.template = String(v.template ?? '');
       if ('for_seconds' in v) trig.for_seconds = num(v.for_seconds) ?? 0;
       if ('clear_on_recover' in v) trig.clear_on_recover = v.clear_on_recover !== false;
       if ('attribute' in v) {
@@ -640,20 +778,26 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     },
   );
 
-  // 4. Task template.
-  section(
+  // 4. Task template. The label picker builds each pick from the form's data, so the
+  // data is written back on every change, as the filters above do.
+  const templateData = (): Record<string, unknown> => ({
+    name_template: draft.task_template.name_template,
+    notes_template: draft.task_template.notes_template,
+    labels: draft.task_template.labels ?? [],
+  });
+  const templateForm = section(
     'template',
     [
       { name: 'name_template', required: true, selector: selText() },
       { name: 'notes_template', selector: selText(true) },
+      { name: 'labels', selector: selLabel(true) },
     ],
-    {
-      name_template: draft.task_template.name_template,
-      notes_template: draft.task_template.notes_template,
-    },
+    templateData(),
     (v) => {
       draft.task_template.name_template = String(v.name_template ?? '');
       draft.task_template.notes_template = String(v.notes_template ?? '');
+      draft.task_template.labels = idList(v.labels);
+      templateForm.data = templateData();
     },
   );
 
@@ -674,7 +818,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     // The dialog stays on screen until the panel has re-read the store, and that
     // read waits out the entry reload the save itself can trigger — a second or
     // two. Say so on the button rather than leave it looking dead, and stop a
-    // second click from adding the recipe twice.
+    // second click from adding the companion twice.
     save.setAttribute('disabled', '');
     save.textContent = t('settings.status_saving');
     void saveDeclarative(p, draft);
@@ -699,6 +843,7 @@ async function refreshPreview(
   p: PanelHost,
   draft: DeclarativeCompanion,
   host: HTMLElement,
+  onToggle: (entityId: string) => void,
 ): Promise<void> {
   // A re-render (a mode change) replaces the dialog; the old preview node is gone
   // and the new dialog schedules its own.
@@ -713,22 +858,76 @@ async function refreshPreview(
       p._declarativeCompanions,
       draft.id,
     );
-    host.innerHTML = previewHtml(result, overlap);
+    const trig = (draft.trigger ?? {}) as Trigger;
+    const pendingTemplate =
+      trig.mode === 'template' && !String(trig.template ?? '').trim();
+    host.innerHTML = previewHtml(
+      result,
+      overlap,
+      draft.selection.exclude_entity_ids ?? [],
+      pendingTemplate,
+    );
+    host.querySelectorAll<HTMLElement>('[data-toggle-entity]').forEach((b) =>
+      b.addEventListener('click', () => onToggle(b.dataset.toggleEntity ?? '')),
+    );
   } catch (err) {
     host.innerHTML = `<ha-alert alert-type="error">${escapeHTML(errorMessage(err))}</ha-alert>`;
   }
 }
 
-/** The preview's HTML: the count line, the warnings, and the sample. */
-function previewHtml(
+/** One Exclude or Include button. The label is always there for a screen reader;
+ *  on a phone the CSS hides the text and keeps the icon. */
+function toggleButton(entityId: string, include: boolean): string {
+  const label = t(include ? 'declarative.companions.include' : 'declarative.companions.exclude');
+  const icon = include ? 'mdi:restore' : 'mdi:minus-circle-outline';
+  return `<button type="button" class="hk-decl-toggle ${include ? 'hk-decl-include' : 'hk-decl-exclude'}"
+      data-toggle-entity="${escapeHTML(entityId)}" aria-label="${escapeHTML(label)}">
+      <ha-icon icon="${icon}"></ha-icon><span class="hk-decl-toggle-text">${escapeHTML(label)}</span>
+    </button>`;
+}
+
+/** The entities excluded one by one, each with Include. Empty when there are none. */
+function excludedHtml(excluded: readonly string[]): string {
+  if (!excluded.length) return '';
+  const rows = excluded
+    .map(
+      (id) => `
+        <div class="hk-decl-preview-row hk-decl-excluded-row">
+          <div class="hk-decl-preview-text"><div class="hk-decl-preview-eid">${escapeHTML(id)}</div></div>
+          ${toggleButton(id, true)}
+        </div>`,
+    )
+    .join('');
+  return `
+      <div class="hk-decl-excluded">
+        <div class="hk-decl-excluded-head">${escapeHTML(
+          tn('declarative.companions.excluded_heading', excluded.length),
+        )}</div>
+        ${rows}
+      </div>`;
+}
+
+/** The preview's HTML: the count line, the warnings, the sample, and the entities
+ *  excluded one by one.
+ *
+ * `pendingTemplate` says the draft is on Template mode with an empty box — a form the
+ * user has not filled in yet, not a mistake. The backend sends no verdict for those
+ * rows, so the sample still says what the companion matches while the hint says what is
+ * missing. */
+export function previewHtml(
   result: DeclarativeCompanionPreviewResult,
   overlap: DeclarativeOverlap | null,
+  excluded: readonly string[] = [],
+  pendingTemplate = false,
 ): string {
   if (result.over_cap) {
-    return `<ha-alert alert-type="error">${escapeHTML(t('declarative.companions.preview_over_cap'))}</ha-alert>`;
+    return (
+      `<ha-alert alert-type="error">${escapeHTML(t('declarative.companions.preview_over_cap'))}</ha-alert>` +
+      excludedHtml(excluded)
+    );
   }
   const count = result.count ?? 0;
-  // A `warning`, the same type as the count warning below it. A second recipe over
+  // A `warning`, the same type as the count warning below it. A second companion over
   // the same entities makes a duplicate task for each one. That is a result to
   // prevent, not a fact to read.
   const duplicate = overlap
@@ -745,24 +944,85 @@ function previewHtml(
           t('declarative.companions.preview_many', { count: String(count) }),
         )}</ha-alert>`
       : '';
+  // A template trigger is the one condition a user cannot check by reading it:
+  // `{{ state > 24 }}` against a string state renders false forever and opens
+  // nothing. So the backend renders it per sampled entity and each row says what it
+  // got. The other modes send `null` for every row and draw no chip at all.
+  const verdicts = result.matched.some(
+    (m) => m.trigger_now != null || m.trigger_error != null,
+  );
   const rows = result.matched
     .map(
       (m) => `
         <div class="hk-decl-preview-row">
-          <div class="hk-decl-preview-name">${escapeHTML(m.rendered_name)}</div>
-          <div class="hk-decl-preview-eid">${escapeHTML(m.entity_id)}</div>
+          <div class="hk-decl-preview-text">
+            <div class="hk-decl-preview-name">${escapeHTML(m.rendered_name)}</div>
+            <div class="hk-decl-preview-eid">${escapeHTML(m.entity_id)}</div>
+          </div>
+          ${verdicts ? verdictChip(m) : ''}
+          ${toggleButton(m.entity_id, false)}
         </div>`,
     )
     .join('');
+  // One alert for the whole sample rather than one per row: a broken template is
+  // broken for every entity, and ten copies of the same Jinja error is noise.
+  const failed = result.matched.find((m) => m.trigger_error);
+  const firing = result.matched.filter((m) => m.trigger_now === true).length;
+  // A template that did not render decided nothing, so the header must not report a
+  // count. "Due now: 0" beside a red Jinja error reads as "nothing is due", which is
+  // the one thing the render did not say.
   const summary = escapeHTML(
-    t('declarative.companions.preview_summary', {
-      shown: String(result.matched.length),
-      total: String(count),
-    }),
+    failed
+      ? t('declarative.companions.preview_summary_undecided', {
+          shown: String(result.matched.length),
+          total: String(count),
+        })
+      : verdicts
+        ? t('declarative.companions.preview_summary_due', {
+            shown: String(result.matched.length),
+            total: String(count),
+            due: String(firing),
+          })
+        : t('declarative.companions.preview_summary', {
+            shown: String(result.matched.length),
+            total: String(count),
+          }),
   );
+  const templateError = failed
+    ? `<ha-alert alert-type="error" class="hk-decl-template-error">${escapeHTML(
+        t('declarative.companions.preview_template_error', {
+          error: String(failed.trigger_error),
+        }),
+      )}</ha-alert>`
+    : '';
+  // An empty box is not an error, so this is `info` and it sits where the red alert
+  // would. It cannot collide with one: an empty template renders nothing, so no row
+  // carries a `trigger_error` for the backend to report.
+  const templateHint =
+    pendingTemplate && !failed
+      ? `<ha-alert alert-type="info" class="hk-decl-template-hint">${escapeHTML(
+          t('declarative.companions.preview_template_empty'),
+        )}</ha-alert>`
+      : '';
   return `
       <div class="hk-decl-preview-header">${summary}</div>
+      ${templateError}
+      ${templateHint}
       ${duplicate}
       ${warning}
-      ${rows || `<div class="hk-decl-preview-empty">${escapeHTML(t('declarative.companions.preview_empty'))}</div>`}`;
+      ${rows || `<div class="hk-decl-preview-empty">${escapeHTML(t('declarative.companions.preview_empty'))}</div>`}
+      ${excludedHtml(excluded)}`;
+}
+
+/** The chip that says what a template trigger renders for one sampled entity. */
+export function verdictChip(match: DeclarativeCompanionPreviewMatch): string {
+  // Error first: a row that did not render has no verdict to report, and saying
+  // "Monitored" for it would read as "this is fine".
+  if (match.trigger_error) {
+    return `<span class="hk-decl-chip bad">${escapeHTML(t('declarative.companions.chip_error'))}</span>`;
+  }
+  if (match.trigger_now === true) {
+    return `<span class="hk-decl-chip due">${escapeHTML(t('declarative.companions.chip_due_now'))}</span>`;
+  }
+  return `<span class="hk-decl-chip quiet">${escapeHTML(t('declarative.companions.chip_monitored'))}</span>`;
 }

@@ -1,6 +1,7 @@
 import { test, expect, Locator, Page } from '@playwright/test';
 import { openCardDashboard } from './tests/helpers';
 import { TASK } from './fixture-ids';
+import { PHONE } from './viewports';
 
 /**
  * One-off capture of the Home Keeper dashboard card for the README / PR. Run via:
@@ -25,6 +26,81 @@ async function shotCard(page: Page, card: Locator, path: string): Promise<void> 
   if (!box) throw new Error(`no bounding box for ${path}`);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path, clip: box });
+}
+
+/**
+ * Photograph the top of a card: its header and the first *rows* rows, cut at a row
+ * boundary rather than at an arbitrary pixel.
+ *
+ * The whole card is the right shot when the subject is the list. It is the wrong one
+ * when the subject is a chip on a row: the seeded card runs to ~2700px, so a full-card
+ * shot of it is a strip 8 times taller than it is wide, and the thing it is meant to
+ * show is a detail somewhere down it.
+ */
+async function shotCardTop(
+  page: Page,
+  card: Locator,
+  path: string,
+  rows: number,
+): Promise<void> {
+  // Scroll first, then measure. A bounding box is viewport-relative, so measuring
+  // before the scroll and clipping after it puts the clip somewhere else entirely —
+  // and Playwright rejects a clip that lands outside the image rather than guessing.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const box = await card.locator('ha-card').first().boundingBox();
+  if (!box) throw new Error(`no bounding box for ${path}`);
+  const last = await card.locator('.hk-row').nth(rows - 1).boundingBox();
+  if (!last) throw new Error(`card has fewer than ${rows} rows for ${path}`);
+  // `page.screenshot` photographs the viewport, so the clip has to stay inside it.
+  // At phone width the rows are taller and 3 of them can run past the fold.
+  const view = page.viewportSize();
+  const wanted = last.y + last.height - box.y;
+  const room = (view?.height ?? wanted + box.y) - box.y;
+  await page.screenshot({ path, clip: { ...box, height: Math.min(wanted, room) } });
+}
+
+/**
+ * Photograph a dialog, clipped to the dialog rather than the page. A full-page shot
+ * leaves a ~400px dialog adrift in a 1280x3400 image, which documents nothing.
+ *
+ * `ha-dialog` has no box of its own and its surface lives in its shadow root, so
+ * `closest()` from the slotted body cannot reach it. Measure what we do own instead:
+ * the union of the dialog's own slotted children — the heading, the body and the
+ * footer — which is the surface, less its padding. `PAD` puts that padding and a
+ * little of the scrim back.
+ */
+async function shotDialog(page: Page, dialog: Locator, path: string): Promise<void> {
+  const PAD = 22;
+  const box = await dialog.evaluate((el) => {
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const child of Array.from(el.children)) {
+      const r = child.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      x0 = Math.min(x0, r.x);
+      y0 = Math.min(y0, r.y);
+      x1 = Math.max(x1, r.x + r.width);
+      y1 = Math.max(y1, r.y + r.height);
+    }
+    return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+  });
+  if (!Number.isFinite(box.width) || !Number.isFinite(box.height)) {
+    throw new Error(`no measurable dialog content for ${path}`);
+  }
+  const view = page.viewportSize() ?? { width: box.width, height: box.height };
+  const x = Math.max(0, box.x - PAD);
+  const y = Math.max(0, box.y - PAD);
+  await page.screenshot({
+    path,
+    clip: {
+      x,
+      y,
+      width: Math.min(view.width - x, box.width + PAD * 2),
+      height: Math.min(view.height - y, box.height + PAD * 2),
+    },
+  });
 }
 
 test('capture Home Keeper card screenshots', async ({ page }) => {
@@ -140,4 +216,49 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   );
   await expect(card.locator('.hk-more')).toBeVisible();
   await shotCard(page, card, `${OUT}/card-more-hidden.png`);
+
+  // 7. Note quick-view (#340): a task with a note shows a Note chip on its row, and
+  // the chip opens the full note in a read-only dialog, rendered as Markdown.
+  // Reset the card back to its plain default first (the step above left it capped
+  // at max_items: 3, which would crop most rows out of the list).
+  //
+  // The fridge-filter task, by id and not `.first()`: its note is the long Markdown
+  // one — a lead line, a numbered procedure and a block quote — which is the note
+  // this feature exists for. The water-filter row sorts first and carries a 1-line
+  // note ("Under-sink RO filter") that documents nothing about Markdown.
+  await card.evaluate((el: ConfigurableCard) =>
+    el.setConfig({ type: 'custom:home-keeper-card', title: 'Home maintenance' }),
+  );
+  const noteChip = card.locator(`.hk-note-chip[data-id="${TASK.fridgeFilter}"]`);
+  await expect(noteChip).toBeVisible();
+  // 3 rows: the anode rod with no note, then the water filter, whose Note chip sits
+  // beside its document chips and shows what the styling is borrowed from.
+  await shotCardTop(page, card, `${OUT}/card-note-chip.png`, 3);
+  await noteChip.click();
+  // Assert on content inside the dialog, not on `ha-dialog` itself — the host
+  // element has no box of its own (see card-defer.spec.ts / card-note.spec.ts).
+  const noteDialog = page.locator('ha-dialog[open]').first();
+  await expect(noteDialog.locator('.hk-note-body')).toBeVisible();
+  await page.waitForTimeout(300);
+  // Clip to the dialog's own surface. A full-page shot puts a ~400px dialog in the
+  // middle of a 1280x3400 page, where it documents nothing.
+  await shotDialog(page, noteDialog, `${OUT}/card-note-dialog.png`);
+  // `ha-button`, not getByRole: `ha-dialog`'s own header close icon also has an
+  // accessible name of "Close" and would otherwise match too (see card-note.spec.ts).
+  await noteDialog.locator('ha-button', { hasText: 'Close' }).click();
+  await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
+
+  // 7b. The phone layout is a different arrangement, not a narrower one — the row
+  // wraps its chips and actions — so the note chip and its dialog get their own
+  // shot at phone width too. Last in the file, since it changes the viewport.
+  await page.setViewportSize(PHONE);
+  const mobileCard = await openCardDashboard(page);
+  const mobileNoteChip = mobileCard.locator(`.hk-note-chip[data-id="${TASK.fridgeFilter}"]`);
+  await expect(mobileNoteChip).toBeVisible();
+  await shotCardTop(page, mobileCard, `${OUT}/card-note-chip-mobile.png`, 3);
+  await mobileNoteChip.click();
+  const mobileNoteDialog = page.locator('ha-dialog[open]').first();
+  await expect(mobileNoteDialog.locator('.hk-note-body')).toBeVisible();
+  await page.waitForTimeout(300);
+  await shotDialog(page, mobileNoteDialog, `${OUT}/card-note-dialog-mobile.png`);
 });

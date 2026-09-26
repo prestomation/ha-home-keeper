@@ -180,6 +180,26 @@ count is derived from, and a larger target could lose them.
 
 ![The appliance page Parts tab, the coating showing 17 of 25 wears above a progress meter](../../images/63-panel-counted-part-row.png)
 
+##### Scan a tag to complete a wear item's task
+
+A task that Home Keeper creates from a wear item has no **Edit** button. Set its tag
+in the part editor. To complete that task with an [NFC or RFID tag](../tasks/nfc-tags.md),
+open the wear item in the part editor and select the tag in the **NFC/RFID tag** field,
+or type the tag ID.
+
+- For a wear item with an interval in months, the tag completes the maintenance task.
+  A scan marks the part replaced.
+- For a counted wear item, the tag completes the use task. A scan records 1 use. Put
+  the tag on the item that you use.
+
+The part sets the tag of its tasks. The `home_keeper.update_task` action cannot change
+the tag of a task that a wear item creates.
+
+Turn on **Require a tag scan to complete** to block **Done** on that task until the
+tag is scanned. The **What this creates** box says what a scan does before you save.
+
+![The part editor for a wear item, with the NFC/RFID tag picker and the require-scan toggle above the What this creates box](../../images/70-panel-part-tag-field.png)
+
 ##### Auto-create a buy task when a part runs low
 
 Turn on **Auto-create buy task** on a stock-tracked part. The option is shown when
@@ -206,12 +226,27 @@ Select a to-do list in **Settings → Shopping list**. Every auto-created
 **"Buy {part}"** task is then added to that list as an item. The Home Assistant
 shopping list and a `local_todo` list are supported.
 
-The line shows the amount to buy. A part that measures its stock in a
-[unit](#stock-you-measure-rather-than-count) shows the amount on the line, such as
-"Buy fabric softener (500 ml)". A part with a **Restock quantity** of more than 1
-shows "Buy air filter (×2)". A part that restocks 1 whole spare is not changed. The
-amount is shown only on the shopping-list line. In the panel and the calendar and the
-notifications, the task keeps its own name.
+**Line text on the list** sets the title of each line:
+
+- **With verb** (the default) uses the name of the buy task, such as "Buy fabric
+  softener".
+- **Product only** uses the name of the part, such as "Fabric softener". Use this on
+  a list that holds only products, such as Bring!.
+
+The setting changes only the line on the list. In the panel and the calendar and the
+notifications, the task keeps its own name. A preview under the setting shows your
+open buy tasks as the list will show them.
+
+The line also shows the amount to buy. A part that measures its stock in a
+[unit](#stock-you-measure-rather-than-count) shows an amount such as "500 ml". A part
+with a **Restock quantity** of more than 1 shows "×2". A part that restocks 1 whole
+spare shows no amount. On a list with item descriptions, the amount is in the
+description under the title. On other lists, the amount is after the title, such as
+"Fabric softener (500 ml)". The amount uses the decimal mark of the Home Assistant
+language, such as "1,5 kg" in German.
+
+A buy task follows a rename of its part and a change of the Home Assistant language.
+If you rename a buy task yourself, Home Keeper keeps your name.
 
 The sync works in both directions:
 
@@ -222,10 +257,14 @@ The sync works in both directions:
   and switching Auto-create buy task off both count.
 
 Home Keeper manages the items it added and an open item with the same name that
-is already on the list. A completed item is not modified. Clear the setting to turn
-the feature off.
+is already on the list. A completed item is not modified. Home Keeper keeps the name
+that you give an item on the list and still syncs the item. This works on a list
+that gives each item an ID, such as the Home Assistant shopping list. Clear the
+setting to turn the feature off.
 
-![The Settings tab's Shopping list card, with a to-do list picked](../../images/45-panel-settings-shopping.png)
+![The Settings tab's Shopping list card, with a to-do list picked, Product only selected, and the preview](../../images/45-panel-settings-shopping.png)
+
+![The Shopping list card on a phone](../../images/45e-panel-mobile-settings-shopping.png)
 
 ![A buy reminder on the household shopping list card](../../images/46-shopping-list-buy-reminder.png)
 

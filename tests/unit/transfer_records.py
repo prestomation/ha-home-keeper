@@ -80,6 +80,10 @@ def _maximal_asset() -> dict:
                 "action": "renew",
                 "use_noun": "wear",
                 "use_task_name": "Wear rain jacket",
+                # The NFC/RFID binding of the task this part generates, so a tag set
+                # in the part editor survives a migration as its part does.
+                "tag_id": "tag_jacket",
+                "require_tag_scan": True,
                 # A count that came in with an import. The 2 derived tasks are not
                 # portable, so this is what carries the cycle across a migration.
                 "carried_uses": 17,

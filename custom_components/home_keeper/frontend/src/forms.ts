@@ -1,5 +1,9 @@
+import { companionKeys } from './card-filter';
 import { t, tn } from './i18n';
 import {
+  COMPANION_KEY_DECLARATIVE_PREFIX,
+  COMPANION_KEY_PROBLEM_SENSORS,
+  HK_DOMAIN,
   formatDate,
   formatQuantity,
   normalizeIcon,
@@ -9,6 +13,7 @@ import {
 import type {
   Asset,
   Companion,
+  DeclarativeCompanion,
   Hass,
   MetadataEntry,
   Notification,
@@ -104,8 +109,9 @@ export const selColorRgb = (): Selector => ({ color_rgb: {} });
 export const selSelect = (
   options: { value: string; label: string }[],
   multiple = false,
+  mode: 'dropdown' | 'list' = 'dropdown',
 ): Selector => ({
-  select: { mode: 'dropdown', options, sort: false, multiple },
+  select: { mode, options, sort: false, multiple },
 });
 /**
  * A dropdown that also accepts a value the user types. Used for the NFC/RFID tag
@@ -493,7 +499,9 @@ export function taskSchemaSections(
   // loaded for editing infers it from whether it actually carries a backstop, so an
   // existing "every 300 h or 6 months" task opens with the switch already on.
   const backstopOn = backstopEnabled(task);
-  const sensorFields: FormField[] = isSensor
+  // A locked binding is its owner's: a declarative companion rewrites it from its own
+  // trigger on every pass, so the form offers none of its parts.
+  const sensorFields: FormField[] = isSensor && !locked.has('sensor')
     ? [
         { name: 'sensor_entity_id', required: true, selector: selEntity({}) },
         {
@@ -503,6 +511,10 @@ export function taskSchemaSections(
             { value: 'threshold', label: t('opt.sensor_mode.threshold') },
             { value: 'state', label: t('opt.sensor_mode.state') },
             { value: 'availability', label: t('opt.sensor_mode.availability') },
+            // Last, like the declarative companion dialog's own list: the four above
+            // each answer one plain question, and a user who wants one of those must
+            // not have to read past Jinja to find it.
+            { value: 'template', label: t('opt.sensor_mode.template') },
           ]),
         },
         // Availability watches for the entity to go away, so it has no condition of
@@ -512,6 +524,20 @@ export function taskSchemaSections(
         // keys onto the binding and the backend rejects them.
         ...(sensorMode === 'availability'
           ? [
+              { name: 'sensor_for', selector: selNumber(0) } as FormField,
+              { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
+            ]
+          : sensorMode === 'template'
+          ? [
+              // Multiline: a trigger template is one expression, but it runs long and
+              // a single-line box hides its own tail. No attribute box — the backend
+              // rejects one in this mode, because a template reads
+              // `attributes.<key>` itself.
+              {
+                name: 'sensor_template',
+                required: true,
+                selector: selText(true),
+              } as FormField,
               { name: 'sensor_for', selector: selNumber(0) } as FormField,
               { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
             ]
@@ -595,7 +621,15 @@ export function taskSchemaSections(
                   ]
                 : []),
             ]),
-        { name: 'sensor_attribute', selector: selText() },
+        // Every mode but `template` reads an optional attribute in place of the
+        // state. `normalize_sensor` *rejects* one in template mode, because a
+        // template reads `attributes.<key>` itself and a second, invisible hop would
+        // change what `{{ state }}` means inside it. Offering the box there is the
+        // #230 bug in a new place: the save comes back "sensor.attribute is not valid
+        // for a template-mode sensor task".
+        ...(sensorMode === 'template'
+          ? []
+          : [{ name: 'sensor_attribute', selector: selText() } as FormField]),
       ]
     : [];
 
@@ -1036,7 +1070,13 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       entity_id: String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? ''),
       mode,
     };
-    const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
+    // Not in template mode: the form offers no box there, and the backend rejects
+    // the key rather than ignoring it, so an attribute left in edit state from
+    // another mode would fail the save.
+    const attribute =
+      mode === 'template'
+        ? ''
+        : String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
     if (attribute) sensor.attribute = attribute;
     if (mode === 'usage') {
       sensor.target = Number(sd.sensor_target ?? task.sensor?.target) || 0;
@@ -1065,14 +1105,17 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
         ) || 'any') as SensorCombinator;
       }
     } else {
-      // The edge-driven modes (threshold / state / availability) share the hold and
-      // the clear-on-recover flag; only the condition itself differs. Availability
-      // has no condition at all — the entity going away *is* the condition — so it
-      // adds nothing here. It must still be matched explicitly: falling through to
-      // the threshold leg stamped `comparison` and `value` onto the binding, which
-      // the backend rejects as "not valid for an availability-mode sensor task".
+      // The edge-driven modes (threshold / state / availability / template) share the
+      // hold and the clear-on-recover flag; only the condition itself differs.
+      // Availability has no condition at all — the entity going away *is* the
+      // condition — so it adds nothing here. Each must be matched explicitly: falling
+      // through to the threshold leg stamped `comparison` and `value` onto the
+      // binding, which the backend rejects as "not valid for an availability-mode
+      // sensor task".
       if (mode === 'state') {
         sensor.state = String(sd.sensor_state ?? task.sensor?.state ?? '').trim();
+      } else if (mode === 'template') {
+        sensor.template = String(sd.sensor_template ?? task.sensor?.template ?? '').trim();
       } else if (mode !== 'availability') {
         sensor.comparison = (sd.sensor_comparison as SensorComparison) ||
           task.sensor?.comparison ||
@@ -1175,6 +1218,14 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   if (!task.id) {
     const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
     if (lastCompleted) payload.last_completed = lastCompleted;
+  }
+  // The fields the managing integration locks are left out. The form never showed
+  // them and `merge_update` drops them anyway, but sending them still put values the
+  // person never touched through the update's own checks: a declarative companion's
+  // template binding is admin-gated, and it failed that check on a save that only
+  // changed a label.
+  for (const field of task.managed_by?.locked_fields ?? []) {
+    delete (payload as Record<string, unknown>)[field];
   }
   return payload;
 }
@@ -1339,6 +1390,17 @@ export function sensorHintText(
     );
   }
 
+  // A template says its own condition, so the hint says nothing about what is in the
+  // box — only what a true render does, and the hold that gates it.
+  if (mode === 'template') {
+    if (!String(sd.sensor_template ?? task.sensor?.template ?? '').trim()) return '';
+    return withRecovery(
+      forSeconds > 0
+        ? t('hint.sensor.templateFor', { seconds: forSeconds })
+        : t('hint.sensor.template'),
+    );
+  }
+
   if (mode === 'threshold') {
     const rawValue = sd.sensor_value ?? task.sensor?.value;
     if (rawValue == null || rawValue === '' || Number.isNaN(Number(rawValue))) return '';
@@ -1483,14 +1545,30 @@ export function generalSchema(): FormField[] {
 
 /**
  * The `ha-form` schema for the Settings tab's **Shopping list** card — the one
- * to-do list auto-buy reminders are mirrored onto (empty turns the mirror off).
+ * to-do list auto-buy reminders are mirrored onto (empty turns the mirror off), and,
+ * once *target* names one, how a reminder's line reads on it.
  * Home Keeper's own to-do lists are excluded from the picker: mirroring a list
  * onto itself is a loop, and ours accepts no new items anyway.
  */
-export function shoppingSchema(exclude: string[] = []): FormField[] {
-  return [
+export function shoppingSchema(exclude: string[] = [], target = ''): FormField[] {
+  const fields: FormField[] = [
     { name: 'shopping_list_entity', selector: selEntity({ domain: 'todo' }, false, exclude) },
   ];
+  // How a line reads on the list only matters once there is a list to read it on.
+  if (target) {
+    fields.push({
+      name: 'shopping_line_style',
+      selector: selSelect(
+        [
+          { value: 'with_verb', label: t('settings.shopping_line_style_with_verb') },
+          { value: 'product_only', label: t('settings.shopping_line_style_product_only') },
+        ],
+        false,
+        'list',
+      ),
+    });
+  }
+  return fields;
 }
 
 // ── appliance form schemas ──────────────────────────────────────────────────
@@ -1698,7 +1776,11 @@ export function partBaseSchema(locked = false): FormField[] {
  * once auto-buy is on), and the replacement schedule for a wear item. Empty for a
  * consumable that tracks nothing.
  */
-export function partDependentSchema(part: Part, locked = false): FormField[] {
+export function partDependentSchema(
+  part: Part,
+  tags: { value: string; label: string }[] = [],
+  locked = false,
+): FormField[] {
   const fields: FormField[] = [];
   // How much one completion draws down. Only meaningful once the part is tracking
   // stock at all — with nothing to draw from, the field would promise nothing.
@@ -1762,6 +1844,13 @@ export function partDependentSchema(part: Part, locked = false): FormField[] {
     // Let the user record when the part was last replaced so the derived
     // maintenance task's clock starts from the real date instead of "now".
     fields.push({ name: 'last_replaced', selector: selDate() });
+    // The NFC/RFID binding of the task this part creates. The task form offers the
+    // same pair, but a derived task has no Edit — its part is its editor — so the
+    // sticker is bound here. Offered with an empty registry too: `custom_value` lets
+    // the id be typed straight off the sticker. Named apart from the task form's
+    // fields because the helper text has to say which task a scan reaches.
+    fields.push({ name: 'part_tag_id', selector: selSelectCustom(tags) });
+    fields.push({ name: 'part_require_tag_scan', selector: selBool() });
   }
   return fields;
 }
@@ -1788,8 +1877,12 @@ export function partDependentKey(part: Part): string {
 
 /** Schema for one part, as one flat list: the fixed fields, then the ones its own
  *  values reveal. The concatenation of the two builders the editor uses. */
-export function partSchema(part: Part, locked = false): FormField[] {
-  return [...partBaseSchema(locked), ...partDependentSchema(part, locked)];
+export function partSchema(
+  part: Part,
+  tags: { value: string; label: string }[] = [],
+  locked = false,
+): FormField[] {
+  return [...partBaseSchema(locked), ...partDependentSchema(part, tags, locked)];
 }
 
 /** A part's fields as the flat form data both of its forms are seeded from (each
@@ -1820,6 +1913,8 @@ export function partFormData(part: Part): Record<string, unknown> {
     also_every_interval: part.replace_also_every?.interval ?? 1,
     also_every_unit: part.replace_also_every?.unit ?? 'months',
     last_replaced: part.last_replaced ?? undefined,
+    part_tag_id: part.tag_id ?? undefined,
+    part_require_tag_scan: part.require_tag_scan ?? false,
   };
 }
 
@@ -1891,6 +1986,11 @@ export function mergePartForm(prev: Part, value: Record<string, unknown>): Part 
   // The last-replaced date is only editable for a wear item; a consumable keeps
   // whatever it had (the field is not shown, so nothing can have changed it).
   if (has('last_replaced')) next.last_replaced = value.last_replaced ? str(value.last_replaced) : null;
+  if (has('part_tag_id')) next.tag_id = str(value.part_tag_id).trim() || null;
+  if (has('part_require_tag_scan')) next.require_tag_scan = Boolean(value.part_require_tag_scan);
+  // A scan requirement with no tag to scan is a task nothing can complete, and the
+  // backend refuses the pair — so clearing the tag clears the flag, as the task form does.
+  if (!next.tag_id) next.require_tag_scan = false;
   if (next.stock == null) next.consume_quantity = null;
   if (next.reorder_at == null) next.create_buy_task = false;
   if (!next.create_buy_task) next.restock_quantity = null;
@@ -1898,6 +1998,11 @@ export function mergePartForm(prev: Part, value: Record<string, unknown>): Part 
     next.replace_interval = null;
     next.replace_unit = null;
     if (next.action) next.action = 'replace';
+    // A consumable makes no task for a tag to complete, and its form hides the tag
+    // fields. Clear them with the schedule, so the part stores no binding the user
+    // cannot see.
+    next.tag_id = null;
+    next.require_tag_scan = false;
   }
   // A wear item with no interval yet **keeps** its chosen unit. It used to be
   // cleared here, which was invisible while every unit measured time — the field
@@ -2029,6 +2134,16 @@ export function partFirstDue(part: Part): Date | null {
 }
 
 /**
+ * The preview's tag facts, under whichever task the part's tag reaches: what a scan
+ * does (*scanKey*), then, when the part demands one, that Done waits for it.
+ */
+function pushTagLines(lines: PartPreviewLine[], part: Part, scanKey: string): void {
+  if (!part.tag_id) return;
+  lines.push({ text: t(scanKey), kind: 'fact' });
+  if (part.require_tag_scan) lines.push({ text: t('part.preview.tagRequired'), kind: 'fact' });
+}
+
+/**
  * What a wear item will create, in plain language, for the box at the foot of the part
  * editor.
  *
@@ -2064,6 +2179,9 @@ export function partPreview(part: Part, assetName: string): PartPreview {
     // stored in the plural and no panel shipping 16 languages can singularise
     // arbitrary user text. See `useCountLabel`.
     lines.push({ text: t('part.preview.countsOne'), kind: 'fact' });
+    // The tag goes to the use task (`assets.part_tag_role`), so it is said here,
+    // under that task, and not under the maintenance task below.
+    pushTagLines(lines, part, 'part.preview.tagCountsUse');
   }
 
   lines.push({ text: partTaskName(part, assetName), kind: 'task' });
@@ -2107,6 +2225,7 @@ export function partPreview(part: Part, assetName: string): PartPreview {
     if (first) {
       lines.push({ text: t('part.preview.firstDue', { date: formatDate(first) }), kind: 'fact' });
     }
+    pushTagLines(lines, part, 'part.preview.tagCompletes');
   }
 
   // Stock is a second, quieter block: true of the part, but not about either task's
@@ -2221,8 +2340,8 @@ export interface CompanionOption {
 }
 
 /**
- * The integrations a profile can filter by: every **connected** companion, plus every
- * integration that already owns a task (`managed_by.integration`).
+ * The sources a profile can filter by: every **connected** companion, plus every
+ * source that already owns a task, plus every declarative companion.
  *
  * The union matters in both directions. A companion can own tasks without ever
  * registering — `managed_by` is the ownership contract, registering is only how a
@@ -2232,21 +2351,58 @@ export interface CompanionOption {
  * picker while a saved profile still names it. A domain a task claims but no companion
  * registers has no display name to borrow, so it labels itself.
  *
+ * Home Keeper's own sources all share its domain, so a task's `managed_by` names only
+ * one of them ("Device Pulse"). The domain entry takes a fixed label instead, and each
+ * source gets its own entry under the narrower key `card-filter.companionKeys` reads:
+ * one per declarative companion, listed even before it has made a task, and one for
+ * the synced problem sensors once one exists.
+ *
+ * *selected* is what the profile being edited already names. A value no entry covers
+ * still gets one, so a declarative companion deleted since the profile was saved reads
+ * as deleted rather than as a raw key, and can be removed from the list.
+ *
  * Suggested-but-not-installed companions are deliberately absent: they own no tasks, so
  * filtering by one selects nothing.
  */
-export function companionOptions(companions: Companion[], tasks: Task[]): CompanionOption[] {
+export function companionOptions(
+  companions: Companion[],
+  tasks: Task[],
+  declaratives: DeclarativeCompanion[] = [],
+  selected: string[] = [],
+): CompanionOption[] {
   const names = new Map<string, string>();
   for (const c of companions) {
     if (c.status === 'connected') names.set(c.domain, c.name);
+  }
+  for (const spec of declaratives) {
+    names.set(
+      `${COMPANION_KEY_DECLARATIVE_PREFIX}${spec.id}`,
+      t('companions.option.declarative', { name: spec.name }),
+    );
   }
   for (const task of tasks) {
     const owner = task.managed_by;
     const domain = owner?.integration;
     if (!domain) continue;
+    if (domain === HK_DOMAIN) {
+      names.set(HK_DOMAIN, t('companions.option.home_keeper'));
+      if (companionKeys(task).includes(COMPANION_KEY_PROBLEM_SENSORS)) {
+        names.set(COMPANION_KEY_PROBLEM_SENSORS, t('companions.option.problem_sensors'));
+      }
+      continue;
+    }
     // A registered companion's own name wins: it is the one the user sees under
     // Settings → Companions, and `display_name` is free text the owner sets per task.
     if (!names.has(domain)) names.set(domain, owner.display_name || domain);
+  }
+  for (const value of selected) {
+    if (names.has(value)) continue;
+    names.set(
+      value,
+      value.startsWith(COMPANION_KEY_DECLARATIVE_PREFIX)
+        ? t('companions.option.declarative_deleted')
+        : value,
+    );
   }
   return [...names.entries()]
     .map(([value, label]) => ({ value, label }))

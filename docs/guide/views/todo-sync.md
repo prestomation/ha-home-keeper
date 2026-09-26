@@ -37,13 +37,22 @@ Synchronization works in both directions:
 
 Items include the task's due date and notes if the list supports these fields.
 Home Keeper modifies only the items it added and does not modify an item that is
-already complete.
+already complete. Home Keeper keeps the name that you give an item on the list and
+still syncs the other fields of that item. This works on a list that gives each item
+an ID.
 
 Items that a user adds to the list are not imported into Home Keeper. Only the
 completion state is read back from the list.
 
 Tasks that require an NFC or RFID tag scan are synchronized, but a completion on the
 to-do list does not complete the task. The item is re-added on the next sync.
+
+Tasks that clear only when a sensor recovers are synchronized the same way. These are
+[synced problem sensors](../tasks/triggered-tasks.md#sync-problem-binary-sensors-as-tasks)
+and tasks from a [declarative companion](./settings.md#declarative-companions-config-driven-no-separate-integration)
+that clears on recovery. The item shows what to fix. A completion on the to-do list
+does not complete the task, and the item is re-added on the next sync. When the
+sensor recovers, Home Keeper clears the task and the item is no longer open.
 
 #### Options
 

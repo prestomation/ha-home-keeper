@@ -48,10 +48,10 @@ template:
         device_class: moisture
         state: "{{ is_state('input_boolean.hk_demo_flag', 'on') }}"
   # A low-battery flag, kept "on", so a declarative companion that selects
-  # device_class battery has one entity to match. The hand-built battery recipe in
+  # device_class battery has one entity to match. The hand-built battery companion in
   # tests/integration/test_declarative_companion_sync.py and the
   # declarative-companions e2e spec both read "1 match" off this sensor. It is
-  # always "on", so a recipe that watches it arms on a condition that is already
+  # always "on", so a companion that watches it arms on a condition that is already
   # true. Not device_class problem, so the problem-sensor sync leaves it alone.
   - binary_sensor:
       - name: "HK demo remote battery"

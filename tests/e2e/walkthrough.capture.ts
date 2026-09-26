@@ -36,6 +36,7 @@
 import { test, expect, Browser, Locator, Page } from '@playwright/test';
 import { resolve } from 'path';
 import {
+  callService,
   gotoTab,
   openPanel,
   openDashboard,
@@ -70,48 +71,53 @@ type Tour = {
  * enabling auto-buy on a part *already* at its reorder point crosses no threshold,
  * so the stock is nudged up and back to make the crossing actually happen — the
  * part ends on its seeded quantity either way.
+ *
+ * Driven from Node over REST rather than through `page.evaluate`, and that is not a
+ * style choice. `update_asset` with `create_buy_task` materializes a buy task, a buy
+ * task owns per-task entities, and a change to the entity set reloads the config entry
+ * — which re-registers the sidebar panel and makes Home Assistant's frontend navigate.
+ * Run inside the browser, the seed therefore raced a navigation it had itself caused,
+ * and the two `adjust_part_stock` calls after it lived in an execution context that
+ * could be destroyed underneath them:
+ *
+ *     Error: page.evaluate: Execution context was destroyed,
+ *     most likely because of a navigation.
+ *
+ * The tour then walked on with no buy reminder and died at the Shopping section three
+ * beats later, which is where it read as a failure. Nothing here needs the browser —
+ * these are plain service calls — so taking them out of the page removes the race
+ * rather than waiting it out.
  */
-async function seedBuyReminder(page: Page): Promise<void> {
-  await page.evaluate(
-    async ({ ASSET: assetIds, PART: partIds }) => {
-      const hass = (document.querySelector('home-assistant') as unknown as {
-        hass: {
-          callWS: (msg: Record<string, unknown>) => Promise<Record<string, unknown>>;
-          callService: (d: string, s: string, data: Record<string, unknown>) => Promise<unknown>;
-        };
-      }).hass;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { assets } = (await hass.callWS({ type: 'home_keeper/get_assets' })) as any;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const heater = assets.find((a: any) => a.id === assetIds.waterHeater);
-      const WRITABLE = [
-        'id', 'name', 'part_number', 'type', 'vendor', 'cost', 'url', 'notes',
-        'replace_interval', 'replace_unit', 'last_replaced', 'stock', 'reorder_at',
-        'stock_unit', 'consume_quantity', 'create_buy_task', 'restock_quantity',
-      ];
-      await hass.callService('home_keeper', 'update_asset', {
-        asset_id: heater.id,
-        parts: heater.parts.map((p: Record<string, unknown>) => {
-          const out: Record<string, unknown> = {};
-          for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
-          if (p.id === partIds.anode) {
-            out.create_buy_task = true;
-            out.restock_quantity = 4;
-          }
-          return out;
-        }),
-      });
-      for (const delta of [1, -1]) {
-        await hass.callService('home_keeper', 'adjust_part_stock', {
-          asset_id: heater.id,
-          part_id: partIds.anode,
-          delta,
-        });
-        await new Promise((r) => setTimeout(r, 1000));
+async function seedBuyReminder(): Promise<void> {
+  const { assets } = await callService('home_keeper', 'list_assets', {}, true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const heater = assets.find((a: any) => a.id === ASSET.waterHeater);
+  if (!heater) throw new Error('the seeded water heater is missing from the store');
+  const WRITABLE = [
+    'id', 'name', 'part_number', 'type', 'vendor', 'cost', 'url', 'notes',
+    'replace_interval', 'replace_unit', 'last_replaced', 'stock', 'reorder_at',
+    'stock_unit', 'consume_quantity', 'create_buy_task', 'restock_quantity',
+  ];
+  await callService('home_keeper', 'update_asset', {
+    asset_id: heater.id,
+    parts: heater.parts.map((p: Record<string, unknown>) => {
+      const out: Record<string, unknown> = {};
+      for (const key of WRITABLE) if (p[key] !== undefined && p[key] !== null) out[key] = p[key];
+      if (p.id === PART.anode) {
+        out.create_buy_task = true;
+        out.restock_quantity = 4;
       }
-    },
-    { ASSET, PART },
-  );
+      return out;
+    }),
+  });
+  for (const delta of [1, -1]) {
+    await callService('home_keeper', 'adjust_part_stock', {
+      asset_id: heater.id,
+      part_id: PART.anode,
+      delta,
+    });
+    await new Promise((r) => setTimeout(r, 1000));
+  }
 }
 
 /**
@@ -163,7 +169,11 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // 1b. Put a part below its reorder point so there is a buy reminder to show. The
   //     seed has none, and a Shopping pill filtering to "No tasks match this filter"
   //     is a beat that shows nothing.
-  await seedBuyReminder(page);
+  await seedBuyReminder();
+  // The seed reloads the config entry (a buy task owns entities), which re-registers
+  // the panel and bounces the frontend. Land on the panel again afterwards rather than
+  // filming whatever the bounce chose.
+  await openPanel(page);
   await gotoTab(page, 'tasks');
 
   // 1c. The Shopping section — a buy reminder has no due date of its own, so it
@@ -535,8 +545,19 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     .first()
     .click();
   await page.waitForTimeout(BEAT * 2);
-  await panel.locator('#hk-task-form ha-select').nth(1).click();
+  // Scroll the mode control into view before opening it. The drawer scrolls its own
+  // content, so the select can sit below the fold by this point, and the menu then
+  // opens against an edge rather than under the control — the click lands on the
+  // surface instead of the item and the mode never changes. It grew a fifth option
+  // (Template), which is what made an already-tight menu tip over.
+  const modeSelect = panel.locator('#hk-task-form ha-select').nth(1);
+  await modeSelect.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT);
+  await modeSelect.click();
   await page.getByRole('menuitem', { name: /^State$/ }).first().click();
+  // Asserted on the control itself first, so a menu click that misses says so here
+  // rather than as a summary that never rewrites.
+  await expect(modeSelect).toContainText('State');
   // The summary rewrites itself again, now describing a transition rather than a
   // meter — the same strip, tracking a completely different kind of rule.
   await expect(panel.locator('#hk-form-summary-value')).toHaveText('When it changes to on');
@@ -815,18 +836,18 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 2);
 
-  // 6a. Declarative companions — the same card's last section: recipes Home Keeper
+  // 6a. Declarative companions — the same card's last section: specs Home Keeper
   //     runs itself, one managed task per matching entity, no glue integration.
-  //     "Add from preset" opens the bundled recipes; picking Firmware update
+  //     "Add from preset" opens the bundled presets; picking Firmware update
   //     available seeds the form, and the preview under it counts the entities the
-  //     recipe would turn into tasks. Cancelled rather than saved, so the tour leaves
+  //     companion would turn into tasks. Cancelled rather than saved, so the tour leaves
   //     the seeded data untouched.
   await panel.locator('.hk-companion-group-decl').scrollIntoViewIfNeeded();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT);
   await panel.locator('.hk-decl-preset').click();
   const presetPicker = panel.locator('ha-dialog.hk-decl-picker');
-  await expect(presetPicker.locator('.hk-decl-preset-card')).toHaveCount(2);
+  await expect(presetPicker.locator('.hk-decl-preset-card')).toHaveCount(3);
   await page.waitForTimeout(BEAT * 2);
   await presetPicker
     .locator('.hk-decl-preset-card', { hasText: 'Firmware update available' })
@@ -834,11 +855,50 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   const declForm = panel.locator('ha-dialog.hk-decl-dialog');
   await expect(declForm.locator('.hk-decl-preview-header')).toBeVisible();
   await page.waitForTimeout(BEAT * 3);
+
+  // 6b. The template trigger, in the dialog already open. The other four modes each
+  //     ask one plain question — one string, one number — and none can do arithmetic
+  //     on a timestamp. Switching the mode swaps the condition box for a Jinja one,
+  //     and the preview then says what the template renders for each matched entity:
+  //     a chip per row, because a template is the one condition a user cannot check
+  //     by reading it. The selection is still the seeded firmware entity, so the
+  //     count stays the 1 the tour has just shown.
+  const declTrigger = declForm.locator('[data-decl-section="trigger"]');
+  await declTrigger.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT);
+  await declTrigger.locator('ha-select').first().click();
+  await page.getByRole('menuitem', { name: 'Template' }).first().click();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+  const declTemplate = declForm.locator('[data-decl-section="trigger"] textarea').first();
+  await declTemplate.fill("{{ state == 'on' }}");
+  await declTemplate.blur();
+  await expect(declForm.locator('.hk-decl-chip.due')).toHaveCount(1, { timeout: 20_000 });
+  await declForm.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 3);
+
+  // More filters opens the other filters and the Exclusions block (#373), and
+  // Exclude on a preview row leaves that entity out of the companion.
+  await declForm.locator('.hk-decl-more').click();
+  await declForm.locator('[data-decl-section="exclusions"]').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+  await declForm.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
+  await declForm.locator('.hk-decl-exclude').first().click();
+  await expect(declForm.locator('.hk-decl-excluded-head')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+  // Task labels at the foot of the Task template section: every task the companion
+  // makes gets them, so a Profile can select that companion's tasks (#378).
+  const declTemplateSection = declForm.locator('[data-decl-section="template"]');
+  await declTemplateSection.scrollIntoViewIfNeeded();
+  await expect(declTemplateSection).toContainText('Task labels');
+  await page.waitForTimeout(BEAT * 2);
   await declForm.locator('.hk-decl-cancel').click();
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
-  // 6b. Settings → Profiles — a saved filter, and inside it the to-do list the
+  // 6c. Settings → Profiles — a saved filter, and inside it the to-do list the
   //     household already checks. A sync *is* a profile: the same filter that
   //     chooses the chores also says where they go, so the tour opens the profile
   //     and then its **Sync to a to-do list** group.
@@ -1022,6 +1082,23 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(page.locator('ha-dialog[open] .hk-snooze-hint')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
+  // 8b. The note chip (#340). A long note used to make a row too tall for a dashboard,
+  //     so the note now sits behind a tinted chip that reads like the document links
+  //     beside it. Hold on the open dialog long enough to read the note, then Escape
+  //     out, so the closing shot still frames the cards.
+  //     The fridge-filter task by id, not `.first()`: its note is the long Markdown one
+  //     this feature exists for. The water-filter row sorts first and carries a 1-line
+  //     note, which shows the dialog but argues nothing for it.
+  const noteChip = hkCard.locator(`.hk-note-chip[data-id="${TASK.fridgeFilter}"]`);
+  await expect(noteChip).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  await noteChip.click();
+  await expect(page.locator('ha-dialog[open] .hk-note-body').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('ha-dialog[open] .hk-note-body')).toHaveCount(0);
+  await page.waitForTimeout(BEAT);
+
   const familyCard = page
     .locator('hui-todo-list-card, todo-list-card')
     .filter({ hasText: 'Family chores' })
@@ -1052,6 +1129,18 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
  * gif in the same PR comment, not a second full walkthrough.
  */
 async function phoneTour(page: Page, panel: Locator): Promise<void> {
+  // 0. Point the buy-reminder mirror at the household shopping list, so step 6 can show
+  //    the line style and its preview. Set before the tour proper, and the panel is
+  //    opened again so it reads the new options.
+  await openPanel(page);
+  await page.evaluate(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    await hass?.callService('home_keeper', 'set_options', {
+      shopping_list_entity: 'todo.shopping_list',
+    });
+  });
+
   // 1. Land on the task list. The tabs are along the bottom of the screen and Add
   //    floats above them.
   await openPanel(page);
@@ -1136,6 +1225,21 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('#settings-back').click();
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
+
+  //    The Shopping list section: "Product only" drops the verb from each line, and
+  //    the preview under the choice shows the list as it will read (#369).
+  await panel.locator('.hk-index-row[data-section="shopping"]').click();
+  const shopping = panel.locator('#hk-settings-shopping');
+  await expect(shopping.locator('.hk-shopping-preview')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  await shopping.getByText('Product only', { exact: true }).click();
+  await expect(shopping.locator('.hk-shopping-preview-title').first()).not.toContainText(
+    'Buy',
+  );
+  await page.waitForTimeout(BEAT * 3);
+  await panel.locator('#settings-back').click();
+  await expect(panel.locator('.hk-index-row').first()).toBeVisible();
+  await page.waitForTimeout(BEAT);
 
   //    Then Import and export: a document pasted in, and the preview that says what
   //    importing it would change before anything is written.

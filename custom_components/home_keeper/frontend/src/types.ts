@@ -35,8 +35,10 @@ export type Freq = 'DAILY' | 'WEEKLY' | 'MONTHLY';
  *  makes a binary sensor usable (`on`/`off` has no numeric reading). Not binary-only:
  *  any state-y entity works, e.g. `vacuum.x === 'docked'`. `availability` reads no
  *  value at all — the entity reporting `unavailable`/`unknown`, or leaving the state
- *  machine, is itself the condition. */
-export type SensorMode = 'usage' | 'threshold' | 'state' | 'availability';
+ *  machine, is itself the condition. `template` renders a Jinja template against the
+ *  bound entity and holds while it is true — the mode for a condition the other four
+ *  cannot say, such as "this entity has not reported for 24 hours". */
+export type SensorMode = 'usage' | 'threshold' | 'state' | 'availability' | 'template';
 export type SensorComparison = '>=' | '<=' | '>' | '<' | '==' | '!=';
 
 /** How a usage task's meter target combines with its time backstop: `any` (the
@@ -52,10 +54,11 @@ export type SensorCombinator = 'any' | 'all';
  *  completion — and `unit` labels the meter ("300 h" rather than a bare "300").
  *  `for_seconds` makes the condition hold before the task arms, and `clear_on_recover`
  *  clears an armed task when the condition goes away instead of waiting for it to be
- *  completed by hand; both belong to the edge-driven modes (threshold, state and
- *  availability) and neither applies to a usage meter. An `availability` binding
- *  carries no condition key of its own — `entity_id` (with an optional `attribute`)
- *  is the whole binding. */
+ *  completed by hand; both belong to the edge-driven modes (threshold, state,
+ *  availability and template) and neither applies to a usage meter. An `availability`
+ *  binding carries no condition key of its own — `entity_id` (with an optional
+ *  `attribute`) is the whole binding. A `template` binding holds its whole condition
+ *  in `template` and takes no `attribute`: it reads `attributes.<key>` itself. */
 export interface SensorBinding {
   entity_id: string;
   mode: SensorMode;
@@ -68,6 +71,7 @@ export interface SensorBinding {
   comparison?: SensorComparison;
   value?: number;
   state?: string;
+  template?: string;
   for_seconds?: number;
   clear_on_recover?: boolean;
 }
@@ -204,8 +208,8 @@ export interface Task {
       quantity?: number;
     };
     problem_sensor?: { entity_id: string };
-    // The recipe a declarative companion materialized this task from. `spec_id` is
-    // the dedupe key the reconciler owns; the panel reads it to find the recipe and
+    // The declarative companion that materialized this task. `spec_id` is
+    // the dedupe key the reconciler owns; the panel reads it to find the companion and
     // offer its editor in place of the task's own (see `panel-declarative.ts`).
     declarative_companion?: {
       spec_id: string;
@@ -263,11 +267,23 @@ export interface Hass {
   labels?: Record<string, HassLabel>;
   states?: Record<string, HassEntity>;
   language?: string;
-  // The instance's configured currency, used to format a completion's cost.
-  config?: { currency?: string };
+  // The instance's configured currency, used to format a completion's cost, and its
+  // language, which the backend formats the shopping-list lines in.
+  config?: { currency?: string; language?: string };
   // Auth token, used to POST a document upload to the Home Keeper HTTP view with an
   // Authorization header (the real `hass` object exposes this; we under-declare it).
-  auth?: { data?: { access_token?: string } };
+  //
+  // `data.access_token` is the *cached* token and it goes stale: Home Assistant mints
+  // an access token that lives about 30 minutes, and the websocket refreshes it only
+  // when it reconnects. A panel left open longer than that keeps a live socket beside
+  // an expired cached token, so websocket work keeps going while an HTTP upload gets
+  // a 401. Read `accessToken` after `refreshAccessToken()` instead — see `api.ts`.
+  auth?: {
+    data?: { access_token?: string };
+    accessToken?: string;
+    expired?: boolean;
+    refreshAccessToken?: () => Promise<void>;
+  };
   // The live websocket connection; used by the card to subscribe to the
   // `home_keeper_task_completed` event so it refreshes when a task is completed
   // from another surface (the panel, a device button, or an automation).
@@ -358,6 +374,12 @@ export interface Part {
   // replacement task has never been completed or skipped, so it retires itself. Not a
   // form field: the panel reads it and never writes it.
   carried_uses?: number | null;
+  // The NFC/RFID tag bound to the task this wear item creates: the use task of a
+  // counted wear item, else the maintenance task. The reconciler copies both onto
+  // that task, so this is where the binding is edited. `require_tag_scan` blocks
+  // Done on it until the tag is scanned; the backend refuses it without a tag.
+  tag_id?: string | null;
+  require_tag_scan?: boolean;
   last_replaced?: string | null;
   // Spare-inventory tracking. `stock` is how much is on hand (drawn down when a
   // wear-part replacement or a linked task is completed); `reorder_at` is the
@@ -584,6 +606,9 @@ export interface HomeKeeperOptions {
   one_off_retention_days: number;
   // The to-do list auto-buy reminders are mirrored onto; '' = mirror off.
   shopping_list_entity: string;
+  // How a mirrored reminder's line reads on that list: the reminder's own name, or the
+  // part name alone. Absent reads as 'with_verb'.
+  shopping_line_style?: 'with_verb' | 'product_only';
   // Catalog glue domains dismissed from the Companions "Suggested" list.
   dismissed_companions?: string[];
   // Saved filters (each carrying its own to-do list sync) and the notifications
@@ -614,7 +639,7 @@ export interface Companion {
 }
 
 /**
- * A declarative-companion spec — Home-Keeper-owned recipe that materializes one
+ * A declarative-companion spec, owned by Home Keeper, that materializes one
  * managed sensor task per matching entity. Persisted in `.storage/home_keeper`
  * under `declarative_companions`, keyed by `id`. See backend
  * `declarative_companions.py`.
@@ -691,6 +716,14 @@ export interface DeclarativeCompanionPreviewMatch {
   rendered_notes: string;
   device_name: string | null;
   area_name: string | null;
+  /**
+   * What a `template` trigger renders for this entity right now: `true` opens the
+   * task, `false` leaves it monitored, `null` says nothing. Every other trigger mode
+   * sends `null` for every row, because they say what they do on their face.
+   */
+  trigger_now: boolean | null;
+  /** The Jinja error, when the template did not render. `null` otherwise. */
+  trigger_error: string | null;
 }
 
 export interface DeclarativeCompanionPreviewResult {

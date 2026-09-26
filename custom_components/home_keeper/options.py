@@ -39,6 +39,7 @@ from .const import (
     OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES,
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_PROFILES,
+    OPTION_SHOPPING_LINE_STYLE,
     OPTION_SHOPPING_LIST_ENTITY,
     OPTION_SYNC_PROBLEM_SENSORS,
 )
@@ -89,6 +90,7 @@ def _empty_options() -> dict[str, Any]:
         OPTION_ALLOW_DUE_TODAY: True,
         OPTION_ONE_OFF_RETENTION_DAYS: 0,
         OPTION_SHOPPING_LIST_ENTITY: "",
+        OPTION_SHOPPING_LINE_STYLE: shopping.LINE_STYLE_WITH_VERB,
         OPTION_PROFILES: [],
         OPTION_NOTIFICATIONS: [],
         **{key: [] for key in _LIST_OPTIONS},
@@ -113,6 +115,7 @@ FLOW_OPTIONS: tuple[str, ...] = (
     OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_SHOPPING_LIST_ENTITY,
+    OPTION_SHOPPING_LINE_STYLE,
 )
 
 # Entry ids whose reload an explicit caller (the ``set_options`` service / the
@@ -160,6 +163,7 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
     - **the on/off toggles** — anything truthy becomes a real ``bool``
     - **retention days** — a ``NumberSelector`` sends a float, garbage becomes ``0``
     - **the shopping target** — anything unusable collapses to ``""``, the off switch
+    - **the shopping line style** — anything unknown reads as ``with_verb``
     - **profiles / notifications** — their own normalizers fill in per-item defaults
       (a profile's to-do-list sync block among them)
     - **id lists** — stringified, and empties dropped: no registry id is falsy, and
@@ -183,6 +187,10 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
         # to-do list — a pure coercion cannot see entity platforms.
         merged[OPTION_SHOPPING_LIST_ENTITY] = shopping.normalize_target(
             updates[OPTION_SHOPPING_LIST_ENTITY]
+        )
+    if OPTION_SHOPPING_LINE_STYLE in updates:
+        merged[OPTION_SHOPPING_LINE_STYLE] = shopping.normalize_line_style(
+            updates[OPTION_SHOPPING_LINE_STYLE]
         )
     if OPTION_PROFILES in updates:
         merged[OPTION_PROFILES] = profiles.normalize_profiles(updates[OPTION_PROFILES])

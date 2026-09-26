@@ -210,23 +210,23 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   - The carried edge is stamped with `sensor_tasks.condition_fingerprint(task)` — the
     entity, attribute, mode and condition, and deliberately not the hold or
     `clear_on_recover`. When the fingerprint changes the state is retired, so editing a
-    task (or the recipe that owns it) reads the entity against the new condition and
+    task (or the declarative companion that owns it) reads the entity against the new condition and
     arms on a standing match instead of waiting for it to recur.
 - **The reconciler owns every key on a materialized task's `sensor` block except the
-  meter anchor.** `sensor.baseline` is written by the watcher, not by any recipe, so
+  meter anchor.** `sensor.baseline` is written by the watcher, not by any spec, so
   `declarative_companions.merge_sensor_binding` carries a stored one forward and the
-  recipe's own `baseline` only seeds a task that has none. Rewriting the block
-  wholesale reset a `usage` recipe's meter on every registry event, which no user could
+  spec's own `baseline` only seeds a task that has none. Rewriting the block
+  wholesale reset a `usage` spec's meter on every registry event, which no user could
   see and which no target could survive. A stored baseline is carried only while both
   bindings stay in `usage` mode — it is a usage-only field, so it would fail validation
   in any other.
-- **A disabled recipe pauses its tasks; it does not delete them.**
+- **A disabled declarative companion pauses its tasks; it does not delete them.**
   `declarative_companions.pause_spec_tasks` switches each task off and marks its
   provenance `paused`; the enabled pass clears the marker and switches the task back on
   with a `"resumed"` op, which the store reports as a freshly-made id so the watcher
-  arms it on a condition that became true while the recipe was off. Deleting them threw
+  arms it on a condition that became true while the spec was off. Deleting them threw
   away the completions recorded on each one, and a task switched off **by hand** carries
-  no marker, so that choice survives the recipe coming back.
+  no marker, so that choice survives the spec coming back.
 - **Every registry event goes through the reconcile debouncer.** Home Assistant fires
   one entity-registry event per entity, and a pass walks every spec over every entity,
   renders Jinja per match and writes the store, so an integration loading 50 entities
@@ -239,10 +239,20 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   read when the task was made. `declarative_companion_sync.async_refresh_task_notes`
   re-renders from the live entity at the arm transition only — every evaluation would
   write to the store on each tick — and the watcher calls it *before* `trigger_task` so
-  `home_keeper_task_triggered` carries the fresh note. `notes` is not in
-  `managed_by.locked_fields`, but the reconcile pass already rewrites it from the
-  template, so the field is owned by the recipe and a hand edit does not survive either
-  path.
+  `home_keeper_task_triggered` carries the fresh note. It writes through
+  `store.async_set_declarative_notes`, because `notes` is locked then.
+- **A declarative companion owns the notes only when it has a notes template.**
+  `declarative_companions.owns_notes` decides it, and it puts `notes` in
+  `managed_by.locked_fields` and makes the reconcile pass write the rendered notes.
+  With no template the pass leaves the notes alone and the field stays unlocked, so a
+  person's note survives. Writing the empty render on every pass erased it (#378).
+- **A declarative companion adds and removes its task labels on save, and only
+  then.** `store.async_update_declarative_companion` is the one place that holds both
+  the old and the new `task_template.labels`, so it runs
+  `declarative_companions.apply_template_label_diff` over the spec's tasks. The
+  reconcile pass never writes labels on a task that exists: restoring the spec's
+  labels on each registry event would undo a person's removal. `labels` is never
+  locked, so a label a person adds to one task stays.
 - **The `sensor` block is the extension point for new recurrence dimensions.** When a
   usage task needs to be due on something *other* than its meter, add a key to
   `task["sensor"]` and a branch to the pure evaluator — don't reach for the top-level
@@ -544,7 +554,8 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   top-level key appears in neither the document's sections nor `EXCLUDED_STORE_KEYS`.
   That table is a decision record — `problem_notes`, `shopping_items` and
   `todo_list_items` are bookkeeping that means nothing on another install;
-  `declarative_companions` is deferred to a later `recipes:` section, not dropped.
+  `declarative_companions` is deferred to a later `declarative_companions:` section, not
+  dropped.
 - **The primary key is a three-step ladder: `id`, then `external_id`, then `name`.**
   First hit wins, the steps are independent (a stated id that names nothing is a
   *create*, never a fall-through to a name match that would overwrite an unrelated
@@ -849,7 +860,7 @@ client check is a fast path, never the enforcement.
 - **`clear_on_recover` decides who may press Done.** It is not only a watcher
   setting: it says who owns the task's whole lifecycle, so
   `declarative_companions.build_managed_by` reads it straight into
-  `completion_blocked`. Set, the recipe owns both ends — the watcher arms on the
+  `completion_blocked`. Set, the declarative companion owns both ends — the watcher arms on the
   crossing and completes on the recovery — and a hand-pressed Done is worse than a
   no-op, because `sensor_tasks._evaluate_edge` will not re-arm while the condition
   merely stays true: completing "Update available" dismisses a firmware update that
@@ -859,24 +870,32 @@ client check is a fast path, never the enforcement.
   baseline. One flag reaches every surface: the panel, the card, `todo_list.py` and
   `notifications.is_completion_blocked` all read it, so a task that cannot be
   completed by hand offers no Done anywhere, including on a phone notification.
-- **A task a reconciler owns is source-owned, and `sourceOwnedTask` is the list.**
-  A declarative companion joins the wear part and the problem sensor there: its
-  reconciler rewrites name, device, area and the sensor binding from the recipe on
-  every pass, so the task's own Edit dialog is a form whose Save the next pass
-  undoes, and Duplicate mints an unmanaged lookalike that drifts. Withhold both, and
-  offer the surface that really owns those values instead — for a recipe's task,
-  **Edit recipe**. A source-owned task with somewhere to send the user must always
-  name it: the generic "kept in step with its source" caption leaves the reader
-  hunting for which source when the page already knows.
+- **A task a reconciler owns wholly is source-owned, and `sourceOwnedTask` is the
+  list.** The wear part and the problem sensor are on it: their Edit dialog would be a
+  form whose Save the next pass undoes, and Duplicate mints an unmanaged lookalike that
+  drifts. A source-owned task with somewhere to send the user must always name it: the
+  generic "kept in step with its source" caption leaves the reader hunting for which
+  source when the page already knows.
+- **A declarative-companion task is managed, not source-owned.** Its reconciler owns
+  only the fields in `managed_by.locked_fields`, and the task form already leaves
+  those out (the `sensor_*` fields too, when `sensor` is locked), so **Edit** offers
+  what a person may change on one task: labels, the tag, the completion detail, and
+  the notes when no template writes them. `buildTaskPayload` drops the locked keys, so
+  a save does not run the websocket's checks on values nobody touched. Delete and
+  Duplicate stay withheld through the managed path, and the task page adds **Edit
+  companion**, which opens the declarative companion itself (#378).
 - **Home Keeper is never the target of an "Edit in X" deep link.** A task Home Keeper
   owns carries Home Keeper's own `config_entry_id` in `managed_by`, while
   `display_name` may name something else entirely — a declarative companion stamps the
-  *recipe's* name there. A caption built from `display_name` alone then points at an
+  declarative companion's name there. A caption built from `display_name` alone then points at an
   integration that does not exist ("Edit in Device Pulse", opening the Home Keeper
   integration page). Check the resolved domain against `utils.HK_DOMAIN` first, and
   offer the surface that really owns the task: for a declarative-companion task that is
-  its recipe's editor (`panel-declarative.openDeclarativeForm`, reached through
-  `declarativeRecipeFor`).
+  its declarative companion's editor (`panel-declarative.openDeclarativeForm`, reached
+  through `declarativeCompanionFor`).
+- **A declarative companion is only ever called a declarative companion.** Do not
+  call it a recipe or give it another name, in text, identifiers or file names. In
+  code that already says so, "spec" names its stored form.
 
 ### One `ha-form` per section — and seed each with only its own fields
 - `ha-form` renders its own rows and exposes no slot between them, so **a heading

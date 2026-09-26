@@ -10,6 +10,7 @@ From the card, a user can:
 - complete a task with **Done**
 - add a task with the **+** button in the header
 - open the document links that a task shows
+- read a task's note with the **Note** chip
 
 Editing and deletion of a task are supported only in the panel.
 
@@ -25,6 +26,21 @@ The card editor has these options:
 A completion made in the panel or on another surface is shown on the card immediately.
 
 ![Home Keeper task card grouped into status sections](../../images/card-grouped.png)
+
+#### Read a task's note from the card
+
+A task with a note shows a **Note** chip on its row. The chip has the same tinted,
+outlined style as a document link, because it does the same kind of thing.
+
+![Home Keeper task card row with a tinted Note chip beside the area and document chips](../../images/card-note-chip.png)
+
+Select the chip to open the note in a dialog. The note is rendered as Markdown. The
+chip appears even when the **Select what each row shows** setting hides notes from
+the row, so the row stays short and the note stays one tap away.
+
+The dialog is read-only. Edit a note in the panel task editor.
+
+![The note dialog open over the card, with the full note rendered as Markdown and a Close button](../../images/card-note-dialog.png)
 
 #### Show a task's appliance documents on the card
 

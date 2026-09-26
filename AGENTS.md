@@ -39,9 +39,9 @@
   narrating, not labelling — cut it back to the noun and let the *second* sentence say
   what a user notices. This is the single easiest bullet to get wrong, because a
   narrative lead reads fine in isolation and only looks bloated next to its neighbours.
-  It also matters downstream: `summarize()` in `ci/release-issues.py` quotes **only the
-  bold lead** into the comment an issue reporter gets, so the lead has to work as a
-  standalone headline.
+  It also matters downstream: `summarize()` in `ci/release-issues.py` quotes the
+  **whole bullet** into the comment an issue reporter gets, and the lead is the first
+  thing the reporter reads, so it has to work as a standalone headline.
   - **Write the lead as a heading, so drop the articles and prepositions.**
     `**Seasonal tasks.**`, not `**Seasons on a task.**`. `**Declarative companion
     presets.**`, not `**Presets for a declarative companion.**`. The "do not omit
@@ -53,7 +53,7 @@
   mechanism: which buttons the feature hides or shows, what it rewrites internally,
   which surfaces it touches, or which fields it added. `**Declarative companions.**
   Define a pattern over existing entities to create tasks automatically.` is the whole
-  bullet — that the recipe's task shows Edit recipe rather than Edit and Duplicate,
+  bullet — that its task shows Edit companion rather than Duplicate,
   and that Home Keeper rewrites the task on each run, are `README.md` facts. When a
   feature is big enough that trimming it loses something real, **split it into 2
   bullets** rather than growing one: declarative companions and their shipped presets
@@ -81,7 +81,7 @@
   writes the lead as a Markdown link to the page that documents the feature, e.g.
   `**[Import and export](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**`.
   A link costs nothing against the three-sentence budget, and `summarize()` in
-  `ci/release-issues.py` quotes the bold lead into the issue reporter's comment, so
+  `ci/release-issues.py` quotes the bullet into the issue reporter's comment, so
   the reporter gets a working link to the docs as well. Use the absolute site URL,
   because the bullet is read on GitHub and in a release body, never only in the
   repository. A user-guide page is `https://prestomation.github.io/ha-home-keeper/docs/guide/<slug>`
@@ -99,18 +99,16 @@
   oversight. Prefer an existing page when one already covers the feature, and check the
   shape of a URL that is already live, because nothing validates these links and a typo
   404s forever. Put the bold **outside** the
-  link, `**[Text](url).**`, never `[**Text**](url)`: `_BOLD_LEAD` in
-  `ci/release-issues.py` anchors on `^\*\*`, so the inverted form misses the bold match
-  and degrades to quoting the bullet's first sentence.
+  link, `**[Text](url).**`, never `[**Text**](url)`, so every lead has the same shape.
 - **Credit an outside contributor in the bullet for their change.** End the bullet
   with `(Thanks @user!)`, after `(Fixes #N)` if the bullet has one. The credit does
   not count against the three-sentence budget. An outside contributor is anyone
   without write access to the repository when the PR opens. Their change gets a
   credit in the same PR that writes the bullet. If a maintainer and a contributor
   share the work, the contributor gets the credit. `summarize()` in
-  `ci/release-issues.py` quotes only the bold lead. The credit stays in the
-  CHANGELOG. It does not reach the issue comment, and it does not notify the
-  contributor on each release.
+  `ci/release-issues.py` quotes the whole bullet but removes the `(Thanks @user!)`
+  credit. The credit stays in the CHANGELOG. It does not reach the issue comment,
+  and it does not notify the contributor on each release.
 - **Keep linking issues from a PR with `Fixes #N`.** Closing-on-merge is turned off
   for this repository, so the keyword links the PR to the issue — that's what fills in
   the issue's **Development** panel and its linked-pull-request relationship — without
@@ -141,7 +139,8 @@
   bullets, `README.md`, `docs/guide/**/*.md`, the canonical `docs/*.md`, `strings.json`, `services.yaml`
   descriptions and the frontend locale are all read by users, so each one has to
   satisfy the STE100 rules in `.amazonq/rules/writing-style.md`, the three-sentence
-  CHANGELOG budget, the `(Fixes #N)` placement, and the vale AI-tells style. Read the
+  CHANGELOG budget, the `(Fixes #N)` placement, the strict ban on mannered prose, and
+  the vale AI-tells style. Read the
   surrounding section for voice before you add to it. Commit messages, PR bodies and
   code comments are *not* user-facing text and are not held to this.
 - **A plan starts with the CHANGELOG entry it will ship.** Write the proposed bullet
@@ -593,7 +592,8 @@ bash ci/test-mutation-frontend.sh --all
   `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
   `problem_tasks`, `appliance_report`, `profiles`, `documents`, `events`, `transitions`,
   `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
-  `card-filter`, `documents`, `markdown`, `i18n`, `limits`). `options.py` counts as
+  `card-filter`, `documents`, `markdown`, `i18n`, `limits`, `defer`, `shopping-preview`, `declarative-filters`).
+  `options.py` counts as
   pure because its Home Assistant imports are `TYPE_CHECKING`-only. Excluded on
   purpose: everything else importing Home Assistant
   (only the Docker tiers cover it — far too slow to run once per mutant),

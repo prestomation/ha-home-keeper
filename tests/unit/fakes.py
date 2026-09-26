@@ -121,6 +121,8 @@ class FakeTodoHass:
         self.services = FakeTodoServices(lists)
         self._states: dict[str, object] = {}
         self.tasks: list = []
+        # The shopping sync formats amounts in the household's language.
+        self.config = types.SimpleNamespace(language="en")
 
     @property
     def states(self):

@@ -146,10 +146,13 @@ class _FakeHass(FakeTodoHass):
         }
 
 
-def _sync(hass, store, *, target=TARGET, force=True):
+def _sync(hass, store, *, target=TARGET, force=True, style=None):
     """Build a driver over the fakes and run one full ``async_sync``."""
+    options = {"shopping_list_entity": target}
+    if style is not None:
+        options["shopping_line_style"] = style
     entry = types.SimpleNamespace(
-        options={"shopping_list_entity": target},
+        options=options,
         async_on_unload=lambda _cb: None,
     )
     coordinator = FakeSyncCoordinator(store)
@@ -450,3 +453,66 @@ def test_a_reminder_still_open_after_a_tick_off_gets_a_fresh_line(caplog):
     # The line they ticked off is left exactly as it is.
     assert _services(hass, "remove_item") == []
     assert "did not settle" not in caplog.text
+
+
+_DESCRIPTION_FEATURE = 64  # TodoListEntityFeature.SET_DESCRIPTION_ON_ITEM
+
+
+def test_a_list_with_descriptions_gets_the_amount_there():
+    hass = _FakeHass({TARGET: []}, features=_ALL_FEATURES | _DESCRIPTION_FEATURE)
+    store = _FakeStore(tasks={"t1": _buy_task()}, assets=_asset(unit="ml", restock=500))
+    _sync(hass, store)
+    assert _services(hass, "add_item") == [
+        {"entity_id": TARGET, "item": "Buy Anode rod", "description": "500 ml"}
+    ]
+    assert store.get_shopping_items() == {
+        KEY: {
+            "entity_id": TARGET,
+            "summary": "Buy Anode rod",
+            "uid": None,
+            "description": "500 ml",
+        }
+    }
+
+
+def test_a_changed_amount_sends_the_description_on_update():
+    hass = _FakeHass(
+        {TARGET: [{**_item(), "description": "500 ml"}]},
+        features=_ALL_FEATURES | _DESCRIPTION_FEATURE,
+    )
+    store = _FakeStore(
+        tasks={"t1": _buy_task()},
+        items={
+            KEY: {
+                "entity_id": TARGET,
+                "summary": "Buy Anode rod",
+                "uid": "i1",
+                "description": "500 ml",
+            }
+        },
+        assets=_asset(unit="ml", restock=750),
+    )
+    # Not forced: the amount change alone has to be enough to start a pass.
+    _sync(hass, store, force=False)
+    assert _services(hass, "update_item") == [
+        {"entity_id": TARGET, "item": "i1", "description": "750 ml"}
+    ]
+
+
+def test_product_only_puts_the_part_name_on_the_line():
+    hass = _FakeHass({TARGET: []})
+    store = _FakeStore(tasks={"t1": _buy_task()}, assets=_asset(unit="ml", restock=500))
+    _sync(hass, store, style="product_only")
+    assert _services(hass, "add_item") == [
+        {"entity_id": TARGET, "item": "Anode rod (500 ml)"}
+    ]
+
+
+def test_the_amount_is_formatted_in_the_household_language():
+    hass = _FakeHass({TARGET: []})
+    hass.config.language = "de"
+    store = _FakeStore(tasks={"t1": _buy_task()}, assets=_asset(unit="kg", restock=1.5))
+    _sync(hass, store)
+    assert _services(hass, "add_item") == [
+        {"entity_id": TARGET, "item": "Buy Anode rod (1,5 kg)"}
+    ]

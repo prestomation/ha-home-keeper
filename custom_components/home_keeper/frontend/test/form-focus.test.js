@@ -367,6 +367,26 @@ describe('typing into a part must not rebuild the appliance form (issue #296)', 
     expect(baseOf(panel, 0)).toBe(base);
   });
 
+  it('turns the scan switch off on screen when the tag is cleared', async () => {
+    // Found in review: the part saved the flag off, but the switch still showed on.
+    heater.parts[0] = { ...heater.parts[0], tag_id: 'kitchen', require_tag_scan: true };
+    try {
+      const { panel } = await openHeater();
+      const dep = depOf(panel, 0);
+      expect(dep.data.part_require_tag_scan).toBe(true);
+      // Fire the event as ha-form does: it does not set its own `data`.
+      dep.dispatchEvent(
+        new CustomEvent('value-changed', { detail: { value: { ...dep.data, part_tag_id: '' } } }),
+      );
+      expect(panel._assetEdit.asset.parts[0].require_tag_scan).toBe(false);
+      expect(dep.data.part_require_tag_scan).toBe(false);
+      expect(dep.data.part_tag_id).toBeUndefined();
+    } finally {
+      delete heater.parts[0].tag_id;
+      delete heater.parts[0].require_tag_scan;
+    }
+  });
+
   it('swaps the wear fields when the type changes, base form untouched', async () => {
     const { panel, base } = await openHeater();
     const dep = depOf(panel, 0);

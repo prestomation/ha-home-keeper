@@ -25,14 +25,15 @@ The rules that shape a plan:
   is also the sync's timing — ``overdue`` puts a task on the list when it falls
   due, ``due_soon`` three days ahead, ``all`` as soon as it is scheduled. A task
   that stops matching (completed, rescheduled, disabled, filtered out) has its
-  open item removed. Two kinds are skipped whatever the profile says, because a
-  sync is a *delivery* surface and decides for itself what belongs on a to-do
-  list (the split ``profiles.matches_filter`` documents): auto-buy reminders,
-  which the shopping-list sync owns and would otherwise fight over one line,
-  and **completion-blocked** tasks — today a synced ``problem`` sensor, which
-  belongs in a Profile but not on a list, since only the integration that owns
-  the sensor can decide it is fixed. An item nobody can ever tick off is worse
-  than no item, the same call ``notifications.actions_for`` makes about buttons.
+  open item removed. Auto-buy reminders are skipped whatever the profile says:
+  the shopping-list sync owns them, and two syncs would fight over one line.
+* **A completion-blocked task is on the list, but a tick does not take.** A
+  synced ``problem`` sensor and a declarative companion that clears on recover close
+  only when their sensor recovers. They are on the list as a reminder of what to fix
+  (#370), so the household sees the same tasks the Profile shows. A tick on such an item
+  never completes the task: the entry is dropped and pass two puts a fresh open item
+  back, the same result a refused ``require_tag_scan`` completion gets. The item goes
+  away when the sensor recovers and the task completes or is removed.
 * **A completed item is never touched.** Whoever ticked it off, the entry stays as
   their record. When the task recurs and falls due again, a *fresh* item is added
   alongside the old one — that is the history Todoist users expect.
@@ -64,6 +65,9 @@ Bookkeeping (persisted by the store, silently) is a flat map
 ``{"entity_id", "uid", "summary", "due", "last_completed", "added_at"}``.
 ``added_at`` stamps when an item was added but not yet seen on the list, and is
 dropped the moment one is resolved; it is what bounds the hold described above.
+``summary`` is the title Home Keeper last wrote. When an item with a uid reads
+differently, someone renamed it on the list: the entry then holds the item's own title
+and ``user_named: True``, and the sync stops renaming that item.
 ``last_completed``
 snapshots the task's own ``last_completed`` at bind time; a live value strictly
 newer means "completed inside Home Keeper since it was synced", while an undone
@@ -89,6 +93,8 @@ from . import profiles
 from .notifications import is_completion_blocked
 from .reconcile import buy_source
 from .todo_items import (
+    CAP_DESCRIPTION,
+    CAP_DUE_DATE,
     STATUS_COMPLETED,
     STATUS_NEEDS_ACTION,
     find_open,
@@ -116,12 +122,6 @@ __all__ = [
     "sync_key",
 ]
 
-# Optional to-do item fields a list may or may not support, as capability tokens
-# ``todo_list_sync`` derives from the entity's ``supported_features``
-# (``SET_DUE_DATE_ON_ITEM`` / ``SET_DESCRIPTION_ON_ITEM``). The planner only
-# writes or compares these fields for entities whose capability set includes them.
-CAP_DUE_DATE = "due"
-CAP_DESCRIPTION = "description"
 
 # How long an entry whose add we could not confirm is held before it is re-added.
 # It is a *staleness budget*, not a formula: it has to comfortably clear the slowest
@@ -268,6 +268,8 @@ def desired_by_sync(
 
     Auto-buy reminders are skipped whatever a profile says: the shopping-list
     sync owns those, and two syncs fighting over one line helps nobody. A
+    completion-blocked task is wanted like any other, with ``blocked`` set so
+    :func:`plan_sync` knows a tick on its item must not complete it. A
     nameless task is skipped too — an empty summary is not something a to-do list
     can hold. The ``due`` a want carries is date-only, because that is the
     granularity a to-do list works in and a time would leave the item drifting.
@@ -283,8 +285,6 @@ def desired_by_sync(
                 continue
             if buy_source(task) is not None:
                 continue
-            if is_completion_blocked(task):
-                continue
             name = str(task.get("name") or "").strip()
             if not name:
                 continue
@@ -296,6 +296,7 @@ def desired_by_sync(
                 "due": due,
                 "notes": str(task.get("notes") or ""),
                 "last_completed": task.get("last_completed"),
+                "blocked": is_completion_blocked(task),
             }
         wanted[str(profile["id"])] = wants
     return wanted
@@ -462,7 +463,11 @@ def plan_sync(
                 continue
             if entry.get("uid"):
                 sync = profile["sync"]
-                if sync["two_way"] and sync["vanish_as_completed"]:
+                if (
+                    sync["two_way"]
+                    and sync["vanish_as_completed"]
+                    and not want["blocked"]
+                ):
                     plan.complete.append(CompleteOp(key, task_id))
                     settled.add(key)
                 continue
@@ -503,6 +508,10 @@ def plan_sync(
                     plan.tracked[key] = dict(entry)
                     continue
                 if profile["sync"]["two_way"]:
+                    if want["blocked"]:
+                        # Only the sensor recovering clears this task. Drop the
+                        # entry so pass two puts a fresh open item back.
+                        continue
                     plan.complete.append(CompleteOp(key, task_id))
                     settled.add(key)
                 else:
@@ -533,7 +542,16 @@ def plan_sync(
 
         caps = capabilities.get(entity_id, frozenset())
         name = str(want["name"])
-        rename = name if item.get("summary") != name else None
+        live = str(item.get("summary") or "")
+        written = str(entry.get("summary") or "")
+        # An item with a uid that reads as neither what we last wrote nor what we
+        # write now was renamed by someone on the list. Their name wins: the title
+        # is left alone from now on, while completion, the due date and the notes
+        # still sync.
+        user_named = bool(entry.get("user_named")) or (
+            bool(item.get("uid")) and bool(written) and live not in (written, name)
+        )
+        rename = name if not user_named and live != name else None
         due = None
         if CAP_DUE_DATE in caps and str(item.get("due") or "")[:10] != str(want["due"]):
             # A list that cannot hold a due date is never told one: comparing a
@@ -555,7 +573,11 @@ def plan_sync(
                     description=description,
                 )
             )
-        plan.tracked[key] = _entry(entity_id, item.get("uid") or entry.get("uid"), want)
+        bound = _entry(entity_id, item.get("uid") or entry.get("uid"), want)
+        if user_named:
+            bound["summary"] = live
+            bound["user_named"] = True
+        plan.tracked[key] = bound
 
     for profile_id in sorted(desired):
         profile = by_id.get(profile_id)
@@ -644,7 +666,9 @@ def needs_pass(
             return True
         if str(entry.get("entity_id") or "") != _target(profile):
             return True
-        if str(want["name"]) != str(entry.get("summary") or ""):
+        if not entry.get("user_named") and str(want["name"]) != str(
+            entry.get("summary") or ""
+        ):
             return True
         if str(want["due"]) != str(entry.get("due") or ""):
             return True

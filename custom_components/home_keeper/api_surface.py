@@ -320,8 +320,8 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
         Field(
             "preset_id",
             "str | None",
-            "the bundled preset the recipe was seeded from, or None for one written "
-            "by hand",
+            "the bundled preset the declarative companion was seeded from, or None for "
+            "one written by hand",
         ),
     ),
 }
@@ -329,7 +329,8 @@ PAYLOAD_SPINES: dict[str, tuple[Field, ...]] = {
 _MATCH_COUNT = Field(
     "match_count",
     "int",
-    "present once the reconciler has run: how many entities the recipe selects",
+    "present once the reconciler has run: how many entities the declarative "
+    "companion selects",
 )
 
 
@@ -577,8 +578,8 @@ EVENTS: tuple[EventSpec, ...] = (
         "EVENT_DECLARATIVE_COMPANION_ADDED",
         "fired",
         "declarative_companion",
-        "a declarative-companion recipe is created; the tasks it materializes fire "
-        "the ordinary task events on their own",
+        "a declarative companion is created; the tasks it materializes fire the "
+        "ordinary task events on their own",
         extra=(_MATCH_COUNT,),
     ),
     EventSpec(
@@ -586,7 +587,7 @@ EVENTS: tuple[EventSpec, ...] = (
         "EVENT_DECLARATIVE_COMPANION_UPDATED",
         "fired",
         "declarative_companion",
-        "a declarative-companion recipe changes",
+        "a declarative companion changes",
         extra=(_MATCH_COUNT,),
     ),
     EventSpec(
@@ -594,8 +595,7 @@ EVENTS: tuple[EventSpec, ...] = (
         "EVENT_DECLARATIVE_COMPANION_REMOVED",
         "fired",
         "declarative_companion",
-        "a declarative-companion recipe is deleted, along with every task it "
-        "materialized",
+        "a declarative companion is deleted, along with every task it materialized",
         extra=(_MATCH_COUNT,),
     ),
     EventSpec(
@@ -800,10 +800,14 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
         admin_only=True,
         service="delete_declarative_companion",
     ),
-    # Read-only helpers for the panel's Add dialog: the bundled presets, a dry-run
-    # expansion of a draft recipe, and the integrations that have a config entry.
+    # A dry-run expansion of a draft declarative companion. It writes nothing, but it
+    # renders the draft's Jinja — the task name, the notes and, since 0.25, the
+    # trigger — so it is admin-only like the commands that save one. See the docstring
+    # on ``websocket_api.ws_preview_declarative_companion``.
+    WebsocketSpec("home_keeper/preview_declarative_companion", admin_only=True),
+    # Read-only helpers for the panel's Add dialog: the bundled presets, and the
+    # integrations that have a config entry. Neither reads caller-supplied input.
     WebsocketSpec("home_keeper/list_declarative_presets"),
-    WebsocketSpec("home_keeper/preview_declarative_companion"),
     WebsocketSpec("home_keeper/installed_integrations"),
 )
 
@@ -839,6 +843,7 @@ OPTIONS: tuple[OptionSpec, ...] = (
     OptionSpec(const.OPTION_ALLOW_DUE_TODAY, in_flow=False),
     OptionSpec(const.OPTION_ONE_OFF_RETENTION_DAYS, in_flow=True),
     OptionSpec(const.OPTION_SHOPPING_LIST_ENTITY, in_flow=True),
+    OptionSpec(const.OPTION_SHOPPING_LINE_STYLE, in_flow=True),
     OptionSpec(const.OPTION_PROFILES, in_flow=False),
     OptionSpec(const.OPTION_NOTIFICATIONS, in_flow=False),
     OptionSpec(const.OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES, in_flow=True),

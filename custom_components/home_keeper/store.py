@@ -24,6 +24,7 @@ from . import (
     declarative_companions,
     events,
     models,
+    notifications,
     recurrence,
     sensor_tasks,
     sensor_watcher,
@@ -57,6 +58,7 @@ from .const import (
     EVENT_TASK_UPDATED,
     MAX_DECLARATIVE_COMPANIONS,
     ORIGIN_PROBLEM_SENSOR_SYNC,
+    ORIGIN_SENSOR_RECOVER,
     REC_SENSOR,
     REC_TRIGGERED,
     SENSOR_MODE_USAGE,
@@ -74,13 +76,17 @@ from .const import (
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
 from .problem_tasks import problem_source as _problem_source
 from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks
+from .reconcile import adopt_part_tags as _adopt_part_tags
 from .reconcile import buy_source as _buy_source
 from .reconcile import is_manual_part_link as _is_manual_part_link
+from .reconcile import is_part_owned_tag_update as _is_part_owned_tag_update
 from .reconcile import is_use_task as _is_use_task
 from .reconcile import part_source as _part_source
 from .reconcile import reconcile_buy_tasks as _reconcile_buy_tasks
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 from .reconcile import settle_use_tasks as _settle_use_tasks
+from .reconcile import stray_part_tags as _stray_part_tags
+from .task_entities import entity_set_key
 
 # Stock transition -> the bus event it fires (STOCK_NONE maps to nothing).
 _STOCK_EVENT = {
@@ -125,6 +131,32 @@ def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
         f"This task mirrors the problem sensor {entity_id} and can't be cleared in "
         "Home Keeper. Resolve the problem in the originating integration — the task "
         "clears automatically when the sensor returns to OK."
+    )
+
+
+# The system origins that may complete a ``completion_blocked`` task: the sensor
+# watcher when the condition recovers, and the problem-sensor sync.
+_BLOCKED_COMPLETION_ORIGINS: Final = frozenset(
+    {ORIGIN_SENSOR_RECOVER, ORIGIN_PROBLEM_SENSOR_SYNC}
+)
+
+
+def _reject_completion_blocked(task: dict[str, Any], origin: str | None) -> None:
+    """Raise unless *origin* may complete a task whose owner withholds Done.
+
+    A declarative companion with ``clear_on_recover`` owns both ends of its task: the
+    watcher arms it on the crossing and completes it on the recovery. A completion by
+    hand while the condition is still true records work that was not done (#377). The
+    panel, the card, the to-do list and the notification already withhold Done; this
+    stops the device-page button, the service and an automation too.
+    """
+    if not notifications.is_completion_blocked(task):
+        return
+    if origin in _BLOCKED_COMPLETION_ORIGINS:
+        return
+    raise models.TaskValidationError(
+        "Home Keeper completes this task when the watched condition recovers, so it "
+        "can't be marked done by hand."
     )
 
 
@@ -261,6 +293,22 @@ class HomeKeeperStore:
                 changed = True
         if self._clean_relationship_links():
             changed = True
+        # A tag bound to a wear part's derived task before parts carried one moves
+        # onto the part here, or the first reconcile after the upgrade would clear
+        # it. Load-time only: on every pass it would also undo a tag a user just
+        # cleared on the part (see reconcile.adopt_part_tags). A tag the part cannot
+        # hold is logged, because the next reconcile clears it.
+        if _adopt_part_tags(self._assets, self._tasks):
+            changed = True
+        for stray in _stray_part_tags(self._assets, self._tasks):
+            _LOGGER.warning(
+                "Task %s (%s) has NFC/RFID tag %s, but its wear part now sets the "
+                "tag of its tasks. The tag is removed from the task. Set it on the "
+                "part in the appliance editor",
+                stray["task_id"],
+                stray["name"],
+                stray["tag_id"],
+            )
         if changed:
             await self._save()
 
@@ -388,6 +436,14 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
+        # The reconciler writes a wear part task's tag from its part, so a change
+        # made here would be undone on the next pass without a message.
+        if _is_part_owned_tag_update(existing, updates):
+            raise models.TaskValidationError(
+                "This task is auto-generated from an appliance wear part, and the "
+                "part sets its NFC/RFID tag. Set the tag on the part in the "
+                "appliance editor."
+            )
         merged = models.merge_update(existing, updates, now=dt_util.now())
         self._tasks[task_id] = merged
         # Mirror a problem-sensor task's note into the durable, entity-keyed side-store
@@ -646,7 +702,9 @@ class HomeKeeperStore:
         ``completions`` and ``last_completed`` are untouched, so a skip never counts
         as a completion anywhere; the skip itself is logged in ``skips`` with the
         optional *metadata* (``note``/``who``, plus ``reading`` for a meter task).
-        Rejects a synced problem-sensor task. Fires ``home_keeper_task_skipped``.
+        Rejects a synced problem-sensor task, and a ``completion_blocked`` task
+        unless the watcher's recovery marker comes with it. Fires
+        ``home_keeper_task_skipped``.
 
         For a **usage** sensor task it also resets the meter, exactly as a completion
         does: skipping "every 5,000 miles" starts the next 5,000 from the reading the
@@ -658,6 +716,8 @@ class HomeKeeperStore:
         if existing is None:
             raise KeyError(task_id)
         _reject_synced_problem(existing, origin)
+        # A skip sends the armed task dormant, so it dismisses the condition too.
+        _reject_completion_blocked(existing, origin)
         now = dt_util.now()
         records_reading = models.task_records_reading(existing)
         clean_metadata = models.normalize_completion_metadata(
@@ -1130,6 +1190,26 @@ class HomeKeeperStore:
         if changed:
             await self._save()
         return changed
+
+    async def async_set_declarative_notes(self, task_id: str, notes: str) -> bool:
+        """Write the notes a declarative companion rendered; return whether they moved.
+
+        Bypasses ``models.merge_update`` on purpose, like
+        :meth:`async_repoint_device_ids`: a spec with a notes template locks ``notes``
+        so a person's edit cannot be undone on the next pass, and that same lock would
+        drop the reconciler's own write. Only the reconciler calls this, for a task it
+        owns.
+        """
+        task = self._tasks.get(task_id)
+        if task is None or task.get("notes") == notes:
+            return False
+        task["notes"] = notes
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_TASK_UPDATED,
+            events.task_event_data(task, extra={"changed_fields": ["notes"]}),
+        )
+        return True
 
     async def async_repoint_asset_device_ids(self, mapping: dict[str, str]) -> int:
         """Rewrite dead asset device ids to their live replacements; return how many.
@@ -1652,7 +1732,25 @@ class HomeKeeperStore:
         spec["created"] = existing.get("created") or dt_util.now().isoformat()
         spec["updated"] = dt_util.now().isoformat()
         self._declarative_companions[spec_id] = spec
+        # A change to the task labels reaches the tasks that exist now. Only this
+        # method holds both label sets, and the reconcile pass leaves labels alone
+        # (see ``declarative_companions.apply_template_label_diff``).
+        new_tasks, label_ops, labels_changed = (
+            declarative_companions.apply_template_label_diff(
+                spec_id,
+                (existing.get("task_template") or {}).get("labels") or [],
+                spec["task_template"]["labels"],
+                self._tasks,
+            )
+        )
+        if labels_changed:
+            self._tasks = new_tasks
         await self._save()
+        for _kind, task in label_ops:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": ["labels"]}),
+            )
         self._hass.bus.async_fire(
             EVENT_DECLARATIVE_COMPANION_UPDATED,
             events.declarative_companion_event_data(spec),
@@ -1694,7 +1792,7 @@ class HomeKeeperStore:
         return entity_set_changed
 
     async def pause_declarative_companion_tasks(self, spec_id: str) -> bool:
-        """Switch off the tasks of a disabled recipe, keeping them and their history.
+        """Switch off the tasks of a disabled companion, keeping them and their history.
 
         The disabled half of :meth:`reconcile_declarative_companion_tasks`. Delegates
         the decision to :func:`declarative_companions.pause_spec_tasks` and fires the
@@ -1741,6 +1839,14 @@ class HomeKeeperStore:
         the sensor watcher so its next baseline pass leaves their edge unset — a
         task made a moment ago must arm on a condition that is already true.
         """
+        # Taken before the pass, because the reconcile rewrites a matched task in
+        # place: reading the old key off ``self._tasks`` afterwards sees the new one.
+        # Only a task that owns per-task entities can need a reload.
+        keys_before = {
+            tid: entity_set_key(t)
+            for tid, t in self._tasks.items()
+            if _task_owns_entities(t)
+        }
         new_tasks, ops, changed = declarative_companions.reconcile_declarative_tasks(
             spec,
             matches,
@@ -1748,7 +1854,7 @@ class HomeKeeperStore:
             rendered_by_key,
             config_entry_id=config_entry_id,
             now=dt_util.now(),
-            # Localizes the completion prompt on a recipe that auto-clears, the
+            # Localizes the completion prompt on a companion that auto-clears, the
             # same way the problem-sensor sync localizes its own.
             lang=self._hass.config.language,
         )
@@ -1773,10 +1879,10 @@ class HomeKeeperStore:
                 if _task_owns_entities(task):
                     entity_set_changed = True
             elif kind == "resumed":
-                # The recipe that had paused this task is on again. It is an update
+                # The companion that had paused this task is on again. It is an update
                 # to everything that reads tasks, and a task made just now to the
                 # sensor watcher, which must arm it on a condition that became true
-                # while the recipe was off.
+                # while the companion was off.
                 created_ids.append(task["id"])
                 self._hass.bus.async_fire(
                     EVENT_TASK_UPDATED,
@@ -1789,6 +1895,14 @@ class HomeKeeperStore:
                     EVENT_TASK_UPDATED,
                     events.task_event_data(task, extra={"changed_fields": []}),
                 )
+                # A new rendered name, a companion rename or a new ``clear_on_recover``
+                # changes the names or the button on the device page, which only an
+                # entry reload makes again.
+                old_key = keys_before.get(task["id"])
+                if (old_key is not None or _task_owns_entities(task)) and (
+                    old_key != entity_set_key(task)
+                ):
+                    entity_set_changed = True
         return entity_set_changed, created_ids
 
     async def complete_task(
@@ -1817,7 +1931,8 @@ class HomeKeeperStore:
         — is what makes completion observable from anywhere. ``origin`` is a
         caller-supplied marker echoed back in the event so a contributing integration
         can ignore the echo of a completion it initiated. Two gates also read it:
-        a problem-sensor-synced task accepts only the sync's marker, and a
+        a problem-sensor-synced task accepts only the sync's marker, a
+        ``completion_blocked`` task accepts only the watcher's recovery marker, and a
         ``require_tag_scan`` task accepts only ``tags.SCAN_ALLOWED_ORIGINS``. It is
         trusted as given (any service caller may pass any marker), so those gates are
         household accountability, not a security boundary — the same trust level as
@@ -1827,6 +1942,7 @@ class HomeKeeperStore:
         if existing is None:
             raise KeyError(task_id)
         _reject_synced_problem(existing, origin)
+        _reject_completion_blocked(existing, origin)
         _reject_scan_required(existing, origin)
         now = dt_util.now()
         when = completed_at or now

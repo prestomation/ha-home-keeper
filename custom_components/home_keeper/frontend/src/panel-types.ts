@@ -18,7 +18,7 @@ import type {
 
 /**
  * The declarative-companion dialogs' state: the preset picker, or the add/edit form.
- * `draft` is the recipe the form edits **in place** (each section's form writes into
+ * `draft` is the companion the form edits **in place** (each section's form writes into
  * the same object), so a mode change can rebuild the dialog without losing what was
  * typed; it is null while the picker is up.
  */
@@ -27,6 +27,9 @@ export interface DeclarativeDialogState {
   kind: 'picker' | 'form';
   draft: DeclarativeCompanion | null;
   error?: string;
+  /** Whether **More filters** is open. Unset until the user toggles it, so the
+   *  default (open when a filter in it is set) applies on the first render. */
+  moreOpen?: boolean;
 }
 
 /** What the inline notes editor on a detail page is currently editing. */

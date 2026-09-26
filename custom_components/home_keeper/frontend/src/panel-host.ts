@@ -119,15 +119,18 @@ export interface PanelHost extends HTMLElement {
    *  fire a config-entry reload on every character. */
   _debounce(key: string, fn: () => void, ms?: number): void;
   /** The declarative-companion dialogs' state: the preset picker, or the add/edit
-   *  form with the recipe it is editing. */
+   *  form with the companion it is editing. */
   _declDialog: DeclarativeDialogState;
-  /** Declarative-companion recipes stored on the config entry, listed under
+  /** Declarative companions stored on the config entry, listed under
    *  Settings → Companions. */
   _declarativeCompanions: DeclarativeCompanion[];
   /** The bundled presets the "Add from preset" picker offers. Fetched on the first
    *  open and kept; null until then. */
   _declarativePresets: DeclarativeCompanionPreset[] | null;
   /** Delete a task outright (already confirmed). */
+  /** Switch a task back on. The panel offers no way to switch one off — that is a
+   *  service call — so this is the way back from one aimed at the wrong task. */
+  _enableTask(task: Task): Promise<void>;
   _delete(task: Task): Promise<void>;
   /** Delete an appliance outright (already confirmed). */
   _deleteAsset(asset: Asset): Promise<void>;

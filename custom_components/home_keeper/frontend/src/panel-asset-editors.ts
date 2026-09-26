@@ -777,10 +777,14 @@ function partBox(
     const key = partDependentKey(next);
     if (key !== depKey) {
       depKey = key;
-      const schema = partDependentSchema(next, locked);
+      const schema = partDependentSchema(next, p._tags, locked);
       dep.schema = schema;
       dep.data = pickFormData(partFormData(next), schema);
       dep.style.display = schema.length ? '' : 'none';
+    } else if (!next.tag_id && dep.data?.part_require_tag_scan) {
+      // Clearing the tag clears the scan requirement (see `mergePartForm`). Show
+      // that, or the switch stays on while the part saves it off.
+      dep.data = pickFormData(partFormData(next), partDependentSchema(next, p._tags, locked));
     }
   };
   const baseSchema = partBaseSchema(locked);
@@ -792,7 +796,7 @@ function partBox(
   // The note is the owner's on a locked list (it is the usage line the glue
   // writes), and the form above has no field to preview, so the preview goes too.
   if (!locked) notePreview = p._attachNotePreview(bodyEl, String(part.notes ?? ''));
-  const depSchema = partDependentSchema(part, locked);
+  const depSchema = partDependentSchema(part, p._tags, locked);
   dep = p._makeForm(depSchema, pickFormData(partFormData(part), depSchema), merge);
   dep.className = 'hk-part-dep';
   if (!depSchema.length) dep.style.display = 'none';

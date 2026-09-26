@@ -38,7 +38,7 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Build from the release tag passed by the caller (workflow_call) or by
           # a manual dispatch. Falls back to the default branch HEAD when no ref

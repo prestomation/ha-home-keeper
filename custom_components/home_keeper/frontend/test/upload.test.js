@@ -177,6 +177,86 @@ describe('api upload transport', () => {
     await expect(p).rejects.toMatchObject({ status: 0, bytesSent: 40 });
   });
 
+  // -------------------------------------------------------------------------
+  // Token freshness (issue #352)
+  // -------------------------------------------------------------------------
+  // Every other panel operation rides the websocket, which needs no per-message
+  // token. The upload is the one plain HTTP call, so it is the only thing that
+  // sees a stale cached token — as a 401 that HA logs through its ip-ban logger.
+
+  it('refreshes an expired token before it sends, and uses the fresh one', async () => {
+    let expired = true;
+    const hass = {
+      auth: {
+        data: { access_token: 'stale' },
+        accessToken: 'stale',
+        get expired() {
+          return expired;
+        },
+        refreshAccessToken() {
+          expired = false;
+          this.accessToken = 'fresh';
+          return Promise.resolve();
+        },
+      },
+    };
+
+    const p = api.uploadAssetDocument(hass, 'a', 'd', makeFile('m.pdf', 10));
+    const xhr = await waitFor(() => FakeXHR.instances[0]);
+    expect(xhr.headers.Authorization, 'the cached token must not be sent').toBe('Bearer fresh');
+    xhr.respond(200, JSON.stringify({ asset: { id: 'a' } }));
+    await expect(p).resolves.toMatchObject({ id: 'a' });
+  });
+
+  it('retries once with a refreshed token when the server answers 401', async () => {
+    const hass = {
+      auth: {
+        accessToken: 'stale',
+        expired: false, // expires between the check and the request
+        refreshAccessToken() {
+          this.accessToken = 'fresh';
+          return Promise.resolve();
+        },
+      },
+    };
+
+    const p = api.uploadPartFile(hass, 'a', 'p', makeFile('m.pdf', 10));
+    const first = await waitFor(() => FakeXHR.instances[0]);
+    expect(first.headers.Authorization).toBe('Bearer stale');
+    first.respond(401, JSON.stringify({ message: 'Unauthorized' }));
+
+    const second = await waitFor(() => FakeXHR.instances[1]);
+    expect(second.headers.Authorization, 'the retry must carry the new token').toBe('Bearer fresh');
+    second.respond(200, JSON.stringify({ part: { id: 'p' } }));
+    await expect(p).resolves.toMatchObject({ id: 'p' });
+  });
+
+  it('gives up after one retry rather than looping on a real 401', async () => {
+    const hass = {
+      auth: { accessToken: 'tok', expired: false, refreshAccessToken: () => Promise.resolve() },
+    };
+    const p = api.uploadAssetDocument(hass, 'a', 'd', makeFile('m.pdf', 10));
+    (await waitFor(() => FakeXHR.instances[0])).respond(401, '');
+    (await waitFor(() => FakeXHR.instances[1])).respond(401, '');
+    await expect(p).rejects.toMatchObject({ status: 401 });
+    expect(FakeXHR.instances, 'exactly two attempts').toHaveLength(2);
+  });
+
+  it('does not retry a 401 when hass exposes no refresh', async () => {
+    const p = api.uploadAssetDocument(HASS, 'a', 'd', makeFile('m.pdf', 10));
+    only().respond(401, '');
+    await expect(p).rejects.toMatchObject({ status: 401 });
+    expect(FakeXHR.instances).toHaveLength(1);
+  });
+
+  it('sends the cached token when hass has no accessToken getter', async () => {
+    // A Home Assistant older than the `accessToken` getter, or a stub in a test.
+    const p = api.uploadAssetDocument(HASS, 'a', 'd', makeFile('m.pdf', 10));
+    expect(only().headers.Authorization).toBe('Bearer tok-123');
+    only().respond(200, JSON.stringify({ asset: {} }));
+    await p;
+  });
+
   it('rejects as aborted when the signal fires', async () => {
     const ctrl = new AbortController();
     const p = api.uploadAssetDocument(HASS, 'a', 'd', makeFile('m.pdf', 100), undefined, {

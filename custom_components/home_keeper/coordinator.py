@@ -63,24 +63,6 @@ def discard_edge_state(hass: HomeAssistant, entry_id: str) -> None:
     _edge_state_store(hass).pop(entry_id, None)
 
 
-def entity_set_key(task: dict[str, Any] | None) -> tuple:
-    """Identity of a task's per-task entity set.
-
-    Per-task entities (button/sensor/binary_sensor) exist only for an enabled,
-    device-attached task, and their display name embeds the task name (so several
-    tasks on one device page stay distinguishable). When this key changes between
-    an update's before/after, the entry must be reloaded so entities are
-    created/removed/renamed; otherwise a plain coordinator refresh is enough.
-
-    ``name`` is part of the key because HA caches an entity's computed ``name``;
-    recreating the entity on reload is how a rename takes effect on the device
-    page (and how a self-owned task device picks up its new name).
-    """
-    if not task:
-        return (None, False, None)
-    return (task.get("device_id"), bool(task.get("enabled", True)), task.get("name"))
-
-
 def task_has_entities(task: dict[str, Any] | None) -> bool:
     """True when a task owns per-task entities (button/sensor/binary_sensor).
 

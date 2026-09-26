@@ -45,7 +45,7 @@ _CLOSES = re.compile(rf"\b(?:{_CLOSING_WORDS})\s+#(\d+)\b", re.IGNORECASE)
 _MENTIONS = re.compile(rf"\b(?:{_CLOSING_WORDS}|refs?)\s+#(\d+)\b", re.IGNORECASE)
 
 # A bullet at any indent, ordered or unordered. A nested bullet is its own entry, not
-# part of its parent's text, so a ``Fixes #N`` inside one is summarised by the sentence
+# part of its parent's text, so a ``Fixes #N`` inside one is quoted with the bullet
 # that actually describes it. An indented line that is *not* a bullet is still a
 # continuation. Ordered items count too: dropping them would silently swallow a
 # ``Fixes #N`` written as ``1. …`` and leave that issue open forever.
@@ -61,7 +61,8 @@ _HRULE = re.compile(r"^\s*(?:[-*_]\s*){3,}$")
 # ``Fixes #N`` in a code sample would close a stranger's issue.
 _FENCE = re.compile(r"^\s*(?:`{3,}|~{3,})")
 
-_BOLD_LEAD = re.compile(r"^\*\*(.+?)\*\*")
+# The ``(Thanks @user!)`` credit at the end of a bullet. See ``summarize``.
+_CREDIT = re.compile(r"\s*\(Thanks\b[^()]*\)")
 
 # vX.Y.Z with an optional PEP 440 pre-release suffix — the only shapes release.yml
 # accepts, and so the only tags this project produces.
@@ -140,17 +141,15 @@ def bullets(text: str) -> list[str]:
 
 
 def summarize(bullet: str) -> str:
-    """The bullet's lead sentence, for quoting back at the issue reporter.
+    """The whole bullet, for quoting back at the issue reporter.
 
-    Changelog bullets open with a bolded one-line summary — exactly the sentence a
-    reporter wants to see. Fall back to the first sentence when a bullet doesn't
-    follow the convention.
+    The reporter gets the full changelog entry: the bold lead, what a user notices,
+    and any caveat. A bullet is at most three sentences, so it fits in a comment.
+
+    The ``(Thanks @user!)`` credit is removed. It is for the CHANGELOG, and an
+    ``@`` mention in a comment would notify the contributor on every release.
     """
-    bold = _BOLD_LEAD.match(bullet)
-    if bold:
-        return bold.group(1).strip()
-    first = re.split(r"(?<=\.)\s", bullet, maxsplit=1)[0].strip()
-    return first if len(first) <= 200 else first[:197].rstrip() + "…"
+    return _CREDIT.sub("", bullet).strip()
 
 
 def issues(text: str) -> list[dict[str, object]]:
