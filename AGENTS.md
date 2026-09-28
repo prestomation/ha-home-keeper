@@ -620,10 +620,13 @@ bash ci/test-mutation-frontend.sh --all
   `@stryker-mutator/vitest-runner` 10.0.0 runs no test per mutant under vitest 5:
   every mutant survives and the gate reads 0%. #384 moved it to 5 with every check
   green, because a dependency-only PR changes no TypeScript and its mutation job
-  has nothing to score. `.github/dependabot.yml` holds the major back. Move it only
-  with a Stryker runner that supports it, and prove it with a local
-  `bash ci/test-mutation-frontend.sh --all` that reports more than 0 tests per
-  mutant.
+  has nothing to score. `.github/dependabot.yml` holds the major back. The root
+  vitest also runs every frontend test: `ci/test-frontend.sh` and Stryker both run
+  from the repository root. The panel's own vitest is used only by `npm test` inside
+  `custom_components/home_keeper/frontend/`. Move the root major only with a Stryker
+  runner that supports it. To prove it, run `bash ci/test-mutation-frontend.sh --all`
+  and read the line `Ran N tests per mutant on average.` in the output: N must be
+  above 0. At 0.00 no test ran, whatever the score says.
 - Label a PR `skip-mutation` to bypass both jobs.
 
 `tests/conftest.py` executes the pure modules under their **real** dotted name
