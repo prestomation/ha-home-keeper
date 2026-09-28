@@ -451,6 +451,16 @@ the branch touched.
   they would read *mutated* text and go red for mutants they never exercised —
   `forms.ts` is full of `t('…')` call sites, so this inflates the score badly.
   `vitest.stryker.config.js` excludes that suffix.
+- **Keep the root `vitest` on version 4.** Stryker drives it, and its vitest runner
+  (10.0.0) runs no test per mutant under vitest 5, so the gate reads 0%. A
+  dependency-only PR has no TypeScript to score, so it cannot see this (#384).
+  Dependabot holds the major back. The root vitest also runs `ci/test-frontend.sh`.
+  Before a move, `bash ci/test-mutation-frontend.sh --all` must print
+  `Ran N tests per mutant on average.` with N above 0.
+- **A toolchain change gets a smoke run.** A PR that changes no TypeScript but
+  changes the npm manifests, the Stryker or vitest config, or the mutation scripts
+  is scored on `limits.ts` instead of passing with nothing to test. A run where no
+  test ran against any scored mutant fails.
 - Label a PR `skip-mutation` to bypass both jobs (revert/infra PRs).
 
 ## Translations (quality gates)

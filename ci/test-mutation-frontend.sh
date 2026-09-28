@@ -29,6 +29,18 @@ else
   SCOPE_FILE="$(mktemp)"
   trap 'rm -f "$SCOPE_FILE"' EXIT
   python3 ci/mutation_scope.py --language typescript --base "$BASE" > "$SCOPE_FILE"
+  # No TypeScript changed, but the toolchain did: a vitest or Stryker update, or
+  # their config. Scoring nothing would let that PR through green whatever it
+  # broke (#384 moved the root vitest to a major Stryker could not drive). So run
+  # Stryker on one small, fully covered file instead: a working toolchain scores
+  # it at 100%.
+  TOOLCHAIN=(package.json package-lock.json stryker.conf.json vitest.config.js
+    vitest.stryker.config.js ci/test-mutation-frontend.sh ci/mutation_report.py)
+  if [ ! -s "$SCOPE_FILE" ] &&
+    [ -n "$(git diff --name-only "$(git merge-base "$BASE" HEAD)" HEAD -- "${TOOLCHAIN[@]}")" ]; then
+    echo "[mutation] the mutation toolchain changed: smoke run on limits.ts"
+    echo "custom_components/home_keeper/frontend/src/limits.ts" > "$SCOPE_FILE"
+  fi
   if [ ! -s "$SCOPE_FILE" ]; then
     python3 - <<'PY'
 import os

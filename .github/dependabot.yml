@@ -32,6 +32,16 @@ updates:
     schedule:
       interval: weekly
     labels: ["dependencies"]
+    ignore:
+      # The root vitest is the one Stryker drives. @stryker-mutator/vitest-runner
+      # 10.0.0 runs no test per mutant under vitest 5, so every mutant survives and
+      # the TypeScript mutation gate reads 0%. A dependency-only PR changes no
+      # TypeScript, so its own mutation job has nothing to score and stays green
+      # (#384). Remove this rule when a Stryker vitest runner supports vitest 5.
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitest/ui"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: "/tests/e2e"
