@@ -14,7 +14,7 @@ import { taskAreaId } from './card-filter';
 import { t } from './i18n';
 import type { PanelHost } from './panel-host';
 import { MDI_DEVICES } from './panel-icons';
-import type { Asset, Task } from './types';
+import type { Asset, ManagedByBase, Task } from './types';
 import {
   HK_DOMAIN,
   areaName,
@@ -22,7 +22,9 @@ import {
   deviceDomain,
   deviceName,
   escapeHTML,
+  formatQuantity,
   isHttpUrl,
+  isUseTask,
   navigateTo,
   safeHref,
   scanRequired,
@@ -37,7 +39,18 @@ import {
  * orphaned (the `force` service is the escape hatch for that edge case).
  */
 export function isManagedOrphan(p: PanelHost, task: Task): boolean {
-  const id = task.managed_by?.config_entry_id;
+  return ownerIsGone(p, task.managed_by);
+}
+
+/** The same question about an appliance's owner. An appliance carries the same
+ *  ownership block a task does, so it can be orphaned the same way. */
+export function isManagedAssetOrphan(p: PanelHost, asset: Asset): boolean {
+  return ownerIsGone(p, asset.managed_by);
+}
+
+/** The one reading of "the owner is no longer here", shared by both surfaces. */
+function ownerIsGone(p: PanelHost, mb?: ManagedByBase | null): boolean {
+  const id = mb?.config_entry_id;
   return Boolean(id) && !p._loadedEntryIds.has(id as string);
 }
 
@@ -116,9 +129,21 @@ export function tagChip(p: PanelHost, task: Task): string {
 
 /** Renders a "Managed by X" chip (or "Integration offline" if orphaned). */
 export function managedChip(p: PanelHost, task: Task): string {
-  const mb = task.managed_by;
+  return ownerChip(p, task.managed_by);
+}
+
+/**
+ * The same chip for an appliance an integration owns. One renderer, because the
+ * chip says the same thing on both surfaces and two copies would be free to
+ * disagree about what "offline" looks like.
+ */
+export function assetManagedChip(p: PanelHost, asset: Asset): string {
+  return ownerChip(p, asset.managed_by);
+}
+
+function ownerChip(p: PanelHost, mb?: ManagedByBase | null): string {
   if (!mb) return '';
-  if (isManagedOrphan(p, task)) {
+  if (ownerIsGone(p, mb)) {
     return `<ha-assist-chip class="hk-orphaned" label="${escapeHTML(t('chip.orphaned'))}"></ha-assist-chip>`;
   }
   // A task Home Keeper synced from a sensor is "owned" by Home Keeper itself, so
@@ -132,6 +157,75 @@ export function managedChip(p: PanelHost, task: Task): string {
   const iconName = selfOwned ? 'mdi:autorenew' : mb.icon || 'mdi:puzzle';
   const icon = `<ha-icon slot="icon" icon="${escapeHTML(iconName)}" class="hk-chip-ic"></ha-icon>`;
   return `<ha-assist-chip class="hk-managed" label="${escapeHTML(label)}" title="${escapeHTML(tip)}">${icon}</ha-assist-chip>`;
+}
+
+/**
+ * What completing this task takes off the shelf, and what is left: "Takes 2 AAA ·
+ * 2 left".
+ *
+ * The count already lives on the appliance page, but the task row is where the work
+ * is decided — a replacement the user is about to mark done is exactly when "am I
+ * about to run out" matters. The quantity is the link's own when it carries one
+ * (a device takes 2 cells, its neighbour takes 4), else the part's per-completion
+ * amount, else one whole spare.
+ *
+ * A part that tracks no stock still gets the chip, without the "left" half: the
+ * task still takes that part, and the chip is the way to it. A click opens the part
+ * on its appliance page (`wirePartChips`). So an integration that links its task to
+ * a part gets this chip for free, and does not have to send a chip of its own.
+ *
+ * Empty when the link points at a part that is gone, and on a counted wear item's
+ * *use* task, which draws nothing off the shelf.
+ */
+export function consumableChip(p: PanelHost, task: Task): string {
+  const link = task.source?.part;
+  if (!link || isUseTask(task)) return '';
+  const asset = p._assets.find((a) => a.id === link.asset_id);
+  const part = asset?.parts?.find((x) => x.id === link.part_id);
+  if (!asset || !part?.id) return '';
+  const takes = link.quantity ?? part.consume_quantity ?? 1;
+  const bits = [t('chip.takes', { n: formatQuantity(takes, part.stock_unit), part: part.name })];
+  if (part.stock != null) {
+    bits.push(t('chip.left', { n: formatQuantity(part.stock, part.stock_unit) }));
+  }
+  const label = bits.join(' · ');
+  const icon = `<ha-icon slot="icon" icon="mdi:package-variant" class="hk-chip-ic"></ha-icon>`;
+  return `<ha-assist-chip class="hk-counted hk-part-chip" role="link" tabindex="0" data-asset-id="${escapeHTML(
+    asset.id,
+  )}" data-part-id="${escapeHTML(part.id)}" label="${escapeHTML(label)}" title="${escapeHTML(
+    t('chip.part.tip'),
+  )}">${icon}</ha-assist-chip>`;
+}
+
+/**
+ * Wire every part chip, and the appliance link on a task's "Linked consumable"
+ * row, to open its part. Each carries the destination in the DOM, the same way a
+ * device chip does. The click stops here, so a chip on a list row does not also
+ * open the row's task.
+ */
+export function wirePartChips(p: PanelHost, root: ParentNode): void {
+  root.querySelectorAll<HTMLElement>('.hk-part-chip, a.hk-part-link').forEach((chip) => {
+    const { assetId, partId } = chip.dataset;
+    if (!assetId || !partId) return;
+    const go = (e: Event): void => {
+      // A modified click on the link keeps the browser's own meaning: a new tab.
+      const m = e as MouseEvent;
+      if (m.ctrlKey || m.metaKey || m.shiftKey || m.button === 1) return;
+      e.preventDefault();
+      e.stopPropagation();
+      p._openPart(assetId, partId);
+    };
+    chip.addEventListener('click', go);
+    // An anchor already turns Enter into a click; only the chip needs the keys.
+    if (chip.tagName === 'A') return;
+    chip.addEventListener('keydown', (e) => {
+      const key = (e as KeyboardEvent).key;
+      if (key === 'Enter' || key === ' ') {
+        e.preventDefault();
+        go(e);
+      }
+    });
+  });
 }
 
 /**

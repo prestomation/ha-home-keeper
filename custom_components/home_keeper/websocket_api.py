@@ -349,6 +349,8 @@ async def ws_delete_task(
         # Both null clears the link; both set links the task to that part.
         vol.Required("asset_id"): vol.Any(str, None),
         vol.Required("part_id"): vol.Any(str, None),
+        # What this one task takes; absent, the part's own per-use amount decides.
+        vol.Optional("quantity"): vol.Any(vol.Coerce(float), None),
     }
 )
 @websocket_api.async_response
@@ -360,7 +362,10 @@ async def ws_set_task_consumable(
     coord: HomeKeeperCoordinator,
 ) -> None:
     task = await coord.store.set_task_consumable(
-        msg["task_id"], msg["asset_id"], msg["part_id"]
+        msg["task_id"],
+        msg["asset_id"],
+        msg["part_id"],
+        quantity=msg.get("quantity"),
     )
     # Linking only rewrites the task's source; the per-task entity set is unchanged,
     # so a refresh is enough (no entry reload).
@@ -484,7 +489,9 @@ async def ws_delete_completion(
     coord: HomeKeeperCoordinator,
 ) -> None:
     task = await coord.store.delete_completion(msg["task_id"], msg["ts"])
-    await coord.async_request_refresh()
+    # The undo can give stock back to a part and lift it above its reorder point, which
+    # removes its Buy task; settle it (else a plain refresh).
+    await coord.async_settle_buy_tasks()
     connection.send_result(msg["id"], {"task": task})
 
 
@@ -777,6 +784,8 @@ async def ws_update_asset(
     {
         vol.Required("type"): "home_keeper/delete_asset",
         vol.Required("asset_id"): str,
+        # Bypass a managed appliance's deletion protection, like ``delete_task``.
+        vol.Optional("force", default=False): bool,
     }
 )
 @websocket_api.require_admin
@@ -792,7 +801,7 @@ async def ws_delete_asset(
     # back would be a cycle (the same idiom ``store``/``manuals`` use).
     from . import _delete_asset
 
-    await _delete_asset(hass, coord, msg["asset_id"])
+    await _delete_asset(hass, coord, msg["asset_id"], force=msg.get("force", False))
     connection.send_result(msg["id"], {"ok": True})
 
 
@@ -873,7 +882,7 @@ async def ws_adjust_part_stock(
     coord: HomeKeeperCoordinator,
 ) -> None:
     try:
-        asset = await coord.store.adjust_part_stock(
+        report = await coord.store.adjust_part_stock(
             msg["asset_id"], msg["part_id"], msg["delta"]
         )
     except KeyError:
@@ -891,7 +900,11 @@ async def ws_adjust_part_stock(
     # A crossing may create/remove an auto-buy task; settle it (reload if a buy task's
     # device entities changed, else refresh).
     await coord.async_settle_buy_tasks()
-    connection.send_result(msg["id"], {"asset": asset})
+    # The asset for the panel, which redraws the appliance, and the same stock report
+    # the service returns, for any other client.
+    connection.send_result(
+        msg["id"], {"asset": coord.store.get_asset(msg["asset_id"]), **report}
+    )
 
 
 @websocket_api.websocket_command(

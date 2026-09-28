@@ -193,6 +193,8 @@ export interface PanelHost extends HTMLElement {
   ): HaFormElement;
   /** Navigate within the panel; `replace` for a lateral move that Back should skip. */
   _navigate(loc: PanelLocation, replace?: boolean): void;
+  /** The full panel URL for a location (prefix included). */
+  _hrefFor(loc: PanelLocation): string;
   /** A detail page's Notes card contents — rendered Markdown, or the inline editor. */
   _notesCardBody(
     target: NoteTarget,
@@ -215,6 +217,10 @@ export interface PanelHost extends HTMLElement {
   _openCreateAsset(): void;
   /** Open an object's detail page (a Back-able step). */
   _openDetail(kind: 'task' | 'asset', id: string): void;
+  /** Open one part on its appliance's parts tab, scrolled to and marked. */
+  _openPart(assetId: string, partId: string): void;
+  /** A part the next render of the parts tab scrolls to, then clears. */
+  _focusPart: string | null;
   /** Open the drawer on a new task prefilled with a copy of *task*. */
   _openDuplicate(task: Task): void;
   /** Open the drawer editing *task*. */

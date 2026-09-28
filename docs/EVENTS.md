@@ -175,6 +175,11 @@ when you mark it done.
 Each completion takes off the part's **Used per completion** amount. A part that leaves
 it unset gives up one whole spare. A bottle that sets `0.33` lasts three refills.
 
+Deleting that completion gives the stock back. Home Keeper records on the completion
+how much it really took, so a completion that found only 1 of the 2 spares it wanted
+gives back 1. The return fires `home_keeper_part_restocked` when it lifts the part above
+its reorder point.
+
 A part with **Auto-create buy task** enabled goes one step further: crossing the reorder
 threshold auto-creates a one-off *"Buy {part}"* task (a `home_keeper_task_created` event)
 and restocking removes it (`home_keeper_task_deleted`). No new event type is involved,
@@ -248,6 +253,9 @@ fractional, so a bottle topped up a third at a time reports `0.67` at the precis
 is really at. And `unit` is whatever the part counts itself in (`"ml"`, `"bottles"`),
 or `""` for one counted in whole spares, so a notification can read
 `{{ trigger.event.data.stock }} {{ trigger.event.data.unit }}` and be right either way.
+
+A stock event also holds the appliance's `source` and `managed_by`, as the asset
+events do, so an integration that manages an appliance can find its own stock events.
 
 ## Example automations
 

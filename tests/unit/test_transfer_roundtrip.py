@@ -173,3 +173,69 @@ def test_re_importing_an_export_updates_rather_than_duplicating():
     assert plan.ok
     assert [r.action for r in plan.records] == ["update", "update"]
     assert {r.matched_by for r in plan.records} == {"id"}
+
+
+# ── The twins ────────────────────────────────────────────────────────────────
+#
+# ``assets`` and ``models`` are independent siblings: neither imports the other, so
+# the rules they share are written out twice. Twins that drift are worse than one
+# rule, so the pairs are checked here — the same file that already exercises both
+# builders end to end.
+
+_OWNERSHIP_CASES = [
+    None,
+    {},
+    {"integration": "battery_notes", "display_name": "Battery Notes"},
+    {"integration": "x", "deletion_protected": True, "config_entry_id": "e1"},
+    {"integration": "x", "deletion_protected": True},
+    {"integration": "x", "deletion_protected": True, "config_entry_id": ""},
+    "battery_notes",
+    ["battery_notes"],
+    7,
+]
+
+
+def _refused(validate, value) -> bool:
+    try:
+        validate(value)
+    except (tr.models.TaskValidationError, tr.assets_model.AssetValidationError):
+        return True
+    return False
+
+
+def test_validate_managed_by_twins_agree():
+    for value in _OWNERSHIP_CASES:
+        assert _refused(tr.models.validate_managed_by, value) == _refused(
+            tr.assets_model.validate_managed_by, value
+        ), value
+    # And the rule is the one both docstrings state: protection needs an entry id.
+    assert _refused(
+        tr.assets_model.validate_managed_by,
+        {"integration": "x", "deletion_protected": True},
+    )
+
+
+def test_validate_source_twins_agree():
+    for value in [None, {}, {"battery_notes": {"role": "stock"}}, "x", ["x"], 7]:
+        assert _refused(tr.models.validate_source, value) == _refused(
+            tr.assets_model.validate_source, value
+        ), value
+
+
+def test_deletion_blocked_twins_agree():
+    protected = {
+        "managed_by": {
+            "integration": "x",
+            "display_name": "X",
+            "config_entry_id": "e1",
+            "deletion_protected": True,
+        }
+    }
+    for record in (protected, {"managed_by": {"integration": "x"}}, {}):
+        for orphaned in (True, False):
+            for force in (True, False):
+                assert tr.models.deletion_blocked(
+                    record, orphaned=orphaned, force=force
+                ) == tr.assets_model.deletion_blocked(
+                    record, orphaned=orphaned, force=force
+                ), (record, orphaned, force)

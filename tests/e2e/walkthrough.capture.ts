@@ -194,6 +194,19 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await allBtn.click();
   await page.waitForTimeout(BEAT);
 
+  // 1d-1. A battery task's part chip is a link. One click opens the Batteries
+  //       appliance on the part the task takes, scrolled to and marked; Back
+  //       returns to the list.
+  const partChip = panel
+    .locator(`ha-card.hk-card[data-id="${TASK.doorBattery}"] ha-assist-chip.hk-part-chip`);
+  await partChip.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT);
+  await partChip.click();
+  await expect(panel.locator(`.hk-part-row.hk-part-focus[data-part-row="${PART.aaa}"]`)).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await page.goBack();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
   // 1d-2. Counted wear items. The Counted pill, then the row itself: a use task has
   //       no due date at all, so the count chip is the only thing on the row that
   //       says anything — which is exactly why the section exists. Then one tap of
@@ -622,6 +635,18 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await panel.locator('.hk-subtab[data-tab="history"]').click();
   await expect(panel.locator('.hk-hist-group').first()).toBeVisible();
   await page.waitForTimeout(BEAT * 2);
+
+  // 4b. An appliance an integration manages. Battery Notes owns the Batteries
+  //     appliance and its part list, one part per battery type; the counts are the
+  //     user's. A type nobody has counted offers "Start counting".
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.batteries}"]`).click();
+  await expect(panel.locator('.hk-asset-head ha-assist-chip.hk-managed')).toBeVisible();
+  await expect(panel.locator('.hk-part-row')).toHaveCount(3);
+  await page.waitForTimeout(BEAT * 2);
+  // Back to the water heater, which the rest of this section walks.
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await expect(panel.locator('.hk-part-row').first()).toBeVisible();
+  await page.waitForTimeout(BEAT);
 
   // 4a. Appliances carry Markdown notes of their own — the shut-off location, a
   //     spec table, the yearly drain — plus per-part notes down in Parts. They

@@ -8,6 +8,8 @@ and that the asset CRUD services round-trip.
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+import requests
 from conftest import call_service, list_states
 
 
@@ -978,3 +980,131 @@ def test_deleting_asset_unlinks_manual_link_task(ha):
     assert not (survivor.get("source") or {}).get("part"), (
         "the dangling consumable link should be cleared"
     )
+
+
+# ── An appliance an integration owns ─────────────────────────────────────────
+#
+# The battery-stock shape: a glue keeps one appliance with a part per battery type,
+# the household keeps every count on it. These run against the real container because
+# the locks have to hold across the real service layer, not only in the model.
+
+
+def _managed_appliance(ha, name, parts):
+    """Create an appliance this test owns, with ``name`` and ``parts`` locked."""
+    import time
+
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": name,
+            "parts": parts,
+            "source": {"battery_notes": {"role": "battery_stock"}},
+            "managed_by": {
+                "integration": "battery_notes",
+                "display_name": "Battery Notes",
+                "locked_fields": ["name", "parts"],
+            },
+        },
+    )
+    for _ in range(20):
+        asset = next((a for a in _assets(ha) if a["name"] == name), None)
+        if asset and asset.get("parts"):
+            return asset
+        time.sleep(1)
+    raise AssertionError(f"appliance {name!r} was not provisioned with its parts")
+
+
+def test_a_managed_appliance_keeps_its_owners_parts_and_the_users_counts(ha):
+    import uuid
+
+    name = f"Batteries {uuid.uuid4().hex[:8]}"
+    asset = _managed_appliance(ha, name, [{"name": "AAA", "type": "consumable"}])
+    aaa = asset["parts"][0]
+    assert asset["managed_by"]["integration"] == "battery_notes"
+    assert aaa["stock"] is None, "a part nobody has counted starts untracked"
+
+    # The household counts the drawer, through the ordinary appliance edit.
+    call_service(
+        ha,
+        "home_keeper",
+        "update_asset",
+        {
+            "asset_id": asset["id"],
+            "name": "Not my name to set",
+            "parts": [{"id": aaa["id"], "name": "Renamed", "stock": 4}],
+        },
+    )
+    after = next(a for a in _assets(ha) if a["id"] == asset["id"])
+    assert after["name"] == name, "the owner's name is locked"
+    assert after["parts"][0]["name"] == "AAA", "the owner's part name is locked"
+    assert after["parts"][0]["stock"] == 4, "the count is the household's"
+
+    # The owner re-states its catalog: a new type arrives, the counted one survives
+    # with its count, and the part the owner dropped is gone only because nobody had
+    # counted it.
+    call_service(
+        ha,
+        "home_keeper",
+        "update_managed_asset",
+        {
+            "asset_id": asset["id"],
+            "name": f"{name} pool",
+            "parts": [
+                {"id": aaa["id"], "name": "AAA", "notes": "Used by 2 devices"},
+                {"name": "CR2032", "type": "consumable"},
+            ],
+        },
+    )
+    owned = next(a for a in _assets(ha) if a["id"] == asset["id"])
+    assert owned["name"] == f"{name} pool", "the owner writes its own locked name"
+    by_name = {p["name"]: p for p in owned["parts"]}
+    assert set(by_name) == {"AAA", "CR2032"}
+    assert by_name["AAA"]["stock"] == 4
+    assert by_name["AAA"]["notes"] == "Used by 2 devices"
+    assert by_name["CR2032"]["stock"] is None
+
+
+def test_update_managed_asset_refuses_an_appliance_nobody_owns(ha):
+    import uuid
+
+    name = f"Fridge {uuid.uuid4().hex[:8]}"
+    asset, _part = _add_consumable_appliance(ha, name, stock=2, reorder_at=1)
+    with pytest.raises(requests.HTTPError):
+        call_service(
+            ha,
+            "home_keeper",
+            "update_managed_asset",
+            {"asset_id": asset["id"], "name": "Mine now"},
+        )
+
+
+def test_a_consumable_link_carries_its_own_quantity(ha):
+    import uuid
+
+    name = f"Batteries {uuid.uuid4().hex[:8]}"
+    asset = _managed_appliance(
+        ha,
+        name,
+        [{"name": "AAA", "type": "consumable", "stock": 4, "reorder_at": 1}],
+    )
+    part = asset["parts"][0]
+    task_id = _add_floating_task(ha, f"Replace battery {name}")
+    call_service(
+        ha,
+        "home_keeper",
+        "set_task_consumable",
+        {
+            "task_id": task_id,
+            "asset_id": asset["id"],
+            "part_id": part["id"],
+            "quantity": 2,
+        },
+    )
+    linked = next(t for t in _all_tasks(ha) if t["id"] == task_id)
+    assert linked["source"]["part"]["quantity"] == 2
+
+    call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
+    fresh = next(a for a in _assets(ha) if a["id"] == asset["id"])
+    assert fresh["parts"][0]["stock"] == 2, "the completion takes the link's quantity"

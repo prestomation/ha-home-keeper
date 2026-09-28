@@ -56,6 +56,16 @@ needs replacing. The glue maps that one-to-one onto a Home Keeper triggered task
 | battery went **low** again later | `home_keeper.trigger_task` | the existing task re-arms (history preserved) |
 | battery **replaced** | `home_keeper.complete_task` (with an `origin`) | the task records a completion and goes **dormant** |
 | user ticks the task off **in Home Keeper** | (listener reacts to `home_keeper_task_completed`, `origin = None`) | glue tells Battery Notes the battery was replaced |
+| every battery type it knows about | `add_asset` once, then `update_managed_asset` | a managed **Batteries** appliance with 1 consumable part per battery type |
+| the type and count a low device takes | `set_task_consumable` with that device's `quantity` | the *"Replace battery"* task reads *"Takes 2 AAA, 2 left"* |
+| battery **replaced**, from either side | (no extra call) | the completion takes 2 AAA off that part's stock |
+| stock at or below its reorder point | (no extra call) | a *"Buy AAA"* task, and a line on the shopping list |
+
+The appliance is **managed**. The glue owns its name and its list of parts. The user
+owns every stock number. A type the user has not counted yet stays untracked and opens
+no buy task. See [INTEGRATING.md §8](INTEGRATING.md#8-managing-an-appliance) for the
+`managed_by` block on an appliance and for `update_managed_asset`. The `quantity` on a
+consumable link is there too.
 
 Because the task **persists across cycles** instead of being deleted and recreated, its
 completion history accumulates, so you learn the real cadence ("this smoke-detector

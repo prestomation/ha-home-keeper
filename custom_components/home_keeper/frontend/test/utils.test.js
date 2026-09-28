@@ -9,6 +9,8 @@ import {
   TASK_TABS,
   SNOOZE_PRESETS,
   areaName,
+  assetLockedFields,
+  assetPartsLocked,
   assetSummary,
   brandLogoUrl,
   btnAttrs,
@@ -1322,6 +1324,59 @@ describe('parseRoute', () => {
   });
 });
 
+describe('a part under the parts tab', () => {
+  it('parses a part segment, decoded', () => {
+    expect(parseRoute('/appliances/a-bat/parts/p%2F1')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'a-bat', tab: 'parts', part: 'p/1' },
+    });
+  });
+  it('ignores a fourth segment under any other tab, and on a task', () => {
+    expect(parseRoute('/appliances/a-bat/documents/p-1')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'a-bat', tab: 'documents' },
+    });
+    expect(parseRoute('/appliances/a-bat/bogus/p-1')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'a-bat', tab: 'parts' },
+    });
+    expect(parseRoute('/tasks/t-1/history/p-1')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: 't-1', tab: 'history' },
+    });
+  });
+  it('keeps the parts tab without a part when the segment is missing', () => {
+    expect(parseRoute('/appliances/a-bat/parts')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'a-bat', tab: 'parts' },
+    });
+  });
+  it('builds the part path, encoded, with the parts tab written out', () => {
+    const detail = { kind: 'asset', id: 'a b', tab: 'parts', part: 'p/1' };
+    expect(buildPath({ view: 'appliances', detail })).toBe('/appliances/a%20b/parts/p%2F1');
+    // No tab means the default tab, which is parts.
+    expect(
+      buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'x', part: 'p' } }),
+    ).toBe('/appliances/x/parts/p');
+  });
+  it('drops the part on any other tab, and on a task', () => {
+    expect(
+      buildPath({
+        view: 'appliances',
+        detail: { kind: 'asset', id: 'x', tab: 'documents', part: 'p' },
+      }),
+    ).toBe('/appliances/x/documents');
+    expect(
+      buildPath({ view: 'tasks', detail: { kind: 'task', id: 't', tab: 'schedule', part: 'p' } }),
+    ).toBe('/tasks/t');
+  });
+  it('round-trips', () => {
+    for (const path of ['/appliances/a/parts/p', '/appliances/a%2Fb/parts/p%20q']) {
+      expect(buildPath(parseRoute(path))).toBe(path);
+    }
+  });
+});
+
 describe('buildPath', () => {
   it('builds list paths', () => {
     expect(buildPath({ view: 'tasks', detail: null })).toBe('/tasks');
@@ -1933,6 +1988,52 @@ describe('snooze presets', () => {
 });
 
 // ── the stock stepper's step rules ───────────────────────────────────────────
+
+describe('assetLockedFields', () => {
+  it('is empty for an appliance nobody owns', () => {
+    expect([...assetLockedFields({ id: 'a1', name: 'Fridge' })]).toEqual([]);
+    expect([...assetLockedFields(undefined)]).toEqual([]);
+    expect([...assetLockedFields(null)]).toEqual([]);
+  });
+
+  it('is empty for an owner that claims nothing', () => {
+    const owned = { id: 'a1', name: 'Batteries', managed_by: { integration: 'g', display_name: 'G' } };
+    expect([...assetLockedFields(owned)]).toEqual([]);
+  });
+
+  it('is exactly what the owner named', () => {
+    const owned = {
+      id: 'a1',
+      name: 'Batteries',
+      managed_by: { integration: 'g', display_name: 'G', locked_fields: ['name', 'parts'] },
+    };
+    const locked = assetLockedFields(owned);
+    expect([...locked].sort()).toEqual(['name', 'parts']);
+    expect(locked.has('name')).toBe(true);
+    expect(locked.has('cost')).toBe(false);
+  });
+});
+
+describe('assetPartsLocked', () => {
+  const owned = (fields) => ({
+    id: 'a1',
+    name: 'Batteries',
+    managed_by: { integration: 'g', display_name: 'G', locked_fields: fields },
+  });
+
+  it('is true only when the owner claims the part list itself', () => {
+    expect(assetPartsLocked(owned(['parts']))).toBe(true);
+    expect(assetPartsLocked(owned(['name', 'parts']))).toBe(true);
+  });
+
+  it('is false when the owner claims other fields, or none at all', () => {
+    // The name being the owner's says nothing about the list of parts.
+    expect(assetPartsLocked(owned(['name']))).toBe(false);
+    expect(assetPartsLocked(owned([]))).toBe(false);
+    expect(assetPartsLocked({ id: 'a1', name: 'Fridge' })).toBe(false);
+    expect(assetPartsLocked(undefined)).toBe(false);
+  });
+});
 
 describe('partStockStep', () => {
   it('moves in whole spares for a part counted in spares', () => {

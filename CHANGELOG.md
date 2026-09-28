@@ -6,6 +6,33 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.27.0b5]
+
+### Added
+
+- **[Managed appliances](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#stock-an-integration-keeps-for-you).**
+  An integration can own an appliance and its list of parts. You keep every stock
+  count.
+- **[Consume quantity](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#parts--wear-items).**
+  A task linked to a part can take more than 1 spare off the stock. An integration
+  sets the amount for the task it links.
+- **[Shared stock counts](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#stock-an-integration-keeps-for-you).**
+  Every user can see how many spares a part has left, and not only an admin. The
+  spares entity of a part also shows its reorder point.
+- **[Part chip links](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#stock-an-integration-keeps-for-you).**
+  A task linked to a part shows that part on a chip. Click the chip to open the part
+  on its appliance page.
+
+### Changed
+
+- **Stock adjust response.** `home_keeper.adjust_part_stock` returns the new count,
+  and each stock event names the integration that owns the appliance.
+
+### Fixed
+
+- **Undo returns spares.** Delete a completion of a task linked to a part, and the
+  spares it took go back into stock.
+
 ## [0.27.0b4]
 
 ### Added

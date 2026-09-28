@@ -35,6 +35,7 @@ export const TASK = {
 
 /** Appliances. */
 export const ASSET = {
+  batteries: '5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64',
   radioShade: '23e02da0-0411-4b16-9a63-10126f2ca7e6',
   rainJacket: 'b7c1e2a4-3d5f-4a1b-9c8e-2f6d0a4b7e13',
   shades: '1f938cf8-c2a3-4438-aab3-840d0d749725',
@@ -43,7 +44,10 @@ export const ASSET = {
 
 /** Parts. */
 export const PART = {
+  aa: '0a6f3c21-8d4e-4b7a-92c5-1e8f6a3d0b47',
+  aaa: '3b9e1d57-2c6f-4a8b-b1e4-9d7c5f2a6e83',
   anode: 'c91fd864-9e72-4645-9ab7-cdca418bb2bc',
+  cr2032: '7c4a2f90-6e1b-4d3c-a8f5-2b9e0d1c7a36',
   dwrCoating: 'c2f4a6b8-1e3d-4c5a-8b7f-9d0e2a4c6b18',
   descaler: 'ae2b576d-67f4-4d4b-9aaf-d0bcebc5953b',
   sedimentFilter: 'f8319a3a-c717-48c2-a53e-79a205fb4a48',

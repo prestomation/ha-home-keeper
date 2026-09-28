@@ -1583,17 +1583,42 @@ export function shoppingSchema(exclude: string[] = [], target = ''): FormField[]
 const MIN_POSITIVE_QUANTITY = 0.001;
 
 /**
+ * Drop every field an owner claims, grids included. A grid left with nothing in it
+ * goes too, or the form would paint an empty row where three controls were.
+ *
+ * The same contract a managed *task* form has (`taskSchemaSections`): the panel
+ * offers what is still the user's and says who owns the rest, rather than showing a
+ * control whose Save the owner's next pass undoes.
+ */
+export function dropLockedFields(fields: FormField[], locked: Set<string>): FormField[] {
+  const kept: FormField[] = [];
+  for (const f of fields) {
+    if (f.schema) {
+      const inner = dropLockedFields(f.schema, locked);
+      if (inner.length) kept.push({ ...f, schema: inner });
+    } else if (!locked.has(f.name)) {
+      kept.push(f);
+    }
+  }
+  return kept;
+}
+
+/**
  * Identity schema (kind + virtual/existing fields + area). The `kind` field is
  * omitted once the asset exists (it's immutable after creation, and ha-form
  * has no per-field disable), so editing can't put it in an inconsistent state.
  *
  * *parents* is the appliances this one may be nested under, resolved by the caller —
  * the panel knows the tree, this only lays the field out.
+ *
+ * *locked* is what the owning integration writes on a managed appliance; every one
+ * of those fields leaves the form.
  */
 export function assetIdentitySchema(
   x: Partial<Asset>,
   editing: boolean,
   parents: { value: string; label: string }[],
+  locked: Set<string> = new Set(),
 ): FormField[] {
   const fields: FormField[] = [];
   if (!editing) {
@@ -1638,12 +1663,13 @@ export function assetIdentitySchema(
     });
   }
   fields.push({ name: 'area_id', selector: selArea() });
-  return fields;
+  return dropLockedFields(fields, locked);
 }
 
-/** Structured field that wires into HA: the asset's value (for the inventory). */
-export function structuredDetailsSchema(): FormField[] {
-  return [{ name: 'cost', selector: selNumber(0) }];
+/** Structured field that wires into HA: the asset's value (for the inventory).
+ *  Gone when the appliance's owner sets it. */
+export function structuredDetailsSchema(locked: Set<string> = new Set()): FormField[] {
+  return dropLockedFields([{ name: 'cost', selector: selNumber(0) }], locked);
 }
 
 /**
@@ -1694,7 +1720,24 @@ export function metadataSchema(m: MetadataEntry): FormField[] {
  * depend on these values live in a second form (`partDependentSchema`), so revealing
  * one of them never rebuilds this one (issue #296).
  */
-export function partBaseSchema(): FormField[] {
+export function partBaseSchema(locked = false): FormField[] {
+  // Spare quantities are decimal (`'any'`): a part measured in millilitres or
+  // topped up a third of a bottle at a time is as valid as one counted in whole
+  // filters. `stock_unit` is the label those numbers are shown with.
+  const stock: FormField = {
+    name: '',
+    type: 'grid',
+    schema: [
+      { name: 'stock', selector: selNumber(0, 'any') },
+      { name: 'reorder_at', selector: selNumber(0, 'any') },
+      { name: 'stock_unit', selector: selText() },
+    ],
+  };
+  // On a part list an integration owns, what the part *is* — its name, its type,
+  // where it is bought, the note saying what uses it — is the owner's and is
+  // rewritten on every reconcile. The counts never were, so the stock grid is the
+  // whole form: a battery pool the glue keeps is still counted by hand.
+  if (locked) return [stock];
   return [
     {
       name: '',
@@ -1723,18 +1766,7 @@ export function partBaseSchema(): FormField[] {
     // Free-form notes about this part (rendered as Markdown on the appliance's
     // detail page).
     { name: 'notes', selector: selText(true) },
-    // Spare quantities are decimal (`'any'`): a part measured in millilitres or
-    // topped up a third of a bottle at a time is as valid as one counted in whole
-    // filters. `stock_unit` is the label those numbers are shown with.
-    {
-      name: '',
-      type: 'grid',
-      schema: [
-        { name: 'stock', selector: selNumber(0, 'any') },
-        { name: 'reorder_at', selector: selNumber(0, 'any') },
-        { name: 'stock_unit', selector: selText() },
-      ],
-    },
+    stock,
   ];
 }
 
@@ -1747,6 +1779,7 @@ export function partBaseSchema(): FormField[] {
 export function partDependentSchema(
   part: Part,
   tags: { value: string; label: string }[] = [],
+  locked = false,
 ): FormField[] {
   const fields: FormField[] = [];
   // How much one completion draws down. Only meaningful once the part is tracking
@@ -1765,7 +1798,10 @@ export function partDependentSchema(
       });
     }
   }
-  if (part.type === 'wear') {
+  // The replacement schedule describes the part, so it goes with the rest of the
+  // owner's fields. The three above stay: they are the counts, and every one of
+  // them answers "how much do I have and when do I buy more".
+  if (part.type === 'wear' && !locked) {
     fields.push({
       name: '',
       type: 'grid',
@@ -1841,8 +1877,12 @@ export function partDependentKey(part: Part): string {
 
 /** Schema for one part, as one flat list: the fixed fields, then the ones its own
  *  values reveal. The concatenation of the two builders the editor uses. */
-export function partSchema(part: Part, tags: { value: string; label: string }[] = []): FormField[] {
-  return [...partBaseSchema(), ...partDependentSchema(part, tags)];
+export function partSchema(
+  part: Part,
+  tags: { value: string; label: string }[] = [],
+  locked = false,
+): FormField[] {
+  return [...partBaseSchema(locked), ...partDependentSchema(part, tags, locked)];
 }
 
 /** A part's fields as the flat form data both of its forms are seeded from (each

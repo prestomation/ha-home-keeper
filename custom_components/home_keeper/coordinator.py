@@ -187,6 +187,11 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 self._buy_reload_scheduled = True
                 self.hass.async_create_task(self._async_reload_for_buy_tasks())
         else:
+            # The part entities (spares number, low-stock sensor) read the store, not
+            # the refreshed data, so they can show the new count now. The refresh
+            # below is debounced, and a count that waits up to 10 seconds behind the
+            # tap that changed it reads as a tap that did nothing.
+            self.async_update_listeners()
             await self.async_request_refresh()
 
     async def _async_reload_for_buy_tasks(self) -> None:

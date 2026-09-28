@@ -62,11 +62,12 @@ Any signed-in user can use these surfaces:
 - Read tasks and profiles.
 
 The card reads appliance data, so a non-admin user gets a narrowed view: the
-appliance's documents, its link-type custom fields, and each part's name
-and product URL.
+appliance's documents, its link-type custom fields, and each part's name,
+product URL, stock count, reorder point and stock unit. Stock is not private: the
+spares `number` entity of each part shows the count to every user.
 
-The narrowed view withholds purchase costs, part costs, serial numbers,
-warranty dates, and free-text custom fields. The narrowed view is an allowlist. A new appliance field stays private until a
+The narrowed view withholds purchase costs, part costs, part vendors, part numbers,
+serial numbers, warranty dates, and free-text custom fields. The narrowed view is an allowlist. A new appliance field stays private until a
 developer adds it to the allowlist.
 
 ## Notifications

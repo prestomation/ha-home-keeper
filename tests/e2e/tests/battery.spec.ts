@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openPanel, openTaskTab, trackPanelErrors } from './helpers';
-import { TASK } from '../fixture-ids';
+import { ASSET, PART, TASK } from '../fixture-ids';
 
 /**
  * E2E coverage for condition-driven (triggered) tasks — the model behind the
@@ -63,6 +63,28 @@ test.describe('Home Keeper panel — triggered / battery tasks', { tag: '@respon
     await expect(panel.locator('#hk-task-form')).toBeVisible();
     // The recurrence select is absent (no schedule to choose) for a triggered task.
     await expect(panel.locator('#hk-task-form ha-select')).toHaveCount(0);
+    expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+  });
+
+  test('the part chip opens the linked part on its appliance page', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    const card = panel.locator(`ha-card.hk-card[data-id="${TASK.doorBattery}"]`);
+    const chip = card.locator('ha-assist-chip.hk-part-chip');
+    await expect(chip).toContainText('Takes 2 AAA');
+    await chip.click();
+    // The chip opens the part, not the task its row belongs to.
+    await expect(page).toHaveURL(
+      new RegExp(`/home-keeper/appliances/${ASSET.batteries}/parts/${PART.aaa}$`),
+    );
+    const row = panel.locator(`.hk-part-row[data-part-row="${PART.aaa}"]`);
+    await expect(row).toHaveClass(/hk-part-focus/);
+    await expect(row).toBeInViewport();
+    await expect(panel.locator('.hk-part-focus')).toHaveCount(1);
+    // A drill-in: Back returns to the task list.
+    await page.goBack();
+    await expect(card).toBeVisible();
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 

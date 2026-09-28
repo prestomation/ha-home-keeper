@@ -284,6 +284,12 @@
         "source": {
           "home_keeper_battery_notes": {
             "device_id": "front_door_sensor_demo"
+          },
+          "part": {
+            "asset_id": "5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64",
+            "part_id": "3b9e1d57-2c6f-4a8b-b1e4-9d7c5f2a6e83",
+            "manual": true,
+            "quantity": 2
           }
         },
         "managed_by": {
@@ -954,6 +960,106 @@
         "archived": false,
         "created": "2026-04-02T09:00:00-04:00",
         "task_history": []
+      },
+      "5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64": {
+        "id": "5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64",
+        "kind": "virtual",
+        "name": "Batteries",
+        "device_id": "4e9b1c7d2a6f3e8b5c0d9a1f7e2b6c4d",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64"
+          ]
+        ],
+        "connections": [],
+        "area_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "cost": null,
+        "icon": "mdi:battery",
+        "parent_asset_id": null,
+        "related_device_ids": [],
+        "documents": [],
+        "metadata": [],
+        "created": "2026-06-01T09:00:00-04:00",
+        "managed_by": {
+          "integration": "home_keeper_battery_notes",
+          "display_name": "Battery Notes",
+          "icon": "mdi:battery-alert",
+          "config_entry_id": "home_keeper_test_entry",
+          "deletion_protected": true,
+          "locked_fields": [
+            "name",
+            "parts"
+          ]
+        },
+        "source": {
+          "home_keeper_battery_notes": {
+            "role": "battery_stock"
+          }
+        },
+        "parts": [
+          {
+            "id": "0a6f3c21-8d4e-4b7a-92c5-1e8f6a3d0b47",
+            "name": "AA",
+            "part_number": "",
+            "type": "consumable",
+            "vendor": "",
+            "cost": null,
+            "url": "",
+            "notes": "Used by 3 devices · 5 installed — Kitchen remote (2), Motion sensor (1), Thermostat (2)",
+            "replace_interval": null,
+            "replace_unit": null,
+            "last_replaced": null,
+            "stock": 12,
+            "reorder_at": 4,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": true,
+            "restock_quantity": 8
+          },
+          {
+            "id": "3b9e1d57-2c6f-4a8b-b1e4-9d7c5f2a6e83",
+            "name": "AAA",
+            "part_number": "",
+            "type": "consumable",
+            "vendor": "",
+            "cost": null,
+            "url": "",
+            "notes": "Used by 4 devices · 7 installed — Back door sensor (2), Front door sensor (2), Hall remote (2), Window sensor (1)",
+            "replace_interval": null,
+            "replace_unit": null,
+            "last_replaced": null,
+            "stock": 2,
+            "reorder_at": 4,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null
+          },
+          {
+            "id": "7c4a2f90-6e1b-4d3c-a8f5-2b9e0d1c7a36",
+            "name": "CR2032",
+            "part_number": "",
+            "type": "consumable",
+            "vendor": "",
+            "cost": null,
+            "url": "",
+            "notes": "Used by 5 devices · 5 installed — Bedroom sensor (1), Garage sensor (1), Office button (1), Pantry sensor (1), Porch button (1)",
+            "replace_interval": null,
+            "replace_unit": null,
+            "last_replaced": null,
+            "stock": null,
+            "reorder_at": null,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null
+          }
+        ]
       }
     },
     "problem_notes": {

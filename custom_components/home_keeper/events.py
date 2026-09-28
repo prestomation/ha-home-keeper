@@ -81,13 +81,18 @@ def asset_event_data(
     """Return the common payload for `home_keeper_asset_*` lifecycle events.
 
     Carries the appliance identity and its registry ``device_id`` (``None`` until a
-    virtual asset's device is provisioned). Per-event extras (``changed_fields`` for an
-    update) merge in via *extra*.
+    virtual asset's device is provisioned), plus the opaque ``source`` and the
+    well-known ``managed_by`` block, echoed verbatim like a task's — an integration
+    that owns an appliance reads its own namespace back off the event rather than
+    calling ``list_assets`` to find out whether the appliance is still its own.
+    Per-event extras (``changed_fields`` for an update) merge in via *extra*.
     """
     data: dict[str, Any] = {
         "asset_id": asset.get("id"),
         "asset_name": asset.get("name") or "",
         "device_id": asset.get("device_id"),
+        "source": asset.get("source"),
+        "managed_by": asset.get("managed_by"),
     }
     if extra:
         data.update(extra)
@@ -103,7 +108,8 @@ def stock_event_data(asset: dict[str, Any], part: dict[str, Any]) -> dict[str, A
     part, the part/vendor identifiers needed to rebuy, and the current vs. threshold
     quantities. Those quantities can be fractional, and ``unit`` is the label they are
     counted in (``""`` for plain whole spares) so an automation can say "250 ml left"
-    without looking the part up.
+    without looking the part up. ``source`` and ``managed_by`` are the appliance's,
+    echoed verbatim.
     """
     return {
         "asset_id": asset.get("id"),
@@ -116,6 +122,10 @@ def stock_event_data(asset: dict[str, Any], part: dict[str, Any]) -> dict[str, A
         "stock": part.get("stock"),
         "reorder_at": part.get("reorder_at"),
         "unit": part.get("stock_unit") or "",
+        # The owner of the appliance, as on the asset events, so an integration that
+        # manages an appliance can tell its own stock events from the rest.
+        "source": asset.get("source"),
+        "managed_by": asset.get("managed_by"),
     }
 
 

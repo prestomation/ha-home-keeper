@@ -203,7 +203,8 @@ export function documentOptions(p: PanelHost, task: Partial<Task>): { value: str
 
 /** Resolve a task's part link to a "Appliance · Part · In stock: N" detail line
  *  (HTML — the part name is a clickable link to its product page when it has a
- *  `url`, same anchor pattern as the appliance's parts-list read view). */
+ *  `url`, same anchor pattern as the appliance's parts-list read view). The
+ *  appliance name opens the part on its appliance page, as the part chip does. */
 export function consumableLinkLabel(p: PanelHost, task: Task): string {
   const part = task.source?.part;
   if (!part) return '';
@@ -224,7 +225,16 @@ export function consumableLinkLabel(p: PanelHost, task: Task): string {
   const name = linked.url
     ? `<a href="${safeHref(linked.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(linked.name)}</a>`
     : escapeHTML(linked.name);
-  return `${escapeHTML(asset.name)} · ${name}${stock}`;
+  const href = p._hrefFor({
+    view: 'appliances',
+    detail: { kind: 'asset', id: asset.id, tab: 'parts', part: linked.id },
+  });
+  const owner = linked.id
+    ? `<a class="hk-part-link" href="${escapeHTML(href)}" data-asset-id="${escapeHTML(
+        asset.id,
+      )}" data-part-id="${escapeHTML(linked.id)}">${escapeHTML(asset.name)}</a>`
+    : escapeHTML(asset.name);
+  return `${owner} · ${name}${stock}`;
 }
 
 /**

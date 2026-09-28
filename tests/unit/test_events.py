@@ -94,10 +94,24 @@ def test_asset_event_data_shape():
         "asset_id": "a1",
         "asset_name": "Furnace",
         "device_id": "dev1",
+        "source": None,
+        "managed_by": None,
         "changed_fields": ["model"],
     }
     # Tolerates a missing name.
     assert ev.asset_event_data({"id": "a2"})["asset_name"] == ""
+
+
+def test_asset_event_data_echoes_ownership():
+    # An integration that owns an appliance reads its own namespace back off the
+    # event, instead of calling list_assets to find out whether it still owns it.
+    managed_by = {"integration": "battery_notes", "display_name": "Battery Notes"}
+    source = {"battery_notes": {"role": "battery_stock"}}
+    data = ev.asset_event_data(
+        {"id": "a1", "name": "Batteries", "source": source, "managed_by": managed_by}
+    )
+    assert data["source"] == source
+    assert data["managed_by"] == managed_by
 
 
 def test_stock_event_data_alias_matches_low_stock():
@@ -153,7 +167,25 @@ def test_low_stock_payload_has_reorder_fields():
         "vendor": "Acme",
         "stock": 1,
         "reorder_at": 1,
+        "source": None,
+        "managed_by": None,
     }
+
+
+def test_stock_payload_names_the_owner_of_the_appliance():
+    # An integration that manages an appliance tells its own stock events from the
+    # rest by these two, the same way it reads its asset events.
+    source = {"pawsistant": {"role": "supplies"}}
+    managed_by = {"integration": "pawsistant", "display_name": "Pawsistant"}
+    asset = {
+        "id": "a1",
+        "name": "Pet supplies",
+        "source": source,
+        "managed_by": managed_by,
+    }
+    data = ev.stock_event_data(asset, {"id": "p1", "name": "Rolls", "stock": 1})
+    assert data["source"] == source
+    assert data["managed_by"] == managed_by
 
 
 def test_low_stock_payload_tolerates_missing_fields():

@@ -297,6 +297,61 @@ def test_a_managed_task_is_left_out_of_the_export():
     assert tr.build_document([task], [], now=NOW)["tasks"] == []
 
 
+def _managed_asset(**extra):
+    """An appliance an integration owns, as the store holds it."""
+    return tr.assets_model.build_asset(
+        {
+            "name": "Batteries",
+            "parts": [{"name": "AAA", "stock": 4}],
+            **extra,
+        },
+        now=NOW,
+    )
+
+
+def test_an_appliance_an_integration_owns_is_left_out_of_the_export():
+    # The owner rebuilds it on the other side from the devices it reads, so a copy
+    # would restore an appliance the next reconcile pass rewrites.
+    managed = _managed_asset(managed_by={"integration": "battery_notes"})
+    assert tr.build_document([], [managed], now=NOW)["appliances"] == []
+    sourced = _managed_asset(source={"battery_notes": {"role": "battery_stock"}})
+    assert tr.build_document([], [sourced], now=NOW)["appliances"] == []
+    # The household's own appliance still travels.
+    assert len(tr.build_document([], [_managed_asset()], now=NOW)["appliances"]) == 1
+
+
+def test_is_portable_asset_reads_both_marks():
+    assert tr.is_portable_asset(_managed_asset()) is True
+    assert tr.is_portable_asset({"managed_by": {"integration": "x"}}) is False
+    assert tr.is_portable_asset({"source": {"x": {}}}) is False
+    assert tr.is_portable_asset({}) is True
+
+
+def test_a_task_on_a_managed_appliances_device_still_names_its_appliance():
+    # The appliance does not travel, but the task does, and the name is what the
+    # owner's rebuilt appliance is found by on the other side. A device id is not.
+    managed = _managed_asset(managed_by={"integration": "battery_notes"})
+    managed["device_id"] = "dev_batteries"
+    task = _task()
+    task["device_id"] = "dev_batteries"
+    document = tr.build_document([task], [managed], now=NOW)
+    assert document["appliances"] == []
+    assert document["tasks"][0]["appliance"] == "Batteries"
+
+
+def test_an_appliance_an_integration_owns_is_refused_on_the_way_in():
+    plan = _plan(
+        _doc(appliances=[{"name": "Batteries", "managed_by": {"integration": "bn"}}])
+    )
+    assert not plan.ok
+    assert _only(plan)["path"] == "appliances[0].managed_by"
+    assert "names an integration as its owner" in _errors(plan)[0]
+
+    sourced = _plan(_doc(appliances=[{"name": "Batteries", "source": {"bn": {}}}]))
+    assert not sourced.ok
+    assert _only(sourced)["path"] == "appliances[0].source"
+
+
 def test_an_uploaded_file_is_counted_rather_than_passed_over_in_silence():
     asset = tr.assets_model.build_asset({"name": "Furnace"}, now=NOW)
     asset["documents"] = [
