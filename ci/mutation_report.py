@@ -133,6 +133,28 @@ def parse_stryker(path: Path) -> tuple[dict[str, int], list[str]]:
     return tally, undetected
 
 
+def stryker_tests_run(path: Path) -> int | None:
+    """How many tests Stryker ran across every mutant, or ``None`` if unknown.
+
+    Each mutant in the report carries ``testsCompleted``. A sum of zero over
+    scored mutants means Stryker ran no test at all: every mutant "survived"
+    without being tested. #384 did that, when the root vitest moved to a major
+    the Stryker vitest runner did not support. ``None`` means no mutant carried
+    the field, so there is nothing to judge by.
+    """
+    try:
+        report = json.loads(path.read_text("utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    counts = [
+        mutant["testsCompleted"]
+        for entry in report.get("files", {}).values()
+        for mutant in entry.get("mutants", [])
+        if isinstance(mutant.get("testsCompleted"), int)
+    ]
+    return sum(counts) if counts else None
+
+
 def score(
     tally: dict[str, int], detected: set[str], undetected: set[str]
 ) -> tuple[float, int, int]:
@@ -268,6 +290,18 @@ def main() -> int:
         print(
             f"[mutation] {sum(tally.values())} mutant(s) were reported but none "
             "could be scored — the run did not test anything.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if args.format == "stryker" and scored and stryker_tests_run(args.input) == 0:
+        # Mutants were scored, but not one test ran against any of them. Every
+        # "survived" is then untested, and the score says nothing about the code.
+        # Fail on the cause, not only on the score it happens to produce.
+        print(
+            f"[mutation] {scored} mutant(s) were scored but Stryker ran no test "
+            "against any of them. The test runner and Stryker do not work "
+            "together; check the root vitest version.",
             file=sys.stderr,
         )
         return 1

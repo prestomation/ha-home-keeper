@@ -627,6 +627,13 @@ bash ci/test-mutation-frontend.sh --all
   runner that supports it. To prove it, run `bash ci/test-mutation-frontend.sh --all`
   and read the line `Ran N tests per mutant on average.` in the output: N must be
   above 0. At 0.00 no test ran, whatever the score says.
+- **The gate checks its own toolchain.** When a PR changes no TypeScript but changes
+  `package.json`, `package-lock.json`, the Stryker or vitest config, or the two
+  mutation scripts, `ci/test-mutation-frontend.sh` runs Stryker on `limits.ts`
+  (14 mutants, all caught by a working toolchain) in place of "nothing to test". On
+  #384's vitest 5 that run scores 42.86% and fails. `ci/mutation_report.py` also
+  fails any run whose scored mutants ran no test at all (`testsCompleted` sums to
+  0), whatever the score.
 - Label a PR `skip-mutation` to bypass both jobs.
 
 `tests/conftest.py` executes the pure modules under their **real** dotted name
