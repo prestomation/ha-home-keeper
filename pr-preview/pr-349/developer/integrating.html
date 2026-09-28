@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Integrating with Home Keeper | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/developer/integrating"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Integrating with Home Keeper | Home Keeper"><meta data-rh="true" name="description" content="This guide is for authors of other Home Assistant integrations who want to push"><meta data-rh="true" property="og:description" content="This guide is for authors of other Home Assistant integrations who want to push"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-349/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/developer/integrating"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/developer/integrating" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/developer/integrating" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Integrating","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/developer/integrating"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-349/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-349/assets/js/runtime~main.cfcfbeb7.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-349/assets/js/main.1e463998.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-349/assets/js/runtime~main.e25222da.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-349/assets/js/main.70419fdb.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -422,7 +422,9 @@ re-linked by hand.</p>
 <p>Any task can carry a list of <strong>integration-provided metadata chips</strong> that appear in
 both the sidebar panel&#x27;s task list and the dashboard card. Chips are a compact way to
 surface contextual information alongside a task, such as the battery type needed
-to replace a low battery, or a part number.</p>
+to replace a low battery, or a part number. When the task is linked to a part in
+Home Keeper, use the part chip that the link gives instead (see
+<a href="#drawing-stock-down-from-a-task" class="">Drawing stock down from a task</a>).</p>
 <p><strong>Schema.</strong> Each chip is an object with one required and two optional fields:</p>
 
 
@@ -589,6 +591,11 @@ zero. Leave it out and the part&#x27;s own <code>consume_quantity</code> applies
 default. A device that takes 2 AAA batteries links its replacement task with
 <code>quantity: 2</code>.</p>
 <p>The link is recorded as <code>source[&quot;part&quot;] = {asset_id, part_id, manual: true, quantity}</code>.</p>
+<p>A linked task shows a part chip such as <strong>Takes 2 AAA · 2 left</strong>. A part with no
+count shows <strong>Takes 2 AAA</strong>. A click on the chip opens the part on its appliance page,
+at <code>/home-keeper/appliances/&lt;asset id&gt;/parts/&lt;part id&gt;</code>. Home Keeper draws this chip,
+so do not send a <code>task_chips</code> entry for the same part. Keep your own chip for a task
+that has no link.</p>
 <p>Deleting a completion (<code>home_keeper.delete_completion</code>) gives back the stock that
 completion took. Home Keeper records the amount on the completion as <code>stock_drawn</code>. The
 count stops at zero, so the recorded amount can be less than <code>quantity</code>.</p>

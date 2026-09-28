@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Appliances | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/docs/guide/appliances"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Appliances | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports appliances for maintenance tasks and warranty records on"><meta data-rh="true" property="og:description" content="Home Keeper supports appliances for maintenance tasks and warranty records on"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-349/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/docs/guide/appliances"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/docs/guide/appliances" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/docs/guide/appliances" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Appliances","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-349/docs/guide/appliances"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-349/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-349/assets/js/runtime~main.cfcfbeb7.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-349/assets/js/main.1e463998.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-349/assets/js/runtime~main.e25222da.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-349/assets/js/main.70419fdb.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -251,11 +251,16 @@ that reminder as before.</p>
 <p>A task that the integration links to a part draws the count down on each completion.
 The Battery Notes glue links each <strong>Replace battery</strong> task to the battery type that
 the device takes, and the task reads <strong>Takes 2 AAA · 2 left</strong>. Complete the task and
-2 batteries come off the count.</p>
+2 batteries come off the count. Before you enter a count, the chip reads
+<strong>Takes 2 AAA</strong>.</p>
+<p>Click the chip to open that part on its appliance page. The page scrolls to the part
+and marks it. The appliance name in the task&#x27;s <strong>Linked consumable</strong> row opens the
+same part.</p>
 <p>Delete that completion and the 2 batteries go back on the count. Each counted part
 also has a spares entity. Every user in your home can see that count on a dashboard,
 and not only an admin.</p>
 <p><img decoding="async" loading="lazy" alt="A Replace battery task with a chip that reads Takes 2 AAA, 2 left" src="/ha-home-keeper/pr-preview/pr-349/assets/images/70d-panel-battery-consumable-chip-a8d98b14200aa91563a8a1b7c7941e71.png" width="992" height="52" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The Batteries appliance with the AAA part marked, opened from the chip on a task" src="/ha-home-keeper/pr-preview/pr-349/assets/images/70h-panel-part-chip-focus-ba9ff59bb0b2225fcafacd745ebe8bec.png" width="1280" height="720" class="img_ev3q"></p>
 <p><strong>A managed appliance is not in the export file.</strong> The
 <a class="" href="/ha-home-keeper/pr-preview/pr-349/docs/guide/import-export">export</a> leaves out an appliance that an integration
 owns, with the stock counts on its parts. Write down a count that you want to keep.
