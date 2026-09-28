@@ -451,6 +451,10 @@ the branch touched.
   they would read *mutated* text and go red for mutants they never exercised —
   `forms.ts` is full of `t('…')` call sites, so this inflates the score badly.
   `vitest.stryker.config.js` excludes that suffix.
+- **Keep the root `vitest` on version 4.** Stryker drives it, and its vitest runner
+  (10.0.0) runs no test per mutant under vitest 5, so the gate reads 0%. A
+  dependency-only PR has no TypeScript to score, so it cannot see this (#384).
+  Dependabot holds the major back.
 - Label a PR `skip-mutation` to bypass both jobs (revert/infra PRs).
 
 ## Translations (quality gates)

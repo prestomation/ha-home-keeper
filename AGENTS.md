@@ -616,6 +616,14 @@ bash ci/test-mutation-frontend.sh --all
   the behaviour — `forms.ts` alone has dozens of `t('…')` call sites, so this
   inflates the score badly. `vitest.stryker.config.js` excludes that suffix; the
   normal `ci/test-frontend.sh` run still includes it.
+- **The root `vitest` stays on version 4.** It is the one Stryker drives, and
+  `@stryker-mutator/vitest-runner` 10.0.0 runs no test per mutant under vitest 5:
+  every mutant survives and the gate reads 0%. #384 moved it to 5 with every check
+  green, because a dependency-only PR changes no TypeScript and its mutation job
+  has nothing to score. `.github/dependabot.yml` holds the major back. Move it only
+  with a Stryker runner that supports it, and prove it with a local
+  `bash ci/test-mutation-frontend.sh --all` that reports more than 0 tests per
+  mutant.
 - Label a PR `skip-mutation` to bypass both jobs.
 
 `tests/conftest.py` executes the pure modules under their **real** dotted name
