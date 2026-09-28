@@ -74,6 +74,11 @@ def test_tests_run_is_unknown_for_an_unreadable_report(tmp_path: Path) -> None:
 
 def _main(monkeypatch: pytest.MonkeyPatch, path: Path) -> int:
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    # main() reads the threshold from pyproject.toml and stryker.conf.json at the
+    # repository root. mutmut runs this file from a copy in mutants/, where those
+    # files are absent, so the gate's own config reads are replaced here.
+    monkeypatch.setattr(_mod, "configured_threshold", lambda: 80.0)
+    monkeypatch.setattr(_mod, "check_thresholds_agree", lambda threshold: None)
     monkeypatch.setattr(
         sys,
         "argv",
