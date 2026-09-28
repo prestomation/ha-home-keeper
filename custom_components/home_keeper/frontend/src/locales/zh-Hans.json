@@ -71,6 +71,7 @@
   "chip.note": "备注",
   "chip.orphaned": "集成离线",
   "chip.overdue": "已逾期",
+  "chip.part.tip": "在所属设备页面中打开此部件。",
   "chip.scanLock.tip": "此任务只能通过扫描其标签来完成。",
   "chip.showAll": "显示全部标签",
   "chip.takes": "消耗 {n} {part}",

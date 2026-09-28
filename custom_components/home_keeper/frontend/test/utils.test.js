@@ -1324,6 +1324,59 @@ describe('parseRoute', () => {
   });
 });
 
+describe('a part under the parts tab', () => {
+  it('parses a part segment, decoded', () => {
+    expect(parseRoute('/appliances/a-bat/parts/p%2F1')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'a-bat', tab: 'parts', part: 'p/1' },
+    });
+  });
+  it('ignores a fourth segment under any other tab, and on a task', () => {
+    expect(parseRoute('/appliances/a-bat/documents/p-1')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'a-bat', tab: 'documents' },
+    });
+    expect(parseRoute('/appliances/a-bat/bogus/p-1')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'a-bat', tab: 'parts' },
+    });
+    expect(parseRoute('/tasks/t-1/history/p-1')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: 't-1', tab: 'history' },
+    });
+  });
+  it('keeps the parts tab without a part when the segment is missing', () => {
+    expect(parseRoute('/appliances/a-bat/parts')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'a-bat', tab: 'parts' },
+    });
+  });
+  it('builds the part path, encoded, with the parts tab written out', () => {
+    const detail = { kind: 'asset', id: 'a b', tab: 'parts', part: 'p/1' };
+    expect(buildPath({ view: 'appliances', detail })).toBe('/appliances/a%20b/parts/p%2F1');
+    // No tab means the default tab, which is parts.
+    expect(
+      buildPath({ view: 'appliances', detail: { kind: 'asset', id: 'x', part: 'p' } }),
+    ).toBe('/appliances/x/parts/p');
+  });
+  it('drops the part on any other tab, and on a task', () => {
+    expect(
+      buildPath({
+        view: 'appliances',
+        detail: { kind: 'asset', id: 'x', tab: 'documents', part: 'p' },
+      }),
+    ).toBe('/appliances/x/documents');
+    expect(
+      buildPath({ view: 'tasks', detail: { kind: 'task', id: 't', tab: 'schedule', part: 'p' } }),
+    ).toBe('/tasks/t');
+  });
+  it('round-trips', () => {
+    for (const path of ['/appliances/a/parts/p', '/appliances/a%2Fb/parts/p%20q']) {
+      expect(buildPath(parseRoute(path))).toBe(path);
+    }
+  });
+});
+
 describe('buildPath', () => {
   it('builds list paths', () => {
     expect(buildPath({ view: 'tasks', detail: null })).toBe('/tasks');

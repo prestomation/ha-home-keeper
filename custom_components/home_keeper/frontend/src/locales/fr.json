@@ -75,6 +75,7 @@
   "chip.note": "Note",
   "chip.orphaned": "Intégration hors ligne",
   "chip.overdue": "En retard",
+  "chip.part.tip": "Ouvrir cette pièce sur la page de son appareil.",
   "chip.scanLock.tip": "Cette tâche ne peut être terminée qu'en scannant son badge.",
   "chip.showAll": "Afficher toutes les puces",
   "chip.takes": "Consomme {n} {part}",

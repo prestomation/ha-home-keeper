@@ -79,6 +79,7 @@
   "chip.note": "Notatka",
   "chip.orphaned": "Integracja offline",
   "chip.overdue": "Zaległe",
+  "chip.part.tip": "Otwórz tę część na stronie jej urządzenia.",
   "chip.scanLock.tip": "To zadanie można ukończyć tylko przez zeskanowanie jego tagu.",
   "chip.showAll": "Pokaż wszystkie znaczniki",
   "chip.takes": "Zużywa {n} {part}",

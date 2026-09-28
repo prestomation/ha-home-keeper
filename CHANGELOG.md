@@ -19,6 +19,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **[Shared stock counts](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#stock-an-integration-keeps-for-you).**
   Every user can see how many spares a part has left, and not only an admin. The
   spares entity of a part also shows its reorder point.
+- **[Part chip links](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#stock-an-integration-keeps-for-you).**
+  A task linked to a part shows that part on a chip. Click the chip to open the part
+  on its appliance page.
 
 ### Changed
 

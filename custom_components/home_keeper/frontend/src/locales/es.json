@@ -75,6 +75,7 @@
   "chip.note": "Nota",
   "chip.orphaned": "Integración desconectada",
   "chip.overdue": "Vencida",
+  "chip.part.tip": "Abre esta pieza en la página de su aparato.",
   "chip.scanLock.tip": "Esta tarea solo se puede completar escaneando su etiqueta.",
   "chip.showAll": "Mostrar todas las etiquetas",
   "chip.takes": "Consume {n} {part}",

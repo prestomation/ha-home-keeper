@@ -75,6 +75,7 @@
   "chip.note": "Nota",
   "chip.orphaned": "Integració fora de línia",
   "chip.overdue": "Endarrerit",
+  "chip.part.tip": "Obre aquesta peça a la pàgina del seu aparell.",
   "chip.scanLock.tip": "Aquesta tasca només es pot completar escanejant la seva etiqueta.",
   "chip.showAll": "Mostra totes les etiquetes",
   "chip.takes": "Consumeix {n} {part}",

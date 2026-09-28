@@ -20,7 +20,7 @@ import {
   type MarkdownPreview,
 } from './markdown';
 import { renderAssetForm } from './panel-asset-form';
-import { sourceOwnedTask, wireDeviceChips } from './panel-chips';
+import { sourceOwnedTask, wireDeviceChips, wirePartChips } from './panel-chips';
 import { emptySkipState, emptySnoozeState, type SkipState, type SnoozeState } from './defer';
 import { DeferMenus } from './defer-dialogs';
 import { controls, patchFilterCounts, wireControls } from './panel-controls';
@@ -321,8 +321,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       loc.detail?.kind !== this._detail?.kind ||
       loc.detail?.id !== this._detail?.id ||
       loc.detail?.tab !== this._detail?.tab ||
+      loc.detail?.part !== this._detail?.part ||
       section !== this._settingsSection;
     if (!changed) return;
+    // A part in the URL asks the parts tab to bring that part on screen, once.
+    this._focusPart = loc.detail?.part ?? null;
     // A move between Settings sections is a lateral step along one page: which section
     // is marked changes, what is on the page does not. Decided before the state below
     // is adopted, because it is a statement about the move, not about where it lands.
@@ -439,6 +442,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     wireLists(this, list);
     wireDetailOpeners(this, list);
     wireDeviceChips(this, list);
+    wirePartChips(this, list);
     patchFilterCounts(this, root);
     // A query the panel set itself — the empty state's way out, Escape, the clear
     // button — has to reach the box too. Guarded, because assigning the same string
@@ -493,6 +497,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // Set to true the first time _navigate pushes a history entry, so _closeDetail
   // knows whether history.back() has a panel URL to return to.
   private _hasHistory = false;
+
+  /** The full panel URL for a location, for a link a reader can open in a new tab. */
+  _hrefFor(loc: PanelLocation): string {
+    return this._routePrefix + buildPath(loc);
+  }
 
   _navigate(loc: PanelLocation, replace = false): void {
     const url = this._routePrefix + buildPath(loc);
@@ -651,6 +660,18 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const detail =
       kind === 'asset' ? { kind, id, tab: DEFAULT_ASSET_TAB } : { kind, id, tab: DEFAULT_TASK_TAB };
     this._navigate({ view: kind === 'asset' ? 'appliances' : 'tasks', detail });
+  }
+
+  // Set from the URL in `_applyLocation`, cleared by the parts tab once it has
+  // scrolled to the part. A later render (a state push) must not scroll again.
+  _focusPart: string | null = null;
+
+  /** Open one part on its appliance page: a drill-in, so it pushes. */
+  _openPart(assetId: string, partId: string): void {
+    this._navigate({
+      view: 'appliances',
+      detail: { kind: 'asset', id: assetId, tab: 'parts', part: partId },
+    });
   }
 
   /** Which sub-tab the open appliance detail is showing. */
@@ -2035,6 +2056,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // Card actions: the row opens the detail page; tasks keep a quick "Done".
     wireDetailOpeners(this, root);
     wireDeviceChips(this, root);
+    wirePartChips(this, root);
   }
 
   /**

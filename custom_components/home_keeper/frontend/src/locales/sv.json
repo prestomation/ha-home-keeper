@@ -71,6 +71,7 @@
   "chip.note": "Anteckning",
   "chip.orphaned": "Integration offline",
   "chip.overdue": "Försenad",
+  "chip.part.tip": "Öppna den här delen på apparatens sida.",
   "chip.scanLock.tip": "Den här uppgiften kan bara slutföras genom att skanna dess tagg.",
   "chip.showAll": "Visa alla brickor",
   "chip.takes": "Förbrukar {n} {part}",

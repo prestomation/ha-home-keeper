@@ -585,7 +585,9 @@ re-linked by hand.
 Any task can carry a list of **integration-provided metadata chips** that appear in
 both the sidebar panel's task list and the dashboard card. Chips are a compact way to
 surface contextual information alongside a task, such as the battery type needed
-to replace a low battery, or a part number.
+to replace a low battery, or a part number. When the task is linked to a part in
+Home Keeper, use the part chip that the link gives instead (see
+[Drawing stock down from a task](#drawing-stock-down-from-a-task)).
 
 **Schema.** Each chip is an object with one required and two optional fields:
 
@@ -836,6 +838,12 @@ default. A device that takes 2 AAA batteries links its replacement task with
 `quantity: 2`.
 
 The link is recorded as `source["part"] = {asset_id, part_id, manual: true, quantity}`.
+
+A linked task shows a part chip such as **Takes 2 AAA · 2 left**. A part with no
+count shows **Takes 2 AAA**. A click on the chip opens the part on its appliance page,
+at `/home-keeper/appliances/<asset id>/parts/<part id>`. Home Keeper draws this chip,
+so do not send a `task_chips` entry for the same part. Keep your own chip for a task
+that has no link.
 
 Deleting a completion (`home_keeper.delete_completion`) gives back the stock that
 completion took. Home Keeper records the amount on the completion as `stock_drawn`. The

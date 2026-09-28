@@ -356,7 +356,7 @@ export const STYLES = `
   .hk-card-row .hk-chips { margin-top: 4px; }
   .hk-card-row .hk-chips ha-assist-chip { --ha-assist-chip-container-height: 24px; --md-assist-chip-container-height: 24px; }
   .hk-task-chip-link { display: contents; }
-  ha-assist-chip.hk-device-chip { cursor: pointer; }
+  ha-assist-chip.hk-device-chip, ha-assist-chip.hk-part-chip { cursor: pointer; }
   /* A device chip has two destinations — the appliance page inside the panel, or the
      device's own Home Assistant page — and which one it is depends on the surface it
      sits on. The chips that *leave* the panel carry this mark, so a user knows before
@@ -859,6 +859,19 @@ export const STYLES = `
   }
   .hk-part-row:first-child { padding-top: 2px; }
   .hk-part-row:last-child { border-bottom: none; padding-bottom: 2px; }
+  /* The part a task's part chip opened. It stays marked while the page is up, so the
+     reader who looked away still finds it; the scroll that brought it on screen does
+     not repeat. The padding moves the content off the accent bar. */
+  .hk-part-row.hk-part-focus {
+    background: var(--hk-accent-soft);
+    box-shadow: inset 3px 0 0 var(--hk-accent);
+    border-radius: 8px;
+    padding: 12px 8px 12px 12px;
+    animation: hk-part-focus-in 0.6s ease-out;
+  }
+  @keyframes hk-part-focus-in {
+    from { background: color-mix(in srgb, var(--hk-accent) 30%, transparent); }
+  }
   .hk-part-ic {
     flex: none; width: 40px; height: 40px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;

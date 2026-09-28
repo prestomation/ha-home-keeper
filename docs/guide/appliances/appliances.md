@@ -306,13 +306,20 @@ that reminder as before.
 A task that the integration links to a part draws the count down on each completion.
 The Battery Notes glue links each **Replace battery** task to the battery type that
 the device takes, and the task reads **Takes 2 AAA · 2 left**. Complete the task and
-2 batteries come off the count.
+2 batteries come off the count. Before you enter a count, the chip reads
+**Takes 2 AAA**.
+
+Click the chip to open that part on its appliance page. The page scrolls to the part
+and marks it. The appliance name in the task's **Linked consumable** row opens the
+same part.
 
 Delete that completion and the 2 batteries go back on the count. Each counted part
 also has a spares entity. Every user in your home can see that count on a dashboard,
 and not only an admin.
 
 ![A Replace battery task with a chip that reads Takes 2 AAA, 2 left](../../images/70d-panel-battery-consumable-chip.png)
+
+![The Batteries appliance with the AAA part marked, opened from the chip on a task](../../images/70h-panel-part-chip-focus.png)
 
 **A managed appliance is not in the export file.** The
 [export](../automation/import-export.md) leaves out an appliance that an integration

@@ -71,6 +71,7 @@
   "chip.note": "Notitie",
   "chip.orphaned": "Integratie offline",
   "chip.overdue": "Te laat",
+  "chip.part.tip": "Open dit onderdeel op de pagina van het apparaat.",
   "chip.scanLock.tip": "Deze taak kan alleen worden voltooid door de tag te scannen.",
   "chip.showAll": "Alle chips tonen",
   "chip.takes": "Verbruikt {n} {part}",

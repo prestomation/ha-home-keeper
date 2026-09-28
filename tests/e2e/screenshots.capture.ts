@@ -1384,6 +1384,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(300);
   await doorRow.screenshot({ path: `${OUT}/70d-panel-battery-consumable-chip.png` });
 
+  // 70h. The chip is a link to the part. A click opens the Batteries appliance on its
+  // parts tab, scrolled to the AAA row and marked.
+  await doorRow.locator('ha-assist-chip.hk-part-chip').click();
+  const focusedAaa = panel.locator(`.hk-part-row[data-part-row="${PART.aaa}"]`);
+  await expect(focusedAaa).toHaveClass(/hk-part-focus/);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: `${OUT}/70h-panel-part-chip-focus.png` });
+
   // 17-pre. Point the buy-reminder mirror at the household shopping list and opt
   // the seeded anode rod (already sitting at its reorder point) into auto-buy, so
   // the Settings shots below show the picker holding a real list and the dashboard
@@ -2082,6 +2091,14 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(300);
   await doorRowPhone.screenshot({ path: `${OUT}/70g-panel-mobile-battery-stock-chip.png` });
+
+  // 70i. The same chip on a phone opens the part the same way.
+  await doorRowPhone.locator('ha-assist-chip.hk-part-chip').click();
+  const focusedAaaPhone = panel.locator(`.hk-part-row[data-part-row="${PART.aaa}"]`);
+  await expect(focusedAaaPhone).toHaveClass(/hk-part-focus/);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: `${OUT}/70i-panel-mobile-part-chip-focus.png` });
 
   // 68c/69c. The switched-off task on a phone. Below 700px the Disabled label and the
   // row's name share a column that the desktop row splits into three, and the banner's

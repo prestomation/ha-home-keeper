@@ -71,6 +71,7 @@
   "chip.note": "Notat",
   "chip.orphaned": "Integrasjon frakoblet",
   "chip.overdue": "Forfalt",
+  "chip.part.tip": "Åpne denne delen på siden til apparatet.",
   "chip.scanLock.tip": "Denne oppgaven kan bare fullføres ved å skanne brikken sin.",
   "chip.showAll": "Vis alle brikker",
   "chip.takes": "Bruker {n} {part}",

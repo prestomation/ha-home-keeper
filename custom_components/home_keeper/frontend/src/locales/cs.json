@@ -79,6 +79,7 @@
   "chip.note": "Poznámka",
   "chip.orphaned": "Integrace offline",
   "chip.overdue": "Po termínu",
+  "chip.part.tip": "Otevřít tento díl na stránce jeho spotřebiče.",
   "chip.scanLock.tip": "Tento úkol lze dokončit pouze naskenováním jeho štítku.",
   "chip.showAll": "Zobrazit všechny štítky",
   "chip.takes": "Spotřebuje {n} {part}",

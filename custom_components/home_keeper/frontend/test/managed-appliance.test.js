@@ -340,8 +340,9 @@ describe('the stock chip on a task that spends spares', () => {
     );
   });
 
-  it('says nothing about a part that tracks no stock', async () => {
-    // "Takes 1 9V · left" about a shelf nobody counts is worse than no chip.
+  it('names the part, with no count, when the part tracks no stock', async () => {
+    // The task still takes a 9V, and the chip is the way to the part. Only the
+    // "left" half needs a count, so only that half goes.
     const untracked = {
       ...REPLACE_TASK,
       source: { part: { asset_id: 'a-bat', part_id: 'p-9v', manual: true } },
@@ -351,7 +352,20 @@ describe('the stock chip on a task that spends spares', () => {
       makeHass({ tasks: [untracked], assets: [batteries()] }),
     );
     const labels = chipLabels(panel.shadowRoot, '.hk-asset-head .hk-chips');
-    expect(labels.some((l) => l.includes('Takes'))).toBe(false);
+    expect(labels).toContain('Takes 1 9V');
+    expect(labels.some((l) => l.includes('left'))).toBe(false);
+  });
+
+  it('says nothing on a counted wear item’s use task, which takes no spare', async () => {
+    const use = {
+      ...REPLACE_TASK,
+      recurrence_type: 'use',
+      source: { part: { asset_id: 'a-bat', part_id: 'p-aaa', role: 'use' } },
+    };
+    const panel = await mountAt('/tasks/t-door', makeHass({ tasks: [use], assets: [batteries()] }));
+    expect(
+      chipLabels(panel.shadowRoot, '.hk-asset-head .hk-chips').some((l) => l.includes('Takes')),
+    ).toBe(false);
   });
 
   it('says nothing when the part, or the appliance, has gone', async () => {
@@ -376,5 +390,103 @@ describe('the stock chip on a task that spends spares', () => {
     expect(
       chipLabels(panel.shadowRoot, '.hk-asset-head .hk-chips').some((l) => l.includes('Takes')),
     ).toBe(false);
+  });
+});
+
+describe('the part chip opens its part', () => {
+  const partChip = (root) => root.querySelector('ha-assist-chip.hk-part-chip');
+
+  it('carries the part as a link target', async () => {
+    const panel = await mountAt(
+      '/tasks/t-door',
+      makeHass({ tasks: [REPLACE_TASK], assets: [batteries()] }),
+    );
+    const chip = partChip(panel.shadowRoot);
+    expect(chip).toBeTruthy();
+    expect(chip.getAttribute('role')).toBe('link');
+    expect(chip.getAttribute('tabindex')).toBe('0');
+    expect(chip.dataset.assetId).toBe('a-bat');
+    expect(chip.dataset.partId).toBe('p-aaa');
+    expect(chip.getAttribute('title')).toBe('Open this part on its appliance page.');
+  });
+
+  it('navigates to the part on its appliance page on a click', async () => {
+    const panel = await mountAt(
+      '/tasks/t-door',
+      makeHass({ tasks: [REPLACE_TASK], assets: [batteries()] }),
+    );
+    partChip(panel.shadowRoot).click();
+    expect(window.location.pathname).toBe('/home-keeper/appliances/a-bat/parts/p-aaa');
+  });
+
+  it('navigates on Enter and on Space, and ignores other keys', async () => {
+    const panel = await mountAt(
+      '/tasks/t-door',
+      makeHass({ tasks: [REPLACE_TASK], assets: [batteries()] }),
+    );
+    for (const key of ['Enter', ' ']) {
+      history.replaceState(null, '', '/home-keeper/tasks/t-door');
+      const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+      partChip(panel.shadowRoot).dispatchEvent(ev);
+      expect(ev.defaultPrevented, key).toBe(true);
+      expect(window.location.pathname, key).toBe('/home-keeper/appliances/a-bat/parts/p-aaa');
+    }
+    history.replaceState(null, '', '/home-keeper/tasks/t-door');
+    partChip(panel.shadowRoot).dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    expect(window.location.pathname).toBe('/home-keeper/tasks/t-door');
+  });
+
+  it('opens the part, not the task, from a list row', async () => {
+    const panel = await mountList(
+      '/tasks',
+      makeHass({ tasks: [REPLACE_TASK], assets: [batteries()] }),
+    );
+    const chip = await waitFor(() => partChip(panel.shadowRoot));
+    chip.click();
+    expect(window.location.pathname).toBe('/home-keeper/appliances/a-bat/parts/p-aaa');
+  });
+
+  it('links the appliance on the Linked consumable row to the same part', async () => {
+    const panel = await mountAt(
+      '/tasks/t-door',
+      makeHass({ tasks: [REPLACE_TASK], assets: [batteries()] }),
+    );
+    const link = panel.shadowRoot.querySelector('a.hk-part-link');
+    expect(link).toBeTruthy();
+    expect(link.textContent).toBe('Batteries');
+    expect(link.getAttribute('href')).toBe('/home-keeper/appliances/a-bat/parts/p-aaa');
+    history.replaceState(null, '', '/home-keeper/tasks/t-door');
+    // A modified click keeps the browser's meaning: a new tab, not an in-panel hop.
+    const ctrl = new MouseEvent('click', { ctrlKey: true, bubbles: true, cancelable: true });
+    link.dispatchEvent(ctrl);
+    expect(ctrl.defaultPrevented).toBe(false);
+    expect(window.location.pathname).toBe('/home-keeper/tasks/t-door');
+    const plain = new MouseEvent('click', { bubbles: true, cancelable: true });
+    link.dispatchEvent(plain);
+    expect(plain.defaultPrevented).toBe(true);
+    expect(window.location.pathname).toBe('/home-keeper/appliances/a-bat/parts/p-aaa');
+  });
+
+  it('marks the part the URL names, and only that part', async () => {
+    const panel = await mountAt(
+      '/appliances/a-bat/parts/p-9v',
+      makeHass({ assets: [batteries()] }),
+    );
+    const row = await waitFor(() => panel.shadowRoot.querySelector('.hk-part-row.hk-part-focus'));
+    expect(row?.dataset.partRow).toBe('p-9v');
+    expect(panel.shadowRoot.querySelectorAll('.hk-part-focus')).toHaveLength(1);
+    // Honoured once: the request is spent, so a later render does not scroll again.
+    expect(panel._focusPart).toBeNull();
+  });
+
+  it('marks nothing for a bare appliance URL or a part that is gone', async () => {
+    const bare = await mountAt('/appliances/a-bat', makeHass({ assets: [batteries()] }));
+    expect(bare.shadowRoot.querySelector('.hk-part-focus')).toBeNull();
+    const gone = await mountAt(
+      '/appliances/a-bat/parts/p-gone',
+      makeHass({ assets: [batteries()] }),
+    );
+    expect(gone.shadowRoot.querySelector('.hk-part-focus')).toBeNull();
+    expect(gone._focusPart).toBe('p-gone');
   });
 });

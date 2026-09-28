@@ -75,6 +75,7 @@
   "chip.note": "Nota",
   "chip.orphaned": "Integração offline",
   "chip.overdue": "Atrasado",
+  "chip.part.tip": "Abrir esta peça na página do aparelho.",
   "chip.scanLock.tip": "Esta tarefa só pode ser concluída lendo a etiqueta dela.",
   "chip.showAll": "Mostrar todos os marcadores",
   "chip.takes": "Consome {n} {part}",

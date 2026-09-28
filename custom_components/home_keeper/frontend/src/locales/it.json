@@ -75,6 +75,7 @@
   "chip.note": "Nota",
   "chip.orphaned": "Integrazione offline",
   "chip.overdue": "Scaduta",
+  "chip.part.tip": "Apri questo ricambio nella pagina del suo apparecchio.",
   "chip.scanLock.tip": "Questa attività si può completare solo scansionando il suo tag.",
   "chip.showAll": "Mostra tutti i chip",
   "chip.takes": "Consuma {n} {part}",

@@ -194,6 +194,19 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await allBtn.click();
   await page.waitForTimeout(BEAT);
 
+  // 1d-1. A battery task's part chip is a link. One click opens the Batteries
+  //       appliance on the part the task takes, scrolled to and marked; Back
+  //       returns to the list.
+  const partChip = panel
+    .locator(`ha-card.hk-card[data-id="${TASK.doorBattery}"] ha-assist-chip.hk-part-chip`);
+  await partChip.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT);
+  await partChip.click();
+  await expect(panel.locator(`.hk-part-row.hk-part-focus[data-part-row="${PART.aaa}"]`)).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await page.goBack();
+  await expect(panel.locator('#add-btn')).toBeVisible();
+
   // 1d-2. Counted wear items. The Counted pill, then the row itself: a use task has
   //       no due date at all, so the count chip is the only thing on the row that
   //       says anything — which is exactly why the section exists. Then one tap of

@@ -71,6 +71,7 @@
   "chip.note": "Note",
   "chip.orphaned": "Integration offline",
   "chip.overdue": "Overdue",
+  "chip.part.tip": "Open this part on its appliance page.",
   "chip.scanLock.tip": "This task can only be completed by scanning its tag.",
   "chip.showAll": "Show all chips",
   "chip.takes": "Takes {n} {part}",

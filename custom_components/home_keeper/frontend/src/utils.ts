@@ -1202,7 +1202,7 @@ export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
  */
 export interface PanelLocation {
   view: PanelView;
-  detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab | TaskTab } | null;
+  detail: { kind: 'task' | 'asset'; id: string; tab?: AssetTab | TaskTab; part?: string } | null;
   section?: SettingsSection;
 }
 
@@ -1213,7 +1213,9 @@ export interface PanelLocation {
  * the internal `asset` kind.
  *
  * A third segment names an appliance sub-tab (`/appliances/<id>/documents`) or a
- * task sub-tab (`/tasks/<id>/history`). An unrecognised one falls back to the
+ * task sub-tab (`/tasks/<id>/history`). Under the parts tab a fourth segment names
+ * one part (`/appliances/<id>/parts/<part_id>`), which the page scrolls to and
+ * marks. A task's part chip links there. An unrecognised one falls back to the
  * default rather than 404-ing, and a bare `/appliances/<id>` — every link minted
  * before sub-tabs existed, including the `configuration_url` on already-registered
  * devices — keeps resolving. A bare `/tasks/<id>` likewise.
@@ -1253,7 +1255,13 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
         raw && (ASSET_TABS as readonly string[]).includes(raw)
           ? (raw as AssetTab)
           : DEFAULT_ASSET_TAB;
-      return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
+      const id = decodeURIComponent(parts[1]);
+      // A part segment counts only under an explicit parts tab, the one tab that
+      // lists parts. A bogus tab falls back to parts, but its segment is no part.
+      const part = raw === 'parts' && parts[3] ? decodeURIComponent(parts[3]) : '';
+      return part
+        ? { view, detail: { kind, id, tab, part } }
+        : { view, detail: { kind, id, tab } };
     }
     // A task page has sub-tabs of its own, resolved the same way.
     const raw = parts[2] && decodeURIComponent(parts[2]);
@@ -1283,6 +1291,11 @@ export function buildPath(loc: PanelLocation): string {
   if (!loc.detail) return `/${loc.view}`;
   const base = `/${loc.view}/${encodeURIComponent(loc.detail.id)}`;
   const tab = loc.detail.tab;
+  // A part is always written under an explicit parts tab, even though parts is the
+  // default tab: `/appliances/<id>/<part_id>` would read as a sub-tab.
+  if (loc.detail.kind === 'asset' && loc.detail.part && (tab ?? DEFAULT_ASSET_TAB) === 'parts') {
+    return `${base}/parts/${encodeURIComponent(loc.detail.part)}`;
+  }
   const dflt = loc.detail.kind === 'asset' ? DEFAULT_ASSET_TAB : DEFAULT_TASK_TAB;
   return tab && tab !== dflt ? `${base}/${tab}` : base;
 }

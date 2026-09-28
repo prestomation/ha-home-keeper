@@ -24,6 +24,7 @@ import {
   escapeHTML,
   formatQuantity,
   isHttpUrl,
+  isUseTask,
   navigateTo,
   safeHref,
   scanRequired,
@@ -168,26 +169,63 @@ function ownerChip(p: PanelHost, mb?: ManagedByBase | null): string {
  * (a device takes 2 cells, its neighbour takes 4), else the part's per-completion
  * amount, else one whole spare.
  *
- * Empty when the link points at a part that is gone, or at one that tracks no stock
- * — an untracked part has no number to report and the chip would say "Takes 1 AAA ·
- * left" about a shelf nobody is counting.
+ * A part that tracks no stock still gets the chip, without the "left" half: the
+ * task still takes that part, and the chip is the way to it. A click opens the part
+ * on its appliance page (`wirePartChips`). So an integration that links its task to
+ * a part gets this chip for free, and does not have to send a chip of its own.
+ *
+ * Empty when the link points at a part that is gone, and on a counted wear item's
+ * *use* task, which draws nothing off the shelf.
  */
 export function consumableChip(p: PanelHost, task: Task): string {
   const link = task.source?.part;
-  if (!link) return '';
+  if (!link || isUseTask(task)) return '';
   const asset = p._assets.find((a) => a.id === link.asset_id);
   const part = asset?.parts?.find((x) => x.id === link.part_id);
-  if (!part || part.stock == null) return '';
+  if (!asset || !part?.id) return '';
   const takes = link.quantity ?? part.consume_quantity ?? 1;
-  const label = [
-    t('chip.takes', {
-      n: formatQuantity(takes, part.stock_unit),
-      part: part.name,
-    }),
-    t('chip.left', { n: formatQuantity(part.stock, part.stock_unit) }),
-  ].join(' · ');
+  const bits = [t('chip.takes', { n: formatQuantity(takes, part.stock_unit), part: part.name })];
+  if (part.stock != null) {
+    bits.push(t('chip.left', { n: formatQuantity(part.stock, part.stock_unit) }));
+  }
+  const label = bits.join(' · ');
   const icon = `<ha-icon slot="icon" icon="mdi:package-variant" class="hk-chip-ic"></ha-icon>`;
-  return `<ha-assist-chip class="hk-counted" label="${escapeHTML(label)}">${icon}</ha-assist-chip>`;
+  return `<ha-assist-chip class="hk-counted hk-part-chip" role="link" tabindex="0" data-asset-id="${escapeHTML(
+    asset.id,
+  )}" data-part-id="${escapeHTML(part.id)}" label="${escapeHTML(label)}" title="${escapeHTML(
+    t('chip.part.tip'),
+  )}">${icon}</ha-assist-chip>`;
+}
+
+/**
+ * Wire every part chip, and the appliance link on a task's "Linked consumable"
+ * row, to open its part. Each carries the destination in the DOM, the same way a
+ * device chip does. The click stops here, so a chip on a list row does not also
+ * open the row's task.
+ */
+export function wirePartChips(p: PanelHost, root: ParentNode): void {
+  root.querySelectorAll<HTMLElement>('.hk-part-chip, a.hk-part-link').forEach((chip) => {
+    const { assetId, partId } = chip.dataset;
+    if (!assetId || !partId) return;
+    const go = (e: Event): void => {
+      // A modified click on the link keeps the browser's own meaning: a new tab.
+      const m = e as MouseEvent;
+      if (m.ctrlKey || m.metaKey || m.shiftKey || m.button === 1) return;
+      e.preventDefault();
+      e.stopPropagation();
+      p._openPart(assetId, partId);
+    };
+    chip.addEventListener('click', go);
+    // An anchor already turns Enter into a click; only the chip needs the keys.
+    if (chip.tagName === 'A') return;
+    chip.addEventListener('keydown', (e) => {
+      const key = (e as KeyboardEvent).key;
+      if (key === 'Enter' || key === ' ') {
+        e.preventDefault();
+        go(e);
+      }
+    });
+  });
 }
 
 /**

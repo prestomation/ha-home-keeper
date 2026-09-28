@@ -30,6 +30,7 @@ import {
   taskChipsHtml,
   virtualDeviceChip,
   wireDeviceChips,
+  wirePartChips,
 } from './panel-chips';
 import { declarativeCompanionFor, openDeclarativeForm } from './panel-declarative';
 import { openConfirmDialog } from './panel-dialogs';
@@ -844,7 +845,9 @@ function partsSection(p: PanelHost, asset: Asset): string {
         t('btn.editPart'),
       )}"></ha-icon-button>`;
       return `
-          <div class="hk-part-row ${isWear ? 'wear' : 'consumable'}">
+          <div class="hk-part-row ${isWear ? 'wear' : 'consumable'}" data-part-row="${escapeHTML(
+            part.id || '',
+          )}">
             <div class="hk-part-ic">
               <ha-svg-icon data-mdi="${isWear ? 'wear' : 'consumable'}"></ha-svg-icon>
             </div>
@@ -1048,10 +1051,33 @@ export function wireDetail(p: PanelHost, root: ShadowRoot): boolean {
     if (p._detail.kind !== 'asset') {
       wireDetailOpeners(p, root);
       wireDeviceChips(p, root);
+      wirePartChips(p, root);
       return true;
     }
+    focusPart(p, root);
   }
   return false;
+}
+
+/**
+ * Bring the part the URL names on screen and mark it, once. The mark stays until
+ * the next render; the scroll does not repeat, because `_focusPart` is cleared
+ * here. A part id that is not on the page (gone, or not loaded yet) leaves the
+ * request in place, so the render that has the part can still honour it.
+ */
+function focusPart(p: PanelHost, root: ShadowRoot): void {
+  const id = p._focusPart;
+  if (!id || p._assetTab() !== 'parts') return;
+  const row = [...root.querySelectorAll<HTMLElement>('.hk-part-row')].find(
+    (el) => el.dataset.partRow === id,
+  );
+  if (!row) return;
+  p._focusPart = null;
+  row.classList.add('hk-part-focus');
+  // Guarded: jsdom does not implement scrollIntoView.
+  if (typeof row.scrollIntoView === 'function') {
+    row.scrollIntoView({ block: 'center', behavior: p._scrollBehavior() });
+  }
 }
 
 /** Wire every id row's copy button. One pass covers the task and appliance
