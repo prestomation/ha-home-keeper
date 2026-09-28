@@ -140,7 +140,9 @@ def stryker_tests_run(path: Path) -> int | None:
     scored mutants means Stryker ran no test at all: every mutant "survived"
     without being tested. #384 did that, when the root vitest moved to a major
     the Stryker vitest runner did not support. ``None`` means no mutant carried
-    the field, so there is nothing to judge by.
+    the field, so there is nothing to judge by. ``NoCoverage`` mutants are left
+    out: no test covers them, so they run no test on a working toolchain too, and
+    the score already counts them as undetected.
     """
     try:
         report = json.loads(path.read_text("utf-8"))
@@ -151,6 +153,7 @@ def stryker_tests_run(path: Path) -> int | None:
         for entry in report.get("files", {}).values()
         for mutant in entry.get("mutants", [])
         if isinstance(mutant.get("testsCompleted"), int)
+        and mutant.get("status") != "NoCoverage"
     ]
     return sum(counts) if counts else None
 

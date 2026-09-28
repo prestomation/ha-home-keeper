@@ -58,6 +58,14 @@ def test_tests_run_is_unknown_without_the_field(tmp_path: Path) -> None:
     assert _mod.stryker_tests_run(path) is None
 
 
+def test_tests_run_leaves_out_uncovered_mutants(tmp_path: Path) -> None:
+    # No test covers a NoCoverage mutant, so its 0 says nothing about the runner.
+    path = _report(tmp_path, [_mutant("NoCoverage", 0), _mutant("Killed", 2)])
+    assert _mod.stryker_tests_run(path) == 2
+    only = _report(tmp_path, [_mutant("NoCoverage", 0)])
+    assert _mod.stryker_tests_run(only) is None
+
+
 def test_tests_run_is_unknown_for_an_unreadable_report(tmp_path: Path) -> None:
     path = tmp_path / "mutation.json"
     path.write_text("{not json")
