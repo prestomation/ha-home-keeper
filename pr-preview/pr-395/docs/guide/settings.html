@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Settings | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/docs/guide/settings"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Settings | Home Keeper"><meta data-rh="true" name="description" content="The Settings tab in the panel edits the integration options. The form matches the"><meta data-rh="true" property="og:description" content="The Settings tab in the panel edits the integration options. The form matches the"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-395/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/docs/guide/settings"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/docs/guide/settings" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/docs/guide/settings" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Settings","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/docs/guide/settings"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-395/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-395/assets/js/runtime~main.5ef9b700.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-395/assets/js/runtime~main.45308bfe.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-395/assets/js/main.b34c997b.js" defer="defer"></script>
 </head>
 <body>
@@ -97,8 +97,8 @@ entities. See
 <a class="" href="/ha-home-keeper/pr-preview/pr-395/developer/integrating">INTEGRATING.md</a> for the service reference.</p>
 <p>The <em>Which entities?</em> section of the dialog has the integration and the entity domain.
 Click <strong>More filters</strong> to see the other filters. Set a device class there, or write an
-entity id regex. You can also limit the declarative companion to some areas or to some
-labels. An
+entity id regex. The device, area and label filters keep only the entities in them.
+An
 entity that has no area of its own uses the area of its device. When <strong>More filters</strong>
 is closed, its row shows how many filters and exclusions are set.</p>
 <p>The <strong>Exclusions</strong> block under the filters removes entities from the declarative
@@ -110,8 +110,8 @@ sensor sync.</p>
 The entity then shows under the matches with an <strong>Include</strong> button, which adds it
 back. The preview shows 10 matches at most. To exclude an entity that is not in the
 preview, select it in the excluded entities list.</p>
-<p><img decoding="async" loading="lazy" alt="The declarative companion dialog with More filters open and one excluded entity in the Exclusions block" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21j-panel-declarative-filters-efde78c3dcf496928f6e9d23cf8d995a.png" width="612" height="2549" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The same dialog on a phone, with an Exclude button on each preview row" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21k-panel-mobile-declarative-filters-99c65aa9657732d62747e75ca9ce878b.png" width="390" height="844" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The declarative companion dialog with More filters open and one excluded entity in the Exclusions block" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21j-panel-declarative-filters-2b7e5a3e80b68dce582cab758580a4d7.png" width="612" height="2552" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same dialog on a phone, with an Exclude button on each preview row" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21k-panel-mobile-declarative-filters-942c31fa383b70d769093875563d5f71.png" width="390" height="844" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21c-panel-declarative-preset-picker-8ab8bf985a5cafcfd4dbce98f8cd9bd7.png" width="1280" height="720" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21d-panel-declarative-add-dialog-fb1ac7c699d9bae77b6311b26fb41b24.png" width="612" height="1682" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The page of a task a declarative companion made, with Edit and Edit companion buttons and no Done button while the task is monitored" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21e-panel-declarative-task-detail-ac7a46a408391a1443d1e0c6448be76c.png" width="1280" height="720" class="img_ev3q"></p>
@@ -128,15 +128,20 @@ their own.</p>
 <p>The <strong>Entity keys</strong> block under <strong>More filters</strong> matches the key that an integration
 gives each of its entities in its own code, such as <code>filter_time_left</code> for the filter
 sensor of a Roborock. A rename of the entity or a change of the Home Assistant
-language leaves the key as it is. An entity id regex breaks in both cases. Click
-<strong>Add key</strong> to add a key. Home Keeper then makes a task only for an entity with one of
-the keys.</p>
+language leaves the key as it is. An entity id regex breaks in both cases. Home Keeper
+then makes a task only for an entity with one of the keys.</p>
+<p>Home Assistant does not show these keys on its own screens. So when the declarative
+companion has a target integration, Home Keeper lists the keys of that integration&#x27;s
+entities under the block. Each key in the list shows one example entity and how many
+entities have the key. Click a key to add it, and click it again to take it out. Each
+device with the key gets its own task. To type a key that is not in the list,
+click <strong>Add key</strong>. Each row of the preview shows the key of its entity.</p>
 <p>Each key can also have a task name, such as <em>Replace filter</em>. The task name template
 reads it as <code>{{ task_name }}</code>, so one declarative companion can give each part its own
 task: <code>{{ task_name }}: {{ device_name }}</code>. A key with no task name uses the entity
 name. The key of the entity is also available as <code>{{ translation_key }}</code>.</p>
-<p><img decoding="async" loading="lazy" alt="The declarative companion dialog with two entity keys, one of them with the task name Replace the battery" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21u-panel-declarative-entity-keys-2142be4ded6b3a913de24d95a9d157fb.png" width="612" height="2552" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The entity keys on a phone, with each key above its task name" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21u-panel-mobile-declarative-entity-keys-d5f54aa66bf8066a26834ff21eac0890.png" width="390" height="844" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The declarative companion dialog with two entity keys, one of them with the task name Replace the battery" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21u-panel-declarative-entity-keys-8949ca8d6f5a2bc7a39f81c4e18a4c2b.png" width="612" height="2552" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The entity keys on a phone, with each key above its task name" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21u-panel-mobile-declarative-entity-keys-eb5118cc8a74bf3dbefba005259e0308.png" width="390" height="844" class="img_ev3q"></p>
 <h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="integration-presets">Integration presets<a href="#integration-presets" class="hash-link" aria-label="Direct link to Integration presets" title="Direct link to Integration presets" translate="no">​</a></h5>
 <p>Many devices report the wear of their parts, such as the hours left on the filter of a
 robot vacuum or the toner level of a printer. An integration preset turns these
