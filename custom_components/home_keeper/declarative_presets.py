@@ -436,9 +436,15 @@ SHAPES: dict[str, str] = {
 # integration counts in seconds or days. A unit not in the table makes the ``life_low``
 # template fail to render, which decides nothing (a failed render neither opens nor
 # closes a task), so a reading in an unknown unit is never compared as hours.
+#
+# Custom integrations often spell the unit out ("minutes", "days"), so the words are
+# here too. A ``wear_high`` counter in a unit not in the table is compared as it is, so
+# a time unit missing from it would be read as hours.
 _TIME_FACTORS = (
-    "{'s': 1 / 3600, 'sec': 1 / 3600, 'min': 1 / 60, 'h': 1, 'hr': 1, "
-    "'hours': 1, 'd': 24, 'day': 24, 'days': 24, 'w': 168}"
+    "{'ms': 1 / 3600000, 's': 1 / 3600, 'sec': 1 / 3600, 'seconds': 1 / 3600, "
+    "'min': 1 / 60, 'mins': 1 / 60, 'minutes': 1 / 60, 'h': 1, 'hr': 1, 'hrs': 1, "
+    "'hours': 1, 'd': 24, 'day': 24, 'days': 24, 'w': 168, 'week': 168, "
+    "'weeks': 168}"
 )
 
 # The level below which a part or supply reported as a percentage is low.

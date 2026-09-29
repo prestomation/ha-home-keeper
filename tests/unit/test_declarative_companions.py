@@ -2034,3 +2034,18 @@ def test_an_alert_watches_its_state():
         "state": "present",
         "clear_on_recover": True,
     }
+
+
+def test_the_time_table_reads_every_spelling_of_a_time_unit():
+    # The table is Jinja, and as a Python expression it is a plain dict literal.
+    factors = eval(presets._TIME_FACTORS, {"__builtins__": {}})
+    hours = {"h": 1, "hr": 1, "hrs": 1, "hours": 1}
+    assert {unit: factors[unit] for unit in hours} == hours
+    assert factors["minutes"] == factors["mins"] == factors["min"] == 1 / 60
+    assert factors["seconds"] == factors["sec"] == factors["s"] == 1 / 3600
+    assert factors["days"] == factors["day"] == factors["d"] == 24
+    assert factors["weeks"] == factors["week"] == factors["w"] == 168
+    assert factors["ms"] == 1 / 3600000
+    # Every shipped trigger still fits the template field.
+    for preset in presets.CATALOG_PRESETS:
+        assert len(preset["default_spec"]["trigger"].get("template", "")) <= 1000
