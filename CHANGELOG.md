@@ -11,12 +11,12 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **[Weekdays and custom rules](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules).**
-  A fixed task can repeat on more than one day of the week, such as Tuesday and
-  Friday. Type an iCalendar rule for other schedules, such as the first Tuesday of
-  each month. (Fixes #391)
+  Set a fixed task to repeat on more than one day of the week, such as Tuesday and
+  Friday. For other schedules, type an iCalendar rule, such as one for the first
+  Tuesday of each month. (Fixes #391)
 - **[Move one date](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules#move-one-date).**
   Move one future date of a fixed task from the dashboard card, the task page or the
-  Home Assistant calendar. The other dates do not change. (Fixes #390)
+  Home Assistant calendar, and keep the other dates as they are. (Fixes #390)
 
 ### Changed
 

@@ -41,9 +41,8 @@ Type a rule for a schedule the controls cannot show. Some examples:
 | The 1st and the 15th of each month | `FREQ=MONTHLY;BYMONTHDAY=1,15` |
 | Each year on the first Sunday of April | `FREQ=YEARLY;BYMONTH=4;BYDAY=1SU` |
 
-If the rule uses more than days of the week, the controls are grayed out and
-**Reset to simple** appears. Select it to go back to a plain rule with the same
-frequency.
+When the rule has parts other than days of the week, the form grays out the controls and
+shows **Reset to simple**, which goes back to a plain rule with the same frequency.
 
 <img src="docs/images/72-panel-fixed-custom-rule.png" alt="The task form with a custom rule for the first Tuesday of each month, the day buttons grayed out and a Reset to simple button" width="820">
 

@@ -413,7 +413,7 @@
     },
     "move_occurrence": {
       "name": "Move one date",
-      "description": "Move one date of a fixed task's schedule to a new date and time. The other dates do not change. To undo a move, move the date to its original time.",
+      "description": "Move one date of a fixed task's schedule to a new date and time, and keep the other dates as they are. To undo a move, move the date back to its original time.",
       "fields": {
         "task_id": {
           "name": "Task name or ID",

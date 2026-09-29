@@ -55,8 +55,7 @@ A skip advances the schedule itself. The step depends on the kind of task:
 A snooze, a due-today and a skip all re-arm the edge-triggered overdue and
 due-soon announcements for the new date.
 
-A fixed task's schedule is an RRULE, and one date of it can move with
-`move_occurrence`. The `home_keeper_task_occurrence_moved` payload has the date on
+Use `move_occurrence` to move one date of a fixed task's RRULE schedule. The `home_keeper_task_occurrence_moved` payload has the date on
 the rule as `occurrence` and the new date as `to`. `previous_to` is where the date was before
 the call, or `null` when it had not moved. An undo moves the date back to itself, so
 `to` is then equal to `occurrence`. `next_due` changes only when the moved date is the
