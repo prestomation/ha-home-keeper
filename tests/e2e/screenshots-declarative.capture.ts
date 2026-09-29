@@ -776,6 +776,13 @@ test('capture the entity keys and task names at both widths', async ({ page }) =
     });
     await expect(dialog.locator('.hk-decl-preview')).toContainText('Replace the battery:');
     await expect(dialog.locator('.hk-decl-keys .hk-decl-key')).toHaveCount(2);
+    // The key list under the rows, read from the live registry: the stub's one key,
+    // marked as added.
+    await expect(dialog.locator('.hk-decl-keyopt[data-key="battery_level"]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+      { timeout: 20_000 },
+    );
     return dialog;
   };
 
@@ -798,10 +805,10 @@ test('capture the entity keys and task names at both widths', async ({ page }) =
     });
     await dialog.locator('.hk-decl-cancel').click();
 
-    // A phone. The key and its task name stack in one row; scroll the block into view.
+    // A phone. The key and its task name stack in one row; scroll the list into view.
     await page.setViewportSize(PHONE);
     const phoneDialog = await openCompanion();
-    await phoneDialog.locator('.hk-decl-keys').scrollIntoViewIfNeeded();
+    await phoneDialog.locator('.hk-decl-keylist').scrollIntoViewIfNeeded();
     await page.mouse.move(0, 0);
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${OUT}/21u-panel-mobile-declarative-entity-keys.png` });

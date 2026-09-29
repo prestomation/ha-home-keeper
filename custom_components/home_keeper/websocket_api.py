@@ -248,6 +248,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_list_declarative_presets)
     websocket_api.async_register_command(hass, ws_preview_declarative_companion)
     websocket_api.async_register_command(hass, ws_installed_integrations)
+    websocket_api.async_register_command(hass, ws_list_entity_keys)
 
 
 @websocket_api.websocket_command({vol.Required("type"): "home_keeper/get_tasks"})
@@ -1515,6 +1516,40 @@ async def ws_preview_declarative_companion(
         _not_loaded(hass, connection, msg)
         return
     connection.send_result(msg["id"], sync.preview(spec))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/list_entity_keys",
+        vol.Required("integration"): str,
+        vol.Optional("domain"): vol.Any(str, None),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_list_entity_keys(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return the entity keys of one integration, for the companion dialog's key list.
+
+    Home Assistant shows a ``translation_key`` on no screen, so the dialog offers the
+    keys it finds in the entity registry: each with a count and one example entity.
+    Admin-only like the preview it sits beside: it names every entity of the
+    integration, and the panel that calls it is ``require_admin``.
+    """
+    coord = _coordinator(hass)
+    if coord is None:
+        _not_loaded(hass, connection, msg)
+        return
+    sync = coord.declarative_sync
+    if sync is None:
+        _not_loaded(hass, connection, msg)
+        return
+    connection.send_result(
+        msg["id"], sync.entity_keys(msg["integration"], msg.get("domain") or None)
+    )
 
 
 @websocket_api.websocket_command(

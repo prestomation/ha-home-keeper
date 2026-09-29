@@ -652,6 +652,8 @@ export interface DeclarativeCompanionSelection {
   // The keys the integration gives its entities (`translation_key` in the entity
   // registry). A rename or the Home Assistant language does not change them.
   translation_keys?: string[];
+  // Only the entities of these devices. Empty or missing: every device.
+  device_ids?: string[];
   area_ids: string[];
   label_ids: string[];
   exclude_entity_ids: string[];
@@ -720,6 +722,8 @@ export interface DeclarativeCompanionPreset {
 export interface DeclarativeCompanionPreviewMatch {
   entity_id: string;
   entity_registry_id: string;
+  /** The key the integration gives the entity, or `null`. Older backends omit it. */
+  translation_key?: string | null;
   rendered_name: string;
   rendered_notes: string;
   device_name: string | null;
@@ -789,4 +793,18 @@ export interface ImportReport {
   };
   records: ImportRecord[];
   problems: ImportProblem[];
+}
+
+/** One key in the companion dialog's key list: see `home_keeper/list_entity_keys`. */
+export interface EntityKeySummary {
+  key: string;
+  count: number;
+  example_entity_id: string;
+  example_name: string;
+}
+
+export interface EntityKeyList {
+  keys: EntityKeySummary[];
+  /** How many of the integration's entities have no key at all. */
+  without_key: number;
 }

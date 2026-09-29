@@ -464,6 +464,12 @@ class DeclarativeCompanionSync:
             self._reload_scheduled = False
 
     # ── preview (used by the panel's live-preview UX) ────────────────────────
+    def entity_keys(self, integration: str, domain: str | None) -> dict[str, Any]:
+        """The WS ``list_entity_keys`` payload: the keys of *integration*'s entities."""
+        return declarative_companions.summarize_keys(
+            self._registry_snapshot(), integration, domain
+        )
+
     def preview(self, spec: dict[str, Any]) -> dict[str, Any]:
         """Return the WS ``preview_declarative_companion`` payload for *spec*.
 
@@ -530,6 +536,7 @@ class DeclarativeCompanionSync:
                 {
                     "entity_id": match["entity"]["entity_id"],
                     "entity_registry_id": ent_reg_id,
+                    "translation_key": match["entity"].get("translation_key"),
                     "rendered_name": rendered_name,
                     "rendered_notes": rendered_notes,
                     "device_name": variables["device_name"],

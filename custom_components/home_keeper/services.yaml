@@ -1551,8 +1551,8 @@ add_declarative_companion:
     task for each entity that its target integration and entity filters match,
     with a Jinja template for the task name and notes. Fields on the payload:
     name, description, enabled, preset_id, selection ({target_integration,
-    domain, device_class, entity_regex, translation_keys, area_ids, label_ids,
-    exclude_*}), trigger (same shape as sensor task binding, including the
+    domain, device_class, entity_regex, translation_keys, device_ids, area_ids,
+    label_ids, exclude_*}), trigger (same shape as sensor task binding, including the
     availability and template modes), and task_template ({name_template,
     notes_template, labels, task_names}). translation_keys matches the key that
     the integration gives each entity. task_names maps each key to the text

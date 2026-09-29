@@ -645,6 +645,51 @@ def test_a_companion_matches_by_translation_key_and_keeps_the_task_on_a_rename(
         _rename_entity(ha, renamed, DEVICE_BATTERY)
 
 
+def test_the_key_list_names_the_keys_of_an_integration(ha):
+    """The dialog's key list reads the real entity registry.
+
+    The Battery Notes stub's one sensor has ``translation_key = "battery_level"``, so
+    the list for that integration holds that key, once, with the sensor as example.
+    """
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(
+        token,
+        {
+            "type": "home_keeper/list_entity_keys",
+            "integration": "home_keeper_battery_notes",
+        },
+    )
+    assert reply.get("success"), reply
+    keys = reply["result"]["keys"]
+    assert [k["key"] for k in keys] == ["battery_level"], keys
+    assert keys[0]["count"] == 1
+    assert keys[0]["example_entity_id"] == DEVICE_BATTERY
+    # A domain the stub has no entity in gives an empty list, not an error.
+    reply = ws_send(
+        token,
+        {
+            "type": "home_keeper/list_entity_keys",
+            "integration": "home_keeper_battery_notes",
+            "domain": "binary_sensor",
+        },
+    )
+    assert reply["result"] == {"keys": [], "without_key": 0}
+
+
+def test_only_these_devices_selects_the_entities_of_one_device(ha, specs):
+    first = specs(_device_battery_spec())
+    device_id = _one_task(ha, first["id"])["device_id"]
+    assert device_id
+    spec = specs(
+        _device_battery_spec(
+            name="Only one device",
+            selection={"domain": "sensor", "device_ids": [device_id]},
+        )
+    )
+    task = _one_task(ha, spec["id"])
+    assert task["source"]["declarative_companion"]["entity_id"] == DEVICE_BATTERY
+
+
 def test_a_task_that_survived_a_reload_stays_dormant_while_the_sensor_is_still_met(
     ha, specs
 ):

@@ -726,6 +726,7 @@ change to how Home Assistant builds entity ids leave that key alone, so prefer i
 plain text, which the name and notes templates read as `{{ task_name }}`. An entity
 whose key has no entry reads its friendly name there. Both templates can also read
 `{{ translation_key }}`, and a `template`-mode trigger can read it too.
+`selection.device_ids` keeps only the entities of those devices.
 
 `task_template.labels` puts labels on each task. An `update_declarative_companion`
 call that changes this list adds the new labels to the existing tasks and removes the
