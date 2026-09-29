@@ -1874,3 +1874,99 @@ def test_a_preset_without_task_names_leaves_the_table_alone():
         },
     }
     assert presets.localized_task_template(spec, "de")["task_names"] == {"k": "Mine"}
+
+
+# --- Only these devices -----------------------------------------------------
+
+
+def test_device_ids_keep_only_the_entities_of_those_devices():
+    spec = _normalized_spec(
+        selection={"target_integration": "roborock", "device_ids": ["dev_a", " dev_a "]}
+    )
+    assert spec["selection"]["device_ids"] == ["dev_a"]
+    entities = _snapshot(
+        _entity("sensor.a_filter", platform="roborock", device_id="dev_a"),
+        _entity("sensor.b_filter", platform="roborock", device_id="dev_b"),
+        _entity("sensor.no_device", platform="roborock"),
+    )
+    matched = {
+        m["entity"]["entity_id"] for m in dc.expand_spec(spec, entities).values()
+    }
+    assert matched == {"sensor.a_filter"}
+
+
+def test_no_device_ids_keeps_every_device():
+    spec = _normalized_spec(selection={"target_integration": "roborock"})
+    assert spec["selection"]["device_ids"] == []
+    entities = _snapshot(
+        _entity("sensor.a", platform="roborock", device_id="dev_a"),
+        _entity("sensor.b", platform="roborock"),
+    )
+    assert len(dc.expand_spec(spec, entities)) == 2
+
+
+# --- The key list -----------------------------------------------------------
+
+
+def test_summarize_keys_counts_each_key_and_names_one_example():
+    snapshot = _snapshot(
+        _entity(
+            "sensor.kitchen_filter",
+            platform="roborock",
+            translation_key="filter_time_left",
+            original_name="Kitchen vacuum Filter time left",
+        ),
+        _entity(
+            "sensor.upstairs_filter",
+            platform="roborock",
+            translation_key="filter_time_left",
+            original_name="Upstairs vacuum Filter time left",
+        ),
+        _entity(
+            "sensor.kitchen_brush",
+            platform="roborock",
+            translation_key="main_brush_time_left",
+            name="Brush left",
+            original_name="Kitchen vacuum Main brush time left",
+        ),
+        _entity("sensor.kitchen_raw", platform="roborock"),  # no key
+        _entity(
+            "sensor.off", platform="roborock", translation_key="off", disabled=True
+        ),
+        _entity("sensor.other", platform="ecovacs", translation_key="filter_time_left"),
+    )
+    assert dc.summarize_keys(snapshot, "roborock") == {
+        "keys": [
+            {
+                "key": "filter_time_left",
+                "count": 2,
+                "example_entity_id": "sensor.kitchen_filter",
+                "example_name": "Kitchen vacuum Filter time left",
+            },
+            {
+                "key": "main_brush_time_left",
+                "count": 1,
+                "example_entity_id": "sensor.kitchen_brush",
+                # The name a person gave the entity wins over the integration's.
+                "example_name": "Brush left",
+            },
+        ],
+        "without_key": 1,
+    }
+
+
+def test_summarize_keys_narrows_to_a_domain_and_handles_no_name():
+    snapshot = _snapshot(
+        _entity("sensor.a", platform="demo", translation_key="level"),
+        _entity(
+            "binary_sensor.b",
+            platform="demo",
+            domain="binary_sensor",
+            translation_key="low",
+        ),
+    )
+    only_binary = dc.summarize_keys(snapshot, "demo", "binary_sensor")
+    assert [k["key"] for k in only_binary["keys"]] == ["low"]
+    assert only_binary["keys"][0]["example_name"] == ""
+    assert only_binary["without_key"] == 0
+    assert dc.summarize_keys(snapshot, "nothing") == {"keys": [], "without_key": 0}

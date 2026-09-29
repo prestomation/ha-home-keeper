@@ -9,7 +9,7 @@
 
 import { selArea, selDevice, selEntity, selLabel, selText, type FormField } from './forms';
 import { t, tn } from './i18n';
-import type { DeclarativeCompanionSelection } from './types';
+import type { DeclarativeCompanionSelection, EntityKeySummary } from './types';
 
 /** One row of the entity-key editor: a key and the task name it gives its tasks. */
 export interface KeyRow {
@@ -30,6 +30,7 @@ export type ExclusionField = (typeof EXCLUSION_FIELDS)[number];
 export function moreFiltersSchema(): FormField[] {
   return [
     { name: 'device_class', selector: selText() },
+    { name: 'device_ids', selector: selDevice(true) },
     { name: 'area_ids', selector: selArea(true) },
     { name: 'label_ids', selector: selLabel(true) },
     { name: 'entity_regex', selector: selText() },
@@ -56,6 +57,7 @@ export function filterCount(sel: Partial<DeclarativeCompanionSelection>): number
     Boolean(sel.device_class),
     Boolean(sel.entity_regex),
     (sel.translation_keys?.length ?? 0) > 0,
+    (sel.device_ids?.length ?? 0) > 0,
     (sel.area_ids?.length ?? 0) > 0,
     (sel.label_ids?.length ?? 0) > 0,
   ].filter(Boolean).length;
@@ -122,4 +124,31 @@ export function applyKeyRows(rows: readonly KeyRow[]): {
     if (name) task_names[key] = name;
   }
   return { translation_keys, task_names };
+}
+
+/** One row of the key list: a key the integration has, and whether it is added. */
+export interface KeyOption extends EntityKeySummary {
+  picked: boolean;
+}
+
+/**
+ * The key list's rows: the integration's keys that match *query* (in the key or the
+ * example name, any case), each marked when it is already in *picked*.
+ */
+export function keyOptions(
+  keys: readonly EntityKeySummary[],
+  picked: readonly string[],
+  query: string,
+): KeyOption[] {
+  const q = query.trim().toLowerCase();
+  return keys
+    .filter((k) => !q || `${k.key}\n${k.example_name}`.toLowerCase().includes(q))
+    .map((k) => ({ ...k, picked: picked.includes(k.key) }));
+}
+
+/** *rows* with *key* added at the end with no task name, or taken out if it is there. */
+export function toggleKeyRow(rows: readonly KeyRow[], key: string): KeyRow[] {
+  return rows.some((r) => r.key === key)
+    ? rows.filter((r) => r.key !== key)
+    : [...rows, { key, name: '' }];
 }

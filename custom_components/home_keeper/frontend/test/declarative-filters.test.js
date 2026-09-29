@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyKeyRows,
+  keyOptions,
+  toggleKeyRow,
   EXCLUSION_FIELDS,
   exclusionCount,
   exclusionsSchema,
@@ -29,9 +31,10 @@ const EMPTY = {
 };
 
 describe('moreFiltersSchema', () => {
-  it('offers device class, the two include lists and the regex, in that order', () => {
+  it('offers device class, the three include lists and the regex, in that order', () => {
     expect(moreFiltersSchema()).toEqual([
       { name: 'device_class', selector: { text: {} } },
+      { name: 'device_ids', selector: { device: { multiple: true } } },
       { name: 'area_ids', selector: { area: { multiple: true } } },
       { name: 'label_ids', selector: { label: { multiple: true } } },
       { name: 'entity_regex', selector: { text: {} } },
@@ -67,6 +70,8 @@ describe('filterCount', () => {
     expect(filterCount({ ...EMPTY, label_ids: ['a'] })).toBe(1);
     expect(filterCount({ ...EMPTY, translation_keys: ['a', 'b'] })).toBe(1);
     expect(filterCount({ ...EMPTY, translation_keys: [] })).toBe(0);
+    expect(filterCount({ ...EMPTY, device_ids: ['a', 'b'] })).toBe(1);
+    expect(filterCount({ ...EMPTY, device_ids: [] })).toBe(0);
     expect(
       filterCount({
         device_class: 'battery',
@@ -216,5 +221,50 @@ describe('applyKeyRows', () => {
 
   it('gives empty results for no rows', () => {
     expect(applyKeyRows([])).toEqual({ translation_keys: [], task_names: {} });
+  });
+});
+
+const KEYS = [
+  { key: 'filter_time_left', count: 2, example_entity_id: 'sensor.a', example_name: 'Kitchen Filter' },
+  { key: 'main_brush_time_left', count: 1, example_entity_id: 'sensor.b', example_name: 'Kitchen Brush' },
+];
+
+describe('keyOptions', () => {
+  it('marks the keys already added, and keeps the order', () => {
+    expect(keyOptions(KEYS, ['main_brush_time_left'], '')).toEqual([
+      { ...KEYS[0], picked: false },
+      { ...KEYS[1], picked: true },
+    ]);
+  });
+
+  it('searches the key and the example name, in any case, after a trim', () => {
+    expect(keyOptions(KEYS, [], ' BRUSH ').map((o) => o.key)).toEqual(['main_brush_time_left']);
+    expect(keyOptions(KEYS, [], 'kitchen filter').map((o) => o.key)).toEqual(['filter_time_left']);
+    expect(keyOptions(KEYS, [], 'nothing')).toEqual([]);
+  });
+
+  it('does not match across the key and the example name', () => {
+    expect(keyOptions(KEYS, [], 'leftkitchen')).toEqual([]);
+  });
+});
+
+describe('toggleKeyRow', () => {
+  it('adds a key at the end with no task name', () => {
+    expect(toggleKeyRow([{ key: 'a', name: 'A' }], 'b')).toEqual([
+      { key: 'a', name: 'A' },
+      { key: 'b', name: '' },
+    ]);
+  });
+
+  it('takes out a key that is there, with its task name', () => {
+    expect(
+      toggleKeyRow(
+        [
+          { key: 'a', name: 'A' },
+          { key: 'b', name: 'B' },
+        ],
+        'a',
+      ),
+    ).toEqual([{ key: 'b', name: 'B' }]);
   });
 });

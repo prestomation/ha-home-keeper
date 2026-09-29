@@ -6,6 +6,7 @@ import type {
   DeclarativeCompanion,
   DeclarativeCompanionPreset,
   DeclarativeCompanionPreviewResult,
+  EntityKeyList,
   Hass,
   HassLabel,
   ImportReport,
@@ -965,6 +966,24 @@ export async function previewDeclarativeCompanion(
     type: 'home_keeper/preview_declarative_companion',
     companion,
   });
+}
+
+/**
+ * The entity keys of one integration, with a count and an example entity for each.
+ * Home Assistant shows no `translation_key` on any screen, so the companion dialog
+ * lists these for the user to pick from.
+ */
+export async function listEntityKeys(
+  hass: Hass,
+  integration: string,
+  domain?: string,
+): Promise<EntityKeyList> {
+  const res = await hass.callWS<EntityKeyList>({
+    type: 'home_keeper/list_entity_keys',
+    integration,
+    domain: domain || null,
+  });
+  return { keys: res?.keys ?? [], without_key: res?.without_key ?? 0 };
 }
 
 /**

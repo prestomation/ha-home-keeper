@@ -39,9 +39,11 @@ const MATCHES = [
 function makeHass(spec) {
   const previews = [];
   const saves = [];
+  const keyCalls = [];
   return {
     previews,
     saves,
+    keyCalls,
     hass: {
       language: 'en',
       states: {},
@@ -65,6 +67,25 @@ function makeHass(spec) {
             const matched = MATCHES.filter((m) => !out.includes(m.entity_id));
             return Promise.resolve({ count: matched.length, over_cap: false, matched });
           }
+          case 'home_keeper/list_entity_keys':
+            keyCalls.push(msg);
+            return Promise.resolve({
+              keys: [
+                {
+                  key: 'filter_time_left',
+                  count: 2,
+                  example_entity_id: 'sensor.kitchen_filter',
+                  example_name: 'Kitchen vacuum Filter time left',
+                },
+                {
+                  key: 'side_brush_time_left',
+                  count: 1,
+                  example_entity_id: 'sensor.kitchen_side',
+                  example_name: 'Kitchen vacuum Side brush time left',
+                },
+              ],
+              without_key: 3,
+            });
           case 'frontend/get_user_data':
             return Promise.resolve({ value: msg.key === 'home_keeper_intro_dismissed' });
           default:
@@ -322,6 +343,66 @@ describe('the entity key editor', () => {
     await waitFor(() => saves.length, 5000);
     expect(saves[0].updates.selection.translation_keys).toEqual(['side_brush']);
     expect(saves[0].updates.task_template.task_names).toEqual({});
+  });
+});
+
+describe('the key list', () => {
+  it('lists the keys of the target integration, and a click adds or takes out a key', async () => {
+    const { panel, previews, keyCalls } = await openEditDialog({
+      domain: 'sensor',
+      target_integration: 'roborock',
+    });
+    $(panel, '.hk-decl-more').click();
+    const opts = await waitFor(() => {
+      const found = panel.shadowRoot.querySelectorAll('.hk-decl-keyopt');
+      return found.length ? [...found] : null;
+    }, 5000);
+    expect(keyCalls[0]).toMatchObject({ integration: 'roborock', domain: 'sensor' });
+    expect(opts.map((o) => o.dataset.key)).toEqual(['filter_time_left', 'side_brush_time_left']);
+    expect(opts[0].querySelector('.hk-decl-keyopt-count').textContent).toBe('2 entities');
+    expect(opts[1].querySelector('.hk-decl-keyopt-count').textContent).toBe('1 entity');
+    expect(opts[0].querySelector('.hk-decl-keyopt-ex').textContent).toBe(
+      'Kitchen vacuum Filter time left',
+    );
+    expect($(panel, '.hk-decl-keylist-title').textContent).toBe('Keys of your roborock entities');
+    expect($(panel, '.hk-decl-keylist-head').textContent).toContain('Entities with no key: 3');
+
+    let before = previews.length;
+    opts[0].click();
+    await nextPreview(panel, previews, before);
+    expect(lastPreview(previews).translation_keys).toEqual(['filter_time_left']);
+    expect(panel.shadowRoot.querySelector('.hk-decl-key').value).toBe('filter_time_left');
+    expect(
+      panel.shadowRoot.querySelector('[data-key="filter_time_left"]').getAttribute('aria-pressed'),
+    ).toBe('true');
+
+    before = previews.length;
+    panel.shadowRoot.querySelector('[data-key="filter_time_left"]').click();
+    await nextPreview(panel, previews, before);
+    expect(lastPreview(previews).translation_keys).toEqual([]);
+    expect(panel.shadowRoot.querySelectorAll('.hk-decl-key').length).toBe(0);
+  });
+
+  it('searches the list and keeps the focus in the search box', async () => {
+    const { panel } = await openEditDialog({ domain: 'sensor', target_integration: 'roborock' });
+    $(panel, '.hk-decl-more').click();
+    const q = await waitFor(() => $(panel, '.hk-decl-keylist-q'), 5000);
+    q.focus();
+    q.value = 'side';
+    q.dispatchEvent(new Event('input'));
+    const keys = [...panel.shadowRoot.querySelectorAll('.hk-decl-keyopt')].map((o) => o.dataset.key);
+    expect(keys).toEqual(['side_brush_time_left']);
+    expect(panel.shadowRoot.activeElement).toBe(q);
+    q.value = 'nothing like it';
+    q.dispatchEvent(new Event('input'));
+    expect($(panel, '.hk-decl-keylist-options').textContent).toContain('No key matches your search.');
+  });
+
+  it('shows no list without a target integration', async () => {
+    const { panel, keyCalls } = await openEditDialog({ domain: 'sensor' });
+    $(panel, '.hk-decl-more').click();
+    expect($(panel, '.hk-decl-keylist').hidden).toBe(true);
+    expect(keyCalls).toEqual([]);
   });
 });
 

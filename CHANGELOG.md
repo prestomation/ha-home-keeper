@@ -16,6 +16,11 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **[Task names per key](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#entity-keys-and-task-names).**
   Give each entity key its own task name, such as Replace filter. One declarative
   companion then makes a task with a clear name for each part.
+- **[Key list](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#entity-keys-and-task-names).**
+  The declarative companion dialog lists the entity keys of the target integration.
+  Click a key to add it.
+- **[Device filter](https://prestomation.github.io/ha-home-keeper/docs/guide/settings).**
+  Limit a declarative companion to some devices.
 
 ## [0.27.0] - 2026-09-29
 

@@ -98,8 +98,8 @@ entities. See
 
 The *Which entities?* section of the dialog has the integration and the entity domain.
 Click **More filters** to see the other filters. Set a device class there, or write an
-entity id regex. You can also limit the declarative companion to some areas or to some
-labels. An
+entity id regex. The device, area and label filters keep only the entities in them.
+An
 entity that has no area of its own uses the area of its device. When **More filters**
 is closed, its row shows how many filters and exclusions are set.
 
@@ -143,9 +143,15 @@ their own.
 The **Entity keys** block under **More filters** matches the key that an integration
 gives each of its entities in its own code, such as `filter_time_left` for the filter
 sensor of a Roborock. A rename of the entity or a change of the Home Assistant
-language leaves the key as it is. An entity id regex breaks in both cases. Click
-**Add key** to add a key. Home Keeper then makes a task only for an entity with one of
-the keys.
+language leaves the key as it is. An entity id regex breaks in both cases. Home Keeper
+then makes a task only for an entity with one of the keys.
+
+Home Assistant does not show these keys on its own screens. So when the declarative
+companion has a target integration, Home Keeper lists the keys of that integration's
+entities under the block. Each key in the list shows one example entity and how many
+entities have the key. Click a key to add it, and click it again to take it out. Each
+device with the key gets its own task. To type a key that is not in the list,
+click **Add key**. Each row of the preview shows the key of its entity.
 
 Each key can also have a task name, such as *Replace filter*. The task name template
 reads it as `{{ task_name }}`, so one declarative companion can give each part its own

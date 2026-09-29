@@ -2100,6 +2100,44 @@ export const STYLES = `
   .hk-decl-key { font-family: var(--code-font-family, monospace); font-size: 0.85rem; }
   .hk-decl-key-remove { color: var(--secondary-text-color); }
   .hk-decl-key-add { align-self: flex-start; }
+  .hk-decl-keys-rows { display: flex; flex-direction: column; gap: 6px; }
+  .hk-decl-keylist {
+    display: flex; flex-direction: column; gap: 8px; margin-top: 6px; padding: 10px 12px;
+    border: 1px solid var(--divider-color); border-radius: 12px;
+  }
+  /* Not redundant with the user agent's own [hidden] rule: the class above sets a
+     display of its own, and the class wins. */
+  .hk-decl-keylist[hidden] { display: none; }
+  .hk-decl-keylist-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; justify-content: space-between; }
+  .hk-decl-keylist-title { font-weight: 500; }
+  .hk-decl-keylist-note { font-size: 0.8rem; color: var(--secondary-text-color); }
+  .hk-decl-keylist-q {
+    appearance: none; font: inherit; min-width: 0; padding: 7px 12px; border-radius: 18px;
+    border: 1px solid var(--divider-color); background: var(--card-background-color);
+    color: var(--primary-text-color); outline: none;
+  }
+  .hk-decl-keylist-q:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+  .hk-decl-keylist-options {
+    display: flex; flex-direction: column; max-height: 280px; overflow-y: auto;
+    border-top: 1px solid var(--divider-color);
+  }
+  .hk-decl-keyopt {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    width: 100%; padding: 8px 4px; border: 0; border-bottom: 1px solid var(--divider-color);
+    background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  }
+  .hk-decl-keyopt:hover, .hk-decl-keyopt[aria-pressed='true'] { background: var(--secondary-background-color); }
+  .hk-decl-keyopt:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
+  .hk-decl-keyopt ha-icon { color: var(--primary-color); }
+  .hk-decl-keyopt-text { display: flex; flex-direction: column; min-width: 0; }
+  .hk-decl-keyopt-key { font-family: var(--code-font-family, monospace); font-size: 0.84rem; overflow-wrap: anywhere; }
+  .hk-decl-keyopt-ex { font-size: 0.8rem; color: var(--secondary-text-color); overflow-wrap: anywhere; }
+  .hk-decl-keyopt-count { font-size: 0.75rem; color: var(--secondary-text-color); white-space: nowrap; }
+  .hk-decl-preview-key {
+    display: inline-block; margin-top: 2px; font-family: var(--code-font-family, monospace); font-size: 0.72rem;
+    padding: 0 6px; border-radius: 8px; background: var(--card-background-color);
+    color: var(--secondary-text-color);
+  }
   @media (prefers-reduced-motion: reduce) {
     .hk-decl-more-chevron { transition: none; }
   }
@@ -2108,7 +2146,9 @@ export const STYLES = `
     .hk-decl-toggle-text { display: none; }
     /* 16px exactly, so the companion app's WKWebView does not zoom on focus. The key
        and its name stack, since two boxes side by side leave each too narrow to read. */
-    .hk-decl-key-input { font-size: 16px; }
+    .hk-decl-key-input, .hk-decl-keylist-q { font-size: 16px; }
+    .hk-decl-keylist-options { max-height: none; }
+    .hk-decl-keyopt { min-height: 44px; }
     .hk-decl-key-row { grid-template-columns: minmax(0, 1fr) auto; }
     .hk-decl-key-row .hk-decl-key-name { grid-column: 1; grid-row: 2; }
     .hk-decl-key-row .hk-decl-key-remove { grid-column: 2; grid-row: 1 / span 2; }

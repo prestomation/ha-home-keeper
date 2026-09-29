@@ -168,6 +168,7 @@ def _normalize_selection(data: Any) -> dict[str, Any]:
     if translation_keys:
         result["translation_keys"] = translation_keys
     for field in (
+        "device_ids",
         "area_ids",
         "label_ids",
         "exclude_entity_ids",
@@ -444,11 +445,57 @@ def _entity_matches(
         return False
     if _labels_intersect(entry.get("labels"), selection.get("exclude_label_ids", [])):
         return False
+    device_ids = selection.get("device_ids") or []
+    if device_ids and entry.get("device_id") not in device_ids:
+        return False
     area_ids = selection.get("area_ids") or []
     if area_ids and entry.get("area_id") not in area_ids:
         return False
     label_ids = selection.get("label_ids") or []
     return not (label_ids and not _labels_intersect(entry.get("labels"), label_ids))
+
+
+def summarize_keys(
+    registry_snapshot: dict[str, Any], integration: str, domain: str | None = None
+) -> dict[str, Any]:
+    """The entity keys of *integration*, for the key list in the companion dialog.
+
+    A person cannot see a ``translation_key`` anywhere in Home Assistant's own screens,
+    so the dialog lists the keys the integration's entities have. Returns::
+
+        {"keys": [{"key", "count", "example_entity_id", "example_name"}, ...],
+         "without_key": <entities of the integration that have no key>}
+
+    Sorted by key. The example is the first entity with the key, in registry order,
+    and its name is the one a person gave it, else the integration's. Disabled
+    entities are left out, as the selection pass leaves them out. *domain*, when set,
+    narrows the list to one entity domain, as the dialog's domain box does.
+    """
+    keys: dict[str, dict[str, Any]] = {}
+    without_key = 0
+    for entry in registry_snapshot.get("entities") or []:
+        if entry.get("disabled") or entry.get("platform") != integration:
+            continue
+        if domain and entry.get("domain") != domain:
+            continue
+        key = entry.get("translation_key")
+        if not key:
+            without_key += 1
+            continue
+        found = keys.get(key)
+        if found is None:
+            keys[key] = {
+                "key": key,
+                "count": 1,
+                "example_entity_id": entry["entity_id"],
+                "example_name": entry.get("name") or entry.get("original_name") or "",
+            }
+        else:
+            found["count"] += 1
+    return {
+        "keys": [keys[key] for key in sorted(keys)],
+        "without_key": without_key,
+    }
 
 
 def expand_spec(

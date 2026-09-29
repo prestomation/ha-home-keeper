@@ -502,7 +502,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
-  test('an entity key selects the entity and names its task', async ({ page }) => {
+  test('the key list offers the keys of an integration, and a picked key names its task', async ({ page }) => {
     const errors = trackPanelErrors(page);
     // The Battery Notes stub's sensor carries translation_key "battery_level". The
     // companion names no domain and no regex: the key is the whole selection.
@@ -524,14 +524,22 @@ test.describe('Home Keeper panel — declarative companions', () => {
       const dialog = panel.locator('ha-dialog.hk-decl-dialog');
       await expectDialogOpen(dialog, '[data-decl-section="identity"]');
       await dialog.locator('.hk-decl-more').click();
-      await dialog.locator('.hk-decl-key-add').click();
-      await dialog.locator('.hk-decl-key').first().fill('battery_level');
+      // The key list shows the key the stub's sensor has, read from the live entity
+      // registry, so the user never has to look it up.
+      const option = dialog.locator('.hk-decl-keyopt[data-key="battery_level"]');
+      await expect(option).toBeVisible({ timeout: 20_000 });
+      await expect(option.locator('.hk-decl-keyopt-count')).toHaveText('1 entity');
+      await option.click();
+      await expect(option).toHaveAttribute('aria-pressed', 'true');
+      await expect(dialog.locator('.hk-decl-key').first()).toHaveValue('battery_level');
       await dialog.locator('.hk-decl-key-name').first().fill('Replace the battery');
       await expect(dialog.locator('.hk-decl-more-summary')).toHaveText('1 filter');
       // The preview renders the name from the key's task name.
       await expect(dialog.locator('.hk-decl-preview')).toContainText('Replace the battery:', {
         timeout: 20_000,
       });
+      // Each preview row shows the key its entity has.
+      await expect(dialog.locator('.hk-decl-preview-key').first()).toHaveText('battery_level');
       await dialog.locator('.hk-decl-save').click();
       await expect(dialog).toHaveCount(0, { timeout: 20_000 });
       const stored = (await listSpecs()).find((s) => s.id === specId);
@@ -600,6 +608,8 @@ test.describe('Home Keeper panel — declarative companions', () => {
     // The four exclusion pickers are under More filters, below the other filters.
     const exclusions = dialog.locator('[data-decl-section="exclusions"]');
     await expect(exclusions).toBeVisible();
+    // This companion has no target integration, so there is no key list to show.
+    await expect(dialog.locator('.hk-decl-keylist')).toBeHidden();
     // Two indented groups sit under More filters: the entity keys, then the exclusions.
     const heads = dialog.locator('.hk-decl-more-body .hk-indent-head');
     await expect(heads).toHaveCount(2);
