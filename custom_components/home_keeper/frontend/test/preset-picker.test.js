@@ -37,7 +37,9 @@ const ECOVACS = preset('ecovacs_percent_low', {
   requires: 'ecovacs',
   group: 'integration',
 });
-const ALL = [PULSE, FIRMWARE, ROBOROCK, BROTHER, ECOVACS];
+// Out of order on purpose: each group is sorted by name.
+const ALL = [PULSE, FIRMWARE, ECOVACS, ROBOROCK, BROTHER];
+const ZEBRA = preset('zebra', { name: 'Zebra: service alerts', requires: 'zebra', group: 'integration' });
 
 describe('presetTaskNames', () => {
   it('lists each task name once, in order', () => {
@@ -63,6 +65,12 @@ describe('presetMatches', () => {
     expect(presetMatches(FIRMWARE, '   ')).toBe(true);
     expect(presetMatches(FIRMWARE, 'toner')).toBe(false);
   });
+
+  it('does not match across the end of one field and the start of the next', () => {
+    const p = preset('x', { name: 'Salt', description: 'Low level' });
+    expect(presetMatches(p, 'saltlow')).toBe(false);
+    expect(presetMatches(p, 'salt')).toBe(true);
+  });
 });
 
 describe('groupPresets', () => {
@@ -76,9 +84,9 @@ describe('groupPresets', () => {
     expect(groups.hidden).toBe(1);
   });
 
-  it('shows the other integrations with Show all', () => {
-    const groups = groupPresets(ALL, installed, '', true);
-    expect(groups.other.map((p) => p.id)).toEqual(['ecovacs_percent_low']);
+  it('shows the other integrations with Show all, sorted by name', () => {
+    const groups = groupPresets([ZEBRA, ...ALL], installed, '', true);
+    expect(groups.other.map((p) => p.id)).toEqual(['ecovacs_percent_low', 'zebra']);
     expect(groups.hidden).toBe(0);
   });
 
@@ -88,6 +96,12 @@ describe('groupPresets', () => {
     expect(groups.general).toEqual([]);
     expect(groups.other.map((p) => p.id)).toEqual(['ecovacs_percent_low']);
     expect(groups.hidden).toBe(0);
+  });
+
+  it('does not count a blank search as a search', () => {
+    const groups = groupPresets(ALL, installed, '   ', false);
+    expect(groups.other).toEqual([]);
+    expect(groups.hidden).toBe(1);
   });
 
   it('treats a preset from an older backend with no group as general', () => {

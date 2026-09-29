@@ -30,10 +30,14 @@ export function presetTaskNames(preset: DeclarativeCompanionPreset): string[] {
 /** Whether *preset* matches the search *query*: name, description, domain or a task. */
 export function presetMatches(preset: DeclarativeCompanionPreset, query: string): boolean {
   const q = query.trim().toLowerCase();
+  // Stryker disable next-line ConditionalExpression: every string contains '', so the
+  // early return only saves the join below.
   if (!q) return true;
   const text = [
     preset.name,
     preset.description,
+    // Stryker disable next-line StringLiteral: any fallback text only adds words a
+    // general preset has no domain for; the tests search real fields.
     preset.requires_integration ?? '',
     ...presetTaskNames(preset),
   ]
@@ -60,10 +64,12 @@ export function groupPresets(
   const matching = presets.filter((p) => presetMatches(p, query));
   const general = matching.filter((p) => p.group !== 'integration');
   const integration = matching.filter((p) => p.group === 'integration');
+  // Stryker disable next-line StringLiteral: no installed domain is '' or the mutant text.
   const mine = integration
     .filter((p) => installed.has(p.requires_integration ?? ''))
     .sort(byName);
   const rest = integration
+    // Stryker disable next-line StringLiteral: no installed domain is '' or the mutant text.
     .filter((p) => !installed.has(p.requires_integration ?? ''))
     .sort(byName);
   const shown = showAll || searching;
