@@ -901,6 +901,15 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(declForm.locator('.hk-decl-excluded-head')).toBeVisible();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 2);
+  // Entity keys, in the same More filters block: match the key the integration gives
+  // each entity, and give that key its own task name for `{{ task_name }}`.
+  const declKeys = declForm.locator('.hk-decl-keys');
+  await declKeys.scrollIntoViewIfNeeded();
+  await declKeys.locator('.hk-decl-key-add').click();
+  await declKeys.locator('.hk-decl-key').first().fill('filter_time_left');
+  await declKeys.locator('.hk-decl-key-name').first().fill('Replace filter');
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
   // Task labels at the foot of the Task template section: every task the companion
   // makes gets them, so a Profile can select that companion's tasks (#378).
   const declTemplateSection = declForm.locator('[data-decl-section="template"]');
