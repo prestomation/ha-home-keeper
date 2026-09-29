@@ -15,30 +15,39 @@ Two recurrence models are supported:
   creation) starts the clock. A missed task simply stays overdue; the due date does
   not march forward on its own.
 
-* **fixed** — the next due date follows a calendar schedule anchored at a fixed
-  datetime (``FREQ=DAILY|WEEKLY|MONTHLY`` every ``interval`` steps). Completing an
-  occurrence records history but the schedule advances independently of when the
-  task was actually completed.
+* **fixed** — the next due date follows a calendar schedule: an RFC 5545 RRULE
+  (``rrule``, e.g. ``FREQ=WEEKLY;BYDAY=TU,FR``) anchored at a fixed datetime, plus
+  any single dates the user moved (``moved_occurrences``). Completing an occurrence
+  records history but the schedule advances independently of when the task was
+  actually completed.
 """
 
 from __future__ import annotations
 
 import calendar as _calendar
 from collections.abc import Iterable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
+
+from dateutil import rrule as _dateutil_rrule
 
 from .const import (
     FREQ_DAILY,
     FREQ_MONTHLY,
     FREQ_WEEKLY,
+    FREQ_YEARLY,
     MAX_COMPLETION_HISTORY,
     MAX_EXPAND_ITERATIONS,
+    MAX_INTERVAL,
+    MAX_MOVED_OCCURRENCES,
+    MAX_RULE_LENGTH,
     REC_FIXED,
     REC_FLOATING,
     REC_ONE_OFF,
     REC_SENSOR,
     REC_TRIGGERED,
     REC_USE,
+    RULE_FORBIDDEN_PARTS,
+    RULE_FREQS,
     UNIT_DAYS,
     UNIT_MONTHS,
     UNIT_WEEKS,
@@ -157,12 +166,8 @@ def _clamp_season(next_due: datetime, task: dict) -> datetime:
     season_start = _next_season_start(next_due, season)
     rec_type = task.get("recurrence_type", REC_FLOATING)
     if rec_type == REC_FIXED:
-        anchor = _parse(task["anchor"])
-        assert anchor is not None
         after = season_start - timedelta(seconds=1)
-        return next_fixed_occurrence(
-            anchor, task["freq"], int(task["interval"]), after=after
-        )
+        return next_task_occurrence(task, after=after)
     return season_start
 
 
@@ -183,67 +188,6 @@ def compute_floating_next_due(
     if last_completed is None:
         return now
     return add_interval(last_completed, interval, unit)
-
-
-def _step(dt: datetime, freq: str, interval: int) -> datetime:
-    """Advance *dt* by one schedule step of *freq*·*interval*."""
-    if freq == FREQ_DAILY:
-        return dt + timedelta(days=interval)
-    if freq == FREQ_WEEKLY:
-        return dt + timedelta(weeks=interval)
-    if freq == FREQ_MONTHLY:
-        return add_months(dt, interval)
-    raise ValueError(f"unknown freq: {freq!r}")
-
-
-def _fast_forward(
-    anchor: datetime, freq: str, interval: int, target: datetime
-) -> datetime:
-    """An occurrence at or just before *target*, jumped to in O(1) where possible.
-
-    A long-dormant fixed schedule can be thousands of steps past its anchor;
-    stepping one occurrence at a time would be slow (and historically raised once
-    it blew an iteration cap). We deliberately *under*-shoot (``- 1`` step) so the
-    caller's short loop finishes on the exact occurrence using wall-clock stepping
-    — correct across DST and month-length clamping. Day/week deltas are exact, so
-    the bulk jump is too.
-
-    MONTHLY is trickier: progressive day-clamping makes the grid path-dependent, so
-    we can't jump directly from the anchor for a day > 28 (``add_months(Jan 31, 2)``
-    is Mar 31, but stepping is Jan 31 -> Feb 28 -> Mar 28). We exploit the fact that
-    the clamped day is monotonically non-increasing toward 28 — once it bottoms out
-    at 28 (the global floor: every month has >= 28 days) it never changes again, so
-    from that occurrence we *can* jump in O(1). We therefore step until the day hits
-    28 (typically a handful of steps — interval-1 monthly reaches a non-leap
-    February within a few years) and then bulk-jump the remainder. Schedules whose
-    reachable months never include a short-enough month (e.g. an even interval that
-    skips February) keep a day > 28 forever; for those we simply step to the target,
-    bounded by the (finite) span between anchor and target — slower, but never the
-    old iteration-cap crash.
-    """
-    elapsed = (target - anchor).total_seconds()
-    if elapsed <= 0:
-        return anchor
-    if freq == FREQ_DAILY:
-        steps = max(0, int(elapsed // (86_400 * interval)) - 1)
-        return anchor + timedelta(days=interval * steps)
-    if freq == FREQ_WEEKLY:
-        steps = max(0, int(elapsed // (604_800 * interval)) - 1)
-        return anchor + timedelta(weeks=interval * steps)
-    # MONTHLY
-    occ = anchor
-    while occ.day > 28:
-        nxt = add_months(occ, interval)
-        if nxt > target:
-            # Reached the target before the day stabilized: hand the (exact) grid
-            # occurrence to the caller's loop. Bounded by the anchor→target span.
-            return occ
-        occ = nxt
-    # The day has bottomed out at 28 and is now stable for every further step, so
-    # the remaining whole steps can be jumped at once (under-shooting by one).
-    remaining = (target.year - occ.year) * 12 + (target.month - occ.month)
-    jump = max(0, remaining // interval - 1)
-    return add_months(occ, jump * interval)
 
 
 def _regrid(anchor: datetime, probe: datetime) -> datetime:
@@ -271,71 +215,568 @@ def _regrid(anchor: datetime, probe: datetime) -> datetime:
     return anchor.astimezone(probe.tzinfo)
 
 
+# ── Fixed schedules: an RRULE anchored at a datetime ─────────────────────────
+#
+# A fixed task stores an RFC 5545 RRULE body (``FREQ=WEEKLY;BYDAY=TU,FR``) and an
+# ``anchor``. The anchor is the rule's DTSTART: it gives the time of day and the
+# earliest date. ``dateutil.rrule`` expands the rule. Home Keeper adds 3 things on top:
+#
+# * **Wall time.** The rule is expanded on *naive local* times and each result is
+#   given the caller's zone, so "every Tuesday at 07:00" stays at 07:00 on both sides
+#   of a daylight-saving change (see :func:`_regrid`).
+# * **Month end.** A plain ``FREQ=MONTHLY`` anchored on the 31st means "the 31st, or
+#   the last day of a shorter month". RFC 5545 skips the months that have no 31st, and
+#   nobody who asks for "monthly" wants that. See :func:`effective_rule`.
+# * **Moves.** ``moved_occurrences`` moves single dates of the schedule and leaves the
+#   rest alone. See :func:`task_moves` and :func:`move_occurrence`.
+
+_WEEKDAYS = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+# The BY-parts that choose *which days* a rule lands on. When a rule names none of
+# them, dateutil takes the day from DTSTART; :func:`effective_rule` makes that choice
+# explicit so the start can be moved forward without changing the answer.
+_DAY_PARTS = ("BYDAY", "BYMONTHDAY", "BYYEARDAY", "BYWEEKNO")
+# How far past a probe the expansion looks before it gives up. A rule is validated to
+# have an occurrence within this window of its anchor, so for a valid rule this never
+# drops a real date; it only bounds a rule whose next date is centuries away.
+_HORIZON = timedelta(days=366 * 20)
+_FORBIDDEN_PARTS = frozenset(RULE_FORBIDDEN_PARTS)
+# The length of one rule period, in days, rounded up. A rule with a long INTERVAL
+# (every 30 years) needs a horizon longer than 20 years to reach its next date.
+_PERIOD_DAYS = {FREQ_DAILY: 1, FREQ_WEEKLY: 7, FREQ_MONTHLY: 31, FREQ_YEARLY: 366}
+
+
+def _horizon(rule: str) -> timedelta:
+    """How far past a probe to look: 20 years, or 2 whole periods if that is longer."""
+    parts = rule_parts(rule)
+    period = _PERIOD_DAYS.get(parts.get("FREQ", ""), 366)
+    interval = int(parts.get("INTERVAL", "1"))
+    return max(_HORIZON, timedelta(days=period * interval * 2))
+
+
+class RuleError(ValueError):
+    """A fixed-schedule RRULE that Home Keeper cannot store.
+
+    ``reason`` is a short stable key (``syntax``, ``freq``, ``forbidden``, ``empty``,
+    ``length``) so the HA layer can pick a translated message.
+    """
+
+    def __init__(self, reason: str, detail: str = "") -> None:
+        super().__init__(f"invalid rule ({reason}): {detail}" if detail else reason)
+        self.reason = reason
+        self.detail = detail
+
+
+def rule_parts(rule: str) -> dict[str, str]:
+    """Split an RRULE body into ``{PART: value}``, upper-cased.
+
+    Only the shape is checked here: ``KEY=VALUE`` pairs split by ``;``. Whether the
+    values mean anything is :func:`normalize_rule`'s job.
+    """
+    parts: dict[str, str] = {}
+    for chunk in rule.split(";"):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        key, sep, value = chunk.partition("=")
+        if not sep or not key.strip() or not value.strip():
+            raise RuleError("syntax", chunk)
+        parts[key.strip().upper()] = value.strip().upper()
+    return parts
+
+
+def _join_parts(parts: dict[str, str]) -> str:
+    """The inverse of :func:`rule_parts`, with FREQ first as RFC 5545 writes it."""
+    ordered = [f"FREQ={parts['FREQ']}"] if "FREQ" in parts else []
+    ordered += [f"{k}={v}" for k, v in parts.items() if k != "FREQ"]
+    return ";".join(ordered)
+
+
+def normalize_rule(rule: object) -> str:
+    """Validate a user-supplied RRULE body and return its canonical text.
+
+    Accepts an optional ``RRULE:`` prefix (a rule copied from another calendar has
+    one), strips blanks and upper-cases. Refuses a rule that:
+
+    * does not parse (``syntax``), or has no FREQ or a sub-daily one (``freq``);
+    * carries COUNT, UNTIL, DTSTART or a sub-daily BY-part (``forbidden``);
+    * has no occurrence within 20 years of any start (``empty``) — for example the
+      30th of February. This is what lets every later expansion stop at a horizon.
+    """
+    if not isinstance(rule, str):
+        raise RuleError("syntax", repr(rule))
+    text = rule.strip()
+    if text.upper().startswith("RRULE:"):
+        text = text[len("RRULE:") :]
+    if len(text) > MAX_RULE_LENGTH:
+        raise RuleError("length", str(len(text)))
+    if not text:
+        raise RuleError("syntax", "")
+    parts = rule_parts(text)
+    freq = parts.get("FREQ")
+    if freq not in RULE_FREQS:
+        raise RuleError("freq", str(freq))
+    forbidden = sorted(_FORBIDDEN_PARTS.intersection(parts))
+    if forbidden:
+        raise RuleError("forbidden", ",".join(forbidden))
+    interval = parts.get("INTERVAL", "1")
+    if not interval.isdigit() or not 1 <= int(interval) <= MAX_INTERVAL:
+        raise RuleError("syntax", f"INTERVAL={interval}")
+    canonical = _join_parts(parts)
+    # A fixed probe start. A rule that yields nothing in 20 years from here yields
+    # nothing from any start: every part is periodic within a 400-year Gregorian cycle
+    # except the leap day, and a leap day comes round every 4 or 8 years.
+    probe = datetime(2000, 1, 1)
+    try:
+        expanded = _rrulestr(effective_rule(canonical, probe), dtstart=probe).replace(
+            until=probe + _HORIZON
+        )
+        first = expanded.after(probe, inc=True)
+    except (ValueError, TypeError, KeyError, OverflowError) as err:
+        raise RuleError("syntax", str(err)) from err
+    if first is None:
+        raise RuleError("empty", canonical)
+    return canonical
+
+
+def legacy_rule(freq: str, interval: int) -> str:
+    """The RRULE a legacy ``freq``/``interval`` pair means.
+
+    Month-end handling is not written into the text: :func:`effective_rule` applies it
+    to any plain monthly rule, so a migrated task and one made in the new form read the
+    same, and the day buttons can show both.
+    """
+    if freq not in (FREQ_DAILY, FREQ_WEEKLY, FREQ_MONTHLY):
+        raise RuleError("freq", str(freq))
+    if interval < 1:
+        raise RuleError("syntax", f"INTERVAL={interval}")
+    return f"FREQ={freq};INTERVAL={int(interval)}"
+
+
+def task_rule(task: dict) -> str:
+    """The RRULE of a fixed *task*.
+
+    A stored task always has ``rrule`` once the store has loaded. A dict built by hand
+    (a test, an import of an old export) may still carry the legacy pair, so fall back
+    to it rather than fail.
+    """
+    rule = task.get("rrule")
+    if rule:
+        return str(rule)
+    return legacy_rule(task["freq"], int(task.get("interval") or 1))
+
+
+def effective_rule(rule: str, start: datetime) -> str:
+    """*rule* with every choice dateutil would take from DTSTART written out.
+
+    dateutil fills an absent BYDAY / BYMONTHDAY / BYMONTH from the start date. That is
+    fine until the start moves, and :func:`_fast_forward_start` moves it, so the
+    choices are fixed here from the *real* anchor first.
+
+    It is also where month end is decided. A plain monthly rule on the 29th, 30th or
+    31st becomes "that day, or the last day of a shorter month"
+    (``BYMONTHDAY=28,...,D;BYSETPOS=-1`` picks the latest of those days the month has).
+    A plain yearly rule on February 29 becomes "February 29, or February 28".
+    """
+    parts = rule_parts(rule)
+    freq = parts["FREQ"]
+    if any(p in parts for p in _DAY_PARTS):
+        return _join_parts(parts)
+    if freq == FREQ_WEEKLY:
+        parts["BYDAY"] = _WEEKDAYS[start.weekday()]
+    elif freq == FREQ_MONTHLY:
+        if start.day > 28 and "BYSETPOS" not in parts:
+            parts["BYMONTHDAY"] = ",".join(str(d) for d in range(28, start.day + 1))
+            parts["BYSETPOS"] = "-1"
+        else:
+            parts["BYMONTHDAY"] = str(start.day)
+    elif freq == FREQ_YEARLY:
+        parts.setdefault("BYMONTH", str(start.month))
+        if (start.month, start.day) == (2, 29) and "BYSETPOS" not in parts:
+            parts["BYMONTHDAY"] = "28,29"
+            parts["BYSETPOS"] = "-1"
+        else:
+            parts["BYMONTHDAY"] = str(start.day)
+    return _join_parts(parts)
+
+
+def _rrulestr(text: str, *, dtstart: datetime) -> _dateutil_rrule.rrule:
+    """Parse an RRULE body. A body never yields a set, so narrow the type."""
+    parsed = _dateutil_rrule.rrulestr(text, dtstart=dtstart)
+    assert isinstance(parsed, _dateutil_rrule.rrule)
+    return parsed
+
+
+def _fast_forward_start(
+    start: datetime, freq: str, interval: int, target: datetime
+) -> datetime:
+    """A start whole periods after *start* and at or before *target*.
+
+    dateutil walks from DTSTART, so a daily task anchored in 2019 would take thousands
+    of steps on every call. Moving the start by a whole number of rule periods keeps
+    every later occurrence the same, because :func:`effective_rule` has already fixed
+    the days that the start used to decide. One period of margin is kept, so the moved
+    start is always on the safe side of *target*.
+
+    Daily and weekly periods are exact on naive wall times. A month or year period moves
+    to the first day of its month, which is still inside the same rule period.
+    """
+    if target <= start:
+        return start
+    if freq == FREQ_DAILY:
+        steps = max(0, (target - start).days // interval - 1)
+        return start + timedelta(days=steps * interval)
+    if freq == FREQ_WEEKLY:
+        steps = max(0, (target - start).days // (7 * interval) - 1)
+        return start + timedelta(weeks=steps * interval)
+    if freq == FREQ_MONTHLY:
+        months = (target.year - start.year) * 12 + (target.month - start.month)
+        steps = max(0, months // interval - 1)
+        if steps == 0:
+            return start
+        index = start.month - 1 + steps * interval
+        return start.replace(year=start.year + index // 12, month=index % 12 + 1, day=1)
+    # YEARLY
+    steps = max(0, (target.year - start.year) // interval - 1)
+    if steps == 0:
+        return start
+    return start.replace(year=start.year + steps * interval, month=1, day=1)
+
+
+def _localize(naive: datetime, tz: tzinfo | None) -> datetime:
+    """Give a naive local wall time the probe's zone, keeping the wall time."""
+    return naive.replace(tzinfo=tz)
+
+
+def _expansion(
+    anchor: datetime, rule: str, probe: datetime, until: datetime | None
+) -> tuple[_dateutil_rrule.rrule, tzinfo | None]:
+    """The dateutil rule for *anchor*/*rule*, started near *probe*, ending at *until*.
+
+    Returns the rule and the zone its naive results belong to. With no *until*, the
+    rule ends one :func:`_horizon` after *probe*, clamped to the last representable
+    year so a far horizon cannot overflow.
+    """
+    tz = probe.tzinfo
+    start = _regrid(anchor, probe).replace(tzinfo=None)
+    effective = effective_rule(rule, start)
+    parts = rule_parts(effective)
+    naive_probe = probe.astimezone(tz).replace(tzinfo=None)
+    moved = _fast_forward_start(
+        start, parts["FREQ"], int(parts.get("INTERVAL", "1")), naive_probe
+    )
+    if until is None:
+        try:
+            naive_until = naive_probe + _horizon(effective)
+        except OverflowError:
+            naive_until = datetime(9999, 12, 31)
+    else:
+        naive_until = until.astimezone(tz).replace(tzinfo=None)
+    expanded = _rrulestr(effective, dtstart=moved).replace(until=naive_until)
+    return expanded, tz
+
+
+def _instant(value: datetime) -> float:
+    """A key that compares datetimes by instant, whatever their tzinfo."""
+    return value.timestamp()
+
+
+def _parse_move(move: object) -> tuple[datetime, datetime] | None:
+    """One ``moved_occurrences`` row as ``(from, to)``, or ``None`` when it is bad."""
+    if not isinstance(move, dict):
+        return None
+    try:
+        src = datetime.fromisoformat(move["from"])
+        dst = datetime.fromisoformat(move["to"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if src.tzinfo is None or dst.tzinfo is None:
+        return None
+    return src, dst
+
+
+def _parsed_moves(moves: Iterable[dict] | None) -> list[tuple[datetime, datetime]]:
+    """``moved_occurrences`` as ``(from, to)`` datetimes. Bad rows are ignored."""
+    return [pair for pair in map(_parse_move, moves or ()) if pair is not None]
+
+
 def next_fixed_occurrence(
     anchor: datetime,
-    freq: str,
-    interval: int,
+    rule: str,
     *,
     after: datetime,
+    moves: Iterable[dict] | None = None,
 ) -> datetime:
     """Smallest occurrence strictly greater than *after* for a fixed schedule.
 
-    Occurrences start at *anchor* and repeat every *interval* of *freq*, preserving
-    the anchor's time-of-day **as read in *after*'s timezone** (see :func:`_regrid`).
-    If *after* precedes the anchor, the anchor itself is returned.
+    Occurrences come from *rule* anchored at *anchor*, read at the anchor's
+    time-of-day **in *after*'s timezone** (see :func:`_regrid`). *moves* takes the
+    ``from`` dates off the schedule and puts the ``to`` dates on it.
+
+    Raises ``ValueError`` when the rule has no occurrence within 20 years of *after*,
+    which :func:`normalize_rule` makes unreachable for a stored rule.
     """
-    if interval < 1:
-        raise ValueError(f"interval must be >= 1, got {interval}")
-    anchor = _regrid(anchor, after)
-    if anchor > after:
-        return anchor
-    occ = _fast_forward(anchor, freq, interval, after)
-    iterations = 0
-    while occ <= after:
-        occ = _step(occ, freq, interval)
-        iterations += 1
-        if iterations > MAX_EXPAND_ITERATIONS:
-            # Unreachable for realistic inputs now that we fast-forward; kept as a
-            # last-resort guard against a pathological freq/interval.
-            raise RuntimeError(
-                "next_fixed_occurrence exceeded iteration cap; "
-                f"anchor={anchor.isoformat()} after={after.isoformat()}"
-            )
-    return occ
+    parsed = _parsed_moves(moves)
+    moved_from = {_instant(src) for src, _ in parsed}
+    expanded, tz = _expansion(anchor, rule, after, None)
+    probe = after.astimezone(tz).replace(tzinfo=None)
+    candidate: datetime | None = None
+    # A moved-away date is skipped, so look past at most that many rule dates.
+    for _ in range(len(moved_from) + 1):
+        found = expanded.after(probe)
+        if found is None:
+            break
+        local = _localize(found, tz)
+        if _instant(local) not in moved_from:
+            candidate = local
+            break
+        probe = found
+    targets = [dst.astimezone(tz) for _, dst in parsed if dst > after]
+    options = [c for c in (candidate, *targets) if c is not None]
+    if not options:
+        raise ValueError(
+            f"fixed schedule has no occurrence after {after.isoformat()}: {rule}"
+        )
+    return min(options, key=_instant)
 
 
 def expand_fixed_occurrences(
     anchor: datetime,
-    freq: str,
-    interval: int,
+    rule: str,
     start: datetime,
     end: datetime,
+    *,
+    moves: Iterable[dict] | None = None,
 ) -> list[datetime]:
-    """All fixed occurrences within the half-open range ``[start, end)``.
+    """All fixed occurrences within the half-open range ``[start, end)``, in order.
 
     Occurrences read at the anchor's time-of-day in *start*'s timezone, the same rule
-    :func:`next_fixed_occurrence` follows (see :func:`_regrid`).
-
-    Bounded by ``MAX_EXPAND_ITERATIONS`` to guard against runaway loops.
+    :func:`next_fixed_occurrence` follows (see :func:`_regrid`). *moves* applies the
+    same way. Capped at ``MAX_EXPAND_ITERATIONS`` results.
     """
     if start >= end:
         return []
-    anchor = _regrid(anchor, start)
+    parsed = _parsed_moves(moves)
+    moved_from = {_instant(src) for src, _ in parsed}
+    expanded, tz = _expansion(anchor, rule, start, end)
+    naive_start = start.astimezone(tz).replace(tzinfo=None)
     occurrences: list[datetime] = []
-    # Find the first occurrence at or after *start* — fast-forward close first so a
-    # far-past anchor doesn't exhaust the iteration cap before reaching the window.
-    occ = _fast_forward(anchor, freq, interval, start)
-    iterations = 0
-    while occ < start:
-        occ = _step(occ, freq, interval)
-        iterations += 1
-        if iterations > MAX_EXPAND_ITERATIONS:
-            return occurrences
-    while occ < end and iterations <= MAX_EXPAND_ITERATIONS:
-        occurrences.append(occ)
-        occ = _step(occ, freq, interval)
-        iterations += 1
-    return occurrences
+    for found in expanded.xafter(naive_start, count=MAX_EXPAND_ITERATIONS, inc=True):
+        local = _localize(found, tz)
+        if local >= end:
+            break
+        if local >= start and _instant(local) not in moved_from:
+            occurrences.append(local)
+    occurrences += [dst.astimezone(tz) for _, dst in parsed if start <= dst < end]
+    # A move onto a date the rule already has is refused by ``move_occurrence``, but
+    # an imported list is not checked that deeply. One date shows once, whatever put
+    # it there twice.
+    unique = {_instant(o): o for o in occurrences}
+    return sorted(unique.values(), key=_instant)[:MAX_EXPAND_ITERATIONS]
+
+
+def is_rule_occurrence(
+    anchor: datetime, rule: str, moment: datetime, *, tz: tzinfo | None = None
+) -> bool:
+    """Whether *moment* is a date of the bare rule, with no moves applied.
+
+    The rule is expanded in the probe's zone (see :func:`_regrid`), so *tz* must be
+    Home Assistant's zone whenever *moment* came off a stored ISO string: such a
+    string carries a bare offset, and an anchor from July read at a July offset in
+    November lands an hour away from every November date.
+    """
+    if tz is not None:
+        moment = moment.astimezone(tz)
+    probe = moment - timedelta(microseconds=1)
+    try:
+        return next_fixed_occurrence(anchor, rule, after=probe) == moment
+    except ValueError:
+        return False
+
+
+def task_moves(task: dict) -> list[tuple[datetime, datetime]]:
+    """A fixed *task*'s moves as ``(from, to)`` datetimes."""
+    return _parsed_moves(task.get("moved_occurrences"))
+
+
+def is_task_occurrence(
+    task: dict, moment: datetime, *, tz: tzinfo | None = None
+) -> bool:
+    """Whether *moment* is a date of a fixed *task*'s schedule, moves included.
+
+    A snooze or due-today puts ``next_due`` off the schedule; this is how the
+    calendar and the engine tell the two apart. Pass Home Assistant's zone as *tz*
+    for a *moment* read from storage (see :func:`is_rule_occurrence`).
+    """
+    anchor = _parse(task["anchor"])
+    assert anchor is not None
+    if tz is not None:
+        moment = moment.astimezone(tz)
+    return _is_occurrence(task, anchor, moment)
+
+
+def next_task_occurrence(task: dict, *, after: datetime) -> datetime:
+    """:func:`next_fixed_occurrence` for a fixed *task*, moves included."""
+    anchor = _parse(task["anchor"])
+    assert anchor is not None
+    return next_fixed_occurrence(
+        anchor, task_rule(task), after=after, moves=task.get("moved_occurrences")
+    )
+
+
+def expand_task_occurrences(
+    task: dict, start: datetime, end: datetime
+) -> list[datetime]:
+    """:func:`expand_fixed_occurrences` for a fixed *task*, moves included."""
+    anchor = _parse(task["anchor"])
+    assert anchor is not None
+    return expand_fixed_occurrences(
+        anchor, task_rule(task), start, end, moves=task.get("moved_occurrences")
+    )
+
+
+def upcoming_occurrences(
+    task: dict, *, now: datetime, count: int
+) -> list[dict[str, str | None]]:
+    """The next *count* dates of a fixed *task*, as ``{start, moved_from}`` rows.
+
+    ``start`` is the date as the schedule now holds it; ``moved_from`` is the original
+    date when that row is a move, else ``None``. The panel's Upcoming block and the
+    card's "A later date" list read this, so both say exactly what the calendar says.
+    A season is applied the same way :func:`compute_next_due` applies it.
+    """
+    moved_to = {
+        _instant(dst): src for src, dst in _parsed_moves(task.get("moved_occurrences"))
+    }
+    rows: list[dict[str, str | None]] = []
+    probe = now
+    for _ in range(count * 4):
+        if len(rows) >= count:
+            break
+        try:
+            occ = _clamp_season(next_task_occurrence(task, after=probe), task)
+        except ValueError:
+            break
+        src = moved_to.get(_instant(occ))
+        rows.append(
+            {"start": occ.isoformat(), "moved_from": src.isoformat() if src else None}
+        )
+        probe = occ
+    return rows
+
+
+def move_occurrence(
+    task: dict, occurrence: datetime, to: datetime, *, now: datetime
+) -> tuple[dict, datetime, datetime | None]:
+    """Move one date of *task*'s fixed schedule to *to*.
+
+    Returns ``(task, original, previous_to)``: the mutated task, the date on the rule
+    that moved, and where that date was before this call (``None`` when it had not
+    moved).
+
+    *occurrence* names the date on the **rule** (the original date). Moving a date that
+    is already moved changes where it goes, so the badge keeps saying where it came
+    from; moving it back to its own date removes the move. *occurrence* may also be
+    the *current* date of a move, which is what a calendar shows and hands back.
+
+    ``next_due`` is recomputed when the date the task is showing is the one that moved
+    (or the new date comes before it). A snooze or due-today is off the schedule, so it
+    is left alone.
+
+    Raises ``ValueError`` when *occurrence* is not a date of the schedule, when *to* is
+    in the past, or when *to* is already a date of the schedule.
+    """
+    if task.get("recurrence_type") != REC_FIXED:
+        raise ValueError("only a fixed task has dates to move")
+    anchor = _parse(task["anchor"])
+    assert anchor is not None
+    rule = task_rule(task)
+    # Every instant here is judged in Home Assistant's zone (the zone of *now*). A
+    # date handed in as an offset string — the panel, the card and the service all
+    # send one — would otherwise be expanded at its own offset, which is an hour off
+    # for half the year (see :func:`is_rule_occurrence`).
+    zone = now.tzinfo
+    occurrence = (
+        occurrence.replace(tzinfo=zone) if occurrence.tzinfo is None else occurrence
+    ).astimezone(zone)
+    to = (to.replace(tzinfo=zone) if to.tzinfo is None else to).astimezone(zone)
+    rows = [
+        (dict(m), pair)
+        for m in task.get("moved_occurrences") or []
+        if (pair := _parse_move(m)) is not None
+    ]
+    # A calendar hands back the date it showed, which for a moved date is the ``to``.
+    for _, (src, dst) in rows:
+        if _instant(dst) == _instant(occurrence):
+            occurrence = src.astimezone(zone)
+            break
+    previous_to = next(
+        (
+            dst.astimezone(zone)
+            for _, (src, dst) in rows
+            if _instant(src) == _instant(occurrence)
+        ),
+        None,
+    )
+    if not is_rule_occurrence(anchor, rule, occurrence):
+        raise ValueError(f"{occurrence.isoformat()} is not a date of this schedule")
+    others = [
+        (m, pair) for m, pair in rows if _instant(pair[0]) != _instant(occurrence)
+    ]
+    keep = [m for m, _ in others]
+    if _instant(to) == _instant(occurrence) and previous_to is not None and to <= now:
+        # Putting a date back on its own day when that day has passed would take it
+        # off every surface at once: it is behind now, and no longer moved ahead.
+        raise ValueError("the original date has passed, so the move cannot be undone")
+    if _instant(to) != _instant(occurrence):
+        if to <= now:
+            raise ValueError("a date can only move to a time in the future")
+        taken = is_rule_occurrence(anchor, rule, to) or any(
+            _instant(dst) == _instant(to) for _, (_, dst) in others
+        )
+        if taken:
+            raise ValueError(f"{to.isoformat()} is already a date of this schedule")
+        if len(keep) >= MAX_MOVED_OCCURRENCES:
+            raise ValueError("too many moved dates on this task")
+        keep.append({"from": occurrence.isoformat(), "to": to.isoformat()})
+    shown = _parse(task.get("next_due"))
+    if shown is not None:
+        shown = shown.astimezone(zone)
+    # Which date the task shows now, judged against the moves *before* this one.
+    on_schedule = shown is not None and _is_occurrence(task, anchor, shown)
+    task["moved_occurrences"] = keep
+    if shown is None:
+        task["next_due"] = compute_next_due(task, now=now).isoformat()
+    elif on_schedule and (
+        _instant(shown) == _instant(occurrence)
+        or any(
+            _instant(shown) == _instant(dst)
+            for _, (src, dst) in rows
+            if _instant(src) == _instant(occurrence)
+        )
+        or (now < to < shown)
+    ):
+        # The shown date is the one that moved, or the new date comes first. A
+        # snooze or due-today is not on the schedule, so it keeps its date.
+        task["next_due"] = compute_next_due(task, now=now).isoformat()
+    return task, occurrence, previous_to
+
+
+def prune_moves(task: dict, *, before: datetime) -> dict:
+    """Drop the moves whose original and new dates are both before *before*.
+
+    A move that is fully in the past changes nothing any more, and keeping it would let
+    the list grow without end.
+    """
+    moves = task.get("moved_occurrences")
+    if not moves:
+        return task
+    kept = []
+    for move in moves:
+        pair = _parse_move(move)
+        if pair is not None and (pair[0] >= before or pair[1] >= before):
+            kept.append(move)
+    task["moved_occurrences"] = kept
+    return task
 
 
 def _parse(value: str | datetime | None) -> datetime | None:
@@ -359,14 +800,7 @@ def compute_next_due(task: dict, *, now: datetime) -> datetime:
             task,
         )
     if rec_type == REC_FIXED:
-        anchor = _parse(task["anchor"])
-        assert anchor is not None
-        return _clamp_season(
-            next_fixed_occurrence(
-                anchor, task["freq"], int(task["interval"]), after=now
-            ),
-            task,
-        )
+        return _clamp_season(next_task_occurrence(task, after=now), task)
     if rec_type in (REC_TRIGGERED, REC_SENSOR):
         # A condition/sensor-driven task has no schedule: computing a due date means
         # *arming* it (the condition is true), so it reads as due-now. Going
@@ -429,10 +863,10 @@ def _is_occurrence(task: dict, anchor: datetime, moment: datetime) -> bool:
     reject is still a date the schedule owns.
     """
     probe = moment - timedelta(microseconds=1)
-    return (
-        next_fixed_occurrence(anchor, task["freq"], int(task["interval"]), after=probe)
-        == moment
-    )
+    try:
+        return next_task_occurrence(task, after=probe) == moment
+    except ValueError:
+        return False
 
 
 def _advance_fixed_schedule(task: dict, *, now: datetime) -> str:
@@ -481,10 +915,9 @@ def _advance_fixed_schedule(task: dict, *, now: datetime) -> str:
         if not _is_occurrence(task, anchor, current):
             current = None
     after = max(now, current) if current is not None else now
-    return _clamp_season(
-        next_fixed_occurrence(anchor, task["freq"], int(task["interval"]), after=after),
-        task,
-    ).isoformat()
+    # Moves fully before the date being dealt with change nothing any more.
+    prune_moves(task, before=min(after, now) - timedelta(days=1))
+    return _clamp_season(next_task_occurrence(task, after=after), task).isoformat()
 
 
 def apply_completion(

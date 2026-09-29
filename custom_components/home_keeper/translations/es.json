@@ -63,6 +63,14 @@
           "name": "Frecuencia",
           "description": "Para tareas fixed: DAILY, WEEKLY o MONTHLY."
         },
+        "rrule": {
+          "name": "Regla",
+          "description": "Para tareas fijas: una RRULE de iCalendar, como FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Úsala en lugar de freq e interval. No se permiten COUNT ni UNTIL."
+        },
+        "moved_occurrences": {
+          "name": "Fechas movidas",
+          "description": "Para tareas fijas: una lista de fechas sueltas movidas fuera de la regla, cada una con una fecha y hora from y to. Usa move_occurrence para mover una fecha."
+        },
         "anchor": {
           "name": "Ancla",
           "description": "Para tareas fixed: fecha y hora ISO de la primera aparición (establece la hora del día)."
@@ -160,6 +168,14 @@
         "freq": {
           "name": "Frecuencia",
           "description": "DAILY, WEEKLY o MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regla",
+          "description": "Para tareas fijas: una RRULE de iCalendar, como FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Úsala en lugar de freq e interval. No se permiten COUNT ni UNTIL."
+        },
+        "moved_occurrences": {
+          "name": "Fechas movidas",
+          "description": "Para tareas fijas: una lista de fechas sueltas movidas fuera de la regla, cada una con una fecha y hora from y to. Usa move_occurrence para mover una fecha."
         },
         "anchor": {
           "name": "Ancla",
@@ -392,6 +408,28 @@
         "origin": {
           "name": "Origen",
           "description": "Marcador de formato libre opcional que se devuelve en el evento home_keeper_task_due_today_set, para que una integración contribuyente pueda reconocer e ignorar el adelanto que ella misma desencadenó (prevención de bucles). Home Keeper no lo interpreta."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Mover una fecha",
+      "description": "Mueve una fecha del calendario de una tarea fija a una nueva fecha y hora. Las demás fechas no cambian. Para deshacer un cambio, mueve la fecha de vuelta a su hora original.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El id de la tarea. También sirve su nombre. El panel muestra el id."
+        },
+        "occurrence": {
+          "name": "Fecha",
+          "description": "La fecha y hora del calendario que se va a mover."
+        },
+        "to": {
+          "name": "Nueva fecha",
+          "description": "La nueva fecha y hora. Debe estar en el futuro."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador opcional de formato libre que se devuelve en el evento home_keeper_task_occurrence_moved para que una integración colaboradora pueda reconocer e ignorar el cambio que provocó (prevención de bucles). Home Keeper nunca lo interpreta."
         }
       }
     },
@@ -1133,6 +1171,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper no puede eliminar estos perfiles: {profiles}. Estas notificaciones los usan: {notifications}. Cambia o elimina cada notificación y vuelve a guardar."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Aquí solo se puede cambiar la hora de una fecha. Para cambiar la tarea o su calendario, abre el panel de Home Keeper."
     }
   }
 }

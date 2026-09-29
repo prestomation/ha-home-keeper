@@ -36,7 +36,7 @@ import {
 import { declarativeCompanionFor, openDeclarativeForm } from './panel-declarative';
 import { openConfirmDialog } from './panel-dialogs';
 import { completionGroupsFor, historyBody, setIcon, wireHistory } from './panel-history';
-import { deferMenu, wireSkipHistoryRows } from './panel-defer';
+import { deferMenu, openMoveLater, wireSkipHistoryRows } from './panel-defer';
 import type { PanelHost } from './panel-host';
 import {
   MDI_CONSUMABLE,
@@ -48,8 +48,8 @@ import {
 } from './panel-icons';
 import { assetAncestry } from './panel-lists';
 import { consumableLinkLabel, consumableOptions, documentOptions } from './panel-task-form';
-import { partBackstopLabel, partCountsUses, taskFormIsEmpty } from './forms';
-import type { Asset, Part, Task } from './types';
+import { partBackstopLabel, partCountsUses, skipSnoozeFlags, taskFormIsEmpty } from './forms';
+import type { Asset, Part, Task, UpcomingOccurrence } from './types';
 import {
   ASSET_TABS,
   HK_DOMAIN,
@@ -65,6 +65,7 @@ import {
   escapeHTML,
   formatDate,
   formatDateTime,
+  formatOccurrenceTime,
   formatQuantity,
   isMonitoredDormant,
   navigateTo,
@@ -264,6 +265,122 @@ function historySection(p: PanelHost, kind: 'task' | 'asset', id: string): strin
       <ha-card class="hk-detail-card"><div class="hk-detail-inner hk-hist-body">${historyBody(p, groups)}</div></ha-card>`;
 }
 
+/** How many dates the task page's Upcoming block lists. */
+const UPCOMING_COUNT = 6;
+
+/**
+ * The Upcoming block's dates, per panel, keyed on everything that changes them. The
+ * block renders what it has and asks the backend once per key, so a re-render (and
+ * there is one on every refresh) costs nothing when the schedule did not change.
+ */
+const upcomingCache = new WeakMap<PanelHost, { key: string; rows: UpcomingOccurrence[] | null }>();
+
+function upcomingKey(task: Task): string {
+  return JSON.stringify([
+    task.id,
+    task.rrule,
+    task.anchor,
+    task.next_due,
+    task.moved_occurrences ?? [],
+    task.active_season ?? null,
+  ]);
+}
+
+async function loadUpcoming(p: PanelHost, task: Task, key: string): Promise<void> {
+  if (!p._hass) return;
+  let rows: UpcomingOccurrence[] = [];
+  try {
+    rows = await api.upcomingOccurrences(p._hass, { taskId: task.id }, UPCOMING_COUNT);
+  } catch (err) {
+    console.error('home-keeper: upcoming dates failed', err);
+  }
+  const entry = upcomingCache.get(p);
+  if (!entry || entry.key !== key) return;
+  entry.rows = rows;
+  p._render();
+}
+
+/**
+ * A fixed task's next dates, with **Move** on each and **Undo** on a moved one.
+ *
+ * The same list the card's snooze dialog offers under "A later date", and Move opens
+ * that dialog with the date already picked, so there is one way to move a date.
+ */
+function upcomingSection(p: PanelHost, task: Task): string {
+  if (task.recurrence_type !== 'fixed') return '';
+  const key = upcomingKey(task);
+  const cached = upcomingCache.get(p);
+  if (!cached || cached.key !== key) {
+    upcomingCache.set(p, { key, rows: null });
+    void loadUpcoming(p, task, key);
+  }
+  const rows = upcomingCache.get(p)?.rows ?? null;
+  const lang = p._lang();
+  // Move rides on the Snooze switch in Settings, like "A later date" on the card.
+  // Undo stays: it only takes back a move. The service and the calendar keep
+  // working, as the snooze service does when the switch is off.
+  const canMove = skipSnoozeFlags(p._options ?? {}).allowSnooze;
+  const body =
+    rows === null
+      ? `<div class="hk-up-empty">${escapeHTML(t('defer.loadingDates'))}</div>`
+      : !rows.length
+        ? `<div class="hk-up-empty">${escapeHTML(t('form.summary.noDates'))}</div>`
+        : rows
+            .map((row) => {
+              const origin = row.moved_from ?? row.start;
+              const moved = row.moved_from
+                ? `<span class="hk-moved-badge">${escapeHTML(t('upcoming.moved'))}</span>` +
+                  `<span class="hk-up-from">${escapeHTML(
+                    t('upcoming.movedFrom', { date: formatOccurrenceTime(row.moved_from, lang) }),
+                  )}</span>`
+                : '';
+              const move = canMove
+                ? `<ha-button appearance="plain" class="hk-up-move" data-start="${escapeHTML(
+                    row.start,
+                  )}" data-origin="${escapeHTML(origin)}">${escapeHTML(t('btn.move'))}</ha-button>`
+                : '';
+              const undo = row.moved_from
+                ? `<ha-button appearance="plain" class="hk-up-undo" data-origin="${escapeHTML(
+                    origin,
+                  )}">${escapeHTML(t('upcoming.undo'))}</ha-button>`
+                : '';
+              return `<div class="hk-up-row${row.moved_from ? ' moved' : ''}">
+                <span class="hk-up-when"><span class="hk-up-date">${escapeHTML(
+                  formatOccurrenceTime(row.start, lang),
+                )}</span>${moved}</span>
+                <span class="hk-up-acts">${undo}${move}</span>
+              </div>`;
+            })
+            .join('');
+  return `
+      <div class="hk-section" id="hk-upcoming-head">${escapeHTML(t('upcoming.title'))}</div>
+      <ha-card class="hk-detail-card"><div class="hk-detail-inner hk-upcoming" id="hk-upcoming">${body}</div></ha-card>`;
+}
+
+/** Wire Move and Undo on the Upcoming block. */
+function wireUpcoming(p: PanelHost, root: ShadowRoot, task: Task): void {
+  const rows = upcomingCache.get(p)?.rows ?? [];
+  root.querySelectorAll<HTMLElement>('.hk-up-move').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const row = rows.find((r) => r.start === btn.dataset.start);
+      if (row) openMoveLater(p, task, rows, row);
+    });
+  });
+  root.querySelectorAll<HTMLElement>('.hk-up-undo').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const origin = btn.dataset.origin;
+      if (!origin || !p._hass) return;
+      void api
+        .moveOccurrence(p._hass, task.id, origin, origin)
+        .then(() => p._refresh())
+        .catch((err) => {
+          console.error('home-keeper: undo move failed', err);
+          toast(p, t('error.actionFailed'));
+        });
+    });
+  });
+}
+
 function taskDetail(p: PanelHost, task: Task): string {
   const statusChip = statusChipHtml(task, p._hass, {
     counted: countedProgress(task, p._assets, p._tasks),
@@ -449,7 +566,7 @@ function taskDetail(p: PanelHost, task: Task): string {
         ${row(t('detail.nextDue'), due)}
         ${row(t('field.consumable_link'), consumableLinkLabel(p, task), true)}
         ${idRow(task.id)}
-      </div></ha-card>`,
+      </div></ha-card>${upcomingSection(p, task)}`,
     notes: `
       <div class="hk-section">${escapeHTML(t('field.notes'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">${notes}</div></ha-card>`,
@@ -1143,6 +1260,7 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
       ?.addEventListener('click', () => p._notifyBlocked(task));
     p._wireDeferMenus(root);
     wireSkipHistoryRows(p, root);
+    wireUpcoming(p, root, task);
     root
       .querySelector('.d-enable')
       ?.addEventListener('click', () => void p._enableTask(task));

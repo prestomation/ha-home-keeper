@@ -156,7 +156,9 @@
   made against what will ship. A change with one obvious rendering does not need this.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only
-    `pip install pytest PyYAML Babel hypothesis jsonschema`: `pytest tests/unit -v`.
+    `pip install pytest python-dateutil PyYAML Babel hypothesis jsonschema`:
+    `pytest tests/unit -v`. `python-dateutil` is a runtime requirement of the
+    schedule engine, so every lane needs it.
     Each of the last 4 covers one group of tests and each one skips cleanly on its own:
     `PyYAML` for the API-surface gate (which reads `services.yaml`) and for the
     import/export document, which `transfer.py` writes and reads; `Babel` for the
@@ -539,8 +541,10 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   form doesn't render (profiles, notifications, dismissed companions) is deleted on
   each save. See `.amazonq/rules/architecture-and-code.md` → "Options have three
   editing surfaces".
-- Tasks are plain dicts: `id, name, notes, recurrence_type, interval, unit|freq,
-  anchor, device_id, area_id, enabled, last_completed, next_due, completions[]`.
+- Tasks are plain dicts: `id, name, notes, recurrence_type, interval+unit (floating)
+  | rrule+moved_occurrences (fixed), anchor, device_id, area_id, enabled,
+  last_completed, next_due, completions[]`. A fixed schedule is an RRULE, and a moved
+  date is a separate list; see `.amazonq/rules/architecture-and-code.md`.
 - All datetimes are timezone-aware (`homeassistant.util.dt`); `recurrence.py` takes
   an explicit `now` so tests are deterministic.
 - Entity unique IDs are anchored to the task `id` (survives renames).
@@ -592,7 +596,7 @@ bash ci/test-mutation-frontend.sh --all
   `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
   `problem_tasks`, `appliance_report`, `profiles`, `documents`, `events`, `transitions`,
   `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
-  `card-filter`, `documents`, `markdown`, `i18n`, `limits`, `defer`, `shopping-preview`, `declarative-filters`).
+  `card-filter`, `documents`, `markdown`, `i18n`, `limits`, `defer`, `shopping-preview`, `declarative-filters`, `rrule`).
   `options.py` counts as
   pure because its Home Assistant imports are `TYPE_CHECKING`-only. Excluded on
   purpose: everything else importing Home Assistant

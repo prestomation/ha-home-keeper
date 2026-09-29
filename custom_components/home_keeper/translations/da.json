@@ -63,6 +63,14 @@
           "name": "Frekvens",
           "description": "For fixed-opgaver: DAILY, WEEKLY eller MONTHLY."
         },
+        "rrule": {
+          "name": "Regel",
+          "description": "For faste opgaver: en iCalendar-RRULE, f.eks. FREQ=WEEKLY;BYDAY=TU,FR eller FREQ=MONTHLY;BYDAY=1TU. Brug den i stedet for freq og interval. COUNT og UNTIL er ikke tilladt."
+        },
+        "moved_occurrences": {
+          "name": "Flyttede datoer",
+          "description": "For faste opgaver: en liste over enkelte datoer, der er flyttet væk fra reglen, hver med en from- og en to-dato og -tid. Brug move_occurrence til at flytte en dato."
+        },
         "anchor": {
           "name": "Anker",
           "description": "For fixed-opgaver: ISO-dato og -tid for første forekomst (angiver tidspunkt på dagen)."
@@ -160,6 +168,14 @@
         "freq": {
           "name": "Frekvens",
           "description": "DAILY, WEEKLY eller MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "For faste opgaver: en iCalendar-RRULE, f.eks. FREQ=WEEKLY;BYDAY=TU,FR eller FREQ=MONTHLY;BYDAY=1TU. Brug den i stedet for freq og interval. COUNT og UNTIL er ikke tilladt."
+        },
+        "moved_occurrences": {
+          "name": "Flyttede datoer",
+          "description": "For faste opgaver: en liste over enkelte datoer, der er flyttet væk fra reglen, hver med en from- og en to-dato og -tid. Brug move_occurrence til at flytte en dato."
         },
         "anchor": {
           "name": "Anker",
@@ -392,6 +408,28 @@
         "origin": {
           "name": "Oprindelse",
           "description": "Valgfri fritekstmarkør, der gengives i home_keeper_task_due_today_set-hændelsen, så en bidragende integration kan genkende og ignorere den fremrykning, den udløste (sløjfeforebyggelse). Home Keeper fortolker den ikke."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Flyt én dato",
+      "description": "Flytter én dato i en fast opgaves tidsplan til en ny dato og et nyt tidspunkt. De andre datoer ændres ikke. Flyt datoen tilbage til dens oprindelige tidspunkt for at fortryde flytningen.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "Opgavens id. Navnet virker også. Panelet viser id'et."
+        },
+        "occurrence": {
+          "name": "Dato",
+          "description": "Den dato og det tidspunkt i tidsplanen, der skal flyttes."
+        },
+        "to": {
+          "name": "Ny dato",
+          "description": "Den nye dato og det nye tidspunkt. Skal ligge i fremtiden."
+        },
+        "origin": {
+          "name": "Oprindelse",
+          "description": "Valgfri fritekstmarkør, der returneres i hændelsen home_keeper_task_occurrence_moved, så en bidragende integration kan genkende og ignorere den ændring, den selv har udløst (forebyggelse af løkker). Home Keeper fortolker den aldrig."
         }
       }
     },
@@ -1133,6 +1171,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan ikke slette disse profiler: {profiles}. Disse notifikationer bruger dem: {notifications}. Ret eller slet hver notifikation, og gem så igen."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Her kan kun tidspunktet for én dato ændres. Åbn Home Keeper-panelet for at ændre opgaven eller dens tidsplan."
     }
   }
 }

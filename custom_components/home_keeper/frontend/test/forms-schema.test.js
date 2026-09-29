@@ -262,6 +262,7 @@ describe('taskSchema by recurrence type', () => {
   });
 
   it('offers the calendar rule for a fixed task', () => {
+    // `rrule` is the stored rule; Repeats and Every are views of it (rrule.ts).
     expect(names(taskSchema({ recurrence_type: 'fixed' }))).toEqual([
       'name',
       'notes',
@@ -269,6 +270,7 @@ describe('taskSchema by recurrence type', () => {
       'interval',
       'freq',
       'anchor',
+      'rrule',
       'last_completed',
       'season_on',
       'device_id',

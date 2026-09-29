@@ -21,6 +21,7 @@ import {
   selSelect,
   selText,
   taskFormData,
+  reconcileRuleEdit,
   taskFormSchemaKey,
   taskSchema,
   type FormField,
@@ -29,7 +30,7 @@ import {
 import type { SkipState, SnoozeState } from './defer';
 import type { DeferDialogHost } from './defer-dialogs';
 import { deferRowActions, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
-import { renderSkipDialog, renderSnoozeDialog } from './defer-dialogs';
+import { LATER_DATES_STYLES, renderSkipDialog, renderSnoozeDialog } from './defer-dialogs';
 import { makeDialog, makeForm } from './dialogs';
 import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
@@ -286,6 +287,7 @@ const STYLES = `
   .hk-acts:empty { display: none; }
   ha-icon-button.hk-row-action:hover { color: var(--primary-text-color); }
   .hk-snooze-hint { color: var(--secondary-text-color); font-size: 0.9em; margin: 8px 0 0; }
+  ${LATER_DATES_STYLES}
   .hk-loading { display: flex; justify-content: center; padding: 32px 0; }
   .hk-empty { padding: 16px; }
   .hk-more {
@@ -1218,11 +1220,14 @@ export class HomeKeeperCard extends HTMLElement {
       // switch do too — so the whole visible-schema key decides whether to re-render,
       // the same way the panel's form does it.
       const prevSchemaKey = taskFormSchemaKey(this._edit.task ?? {});
-      this._edit.task = {
-        ...this._edit.task,
+      const prev = this._edit.task ?? {};
+      // A fixed task's rule and its Repeats/Every arrive together; whichever the
+      // user changed decides the other (see reconcileRuleEdit).
+      this._edit.task = reconcileRuleEdit(prev, {
+        ...prev,
         ...value,
         interval: Number(value.interval) || 1,
-      } as Partial<Task>;
+      } as Partial<Task>);
       this._edit.error = undefined;
       if (taskFormSchemaKey(this._edit.task) !== prevSchemaKey) this._render();
     });

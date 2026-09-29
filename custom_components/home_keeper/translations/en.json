@@ -63,6 +63,14 @@
           "name": "Frequency",
           "description": "For fixed tasks: DAILY, WEEKLY, or MONTHLY."
         },
+        "rrule": {
+          "name": "Rule",
+          "description": "For fixed tasks: an iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR or FREQ=MONTHLY;BYDAY=1TU. Use it in place of freq and interval. COUNT and UNTIL are not allowed."
+        },
+        "moved_occurrences": {
+          "name": "Moved dates",
+          "description": "For fixed tasks: a list of single dates moved off the rule, each with a from and a to datetime. Use move_occurrence to move a date."
+        },
         "anchor": {
           "name": "Anchor",
           "description": "For fixed tasks: ISO datetime of the first occurrence (sets the time of day)."
@@ -160,6 +168,14 @@
         "freq": {
           "name": "Frequency",
           "description": "DAILY, WEEKLY, or MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Rule",
+          "description": "For fixed tasks: an iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR or FREQ=MONTHLY;BYDAY=1TU. Use it in place of freq and interval. COUNT and UNTIL are not allowed."
+        },
+        "moved_occurrences": {
+          "name": "Moved dates",
+          "description": "For fixed tasks: a list of single dates moved off the rule, each with a from and a to datetime. Use move_occurrence to move a date."
         },
         "anchor": {
           "name": "Anchor",
@@ -392,6 +408,28 @@
         "origin": {
           "name": "Origin",
           "description": "Optional free-form marker echoed back in the home_keeper_task_due_today_set event so a contributing integration can recognise and ignore the pull-forward it triggered (loop prevention), and Home Keeper never interprets it."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Move one date",
+      "description": "Move one date of a fixed task's schedule to a new date and time, and keep the other dates as they are. To undo a move, move the date back to its original time.",
+      "fields": {
+        "task_id": {
+          "name": "Task name or ID",
+          "description": "The id of the task. Its name works too. The panel shows the id."
+        },
+        "occurrence": {
+          "name": "Date",
+          "description": "The date and time on the schedule to move."
+        },
+        "to": {
+          "name": "New date",
+          "description": "The new date and time. It must be in the future."
+        },
+        "origin": {
+          "name": "Origin",
+          "description": "Optional free-form marker echoed back in the home_keeper_task_occurrence_moved event so a contributing integration can recognise and ignore the change it triggered (loop prevention), and Home Keeper never interprets it."
         }
       }
     },
@@ -1133,6 +1171,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper cannot delete these profiles: {profiles}. These notifications use them: {notifications}. Change or delete each notification, and then save again."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Only the time of one date can change here. To change the task or its schedule, open the Home Keeper panel."
     }
   }
 }

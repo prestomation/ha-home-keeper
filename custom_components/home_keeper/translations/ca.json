@@ -63,6 +63,14 @@
           "name": "Freqüència",
           "description": "Per a tasques fixes: DAILY, WEEKLY o MONTHLY."
         },
+        "rrule": {
+          "name": "Regla",
+          "description": "Per a tasques fixes: una RRULE d'iCalendar, com ara FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Fes-la servir en lloc de freq i interval. No s'admeten COUNT ni UNTIL."
+        },
+        "moved_occurrences": {
+          "name": "Dates mogudes",
+          "description": "Per a tasques fixes: una llista de dates soltes mogudes fora de la regla, cadascuna amb una data i hora from i to. Fes servir move_occurrence per moure una data."
+        },
         "anchor": {
           "name": "Àncora",
           "description": "Per a tasques fixes: data i hora ISO de la primera ocurrència (estableix l'hora del dia)."
@@ -160,6 +168,14 @@
         "freq": {
           "name": "Freqüència",
           "description": "DAILY, WEEKLY o MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regla",
+          "description": "Per a tasques fixes: una RRULE d'iCalendar, com ara FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Fes-la servir en lloc de freq i interval. No s'admeten COUNT ni UNTIL."
+        },
+        "moved_occurrences": {
+          "name": "Dates mogudes",
+          "description": "Per a tasques fixes: una llista de dates soltes mogudes fora de la regla, cadascuna amb una data i hora from i to. Fes servir move_occurrence per moure una data."
         },
         "anchor": {
           "name": "Àncora",
@@ -392,6 +408,28 @@
         "origin": {
           "name": "Origen",
           "description": "Marcador opcional de text lliure que es retorna a l'esdeveniment home_keeper_task_due_today_set, perquè una integració col·laboradora pugui reconèixer i ignorar l'avançament que ha provocat (prevenció de bucles). Home Keeper no l'interpreta."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Mou una data",
+      "description": "Mou una data de la programació d'una tasca fixa a una data i hora noves. Les altres dates no canvien. Per desfer un moviment, torna la data a la seva hora original.",
+      "fields": {
+        "task_id": {
+          "name": "Nom o ID de tasca",
+          "description": "L'identificador de la tasca. També funciona el nom. El panell mostra l'identificador."
+        },
+        "occurrence": {
+          "name": "Data",
+          "description": "La data i hora de la programació que cal moure."
+        },
+        "to": {
+          "name": "Data nova",
+          "description": "La data i hora noves. Han de ser en el futur."
+        },
+        "origin": {
+          "name": "Origen",
+          "description": "Marcador opcional de format lliure que es retorna a l'esdeveniment home_keeper_task_occurrence_moved perquè una integració col·laboradora pugui reconèixer i ignorar el canvi que ha provocat (prevenció de bucles). Home Keeper no l'interpreta mai."
         }
       }
     },
@@ -1133,6 +1171,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper no pot suprimir aquests perfils: {profiles}. Aquestes notificacions els utilitzen: {notifications}. Canvia o suprimeix cada notificació i torna a desar."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Aquí només es pot canviar l'hora d'una data. Per canviar la tasca o la seva programació, obre el panell de Home Keeper."
     }
   }
 }
