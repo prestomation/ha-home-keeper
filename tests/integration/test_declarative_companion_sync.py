@@ -41,6 +41,7 @@ from pathlib import Path
 import pytest
 import requests
 from conftest import HA_URL, call_service, list_states, poll_state
+from ha_registry import ws_send
 
 TANK = "binary_sensor.hk_demo_water_tank_low"
 BATTERY = "binary_sensor.hk_demo_remote_battery"
@@ -604,6 +605,64 @@ def test_a_device_backed_companion_arms_on_a_condition_that_is_already_true(ha, 
 
     armed = _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
     assert armed["id"] == task["id"], "arming must not replace the task"
+
+
+def _rename_entity(ha, entity_id, new_entity_id):
+    """Change an entity id in the registry, as a person does in the entity settings."""
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(
+        token,
+        {
+            "type": "config/entity_registry/update",
+            "entity_id": entity_id,
+            "new_entity_id": new_entity_id,
+        },
+    )
+    assert reply.get("success"), reply
+
+
+def test_a_companion_matches_by_translation_key_and_keeps_the_task_on_a_rename(
+    ha, specs
+):
+    """The key the integration sets is what matches, not the entity id.
+
+    The stub's battery sensor carries ``translation_key = "battery_level"``. The spec
+    names no domain and no regex, only the key, and its ``task_names`` table gives the
+    task its name through ``{{ task_name }}``. Renaming the entity id must leave the
+    same task in place, bound to the new id: that is the whole reason to match on the
+    key.
+    """
+    spec = specs(
+        _device_battery_spec(
+            selection={
+                "target_integration": "home_keeper_battery_notes",
+                "translation_keys": ["battery_level"],
+            },
+            task_template={
+                "name_template": "{{ task_name }} on {{ device_name }}",
+                "notes_template": "Key {{ translation_key }}",
+                "task_names": {"battery_level": "Swap the battery"},
+            },
+        )
+    )
+    assert spec["selection"]["translation_keys"] == ["battery_level"]
+    task = _one_task(ha, spec["id"])
+    assert task["source"]["declarative_companion"]["entity_id"] == DEVICE_BATTERY
+    assert task["name"].startswith("Swap the battery on "), task["name"]
+    assert task["notes"] == "Key battery_level"
+
+    renamed = "sensor.e2e_battery_renamed_for_test"
+    _rename_entity(ha, DEVICE_BATTERY, renamed)
+    try:
+        moved = _poll_task(
+            ha,
+            spec["id"],
+            lambda t: t["source"]["declarative_companion"]["entity_id"] == renamed,
+        )
+        assert moved["id"] == task["id"], "a rename must not replace the task"
+        assert moved["sensor"]["entity_id"] == renamed
+    finally:
+        _rename_entity(ha, renamed, DEVICE_BATTERY)
 
 
 def test_a_task_that_survived_a_reload_stays_dormant_while_the_sensor_is_still_met(

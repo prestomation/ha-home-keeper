@@ -220,7 +220,7 @@ _DEVICE_CHECK_NAMES: dict[str, str] = {
 # in the current language (``localized_task_template``). A template the user edited
 # matches none of them and is rendered as written. Translators: keep every Jinja
 # expression between ``{{ }}`` exactly as it is, except the quoted fallback word.
-PRESET_TASK_TEXT: dict[str, dict[str, dict[str, str]]] = {
+PRESET_TASK_TEXT: dict[str, dict[str, dict[str, Any]]] = {
     "device_pulse": {
         "name_template": _DEVICE_CHECK_NAMES,
         "notes_template": {
@@ -351,11 +351,14 @@ PRESET_TASK_TEXT: dict[str, dict[str, dict[str, str]]] = {
         },
     },
 }
-_TEMPLATE_FIELDS = ("name_template", "notes_template")
+# ``task_names`` is a table (entity key -> task name) rather than a string, and it is
+# localized the same way: a table still equal to one of the preset's own tables, in
+# any language, is replaced by the table for the current language.
+_TEMPLATE_FIELDS = ("name_template", "notes_template", "task_names")
 _DEFAULT_LANG = "en"
 
 
-def _pick(table: dict[str, str], lang: str | None) -> str:
+def _pick(table: dict[str, Any], lang: str | None) -> Any:
     """*table*'s text for *lang*: exact, then the base language, then English."""
     if lang:
         if lang in table:
@@ -380,8 +383,8 @@ def localized_task_template(spec: dict[str, Any], lang: str | None) -> dict[str,
     if not texts:
         return template
     for field in _TEMPLATE_FIELDS:
-        variants = texts[field]
-        if template.get(field) in variants.values():
+        variants = texts.get(field)
+        if variants and template.get(field) in variants.values():
             template[field] = _pick(variants, lang)
     return template
 

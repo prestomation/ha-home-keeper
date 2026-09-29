@@ -649,6 +649,9 @@ export interface DeclarativeCompanionSelection {
   domain?: string;
   device_class?: string;
   entity_regex?: string;
+  // The keys the integration gives its entities (`translation_key` in the entity
+  // registry). A rename or the Home Assistant language does not change them.
+  translation_keys?: string[];
   area_ids: string[];
   label_ids: string[];
   exclude_entity_ids: string[];
@@ -663,6 +666,8 @@ export interface DeclarativeCompanionTaskTemplate {
   category?: string;
   priority?: number;
   labels: string[];
+  // Entity key -> plain-text task name, read by the templates as `{{ task_name }}`.
+  task_names?: Record<string, string>;
 }
 
 /**

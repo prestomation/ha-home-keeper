@@ -2081,11 +2081,38 @@ export const STYLES = `
   .hk-decl-more[aria-expanded='true'] .hk-decl-more-chevron { transform: rotate(180deg); }
   .hk-decl-more-body { padding-top: 4px; }
   .hk-decl-more-body .hk-indent { margin-top: 12px; }
+  .hk-decl-keys { display: flex; flex-direction: column; gap: 6px; }
+  .hk-decl-key-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 8px; align-items: center;
+  }
+  .hk-decl-key-head {
+    font-size: 0.78rem; color: var(--secondary-text-color);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px;
+  }
+  .hk-decl-key-input {
+    appearance: none; font: inherit; min-width: 0; box-sizing: border-box;
+    padding: 10px 12px; border: 0; border-bottom: 1px solid var(--secondary-text-color);
+    border-radius: 4px 4px 0 0; background: var(--input-fill-color, var(--secondary-background-color));
+    color: var(--primary-text-color); outline: none;
+  }
+  .hk-decl-key-input:focus-visible { border-bottom: 2px solid var(--primary-color); padding-bottom: 9px; }
+  .hk-decl-key { font-family: var(--code-font-family, monospace); font-size: 0.85rem; }
+  .hk-decl-key-remove { color: var(--secondary-text-color); }
+  .hk-decl-key-add { align-self: flex-start; }
   @media (prefers-reduced-motion: reduce) {
     .hk-decl-more-chevron { transition: none; }
   }
   @media (max-width: 700px) {
     .hk-decl-toggle { min-width: 44px; min-height: 44px; justify-content: center; padding: 0; }
     .hk-decl-toggle-text { display: none; }
+    /* 16px exactly, so the companion app's WKWebView does not zoom on focus. The key
+       and its name stack, since two boxes side by side leave each too narrow to read. */
+    .hk-decl-key-input { font-size: 16px; }
+    .hk-decl-key-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .hk-decl-key-row .hk-decl-key-name { grid-column: 1; grid-row: 2; }
+    .hk-decl-key-row .hk-decl-key-remove { grid-column: 2; grid-row: 1 / span 2; }
+    .hk-decl-key-row + .hk-decl-key-row { border-top: 1px solid var(--divider-color); padding-top: 8px; }
+    .hk-decl-key-head { display: none; }
   }
 `;

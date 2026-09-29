@@ -119,6 +119,7 @@ def registry_projection(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:
         "platform": found.platform,
         "name": found.name,
         "original_name": found.original_name,
+        "translation_key": found.translation_key,
     }
 
 
@@ -167,6 +168,7 @@ def template_variables(hass: HomeAssistant, entry: dict[str, Any]) -> dict[str, 
         "area_id": entry.get("area_id"),
         "area_name": area_name,
         "integration": entry.get("platform"),
+        "translation_key": entry.get("translation_key"),
         "state": state_value,
         "attributes": attributes,
     }

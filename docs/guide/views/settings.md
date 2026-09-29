@@ -138,6 +138,24 @@ their own.
 
 ![The same row on a phone, with Edit and Delete on a line under the name](../../images/21i-panel-mobile-declarative-row.png)
 
+##### Entity keys and task names
+
+The **Entity keys** block under **More filters** matches the key that an integration
+gives each of its entities in its own code. The filter sensor of a Roborock has the
+key `filter_time_left`. The key does not change when you rename the entity or
+change the Home Assistant language. An entity id regex breaks in both cases. Click
+**Add key** to add a key. Home Keeper then makes a task only for an entity with one of
+the keys.
+
+Each key can also have a task name, such as *Replace filter*. The task name template
+reads it as `{{ task_name }}`, so one declarative companion can give each part its own
+task: `{{ task_name }}: {{ device_name }}`. A key with no task name uses the entity
+name. The key of the entity is also available as `{{ translation_key }}`.
+
+![The declarative companion dialog with two entity keys, one of them with the task name Replace the battery](../../images/21u-panel-declarative-entity-keys.png)
+
+![The entity keys on a phone, with each key above its task name](../../images/21u-panel-mobile-declarative-entity-keys.png)
+
 ##### Task labels and notes
 
 Use **Task labels** to find the tasks of one declarative companion. Set them in the
@@ -190,7 +208,8 @@ task.
 
 The template reads the same values as the task name template and the task notes
 template: `state`, `attributes.<key>`, `friendly_name`, `entity_id`, `device_name`,
-`area_name`, and `integration`. Home Assistant template functions are also available.
+`area_name`, `integration` and `translation_key`. Only the task name and notes
+templates can read `task_name`. Home Assistant template functions are also available.
 
 A template must render **true or false**. Home Keeper accepts a true or false result,
 and the words `on`, `off`, `yes` and `no`. Anything else is an error.

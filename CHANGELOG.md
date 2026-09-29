@@ -6,6 +6,17 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b1]
+
+### Added
+
+- **[Entity keys](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#entity-keys-and-task-names).**
+  A declarative companion can match entities by the key their integration gives them.
+  A rename or a change of the Home Assistant language no longer breaks the match.
+- **[Task names per key](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#entity-keys-and-task-names).**
+  Give each entity key its own task name, such as Replace filter. One declarative
+  companion then makes a task with a clear name for each part.
+
 ## [0.27.0] - 2026-09-29
 
 ### Added

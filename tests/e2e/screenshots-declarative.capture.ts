@@ -715,3 +715,82 @@ test('capture task labels and the task Edit form at both widths', async ({ page 
     }
   }
 });
+
+/**
+ * The Entity keys block under More filters, at both widths.
+ *
+ * The companion selects the Battery Notes stub's sensor by its key (`battery_level`)
+ * and gives that key a task name, which the name template reads as `{{ task_name }}`.
+ * A second key has no task name, so the shot shows the placeholder that says the
+ * entity name is used. The preview row carries the rendered name, which is the proof
+ * the key matched. The companion is added over the service and deleted again.
+ */
+test('capture the entity keys and task names at both widths', async ({ page }) => {
+  const created = await callService(
+    'home_keeper',
+    'add_declarative_companion',
+    {
+      name: 'Battery by key',
+      selection: {
+        target_integration: 'home_keeper_battery_notes',
+        translation_keys: ['battery_level', 'battery_low'],
+      },
+      trigger: { mode: 'threshold', comparison: '<=', value: 20, clear_on_recover: true },
+      task_template: {
+        name_template: '{{ task_name }}: {{ device_name }}',
+        task_names: { battery_level: 'Replace the battery' },
+      },
+    },
+    true,
+  );
+  const specId = created.companion.id as string;
+
+  const openCompanion = async () => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await openSettingsSection(panel, 'companions');
+    await panel.locator(`.hk-decl-row[data-spec-id="${specId}"] .hk-decl-edit`).click();
+    const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+    await expect(dialog.locator('[data-decl-section="identity"]')).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(dialog.locator('.hk-decl-preview-header')).toHaveText(/Showing 1 of 1/, {
+      timeout: 20_000,
+    });
+    await expect(dialog.locator('.hk-decl-preview')).toContainText('Replace the battery:');
+    await expect(dialog.locator('.hk-decl-keys .hk-decl-key')).toHaveCount(2);
+    return dialog;
+  };
+
+  try {
+    await page.setViewportSize({ width: 1280, height: 2600 });
+    const dialog = await openCompanion();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(600);
+    const surface = await dialog.locator('dialog').first().boundingBox();
+    if (!surface) throw new Error('the companion dialog has no rendered surface to photograph');
+    const pad = 16;
+    await page.screenshot({
+      path: `${OUT}/21u-panel-declarative-entity-keys.png`,
+      clip: {
+        x: Math.max(0, surface.x - pad),
+        y: Math.max(0, surface.y - pad),
+        width: surface.width + pad * 2,
+        height: surface.height + pad * 2,
+      },
+    });
+    await dialog.locator('.hk-decl-cancel').click();
+
+    // A phone. The key and its task name stack in one row; scroll the block into view.
+    await page.setViewportSize(PHONE);
+    const phoneDialog = await openCompanion();
+    await phoneDialog.locator('.hk-decl-keys').scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${OUT}/21u-panel-mobile-declarative-entity-keys.png` });
+    await phoneDialog.locator('.hk-decl-cancel').click();
+    await page.setViewportSize({ width: 1280, height: 720 });
+  } finally {
+    await callService('home_keeper', 'delete_declarative_companion', { id: specId });
+  }
+});

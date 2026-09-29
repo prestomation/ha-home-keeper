@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyKeyRows,
   EXCLUSION_FIELDS,
   exclusionCount,
   exclusionsSchema,
   filterCount,
   hasMoreFilters,
   idList,
+  keyRows,
   moreFiltersSchema,
   moreFiltersSummary,
   toggleId,
@@ -63,6 +65,8 @@ describe('filterCount', () => {
     expect(filterCount({ ...EMPTY, entity_regex: 'sensor\\..*' })).toBe(1);
     expect(filterCount({ ...EMPTY, area_ids: ['garage', 'hall'] })).toBe(1);
     expect(filterCount({ ...EMPTY, label_ids: ['a'] })).toBe(1);
+    expect(filterCount({ ...EMPTY, translation_keys: ['a', 'b'] })).toBe(1);
+    expect(filterCount({ ...EMPTY, translation_keys: [] })).toBe(0);
     expect(
       filterCount({
         device_class: 'battery',
@@ -173,5 +177,44 @@ describe('idList', () => {
     expect(idList(undefined)).toEqual([]);
     expect(idList('a')).toEqual([]);
     expect(idList(null)).toEqual([]);
+  });
+});
+
+describe('keyRows', () => {
+  it('gives one row per key, in list order, with its task name', () => {
+    expect(keyRows(['b', 'a'], { a: 'Replace A', c: 'Unused' })).toEqual([
+      { key: 'b', name: '' },
+      { key: 'a', name: 'Replace A' },
+    ]);
+  });
+
+  it('gives no rows for a missing list, and blank names for a missing table', () => {
+    expect(keyRows(undefined, { a: 'x' })).toEqual([]);
+    expect(keyRows(['a'], undefined)).toEqual([{ key: 'a', name: '' }]);
+  });
+});
+
+describe('applyKeyRows', () => {
+  it('trims keys and names and keeps only named keys in the table', () => {
+    expect(
+      applyKeyRows([
+        { key: ' filter ', name: ' Replace filter ' },
+        { key: 'brush', name: '   ' },
+      ]),
+    ).toEqual({ translation_keys: ['filter', 'brush'], task_names: { filter: 'Replace filter' } });
+  });
+
+  it('skips a row with no key, and keeps the first row of a repeated key', () => {
+    expect(
+      applyKeyRows([
+        { key: '  ', name: 'Orphan' },
+        { key: 'a', name: 'First' },
+        { key: 'a', name: 'Second' },
+      ]),
+    ).toEqual({ translation_keys: ['a'], task_names: { a: 'First' } });
+  });
+
+  it('gives empty results for no rows', () => {
+    expect(applyKeyRows([])).toEqual({ translation_keys: [], task_names: {} });
   });
 });

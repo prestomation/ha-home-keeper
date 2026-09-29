@@ -116,6 +116,7 @@ def _registries(monkeypatch, *, entity_area, device_area):
         platform="mqtt",
         name=None,
         original_name="Probe",
+        translation_key="probe_level",
     )
     device = SimpleNamespace(area_id=device_area)
     monkeypatch.setattr(
@@ -143,3 +144,25 @@ def test_the_projection_prefers_the_area_of_the_entity(monkeypatch):
     _registries(monkeypatch, entity_area="attic", device_area="garage")
     projection = template_context.registry_projection(_hass(), "sensor.probe")
     assert projection["area_id"] == "attic"
+
+
+def test_the_projection_carries_the_translation_key(monkeypatch):
+    # A trigger template reads ``{{ translation_key }}`` from this projection, so it
+    # has to carry the key the companion's selection pass matched on.
+    _registries(monkeypatch, entity_area=None, device_area=None)
+    projection = template_context.registry_projection(_hass(), "sensor.probe")
+    assert projection["translation_key"] == "probe_level"
+
+
+def test_the_template_variables_expose_the_translation_key():
+    hass = SimpleNamespace(data={}, states=SimpleNamespace(get=lambda eid: None))
+    variables = template_context.template_variables(
+        hass, {"entity_id": "sensor.probe", "translation_key": "probe_level"}
+    )
+    assert variables["translation_key"] == "probe_level"
+    assert (
+        template_context.template_variables(hass, {"entity_id": "sensor.probe"})[
+            "translation_key"
+        ]
+        is None
+    )

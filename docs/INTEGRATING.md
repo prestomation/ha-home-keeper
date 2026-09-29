@@ -715,6 +715,14 @@ companion). Full config surface via `home_keeper.add_declarative_companion` /
 `home_keeper_task_*` events. Filter to declarative tasks via
 `managed_by.integration == "home_keeper"` and `source.declarative_companion.spec_id`.
 
+`selection.translation_keys` matches the `translation_key` that the integration sets
+on each entity in the entity registry. A rename, the Home Assistant language, and a
+change to how Home Assistant builds entity ids leave that key alone, so prefer it to
+`entity_regex` when the integration sets keys. `task_template.task_names` maps a key to
+plain text, which the name and notes templates read as `{{ task_name }}`. An entity
+whose key has no entry reads its friendly name there. Both templates can also read
+`{{ translation_key }}`, and a `template`-mode trigger can read it too.
+
 `task_template.labels` puts labels on each task. An `update_declarative_companion`
 call that changes this list adds the new labels to the existing tasks and removes the
 dropped ones, and fires `home_keeper_task_updated` with `changed_fields: ["labels"]`

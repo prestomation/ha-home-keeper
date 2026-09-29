@@ -28,13 +28,16 @@
 
 import * as api from './api';
 import {
+  applyKeyRows,
   EXCLUSION_FIELDS,
   exclusionsSchema,
   hasMoreFilters,
   idList,
+  keyRows,
   moreFiltersSchema,
   moreFiltersSummary,
   toggleId,
+  type KeyRow,
 } from './declarative-filters';
 import {
   pickFormData,
@@ -656,6 +659,31 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     false,
   );
 
+  // The entity keys, each with the task name its tasks read as `{{ task_name }}`.
+  // Native inputs rather than an `ha-form`: a list of key and name pairs has no
+  // selector. The rows live here, so a row still being filled in (no key yet) stays
+  // on screen while the draft only ever holds complete keys.
+  const keysHost = document.createElement('div');
+  keysHost.className = 'hk-decl-keys';
+  moreBody.appendChild(
+    indentGroup(
+      t('declarative.companions.section_keys'),
+      t('declarative.companions.keys_note'),
+      keysHost,
+    ),
+  );
+  renderKeyEditor(
+    keysHost,
+    keyRows(sel.translation_keys, draft.task_template.task_names),
+    (rows) => {
+      const applied = applyKeyRows(rows);
+      sel.translation_keys = applied.translation_keys;
+      draft.task_template.task_names = applied.task_names;
+      updateSummary();
+      schedulePreview();
+    },
+  );
+
   // The exclusions, indented under the same head Problem sensor sync uses.
   const exclusionsHost = document.createElement('div');
   const exclusionsData = (): Record<string, unknown> =>
@@ -835,6 +863,75 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   mount();
   host.appendChild(dialog);
   schedulePreview();
+}
+
+/**
+ * The entity-key editor: one row per key, with its task name and a remove button,
+ * and an Add key button under them. *onChange* gets every row on each edit.
+ */
+function renderKeyEditor(
+  host: HTMLElement,
+  initial: KeyRow[],
+  onChange: (rows: KeyRow[]) => void,
+): void {
+  const rows = initial.map((r) => ({ ...r }));
+  const draw = (focusLast = false): void => {
+    host.innerHTML = '';
+    if (rows.length) {
+      const head = document.createElement('div');
+      head.className = 'hk-decl-key-row hk-decl-key-head';
+      head.innerHTML =
+        `<span>${escapeHTML(t('declarative.companions.key_header'))}</span>` +
+        `<span>${escapeHTML(t('declarative.companions.task_name_header'))}</span>`;
+      host.appendChild(head);
+    }
+    rows.forEach((row, i) => {
+      const line = document.createElement('div');
+      line.className = 'hk-decl-key-row';
+      const key = document.createElement('input');
+      key.className = 'hk-decl-key-input hk-decl-key';
+      key.value = row.key;
+      key.placeholder = t('declarative.companions.key_header');
+      key.spellcheck = false;
+      key.autocomplete = 'off';
+      key.setAttribute('aria-label', t('declarative.companions.key_header'));
+      key.addEventListener('input', () => {
+        row.key = key.value;
+        onChange(rows);
+      });
+      const name = document.createElement('input');
+      name.className = 'hk-decl-key-input hk-decl-key-name';
+      name.value = row.name;
+      name.placeholder = t('declarative.companions.task_name_placeholder');
+      name.setAttribute('aria-label', t('declarative.companions.task_name_header'));
+      name.addEventListener('input', () => {
+        row.name = name.value;
+        onChange(rows);
+      });
+      const remove = document.createElement('ha-icon-button');
+      remove.className = 'hk-decl-key-remove';
+      remove.setAttribute('label', t('declarative.companions.remove_key'));
+      remove.innerHTML = '<ha-icon icon="mdi:close"></ha-icon>';
+      remove.addEventListener('click', () => {
+        rows.splice(i, 1);
+        onChange(rows);
+        draw();
+      });
+      line.append(key, name, remove);
+      host.appendChild(line);
+      if (focusLast && i === rows.length - 1) queueMicrotask(() => key.focus());
+    });
+    const add = document.createElement('ha-button');
+    add.className = 'hk-decl-key-add';
+    setBtnWeight(add, 'tertiary');
+    add.textContent = t('declarative.companions.add_key');
+    add.addEventListener('click', () => {
+      rows.push({ key: '', name: '' });
+      draw(true);
+    });
+    host.appendChild(add);
+  };
+  draw();
 }
 
 // ── the live preview ────────────────────────────────────────────────────────
