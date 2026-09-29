@@ -147,7 +147,8 @@ def test_next_monthly_occurrence_with_far_past_anchor_does_not_raise():
 
 def test_next_monthly_far_past_matches_naive_across_day_clamping():
     # The MONTHLY fast-forward must agree with stepping one month at a time,
-    # including end-of-month clamping (Jan 31 -> Feb 28 -> Mar 31) and leap years. Spot-check several clamping-prone anchors/intervals far in the past.
+    # including end-of-month clamping (Jan 31 -> Feb 28 -> Mar 31) and leap years.
+    # Spot-check several clamping-prone anchors/intervals far in the past.
     after = dt(2026, 6, 13, 9)
     cases = [
         (dt(1980, 1, 31, 9), 1),
