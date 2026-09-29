@@ -2169,11 +2169,19 @@ def test_every_catalog_duty_has_a_known_shape_and_a_numeric_limit():
         for duty in entry["duties"]:
             where = (entry["domain"], duty["duty"])
             assert duty["shape"] in presets.SHAPES, where
+            assert duty.get("platform", "sensor") in {"sensor", "binary_sensor"}, where
+            assert duty["keys"], where
+            for key in duty["keys"]:
+                assert isinstance(key, str) and key and key == key.strip(), where
             if duty["shape"] == "alert":
                 assert duty.get("limit") is None, where
-                assert isinstance(duty.get("state"), str) and duty["state"], where
+                state = duty.get("state")
+                assert isinstance(state, str) and state, where
+                assert state == state.strip(), where
             else:
                 limit = duty["limit"]
                 assert isinstance(limit, int | float), where
                 assert not isinstance(limit, bool), where
                 assert limit > 0, where
+                if duty["shape"] == "percent_low":
+                    assert limit < 100, where
