@@ -142,9 +142,9 @@ their own.
 ##### Entity keys and task names
 
 The **Entity keys** block under **More filters** matches the key that an integration
-gives each of its entities in its own code. The filter sensor of a Roborock has the
-key `filter_time_left`. The key does not change when you rename the entity or
-change the Home Assistant language. An entity id regex breaks in both cases. Click
+gives each of its entities in its own code, such as `filter_time_left` for the filter
+sensor of a Roborock. A rename of the entity or a change of the Home Assistant
+language leaves the key as it is. An entity id regex breaks in both cases. Click
 **Add key** to add a key. Home Keeper then makes a task only for an entity with one of
 the keys.
 
