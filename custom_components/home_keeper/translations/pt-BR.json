@@ -63,6 +63,14 @@
           "name": "Frequência",
           "description": "Para tarefas fixed: DAILY, WEEKLY ou MONTHLY."
         },
+        "rrule": {
+          "name": "Regra",
+          "description": "Para tarefas fixas: uma RRULE do iCalendar, como FREQ=WEEKLY;BYDAY=TU,FR ou FREQ=MONTHLY;BYDAY=1TU. Use-a no lugar de freq e interval. COUNT e UNTIL não são permitidos."
+        },
+        "moved_occurrences": {
+          "name": "Datas movidas",
+          "description": "Para tarefas fixas: uma lista de datas avulsas movidas para fora da regra, cada uma com uma data e hora from e to. Use move_occurrence para mover uma data."
+        },
         "anchor": {
           "name": "Âncora",
           "description": "Para tarefas fixed: data e hora ISO da primeira ocorrência (define o horário do dia)."
@@ -160,6 +168,14 @@
         "freq": {
           "name": "Frequência",
           "description": "DAILY, WEEKLY ou MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regra",
+          "description": "Para tarefas fixas: uma RRULE do iCalendar, como FREQ=WEEKLY;BYDAY=TU,FR ou FREQ=MONTHLY;BYDAY=1TU. Use-a no lugar de freq e interval. COUNT e UNTIL não são permitidos."
+        },
+        "moved_occurrences": {
+          "name": "Datas movidas",
+          "description": "Para tarefas fixas: uma lista de datas avulsas movidas para fora da regra, cada uma com uma data e hora from e to. Use move_occurrence para mover uma data."
         },
         "anchor": {
           "name": "Âncora",
@@ -392,6 +408,28 @@
         "origin": {
           "name": "Origem",
           "description": "Marcador opcional de formato livre repassado no evento home_keeper_task_due_today_set, para que uma integração contribuinte possa reconhecer e ignorar a antecipação que ela acionou (prevenção de laço). O Home Keeper não o interpreta."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Mover uma data",
+      "description": "Move uma data da agenda de uma tarefa fixa para uma nova data e hora. As outras datas não mudam. Para desfazer uma mudança, mova a data de volta para a hora original.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O id da tarefa. O nome também funciona. O painel mostra o id."
+        },
+        "occurrence": {
+          "name": "Data",
+          "description": "A data e hora da agenda a mover."
+        },
+        "to": {
+          "name": "Nova data",
+          "description": "A nova data e hora. Deve estar no futuro."
+        },
+        "origin": {
+          "name": "Origem",
+          "description": "Marcador opcional de formato livre devolvido no evento home_keeper_task_occurrence_moved para que uma integração colaboradora possa reconhecer e ignorar a mudança que provocou (prevenção de loops). O Home Keeper nunca o interpreta."
         }
       }
     },
@@ -1133,6 +1171,9 @@
     },
     "profile_in_use": {
       "message": "O Home Keeper não pode excluir estes perfis: {profiles}. Estas notificações os utilizam: {notifications}. Altere ou exclua cada notificação e salve novamente."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Aqui só é possível mudar a hora de uma data. Para mudar a tarefa ou sua agenda, abra o painel do Home Keeper."
     }
   }
 }

@@ -63,6 +63,14 @@
           "name": "Frequentie",
           "description": "Voor fixed-taken: DAILY, WEEKLY of MONTHLY."
         },
+        "rrule": {
+          "name": "Regel",
+          "description": "Voor vaste taken: een iCalendar-RRULE, zoals FREQ=WEEKLY;BYDAY=TU,FR of FREQ=MONTHLY;BYDAY=1TU. Gebruik deze in plaats van freq en interval. COUNT en UNTIL zijn niet toegestaan."
+        },
+        "moved_occurrences": {
+          "name": "Verplaatste datums",
+          "description": "Voor vaste taken: een lijst met losse datums die van de regel zijn verplaatst, elk met een from- en een to-tijdstip. Gebruik move_occurrence om een datum te verplaatsen."
+        },
         "anchor": {
           "name": "Anker",
           "description": "Voor fixed-taken: ISO-datum/tijd van de eerste keer (stelt het tijdstip van de dag in)."
@@ -160,6 +168,14 @@
         "freq": {
           "name": "Frequentie",
           "description": "DAILY, WEEKLY of MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regel",
+          "description": "Voor vaste taken: een iCalendar-RRULE, zoals FREQ=WEEKLY;BYDAY=TU,FR of FREQ=MONTHLY;BYDAY=1TU. Gebruik deze in plaats van freq en interval. COUNT en UNTIL zijn niet toegestaan."
+        },
+        "moved_occurrences": {
+          "name": "Verplaatste datums",
+          "description": "Voor vaste taken: een lijst met losse datums die van de regel zijn verplaatst, elk met een from- en een to-tijdstip. Gebruik move_occurrence om een datum te verplaatsen."
         },
         "anchor": {
           "name": "Anker",
@@ -392,6 +408,28 @@
         "origin": {
           "name": "Oorsprong",
           "description": "Optionele vrije-vorm markering die wordt teruggegeven in de gebeurtenis home_keeper_task_due_today_set, zodat een bijdragende integratie het vervroegen dat zij heeft geactiveerd kan herkennen en negeren (luspreventie). Home Keeper interpreteert deze niet."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Eén datum verplaatsen",
+      "description": "Verplaatst één datum uit het schema van een vaste taak naar een nieuwe datum en tijd. De andere datums veranderen niet. Verplaats de datum terug naar de oorspronkelijke tijd om de verplaatsing ongedaan te maken.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "Het id van de taak. De naam werkt ook. Het paneel toont het id."
+        },
+        "occurrence": {
+          "name": "Datum",
+          "description": "De datum en tijd in het schema die verplaatst moet worden."
+        },
+        "to": {
+          "name": "Nieuwe datum",
+          "description": "De nieuwe datum en tijd. Moet in de toekomst liggen."
+        },
+        "origin": {
+          "name": "Oorsprong",
+          "description": "Optionele vrije markering die wordt teruggegeven in de gebeurtenis home_keeper_task_occurrence_moved, zodat een bijdragende integratie de wijziging die zij zelf veroorzaakte kan herkennen en negeren (lusvoorkoming). Home Keeper interpreteert deze nooit."
         }
       }
     },
@@ -1133,6 +1171,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper kan deze profielen niet verwijderen: {profiles}. Deze meldingen gebruiken ze: {notifications}. Wijzig of verwijder elke melding en sla daarna opnieuw op."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Hier kan alleen de tijd van één datum veranderen. Open het Home Keeper-paneel om de taak of het schema te wijzigen."
     }
   }
 }

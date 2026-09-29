@@ -43,14 +43,20 @@ def _naive_next(
 ) -> datetime:
     """Reference: the first occurrence strictly after *after*, one step at a time.
 
-    Deliberately the slowest correct implementation. `next_fixed_occurrence` jumps in
-    O(1) where it can, and this is the thing that jump has to agree with.
+    Deliberately the slowest correct implementation, and independent of dateutil.
+    `next_fixed_occurrence` moves its start forward in whole periods, and this is the
+    thing that jump has to agree with. Step *k* is measured from the anchor, so a
+    monthly task on the 31st returns to the 31st after a short month.
     """
     if anchor > after:
         return anchor
-    occ = anchor
-    for _ in range(_MAX_REFERENCE_STEPS):
-        occ = r._step(occ, freq, interval)
+    for k in range(1, _MAX_REFERENCE_STEPS):
+        if freq == "DAILY":
+            occ = anchor + timedelta(days=k * interval)
+        elif freq == "WEEKLY":
+            occ = anchor + timedelta(weeks=k * interval)
+        else:
+            occ = r.add_months(anchor, k * interval)
         if occ > after:
             return occ
     raise AssertionError("reference walk did not terminate")
@@ -68,17 +74,19 @@ def test_r1_the_fast_path_agrees_with_single_stepping(anchor, freq, interval, ga
     Generalises `test_recurrence_fixed.py::test_next_monthly_far_past_matches_naive_
     across_day_clamping`, which asserts exactly this over 6 hand-picked anchors.
 
-    The reference shares `_step` with the code under test, so this is not an oracle for
-    `_step` itself — it isolates the *jumping*, which is where both shipped defects
-    were. `_step` has its own properties in R5a and R5b, which do not use it to check
-    itself.
+    The reference shares nothing with the code under test except `add_months`, which
+    has its own properties in R3 and R3b. The start-moving in `_fast_forward_start` is
+    where both shipped far-past defects were.
     """
+    # RFC 5545 counts in whole seconds, and so does the engine (a stored anchor never
+    # has a fraction: the form and ``models`` both drop it).
+    anchor = anchor.replace(microsecond=0)
     after = anchor + timedelta(days=gap_days)
     # Keep the reference walk finite; the unbounded domain is R2's job.
     step_days = {"DAILY": 1, "WEEKLY": 7, "MONTHLY": 28}[freq] * interval
     assume(gap_days / step_days < _MAX_REFERENCE_STEPS - 1)
 
-    actual = r.next_fixed_occurrence(anchor, freq, interval, after=after)
+    actual = r.next_fixed_occurrence(anchor, r.legacy_rule(freq, interval), after=after)
     expected = _naive_next(anchor, freq, interval, after)
     assert actual == expected, (
         f"anchor={anchor.isoformat()} freq={freq} interval={interval} "
@@ -104,7 +112,9 @@ def test_r2_next_occurrence_never_raises_and_lands_after(
     deadline would make this a flake on a slow runner.
     """
     after = anchor + timedelta(days=gap_days)
-    occurrence = r.next_fixed_occurrence(anchor, freq, interval, after=after)
+    occurrence = r.next_fixed_occurrence(
+        anchor, r.legacy_rule(freq, interval), after=after
+    )
     assert occurrence > after
     assert occurrence >= anchor
 
@@ -250,8 +260,8 @@ def test_r6_recording_an_entry_dedupes_on_ts_and_caps_the_tail(existing, new_day
 
 # ── Real timezones ───────────────────────────────────────────────────────────
 #
-# `recurrence.py:207` states that `_step` is "correct across DST and month-length
-# clamping". Until these two, nothing tested it: every other recurrence test runs on
+# The engine promises to keep wall time across DST and month-length clamping. Until
+# these two, nothing tested it: every other recurrence test runs on
 # `timezone(timedelta(hours=-4))`, a fixed offset with no transitions, and no test in
 # the repository built a `ZoneInfo` at all. The claim turns out to be true. These keep
 # it true, over 7 real zones including a 30-minute DST shift and a 45-minute offset.
@@ -269,7 +279,9 @@ def test_r5a_occurrences_keep_the_anchor_local_wall_time(anchor, freq, interval)
     09:00 local, on both sides of a transition, not a fixed number of hours apart.
     """
     end = anchor + timedelta(days=400)
-    for occurrence in r.expand_fixed_occurrences(anchor, freq, interval, anchor, end):
+    for occurrence in r.expand_fixed_occurrences(
+        anchor, r.legacy_rule(freq, interval), anchor, end
+    ):
         assert (occurrence.hour, occurrence.minute) == (anchor.hour, anchor.minute), (
             f"anchor={anchor.isoformat()} freq={freq} interval={interval}: "
             f"{occurrence.isoformat()} reads at a different clock time"
@@ -291,7 +303,9 @@ def test_r5b_occurrences_move_forward_in_absolute_time(anchor, freq, interval):
     calendar event before the one it follows.
     """
     end = anchor + timedelta(days=400)
-    occurrences = r.expand_fixed_occurrences(anchor, freq, interval, anchor, end)
+    occurrences = r.expand_fixed_occurrences(
+        anchor, r.legacy_rule(freq, interval), anchor, end
+    )
     absolute = [o.astimezone(_UTC) for o in occurrences]
     assert all(a < b for a, b in itertools.pairwise(absolute)), (
         f"anchor={anchor.isoformat()} freq={freq} interval={interval}: "
@@ -326,7 +340,7 @@ def test_r7_a_floating_schedule_always_moves_forward(
 def test_r5c_a_schedule_survives_the_round_trip_through_storage(anchor, freq, interval):
     """R5c. R5a still holds once the anchor has been through the store.
 
-    R5a proves `_step` keeps local wall time — for a live `ZoneInfo` anchor. Nothing
+    R5a proves the engine keeps local wall time — for a live `ZoneInfo` anchor. Nothing
     in the store is one. An ISO string carries an *offset* and not a zone identity, so
     a `ZoneInfo("America/Los_Angeles")` anchor is written `-07:00` and reloads as
     `timezone(timedelta(hours=-7))`, and holding *that* across a transition is what
@@ -341,7 +355,9 @@ def test_r5c_a_schedule_survives_the_round_trip_through_storage(anchor, freq, in
     """
     reloaded = datetime.fromisoformat(anchor.isoformat())
     end = anchor + timedelta(days=400)
-    for occurrence in r.expand_fixed_occurrences(reloaded, freq, interval, anchor, end):
+    for occurrence in r.expand_fixed_occurrences(
+        reloaded, r.legacy_rule(freq, interval), anchor, end
+    ):
         local = occurrence.astimezone(anchor.tzinfo)
         assert (local.hour, local.minute) == (anchor.hour, anchor.minute), (
             f"anchor={anchor.isoformat()} freq={freq} interval={interval}: "

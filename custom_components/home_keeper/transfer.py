@@ -847,11 +847,19 @@ _PROBE_NOW = datetime(2026, 1, 1, tzinfo=None).replace(
 """A fixed clock for the key probes below. Never used for a stored value."""
 
 # One minimal record per shape, so the probes below see every field that only exists
-# for one of them — a floating task never grows a ``freq``, and a virtual appliance
+# for one of them — a floating task never grows an ``rrule``, and a virtual appliance
 # never grows a ``device_id``. Derived by *building* records rather than by listing
 # keys, for the same reason the export is a denylist: a list would go stale.
 _TASK_PROBES: tuple[dict[str, Any], ...] = (
     {"name": "probe", "recurrence_type": "floating", "interval": 1, "unit": "days"},
+    {
+        "name": "probe",
+        "recurrence_type": "fixed",
+        "rrule": "FREQ=MONTHLY;INTERVAL=1",
+        "anchor": "2026-01-15T09:00:00",
+    },
+    # The legacy shape of a fixed task. A document exported before schedules were
+    # RRULEs carries it, and ``add_task`` still accepts it, so import must too.
     {
         "name": "probe",
         "recurrence_type": "fixed",

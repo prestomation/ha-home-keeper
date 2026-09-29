@@ -13,26 +13,34 @@ def dt(y, m, d, hh=0, mm=0):
 
 def test_next_daily_occurrence_preserves_time_of_day():
     anchor = dt(2026, 1, 1, 8)
-    nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=dt(2026, 6, 13, 9))
+    nxt = r.next_fixed_occurrence(
+        anchor, r.legacy_rule("DAILY", 1), after=dt(2026, 6, 13, 9)
+    )
     assert nxt == dt(2026, 6, 14, 8)
 
 
 def test_next_occurrence_returns_anchor_when_after_is_before_anchor():
     anchor = dt(2026, 7, 1, 8)
-    nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=dt(2026, 6, 1))
+    nxt = r.next_fixed_occurrence(
+        anchor, r.legacy_rule("DAILY", 1), after=dt(2026, 6, 1)
+    )
     assert nxt == anchor
 
 
 def test_weekly_with_interval():
     anchor = dt(2026, 1, 1, 8)  # Thursday
-    nxt = r.next_fixed_occurrence(anchor, "WEEKLY", 2, after=dt(2026, 1, 10))
+    nxt = r.next_fixed_occurrence(
+        anchor, r.legacy_rule("WEEKLY", 2), after=dt(2026, 1, 10)
+    )
     # Every 2 weeks from Jan 1: Jan 15, Jan 29 ...
     assert nxt == dt(2026, 1, 15, 8)
 
 
 def test_monthly_occurrence_clamps_end_of_month():
     anchor = dt(2026, 1, 31, 9)
-    nxt = r.next_fixed_occurrence(anchor, "MONTHLY", 1, after=dt(2026, 2, 1))
+    nxt = r.next_fixed_occurrence(
+        anchor, r.legacy_rule("MONTHLY", 1), after=dt(2026, 2, 1)
+    )
     assert nxt == dt(2026, 2, 28, 9)
 
 
@@ -54,7 +62,7 @@ def test_apply_completion_fixed_follows_schedule_not_completion():
 def test_expand_fixed_occurrences_weekly():
     anchor = dt(2026, 1, 1, 8)  # Thursday
     occ = r.expand_fixed_occurrences(
-        anchor, "WEEKLY", 1, dt(2026, 6, 1), dt(2026, 6, 30)
+        anchor, r.legacy_rule("WEEKLY", 1), dt(2026, 6, 1), dt(2026, 6, 30)
     )
     assert [o.date().isoformat() for o in occ] == [
         "2026-06-04",
@@ -67,7 +75,9 @@ def test_expand_fixed_occurrences_weekly():
 def test_expand_empty_when_range_inverted():
     anchor = dt(2026, 1, 1, 8)
     assert (
-        r.expand_fixed_occurrences(anchor, "DAILY", 1, dt(2026, 6, 2), dt(2026, 6, 1))
+        r.expand_fixed_occurrences(
+            anchor, r.legacy_rule("DAILY", 1), dt(2026, 6, 2), dt(2026, 6, 1)
+        )
         == []
     )
 
@@ -77,13 +87,17 @@ def test_next_daily_occurrence_with_far_past_anchor_does_not_raise():
     # to blow the iteration cap and raise, taking the calendar/sensor down. It must
     # now compute the correct next occurrence (next 08:00) instead.
     anchor = dt(2020, 1, 1, 8)
-    nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=dt(2026, 6, 13, 9))
+    nxt = r.next_fixed_occurrence(
+        anchor, r.legacy_rule("DAILY", 1), after=dt(2026, 6, 13, 9)
+    )
     assert nxt == dt(2026, 6, 14, 8)
 
 
 def test_next_weekly_occurrence_with_far_past_anchor():
     anchor = dt(2014, 1, 2, 8)  # Thursday, ~12 years before `after`
-    nxt = r.next_fixed_occurrence(anchor, "WEEKLY", 1, after=dt(2026, 6, 13))
+    nxt = r.next_fixed_occurrence(
+        anchor, r.legacy_rule("WEEKLY", 1), after=dt(2026, 6, 13)
+    )
     # Anchored on a Thursday; the first Thursday strictly after Sat 2026-06-13.
     assert nxt.weekday() == anchor.weekday()
     assert nxt > dt(2026, 6, 13)
@@ -92,7 +106,9 @@ def test_next_weekly_occurrence_with_far_past_anchor():
 
 def test_expand_daily_with_far_past_anchor_returns_window():
     anchor = dt(2020, 1, 1, 8)
-    occ = r.expand_fixed_occurrences(anchor, "DAILY", 1, dt(2026, 6, 1), dt(2026, 6, 4))
+    occ = r.expand_fixed_occurrences(
+        anchor, r.legacy_rule("DAILY", 1), dt(2026, 6, 1), dt(2026, 6, 4)
+    )
     assert [o.date().isoformat() for o in occ] == [
         "2026-06-01",
         "2026-06-02",
@@ -101,12 +117,18 @@ def test_expand_daily_with_far_past_anchor_returns_window():
 
 
 def _naive_next_monthly(anchor, interval, after):
-    """Reference: smallest occurrence strictly after *after* by single-stepping."""
+    """Reference: smallest occurrence strictly after *after*, one month at a time.
+
+    Each occurrence is measured from the anchor, not from the one before it, so the
+    31st comes back after a short month: Jan 31 -> Feb 28 -> Mar 31.
+    """
     if anchor > after:
         return anchor
+    k = 0
     occ = anchor
     while occ <= after:
-        occ = r.add_months(occ, interval)
+        k += 1
+        occ = r.add_months(anchor, k * interval)
     return occ
 
 
@@ -118,15 +140,14 @@ def test_next_monthly_occurrence_with_far_past_anchor_does_not_raise():
     # next occurrence instead.
     anchor = dt(1976, 6, 21, 9)  # 50 years before `after`
     after = dt(2026, 6, 21)
-    nxt = r.next_fixed_occurrence(anchor, "MONTHLY", 1, after=after)
+    nxt = r.next_fixed_occurrence(anchor, r.legacy_rule("MONTHLY", 1), after=after)
     assert nxt == dt(2026, 6, 21, 9)
     assert nxt == _naive_next_monthly(anchor, 1, after)
 
 
 def test_next_monthly_far_past_matches_naive_across_day_clamping():
-    # The O(1) MONTHLY fast-forward must stay byte-identical to single-stepping,
-    # including end-of-month clamping (Jan 31 -> Feb 28 -> ... sticks at 28) and
-    # leap years. Spot-check several clamping-prone anchors/intervals far in the past.
+    # The MONTHLY fast-forward must agree with stepping one month at a time,
+    # including end-of-month clamping (Jan 31 -> Feb 28 -> Mar 31) and leap years. Spot-check several clamping-prone anchors/intervals far in the past.
     after = dt(2026, 6, 13, 9)
     cases = [
         (dt(1980, 1, 31, 9), 1),
@@ -138,20 +159,20 @@ def test_next_monthly_far_past_matches_naive_across_day_clamping():
     ]
     for anchor, interval in cases:
         assert r.next_fixed_occurrence(
-            anchor, "MONTHLY", interval, after=after
+            anchor, r.legacy_rule("MONTHLY", interval), after=after
         ) == _naive_next_monthly(anchor, interval, after), (anchor, interval)
 
 
 def test_expand_monthly_with_far_past_anchor_returns_window():
     anchor = dt(1980, 1, 31, 9)  # far past + end-of-month clamping
     occ = r.expand_fixed_occurrences(
-        anchor, "MONTHLY", 1, dt(2026, 6, 1), dt(2026, 9, 1)
+        anchor, r.legacy_rule("MONTHLY", 1), dt(2026, 6, 1), dt(2026, 9, 1)
     )
-    # Day clamps to 28 permanently once a non-leap February is crossed.
+    # The 31st, or the last day of a shorter month. It does not stick at 28.
     assert [o.date().isoformat() for o in occ] == [
-        "2026-06-28",
-        "2026-07-28",
-        "2026-08-28",
+        "2026-06-30",
+        "2026-07-31",
+        "2026-08-31",
     ]
 
 
@@ -289,7 +310,9 @@ def test_a_schedule_keeps_its_local_hour_across_dst_after_a_storage_round_trip()
     anchor = datetime.fromisoformat(stored)  # the reload, offset-only
 
     after_dst_ends = datetime(2026, 11, 5, 9, tzinfo=zone)
-    nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=after_dst_ends)
+    nxt = r.next_fixed_occurrence(
+        anchor, r.legacy_rule("DAILY", 1), after=after_dst_ends
+    )
 
     local = nxt.astimezone(zone)
     assert (local.hour, local.minute) == (10, 0), (
@@ -311,7 +334,9 @@ def test_a_utc_anchor_still_schedules_at_the_hour_the_user_chose():
         (datetime(2026, 9, 8, 9, tzinfo=zone), "same day, before the occurrence"),
         (datetime(2026, 11, 5, 9, tzinfo=zone), "after DST ends"),
     ):
-        nxt = r.next_fixed_occurrence(anchor, "DAILY", 1, after=probe).astimezone(zone)
+        nxt = r.next_fixed_occurrence(
+            anchor, r.legacy_rule("DAILY", 1), after=probe
+        ).astimezone(zone)
         assert (nxt.hour, nxt.minute) == (10, 0), f"{label}: got {nxt.isoformat()}"
 
 

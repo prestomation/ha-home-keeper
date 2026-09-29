@@ -63,6 +63,14 @@
           "name": "Frequenza",
           "description": "Per le attività fixed: DAILY, WEEKLY o MONTHLY."
         },
+        "rrule": {
+          "name": "Regola",
+          "description": "Per le attività fisse: una RRULE iCalendar, ad esempio FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Usala al posto di freq e interval. COUNT e UNTIL non sono consentiti."
+        },
+        "moved_occurrences": {
+          "name": "Date spostate",
+          "description": "Per le attività fisse: un elenco di singole date spostate fuori dalla regola, ognuna con una data e ora from e to. Usa move_occurrence per spostare una data."
+        },
         "anchor": {
           "name": "Ancora",
           "description": "Per le attività fixed: data/ora ISO della prima occorrenza (imposta l'ora del giorno)."
@@ -160,6 +168,14 @@
         "freq": {
           "name": "Frequenza",
           "description": "DAILY, WEEKLY o MONTHLY (fixed)."
+        },
+        "rrule": {
+          "name": "Regola",
+          "description": "Per le attività fisse: una RRULE iCalendar, ad esempio FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Usala al posto di freq e interval. COUNT e UNTIL non sono consentiti."
+        },
+        "moved_occurrences": {
+          "name": "Date spostate",
+          "description": "Per le attività fisse: un elenco di singole date spostate fuori dalla regola, ognuna con una data e ora from e to. Usa move_occurrence per spostare una data."
         },
         "anchor": {
           "name": "Ancora",
@@ -392,6 +408,28 @@
         "origin": {
           "name": "Origine",
           "description": "Marcatore facoltativo in formato libero restituito nell'evento home_keeper_task_due_today_set, così che un'integrazione contribuente possa riconoscere e ignorare l'anticipo che ha attivato (prevenzione dei cicli). Home Keeper non lo interpreta."
+        }
+      }
+    },
+    "move_occurrence": {
+      "name": "Sposta una data",
+      "description": "Sposta una data del calendario di un'attività fissa a una nuova data e ora. Le altre date non cambiano. Per annullare uno spostamento, riporta la data alla sua ora originale.",
+      "fields": {
+        "task_id": {
+          "name": "Nome o ID attività",
+          "description": "L'id dell'attività. Funziona anche il nome. Il pannello mostra l'id."
+        },
+        "occurrence": {
+          "name": "Data",
+          "description": "La data e l'ora del calendario da spostare."
+        },
+        "to": {
+          "name": "Nuova data",
+          "description": "La nuova data e ora. Deve essere nel futuro."
+        },
+        "origin": {
+          "name": "Origine",
+          "description": "Marcatore facoltativo a forma libera restituito nell'evento home_keeper_task_occurrence_moved, così un'integrazione che contribuisce può riconoscere e ignorare la modifica che ha causato (prevenzione dei cicli). Home Keeper non lo interpreta mai."
         }
       }
     },
@@ -1133,6 +1171,9 @@
     },
     "profile_in_use": {
       "message": "Home Keeper non può eliminare questi profili: {profiles}. Queste notifiche li usano: {notifications}. Modifica o elimina ogni notifica, quindi salva di nuovo."
+    },
+    "calendar_edit_in_panel": {
+      "message": "Qui si può cambiare solo l'ora di una data. Per modificare l'attività o il suo calendario, apri il pannello di Home Keeper."
     }
   }
 }

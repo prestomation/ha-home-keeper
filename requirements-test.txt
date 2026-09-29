@@ -1,4 +1,7 @@
 Babel
+# The fixed-schedule engine (recurrence.py) expands RRULEs with dateutil. A runtime
+# requirement in manifest.json, so the pure unit lane needs it too.
+python-dateutil
 pytest
 pytest-cov
 pytest-timeout

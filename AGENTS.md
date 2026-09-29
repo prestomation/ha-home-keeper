@@ -156,7 +156,9 @@
   made against what will ship. A change with one obvious rendering does not need this.
 - **Always run tests locally before pushing.** Never use CI as the test runner.
   - Pure-logic unit tests need only
-    `pip install pytest PyYAML Babel hypothesis jsonschema`: `pytest tests/unit -v`.
+    `pip install pytest python-dateutil PyYAML Babel hypothesis jsonschema`:
+    `pytest tests/unit -v`. `python-dateutil` is a runtime requirement of the
+    schedule engine, so every lane needs it.
     Each of the last 4 covers one group of tests and each one skips cleanly on its own:
     `PyYAML` for the API-surface gate (which reads `services.yaml`) and for the
     import/export document, which `transfer.py` writes and reads; `Babel` for the

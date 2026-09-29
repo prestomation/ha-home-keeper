@@ -48,6 +48,22 @@ def task_event_data(
     return data
 
 
+def occurrence_moved_extra(
+    occurrence: str, to: str, previous_to: str | None, *, origin: str | None
+) -> dict[str, Any]:
+    """The keys ``home_keeper_task_occurrence_moved`` adds to the task spine.
+
+    ``occurrence`` is the date on the rule, ``to`` where it is now (the same value
+    when the move was undone) and ``previous_to`` where it was before, or ``None``.
+    """
+    return {
+        "occurrence": occurrence,
+        "to": to,
+        "previous_to": previous_to,
+        "origin": origin,
+    }
+
+
 def completion_event_data(
     task: dict[str, Any],
     when: Any,
