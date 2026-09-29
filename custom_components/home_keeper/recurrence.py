@@ -228,7 +228,7 @@ def _regrid(anchor: datetime, probe: datetime) -> datetime:
 #   the last day of a shorter month". RFC 5545 skips the months that have no 31st, and
 #   nobody who asks for "monthly" wants that. See :func:`effective_rule`.
 # * **Moves.** ``moved_occurrences`` moves single dates of the schedule and leaves the
-#   rest alone. See :func:`_apply_moves`.
+#   rest alone. See :func:`task_moves` and :func:`move_occurrence`.
 
 _WEEKDAYS = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
 # The BY-parts that choose *which days* a rule lands on. When a rule names none of
