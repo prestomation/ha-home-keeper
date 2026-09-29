@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Integrating with Home Keeper | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/developer/integrating"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Integrating with Home Keeper | Home Keeper"><meta data-rh="true" name="description" content="This guide is for authors of other Home Assistant integrations who want to push"><meta data-rh="true" property="og:description" content="This guide is for authors of other Home Assistant integrations who want to push"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-395/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/developer/integrating"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/developer/integrating" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/developer/integrating" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Integrating","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/developer/integrating"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-395/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-395/assets/js/runtime~main.45308bfe.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-395/assets/js/runtime~main.498e0a34.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-395/assets/js/main.b34c997b.js" defer="defer"></script>
 </head>
 <body>
@@ -498,9 +498,11 @@ entities are added, renamed, or removed.</p>
 <p>The bundled general presets are <strong>device_pulse</strong> (per-device ping sensors from
 studiobts/home-assistant-device-pulse), <strong>firmware_update_available</strong> (update
 domain, covers UniFi, ESPHome, HACS, Reolink, Bambu Lab in one declarative
-companion) and <strong>device_stopped_reporting</strong>. The <strong>integration presets</strong> follow: one
-preset per integration and per type of reading, named <code>&lt;domain&gt;_&lt;shape&gt;</code>, such as
-<code>roborock_life_low</code>. Each selects by <code>target_integration</code> and <code>translation_keys</code>, and
+companion) and <strong>device_stopped_reporting</strong>. Each <strong>integration preset</strong> covers one
+integration and one type of reading, and its id is <code>&lt;domain&gt;_&lt;shape&gt;</code>, such as
+<code>roborock_life_low</code>. A preset for a platform other than <code>sensor</code> adds the platform to
+the id, and a preset for one alert state adds that state, as in
+<code>&lt;domain&gt;_alert_binary_sensor_on</code>. Each selects by <code>target_integration</code> and <code>translation_keys</code>, and
 fills <code>task_names</code> for each key. The catalog is <code>declarative_presets_catalog.py</code>, and
 <code>ci/check_preset_keys.py</code> checks its keys against each integration&#x27;s translation file. Full config surface via <code>home_keeper.add_declarative_companion</code> /
 <code>update_declarative_companion</code> / <code>delete_declarative_companion</code> /
