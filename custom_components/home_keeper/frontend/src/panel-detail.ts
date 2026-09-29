@@ -23,6 +23,7 @@ import {
   assetManagedChip,
   consumableChip,
   deviceChip,
+  isManagedAssetOrphan,
   isManagedOrphan,
   managedChip,
   sourceOwnedTask,
@@ -552,6 +553,10 @@ function assetDetail(p: PanelHost, asset: Asset): string {
   // reconcile rewrites, and Delete would remove an appliance the owner recreates.
   // Archive is untouched: hiding an appliance is the user's call whoever owns it.
   const ownsIdentity = Boolean(owner) && locked.has('name');
+  // Deletion protection holds only while the owner is present. Once the owner is
+  // gone (uninstalled, disabled), the backend lets the user delete the appliance,
+  // so Delete comes back, as it does for a task.
+  const orphaned = isManagedAssetOrphan(p, asset);
   const managedInfo =
     owner && ownsIdentity
       ? `<span class="hk-managed-info">${escapeHTML(
@@ -561,7 +566,7 @@ function assetDetail(p: PanelHost, asset: Asset): string {
   const editBtn = ownsIdentity
     ? ''
     : `<ha-button ${btnAttrs('primary')} class="d-edit">${escapeHTML(t('btn.edit'))}</ha-button>`;
-  const deleteBtn = ownsIdentity
+  const deleteBtn = ownsIdentity && !orphaned
     ? ''
     : `<ha-button ${btnAttrs('danger')} class="d-del">${escapeHTML(t('btn.delete'))}</ha-button>`;
   const archived = Boolean(asset.archived_at);

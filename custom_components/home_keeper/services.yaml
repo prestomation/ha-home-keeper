@@ -893,7 +893,7 @@ set_task_consumable:
         the part sets.
       selector:
         number:
-          min: 0
+          min: 0.01
           mode: box
           step: 0.01
 

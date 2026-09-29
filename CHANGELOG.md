@@ -6,6 +6,58 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.27.0] - 2026-09-29
+
+### Added
+
+- **[Template triggers](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#template-triggers).**
+  Write a Jinja template for a recipe trigger or a sensor task condition. The task is
+  due while the template renders true. (Fixes #346)
+- **[Stopped reporting preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#template-triggers).**
+  A new recipe preset opens a task for each sensor that stops reporting for a day. It
+  needs no other integration.
+- **[Declarative companion task labels](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#task-labels-and-notes).**
+  Set task labels on a declarative companion, and each task it makes gets them. Click
+  Edit on one task to add labels to that task only. (Fixes #378)
+- **[Declarative companion Profile filter](https://prestomation.github.io/ha-home-keeper/docs/guide/profiles#filter-by-companion).**
+  The Companions filter of a Profile lists each declarative companion and the synced
+  problem sensors. Select one to show only its tasks.
+- **[Managed appliances](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#stock-an-integration-keeps-for-you).**
+  An integration can own an appliance and its list of parts. You keep every stock
+  count.
+- **[Consume quantity](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#parts--wear-items).**
+  A task linked to a part can take more than 1 spare off the stock. An integration
+  sets the amount for the task it links.
+- **[Shared stock counts](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#stock-an-integration-keeps-for-you).**
+  Every user can see how many spares a part has left, and not only an admin. The
+  spares entity of a part also shows its reorder point.
+- **[Part chip links](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances#stock-an-integration-keeps-for-you).**
+  A task linked to a part shows that part on a chip. Click the chip to open the part
+  on its appliance page.
+
+### Changed
+
+- **Stock adjust response.** `home_keeper.adjust_part_stock` returns the new count,
+  and each stock event names the integration that owns the appliance.
+
+### Fixed
+
+- **[Self-clearing task sync](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  Tasks that Home Keeper cannot complete now show on synced to-do lists, such as synced
+  problem sensors and declarative companion tasks. A ticked item comes back until you
+  fix the problem in your home and Home Keeper completes the task. (Fixes #370)
+- **[Recipe entity names](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  On a device page, the entity names of a recipe task start with the recipe name. New
+  entity IDs no longer repeat the device name. (Fixes #377)
+- **Self-clearing recipe tasks.** A recipe task that clears itself when its condition
+  recovers has no Mark done button on its device page. A completion or a skip by hand
+  from a service call fails.
+- **[Declarative companion task notes](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#task-labels-and-notes).**
+  A declarative companion with no notes template no longer clears the notes of its
+  tasks. You can now write notes on those tasks.
+- **Undo returns spares.** Delete a completion of a task linked to a part, and the
+  spares it took go back into stock.
+
 ## [0.27.0b5]
 
 ### Added

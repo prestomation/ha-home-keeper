@@ -1161,6 +1161,31 @@ def test_reconcile_carries_the_language_to_the_created_task():
     )
 
 
+def test_reconcile_keeps_a_consumable_link_on_the_task():
+    # A person can link a companion task to a part. The reconcile owns only its own
+    # namespace in ``source``, so the link and its quantity survive.
+    spec = _normalized_spec()
+    key, m = _match("sensor.hub_total_failed_pings", spec["id"])
+    tasks, _ops, _ = dc.reconcile_declarative_tasks(
+        spec, {key: m}, {}, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    tid = next(iter(tasks))
+    link = {"asset_id": "a1", "part_id": "p1", "manual": True, "quantity": 2}
+    tasks[tid]["source"]["part"] = dict(link)
+    own = dict(tasks[tid]["source"][dc.TASK_SOURCE_DECLARATIVE_COMPANION])
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, tasks, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+
+    assert changed is False
+    assert ops == []
+    assert new_tasks[tid]["source"] == {
+        dc.TASK_SOURCE_DECLARATIVE_COMPANION: own,
+        "part": link,
+    }
+
+
 def test_reconcile_carries_the_language_to_an_updated_task():
     # The update path stamps its own ``managed_by``; it must localize too, or a
     # language change relocalizes new tasks and leaves the existing ones behind.

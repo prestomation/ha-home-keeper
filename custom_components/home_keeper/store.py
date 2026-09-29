@@ -61,6 +61,7 @@ from .const import (
     ORIGIN_SENSOR_RECOVER,
     REC_SENSOR,
     REC_TRIGGERED,
+    SENSOR_MODE_TEMPLATE,
     SENSOR_MODE_USAGE,
     SIGNAL_DECLARATIVE_SPECS_CHANGED,
     SKIP_ENTRY_FIELDS,
@@ -424,11 +425,35 @@ class HomeKeeperStore:
                     "own task reconcilers and cannot be set via add_task"
                 )
         task = models.build_task(data, now=dt_util.now())
+        self._check_template_syntax(task)
         self._tasks[task["id"]] = task
         await self._save()
         _LOGGER.debug("Added task %s (%s)", task["id"], task["name"])
         self._hass.bus.async_fire(EVENT_TASK_CREATED, events.task_event_data(task))
         return task
+
+    def _check_template_syntax(self, task: dict[str, Any]) -> None:
+        """Refuse a ``template``-mode binding whose Jinja does not compile.
+
+        A syntax error can never render, so the task would never become due. Without
+        this check the error shows only as a log warning on each state change. A
+        template that compiles but fails to render (an unknown name, say) is still
+        accepted: that depends on the live state, and the watcher treats it as
+        "decides nothing".
+        """
+        sensor = task.get("sensor")
+        if not isinstance(sensor, dict) or sensor.get("mode") != SENSOR_MODE_TEMPLATE:
+            return
+        # Imported here so the pure unit tests, which stub Home Assistant, can load
+        # this module without the template engine.
+        from homeassistant.helpers.template import Template, TemplateError
+
+        try:
+            Template(str(sensor.get("template") or ""), self._hass).ensure_valid()
+        except TemplateError as err:
+            raise models.TaskValidationError(
+                f"sensor.template is not a valid template: {err}"
+            ) from err
 
     async def update_task(
         self, task_id: str, updates: dict[str, Any]
@@ -445,6 +470,8 @@ class HomeKeeperStore:
                 "appliance editor."
             )
         merged = models.merge_update(existing, updates, now=dt_util.now())
+        if "sensor" in updates:
+            self._check_template_syntax(merged)
         self._tasks[task_id] = merged
         # Mirror a problem-sensor task's note into the durable, entity-keyed side-store
         # so it outlives the task (the mirror is deleted/recreated as the sensor is
@@ -513,6 +540,17 @@ class HomeKeeperStore:
             raise models.TaskValidationError(
                 "This task is auto-generated from an appliance wear part and is "
                 "already linked to it — manage its part in the appliance editor."
+            )
+
+        # A buy reminder restocks its part when it is completed. A consumable link
+        # on it would make the completion consume stock instead (a ``part`` source
+        # wins in ``complete_task``), so a buy reminder takes no link.
+        if _buy_source(existing) is not None and not (
+            asset_id is None and part_id is None
+        ):
+            raise models.TaskValidationError(
+                "A buy reminder restocks its part, so it cannot be linked to a "
+                "consumable."
             )
 
         source = dict(existing.get("source") or {})
