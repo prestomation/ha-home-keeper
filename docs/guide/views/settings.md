@@ -191,7 +191,7 @@ the salt, and the task completes.
 
 ![The preset picker with a search for filter, showing the integration presets and the tasks each one makes](../../images/21v-panel-declarative-preset-search.png)
 
-![The same search on a phone](../../images/21v-panel-mobile-declarative-preset-search.png)
+![The same search on a phone](../../images/21v-panel-mobile-preset-search.png)
 
 These integrations have presets:
 

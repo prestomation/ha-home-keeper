@@ -68,7 +68,7 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/21v-panel-declarative-preset-search.png` });
   await page.setViewportSize(PHONE);
   await page.waitForTimeout(600);
-  await page.screenshot({ path: `${OUT}/21v-panel-mobile-declarative-preset-search.png` });
+  await page.screenshot({ path: `${OUT}/21v-panel-mobile-preset-search.png` });
   await page.setViewportSize({ width: 1280, height: 720 });
   await picker.locator('#hk-decl-preset-q').fill('');
 
