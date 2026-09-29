@@ -709,8 +709,8 @@ entities are added, renamed, or removed.
 The bundled general presets are **device_pulse** (per-device ping sensors from
 studiobts/home-assistant-device-pulse), **firmware_update_available** (update
 domain, covers UniFi, ESPHome, HACS, Reolink, Bambu Lab in one declarative
-companion) and **device_stopped_reporting**. The **integration presets** follow: one
-preset per integration and per type of reading, named `<domain>_<shape>`, such as
+companion) and **device_stopped_reporting**. Each **integration preset** covers one
+integration and one type of reading, and its id is `<domain>_<shape>`, such as
 `roborock_life_low`. Each selects by `target_integration` and `translation_keys`, and
 fills `task_names` for each key. The catalog is `declarative_presets_catalog.py`, and
 `ci/check_preset_keys.py` checks its keys against each integration's translation file. Full config surface via `home_keeper.add_declarative_companion` /
