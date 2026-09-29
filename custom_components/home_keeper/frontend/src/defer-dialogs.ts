@@ -46,13 +46,14 @@ export const LATER_DATES_STYLES = `
     display: inline-flex; align-self: flex-start; border: 1px solid var(--divider-color);
     border-radius: 999px; overflow: hidden; margin-bottom: 12px;
   }
-  .hk-snooze-mode .hk-seg-btn {
+  .hk-snooze-mode .hk-mode-btn {
     appearance: none; border: 0; background: transparent; cursor: pointer;
     font: inherit; font-size: 0.9rem; padding: 0 16px; min-height: 40px;
     color: var(--primary-text-color);
   }
-  .hk-snooze-mode .hk-seg-btn + .hk-seg-btn { border-left: 1px solid var(--divider-color); }
-  .hk-snooze-mode .hk-seg-btn.active {
+  .hk-snooze-mode .hk-mode-btn + .hk-mode-btn { border-left: 1px solid var(--divider-color); }
+  .hk-snooze-mode .hk-mode-btn:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
+  .hk-snooze-mode .hk-mode-btn.active {
     background: var(--primary-color); color: var(--text-primary-color, #fff);
   }
   .hk-later-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
@@ -292,13 +293,13 @@ export function renderSnoozeDialog(
  */
 function snoozeModeSwitch(host: DeferDialogHost, s: SnoozeState): HTMLElement {
   const seg = document.createElement('div');
-  seg.className = 'hk-seg hk-snooze-mode';
+  seg.className = 'hk-snooze-mode';
   seg.setAttribute('role', 'group');
   seg.setAttribute('aria-label', t('defer.snoozeTitle'));
   for (const mode of ['next', 'later'] as const) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'hk-seg-btn';
+    btn.className = 'hk-mode-btn';
     btn.id = `hk-snooze-mode-${mode}`;
     const active = (s.mode ?? 'next') === mode;
     btn.classList.toggle('active', active);
