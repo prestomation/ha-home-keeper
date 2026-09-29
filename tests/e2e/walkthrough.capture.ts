@@ -860,8 +860,17 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT);
   await panel.locator('.hk-decl-preset').click();
   const presetPicker = panel.locator('ha-dialog.hk-decl-picker');
-  await expect(presetPicker.locator('.hk-decl-preset-card')).toHaveCount(3);
+  await expect(
+    presetPicker.locator('.hk-decl-preset-list[data-group="general"] .hk-decl-preset-card'),
+  ).toHaveCount(3);
   await page.waitForTimeout(BEAT * 2);
+  // The integration presets: a search finds the ones for a brand or a part, each
+  // card with the tasks it makes. Cleared again to pick a general preset.
+  await presetPicker.locator('#hk-decl-preset-q').fill('filter');
+  await expect(presetPicker.locator('.hk-decl-preset-list[data-group="other"]')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(BEAT * 2);
+  await presetPicker.locator('#hk-decl-preset-q').fill('');
   await presetPicker
     .locator('.hk-decl-preset-card', { hasText: 'Firmware update available' })
     .click();

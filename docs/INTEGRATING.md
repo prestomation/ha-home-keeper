@@ -706,10 +706,14 @@ hold interval), and provide Jinja templates for the task name and notes. Home Ke
 materializes one managed sensor task per matching entity and keeps it in sync as
 entities are added, renamed, or removed.
 
-The bundled presets are **device_pulse** (per-device ping sensors from
-studiobts/home-assistant-device-pulse) and **firmware_update_available** (update
+The bundled general presets are **device_pulse** (per-device ping sensors from
+studiobts/home-assistant-device-pulse), **firmware_update_available** (update
 domain, covers UniFi, ESPHome, HACS, Reolink, Bambu Lab in one declarative
-companion). Full config surface via `home_keeper.add_declarative_companion` /
+companion) and **device_stopped_reporting**. The **integration presets** follow: one
+preset per integration and per type of reading, named `<domain>_<shape>`, such as
+`roborock_life_low`. Each selects by `target_integration` and `translation_keys`, and
+fills `task_names` for each key. The catalog is `declarative_presets_catalog.py`, and
+`ci/check_preset_keys.py` checks its keys against each integration's translation file. Full config surface via `home_keeper.add_declarative_companion` /
 `update_declarative_companion` / `delete_declarative_companion` /
 `list_declarative_companions` services (admin-only). Managed tasks fire the ordinary
 `home_keeper_task_*` events. Filter to declarative tasks via

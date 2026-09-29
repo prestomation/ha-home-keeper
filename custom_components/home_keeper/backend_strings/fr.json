@@ -16,5 +16,17 @@
   "declarative_preset.firmware_update_available.description": "Surveille chaque entité de mise à jour (UniFi, ESPHome, HACS, caméras, imprimantes, etc.) et ouvre une tâche pour appliquer la nouvelle version.",
   "declarative_preset.device_stopped_reporting.name": "Appareil devenu silencieux",
   "declarative_preset.device_stopped_reporting.description": "Surveille tous les capteurs de dernière activité et ouvre une tâche pour chaque appareil qui n'a rien signalé depuis 24 heures. Utilisez-la pour retrouver les appareils Zigbee ou Z-Wave tombés du réseau.",
+  "declarative_preset.shape.percent_low.name": "{integration} : pièces et consommables presque épuisés",
+  "declarative_preset.shape.percent_low.description": "Ouvre une tâche quand une pièce ou un consommable d'un appareil {integration} s'épuise. La tâche se ferme quand le niveau remonte.",
+  "declarative_preset.shape.life_low.name": "{integration} : pièces en fin de vie",
+  "declarative_preset.shape.life_low.description": "Ouvre une tâche quand il reste peu de durée de vie à une pièce d'un appareil {integration}. La tâche se ferme quand vous réinitialisez la pièce sur l'appareil.",
+  "declarative_preset.shape.wear_high.name": "{integration} : compteurs d'usure",
+  "declarative_preset.shape.wear_high.description": "Ouvre une tâche quand un compteur d'usure d'un appareil {integration} dépasse sa limite d'entretien. La tâche se ferme quand vous réinitialisez le compteur sur l'appareil.",
+  "declarative_preset.shape.reading_low.name": "{integration} : mesures trop basses",
+  "declarative_preset.shape.reading_low.description": "Ouvre une tâche quand une mesure d'un appareil {integration} passe sous son niveau d'entretien. La tâche se ferme quand la mesure remonte.",
+  "declarative_preset.shape.reading_high.name": "{integration} : mesures trop hautes",
+  "declarative_preset.shape.reading_high.description": "Ouvre une tâche quand une mesure d'un appareil {integration} dépasse son niveau d'entretien. La tâche se ferme quand la mesure redescend.",
+  "declarative_preset.shape.alert.name": "{integration} : alertes d'entretien",
+  "declarative_preset.shape.alert.description": "Ouvre une tâche quand un appareil {integration} signale qu'il a besoin d'entretien. La tâche se ferme quand l'appareil efface l'alerte.",
   "declarative_task.completion_prompt": "Ouverte par le companion déclaratif « {name} ». Home Keeper termine cette tâche automatiquement quand la condition disparaît, donc elle ne peut pas être terminée à la main."
 }

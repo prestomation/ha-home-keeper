@@ -1,0 +1,106 @@
+import { describe, expect, it } from 'vitest';
+import { groupPresets, presetMatches, presetTaskNames } from '../src/preset-picker.ts';
+
+/**
+ * The preset picker's grouping and search: the installed integrations first, the
+ * general presets next, and the rest hidden until Show all or a search.
+ */
+
+const preset = (id, over = {}) => ({
+  id,
+  name: over.name ?? id,
+  description: over.description ?? '',
+  icon: 'mdi:x',
+  requires_integration: over.requires ?? null,
+  group: over.group ?? 'general',
+  default_spec: {
+    task_template: { name_template: '', notes_template: '', labels: [], task_names: over.tasks },
+  },
+});
+
+const PULSE = preset('device_pulse', { name: 'Device Pulse', requires: 'device_pulse' });
+const FIRMWARE = preset('firmware', { name: 'Firmware update available' });
+const ROBOROCK = preset('roborock_life_low', {
+  name: 'Roborock: parts near the end of their life',
+  requires: 'roborock',
+  group: 'integration',
+  tasks: { filter_time_left: 'Replace the filter', main_brush_time_left: 'Replace the main brush' },
+});
+const BROTHER = preset('brother_percent_low', {
+  name: 'Brother: parts and supplies running low',
+  requires: 'brother',
+  group: 'integration',
+  tasks: { black: 'Replace the toner', cyan: 'Replace the toner' },
+});
+const ECOVACS = preset('ecovacs_percent_low', {
+  name: 'Ecovacs: parts and supplies running low',
+  requires: 'ecovacs',
+  group: 'integration',
+});
+const ALL = [PULSE, FIRMWARE, ROBOROCK, BROTHER, ECOVACS];
+
+describe('presetTaskNames', () => {
+  it('lists each task name once, in order', () => {
+    expect(presetTaskNames(BROTHER)).toEqual(['Replace the toner']);
+    expect(presetTaskNames(ROBOROCK)).toEqual(['Replace the filter', 'Replace the main brush']);
+  });
+
+  it('is empty for a preset with no task names', () => {
+    expect(presetTaskNames(FIRMWARE)).toEqual([]);
+  });
+});
+
+describe('presetMatches', () => {
+  it('matches the name, the description, the domain and a task name, in any case', () => {
+    expect(presetMatches(ROBOROCK, 'ROBOROCK')).toBe(true);
+    expect(presetMatches(ROBOROCK, 'main brush')).toBe(true);
+    expect(presetMatches(preset('x', { description: 'Salt is low' }), 'salt')).toBe(true);
+    expect(presetMatches(PULSE, 'device_pulse')).toBe(true);
+  });
+
+  it('matches everything for an empty or blank query, and nothing it does not contain', () => {
+    expect(presetMatches(FIRMWARE, '')).toBe(true);
+    expect(presetMatches(FIRMWARE, '   ')).toBe(true);
+    expect(presetMatches(FIRMWARE, 'toner')).toBe(false);
+  });
+});
+
+describe('groupPresets', () => {
+  const installed = new Set(['roborock', 'brother']);
+
+  it('puts installed integrations first, sorted, then the general presets, and hides the rest', () => {
+    const groups = groupPresets(ALL, installed, '', false);
+    expect(groups.mine.map((p) => p.id)).toEqual(['brother_percent_low', 'roborock_life_low']);
+    expect(groups.general.map((p) => p.id)).toEqual(['device_pulse', 'firmware']);
+    expect(groups.other).toEqual([]);
+    expect(groups.hidden).toBe(1);
+  });
+
+  it('shows the other integrations with Show all', () => {
+    const groups = groupPresets(ALL, installed, '', true);
+    expect(groups.other.map((p) => p.id)).toEqual(['ecovacs_percent_low']);
+    expect(groups.hidden).toBe(0);
+  });
+
+  it('searches every group, the hidden one included', () => {
+    const groups = groupPresets(ALL, installed, 'running low', false);
+    expect(groups.mine.map((p) => p.id)).toEqual(['brother_percent_low']);
+    expect(groups.general).toEqual([]);
+    expect(groups.other.map((p) => p.id)).toEqual(['ecovacs_percent_low']);
+    expect(groups.hidden).toBe(0);
+  });
+
+  it('treats a preset from an older backend with no group as general', () => {
+    const legacy = { ...FIRMWARE, group: undefined };
+    expect(groupPresets([legacy], installed, '', false).general).toEqual([legacy]);
+  });
+
+  it('gives empty groups for no presets', () => {
+    expect(groupPresets([], installed, '', false)).toEqual({
+      mine: [],
+      general: [],
+      other: [],
+      hidden: 0,
+    });
+  });
+});

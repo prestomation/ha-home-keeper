@@ -16,5 +16,17 @@
   "declarative_preset.firmware_update_available.description": "Monitoruje każdą encję aktualizacji (UniFi, ESPHome, HACS, kamery, drukarki itp.) i otwiera zadanie zainstalowania nowej wersji.",
   "declarative_preset.device_stopped_reporting.name": "Urządzenie zamilkło",
   "declarative_preset.device_stopped_reporting.description": "Obserwuje wszystkie czujniki ostatniej aktywności i otwiera zadanie dla każdego urządzenia, które nie zgłasza się od 24 godzin. Użyj go, aby znaleźć urządzenia Zigbee lub Z-Wave, które wypadły z sieci.",
+  "declarative_preset.shape.percent_low.name": "{integration}: kończące się części i materiały",
+  "declarative_preset.shape.percent_low.description": "Otwiera zadanie, gdy część lub materiał eksploatacyjny urządzenia {integration} się kończy. Zadanie zamyka się, gdy poziom znów wzrośnie.",
+  "declarative_preset.shape.life_low.name": "{integration}: części pod koniec żywotności",
+  "declarative_preset.shape.life_low.description": "Otwiera zadanie, gdy części urządzenia {integration} zostało mało żywotności. Zadanie zamyka się, gdy zresetujesz część w urządzeniu.",
+  "declarative_preset.shape.wear_high.name": "{integration}: liczniki zużycia",
+  "declarative_preset.shape.wear_high.description": "Otwiera zadanie, gdy licznik zużycia urządzenia {integration} przekroczy limit serwisowy. Zadanie zamyka się, gdy wyzerujesz licznik w urządzeniu.",
+  "declarative_preset.shape.reading_low.name": "{integration}: za niskie odczyty",
+  "declarative_preset.shape.reading_low.description": "Otwiera zadanie, gdy odczyt urządzenia {integration} spadnie poniżej poziomu serwisowego. Zadanie zamyka się, gdy odczyt znów wzrośnie.",
+  "declarative_preset.shape.reading_high.name": "{integration}: za wysokie odczyty",
+  "declarative_preset.shape.reading_high.description": "Otwiera zadanie, gdy odczyt urządzenia {integration} wzrośnie powyżej poziomu serwisowego. Zadanie zamyka się, gdy odczyt znów spadnie.",
+  "declarative_preset.shape.alert.name": "{integration}: alerty serwisowe",
+  "declarative_preset.shape.alert.description": "Otwiera zadanie, gdy urządzenie {integration} zgłasza, że wymaga serwisu. Zadanie zamyka się, gdy urządzenie skasuje alert.",
   "declarative_task.completion_prompt": "Otwarte przez deklaratywnego towarzysza „{name}”. Home Keeper automatycznie kończy to zadanie, gdy warunek ustąpi, dlatego zadania nie można ukończyć ręcznie."
 }

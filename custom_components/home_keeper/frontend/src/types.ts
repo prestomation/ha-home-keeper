@@ -707,6 +707,9 @@ export interface DeclarativeCompanionPreset {
   description: string;
   icon: string;
   requires_integration: string | null;
+  // `general` for the presets that work across integrations, `integration` for the
+  // presets made for one integration's devices. Older backends send neither.
+  group?: 'general' | 'integration';
   default_spec: Omit<DeclarativeCompanion, 'id' | 'created' | 'updated'>;
 }
 

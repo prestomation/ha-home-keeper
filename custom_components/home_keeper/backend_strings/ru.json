@@ -16,5 +16,17 @@
   "declarative_preset.firmware_update_available.description": "Наблюдает за каждой сущностью обновления (UniFi, ESPHome, HACS, камеры, принтеры и т. д.) и открывает задачу для установки новой версии.",
   "declarative_preset.device_stopped_reporting.name": "Устройство замолчало",
   "declarative_preset.device_stopped_reporting.description": "Следит за всеми датчиками последней активности и создаёт задачу для каждого устройства, которое не выходило на связь 24 часа. Так можно найти устройства Zigbee или Z-Wave, выпавшие из сети.",
+  "declarative_preset.shape.percent_low.name": "{integration}: заканчиваются детали и расходники",
+  "declarative_preset.shape.percent_low.description": "Открывает задачу, когда деталь или расходник устройства {integration} заканчивается. Задача закрывается, когда уровень снова растёт.",
+  "declarative_preset.shape.life_low.name": "{integration}: детали в конце срока службы",
+  "declarative_preset.shape.life_low.description": "Открывает задачу, когда у детали устройства {integration} остаётся мало ресурса. Задача закрывается, когда вы сбрасываете деталь на устройстве.",
+  "declarative_preset.shape.wear_high.name": "{integration}: счётчики износа",
+  "declarative_preset.shape.wear_high.description": "Открывает задачу, когда счётчик износа устройства {integration} превышает сервисный предел. Задача закрывается, когда вы сбрасываете счётчик на устройстве.",
+  "declarative_preset.shape.reading_low.name": "{integration}: слишком низкие показания",
+  "declarative_preset.shape.reading_low.description": "Открывает задачу, когда показание устройства {integration} опускается ниже сервисного уровня. Задача закрывается, когда показание снова растёт.",
+  "declarative_preset.shape.reading_high.name": "{integration}: слишком высокие показания",
+  "declarative_preset.shape.reading_high.description": "Открывает задачу, когда показание устройства {integration} поднимается выше сервисного уровня. Задача закрывается, когда показание снова падает.",
+  "declarative_preset.shape.alert.name": "{integration}: сервисные оповещения",
+  "declarative_preset.shape.alert.description": "Открывает задачу, когда устройство {integration} сообщает, что нуждается в обслуживании. Задача закрывается, когда устройство снимает оповещение.",
   "declarative_task.completion_prompt": "Открыта декларативным компаньоном «{name}». Home Keeper автоматически завершает эту задачу, когда условие исчезает, поэтому её нельзя завершить вручную."
 }

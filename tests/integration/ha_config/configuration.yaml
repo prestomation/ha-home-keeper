@@ -69,6 +69,21 @@ template:
         unit_of_measurement: "h"
         state_class: total_increasing
         state: "{{ 780 }}"
+  # Two parts that report the life they have left, in two different time units, so the
+  # integration presets' time template can be rendered in a real Home Assistant (see
+  # tests/integration/test_declarative_presets.py). 600 minutes is 10 hours, under the
+  # 24-hour limit; 3 days is 72 hours, over it. Constant, so the verdicts are known.
+  - sensor:
+      - name: "HK demo filter time left"
+        unique_id: hk_demo_filter_time_left
+        unit_of_measurement: "min"
+        device_class: duration
+        state: "{{ 600 }}"
+      - name: "HK demo brush time left"
+        unique_id: hk_demo_brush_time_left
+        unit_of_measurement: "d"
+        device_class: duration
+        state: "{{ 3 }}"
   # An update that is always available, so the bundled **Firmware update available**
   # declarative companion has one entity to match. The preset picker's preview and
   # the declarative-companions e2e spec both read "1 match" off it. This is the only

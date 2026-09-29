@@ -50,10 +50,27 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
   // `ha-dialog` portals its surface, so the host itself never reports visible —
   // wait on a node inside it, the way the specs do.
   await expect(picker.locator('.hk-decl-preset-card').first()).toBeVisible({ timeout: 20_000 });
-  await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(3);
-  await expect(picker.locator('.hk-decl-preset-card.hk-decl-preset-disabled')).toHaveCount(1);
+  const generalCards = picker.locator(
+    '.hk-decl-preset-list[data-group="general"] .hk-decl-preset-card',
+  );
+  await expect(generalCards).toHaveCount(3);
+  await expect(generalCards.and(picker.locator('.hk-decl-preset-disabled'))).toHaveCount(1);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/21c-panel-declarative-preset-picker.png` });
+
+  // 21v. A search reaches the integration presets. None is for an integration this
+  // container has, so each card is greyed out and names the integration it needs, and
+  // lists the tasks it makes.
+  await picker.locator('#hk-decl-preset-q').fill('filter');
+  await expect(picker.locator('.hk-decl-preset-list[data-group="other"]')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/21v-panel-declarative-preset-search.png` });
+  await page.setViewportSize(PHONE);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/21v-panel-mobile-declarative-preset-search.png` });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await picker.locator('#hk-decl-preset-q').fill('');
 
   // 21d. The add dialog, seeded from Firmware update available (the one preset that
   // needs no upstream integration).
