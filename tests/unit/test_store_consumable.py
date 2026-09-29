@@ -257,6 +257,27 @@ def test_a_link_quantity_must_be_usable(store):
         _run(store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=0))
 
 
+def test_a_buy_reminder_takes_no_consumable_link(store):
+    # A buy reminder restocks its part. A ``part`` source wins on completion, so a
+    # link would turn the restock into a draw-down.
+    asset = _asset(store)
+    part = asset["parts"][0]
+    task = _task(store, name="Buy AAA")
+    task["source"] = {"buy": {"asset_id": asset["id"], "part_id": part["id"]}}
+    fired = len(store._hass.bus.fired)
+
+    with raises_exactly(
+        TaskValidationError,
+        "A buy reminder restocks its part, so it cannot be linked to a consumable.",
+    ):
+        _run(store.set_task_consumable(task["id"], asset["id"], part["id"]))
+
+    assert task["source"] == {"buy": {"asset_id": asset["id"], "part_id": part["id"]}}
+    assert len(store._hass.bus.fired) == fired
+    # Clearing stays a no-op on a buy reminder, not an error.
+    assert _run(store.set_task_consumable(task["id"], None, None)) is task
+
+
 def test_completing_a_linked_task_takes_the_links_quantity(store):
     asset = _asset(store)
     part = asset["parts"][0]

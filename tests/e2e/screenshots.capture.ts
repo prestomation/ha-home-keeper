@@ -9,7 +9,7 @@
  * are `ha-select` built on `ha-dropdown` (open, then click the role="menuitem").
  */
 import { test, expect, Locator, Page } from '@playwright/test';
-import { openPanel, openDashboard, openPart, openTaskTab } from './tests/helpers';
+import { gotoTab, openPanel, openDashboard, openPart, openTaskTab } from './tests/helpers';
 import {
   centre,
   expandGroup,
@@ -20,6 +20,42 @@ import {
 } from './shots';
 import { ASSET, PART, TASK } from './fixture-ids';
 import { DESKTOP, PHONE } from './viewports';
+
+/** The name of the throwaway appliance the orphaned-owner shots create. */
+const ORPHANED_APPLIANCE = 'Old battery pool';
+
+/**
+ * Run `body` with an appliance owned by an integration that is no longer loaded,
+ * and delete it afterwards so no later shot sees it. The seed's
+ * `uninstalled_entry_demo` entry id is the one the orphaned Rex task names.
+ */
+async function withOrphanedAppliance(page: Page, body: () => Promise<void>): Promise<void> {
+  await page.evaluate(async (name) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hass = (document.querySelector('home-assistant') as any)?.hass;
+    await hass.callService('home_keeper', 'add_asset', {
+      name,
+      kind: 'virtual',
+      managed_by: {
+        integration: 'home_keeper_battery_notes',
+        display_name: 'Battery Notes',
+        config_entry_id: 'uninstalled_entry_demo',
+        deletion_protected: true,
+        locked_fields: ['name', 'parts'],
+      },
+      parts: [{ name: 'AA', type: 'consumable', stock: 6 }],
+    });
+  }, ORPHANED_APPLIANCE);
+  try {
+    await body();
+  } finally {
+    await page.evaluate(async (name) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      await hass.callService('home_keeper', 'delete_asset', { asset_id: name, force: true });
+    }, ORPHANED_APPLIANCE);
+  }
+}
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
@@ -1023,6 +1059,21 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // Reset to Active so the remaining appliance shots see the normal list.
   await panel.locator('.hk-seg[data-seg="assetFilter"] button', { hasText: 'Active' }).click();
 
+  // 8f. An appliance whose owning integration is gone. Deletion protection lifts
+  //     once the owner is uninstalled, so Delete comes back beside Archive. Edit stays
+  //     hidden, because the owner's name and part list are still locked.
+  await withOrphanedAppliance(page, async () => {
+    await openPanel(page);
+    await panel.locator('#tab-appliances').click();
+    await panel.locator('.detail-open', { hasText: ORPHANED_APPLIANCE }).click({ timeout: 15_000 });
+    await expect(panel.locator('ha-assist-chip.hk-orphaned').first()).toBeVisible();
+    await expect(panel.locator('.d-del')).toBeVisible();
+    await expect(panel.locator('.d-edit')).toHaveCount(0);
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT}/8f-panel-orphaned-appliance.png`, fullPage: true });
+    await panel.locator('#back-btn').click();
+  });
+
   // 70. A wear item's NFC/RFID binding. A task derived from a wear part has no Edit
   //     of its own — its part is its editor — so the tag picker and the require-scan
   //     switch sit at the foot of the part, above the What this creates box, which
@@ -1891,6 +1942,20 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-bottombar')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
+
+  // 8f (phone). The orphaned appliance's actions on a phone, where the action row
+  // wraps under the head.
+  await withOrphanedAppliance(page, async () => {
+    await openPanel(page);
+    await gotoTab(panel, 'appliances');
+    await panel.locator('.detail-open', { hasText: ORPHANED_APPLIANCE }).click({ timeout: 15_000 });
+    await expect(panel.locator('.d-del')).toBeVisible();
+    await expect(panel.locator('.d-edit')).toHaveCount(0);
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${OUT}/8f-panel-mobile-orphaned-appliance.png` });
+    await panel.locator('#back-btn').click();
+  });
+  await openPanel(page);
 
   // 57c. The text filter on a phone. Below 700px the search chip takes a row of its
   // own under the wrapped scope pills, and its field grows to the width instead of

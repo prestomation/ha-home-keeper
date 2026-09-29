@@ -1302,3 +1302,48 @@ def test_a_template_rendering_a_true_or_false_word_still_decides(ha):
     finally:
         _delete(ha, task_id)
         _set_meter(ha, 0)
+
+
+def test_a_template_with_a_syntax_error_is_refused_when_saved(ha):
+    """A template that cannot compile can never make its task due.
+
+    Home Keeper used to save it and log a warning on each state change. Now
+    ``add_task`` and ``update_task`` refuse it, and the stored template stays as it
+    was.
+    """
+    names = {t["name"] for t in _list_tasks(ha)}
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/add_task",
+        json={
+            "name": "Broken template task",
+            "recurrence_type": "sensor",
+            "sensor": {
+                "entity_id": TANK,
+                "mode": "template",
+                "template": "{{ state ===",
+            },
+        },
+    )
+    assert r.status_code >= 400, r.text
+    assert "Broken template task" not in names | {t["name"] for t in _list_tasks(ha)}
+
+    good = "{{ state == 'on' }}"
+    task_id = _add_sensor_task(
+        ha, {"entity_id": TANK, "mode": "template", "template": good}
+    )
+    try:
+        r = ha.post(
+            f"{HA_URL}/api/services/home_keeper/update_task",
+            json={
+                "task_id": task_id,
+                "sensor": {
+                    "entity_id": TANK,
+                    "mode": "template",
+                    "template": "{% if %}",
+                },
+            },
+        )
+        assert r.status_code >= 400, r.text
+        assert _require_task(ha, task_id)["sensor"]["template"] == good
+    finally:
+        _delete(ha, task_id)

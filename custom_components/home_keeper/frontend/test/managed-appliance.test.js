@@ -172,6 +172,19 @@ describe('the head of an appliance an integration owns', () => {
     );
   });
 
+  it('brings Delete back once its integration is gone, and still withholds Edit', async () => {
+    const panel = await mountAt(
+      '/appliances/a-bat',
+      makeHass({ assets: [batteries()], entryState: 'not_loaded' }),
+    );
+    const root = panel.shadowRoot;
+    // The backend lets the user delete an orphaned appliance, so the page must too.
+    // Edit stays hidden: the backend still drops a change to a locked field.
+    const del = await waitFor(() => root.querySelector('.d-del'), 5000);
+    expect(del, 'an orphaned appliance should offer Delete').toBeTruthy();
+    expect(root.querySelector('.d-edit')).toBeNull();
+  });
+
   it('keeps Edit and Delete when the owner writes no name', async () => {
     // `locked_fields` is a partial contract: an owner that only keeps the part list
     // in step leaves the appliance's own identity to the user.
