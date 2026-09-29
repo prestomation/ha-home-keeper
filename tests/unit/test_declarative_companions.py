@@ -2145,3 +2145,35 @@ def test_summarize_keys_narrows_to_a_domain_and_handles_no_name():
     assert only_binary["keys"][0]["example_name"] == ""
     assert only_binary["without_key"] == 0
     assert dc.summarize_keys(snapshot, "nothing") == {"keys": [], "without_key": 0}
+
+
+_SHIPPED_IDS = __import__("pathlib").Path(__file__).with_name("shipped_preset_ids.txt")
+
+
+def test_shipped_preset_ids_never_change():
+    # A saved companion keeps its preset_id, and the panel and the task text use it
+    # to find the preset. A renamed or removed id breaks every companion that has it.
+    shipped = {
+        line.strip()
+        for line in _SHIPPED_IDS.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+    current = {p["id"] for p in presets.CATALOG_PRESETS}
+    assert shipped - current == set(), "a shipped preset id changed or went away"
+    assert current - shipped == set(), "add the new preset id to shipped_preset_ids.txt"
+
+
+def test_every_catalog_duty_has_a_known_shape_and_a_numeric_limit():
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    for entry in catalog:
+        for duty in entry["duties"]:
+            where = (entry["domain"], duty["duty"])
+            assert duty["shape"] in presets.SHAPES, where
+            if duty["shape"] == "alert":
+                assert duty.get("limit") is None, where
+                assert isinstance(duty.get("state"), str) and duty["state"], where
+            else:
+                limit = duty["limit"]
+                assert isinstance(limit, int | float), where
+                assert not isinstance(limit, bool), where
+                assert limit > 0, where
