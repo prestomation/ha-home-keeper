@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Settings | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-394/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-394/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-394/docs/guide/settings"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Settings | Home Keeper"><meta data-rh="true" name="description" content="The Settings tab in the panel edits the integration options. The form matches the"><meta data-rh="true" property="og:description" content="The Settings tab in the panel edits the integration options. The form matches the"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-394/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-394/docs/guide/settings"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-394/docs/guide/settings" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-394/docs/guide/settings" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Settings","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-394/docs/guide/settings"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-394/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-394/assets/js/runtime~main.50a45eef.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-394/assets/js/runtime~main.0e65d26f.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-394/assets/js/main.61eb0a4f.js" defer="defer"></script>
 </head>
 <body>
@@ -125,9 +125,9 @@ their own.</p>
 <p><img decoding="async" loading="lazy" alt="The same row on a phone, with Edit and Delete on a line under the name" src="/ha-home-keeper/pr-preview/pr-394/assets/images/21i-panel-mobile-declarative-row-18b3c3f70ac7f2e76127ba14322fa084.png" width="390" height="844" class="img_ev3q"></p>
 <h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="entity-keys-and-task-names">Entity keys and task names<a href="#entity-keys-and-task-names" class="hash-link" aria-label="Direct link to Entity keys and task names" title="Direct link to Entity keys and task names" translate="no">​</a></h5>
 <p>The <strong>Entity keys</strong> block under <strong>More filters</strong> matches the key that an integration
-gives each of its entities in its own code. The filter sensor of a Roborock has the
-key <code>filter_time_left</code>. The key does not change when you rename the entity or
-change the Home Assistant language. An entity id regex breaks in both cases. Click
+gives each of its entities in its own code, such as <code>filter_time_left</code> for the filter
+sensor of a Roborock. A rename of the entity or a change of the Home Assistant
+language leaves the key as it is. An entity id regex breaks in both cases. Click
 <strong>Add key</strong> to add a key. Home Keeper then makes a task only for an entity with one of
 the keys.</p>
 <p>Each key can also have a task name, such as <em>Replace filter</em>. The task name template
