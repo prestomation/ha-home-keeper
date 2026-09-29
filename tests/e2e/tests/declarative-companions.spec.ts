@@ -502,6 +502,64 @@ test.describe('Home Keeper panel — declarative companions', () => {
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
+  test('the key list offers the keys of an integration, and a picked key names its task', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    // The Battery Notes stub's sensor carries translation_key "battery_level". The
+    // companion names no domain and no regex: the key is the whole selection.
+    const created = await callService(
+      'home_keeper',
+      'add_declarative_companion',
+      {
+        name: 'E2E key probe',
+        selection: { target_integration: 'home_keeper_battery_notes' },
+        trigger: { mode: 'threshold', comparison: '<=', value: 20, clear_on_recover: true },
+        task_template: { name_template: '{{ task_name }}: {{ device_name }}' },
+      },
+      true,
+    );
+    const specId = created.companion.id as string;
+    try {
+      const panel = await openDeclarativeSection(page);
+      await panel.locator(`.hk-decl-row[data-spec-id="${specId}"] .hk-decl-edit`).click();
+      const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+      await expectDialogOpen(dialog, '[data-decl-section="identity"]');
+      await dialog.locator('.hk-decl-more').click();
+      // The key list shows the key the stub's sensor has, read from the live entity
+      // registry, so the user never has to look it up.
+      const option = dialog.locator('.hk-decl-keyopt[data-key="battery_level"]');
+      await expect(option).toBeVisible({ timeout: 20_000 });
+      await expect(option.locator('.hk-decl-keyopt-count')).toHaveText('1 entity');
+      await option.click();
+      await expect(option).toHaveAttribute('aria-pressed', 'true');
+      await expect(dialog.locator('.hk-decl-key').first()).toHaveValue('battery_level');
+      await dialog.locator('.hk-decl-key-name').first().fill('Replace the battery');
+      await expect(dialog.locator('.hk-decl-more-summary')).toHaveText('1 filter');
+      // The preview renders the name from the key's task name.
+      await expect(dialog.locator('.hk-decl-preview')).toContainText('Replace the battery:', {
+        timeout: 20_000,
+      });
+      // Each preview row shows the key its entity has.
+      await expect(dialog.locator('.hk-decl-preview-key').first()).toHaveText('battery_level');
+      await dialog.locator('.hk-decl-save').click();
+      await expect(dialog).toHaveCount(0, { timeout: 20_000 });
+      const stored = (await listSpecs()).find((s) => s.id === specId);
+      expect(stored?.selection.translation_keys).toEqual(['battery_level']);
+      expect(stored?.task_template.task_names).toEqual({ battery_level: 'Replace the battery' });
+      await expect
+        .poll(
+          async () =>
+            (await listTasks())
+              .filter((t) => t.source?.declarative_companion?.spec_id === specId)
+              .map((t) => t.name as string),
+          { timeout: 30_000 },
+        )
+        .toEqual([expect.stringMatching(/^Replace the battery: /)]);
+      expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
+    } finally {
+      await callService('home_keeper', 'delete_declarative_companion', { id: specId });
+    }
+  });
+
   test('Exclude on a preview row leaves that entity out of the companion (#373)', async ({ page }) => {
     const errors = trackPanelErrors(page);
     const created = await callService(
@@ -550,7 +608,13 @@ test.describe('Home Keeper panel — declarative companions', () => {
     // The four exclusion pickers are under More filters, below the other filters.
     const exclusions = dialog.locator('[data-decl-section="exclusions"]');
     await expect(exclusions).toBeVisible();
-    await expect(dialog.locator('.hk-decl-more-body .hk-indent-head')).toContainText('Exclusions');
+    // This companion has no target integration, so there is no key list to show.
+    await expect(dialog.locator('.hk-decl-keylist')).toBeHidden();
+    // Two indented groups sit under More filters: the entity keys, then the exclusions.
+    const heads = dialog.locator('.hk-decl-more-body .hk-indent-head');
+    await expect(heads).toHaveCount(2);
+    await expect(heads.first()).toContainText('Entity keys');
+    await expect(heads.last()).toContainText('Exclusions');
 
     await dialog.locator('.hk-decl-save').click();
     await expect(dialog).toHaveCount(0, { timeout: 20_000 });

@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.27.0"
+PANEL_VERSION = "0.28.0b1"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -643,6 +643,13 @@ MAX_DECLARATIVE_SPEC_DESCRIPTION_LEN = 500
 MAX_DECLARATIVE_ENTITY_REGEX_LEN = 200
 MAX_DECLARATIVE_NAME_TEMPLATE_LEN = 200
 MAX_DECLARATIVE_NOTES_TEMPLATE_LEN = 2000
+# Bounds on the ``translation_keys`` filter and the ``task_names`` table keyed by it.
+# An integration names a few dozen entity keys at most; 100 leaves room and still
+# stops a runaway list. One key is an integration's own identifier, so 100 characters
+# is ample. A task name is plain text, bounded like the spec name.
+MAX_DECLARATIVE_TRANSLATION_KEYS = 100
+MAX_DECLARATIVE_TRANSLATION_KEY_LEN = 100
+MAX_DECLARATIVE_TASK_NAME_LEN = 100
 # Cap the number of tasks a single declarative spec can materialize. A poorly
 # narrowed regex (``.*``) against a big HA config would otherwise fan out to
 # hundreds of tasks silently. The preview warns at WARN and hard-fails at HARD so

@@ -28,13 +28,18 @@
 
 import * as api from './api';
 import {
+  applyKeyRows,
   EXCLUSION_FIELDS,
   exclusionsSchema,
   hasMoreFilters,
   idList,
+  keyOptions,
+  keyRows,
   moreFiltersSchema,
   moreFiltersSummary,
   toggleId,
+  toggleKeyRow,
+  type KeyRow,
 } from './declarative-filters';
 import {
   pickFormData,
@@ -55,6 +60,7 @@ import type {
   DeclarativeCompanionPreset,
   DeclarativeCompanionPreviewMatch,
   DeclarativeCompanionPreviewResult,
+  EntityKeyList,
   Task,
 } from './types';
 import { btnAttrs, escapeHTML, setBtnWeight, toast } from './utils';
@@ -593,10 +599,17 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     ],
     { integration: sel.target_integration, domain: sel.domain },
     (v) => {
+      const before = `${sel.target_integration}|${sel.domain}`;
       sel.target_integration = str(v.integration);
       sel.domain = str(v.domain);
+      // Load the key list again only when the query changes. The form can report a
+      // change with the same values, and each load reads the entity registry.
+      if (`${sel.target_integration}|${sel.domain}` !== before) refreshKeys();
     },
   );
+  // Assigned once the key editor below exists; the integration box above can change
+  // before that, so it starts as a no-op.
+  let refreshKeys = (): void => {};
 
   // 2b. More filters: the rarer filters and the exclusions, behind one row whose
   //     summary says what is set, so a closed row never hides a filter unseen. It
@@ -636,6 +649,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   // earlier ones.
   const filtersData = (): Record<string, unknown> => ({
     device_class: sel.device_class,
+    device_ids: sel.device_ids ?? [],
     area_ids: sel.area_ids ?? [],
     label_ids: sel.label_ids ?? [],
     entity_regex: sel.entity_regex,
@@ -646,6 +660,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     filtersData(),
     (v) => {
       sel.device_class = str(v.device_class);
+      sel.device_ids = idList(v.device_ids);
       sel.area_ids = idList(v.area_ids);
       sel.label_ids = idList(v.label_ids);
       sel.entity_regex = str(v.entity_regex);
@@ -654,6 +669,38 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     },
     moreBody,
     false,
+  );
+
+  // The entity keys, each with the task name its tasks read as `{{ task_name }}`.
+  // Native inputs rather than an `ha-form`: a list of key and name pairs has no
+  // selector. The rows live here, so a row still being filled in (no key yet) stays
+  // on screen while the draft only ever holds complete keys.
+  const keysHost = document.createElement('div');
+  keysHost.className = 'hk-decl-keys';
+  moreBody.appendChild(
+    indentGroup(
+      t('declarative.companions.section_keys'),
+      t('declarative.companions.keys_note'),
+      keysHost,
+    ),
+  );
+  refreshKeys = renderKeyEditor(
+    keysHost,
+    keyRows(sel.translation_keys, draft.task_template.task_names),
+    (rows) => {
+      const applied = applyKeyRows(rows);
+      sel.translation_keys = applied.translation_keys;
+      draft.task_template.task_names = applied.task_names;
+      updateSummary();
+      schedulePreview();
+    },
+    {
+      integration: () => sel.target_integration,
+      load: async () =>
+        p._hass && sel.target_integration
+          ? api.listEntityKeys(p._hass, sel.target_integration, sel.domain)
+          : null,
+    },
   );
 
   // The exclusions, indented under the same head Problem sensor sync uses.
@@ -837,6 +884,204 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   schedulePreview();
 }
 
+/** Where the key editor gets the key list of the target integration. */
+interface KeySource {
+  integration: () => string | undefined;
+  load: () => Promise<EntityKeyList | null>;
+}
+
+/**
+ * The entity-key editor: one row per key, with its task name and a remove button,
+ * and an Add key button under them. Under those, the key list: every key the target
+ * integration's entities have, to add with a click, because Home Assistant shows a
+ * `translation_key` on no screen. *onChange* gets every row on each edit.
+ *
+ * Returns the function that loads the key list again, which the dialog calls when
+ * the integration or the domain changes.
+ */
+function renderKeyEditor(
+  host: HTMLElement,
+  initial: KeyRow[],
+  onChange: (rows: KeyRow[]) => void,
+  source: KeySource,
+): () => void {
+  let rows = initial.map((r) => ({ ...r }));
+  const editor = document.createElement('div');
+  editor.className = 'hk-decl-keys-rows';
+  const list = document.createElement('div');
+  list.className = 'hk-decl-keylist';
+  host.append(editor, list);
+
+  let keys: EntityKeyList | null = null;
+  let query = '';
+  let loading = 0;
+
+  const draw = (focusLast = false): void => {
+    editor.innerHTML = '';
+    if (rows.length) {
+      const head = document.createElement('div');
+      head.className = 'hk-decl-key-row hk-decl-key-head';
+      head.innerHTML =
+        `<span>${escapeHTML(t('declarative.companions.key_header'))}</span>` +
+        `<span>${escapeHTML(t('declarative.companions.task_name_header'))}</span>`;
+      editor.appendChild(head);
+    }
+    rows.forEach((row, i) => {
+      const line = document.createElement('div');
+      line.className = 'hk-decl-key-row';
+      const key = document.createElement('input');
+      key.className = 'hk-decl-key-input hk-decl-key';
+      key.value = row.key;
+      key.placeholder = t('declarative.companions.key_header');
+      key.spellcheck = false;
+      key.autocomplete = 'off';
+      key.setAttribute('aria-label', t('declarative.companions.key_header'));
+      key.addEventListener('input', () => {
+        row.key = key.value;
+        onChange(rows);
+      });
+      // A typed key can match one in the list, so the list marks it on leaving.
+      key.addEventListener('change', () => drawList());
+      const name = document.createElement('input');
+      name.className = 'hk-decl-key-input hk-decl-key-name';
+      name.value = row.name;
+      name.placeholder = t('declarative.companions.task_name_placeholder');
+      name.setAttribute('aria-label', t('declarative.companions.task_name_header'));
+      name.addEventListener('input', () => {
+        row.name = name.value;
+        onChange(rows);
+      });
+      const remove = document.createElement('ha-icon-button');
+      remove.className = 'hk-decl-key-remove';
+      remove.setAttribute('label', t('declarative.companions.remove_key'));
+      remove.innerHTML = '<ha-icon icon="mdi:close"></ha-icon>';
+      remove.addEventListener('click', () => {
+        rows.splice(i, 1);
+        onChange(rows);
+        draw();
+        drawList();
+      });
+      line.append(key, name, remove);
+      editor.appendChild(line);
+      if (focusLast && i === rows.length - 1) queueMicrotask(() => key.focus());
+    });
+    const add = document.createElement('ha-button');
+    add.className = 'hk-decl-key-add';
+    setBtnWeight(add, 'tertiary');
+    add.textContent = t('declarative.companions.add_key');
+    add.addEventListener('click', () => {
+      rows.push({ key: '', name: '' });
+      draw(true);
+    });
+    editor.appendChild(add);
+  };
+
+  // The list's search box is kept across a redraw of the rows under it, so typing
+  // in it never loses focus.
+  const search = document.createElement('input');
+  search.type = 'search';
+  search.className = 'hk-decl-keylist-q';
+  search.autocomplete = 'off';
+  search.placeholder = t('declarative.companions.keys_search');
+  search.setAttribute('aria-label', t('declarative.companions.keys_search'));
+  search.addEventListener('input', () => {
+    query = search.value;
+    drawOptions();
+  });
+  const head = document.createElement('div');
+  head.className = 'hk-decl-keylist-head';
+  const options = document.createElement('div');
+  options.className = 'hk-decl-keylist-options';
+
+  const drawOptions = (): void => {
+    options.innerHTML = '';
+    if (!keys) return;
+    const picked = rows.map((r) => r.key.trim());
+    const found = keyOptions(keys.keys, picked, query);
+    for (const opt of found) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'hk-decl-keyopt';
+      b.dataset.key = opt.key;
+      b.setAttribute('aria-pressed', String(opt.picked));
+      b.innerHTML = `
+          <ha-icon icon="${opt.picked ? 'mdi:check-circle' : 'mdi:plus-circle-outline'}"></ha-icon>
+          <span class="hk-decl-keyopt-text">
+            <span class="hk-decl-keyopt-key">${escapeHTML(opt.key)}</span>
+            <span class="hk-decl-keyopt-ex">${escapeHTML(opt.example_name || opt.example_entity_id)}</span>
+          </span>
+          <span class="hk-decl-keyopt-count">${escapeHTML(
+            tn('declarative.companions.keys_entities', opt.count),
+          )}</span>`;
+      b.addEventListener('click', () => {
+        rows = toggleKeyRow(rows, opt.key);
+        onChange(rows);
+        draw();
+        drawOptions();
+      });
+      options.appendChild(b);
+    }
+    if (!found.length && keys.keys.length) {
+      const none = document.createElement('div');
+      none.className = 'hk-decl-keylist-note';
+      none.textContent = t('declarative.companions.keys_none');
+      options.appendChild(none);
+    }
+  };
+
+  const drawList = (): void => {
+    const integration = source.integration();
+    list.hidden = !integration;
+    if (!integration) return;
+    list.innerHTML = '';
+    head.innerHTML = `<span class="hk-decl-keylist-title">${escapeHTML(
+      t('declarative.companions.keys_list_title', { integration }),
+    )}</span>`;
+    if (keys && keys.without_key) {
+      head.innerHTML += `<span class="hk-decl-keylist-note">${escapeHTML(
+        t('declarative.companions.keys_without', { n: String(keys.without_key) }),
+      )}</span>`;
+    }
+    list.appendChild(head);
+    if (keys === null) {
+      const wait = document.createElement('div');
+      wait.className = 'hk-decl-keylist-note';
+      wait.textContent = t('declarative.companions.preview_loading');
+      list.appendChild(wait);
+      return;
+    }
+    if (!keys.keys.length) {
+      const empty = document.createElement('div');
+      empty.className = 'hk-decl-keylist-note';
+      empty.textContent = t('declarative.companions.keys_empty');
+      list.appendChild(empty);
+      return;
+    }
+    list.append(search, options);
+    drawOptions();
+  };
+
+  const refresh = (): void => {
+    const mine = ++loading;
+    keys = null;
+    drawList();
+    if (!source.integration()) return;
+    void source
+      .load()
+      .catch(() => null)
+      .then((found) => {
+        // A later refresh (the integration changed again) owns the list now.
+        if (mine !== loading) return;
+        keys = found ?? { keys: [], without_key: 0 };
+        drawList();
+      });
+  };
+
+  draw();
+  refresh();
+  return refresh;
+}
+
 // ── the live preview ────────────────────────────────────────────────────────
 
 async function refreshPreview(
@@ -958,6 +1203,11 @@ export function previewHtml(
           <div class="hk-decl-preview-text">
             <div class="hk-decl-preview-name">${escapeHTML(m.rendered_name)}</div>
             <div class="hk-decl-preview-eid">${escapeHTML(m.entity_id)}</div>
+            ${
+              m.translation_key
+                ? `<div class="hk-decl-preview-key">${escapeHTML(m.translation_key)}</div>`
+                : ''
+            }
           </div>
           ${verdicts ? verdictChip(m) : ''}
           ${toggleButton(m.entity_id, false)}

@@ -9,7 +9,13 @@
 
 import { selArea, selDevice, selEntity, selLabel, selText, type FormField } from './forms';
 import { t, tn } from './i18n';
-import type { DeclarativeCompanionSelection } from './types';
+import type { DeclarativeCompanionSelection, EntityKeySummary } from './types';
+
+/** One row of the entity-key editor: a key and the task name it gives its tasks. */
+export interface KeyRow {
+  key: string;
+  name: string;
+}
 
 /** The four exclusion lists, in the order the dialog shows their pickers. */
 export const EXCLUSION_FIELDS = [
@@ -24,6 +30,7 @@ export type ExclusionField = (typeof EXCLUSION_FIELDS)[number];
 export function moreFiltersSchema(): FormField[] {
   return [
     { name: 'device_class', selector: selText() },
+    { name: 'device_ids', selector: selDevice(true) },
     { name: 'area_ids', selector: selArea(true) },
     { name: 'label_ids', selector: selLabel(true) },
     { name: 'entity_regex', selector: selText() },
@@ -49,6 +56,8 @@ export function filterCount(sel: Partial<DeclarativeCompanionSelection>): number
   return [
     Boolean(sel.device_class),
     Boolean(sel.entity_regex),
+    (sel.translation_keys?.length ?? 0) > 0,
+    (sel.device_ids?.length ?? 0) > 0,
     (sel.area_ids?.length ?? 0) > 0,
     (sel.label_ids?.length ?? 0) > 0,
   ].filter(Boolean).length;
@@ -83,4 +92,63 @@ export function toggleId(list: readonly string[] | undefined, id: string): strin
 /** A form value read as a list of ids; anything that is not a list is empty. */
 export function idList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : [];
+}
+
+/**
+ * The key editor's rows, in the order of the selection's key list, each with its
+ * task name. A name with no key in the list is not shown: it can never apply.
+ */
+export function keyRows(
+  keys: readonly string[] | undefined,
+  names: Readonly<Record<string, string>> | undefined,
+): KeyRow[] {
+  return (keys ?? []).map((key) => ({ key, name: names?.[key] ?? '' }));
+}
+
+/**
+ * The key list and the name table that *rows* stand for. Keys and names are trimmed.
+ * A row with no key is a row still being filled in and gives nothing. A repeated key
+ * keeps its first row. A blank name is left out, which means "use the entity name".
+ */
+export function applyKeyRows(rows: readonly KeyRow[]): {
+  translation_keys: string[];
+  task_names: Record<string, string>;
+} {
+  const translation_keys: string[] = [];
+  const task_names: Record<string, string> = {};
+  for (const row of rows) {
+    const key = row.key.trim();
+    if (!key || translation_keys.includes(key)) continue;
+    translation_keys.push(key);
+    const name = row.name.trim();
+    if (name) task_names[key] = name;
+  }
+  return { translation_keys, task_names };
+}
+
+/** One row of the key list: a key the integration has, and whether it is added. */
+export interface KeyOption extends EntityKeySummary {
+  picked: boolean;
+}
+
+/**
+ * The key list's rows: the integration's keys that match *query* (in the key or the
+ * example name, any case), each marked when it is already in *picked*.
+ */
+export function keyOptions(
+  keys: readonly EntityKeySummary[],
+  picked: readonly string[],
+  query: string,
+): KeyOption[] {
+  const q = query.trim().toLowerCase();
+  return keys
+    .filter((k) => !q || `${k.key}\n${k.example_name}`.toLowerCase().includes(q))
+    .map((k) => ({ ...k, picked: picked.includes(k.key) }));
+}
+
+/** *rows* with *key* added at the end with no task name, or taken out if it is there. */
+export function toggleKeyRow(rows: readonly KeyRow[], key: string): KeyRow[] {
+  return rows.some((r) => r.key === key)
+    ? rows.filter((r) => r.key !== key)
+    : [...rows, { key, name: '' }];
 }

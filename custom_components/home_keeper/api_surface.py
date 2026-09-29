@@ -825,6 +825,9 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     # integrations that have a config entry. Neither reads caller-supplied input.
     WebsocketSpec("home_keeper/list_declarative_presets"),
     WebsocketSpec("home_keeper/installed_integrations"),
+    # The entity keys of one integration, for the dialog's key list. It names every
+    # entity of that integration, so it is admin-only like the preview.
+    WebsocketSpec("home_keeper/list_entity_keys", admin_only=True),
 )
 
 HTTP_VIEWS: tuple[HttpViewSpec, ...] = (

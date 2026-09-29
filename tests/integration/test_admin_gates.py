@@ -639,3 +639,16 @@ def test_panel_is_hidden_from_a_non_admin(ha, non_admin_token):
     assert "home-keeper" not in panels["result"], (
         "administration is admin-only — the panel must not be offered to a non-admin"
     )
+
+
+def test_the_key_list_refuses_a_non_admin(non_admin_token):
+    # It names every entity of an integration, and only the admin panel calls it.
+    msg = ws_send(
+        non_admin_token,
+        {
+            "type": "home_keeper/list_entity_keys",
+            "integration": "home_keeper_battery_notes",
+        },
+    )
+    assert not msg.get("success"), "a non-admin read the entity keys"
+    assert msg["error"]["code"] == "unauthorized", msg

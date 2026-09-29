@@ -31,6 +31,9 @@ class StubBatterySensor(SensorEntity):
 
     _attr_has_entity_name = True
     _attr_name = "Battery"
+    # The key a declarative companion's ``translation_keys`` filter matches. The name
+    # above still wins for display, so nothing else about the entity changes.
+    _attr_translation_key = "battery_level"
     _attr_unique_id = "e2e_battery_device_battery"
     _attr_device_class = SensorDeviceClass.BATTERY
     _attr_native_unit_of_measurement = PERCENTAGE

@@ -92,6 +92,10 @@ def _project_entry(
         "disabled": bool(entry.disabled),
         "name": entry.name,
         "original_name": entry.original_name,
+        # The key the integration gives the entity in its own code. A rename, the
+        # Home Assistant language and a change to how Home Assistant builds entity ids
+        # all leave it alone, so it is what ``selection.translation_keys`` matches.
+        "translation_key": entry.translation_key,
     }
 
 
@@ -230,6 +234,21 @@ class DeclarativeCompanionSync:
         """
         return template_context.template_variables(self._hass, entry)
 
+    def _task_variables(
+        self, task_template: dict[str, Any], entry: dict[str, Any]
+    ) -> dict[str, Any]:
+        """The render context for a companion's task name and notes.
+
+        The shared context plus ``task_name``, which only a task template can read:
+        it comes from the spec's ``task_names`` table, and the trigger template that
+        the sensor watcher renders has no spec in scope.
+        """
+        variables = self._template_variables(entry)
+        variables["task_name"] = declarative_companions.task_name_for(
+            task_template, entry, str(variables.get("friendly_name") or "")
+        )
+        return variables
+
     def _task_template(self, spec: dict[str, Any]) -> dict[str, Any]:
         """*spec*'s task template, with unchanged preset text in the HA language."""
         return declarative_presets.localized_task_template(
@@ -282,8 +301,8 @@ class DeclarativeCompanionSync:
         self, spec: dict[str, Any], match: dict[str, Any]
     ) -> tuple[str, str]:
         """Return ``(rendered_name, rendered_notes)`` for one match."""
-        variables = self._template_variables(match["entity"])
         template = self._task_template(spec)
+        variables = self._task_variables(template, match["entity"])
         name = self._render_one(template.get("name_template", ""), variables)
         notes = self._render_one(template.get("notes_template", ""), variables)
         return name, notes
@@ -380,7 +399,9 @@ class DeclarativeCompanionSync:
         entity_id = sensor_tasks.bound_entity_id(task)
         if not entity_id:
             return
-        variables = self._template_variables(self._entry_for_entity(entity_id))
+        variables = self._task_variables(
+            self._task_template(spec), self._entry_for_entity(entity_id)
+        )
         notes = self._render_one(template, variables)
         await store.async_set_declarative_notes(task_id, notes)
 
@@ -443,6 +464,12 @@ class DeclarativeCompanionSync:
             self._reload_scheduled = False
 
     # ── preview (used by the panel's live-preview UX) ────────────────────────
+    def entity_keys(self, integration: str, domain: str | None) -> dict[str, Any]:
+        """The WS ``list_entity_keys`` payload: the keys of *integration*'s entities."""
+        return declarative_companions.summarize_keys(
+            self._registry_snapshot(), integration, domain
+        )
+
     def preview(self, spec: dict[str, Any]) -> dict[str, Any]:
         """Return the WS ``preview_declarative_companion`` payload for *spec*.
 
@@ -489,8 +516,8 @@ class DeclarativeCompanionSync:
         # order, which is stable across boots for the same HA config).
         sample: list[dict[str, Any]] = []
         for (_spec_id_key, ent_reg_id), match in list(matches.items())[:10]:
-            variables = self._template_variables(match["entity"])
             template = self._task_template(spec)
+            variables = self._task_variables(template, match["entity"])
             rendered_name = self._render_one(
                 template.get("name_template", ""), variables
             )
@@ -509,6 +536,7 @@ class DeclarativeCompanionSync:
                 {
                     "entity_id": match["entity"]["entity_id"],
                     "entity_registry_id": ent_reg_id,
+                    "translation_key": match["entity"].get("translation_key"),
                     "rendered_name": rendered_name,
                     "rendered_notes": rendered_notes,
                     "device_name": variables["device_name"],

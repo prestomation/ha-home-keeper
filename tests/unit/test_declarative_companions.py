@@ -63,6 +63,7 @@ def _entity(entity_id, *, platform="device_pulse", domain="sensor", **over):
         "disabled": over.get("disabled", False),
         "name": over.get("name"),
         "original_name": over.get("original_name"),
+        "translation_key": over.get("translation_key"),
     }
     entry.update({k: v for k, v in over.items() if k in entry})
     return entry
@@ -289,6 +290,204 @@ def test_expand_matches_target_integration_and_regex():
     assert match["sensor"]["entity_id"] == "sensor.hub_total_failed_pings"
     # Sensor block carries the trigger template + stamped entity_id.
     assert match["sensor"]["mode"] == "threshold"
+
+
+# --- Selection by translation key -------------------------------------------
+
+
+def _keyed_spec(keys, **selection):
+    return _normalized_spec(
+        selection={
+            "target_integration": "roborock",
+            **selection,
+            "translation_keys": keys,
+        }
+    )
+
+
+def test_translation_keys_normalize_to_a_trimmed_deduped_list():
+    spec = _keyed_spec([" filter_time_left ", "filter_time_left", "", "side_brush"])
+    assert spec["selection"]["translation_keys"] == ["filter_time_left", "side_brush"]
+
+
+def test_translation_keys_accept_a_single_string():
+    spec = _keyed_spec("filter_time_left")
+    assert spec["selection"]["translation_keys"] == ["filter_time_left"]
+
+
+def test_empty_translation_keys_are_not_stored():
+    spec = _keyed_spec([])
+    assert "translation_keys" not in spec["selection"]
+
+
+def test_translation_keys_refuse_a_non_list():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "selection.translation_keys must be a list",
+    ):
+        _keyed_spec({"a": 1})
+
+
+def test_translation_keys_refuse_too_many_entries():
+    keys = [f"k{i}" for i in range(101)]
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "selection.translation_keys must have <= 100 entries",
+    ):
+        _keyed_spec(keys)
+    # 100 is the limit, not past it.
+    assert len(_keyed_spec(keys[:100])["selection"]["translation_keys"]) == 100
+
+
+def test_translation_keys_refuse_a_key_that_is_too_long():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "selection.translation_keys entries must be <= 100 characters",
+    ):
+        _keyed_spec(["k" * 101])
+    assert _keyed_spec(["k" * 100])["selection"]["translation_keys"] == ["k" * 100]
+
+
+def test_expand_matches_translation_key_whatever_the_entity_id():
+    spec = _keyed_spec(["filter_time_left", "side_brush_time_left"])
+    entities = _snapshot(
+        # A German install and a renamed entity: the ids say nothing about the key.
+        _entity(
+            "sensor.s7_filter_verbleibende_zeit",
+            platform="roborock",
+            translation_key="filter_time_left",
+        ),
+        _entity(
+            "sensor.kitchen_vacuum_brush",
+            platform="roborock",
+            translation_key="side_brush_time_left",
+        ),
+        _entity(
+            "sensor.s7_battery", platform="roborock", translation_key="battery"
+        ),  # other key
+        _entity("sensor.s7_status", platform="roborock"),  # no key at all
+        _entity(
+            "sensor.other_filter_time_left",
+            platform="ecovacs",
+            translation_key="filter_time_left",
+        ),  # other integration
+    )
+    matched = {
+        m["entity"]["entity_id"] for m in dc.expand_spec(spec, entities).values()
+    }
+    assert matched == {
+        "sensor.s7_filter_verbleibende_zeit",
+        "sensor.kitchen_vacuum_brush",
+    }
+
+
+def test_translation_keys_combine_with_the_regex():
+    spec = _keyed_spec(["filter_time_left"], entity_regex=r"sensor\.s7_.*")
+    entities = _snapshot(
+        _entity(
+            "sensor.s7_filter", platform="roborock", translation_key="filter_time_left"
+        ),
+        _entity(
+            "sensor.q5_filter", platform="roborock", translation_key="filter_time_left"
+        ),
+    )
+    matched = {
+        m["entity"]["entity_id"] for m in dc.expand_spec(spec, entities).values()
+    }
+    assert matched == {"sensor.s7_filter"}
+
+
+# --- Task names -------------------------------------------------------------
+
+
+def _named_spec(task_names):
+    return _normalized_spec(
+        task_template={
+            "name_template": "{{ task_name }}",
+            "notes_template": "",
+            "task_names": task_names,
+        }
+    )
+
+
+def test_task_names_are_trimmed_and_blank_names_dropped():
+    spec = _named_spec(
+        {" filter_time_left ": " Replace filter ", "side": "  ", " ": "x"}
+    )
+    assert spec["task_template"]["task_names"] == {"filter_time_left": "Replace filter"}
+
+
+def test_empty_task_names_are_not_stored():
+    assert "task_names" not in _named_spec({})["task_template"]
+    assert "task_names" not in _named_spec(None)["task_template"]
+
+
+def test_an_empty_string_for_task_names_stores_nothing():
+    assert "task_names" not in _named_spec("")["task_template"]
+
+
+def test_task_names_refuse_a_non_string_key():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names keys must be strings",
+    ):
+        _named_spec({1: "Replace filter"})
+
+
+def test_a_blank_key_is_skipped_and_the_keys_after_it_are_kept():
+    spec = _named_spec({"  ": "Orphan", "filter_time_left": "Replace filter"})
+    assert spec["task_template"]["task_names"] == {"filter_time_left": "Replace filter"}
+
+
+def test_task_names_refuse_a_non_mapping():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names must be a mapping",
+    ):
+        _named_spec(["Replace filter"])
+
+
+def test_task_names_refuse_a_non_string_name():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names value must be a string",
+    ):
+        _named_spec({"filter_time_left": 3})
+
+
+def test_task_names_refuse_a_name_that_is_too_long():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names value must be <= 100 characters",
+    ):
+        _named_spec({"filter_time_left": "x" * 101})
+    assert _named_spec({"k": "x" * 100})["task_template"]["task_names"] == {
+        "k": "x" * 100
+    }
+
+
+def test_task_names_refuse_too_many_entries():
+    names = {f"k{i}": "Name" for i in range(101)}
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names must have <= 100 entries",
+    ):
+        _named_spec(names)
+
+
+def test_task_name_for_reads_the_entry_key():
+    template = {"task_names": {"filter_time_left": "Replace filter"}}
+    entry = _entity("sensor.a", translation_key="filter_time_left")
+    assert dc.task_name_for(template, entry, "Filter time left") == "Replace filter"
+
+
+def test_task_name_for_falls_back_when_the_key_has_no_name():
+    template = {"task_names": {"filter_time_left": "Replace filter"}}
+    other = _entity("sensor.a", translation_key="side_brush_time_left")
+    keyless = _entity("sensor.b")
+    assert dc.task_name_for(template, other, "Side brush") == "Side brush"
+    assert dc.task_name_for(template, keyless, "Sensor B") == "Sensor B"
+    assert dc.task_name_for({}, other, "Side brush") == "Side brush"
 
 
 def test_expand_filters_by_device_class():
@@ -1634,3 +1833,140 @@ def test_the_label_diff_reaches_a_task_past_one_that_needs_no_change():
     assert [task["id"] for _kind, task in ops] == [second_tid]
     assert new_tasks[second_tid]["labels"] == ["urgent"]
     assert new_tasks[first_tid]["labels"] == ["urgent"]
+
+
+# --- Localized task names ---------------------------------------------------
+
+
+def test_unchanged_preset_task_names_follow_the_language(monkeypatch):
+    texts = {
+        "name_template": {"en": "{{ task_name }}", "de": "{{ task_name }}"},
+        "notes_template": {"en": "", "de": ""},
+        "task_names": {
+            "en": {"filter_time_left": "Replace filter"},
+            "de": {"filter_time_left": "Filter ersetzen"},
+        },
+    }
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", texts)
+    spec = {
+        "preset_id": "demo_keys",
+        "task_template": {
+            "name_template": "{{ task_name }}",
+            "notes_template": "",
+            "task_names": {"filter_time_left": "Replace filter"},
+        },
+    }
+    localized = presets.localized_task_template(spec, "de")
+    assert localized["task_names"] == {"filter_time_left": "Filter ersetzen"}
+    # An edited table is the user's and stays as written.
+    spec["task_template"]["task_names"] = {"filter_time_left": "Swap the filter"}
+    localized = presets.localized_task_template(spec, "de")
+    assert localized["task_names"] == {"filter_time_left": "Swap the filter"}
+
+
+def test_a_preset_without_task_names_leaves_the_table_alone():
+    spec = {
+        "preset_id": "firmware_update_available",
+        "task_template": {
+            "name_template": "Update {{ friendly_name }}",
+            "notes_template": "",
+            "task_names": {"k": "Mine"},
+        },
+    }
+    assert presets.localized_task_template(spec, "de")["task_names"] == {"k": "Mine"}
+
+
+# --- Only these devices -----------------------------------------------------
+
+
+def test_device_ids_keep_only_the_entities_of_those_devices():
+    spec = _normalized_spec(
+        selection={"target_integration": "roborock", "device_ids": ["dev_a", " dev_a "]}
+    )
+    assert spec["selection"]["device_ids"] == ["dev_a"]
+    entities = _snapshot(
+        _entity("sensor.a_filter", platform="roborock", device_id="dev_a"),
+        _entity("sensor.b_filter", platform="roborock", device_id="dev_b"),
+        _entity("sensor.no_device", platform="roborock"),
+    )
+    matched = {
+        m["entity"]["entity_id"] for m in dc.expand_spec(spec, entities).values()
+    }
+    assert matched == {"sensor.a_filter"}
+
+
+def test_no_device_ids_keeps_every_device():
+    spec = _normalized_spec(selection={"target_integration": "roborock"})
+    assert spec["selection"]["device_ids"] == []
+    entities = _snapshot(
+        _entity("sensor.a", platform="roborock", device_id="dev_a"),
+        _entity("sensor.b", platform="roborock"),
+    )
+    assert len(dc.expand_spec(spec, entities)) == 2
+
+
+# --- The key list -----------------------------------------------------------
+
+
+def test_summarize_keys_counts_each_key_and_names_one_example():
+    snapshot = _snapshot(
+        _entity(
+            "sensor.kitchen_filter",
+            platform="roborock",
+            translation_key="filter_time_left",
+            original_name="Kitchen vacuum Filter time left",
+        ),
+        _entity(
+            "sensor.upstairs_filter",
+            platform="roborock",
+            translation_key="filter_time_left",
+            original_name="Upstairs vacuum Filter time left",
+        ),
+        _entity(
+            "sensor.kitchen_brush",
+            platform="roborock",
+            translation_key="main_brush_time_left",
+            name="Brush left",
+            original_name="Kitchen vacuum Main brush time left",
+        ),
+        _entity("sensor.kitchen_raw", platform="roborock"),  # no key
+        _entity(
+            "sensor.off", platform="roborock", translation_key="off", disabled=True
+        ),
+        _entity("sensor.other", platform="ecovacs", translation_key="filter_time_left"),
+    )
+    assert dc.summarize_keys(snapshot, "roborock") == {
+        "keys": [
+            {
+                "key": "filter_time_left",
+                "count": 2,
+                "example_entity_id": "sensor.kitchen_filter",
+                "example_name": "Kitchen vacuum Filter time left",
+            },
+            {
+                "key": "main_brush_time_left",
+                "count": 1,
+                "example_entity_id": "sensor.kitchen_brush",
+                # The name a person gave the entity wins over the integration's.
+                "example_name": "Brush left",
+            },
+        ],
+        "without_key": 1,
+    }
+
+
+def test_summarize_keys_narrows_to_a_domain_and_handles_no_name():
+    snapshot = _snapshot(
+        _entity("sensor.a", platform="demo", translation_key="level"),
+        _entity(
+            "binary_sensor.b",
+            platform="demo",
+            domain="binary_sensor",
+            translation_key="low",
+        ),
+    )
+    only_binary = dc.summarize_keys(snapshot, "demo", "binary_sensor")
+    assert [k["key"] for k in only_binary["keys"]] == ["low"]
+    assert only_binary["keys"][0]["example_name"] == ""
+    assert only_binary["without_key"] == 0
+    assert dc.summarize_keys(snapshot, "nothing") == {"keys": [], "without_key": 0}

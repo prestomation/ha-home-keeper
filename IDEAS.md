@@ -362,6 +362,17 @@ ship rather than adding a parallel system.
 
 ---
 
+## Integration presets: gaps to close
+
+Declarative companions select entities by the key the integration gives them
+(`selection.translation_keys`), and name each task from a table
+(`task_template.task_names`). That covers most of the wear readings popular
+integrations report. The readings that do not fit yet, and one idea for each, are in
+[docs/INTEGRATION_PRESET_GAPS_PLAN.md](docs/INTEGRATION_PRESET_GAPS_PLAN.md): run-time
+and state-change counters, a button press on completion, unit-aware usage targets, a
+device filter, one task for several entities, matching without a key, preset bundles,
+a weekly key check, device-first suggestions, and adopting presets as normal tasks.
+
 ## Companion / glue integration candidates (beyond Battery Notes)
 
 ### Known gap: the Bambu Lab glue is missing from `companions_catalog.py`

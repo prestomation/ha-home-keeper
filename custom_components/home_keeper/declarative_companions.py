@@ -48,6 +48,9 @@ from .const import (
     MAX_DECLARATIVE_NOTES_TEMPLATE_LEN,
     MAX_DECLARATIVE_SPEC_DESCRIPTION_LEN,
     MAX_DECLARATIVE_SPEC_NAME_LEN,
+    MAX_DECLARATIVE_TASK_NAME_LEN,
+    MAX_DECLARATIVE_TRANSLATION_KEY_LEN,
+    MAX_DECLARATIVE_TRANSLATION_KEYS,
     REC_SENSOR,
     SENSOR_MODE_USAGE,
     TASK_SOURCE_DECLARATIVE_COMPANION,
@@ -158,7 +161,14 @@ def _normalize_selection(data: Any) -> dict[str, Any]:
                 f"selection.entity_regex is not a valid regex: {err}"
             ) from err
         result["entity_regex"] = entity_regex
+    translation_keys = _clean_id_list(
+        data.get("translation_keys"), "selection.translation_keys"
+    )
+    _check_translation_keys(translation_keys, "selection.translation_keys")
+    if translation_keys:
+        result["translation_keys"] = translation_keys
     for field in (
+        "device_ids",
         "area_ids",
         "label_ids",
         "exclude_entity_ids",
@@ -168,6 +178,70 @@ def _normalize_selection(data: Any) -> dict[str, Any]:
     ):
         result[field] = _clean_id_list(data.get(field), f"selection.{field}")
     return result
+
+
+def _check_translation_keys(keys: list[str], field: str) -> None:
+    """Refuse a key list longer, or a key longer, than the limits allow."""
+    if len(keys) > MAX_DECLARATIVE_TRANSLATION_KEYS:
+        raise DeclarativeCompanionValidationError(
+            f"{field} must have <= {MAX_DECLARATIVE_TRANSLATION_KEYS} entries"
+        )
+    for key in keys:
+        if len(key) > MAX_DECLARATIVE_TRANSLATION_KEY_LEN:
+            raise DeclarativeCompanionValidationError(
+                f"{field} entries must be <= "
+                f"{MAX_DECLARATIVE_TRANSLATION_KEY_LEN} characters"
+            )
+
+
+def _normalize_task_names(value: Any) -> dict[str, str]:
+    """Validate ``task_template.task_names``: entity key -> plain-text task name.
+
+    The table gives each matched entity its own ``{{ task_name }}``, looked up by the
+    entity's ``translation_key``. A blank name is dropped rather than stored, because
+    a blank name and a missing one mean the same thing: fall back to the entity name
+    (see :func:`task_name_for`).
+    """
+    if value in (None, "", {}):
+        return {}
+    if not isinstance(value, dict):
+        raise DeclarativeCompanionValidationError(
+            "task_template.task_names must be a mapping"
+        )
+    result: dict[str, str] = {}
+    for raw_key, raw_name in value.items():
+        if not isinstance(raw_key, str):
+            raise DeclarativeCompanionValidationError(
+                "task_template.task_names keys must be strings"
+            )
+        key = raw_key.strip()
+        if not key:
+            continue
+        name = _clean_str(
+            raw_name, "task_template.task_names value", MAX_DECLARATIVE_TASK_NAME_LEN
+        )
+        if name:
+            result[key] = name
+    _check_translation_keys(list(result), "task_template.task_names")
+    return result
+
+
+def task_name_for(
+    task_template: dict[str, Any], entry: dict[str, Any], fallback: str
+) -> str:
+    """The ``{{ task_name }}`` for one matched entity.
+
+    The template's ``task_names`` entry for the entity's ``translation_key``, else
+    *fallback* (the caller passes the entity's friendly name), so a template that
+    reads it never renders empty. *task_template* is passed rather than the spec so
+    the caller can hand in the localized copy (see
+    ``declarative_presets.localized_task_template``).
+    """
+    names = task_template.get("task_names") or {}
+    key = entry.get("translation_key")
+    if key and names.get(key):
+        return str(names[key])
+    return fallback
 
 
 def _normalize_task_template(data: Any) -> dict[str, Any]:
@@ -206,6 +280,9 @@ def _normalize_task_template(data: Any) -> dict[str, Any]:
         result["labels"] = []
     else:
         result["labels"] = _clean_id_list(labels_raw, "task_template.labels")
+    task_names = _normalize_task_names(data.get("task_names"))
+    if task_names:
+        result["task_names"] = task_names
     return result
 
 
@@ -352,6 +429,9 @@ def _entity_matches(
             return False
     if regex is not None and not regex.fullmatch(entry["entity_id"]):
         return False
+    translation_keys = selection.get("translation_keys")
+    if translation_keys and entry.get("translation_key") not in translation_keys:
+        return False
     entity_id = entry["entity_id"]
     if entity_id in selection.get("exclude_entity_ids", []):
         return False
@@ -365,11 +445,57 @@ def _entity_matches(
         return False
     if _labels_intersect(entry.get("labels"), selection.get("exclude_label_ids", [])):
         return False
+    device_ids = selection.get("device_ids") or []
+    if device_ids and entry.get("device_id") not in device_ids:
+        return False
     area_ids = selection.get("area_ids") or []
     if area_ids and entry.get("area_id") not in area_ids:
         return False
     label_ids = selection.get("label_ids") or []
     return not (label_ids and not _labels_intersect(entry.get("labels"), label_ids))
+
+
+def summarize_keys(
+    registry_snapshot: dict[str, Any], integration: str, domain: str | None = None
+) -> dict[str, Any]:
+    """The entity keys of *integration*, for the key list in the companion dialog.
+
+    A person cannot see a ``translation_key`` anywhere in Home Assistant's own screens,
+    so the dialog lists the keys the integration's entities have. Returns::
+
+        {"keys": [{"key", "count", "example_entity_id", "example_name"}, ...],
+         "without_key": <entities of the integration that have no key>}
+
+    Sorted by key. The example is the first entity with the key, in registry order,
+    and its name is the one a person gave it, else the integration's. Disabled
+    entities are left out, as the selection pass leaves them out. *domain*, when set,
+    narrows the list to one entity domain, as the dialog's domain box does.
+    """
+    keys: dict[str, dict[str, Any]] = {}
+    without_key = 0
+    for entry in registry_snapshot.get("entities") or []:
+        if entry.get("disabled") or entry.get("platform") != integration:
+            continue
+        if domain and entry.get("domain") != domain:
+            continue
+        key = entry.get("translation_key")
+        if not key:
+            without_key += 1
+            continue
+        found = keys.get(key)
+        if found is None:
+            keys[key] = {
+                "key": key,
+                "count": 1,
+                "example_entity_id": entry["entity_id"],
+                "example_name": entry.get("name") or entry.get("original_name") or "",
+            }
+        else:
+            found["count"] += 1
+    return {
+        "keys": [keys[key] for key in sorted(keys)],
+        "without_key": without_key,
+    }
 
 
 def expand_spec(
@@ -385,7 +511,7 @@ def expand_spec(
             {"entity_registry_id": ..., "entity_id": ..., "platform": ...,
              "domain": ..., "device_class": ..., "original_device_class": ...,
              "device_id": ..., "area_id": ..., "labels": {...}, "disabled": bool,
-             "name": ..., "original_name": ...},
+             "name": ..., "original_name": ..., "translation_key": ...},
             ...
           ]
         }
