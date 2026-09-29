@@ -150,11 +150,11 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
 
 ## Task data model
 - Tasks are plain JSON-serializable dicts (never model objects in storage), with
-  keys: `id, name, notes, recurrence_type, interval, unit|freq, anchor, due,
-  device_id, area_id, labels[], enabled, last_completed, next_due, completions[],
-  created`.
+  keys: `id, name, notes, recurrence_type, interval+unit (floating) |
+  rrule+moved_occurrences (fixed), anchor, due, device_id, area_id, labels[],
+  enabled, last_completed, next_due, completions[], created`.
 - **Recurrence types** (`const.REC_*`): `floating` (measured from last completion),
-  `fixed` (anchored calendar schedule via `freq`+`anchor`), `one-off` (do-once: a
+  `fixed` (anchored calendar schedule via `rrule`+`anchor`, see below), `one-off` (do-once: a
   user-scheduled `due` date; `compute_next_due` returns `due`, `apply_completion`
   sets `next_due=None` permanently, and `remove_completion` re-arms to `due` only
   when the final completion is undone), and `triggered` (condition-driven, no
@@ -168,6 +168,27 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   build a new one — the to-do list shipped without one for `one-off`, and a finished
   do-once task sat there undated forever (#221). Keep the recurrence math in pure
   `recurrence.py` with an explicit `now`.
+- **A fixed schedule is an RFC 5545 RRULE.** `rrule` holds the body only
+  (`FREQ=WEEKLY;BYDAY=TU,FR`, no `RRULE:` prefix and no DTSTART); `anchor` is the
+  DTSTART and gives the time of day. `recurrence.normalize_rule` is the one
+  validator: FREQ is DAILY/WEEKLY/MONTHLY/YEARLY, and COUNT, UNTIL and the sub-daily
+  BY-parts are refused (a schedule that ends is not built yet). The legacy
+  `freq`+`interval` pair is still accepted by the services and by an old export and
+  converted on the way in; the store converts stored tasks once on load. Nothing
+  stores both. `recurrence.effective_rule` writes out every choice dateutil would
+  take from DTSTART, and is also where a plain monthly rule on the 31st means "the
+  31st or the last day" — keep that decision there, not in the form.
+  - **The form never owns a second copy of the rule.** Repeats, Every and the day
+    buttons are views of `rrule` (`frontend/src/rrule.ts`); a rule they cannot show
+    greys them out and offers Reset to simple. The views repaint in place on each
+    change, because a re-render would take focus from the rule box.
+  - **A moved date is a separate list, never EXDATE/RDATE in the rule text.**
+    `moved_occurrences` is `[{from, to}]`, `from` always the date on the rule. The
+    form does not write it, so an admin saving an open form cannot delete a move a
+    user just made on the card. A move is a usage action like snooze (not
+    admin-gated): `home_keeper.move_occurrence` from the card's snooze dialog ("A
+    later date"), the panel's Upcoming block and the calendar entity's "Only this
+    event" edit. The calendar refuses a series edit and points at the panel.
 - **Sensor-based tasks** (`REC_SENSOR`) bind a task to a numeric entity via a
   `task["sensor"]` block (`models.normalize_sensor`: `entity_id`, `mode`, and the
   mode's fields — `target` for `usage`, `comparison`+`value`+optional `for_seconds`

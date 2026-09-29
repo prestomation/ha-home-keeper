@@ -22,5 +22,5 @@
     "Babel>=2.12",
     "python-dateutil>=2.8"
   ],
-  "version": "0.27.0"
+  "version": "0.28.0b1"
 }

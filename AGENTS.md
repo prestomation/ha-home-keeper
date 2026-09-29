@@ -541,8 +541,10 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   form doesn't render (profiles, notifications, dismissed companions) is deleted on
   each save. See `.amazonq/rules/architecture-and-code.md` → "Options have three
   editing surfaces".
-- Tasks are plain dicts: `id, name, notes, recurrence_type, interval, unit|freq,
-  anchor, device_id, area_id, enabled, last_completed, next_due, completions[]`.
+- Tasks are plain dicts: `id, name, notes, recurrence_type, interval+unit (floating)
+  | rrule+moved_occurrences (fixed), anchor, device_id, area_id, enabled,
+  last_completed, next_due, completions[]`. A fixed schedule is an RRULE, and a moved
+  date is a separate list; see `.amazonq/rules/architecture-and-code.md`.
 - All datetimes are timezone-aware (`homeassistant.util.dt`); `recurrence.py` takes
   an explicit `now` so tests are deterministic.
 - Entity unique IDs are anchored to the task `id` (survives renames).

@@ -17,6 +17,7 @@ export const USER_SECTIONS = [
   {slug: 'installation', title: 'Installation', group: 'start'},
   {slug: 'concepts', title: 'Core concepts', label: 'Concepts', group: 'start'},
   {slug: 'panel', title: 'The panel', label: 'The panel', group: 'start'},
+  {slug: 'fixed-schedules', title: 'Fixed schedules', label: 'Fixed schedules', group: 'tasks'},
   {slug: 'one-off-tasks', title: 'One-off tasks', label: 'One-off tasks', group: 'tasks'},
   {slug: 'markdown-notes', title: 'Markdown notes', label: 'Markdown notes', group: 'tasks'},
   {slug: 'completions', title: 'Logging completions', label: 'Completions', group: 'tasks'},

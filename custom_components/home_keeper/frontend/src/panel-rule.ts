@@ -124,9 +124,21 @@ export function paintRuleControls(p: PanelHost, box?: HTMLElement | null): void 
   }
 }
 
+/**
+ * *task* with *rule* stored, and `freq`/`interval` set to what the rule says. The
+ * payload builder reads those two for a simple rule (see `formRule`), so they must
+ * never lag behind a rule that was typed or reset.
+ */
+function withRule(task: Partial<Task>, rule: string): Partial<Task> {
+  const simple = parseSimple(rule);
+  return simple
+    ? ({ ...task, rrule: rule, freq: simple.freq, interval: simple.interval } as Partial<Task>)
+    : ({ ...task, rrule: rule } as Partial<Task>);
+}
+
 /** Write a new rule from a button, then repaint every view of it. */
 function setRule(p: PanelHost, rule: string): void {
-  p._edit.task = { ...p._edit.task, rrule: rule } as Partial<Task>;
+  p._edit.task = withRule(p._edit.task ?? {}, rule);
   syncRuleViews(p, { ruleText: true });
 }
 
@@ -140,16 +152,18 @@ export function applyRuleChange(p: PanelHost, value: Record<string, unknown>): b
   const task = p._edit.task ?? {};
   if (task.recurrence_type !== 'fixed') return false;
   if ('rrule' in value) {
-    p._edit.task = { ...task, rrule: String(value.rrule ?? '') } as Partial<Task>;
+    p._edit.task = withRule(task, String(value.rrule ?? ''));
     syncRuleViews(p, { ruleText: false });
     return true;
   }
   if ('freq' in value || 'interval' in value) {
+    // `task` already carries the new freq/interval (the caller merged them), so the
+    // rule they change is the one stored before this edit.
     const rule = withSimpleChange(taskRule(task), {
       freq: 'freq' in value ? String(value.freq) : undefined,
       interval: 'interval' in value ? Number(value.interval) || 1 : undefined,
     });
-    p._edit.task = { ...task, rrule: rule } as Partial<Task>;
+    p._edit.task = withRule(task, rule);
     syncRuleViews(p, { ruleText: true });
     return true;
   }

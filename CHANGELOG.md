@@ -6,6 +6,24 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b1]
+
+### Added
+
+- **[Weekdays and custom rules](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules).**
+  A fixed task can repeat on more than one day of the week, such as Tuesday and
+  Friday. Type an iCalendar rule for other schedules, such as the first Tuesday of
+  each month. (Fixes #391)
+- **[Move one date](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules#move-one-date).**
+  Move one future date of a fixed task from the dashboard card, the task page or the
+  Home Assistant calendar. The other dates do not change. (Fixes #390)
+
+### Changed
+
+- **Month-end dates.** A monthly task on the 29th, 30th or 31st uses the last day of
+  a short month and then goes back to its own day. Before, it stayed on the 28th after
+  February.
+
 ## [0.27.0] - 2026-09-29
 
 ### Added

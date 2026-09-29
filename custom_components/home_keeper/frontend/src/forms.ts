@@ -5,6 +5,7 @@ import {
   buildSimple,
   parseSimple,
   resetToSimple,
+  withSimpleChange,
   type SimpleFreq,
 } from './rrule';
 import {
@@ -889,6 +890,24 @@ export function taskRule(task: Partial<Task>): string {
 }
 
 /**
+ * The rule a form state describes. The panel keeps `rrule` in step with Repeats and
+ * Every as they change (see panel-rule.ts), but the card's single `ha-form` has no
+ * such hook: there a changed Repeats or Every only updates `freq`/`interval`. So a
+ * simple rule takes them from the form; a custom rule is the text as typed.
+ */
+export function formRule(task: Partial<Task>): string {
+  const rule = taskRule(task);
+  const simple = parseSimple(rule);
+  if (!simple) return rule;
+  const freq = (SIMPLE_FREQS as readonly string[]).includes(task.freq ?? '')
+    ? task.freq
+    : simple.freq;
+  const interval = Math.max(1, Number(task.interval) || simple.interval);
+  if (freq === simple.freq && interval === simple.interval) return rule;
+  return withSimpleChange(rule, { freq, interval });
+}
+
+/**
  * `interval`, `freq` and `rrule` for the form.
  *
  * For a fixed task the Repeats and Every controls are *read from the rule*, so a
@@ -1250,7 +1269,7 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       // A fixed task sends its rule, which already holds the interval; the legacy
       // pair would only be a second, possibly stale, copy of it.
       delete payload.interval;
-      payload.rrule = taskRule(task);
+      payload.rrule = formRule(task);
       payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
     }
     payload.completion_detail = task.completion_detail || 'none';

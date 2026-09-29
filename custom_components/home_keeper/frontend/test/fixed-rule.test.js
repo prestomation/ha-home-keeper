@@ -16,6 +16,7 @@ import {
 import {
   buildTaskPayload,
   duplicateTaskSeed,
+  formRule,
   formRecurrenceSummary,
   taskFormData,
   taskRule,
@@ -116,9 +117,33 @@ describe('the fixed sections', () => {
   });
 });
 
+describe('formRule', () => {
+  it('takes Repeats and Every from the form for a simple rule', () => {
+    // The card's form changes only freq/interval; the rule has to follow them.
+    expect(formRule(fixed({ freq: 'WEEKLY', interval: 2 }))).toBe(
+      'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,FR',
+    );
+    expect(formRule(fixed({ freq: 'MONTHLY', interval: 1 }))).toBe('FREQ=MONTHLY;INTERVAL=1');
+  });
+
+  it('leaves the rule alone when the form agrees with it', () => {
+    expect(formRule(fixed({ freq: 'WEEKLY', interval: 1 }))).toBe('FREQ=WEEKLY;BYDAY=TU,FR');
+    expect(formRule(fixed())).toBe('FREQ=WEEKLY;BYDAY=TU,FR');
+  });
+
+  it('ignores a frequency the menu does not offer and a bad interval', () => {
+    expect(formRule(fixed({ freq: 'HOURLY', interval: 0 }))).toBe('FREQ=WEEKLY;BYDAY=TU,FR');
+  });
+
+  it('never rewrites a custom rule', () => {
+    const rule = 'FREQ=MONTHLY;BYDAY=1TU';
+    expect(formRule(fixed({ rrule: rule, freq: 'DAILY', interval: 3 }))).toBe(rule);
+  });
+});
+
 describe('the payload', () => {
   it('sends the rule and never the legacy pair', () => {
-    const payload = buildTaskPayload(fixed({ interval: 4, freq: 'DAILY' }));
+    const payload = buildTaskPayload(fixed({ interval: 1, freq: 'WEEKLY' }));
     expect(payload.rrule).toBe('FREQ=WEEKLY;BYDAY=TU,FR');
     expect(payload).not.toHaveProperty('interval');
     expect(payload).not.toHaveProperty('freq');

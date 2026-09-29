@@ -55,6 +55,13 @@ A skip advances the schedule itself. The step depends on the kind of task:
 A snooze, a due-today and a skip all re-arm the edge-triggered overdue and
 due-soon announcements for the new date.
 
+A fixed task's schedule is an RRULE, and one date of it can move with
+`move_occurrence`. The `home_keeper_task_occurrence_moved` payload has the date on
+the rule as `occurrence` and the new date as `to`. `previous_to` is where the date was before
+the call, or `null` when it had not moved. An undo moves the date back to itself, so
+`to` is then equal to `occurrence`. `next_due` changes only when the moved date is the
+one the task shows. A snoozed date stays where it is.
+
 A skip is also recorded. It goes in a `skips` list, beside the `completions` list.
 A skip records an occurrence that was passed over. It never sets `last_completed`,
 and nothing derived from the completion log counts it.
