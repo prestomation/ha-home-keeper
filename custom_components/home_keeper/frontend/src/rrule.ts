@@ -135,10 +135,29 @@ export function withSimpleChange(
   });
 }
 
-/** The weekday of a start date, as an RFC 5545 code. */
+/**
+ * The weekday of a start date, as an RFC 5545 code. Pass a date from
+ * {@link anchorDay}, which is noon UTC on the anchor's own calendar date.
+ */
 export function weekdayOf(date: Date): Weekday {
-  // getDay() counts from Sunday.
-  return WEEKDAYS[(date.getDay() + 6) % 7];
+  // getUTCDay() counts from Sunday.
+  return WEEKDAYS[(date.getUTCDay() + 6) % 7];
+}
+
+/**
+ * The calendar date an anchor is written on, as noon UTC, or `null`.
+ *
+ * The backend reads the anchor in Home Assistant's zone, and a stored anchor is
+ * written in that zone. Reading its date in the *browser's* zone would name another
+ * weekday for an anchor near midnight when the two zones differ, so the written
+ * `YYYY-MM-DD` is taken as it is. Both an ISO string and the form's own value start
+ * with it.
+ */
+export function anchorDay(value: string | null | undefined): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? '');
+  if (!m) return null;
+  const date = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12));
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /**

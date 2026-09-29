@@ -21,6 +21,7 @@ import {
   selSelect,
   selText,
   taskFormData,
+  reconcileRuleEdit,
   taskFormSchemaKey,
   taskSchema,
   type FormField,
@@ -1219,11 +1220,14 @@ export class HomeKeeperCard extends HTMLElement {
       // switch do too — so the whole visible-schema key decides whether to re-render,
       // the same way the panel's form does it.
       const prevSchemaKey = taskFormSchemaKey(this._edit.task ?? {});
-      this._edit.task = {
-        ...this._edit.task,
+      const prev = this._edit.task ?? {};
+      // A fixed task's rule and its Repeats/Every arrive together; whichever the
+      // user changed decides the other (see reconcileRuleEdit).
+      this._edit.task = reconcileRuleEdit(prev, {
+        ...prev,
         ...value,
         interval: Number(value.interval) || 1,
-      } as Partial<Task>;
+      } as Partial<Task>);
       this._edit.error = undefined;
       if (taskFormSchemaKey(this._edit.task) !== prevSchemaKey) this._render();
     });

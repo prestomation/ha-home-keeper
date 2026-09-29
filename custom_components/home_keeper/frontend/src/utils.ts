@@ -1,5 +1,12 @@
 import { getLanguage, t, tn } from './i18n';
-import { buildSimple, dayList, parseSimple, shownDays, type SimpleFreq } from './rrule';
+import {
+  anchorDay,
+  buildSimple,
+  dayList,
+  parseSimple,
+  shownDays,
+  type SimpleFreq,
+} from './rrule';
 import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
@@ -698,6 +705,22 @@ export function formatOccurrence(value: string | Date, lang?: string): string {
 }
 
 /**
+ * A schedule date with its weekday and time: "Tue, Oct 6, 7:00 AM". The weekday is
+ * the point for a weekly chore, so every list of schedule dates uses this.
+ */
+export function formatOccurrenceTime(value: string | Date, lang?: string): string {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(lang || undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/**
  * A fixed schedule in words: "every 2 weeks on Tuesday and Friday", or "custom rule:
  * FREQ=MONTHLY;BYDAY=1TU" for a rule the simple controls cannot say.
  *
@@ -723,8 +746,7 @@ function fixedRuleText(task: Task): string {
   const unit = tn(`recurrence.unit.${freqBase[simple.freq]}`, simple.interval);
   const summary = tn('recurrence.fixed', simple.interval, { unit });
   if (simple.freq !== 'WEEKLY') return summary;
-  const anchor = task.anchor ? new Date(task.anchor) : null;
-  const days = shownDays(rule, anchor && !Number.isNaN(anchor.getTime()) ? anchor : null);
+  const days = shownDays(rule, anchorDay(task.anchor));
   if (!days.length) return summary;
   return t('recurrence.fixedDays', { summary, days: dayList(days, getLanguage()) });
 }

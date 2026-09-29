@@ -574,8 +574,18 @@ def expand_fixed_occurrences(
     return sorted(unique.values(), key=_instant)[:MAX_EXPAND_ITERATIONS]
 
 
-def is_rule_occurrence(anchor: datetime, rule: str, moment: datetime) -> bool:
-    """Whether *moment* is a date of the bare rule, with no moves applied."""
+def is_rule_occurrence(
+    anchor: datetime, rule: str, moment: datetime, *, tz: tzinfo | None = None
+) -> bool:
+    """Whether *moment* is a date of the bare rule, with no moves applied.
+
+    The rule is expanded in the probe's zone (see :func:`_regrid`), so *tz* must be
+    Home Assistant's zone whenever *moment* came off a stored ISO string: such a
+    string carries a bare offset, and an anchor from July read at a July offset in
+    November lands an hour away from every November date.
+    """
+    if tz is not None:
+        moment = moment.astimezone(tz)
     probe = moment - timedelta(microseconds=1)
     try:
         return next_fixed_occurrence(anchor, rule, after=probe) == moment
@@ -588,14 +598,19 @@ def task_moves(task: dict) -> list[tuple[datetime, datetime]]:
     return _parsed_moves(task.get("moved_occurrences"))
 
 
-def is_task_occurrence(task: dict, moment: datetime) -> bool:
+def is_task_occurrence(
+    task: dict, moment: datetime, *, tz: tzinfo | None = None
+) -> bool:
     """Whether *moment* is a date of a fixed *task*'s schedule, moves included.
 
     A snooze or due-today puts ``next_due`` off the schedule; this is how the
-    calendar and the engine tell the two apart.
+    calendar and the engine tell the two apart. Pass Home Assistant's zone as *tz*
+    for a *moment* read from storage (see :func:`is_rule_occurrence`).
     """
     anchor = _parse(task["anchor"])
     assert anchor is not None
+    if tz is not None:
+        moment = moment.astimezone(tz)
     return _is_occurrence(task, anchor, moment)
 
 
@@ -675,10 +690,15 @@ def move_occurrence(
     anchor = _parse(task["anchor"])
     assert anchor is not None
     rule = task_rule(task)
-    if occurrence.tzinfo is None:
-        occurrence = occurrence.replace(tzinfo=now.tzinfo)
-    if to.tzinfo is None:
-        to = to.replace(tzinfo=now.tzinfo)
+    # Every instant here is judged in Home Assistant's zone (the zone of *now*). A
+    # date handed in as an offset string — the panel, the card and the service all
+    # send one — would otherwise be expanded at its own offset, which is an hour off
+    # for half the year (see :func:`is_rule_occurrence`).
+    zone = now.tzinfo
+    occurrence = (
+        occurrence.replace(tzinfo=zone) if occurrence.tzinfo is None else occurrence
+    ).astimezone(zone)
+    to = (to.replace(tzinfo=zone) if to.tzinfo is None else to).astimezone(zone)
     rows = [
         (dict(m), pair)
         for m in task.get("moved_occurrences") or []
@@ -687,10 +707,15 @@ def move_occurrence(
     # A calendar hands back the date it showed, which for a moved date is the ``to``.
     for _, (src, dst) in rows:
         if _instant(dst) == _instant(occurrence):
-            occurrence = src
+            occurrence = src.astimezone(zone)
             break
     previous_to = next(
-        (dst for _, (src, dst) in rows if _instant(src) == _instant(occurrence)), None
+        (
+            dst.astimezone(zone)
+            for _, (src, dst) in rows
+            if _instant(src) == _instant(occurrence)
+        ),
+        None,
     )
     if not is_rule_occurrence(anchor, rule, occurrence):
         raise ValueError(f"{occurrence.isoformat()} is not a date of this schedule")
@@ -698,6 +723,10 @@ def move_occurrence(
         (m, pair) for m, pair in rows if _instant(pair[0]) != _instant(occurrence)
     ]
     keep = [m for m, _ in others]
+    if _instant(to) == _instant(occurrence) and previous_to is not None and to <= now:
+        # Putting a date back on its own day when that day has passed would take it
+        # off every surface at once: it is behind now, and no longer moved ahead.
+        raise ValueError("the original date has passed, so the move cannot be undone")
     if _instant(to) != _instant(occurrence):
         if to <= now:
             raise ValueError("a date can only move to a time in the future")
@@ -710,6 +739,8 @@ def move_occurrence(
             raise ValueError("too many moved dates on this task")
         keep.append({"from": occurrence.isoformat(), "to": to.isoformat()})
     shown = _parse(task.get("next_due"))
+    if shown is not None:
+        shown = shown.astimezone(zone)
     # Which date the task shows now, judged against the moves *before* this one.
     on_schedule = shown is not None and _is_occurrence(task, anchor, shown)
     task["moved_occurrences"] = keep

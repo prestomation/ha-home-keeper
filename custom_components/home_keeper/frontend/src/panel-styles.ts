@@ -1511,7 +1511,7 @@ export const STYLES = `
     border-radius: var(--hk-r-btn);
   }
   .hk-up-when {
-    flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center;
+    flex: 1 1 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center;
     gap: 2px 8px;
   }
   .hk-up-date { font-variant-numeric: tabular-nums; }

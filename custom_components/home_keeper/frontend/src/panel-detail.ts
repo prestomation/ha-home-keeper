@@ -65,6 +65,7 @@ import {
   escapeHTML,
   formatDate,
   formatDateTime,
+  formatOccurrenceTime,
   formatQuantity,
   isMonitoredDormant,
   navigateTo,
@@ -315,8 +316,9 @@ function upcomingSection(p: PanelHost, task: Task): string {
   }
   const rows = upcomingCache.get(p)?.rows ?? null;
   const lang = p._lang();
-  // Move rides on the Snooze switch in Settings, like "A later date" on the card:
-  // turning snooze off takes away every way of moving a date by hand.
+  // Move rides on the Snooze switch in Settings, like "A later date" on the card.
+  // Undo stays: it only takes back a move. The service and the calendar keep
+  // working, as the snooze service does when the switch is off.
   const canMove = skipSnoozeFlags(p._options ?? {}).allowSnooze;
   const body =
     rows === null
@@ -329,7 +331,7 @@ function upcomingSection(p: PanelHost, task: Task): string {
               const moved = row.moved_from
                 ? `<span class="hk-moved-badge">${escapeHTML(t('upcoming.moved'))}</span>` +
                   `<span class="hk-up-from">${escapeHTML(
-                    t('upcoming.movedFrom', { date: formatDateTime(row.moved_from, lang) }),
+                    t('upcoming.movedFrom', { date: formatOccurrenceTime(row.moved_from, lang) }),
                   )}</span>`
                 : '';
               const move = canMove
@@ -344,7 +346,7 @@ function upcomingSection(p: PanelHost, task: Task): string {
                 : '';
               return `<div class="hk-up-row${row.moved_from ? ' moved' : ''}">
                 <span class="hk-up-when"><span class="hk-up-date">${escapeHTML(
-                  formatDateTime(row.start, lang),
+                  formatOccurrenceTime(row.start, lang),
                 )}</span>${moved}</span>
                 <span class="hk-up-acts">${undo}${move}</span>
               </div>`;

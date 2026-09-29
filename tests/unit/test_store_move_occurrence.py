@@ -152,3 +152,10 @@ def test_load_converts_a_legacy_fixed_task_and_saves_once(store):
     # A second load has nothing to convert.
     _run(store.load())
     assert store._store.saves == 1
+
+
+def test_moving_an_unmoved_date_to_itself_says_nothing(store):
+    task = _bins(store)
+    _run(store.move_occurrence(task["id"], dt(2026, 6, 19, 7), dt(2026, 6, 19, 7)))
+    assert store._store.saves == 0
+    assert store._hass.bus.fired == []

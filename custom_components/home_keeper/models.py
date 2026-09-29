@@ -12,7 +12,7 @@ from __future__ import annotations
 import calendar as _calendar
 import math
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from . import recurrence
@@ -21,6 +21,7 @@ from .const import (
     COMPLETION_DETAIL_NONE,
     COMPLETION_DETAIL_REQUIRED,
     COMPLETION_METADATA_FIELDS,
+    FREQ_MONTHLY,
     FREQS,
     MAX_EXTERNAL_ID_LEN,
     MAX_INTERVAL,
@@ -713,18 +714,21 @@ def _rule_after_legacy_edit(rule: str, freq: Any, interval: Any) -> str:
 
     ``update_task`` still takes the legacy fields. Changing only the interval keeps
     the rule's days (every 2 weeks on Tue and Fri stays on Tue and Fri); changing the
-    frequency makes a plain rule of the new one, because a weekday list means nothing
-    to a daily rule.
+    frequency makes a plain rule of the new one with the same interval, because a
+    weekday list means nothing to a daily rule.
     """
     parts = recurrence.rule_parts(rule)
+    if freq not in (None, "") and freq not in FREQS:
+        raise TaskValidationError(f"invalid freq: {freq!r}")
     if freq not in (None, "") and freq != parts.get("FREQ"):
-        parts = {"FREQ": str(freq)}
+        # A new frequency keeps the interval, as the legacy pair always did.
+        parts = {"FREQ": str(freq), "INTERVAL": parts.get("INTERVAL", "1")}
     if interval not in (None, ""):
         parts["INTERVAL"] = str(interval)
     return ";".join(f"{k}={v}" for k, v in parts.items())
 
 
-def migrate_legacy_fixed_schedule(task: dict) -> bool:
+def migrate_legacy_fixed_schedule(task: dict, *, now: datetime | None = None) -> bool:
     """Convert a stored fixed task's ``freq``/``interval`` to ``rrule``, in place.
 
     Fixed schedules were a frequency and an interval before they were RRULEs. The
@@ -732,10 +736,19 @@ def migrate_legacy_fixed_schedule(task: dict) -> bool:
     a monthly task on the 29th to 31st returns to its day after a short month instead
     of staying on the 28th. Returns ``True`` when the task changed. Additive, like
     the other load-time migrations: no storage-version bump.
+
+    Two stored values would read as off the new schedule, and so as a snooze, unless
+    they move with it (*now* gives Home Assistant's zone for the check):
+
+    * an anchor with a fraction of a second, which the rule engine drops, and the
+      ``next_due`` derived from it;
+    * the ``next_due`` of a month-end task that the old engine left on the 28th. It
+      moves to the new date in the same month.
     """
     if task.get("recurrence_type") != REC_FIXED:
         return False
     changed = False
+    legacy_freq = None
     if not task.get("rrule"):
         freq = task.get("freq")
         if freq not in FREQS:
@@ -745,6 +758,7 @@ def migrate_legacy_fixed_schedule(task: dict) -> bool:
         except (TypeError, ValueError):
             interval = 1
         task["rrule"] = recurrence.legacy_rule(freq, max(1, interval))
+        legacy_freq = freq
         changed = True
     for key in ("freq", "interval"):
         if key in task:
@@ -752,6 +766,33 @@ def migrate_legacy_fixed_schedule(task: dict) -> bool:
             changed = True
     if "moved_occurrences" not in task:
         task["moved_occurrences"] = []
+        changed = True
+    try:
+        anchor = datetime.fromisoformat(task["anchor"])
+        due = datetime.fromisoformat(task["next_due"]) if task.get("next_due") else None
+    except (KeyError, TypeError, ValueError):
+        return changed
+    if anchor.microsecond:
+        task["anchor"] = anchor.replace(microsecond=0).isoformat()
+        anchor = anchor.replace(microsecond=0)
+        if due is not None and due.microsecond:
+            due = due.replace(microsecond=0)
+            task["next_due"] = due.isoformat()
+        changed = True
+    zone = now.tzinfo if now is not None else None
+    if (
+        legacy_freq == FREQ_MONTHLY
+        and due is not None
+        and anchor.astimezone(zone).day > 28
+        and not recurrence.is_rule_occurrence(anchor, task["rrule"], due, tz=zone)
+        and due.astimezone(zone).time() == anchor.astimezone(zone).time()
+    ):
+        local = due.astimezone(zone)
+        month_start = local.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        realigned = recurrence.next_fixed_occurrence(
+            anchor, task["rrule"], after=month_start - timedelta(microseconds=1)
+        )
+        task["next_due"] = realigned.isoformat()
         changed = True
     return changed
 
@@ -1197,7 +1238,10 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
                 m
                 for m in merged["moved_occurrences"]
                 if recurrence.is_rule_occurrence(
-                    anchor, merged["rrule"], datetime.fromisoformat(m["from"])
+                    anchor,
+                    merged["rrule"],
+                    datetime.fromisoformat(m["from"]),
+                    tz=now.tzinfo,
                 )
             ]
     else:

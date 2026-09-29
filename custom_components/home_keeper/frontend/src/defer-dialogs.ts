@@ -30,7 +30,7 @@ import type { SnoozePresetId } from './utils';
 import {
   SNOOZE_PRESETS,
   escapeHTML,
-  formatDateTime,
+  formatOccurrenceTime,
   setBtnWeight,
   taskRecordsReading,
 } from './utils';
@@ -43,7 +43,7 @@ import {
  */
 export const LATER_DATES_STYLES = `
   .hk-snooze-mode {
-    display: inline-flex; border: 1px solid var(--divider-color);
+    display: inline-flex; align-self: flex-start; border: 1px solid var(--divider-color);
     border-radius: 999px; overflow: hidden; margin-bottom: 12px;
   }
   .hk-snooze-mode .hk-seg-btn {
@@ -349,11 +349,11 @@ function renderLaterDates(
     btn.classList.toggle('picked', picked);
     btn.setAttribute('aria-pressed', String(picked));
     btn.dataset.start = row.start;
-    const when = `<span class="hk-later-date">${escapeHTML(formatDateTime(row.start, lang))}</span>`;
+    const when = `<span class="hk-later-date">${escapeHTML(formatOccurrenceTime(row.start, lang))}</span>`;
     const moved = row.moved_from
       ? `<span class="hk-moved-badge">${escapeHTML(t('upcoming.moved'))}</span>` +
         `<span class="hk-later-from">${escapeHTML(
-          t('upcoming.movedFrom', { date: formatDateTime(row.moved_from, lang) }),
+          t('upcoming.movedFrom', { date: formatOccurrenceTime(row.moved_from, lang) }),
         )}</span>`
       : '';
     btn.innerHTML = when + moved;
@@ -411,7 +411,13 @@ export async function submitMove(
 ): Promise<void> {
   const to = moveTarget(s);
   const hass = host.hass();
-  if (!hass || !s.task || !s.picked || !to) return;
+  if (!hass || !s.task) return;
+  if (!s.picked || !to) {
+    // Say what is missing rather than doing nothing on Move.
+    s.error = t(s.picked ? 'defer.snoozePickDate' : 'defer.movePick');
+    host.rerender();
+    return;
+  }
   try {
     await api.moveOccurrence(hass, s.task.id, occurrenceOrigin(s.picked), to.toISOString());
     close();

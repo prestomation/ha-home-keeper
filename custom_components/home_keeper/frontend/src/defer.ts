@@ -18,6 +18,7 @@ import {
   btnAttrs,
   escapeHTML,
   formatDateTime,
+  formatOccurrenceTime,
   isOverdue,
   resolveSnoozePreset,
 } from './utils';
@@ -244,8 +245,8 @@ export function moveHintText(s: SnoozeState, lang?: string): string {
   const to = moveTarget(s);
   if (!to) return t('defer.snoozePickDate');
   return t('defer.moveResolves', {
-    from: formatDateTime(s.picked.start, lang),
-    to: formatDateTime(to.toISOString(), lang),
+    from: formatOccurrenceTime(s.picked.start, lang),
+    to: formatOccurrenceTime(to, lang),
   });
 }
 

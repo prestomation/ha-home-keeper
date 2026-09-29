@@ -908,6 +908,28 @@ export function formRule(task: Partial<Task>): string {
 }
 
 /**
+ * Keep a fixed task's rule and its Repeats/Every in step after one form change, for
+ * a form that reports all its fields at once (the card's single `ha-form`).
+ *
+ * Whichever side the user touched wins: a changed rule text sets Repeats and Every
+ * from it, and a changed Repeats or Every rewrites a simple rule. The panel does the
+ * same through `panel-rule.ts`, one section at a time.
+ */
+export function reconcileRuleEdit(
+  prev: Partial<Task>,
+  next: Partial<Task>,
+): Partial<Task> {
+  if (next.recurrence_type !== 'fixed') return next;
+  const prevRule = taskRule(prev);
+  if (next.rrule != null && next.rrule !== '' && next.rrule !== prevRule) {
+    const simple = parseSimple(next.rrule);
+    return simple ? { ...next, freq: simple.freq, interval: simple.interval } : next;
+  }
+  const rule = withSimpleChange(prevRule, { freq: next.freq, interval: next.interval });
+  return { ...next, rrule: rule };
+}
+
+/**
  * `interval`, `freq` and `rrule` for the form.
  *
  * For a fixed task the Repeats and Every controls are *read from the rule*, so a

@@ -17,6 +17,7 @@ import {
   buildTaskPayload,
   duplicateTaskSeed,
   formRule,
+  reconcileRuleEdit,
   formRecurrenceSummary,
   taskFormData,
   taskRule,
@@ -138,6 +139,32 @@ describe('formRule', () => {
   it('never rewrites a custom rule', () => {
     const rule = 'FREQ=MONTHLY;BYDAY=1TU';
     expect(formRule(fixed({ rrule: rule, freq: 'DAILY', interval: 3 }))).toBe(rule);
+  });
+});
+
+describe('reconcileRuleEdit', () => {
+  const prev = fixed({ freq: 'WEEKLY', interval: 1 });
+
+  it('sets Repeats and Every from a typed simple rule', () => {
+    const next = reconcileRuleEdit(prev, { ...prev, rrule: 'FREQ=MONTHLY;INTERVAL=3' });
+    expect(next).toMatchObject({ rrule: 'FREQ=MONTHLY;INTERVAL=3', freq: 'MONTHLY', interval: 3 });
+    expect(formRule(next)).toBe('FREQ=MONTHLY;INTERVAL=3');
+  });
+
+  it('keeps a typed custom rule as it is', () => {
+    const next = reconcileRuleEdit(prev, { ...prev, rrule: 'FREQ=MONTHLY;BYDAY=1TU' });
+    expect(next.rrule).toBe('FREQ=MONTHLY;BYDAY=1TU');
+    expect(next.freq).toBe('WEEKLY');
+  });
+
+  it('rewrites the rule when Repeats or Every changes', () => {
+    const next = reconcileRuleEdit(prev, { ...prev, interval: 2 });
+    expect(next.rrule).toBe('FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,FR');
+  });
+
+  it('leaves another kind alone', () => {
+    const floating = { recurrence_type: 'floating', interval: 2 };
+    expect(reconcileRuleEdit(floating, floating)).toBe(floating);
   });
 });
 

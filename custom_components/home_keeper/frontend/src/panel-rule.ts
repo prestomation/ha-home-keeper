@@ -12,6 +12,8 @@
 
 import * as api from './api';
 import {
+  buildTaskPayload,
+  formRecurrenceSummary,
   haDateTimeToIso,
   pickFormData,
   taskFormData,
@@ -22,6 +24,7 @@ import { getLanguage, t } from './i18n';
 import type { PanelHost } from './panel-host';
 import {
   WEEKDAYS,
+  anchorDay,
   parseSimple,
   resetToSimple,
   shownDays,
@@ -39,11 +42,9 @@ const previewSeq = new WeakMap<PanelHost, number>();
 /** How long the preview waits after the last keystroke before it asks the backend. */
 const PREVIEW_DELAY_MS = 350;
 
+/** The anchor's own calendar date (see `anchorDay`), for the weekday it falls on. */
 function anchorDate(task: Partial<Task>): Date | null {
-  const iso = haDateTimeToIso(task.anchor) ?? task.anchor;
-  if (!iso) return null;
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return anchorDay(task.anchor);
 }
 
 /** The empty container the day row paints into; see {@link paintRuleControls}. */
@@ -199,6 +200,10 @@ function syncRuleViews(p: PanelHost, opts: { ruleText: boolean }): void {
     ruleForm.data = pickFormData(data, ruleSection.fields);
   }
   paintRuleControls(p);
+  // The rule in words. A change from a day button never reaches the form's own
+  // change handler, which is what refreshes this line for every other field.
+  const summary = root?.getElementById('hk-form-summary-value');
+  if (summary) summary.textContent = formRecurrenceSummary(task);
   schedulePreview(p);
 }
 
@@ -237,9 +242,12 @@ export async function refreshPreview(p: PanelHost): Promise<void> {
   const seq = (previewSeq.get(p) ?? 0) + 1;
   previewSeq.set(p, seq);
   try {
+    // The season the form shows, assembled the way a save would send it.
+    const season = buildTaskPayload(task).active_season;
     const rows = await api.upcomingOccurrences(p._hass, {
       rrule: taskRule(task),
       anchor,
+      activeSeason: season ?? undefined,
     });
     if (previewSeq.get(p) !== seq) return;
     const lang = getLanguage();

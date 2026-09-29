@@ -673,7 +673,19 @@ def test_an_interval_edit_keeps_the_days_of_the_rule():
 def test_a_frequency_edit_makes_a_plain_rule_of_the_new_frequency():
     task = _build(rrule="FREQ=WEEKLY;BYDAY=TU,FR", anchor="2026-09-29T07:00:00")
     edited = models.merge_update(task, {"freq": "DAILY"}, now=MODEL_NOW)
-    assert edited["rrule"] == "FREQ=DAILY"
+    assert edited["rrule"] == "FREQ=DAILY;INTERVAL=1"
+
+
+def test_a_frequency_edit_keeps_the_interval():
+    task = _build(rrule="FREQ=WEEKLY;INTERVAL=2;BYDAY=TU", anchor="2026-09-29T07:00:00")
+    edited = models.merge_update(task, {"freq": "MONTHLY"}, now=MODEL_NOW)
+    assert edited["rrule"] == "FREQ=MONTHLY;INTERVAL=2"
+
+
+def test_a_legacy_edit_cannot_set_a_frequency_the_legacy_field_never_had():
+    task = _build(rrule="FREQ=WEEKLY;BYDAY=TU", anchor="2026-09-29T07:00:00")
+    with pytest.raises(models.TaskValidationError, match="invalid freq"):
+        models.merge_update(task, {"freq": "YEARLY"}, now=MODEL_NOW)
 
 
 def test_the_same_frequency_keeps_the_days():
@@ -836,3 +848,160 @@ def test_the_migration_removes_a_stale_pair_next_to_a_rule():
         "rrule": "FREQ=DAILY",
         "moved_occurrences": [],
     }
+
+
+# ── the zone a date is judged in ───────────────────────────────────────────
+#
+# Storage keeps a bare offset, so an anchor from July reads -07:00 and a date in
+# November -08:00. The engine expands in the probe's zone, so every caller that
+# judges a stored date has to hand it Home Assistant's zone first.
+
+LA_NOW = datetime(2026, 11, 20, 12, tzinfo=LA)
+
+
+def _summer_task(**over) -> dict:
+    task = _fixed(
+        "FREQ=WEEKLY;BYDAY=TU",
+        datetime.fromisoformat("2026-07-07T10:00:00-07:00"),
+        next_due="2026-11-24T10:00:00-08:00",
+    )
+    task.update(over)
+    return task
+
+
+def test_a_winter_date_of_a_summer_anchor_is_on_the_schedule():
+    task = _summer_task()
+    winter = datetime.fromisoformat("2026-11-24T10:00:00-08:00")
+    assert not r.is_task_occurrence(task, winter)  # judged at the anchor's offset
+    assert r.is_task_occurrence(task, winter, tz=LA)
+    anchor = datetime.fromisoformat(task["anchor"])
+    assert r.is_rule_occurrence(anchor, task["rrule"], winter, tz=LA)
+
+
+def test_a_date_sent_as_an_offset_string_moves_across_the_clock_change():
+    task = _summer_task()
+    _, original, _ = r.move_occurrence(
+        task,
+        datetime.fromisoformat("2026-11-24T10:00:00-08:00"),
+        datetime.fromisoformat("2026-11-25T10:00:00-08:00"),
+        now=LA_NOW,
+    )
+    assert original == datetime(2026, 11, 24, 10, tzinfo=LA)
+    # The date on the board is the one that moved, so next_due follows it.
+    assert task["next_due"] == datetime(2026, 11, 25, 10, tzinfo=LA).isoformat()
+
+
+def test_undoing_a_move_whose_date_has_passed_is_refused():
+    task = _trash()
+    r.move_occurrence(task, dt(2026, 10, 2, 7), dt(2026, 10, 3, 7), now=NOW)
+    later = dt(2026, 10, 2, 12)
+    with pytest.raises(ValueError, match="cannot be undone"):
+        r.move_occurrence(task, dt(2026, 10, 2, 7), dt(2026, 10, 2, 7), now=later)
+    assert len(task["moved_occurrences"]) == 1
+
+
+def test_a_calendar_moved_date_is_stored_in_the_zone_of_now():
+    task = _summer_task()
+    r.move_occurrence(
+        task,
+        datetime.fromisoformat("2026-12-01T10:00:00-08:00"),
+        datetime.fromisoformat("2026-12-02T10:00:00-08:00"),
+        now=LA_NOW,
+    )
+    # A second move names the date by where it is now, at yet another offset form.
+    _, original, previous = r.move_occurrence(
+        task,
+        datetime.fromisoformat("2026-12-02T18:00:00+00:00"),
+        datetime.fromisoformat("2026-12-03T10:00:00-08:00"),
+        now=LA_NOW,
+    )
+    assert original == datetime(2026, 12, 1, 10, tzinfo=LA)
+    assert previous == datetime(2026, 12, 2, 10, tzinfo=LA)
+
+
+def test_a_rule_edit_keeps_a_winter_move_of_a_summer_anchor():
+    task = models.build_task(
+        {
+            "name": "Bins",
+            "rrule": "FREQ=WEEKLY;BYDAY=TU",
+            "anchor": "2026-07-07T10:00:00-07:00",
+        },
+        now=LA_NOW,
+    )
+    move = {"from": "2026-12-01T10:00:00-08:00", "to": "2026-12-02T10:00:00-08:00"}
+    task["moved_occurrences"] = [move]
+    edited = models.merge_update(task, {"rrule": "FREQ=WEEKLY;BYDAY=TU,FR"}, now=LA_NOW)
+    assert edited["moved_occurrences"] == [move]
+
+
+# ── the migration keeps next_due on the new schedule ─────────────────────
+
+
+def test_a_month_end_task_left_on_the_28th_moves_to_the_new_date():
+    task = {
+        "recurrence_type": "fixed",
+        "freq": "MONTHLY",
+        "interval": 1,
+        "anchor": "2026-01-31T09:00:00-04:00",
+        "next_due": "2026-10-28T09:00:00-04:00",
+    }
+    assert models.migrate_legacy_fixed_schedule(task, now=dt(2026, 10, 1)) is True
+    assert task["next_due"] == dt(2026, 10, 31, 9).isoformat()
+
+
+def test_a_snoozed_month_end_task_keeps_its_snooze():
+    # Off the schedule at another time of day: a snooze, not an old clamp.
+    task = {
+        "recurrence_type": "fixed",
+        "freq": "MONTHLY",
+        "interval": 1,
+        "anchor": "2026-01-31T09:00:00-04:00",
+        "next_due": "2026-10-28T18:00:00-04:00",
+    }
+    models.migrate_legacy_fixed_schedule(task, now=dt(2026, 10, 1))
+    assert task["next_due"] == "2026-10-28T18:00:00-04:00"
+
+
+def test_a_month_end_task_already_on_the_new_date_is_left_alone():
+    task = {
+        "recurrence_type": "fixed",
+        "freq": "MONTHLY",
+        "interval": 1,
+        "anchor": "2026-01-31T09:00:00-04:00",
+        "next_due": "2026-10-31T09:00:00-04:00",
+    }
+    models.migrate_legacy_fixed_schedule(task, now=dt(2026, 10, 1))
+    assert task["next_due"] == "2026-10-31T09:00:00-04:00"
+
+
+def test_a_weekly_task_is_never_realigned():
+    task = {
+        "recurrence_type": "fixed",
+        "freq": "WEEKLY",
+        "interval": 1,
+        "anchor": "2026-01-31T09:00:00-04:00",
+        "next_due": "2026-10-28T09:00:00-04:00",
+    }
+    models.migrate_legacy_fixed_schedule(task, now=dt(2026, 10, 1))
+    assert task["next_due"] == "2026-10-28T09:00:00-04:00"
+
+
+def test_an_anchor_with_a_fraction_of_a_second_loses_it_with_its_due_date():
+    task = {
+        "recurrence_type": "fixed",
+        "freq": "DAILY",
+        "interval": 1,
+        "anchor": "2026-01-01T08:00:00.250000-04:00",
+        "next_due": "2026-10-02T08:00:00.250000-04:00",
+    }
+    models.migrate_legacy_fixed_schedule(task, now=dt(2026, 10, 1))
+    assert task["anchor"] == "2026-01-01T08:00:00-04:00"
+    assert task["next_due"] == "2026-10-02T08:00:00-04:00"
+    r.apply_completion(task, dt(2026, 10, 2, 8, 30), now=dt(2026, 10, 2, 8, 30))
+    assert task["next_due"] == dt(2026, 10, 3, 8).isoformat()
+
+
+def test_the_migration_survives_a_task_without_dates():
+    task = {"recurrence_type": "fixed", "freq": "DAILY"}
+    assert models.migrate_legacy_fixed_schedule(task, now=dt(2026, 10, 1)) is True
+    assert task["rrule"] == "FREQ=DAILY;INTERVAL=1"

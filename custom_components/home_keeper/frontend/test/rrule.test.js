@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   WEEKDAYS,
+  anchorDay,
   buildSimple,
   dayList,
   parseSimple,
@@ -15,7 +16,7 @@ import {
 } from '../src/rrule.ts';
 
 // 2026-09-29 is a Tuesday.
-const TUESDAY = new Date(2026, 8, 29, 7);
+const TUESDAY = anchorDay('2026-09-29T07:00:00-07:00');
 
 describe('ruleParts', () => {
   it('splits and upper-cases, and drops an RRULE: prefix', () => {
@@ -148,8 +149,23 @@ describe('withSimpleChange', () => {
 describe('days', () => {
   it('reads the weekday of a start date', () => {
     expect(weekdayOf(TUESDAY)).toBe('TU');
-    expect(weekdayOf(new Date(2026, 9, 4))).toBe('SU');
-    expect(weekdayOf(new Date(2026, 9, 5))).toBe('MO');
+    expect(weekdayOf(anchorDay('2026-10-04'))).toBe('SU');
+    expect(weekdayOf(anchorDay('2026-10-05 00:00:00'))).toBe('MO');
+  });
+
+  it('takes the date as written, whatever the browser zone', () => {
+    // 23:30 at -07:00 is already Wednesday in UTC; the anchor still says Tuesday.
+    expect(weekdayOf(anchorDay('2026-09-29T23:30:00-07:00'))).toBe('TU');
+    expect(anchorDay('2026-09-29T23:30:00-07:00').toISOString()).toBe(
+      '2026-09-29T12:00:00.000Z',
+    );
+  });
+
+  it('answers null for text that is not a date', () => {
+    expect(anchorDay('')).toBeNull();
+    expect(anchorDay(null)).toBeNull();
+    expect(anchorDay(undefined)).toBeNull();
+    expect(anchorDay('tomorrow')).toBeNull();
   });
 
   it('shows the rule days, or the start day when the rule names none', () => {

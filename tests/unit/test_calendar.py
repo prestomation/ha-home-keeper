@@ -333,6 +333,7 @@ def test_collect_events_keeps_the_local_hour_across_a_dst_transition():
 # --- RRULE events, moved dates and the "Only this event" edit ---------------
 
 import asyncio  # noqa: E402
+from zoneinfo import ZoneInfo  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -513,6 +514,47 @@ def test_only_this_event_moves_that_date(local_tz):
     assert entity.coordinator.refreshed == [True]
 
 
+@pytest.mark.parametrize("rule", ["FREQ=WEEKLY;BYDAY=FR,TU", "FREQ=DAILY", "garbage"])
+def test_only_this_event_ignores_the_rule_the_dialog_sends_back(local_tz, rule):
+    # Home Assistant's dialog sends the series rule back, and may rewrite it. The
+    # rule of one date cannot change, so whatever comes back is ignored.
+    entity, store = _editable({"t_bins": _rule_task()})
+    _update(
+        entity,
+        "t_bins",
+        {"dtstart": _dt(2026, 10, 10, 7), "rrule": rule},
+        recurrence_id="20261009T070000",
+    )
+    assert [c[0] for c in store.calls] == ["move"]
+
+
+def test_a_floating_event_cannot_move_into_the_past(local_tz, monkeypatch):
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 10, 3, 12))
+    task = _floating_task(_dt(2026, 10, 4, 9))
+    entity, store = _editable({"t_float": task})
+    with pytest.raises(_HA_EXC.HomeAssistantError) as err:
+        _update(entity, f"t_float@{task['next_due']}", {"dtstart": _dt(2026, 10, 2, 9)})
+    assert err.value.translation_key == "invalid_task"
+    assert store.calls == []
+
+
+def test_a_summer_anchor_is_not_a_snooze_in_winter(monkeypatch):
+    # The anchor is stored at a summer offset and next_due at a winter one. Judged
+    # at their own offsets the two are an hour apart, and the task read as snoozed.
+    la = ZoneInfo("America/Los_Angeles")
+    monkeypatch.setattr(cal.dt_util, "get_default_time_zone", lambda: la)
+    monkeypatch.setattr(cal.dt_util, "as_local", lambda value: value.astimezone(la))
+    task = _rule_task(
+        rrule="FREQ=WEEKLY;BYDAY=TU",
+        anchor="2026-07-07T10:00:00-07:00",
+        next_due="2026-11-24T10:00:00-08:00",
+    )
+    events = _entity({"t_bins": task})._collect_events(
+        datetime(2026, 11, 23, tzinfo=la), datetime(2026, 11, 26, tzinfo=la)
+    )
+    assert [e.uid for e in events] == ["t_bins"]
+
+
 def test_a_naive_start_is_read_in_home_assistant_zone(local_tz):
     entity, store = _editable({"t_bins": _rule_task()})
     _update(
@@ -536,14 +578,6 @@ def test_a_naive_start_is_read_in_home_assistant_zone(local_tz):
             {"dtstart": _dt(2026, 10, 10, 7), "summary": "Recycling"},
             {"recurrence_id": "20261009T070000"},
         ),
-        (
-            {"dtstart": _dt(2026, 10, 10, 7), "rrule": "FREQ=DAILY"},
-            {"recurrence_id": "20261009T070000"},
-        ),
-        (
-            {"dtstart": _dt(2026, 10, 10, 7), "rrule": "not a rule"},
-            {"recurrence_id": "20261009T070000"},
-        ),
         ({"dtstart": _dt(2026, 10, 10).date()}, {"recurrence_id": "20261009T070000"}),
     ],
 )
@@ -555,7 +589,8 @@ def test_anything_but_one_new_time_points_at_the_panel(local_tz, event, kw):
     assert store.calls == []
 
 
-def test_editing_a_floating_event_snoozes_it(local_tz):
+def test_editing_a_floating_event_snoozes_it(local_tz, monkeypatch):
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 10, 1, 12))
     task = _floating_task(_dt(2026, 10, 2, 9))
     entity, store = _editable({"t_float": task})
     new = _dt(2026, 10, 4, 9)
@@ -575,7 +610,8 @@ def test_a_floating_event_cannot_be_given_a_rule(local_tz):
     assert store.calls == []
 
 
-def test_editing_a_snoozed_fixed_date_snoozes_again(local_tz):
+def test_editing_a_snoozed_fixed_date_snoozes_again(local_tz, monkeypatch):
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 10, 1, 12))
     task = _rule_task(next_due=_dt(2026, 10, 3, 18).isoformat())
     entity, store = _editable({"t_bins": task})
     new = _dt(2026, 10, 3, 20)

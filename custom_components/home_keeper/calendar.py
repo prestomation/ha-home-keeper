@@ -95,27 +95,17 @@ def _single_event(task: dict, start: datetime) -> CalendarEvent:
 
 
 def _same_rule(given: object, task: dict | None) -> bool:
-    """Whether a rule handed back by the event dialog is the event's own rule.
+    """Whether the event dialog handed back a rule that changes nothing.
 
-    An empty rule always matches. Home Assistant's dialog sends the rule of a
-    repeating event back with the edit, possibly reordered, so parts are compared
-    rather than text. *task* is ``None`` for an event that does not repeat.
+    For a repeating event Home Assistant's dialog sends the series rule back with an
+    "Only this event" edit, and may rewrite it on the way (drop ``INTERVAL=1``,
+    reorder a list, simplify a rule it cannot show). The rule of one date cannot
+    change, so for a fixed task it is ignored. An event that does not repeat
+    (*task* is ``None``) must not gain one.
     """
-    if given in (None, ""):
+    if task is not None:
         return True
-    if task is None or not isinstance(given, str):
-        return False
-    anchor = dt_util.parse_datetime(task["anchor"])
-    assert anchor is not None
-    own = recurrence.effective_rule(
-        recurrence.task_rule(task), dt_util.as_local(anchor).replace(tzinfo=None)
-    )
-    try:
-        return recurrence.rule_parts(given.removeprefix("RRULE:")) == (
-            recurrence.rule_parts(own)
-        )
-    except recurrence.RuleError:
-        return False
+    return given in (None, "")
 
 
 def _deferred_due(
@@ -127,7 +117,11 @@ def _deferred_due(
     off-schedule date to judge, so a plain schedule never depends on it.
     """
     due = dt_util.parse_datetime(task.get("next_due") or "")
-    if due is None or recurrence.is_task_occurrence(task, due):
+    # ``next_due`` comes off storage with a bare offset; judge it in Home Assistant's
+    # zone, or a summer anchor makes every winter date look like a snooze.
+    if due is None or recurrence.is_task_occurrence(
+        task, due, tz=dt_util.get_default_time_zone()
+    ):
         return None
     now = now or dt_util.now()
     if due + EVENT_DURATION <= now:
@@ -322,6 +316,10 @@ class HomeKeeperCalendarEntity(
             else:
                 if recurrence_range or changed_other:
                     raise self._series_error()
+                if start <= dt_util.now():
+                    raise TaskValidationError(
+                        "a date can only move to a time in the future"
+                    )
                 await store.snooze_task(task_id, start, origin=ORIGIN_CALENDAR)
         except TaskValidationError as err:
             raise HomeAssistantError(

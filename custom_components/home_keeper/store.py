@@ -300,7 +300,7 @@ class HomeKeeperStore:
         # A fixed task stored before schedules were RRULEs carries ``freq`` and
         # ``interval``. Convert it to the rule it means, once.
         for task in self._tasks.values():
-            if models.migrate_legacy_fixed_schedule(task):
+            if models.migrate_legacy_fixed_schedule(task, now=dt_util.now()):
                 changed = True
         # A tag bound to a wear part's derived task before parts carried one moves
         # onto the part here, or the first reconcile after the upgrade would clear
@@ -718,6 +718,9 @@ class HomeKeeperStore:
             raise models.TaskValidationError(str(err)) from err
         if to.tzinfo is None:
             to = to.replace(tzinfo=original.tzinfo)
+        if previous_to is None and to == original:
+            # Moving an unmoved date to itself changes nothing; say nothing.
+            return existing
         await self._save()
         _LOGGER.debug("Moved occurrence %s of task %s to %s", original, task_id, to)
         self._hass.bus.async_fire(
