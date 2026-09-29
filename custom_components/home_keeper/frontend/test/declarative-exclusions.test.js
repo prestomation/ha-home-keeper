@@ -398,6 +398,27 @@ describe('the key list', () => {
     expect($(panel, '.hk-decl-keylist-options').textContent).toContain('No key matches your search.');
   });
 
+  it('loads the list again only when the integration or the domain changes', async () => {
+    const { panel, keyCalls } = await openEditDialog({
+      domain: 'sensor',
+      target_integration: 'roborock',
+    });
+    await waitFor(() => keyCalls.length, 5000);
+    const form = sectionForm(panel, 'selection');
+    const pick = (patch) =>
+      form.dispatchEvent(
+        new CustomEvent('value-changed', { detail: { value: { ...form.data, ...patch } } }),
+      );
+    pick({});
+    expect(keyCalls.length).toBe(1);
+    pick({ integration: 'ecovacs' });
+    await waitFor(() => keyCalls.length > 1, 5000);
+    expect(keyCalls[1]).toMatchObject({ integration: 'ecovacs', domain: 'sensor' });
+    pick({ integration: 'ecovacs', domain: 'number' });
+    await waitFor(() => keyCalls.length > 2, 5000);
+    expect(keyCalls[2]).toMatchObject({ integration: 'ecovacs', domain: 'number' });
+  });
+
   it('shows no list without a target integration', async () => {
     const { panel, keyCalls } = await openEditDialog({ domain: 'sensor' });
     $(panel, '.hk-decl-more').click();

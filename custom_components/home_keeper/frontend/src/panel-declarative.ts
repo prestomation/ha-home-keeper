@@ -599,9 +599,12 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     ],
     { integration: sel.target_integration, domain: sel.domain },
     (v) => {
+      const before = `${sel.target_integration}|${sel.domain}`;
       sel.target_integration = str(v.integration);
       sel.domain = str(v.domain);
-      refreshKeys();
+      // Load the key list again only when the query changes. The form can report a
+      // change with the same values, and each load reads the entity registry.
+      if (`${sel.target_integration}|${sel.domain}` !== before) refreshKeys();
     },
   );
   // Assigned once the key editor below exists; the integration box above can change
