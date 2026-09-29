@@ -100,15 +100,36 @@ def _install_components(ha: types.ModuleType) -> None:
             pass
 
         class CalendarEvent:
-            def __init__(self, summary, start, end, uid, description=None):
+            def __init__(
+                self,
+                summary,
+                start,
+                end,
+                uid,
+                description=None,
+                rrule=None,
+                recurrence_id=None,
+            ):
                 self.summary = summary
                 self.start = start
                 self.end = end
                 self.uid = uid
                 self.description = description
+                self.rrule = rrule
+                self.recurrence_id = recurrence_id
+
+            @property
+            def start_datetime_local(self):
+                return self.start
+
+        class CalendarEntityFeature(enum.IntFlag):
+            CREATE_EVENT = 1
+            DELETE_EVENT = 2
+            UPDATE_EVENT = 4
 
         comp_cal.CalendarEntity = CalendarEntity
         comp_cal.CalendarEvent = CalendarEvent
+        comp_cal.CalendarEntityFeature = CalendarEntityFeature
     components.calendar = comp_cal
 
     comp_todo = _mod("homeassistant.components.todo")
@@ -342,6 +363,12 @@ def _install_util() -> None:
         dt.now = now
     if not hasattr(dt, "DEFAULT_TIME_ZONE"):
         dt.DEFAULT_TIME_ZONE = UTC
+    if not hasattr(dt, "get_default_time_zone"):
+
+        def get_default_time_zone():
+            return dt.DEFAULT_TIME_ZONE
+
+        dt.get_default_time_zone = get_default_time_zone
     if not hasattr(dt, "as_local"):
 
         def as_local(value):

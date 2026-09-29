@@ -118,18 +118,25 @@ def _same_rule(given: object, task: dict | None) -> bool:
         return False
 
 
-def _deferred_due(task: dict, now: datetime) -> datetime | None:
-    """A fixed task's snoozed or due-today date, when it is not on the schedule."""
+def _deferred_due(
+    task: dict, now: datetime | None = None
+) -> tuple[datetime, datetime] | None:
+    """A fixed task's snoozed or due-today date, when it is not on the schedule.
+
+    Returns ``(due, now)``, or ``None``. The clock is read only when there is an
+    off-schedule date to judge, so a plain schedule never depends on it.
+    """
     due = dt_util.parse_datetime(task.get("next_due") or "")
-    if due is None or due + EVENT_DURATION <= now:
+    if due is None or recurrence.is_task_occurrence(task, due):
         return None
-    if recurrence.is_task_occurrence(task, due):
+    now = now or dt_util.now()
+    if due + EVENT_DURATION <= now:
         return None
-    return due
+    return due, now
 
 
 def _fixed_events(
-    task: dict, start_date: datetime, end_date: datetime, now: datetime
+    task: dict, start_date: datetime, end_date: datetime
 ) -> list[CalendarEvent]:
     """The events of a fixed task in ``[start_date, end_date)``.
 
@@ -139,23 +146,21 @@ def _fixed_events(
     """
     season = task.get("active_season")
     moved_to = {dst.timestamp(): src for src, dst in recurrence.task_moves(task)}
-    deferred = _deferred_due(task, now)
+    deferred = _deferred_due(task)
     events: list[CalendarEvent] = []
     for occ in recurrence.expand_task_occurrences(
         task, start_date - EVENT_DURATION, end_date
     ):
         if season and not recurrence.in_season(occ, season):
             continue
-        if deferred is not None and now - EVENT_DURATION <= occ < deferred:
+        if deferred is not None and deferred[1] - EVENT_DURATION <= occ < deferred[0]:
             continue
         original = moved_to.get(occ.timestamp(), occ)
         events.append(_schedule_event(task, occ, original))
-    if (
-        deferred is not None
-        and deferred < end_date
-        and deferred + EVENT_DURATION > start_date
-    ):
-        events.append(_single_event(task, deferred))
+    if deferred is not None:
+        due = deferred[0]
+        if due < end_date and due + EVENT_DURATION > start_date:
+            events.append(_single_event(task, due))
     return events
 
 
@@ -206,7 +211,7 @@ class HomeKeeperCalendarEntity(
             if dt_util.parse_datetime(task["anchor"]) is None:
                 return None
             if (deferred := _deferred_due(task, now)) is not None:
-                return _single_event(task, deferred)
+                return _single_event(task, deferred[0])
             return self._next_fixed_event(task, now)
         due_iso = task.get("next_due")
         due = dt_util.parse_datetime(due_iso) if due_iso else None
@@ -246,7 +251,6 @@ class HomeKeeperCalendarEntity(
     def _collect_events(
         self, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
-        now = dt_util.now()
         events: list[CalendarEvent] = []
         for task in self.coordinator.data.values():
             if not task.get("enabled", True):
@@ -257,7 +261,7 @@ class HomeKeeperCalendarEntity(
                 if dt_util.parse_datetime(task["anchor"]) is None:
                     continue
                 try:
-                    events += _fixed_events(task, start_date, end_date, now)
+                    events += _fixed_events(task, start_date, end_date)
                 except ValueError:
                     continue
             else:

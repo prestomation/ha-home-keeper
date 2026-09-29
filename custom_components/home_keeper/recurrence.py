@@ -567,8 +567,11 @@ def expand_fixed_occurrences(
         if local >= start and _instant(local) not in moved_from:
             occurrences.append(local)
     occurrences += [dst.astimezone(tz) for _, dst in parsed if start <= dst < end]
-    occurrences.sort(key=_instant)
-    return occurrences[:MAX_EXPAND_ITERATIONS]
+    # A move onto a date the rule already has is refused by ``move_occurrence``, but
+    # an imported list is not checked that deeply. One date shows once, whatever put
+    # it there twice.
+    unique = {_instant(o): o for o in occurrences}
+    return sorted(unique.values(), key=_instant)[:MAX_EXPAND_ITERATIONS]
 
 
 def is_rule_occurrence(anchor: datetime, rule: str, moment: datetime) -> bool:

@@ -328,3 +328,280 @@ def test_collect_events_keeps_the_local_hour_across_a_dst_transition():
     hours = {e.start.astimezone(zone).hour for e in entity._collect_events(start, end)}
 
     assert hours == {9}, f"occurrences drifted off 09:00 local: {sorted(hours)}"
+
+
+# --- RRULE events, moved dates and the "Only this event" edit ---------------
+
+import asyncio  # noqa: E402
+
+import pytest  # noqa: E402
+
+_HA_EXC = sys.modules["homeassistant.exceptions"]
+
+
+def _rule_task(**over) -> dict:
+    task = {
+        "id": "t_bins",
+        "name": "Take trash out",
+        "recurrence_type": "fixed",
+        "rrule": "FREQ=WEEKLY;BYDAY=TU,FR",
+        "anchor": _dt(2026, 9, 29, 7).isoformat(),
+        "moved_occurrences": [],
+        "next_due": _dt(2026, 10, 2, 7).isoformat(),
+        "enabled": True,
+    }
+    task.update(over)
+    return task
+
+
+class _Store:
+    def __init__(self) -> None:
+        self.calls: list[tuple] = []
+        self.error: Exception | None = None
+
+    async def move_occurrence(self, task_id, occurrence, to, *, origin=None):
+        self.calls.append(("move", task_id, occurrence, to, origin))
+        if self.error:
+            raise self.error
+
+    async def snooze_task(self, task_id, until, *, origin=None):
+        self.calls.append(("snooze", task_id, until, origin))
+        if self.error:
+            raise self.error
+
+
+def _editable(tasks: dict) -> tuple[object, _Store]:
+    entity = _entity(tasks)
+    store = _Store()
+    refreshed: list[bool] = []
+
+    async def refresh() -> None:
+        refreshed.append(True)
+
+    entity.coordinator.store = store
+    entity.coordinator.async_request_refresh = refresh
+    entity.coordinator.refreshed = refreshed
+    return entity, store
+
+
+@pytest.fixture
+def local_tz(monkeypatch):
+    """Make HA's local zone the suite's fixed offset for recurrence_id text."""
+    monkeypatch.setattr(cal.dt_util, "as_local", lambda value: value.astimezone(TZ))
+    monkeypatch.setattr(cal.dt_util, "get_default_time_zone", lambda: TZ)
+
+
+def test_a_schedule_event_carries_its_rule_and_recurrence_id(local_tz):
+    entity = _entity({"t_bins": _rule_task()})
+    events = entity._collect_events(_dt(2026, 10, 1), _dt(2026, 10, 7))
+    assert [e.start for e in events] == [_dt(2026, 10, 2, 7), _dt(2026, 10, 6, 7)]
+    first = events[0]
+    assert first.uid == "t_bins"
+    assert first.rrule == "FREQ=WEEKLY;BYDAY=TU,FR"
+    assert first.recurrence_id == "20261002T070000"
+
+
+def test_a_plain_weekly_event_names_its_day_in_the_rule(local_tz):
+    task = _rule_task(
+        rrule="FREQ=WEEKLY;INTERVAL=1", next_due=_dt(2026, 10, 6, 7).isoformat()
+    )
+    events = _entity({"t_bins": task})._collect_events(
+        _dt(2026, 10, 5), _dt(2026, 10, 7)
+    )
+    assert events[0].rrule == "FREQ=WEEKLY;INTERVAL=1;BYDAY=TU"
+
+
+def test_a_moved_date_shows_on_its_new_day_with_its_original_id(local_tz):
+    task = _rule_task(
+        moved_occurrences=[
+            {
+                "from": _dt(2026, 10, 9, 7).isoformat(),
+                "to": _dt(2026, 10, 10, 7).isoformat(),
+            }
+        ]
+    )
+    events = _entity({"t_bins": task})._collect_events(
+        _dt(2026, 10, 8), _dt(2026, 10, 12)
+    )
+    assert [e.start for e in events] == [_dt(2026, 10, 10, 7)]
+    assert events[0].recurrence_id == "20261009T070000"
+
+
+def test_a_snoozed_fixed_task_shows_its_snoozed_date(local_tz, monkeypatch):
+    now = _dt(2026, 10, 1, 12)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    snoozed = _dt(2026, 10, 3, 18)
+    task = _rule_task(next_due=snoozed.isoformat())
+    events = _entity({"t_bins": task})._collect_events(
+        _dt(2026, 9, 28), _dt(2026, 10, 8)
+    )
+    # Tue 29 is before now and stays; Fri 2 is dealt with by the snooze; Tue 6 stays.
+    assert [e.start for e in events] == [
+        _dt(2026, 9, 29, 7),
+        snoozed,
+        _dt(2026, 10, 6, 7),
+    ]
+    snooze_event = events[1]
+    assert snooze_event.uid.startswith("t_bins@")
+    assert snooze_event.rrule is None
+    assert entity_event(task, now).start == snoozed
+
+
+def entity_event(task, now):
+    return _entity({task["id"]: task}).event
+
+
+def test_a_passed_snooze_does_not_hide_the_schedule(local_tz, monkeypatch):
+    now = _dt(2026, 10, 5, 12)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    task = _rule_task(next_due=_dt(2026, 10, 3, 18).isoformat())
+    events = _entity({"t_bins": task})._collect_events(
+        _dt(2026, 10, 5), _dt(2026, 10, 8)
+    )
+    assert [e.start for e in events] == [_dt(2026, 10, 6, 7)]
+
+
+def test_the_next_event_is_a_schedule_event(local_tz, monkeypatch):
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 10, 1, 12))
+    event = _entity({"t_bins": _rule_task()}).event
+    assert event.start == _dt(2026, 10, 2, 7)
+    assert event.recurrence_id == "20261002T070000"
+
+
+def test_a_rule_with_no_dates_leaves_the_calendar_quiet(local_tz, monkeypatch):
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 10, 1, 12))
+    task = _rule_task(rrule="FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=30", next_due=None)
+    entity = _entity({"t_bins": task})
+    assert entity.event is None
+    assert entity._collect_events(_dt(2026, 10, 1), _dt(2027, 10, 1)) == []
+
+
+def test_the_calendar_offers_editing():
+    # Read through an instance: Home Assistant wraps ``_attr_*`` class attributes in
+    # a property on the class itself.
+    assert _entity({})._attr_supported_features == (
+        cal.CalendarEntityFeature.UPDATE_EVENT
+    )
+
+
+def test_recurrence_ids_round_trip(local_tz):
+    moment = _dt(2026, 10, 9, 7)
+    assert cal.parse_recurrence_id(cal.recurrence_id_for(moment)) == moment
+
+
+def _update(entity, uid, event, **kw):
+    asyncio.run(entity.async_update_event(uid, event, **kw))
+
+
+def test_only_this_event_moves_that_date(local_tz):
+    entity, store = _editable({"t_bins": _rule_task()})
+    new = _dt(2026, 10, 10, 7)
+    _update(
+        entity,
+        "t_bins",
+        {
+            "dtstart": new,
+            "dtend": new,
+            "summary": "Take trash out",
+            "rrule": "RRULE:BYDAY=TU,FR;FREQ=WEEKLY",
+        },
+        recurrence_id="20261009T070000",
+    )
+    assert store.calls == [
+        ("move", "t_bins", _dt(2026, 10, 9, 7), new, cal.ORIGIN_CALENDAR)
+    ]
+    assert entity.coordinator.refreshed == [True]
+
+
+def test_a_naive_start_is_read_in_home_assistant_zone(local_tz):
+    entity, store = _editable({"t_bins": _rule_task()})
+    _update(
+        entity,
+        "t_bins",
+        {"dtstart": datetime(2026, 10, 10, 7)},
+        recurrence_id="20261009T070000",
+    )
+    assert store.calls[0][3] == _dt(2026, 10, 10, 7)
+
+
+@pytest.mark.parametrize(
+    ("event", "kw"),
+    [
+        ({"dtstart": _dt(2026, 10, 10, 7)}, {}),  # the whole series
+        (
+            {"dtstart": _dt(2026, 10, 10, 7)},
+            {"recurrence_id": "20261009T070000", "recurrence_range": "THISANDFUTURE"},
+        ),
+        (
+            {"dtstart": _dt(2026, 10, 10, 7), "summary": "Recycling"},
+            {"recurrence_id": "20261009T070000"},
+        ),
+        (
+            {"dtstart": _dt(2026, 10, 10, 7), "rrule": "FREQ=DAILY"},
+            {"recurrence_id": "20261009T070000"},
+        ),
+        (
+            {"dtstart": _dt(2026, 10, 10, 7), "rrule": "not a rule"},
+            {"recurrence_id": "20261009T070000"},
+        ),
+        ({"dtstart": _dt(2026, 10, 10).date()}, {"recurrence_id": "20261009T070000"}),
+    ],
+)
+def test_anything_but_one_new_time_points_at_the_panel(local_tz, event, kw):
+    entity, store = _editable({"t_bins": _rule_task()})
+    with pytest.raises(_HA_EXC.HomeAssistantError) as err:
+        _update(entity, "t_bins", event, **kw)
+    assert err.value.translation_key == "calendar_edit_in_panel"
+    assert store.calls == []
+
+
+def test_editing_a_floating_event_snoozes_it(local_tz):
+    task = _floating_task(_dt(2026, 10, 2, 9))
+    entity, store = _editable({"t_float": task})
+    new = _dt(2026, 10, 4, 9)
+    _update(entity, f"t_float@{task['next_due']}", {"dtstart": new})
+    assert store.calls == [("snooze", "t_float", new, cal.ORIGIN_CALENDAR)]
+
+
+def test_a_floating_event_cannot_be_given_a_rule(local_tz):
+    task = _floating_task(_dt(2026, 10, 2, 9))
+    entity, store = _editable({"t_float": task})
+    with pytest.raises(_HA_EXC.HomeAssistantError):
+        _update(
+            entity,
+            f"t_float@{task['next_due']}",
+            {"dtstart": _dt(2026, 10, 4, 9), "rrule": "FREQ=DAILY"},
+        )
+    assert store.calls == []
+
+
+def test_editing_a_snoozed_fixed_date_snoozes_again(local_tz):
+    task = _rule_task(next_due=_dt(2026, 10, 3, 18).isoformat())
+    entity, store = _editable({"t_bins": task})
+    new = _dt(2026, 10, 3, 20)
+    _update(entity, f"t_bins@{task['next_due']}", {"dtstart": new})
+    assert store.calls == [("snooze", "t_bins", new, cal.ORIGIN_CALENDAR)]
+
+
+def test_an_unknown_task_is_reported(local_tz):
+    entity, _ = _editable({})
+    with pytest.raises(_HA_EXC.HomeAssistantError) as err:
+        _update(entity, "gone", {"dtstart": _dt(2026, 10, 10, 7)})
+    assert err.value.translation_key == "task_not_found"
+
+
+def test_a_refused_move_is_reported_in_words(local_tz):
+    entity, store = _editable({"t_bins": _rule_task()})
+    store.error = cal.TaskValidationError("a date can only move to the future")
+    with pytest.raises(_HA_EXC.HomeAssistantError) as err:
+        _update(
+            entity,
+            "t_bins",
+            {"dtstart": _dt(2026, 10, 10, 7)},
+            recurrence_id="20261009T070000",
+        )
+    assert err.value.translation_key == "invalid_task"
+    assert err.value.translation_placeholders == {
+        "error": "a date can only move to the future"
+    }
+    assert entity.coordinator.refreshed == []

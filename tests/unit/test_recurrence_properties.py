@@ -402,3 +402,50 @@ def test_r7_completing_a_fixed_task_always_clears_the_occurrence_it_showed(
     after = datetime.fromisoformat(task["next_due"])
     assert after > before, f"{freq}/{interval} anchored {anchor}: stayed at {before}"
     assert after > now
+
+
+@given(
+    anchor=ps.aware_datetimes(min_year=2020, max_year=2030),
+    days=st.sets(
+        st.sampled_from(["MO", "TU", "WE", "TH", "FR", "SA", "SU"]), min_size=1
+    ),
+    interval=st.integers(1, 4),
+    moved=st.lists(st.tuples(st.integers(0, 30), st.integers(1, 72)), max_size=4),
+    probe_days=st.integers(0, 60),
+)
+def test_r8_moves_take_dates_off_and_put_dates_on_and_nothing_else(
+    anchor, days, interval, moved, probe_days
+):
+    """R8. With moves, every date is a rule date that did not move, or a move target.
+
+    And the next date after any probe is after it. Moves are drawn as "the k-th rule
+    date, moved h hours later", so each ``from`` really is a date of the rule. Kills
+    the ``not in moved_from`` filter in both expanders and the ``dst > after`` guard.
+    """
+    anchor = anchor.replace(microsecond=0, second=0)
+    rule = f"FREQ=WEEKLY;INTERVAL={interval};BYDAY={','.join(sorted(days))}"
+    base = r.expand_fixed_occurrences(anchor, rule, anchor, anchor + timedelta(days=90))
+    moves, sources = [], set()
+    for index, hours in moved:
+        if index >= len(base) or base[index] in sources:
+            continue
+        sources.add(base[index])
+        moves.append(
+            {
+                "from": base[index].isoformat(),
+                "to": (base[index] + timedelta(hours=hours)).isoformat(),
+            }
+        )
+    targets = {datetime.fromisoformat(m["to"]) for m in moves}
+    got = r.expand_fixed_occurrences(
+        anchor, rule, anchor, anchor + timedelta(days=90), moves=moves
+    )
+    expected = sorted(
+        ({*base} - sources) | {t for t in targets if t < anchor + timedelta(days=90)}
+    )
+    assert got == expected
+
+    probe = anchor + timedelta(days=probe_days)
+    nxt = r.next_fixed_occurrence(anchor, rule, after=probe, moves=moves)
+    assert nxt > probe
+    assert nxt not in sources or nxt in targets
