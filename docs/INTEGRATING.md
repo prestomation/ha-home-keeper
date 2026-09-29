@@ -711,7 +711,9 @@ studiobts/home-assistant-device-pulse), **firmware_update_available** (update
 domain, covers UniFi, ESPHome, HACS, Reolink, Bambu Lab in one declarative
 companion) and **device_stopped_reporting**. Each **integration preset** covers one
 integration and one type of reading, and its id is `<domain>_<shape>`, such as
-`roborock_life_low`. Each selects by `target_integration` and `translation_keys`, and
+`roborock_life_low`. A preset for a platform other than `sensor` adds the platform to
+the id, and a preset for one alert state adds that state, as in
+`<domain>_alert_binary_sensor_on`. Each selects by `target_integration` and `translation_keys`, and
 fills `task_names` for each key. The catalog is `declarative_presets_catalog.py`, and
 `ci/check_preset_keys.py` checks its keys against each integration's translation file. Full config surface via `home_keeper.add_declarative_companion` /
 `update_declarative_companion` / `delete_declarative_companion` /
