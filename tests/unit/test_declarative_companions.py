@@ -422,6 +422,23 @@ def test_empty_task_names_are_not_stored():
     assert "task_names" not in _named_spec(None)["task_template"]
 
 
+def test_an_empty_string_for_task_names_stores_nothing():
+    assert "task_names" not in _named_spec("")["task_template"]
+
+
+def test_task_names_refuse_a_non_string_key():
+    with raises_exactly(
+        dc.DeclarativeCompanionValidationError,
+        "task_template.task_names keys must be strings",
+    ):
+        _named_spec({1: "Replace filter"})
+
+
+def test_a_blank_key_is_skipped_and_the_keys_after_it_are_kept():
+    spec = _named_spec({"  ": "Orphan", "filter_time_left": "Replace filter"})
+    assert spec["task_template"]["task_names"] == {"filter_time_left": "Replace filter"}
+
+
 def test_task_names_refuse_a_non_mapping():
     with raises_exactly(
         dc.DeclarativeCompanionValidationError,
