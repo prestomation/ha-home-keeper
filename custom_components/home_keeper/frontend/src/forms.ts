@@ -1,6 +1,13 @@
 import { companionKeys } from './card-filter';
 import { t, tn } from './i18n';
 import {
+  SIMPLE_FREQS,
+  buildSimple,
+  parseSimple,
+  resetToSimple,
+  type SimpleFreq,
+} from './rrule';
+import {
   COMPANION_KEY_DECLARATIVE_PREFIX,
   COMPANION_KEY_PROBLEM_SENSORS,
   HK_DOMAIN,
@@ -59,6 +66,13 @@ export interface FormField {
   selector?: Selector;
   type?: string;
   schema?: FormField[];
+  /** Shown but not editable (`ha-form` greys it out). */
+  disabled?: boolean;
+  /** An `expandable` group's heading, and whether it starts open. */
+  title?: string;
+  expanded?: boolean;
+  /** An `expandable` group whose fields sit at the top level of the form's data. */
+  flatten?: boolean;
 }
 
 export const selText = (multiline = false): Selector => ({
@@ -463,19 +477,26 @@ export function taskSchemaSections(
   // that compute one from a calendar offer it.
   const seasonOffered = (isFloating || isFixed) && !locked.has('active_season');
 
+  // A fixed task's rule, and whether the plain controls can show it. When they
+  // cannot ("the first Tuesday of each month"), Repeats and Every are greyed out and
+  // the rule text is the only way to change it; see rrule.ts.
+  const fixedRule = isFixed ? taskRule(task) : '';
+  const ruleIsSimple = !isFixed || parseSimple(fixedRule) !== null;
   const cadenceSubFields: FormField[] = isOneOff || isSensor
     ? []
     : isFixed
     ? [
-        ...(!locked.has('interval') ? [{ name: 'interval', selector: selNumber(1) }] : []),
-        ...(!locked.has('freq')
+        ...(!locked.has('rrule')
           ? [
+              { name: 'interval', selector: selNumber(1), disabled: !ruleIsSimple },
               {
                 name: 'freq',
+                disabled: !ruleIsSimple,
                 selector: selSelect([
                   { value: 'DAILY', label: t('opt.freq.daily') },
                   { value: 'WEEKLY', label: t('opt.freq.weekly') },
                   { value: 'MONTHLY', label: t('opt.freq.monthly') },
+                  { value: 'YEARLY', label: t('opt.freq.yearly') },
                 ]),
               },
             ]
@@ -657,26 +678,49 @@ export function taskSchemaSections(
       : []),
   ];
 
+  // A fixed task's start, its rule text and "Last completed". A section of its own
+  // so the panel can put the day buttons between Repeats/Every and these; `ha-form`
+  // offers no slot between its own rows.
+  const ruleSection: FormField[] = [
+    ...(isFixed && !locked.has('anchor')
+      ? [{ name: 'anchor', selector: selDateTime() } as FormField]
+      : []),
+    // The rule text, behind a disclosure: most people never open it, and it is open
+    // from the start when the rule is one only the text can show.
+    ...(isFixed && !locked.has('rrule')
+      ? [
+          {
+            name: 'rule_advanced',
+            type: 'expandable',
+            flatten: true,
+            title: t('rule.advanced'),
+            expanded: !ruleIsSimple,
+            schema: [{ name: 'rrule', selector: selText() }],
+          } as FormField,
+        ]
+      : []),
+  ];
+
+  // "Last completed" seeds the first history entry. For a scheduled task that
+  // places the first due date; for a *sensor* task it anchors the time backstop
+  // (`sensor.also_every`), so "every 10,000 mi or 12 months" starts its calendar
+  // half where the meter half starts rather than restarting today. `build_task`
+  // has always handled the sensor case (recording history without arming) — only
+  // this predicate hid the field.
+  const lastCompleted: FormField[] =
+    !task.id && !isOneOff && !locked.has('last_completed')
+      ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
+      : [];
+
   // Everything the recurrence choice reveals. Rendered indented behind a rule, so
   // "these exist because of the answer above" is visible rather than inferred.
   const cadenceSection: FormField[] = [
     ...(cadence ? [cadence] : []),
     ...sensorFields,
-    ...(isFixed && !locked.has('anchor')
-      ? [{ name: 'anchor', selector: selDateTime() } as FormField]
-      : []),
     ...(isOneOff && !locked.has('due')
       ? [{ name: 'due', selector: selDateTime() } as FormField]
       : []),
-    // "Last completed" seeds the first history entry. For a scheduled task that
-    // places the first due date; for a *sensor* task it anchors the time backstop
-    // (`sensor.also_every`), so "every 10,000 mi or 12 months" starts its calendar
-    // half where the meter half starts rather than restarting today. `build_task`
-    // has always handled the sensor case (recording history without arming) — only
-    // this predicate hid the field.
-    ...(!task.id && !isOneOff && !locked.has('last_completed')
-      ? [{ name: 'last_completed', selector: selDateTime() } as FormField]
-      : []),
+    ...(isFixed ? [] : lastCompleted),
   ];
 
   // Where the task hangs off the house: a device, a room, a sticker, a consumable.
@@ -750,6 +794,9 @@ export function taskSchemaSections(
     { key: 'basics', fields: basics },
     { key: 'schedule', fields: schedule },
     { key: 'cadence', fields: cadenceSection, dependent: true },
+    ...(isFixed
+      ? [{ key: 'rule', fields: [...ruleSection, ...lastCompleted], dependent: true }]
+      : []),
     ...seasons,
     { key: 'placement', fields: placement },
     { key: 'completion', fields: completion },
@@ -826,6 +873,45 @@ export function taskFormIsEmpty(
   return taskSchemaSections(task, consumables, links, tags).every((s) => !s.fields.length);
 }
 
+/**
+ * A fixed task's rule. A task loaded from the store has `rrule`; a form state or an
+ * old record may carry only the legacy `freq`/`interval`, which mean the plain rule.
+ */
+export function taskRule(task: Partial<Task>): string {
+  if (task.rrule) return task.rrule;
+  return buildSimple({
+    freq: (SIMPLE_FREQS as readonly string[]).includes(task.freq ?? '')
+      ? (task.freq as SimpleFreq)
+      : 'DAILY',
+    interval: Math.max(1, Number(task.interval) || 1),
+    byday: [],
+  });
+}
+
+/**
+ * `interval`, `freq` and `rrule` for the form.
+ *
+ * For a fixed task the Repeats and Every controls are *read from the rule*, so a
+ * rule typed into the text box shows up in them. A custom rule leaves them at what
+ * it would reset to, greyed out. Other kinds keep their own `interval`.
+ */
+function fixedFormFields(task: Partial<Task>): Record<string, unknown> {
+  if (task.recurrence_type !== 'fixed') {
+    return {
+      interval: task.interval ?? 1,
+      freq: task.freq ?? 'DAILY',
+      rrule: task.rrule ?? '',
+    };
+  }
+  const rule = taskRule(task);
+  const simple = parseSimple(rule) ?? parseSimple(resetToSimple(rule));
+  return {
+    interval: simple?.interval ?? 1,
+    freq: simple?.freq ?? 'WEEKLY',
+    rrule: rule,
+  };
+}
+
 /** Map a task onto the `ha-form` data object (selector-shaped values). */
 export function taskFormData(task: Partial<Task>): Record<string, unknown> {
   // The edit state spreads flat `sensor_*` fields onto the task as the user edits;
@@ -836,9 +922,8 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     name: task.name ?? '',
     notes: task.notes ?? '',
     recurrence_type: task.recurrence_type ?? 'floating',
-    interval: task.interval ?? 1,
+    ...fixedFormFields(task),
     unit: task.unit ?? 'months',
-    freq: task.freq ?? 'DAILY',
     anchor: isoToHaDateTime(task.anchor) ?? '',
     // A new one-off defaults its due date to now; an existing one shows its stored due.
     due: isoToHaDateTime(task.due) ?? (task.id ? '' : isoToHaDateTime(new Date().toISOString())),
@@ -993,6 +1078,9 @@ export function duplicateTaskSeed(task: Task): Partial<Task> {
     interval: task.interval,
     unit: task.unit,
     freq: task.freq,
+    // The rule is the schedule. Moved dates are this task's own history of the city
+    // moving a pickup, so the copy starts without them.
+    rrule: task.rrule,
     anchor: task.anchor,
     // A one-off's `due` *is* its rule, so it rides along. `taskFormData` would
     // otherwise default an id-less task to now and quietly move the deadline.
@@ -1159,7 +1247,10 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       // one-off) so the backend never rejects the update for a missing due.
       payload.due = haDateTimeToIso(task.due) || new Date().toISOString();
     } else {
-      payload.freq = task.freq || 'DAILY';
+      // A fixed task sends its rule, which already holds the interval; the legacy
+      // pair would only be a second, possibly stale, copy of it.
+      delete payload.interval;
+      payload.rrule = taskRule(task);
       payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
     }
     payload.completion_detail = task.completion_detail || 'none';

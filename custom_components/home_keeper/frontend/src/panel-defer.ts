@@ -10,6 +10,7 @@
 
 import * as api from './api';
 import {
+  defaultMoveTo,
   deferSplit,
   deferVerbs,
   emptySkipState,
@@ -21,7 +22,7 @@ import { t } from './i18n';
 import type { PanelHost } from './panel-host';
 import { MDI_DELETE, MDI_EDIT, MDI_MOVE_DATE } from './panel-icons';
 import { setIcon } from './panel-history';
-import type { Task } from './types';
+import type { Task, UpcomingOccurrence } from './types';
 import { DEFAULT_SNOOZE_PRESET, toast, type BtnWeight } from './utils';
 
 /**
@@ -45,6 +46,29 @@ export function deferMenu(
 
 export function openSnooze(p: PanelHost, task: Task): void {
   p._snooze = { open: true, task, preset: DEFAULT_SNOOZE_PRESET };
+  p._render();
+}
+
+/**
+ * Open the snooze dialog on "A later date" with *row* already picked — what Move on
+ * the task page's Upcoming block does, so a date moves through one dialog whichever
+ * surface it starts from.
+ */
+export function openMoveLater(
+  p: PanelHost,
+  task: Task,
+  rows: UpcomingOccurrence[],
+  row: UpcomingOccurrence,
+): void {
+  p._snooze = {
+    open: true,
+    task,
+    preset: DEFAULT_SNOOZE_PRESET,
+    mode: 'later',
+    occurrences: rows,
+    picked: row,
+    moveTo: defaultMoveTo(row.start),
+  };
   p._render();
 }
 

@@ -29,7 +29,7 @@ import {
 import type { SkipState, SnoozeState } from './defer';
 import type { DeferDialogHost } from './defer-dialogs';
 import { deferRowActions, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
-import { renderSkipDialog, renderSnoozeDialog } from './defer-dialogs';
+import { LATER_DATES_STYLES, renderSkipDialog, renderSnoozeDialog } from './defer-dialogs';
 import { makeDialog, makeForm } from './dialogs';
 import type { SignedFileRef } from './documents';
 import { SignedUrlCache, documentLabel, isDisplayableDocument } from './documents';
@@ -286,6 +286,7 @@ const STYLES = `
   .hk-acts:empty { display: none; }
   ha-icon-button.hk-row-action:hover { color: var(--primary-text-color); }
   .hk-snooze-hint { color: var(--secondary-text-color); font-size: 0.9em; margin: 8px 0 0; }
+  ${LATER_DATES_STYLES}
   .hk-loading { display: flex; justify-content: center; padding: 32px 0; }
   .hk-empty { padding: 16px; }
   .hk-more {
