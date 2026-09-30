@@ -7,9 +7,11 @@ exercised by the Docker integration tests.
 """
 
 import os
+import uuid
 from pathlib import Path
 
 import hk_documents as d
+import pytest
 from asserts import raises_exactly
 from hk_assets import AssetValidationError
 
@@ -185,3 +187,43 @@ def test_document_path_composes_id_and_filename(tmp_path: Path):
     assert p.parent.name == "asset-1"
     assert p.name == "doc-9__manual.pdf"
     assert p.is_relative_to(root.resolve())
+
+
+_FREE = "3f2b8c1e-6d4a-4b7e-9c2d-1a5e7f9b0c3d"
+_TAKEN = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+
+
+def _is_fresh_uuid(value: str) -> bool:
+    return str(uuid.UUID(value)) == value and value not in (_FREE, _TAKEN)
+
+
+@pytest.mark.parametrize("requested", [_FREE, _FREE.upper(), _FREE.replace("-", "")])
+def test_b06_2_a_free_uuid_is_kept(requested):
+    """B06-2: the id the panel mints (or a hex uuid a script sends) is kept."""
+    assert d.upload_document_id(requested, [_TAKEN]) == requested
+    assert d.upload_document_id(requested, iter([])) == requested
+
+
+def test_b06_2_a_taken_id_gets_a_new_uuid_before_the_file_is_written():
+    """B06-2: a re-used id must never name the path of an existing document."""
+    new_id = d.upload_document_id(_TAKEN, (i for i in [_FREE, _TAKEN]))
+    assert _is_fresh_uuid(new_id)
+
+
+@pytest.mark.parametrize(
+    "requested",
+    [
+        "A__B",  # the "__" delimiter: aliases another id's file name
+        "part_p1",  # a part's file key
+        "{" + _FREE + "}",  # a uuid to the parser, but not only hex and hyphens
+        "urn:uuid:" + _FREE,
+        "abc",  # hex, but not a uuid
+        "-" * 36,
+        "",
+        None,
+    ],
+)
+def test_b06_2_an_id_that_is_not_a_plain_uuid_is_replaced(requested):
+    new_id = d.upload_document_id(requested, [])
+    assert _is_fresh_uuid(new_id)
+    assert new_id != requested

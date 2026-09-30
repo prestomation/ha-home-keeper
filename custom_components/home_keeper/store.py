@@ -68,6 +68,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
     TASK_SOURCE_BUY,
+    TASK_SOURCE_DECLARATIVE_COMPANION,
     TASK_SOURCE_PART,
     TASK_SOURCE_PROBLEM_SENSOR,
     resolve_buy_task_naming,
@@ -83,6 +84,7 @@ from .reconcile import is_manual_part_link as _is_manual_part_link
 from .reconcile import is_part_owned_tag_update as _is_part_owned_tag_update
 from .reconcile import is_use_task as _is_use_task
 from .reconcile import part_source as _part_source
+from .reconcile import reanchor_edited_parts as _reanchor_edited_parts
 from .reconcile import reconcile_buy_tasks as _reconcile_buy_tasks
 from .reconcile import reconcile_part_tasks as _reconcile_part_tasks
 from .reconcile import settle_use_tasks as _settle_use_tasks
@@ -97,6 +99,17 @@ _STOCK_EVENT = {
 }
 
 _LOGGER = logging.getLogger(__name__)
+
+# Source namespaces Home Keeper writes itself. They name no contributor device, so
+# the split-duplicate merge never groups tasks by them (B17-1).
+_RESERVED_SOURCE_NAMESPACES = frozenset(
+    {
+        TASK_SOURCE_PART,
+        TASK_SOURCE_BUY,
+        TASK_SOURCE_PROBLEM_SENSOR,
+        TASK_SOURCE_DECLARATIVE_COMPANION,
+    }
+)
 
 # One edit to an already-loaded asset, as ``_mutate_asset`` runs it. Returning
 # ``_UNCHANGED`` means the operation decided there was nothing to do, so the asset is
@@ -951,9 +964,23 @@ class HomeKeeperStore:
             "parent_asset_id", existing.get("parent_asset_id")
         )
         self._validate_parent(asset_id, prospective_parent)
-        merged = assets.merge_update(existing, updates, now=dt_util.now())
+        now = dt_util.now()
+        merged = assets.merge_update(existing, updates, now=now)
         self._assets[asset_id] = merged
+        # An edit of a wear part's "Last replaced" date moves its task (B09-3).
+        reanchored = _reanchor_edited_parts(existing, merged, self._tasks, now=now)
+        self._tasks.update(reanchored)
         await self._save()
+        await self._delete_dropped_part_files(
+            asset_id, existing.get("parts"), merged.get("parts")
+        )
+        for task in reanchored.values():
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(
+                    task, extra={"changed_fields": ["last_completed", "next_due"]}
+                ),
+            )
         changed = _changed_fields(existing, merged)
         if changed:
             self._hass.bus.async_fire(
@@ -1173,6 +1200,23 @@ class HomeKeeperStore:
 
         return await self._mutate_asset(asset_id, detach, changed_field="parts")
 
+    async def _delete_dropped_part_files(
+        self, asset_id: str, before: Any, after: Any
+    ) -> None:
+        """Delete the file of each part the update removed (B06-3).
+
+        Call it after ``_save``: if the save fails, the record still names the file.
+        """
+        dropped = assets.dropped_part_files(before or [], after or [])
+        if not dropped:
+            return
+        from . import manuals  # lazy: manuals -> devices would cycle at load
+
+        for part_id, filename in dropped:
+            await manuals.async_delete_part_file(
+                self._hass, asset_id, part_id, filename
+            )
+
     def _validate_parent(
         self, asset_id: str | None, parent_asset_id: str | None
     ) -> None:
@@ -1280,7 +1324,10 @@ class HomeKeeperStore:
         Two tasks are the same only when the contributor's whole ``source`` payload
         matches once device ids are canonicalized, which for every known contributor
         means the same device *and* item (bambu-lab distinguishes firmware from each
-        maintenance item there, Pawsistant keys on a schedule id).
+        maintenance item there, Pawsistant keys on a schedule id). A group merges only
+        when its payloads name at least 2 different halves of one split device, and
+        Home Keeper's own namespaces (part, buy, problem sensor, declarative
+        companion) never form a group: 2 tasks linked to one part are 2 tasks.
 
         The survivor keeps the **history** (oldest wins ties) but adopts the **newest**
         task's ``device_id``: the newer one was created by the contributor *after* the
@@ -1296,23 +1343,48 @@ class HomeKeeperStore:
         duplicate and has no way to clean it up itself.
         """
 
-        def key_for(namespace: str, payload: dict[str, Any]) -> str:
-            normalized = dict(payload)
-            device_id = normalized.get("device_id")
-            if isinstance(device_id, str):
-                normalized["device_id"] = canonical.get(device_id, device_id)
-            return f"{namespace}|{json.dumps(normalized, sort_keys=True, default=str)}"
+        # Only a device id that came out of a split can make two tasks one thing.
+        # Without this, two tasks that only share an identical payload (two tasks
+        # linked to one part, B17-1) looked like duplicates on every setup.
+        composites = set(canonical.values())
+
+        def root_of(device_id: Any) -> str | None:
+            """Return the composite *device_id* came from, or None if not split."""
+            if not isinstance(device_id, str):
+                return None
+            root = canonical.get(device_id, device_id)
+            return root if root in composites else None
 
         groups: dict[str, list[dict[str, Any]]] = {}
+        raw_ids: dict[str, set[str]] = {}
+        roots: dict[str, str] = {}
         for task in self._tasks.values():
             for namespace, payload in (task.get("source") or {}).items():
-                if isinstance(payload, dict):
-                    groups.setdefault(key_for(namespace, payload), []).append(task)
+                # Our own namespaces are not contributors: their payloads carry no
+                # device and can be the same on unrelated tasks.
+                if namespace in _RESERVED_SOURCE_NAMESPACES:
+                    continue
+                if not isinstance(payload, dict):
+                    continue
+                raw = payload.get("device_id")
+                root = root_of(raw)
+                if root is None:
+                    continue
+                normalized = json.dumps(
+                    {**payload, "device_id": root}, sort_keys=True, default=str
+                )
+                key = f"{namespace}|{normalized}"
+                groups.setdefault(key, []).append(task)
+                raw_ids.setdefault(key, set()).add(str(raw))
+                roots[key] = root
 
         removed = 0
-        for group in groups.values():
-            if len(group) < 2:
+        for key, group in groups.items():
+            # A real split duplicate points at two different halves of one device.
+            # Tasks that name the same half are two tasks, not one.
+            if len(group) < 2 or len(raw_ids[key]) < 2:
                 continue
+            root = roots[key]
             by_age = sorted(group, key=lambda t: t.get("created") or "")
             # Rank by position rather than `by_age.index(task)`: `list.index` compares
             # with `==`, so it would resolve two value-equal tasks to the same position.
@@ -1324,10 +1396,16 @@ class HomeKeeperStore:
             )
             adopted = by_age[-1].get("device_id")
 
-            if adopted and survivor.get("device_id") != adopted:
-                survivor["device_id"] = adopted
+            # Move the survivor only between halves of the same split device. An id
+            # that did not come from this split is the user's choice; keep it.
+            if root_of(adopted) == root:
+                if root_of(survivor.get("device_id")) == root:
+                    survivor["device_id"] = adopted
                 for payload in (survivor.get("source") or {}).values():
-                    if isinstance(payload, dict) and payload.get("device_id"):
+                    if (
+                        isinstance(payload, dict)
+                        and root_of(payload.get("device_id")) == root
+                    ):
                         payload["device_id"] = adopted
 
             for duplicate in group:
@@ -1335,6 +1413,12 @@ class HomeKeeperStore:
                 # which is the intended trade: a leftover task is recoverable, a
                 # deleted completion history is not.
                 if duplicate is survivor or (duplicate.get("completions") or []):
+                    continue
+                # Already gone through another namespace's group, or managed by a
+                # wear part or a buy reminder, which ``delete_task`` refuses.
+                if duplicate["id"] not in self._tasks or _buy_source(duplicate):
+                    continue
+                if _part_source(duplicate) and not _is_manual_part_link(duplicate):
                     continue
                 await self.delete_task(duplicate["id"], force=True)
                 removed += 1
@@ -1409,6 +1493,9 @@ class HomeKeeperStore:
         if not changed:
             return asset
         await self._save()
+        await self._delete_dropped_part_files(
+            asset_id, before.get("parts"), asset.get("parts")
+        )
         self._hass.bus.async_fire(
             EVENT_ASSET_UPDATED,
             events.asset_event_data(asset, extra={"changed_fields": changed}),
@@ -1680,6 +1767,11 @@ class HomeKeeperStore:
         )
         if not changed:
             return False
+        # A deleted task's completions belong to its appliance, as for delete_task
+        # (B01-4). Archive them before the task list is replaced.
+        for kind, task in ops:
+            if kind == "deleted":
+                self._archive_task_history(task)
         self._tasks = new_tasks
         await self._save()
         entity_set_changed = False
@@ -1812,6 +1904,11 @@ class HomeKeeperStore:
         new_tasks, ops = declarative_companions.collect_orphans_for_removed_spec(
             spec_id, self._tasks
         )
+        # A deleted task's completions belong to its appliance, as for delete_task
+        # (B01-4). Archive them before the task list is replaced.
+        for kind, task in ops:
+            if kind == "deleted":
+                self._archive_task_history(task)
         self._tasks = new_tasks
         await self._save()
         entity_set_changed = False
@@ -1898,6 +1995,11 @@ class HomeKeeperStore:
         )
         if not changed:
             return False, []
+        # A deleted task's completions belong to its appliance, as for delete_task
+        # (B01-4). Archive them before the task list is replaced.
+        for kind, task in ops:
+            if kind == "deleted":
+                self._archive_task_history(task)
         self._tasks = new_tasks
         await self._save()
         entity_set_changed = False
