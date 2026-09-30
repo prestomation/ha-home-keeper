@@ -35,6 +35,7 @@ from homeassistant.util import dt as dt_util
 
 from . import (
     appliance_report,
+    assets,
     backend_i18n,
     card,
     companions,
@@ -822,6 +823,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # first refresh, the problem-sensor reconcile, every websocket error reply — then
     # resolves out of a warm cache. See ``backend_i18n.preload`` (#247).
     await hass.async_add_executor_job(backend_i18n.preload, hass.config.language)
+    # The shopping-list sync writes amounts with the language's decimal mark, and the
+    # first lookup reads Babel's locale data from disk. Do that read here, in the
+    # executor, so the sync on the loop gets the cached value.
+    await hass.async_add_executor_job(assets.decimal_mark, hass.config.language)
 
     store = HomeKeeperStore(hass)
     await store.load()

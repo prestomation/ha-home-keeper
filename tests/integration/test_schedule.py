@@ -6,6 +6,7 @@ together. The container runs on America/New_York (ha_config/configuration.yaml);
 every time here is built in that zone from the container's real clock.
 """
 
+import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -219,25 +220,36 @@ def test_b11_2_calendar_follows_a_snoozed_fixed_task(ha):
             {"task_id": task_id, "until": snoozed.isoformat()},
         )
         window_end = anchor + timedelta(days=5, hours=12)
-        resp = call_service(
-            ha,
-            "calendar",
-            "get_events",
-            {
-                "entity_id": CALENDAR,
-                "start_date_time": datetime.now(TZ).isoformat(),
-                "end_date_time": window_end.isoformat(),
-            },
-            return_response=True,
-        )
-        events = _response(resp)[CALENDAR]["events"]
-        starts = sorted(_instant(e["start"]) for e in events if e["summary"] == name)
         # The occurrences that the snooze moved are gone. The snoozed date is on
         # the calendar, and the grid comes back after it.
-        assert starts == [
+        expected = [
             snoozed,
             anchor + timedelta(days=4),
             anchor + timedelta(days=5),
         ]
+        # The calendar reads the coordinator's data, and the coordinator refresh is
+        # debounced (10 s cooldown). When an earlier test refreshed it moments ago,
+        # the new task and its snooze show only after the cooldown, so poll.
+        deadline = time.monotonic() + 30
+        while True:
+            resp = call_service(
+                ha,
+                "calendar",
+                "get_events",
+                {
+                    "entity_id": CALENDAR,
+                    "start_date_time": datetime.now(TZ).isoformat(),
+                    "end_date_time": window_end.isoformat(),
+                },
+                return_response=True,
+            )
+            events = _response(resp)[CALENDAR]["events"]
+            starts = sorted(
+                _instant(e["start"]) for e in events if e["summary"] == name
+            )
+            if starts == expected or time.monotonic() > deadline:
+                break
+            time.sleep(1)
+        assert starts == expected
     finally:
         _delete(ha, task_id)
