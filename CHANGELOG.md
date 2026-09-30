@@ -6,6 +6,27 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b6]
+
+### Fixed
+
+- **Tasks that share a spare part.** Home Keeper no longer deletes tasks that use the
+  same spare part each time it starts. This affected Battery Notes tasks and tasks
+  made with Duplicate.
+- **[Part files](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  An edit of an appliance that does not change its parts, such as a notes edit or a
+  rename, now keeps the files attached to its parts. A file is now deleted from disk
+  when you remove its part.
+- **[Document uploads](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  An upload can no longer replace the file of a different document.
+- **Task history on removal.** Home Keeper now keeps the history of a declarative
+  companion task or a problem sensor task on its appliance when it removes the task.
+- **[Spare stock limit](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  Stock can no longer go above the largest allowed count. Before, an appliance with
+  too much stock could not be edited.
+- **[Last replaced date](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  A change of the Last replaced date of a wear part now moves the due date of its task.
+
 ## [0.28.0b5]
 
 ### Fixed
