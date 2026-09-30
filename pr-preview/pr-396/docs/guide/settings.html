@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Settings | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Settings | Home Keeper"><meta data-rh="true" name="description" content="The Settings tab in the panel edits the integration options. The form matches the"><meta data-rh="true" property="og:description" content="The Settings tab in the panel edits the integration options. The form matches the"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-396/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Settings","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-396/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-396/assets/js/runtime~main.4f11cf07.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-396/assets/js/runtime~main.675596b6.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-396/assets/js/main.ebbd0ade.js" defer="defer"></script>
 </head>
 <body>
@@ -48,7 +48,7 @@ row has an <strong>Install</strong> link and a <strong>Dismiss</strong> button.<
 </ul>
 <p>To add a companion or a <a class="" href="/ha-home-keeper/pr-preview/pr-396/developer/glue-integrations">glue integration</a> to the catalog,
 <a href="https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20" target="_blank" rel="noopener noreferrer" class="">open a GitHub issue</a>.</p>
-<p><img decoding="async" loading="lazy" alt="The Companions section on the Settings tab: connected integrations with Configure buttons" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21-panel-companions-d3234634a732d97d9e833248011f56b4.png" width="736" height="499" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The Companions section on the Settings tab: connected integrations with Configure buttons" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21-panel-companions-3fd60d00ecfcb6b783b8c6d0dc0b0b4b.png" width="736" height="499" class="img_ev3q"></p>
 <h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="declarative-companions-config-driven-no-separate-integration">Declarative companions (config-driven, no separate integration)<a href="#declarative-companions-config-driven-no-separate-integration" class="hash-link" aria-label="Direct link to Declarative companions (config-driven, no separate integration)" title="Direct link to Declarative companions (config-driven, no separate integration)" translate="no">​</a></h5>
 <p>A <strong>declarative companion</strong> targets an integration, or it matches entities through an
 entity id filter. It sets a trigger mode: usage, threshold, state, availability, or
@@ -72,7 +72,8 @@ declarative companion completes its tasks itself, the device page has no <strong
 a completion or a skip by hand from a service call or an automation. Home Assistant sets the
 entity ID when the entity is first made and does not change it later. To get a
 shorter entity ID for an older entity, rename it in Home Assistant.</p>
-<p>The <em>Add from preset</em> picker offers 3 presets.</p>
+<p>The <em>Add from preset</em> picker offers 3 general presets, and the integration presets
+that <a href="#integration-presets" class="">Integration presets</a> describes.</p>
 <ul>
 <li class=""><strong>Device Pulse</strong> watches the ping status of each device in
 <a href="https://github.com/studiobts/home-assistant-device-pulse" target="_blank" rel="noopener noreferrer" class="">studiobts/home-assistant-device-pulse</a>.
@@ -117,8 +118,8 @@ back. The preview shows 10 matches at most. To exclude an entity that is not in 
 preview, select it in the excluded entities list.</p>
 <p><img decoding="async" loading="lazy" alt="The declarative companion dialog with More filters open and one excluded entity in the Exclusions block" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21j-panel-declarative-filters-2b7e5a3e80b68dce582cab758580a4d7.png" width="612" height="2552" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The same dialog on a phone, with an Exclude button on each preview row" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21k-panel-mobile-declarative-filters-942c31fa383b70d769093875563d5f71.png" width="390" height="844" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21c-panel-declarative-preset-picker-6be6a6be30e2467b2f3391fce9bde940.png" width="1280" height="720" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21d-panel-declarative-add-dialog-b4de8259b8459bebdc5a742ee550a439.png" width="612" height="1682" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21c-panel-declarative-preset-picker-08a48071ebf043b3ceeb0285187b184e.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21d-panel-declarative-add-dialog-fb1ac7c699d9bae77b6311b26fb41b24.png" width="612" height="1682" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The page of a task a declarative companion made, with Edit and Edit companion buttons and no Done button while the task is monitored" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21e-panel-declarative-task-detail-ac7a46a408391a1443d1e0c6448be76c.png" width="1280" height="720" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The same task page on a phone" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21e-mobile-companion-task-3f4cf0e209c7f1bc188e1e95712f9420.png" width="390" height="844" class="img_ev3q"></p>
 <p>A declarative companion you switch off keeps the tasks it made. The tasks stop until
@@ -147,6 +148,86 @@ task: <code>{{ task_name }}: {{ device_name }}</code>. A key with no task name u
 name. The key of the entity is also available as <code>{{ translation_key }}</code>.</p>
 <p><img decoding="async" loading="lazy" alt="The declarative companion dialog with two entity keys, one of them with the task name Replace the battery" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21u-panel-declarative-entity-keys-8949ca8d6f5a2bc7a39f81c4e18a4c2b.png" width="612" height="2552" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The entity keys on a phone, with each key above its task name" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21u-panel-mobile-declarative-entity-keys-eb5118cc8a74bf3dbefba005259e0308.png" width="390" height="844" class="img_ev3q"></p>
+<h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="integration-presets">Integration presets<a href="#integration-presets" class="hash-link" aria-label="Direct link to Integration presets" title="Direct link to Integration presets" translate="no">​</a></h5>
+<p>Many devices report the wear of their parts, such as the hours left on the filter of a
+robot vacuum or the toner level of a printer. An integration preset turns these
+readings into tasks for one integration.
+Each preset selects the entities by their <a href="#entity-keys-and-task-names" class="">entity keys</a>
+and gives each key its own task name, such as <em>Replace the main brush</em>.</p>
+<p>The picker shows first the presets that match entities you have, with the number of
+entities each one matches. An installed integration is not enough. A Tuya light has
+no filter or brush, so the Tuya preset for vacuum parts is not in that group. Then the picker
+shows the general presets. Click <strong>Show more presets</strong> to see the other presets, or
+type in the search box to find a brand or a part. Each preset card lists the tasks
+that it makes.</p>
+<p>Each integration can have up to 6 presets, one for each type of reading:</p>
+<ul>
+<li class=""><strong>Parts and supplies running low</strong>: a percentage falls below 10%.</li>
+<li class=""><strong>Parts near the end of their life</strong>: the time left on a part falls below a limit.
+The preset reads the time in any unit, from seconds to weeks.</li>
+<li class=""><strong>Wear counters</strong>: a counter that the device resets passes a service limit.</li>
+<li class=""><strong>Readings too low</strong> and <strong>readings too high</strong>: a measurement, such as the water
+pressure of a boiler, passes its service level.</li>
+<li class=""><strong>Service alerts</strong>: the device reports that it needs service.</li>
+</ul>
+<p>Each task closes when the reading recovers. Reset the part on the device, or refill
+the salt, and the task completes.</p>
+<p><img decoding="async" loading="lazy" alt="The preset picker with a search for filter, showing the integration presets and the tasks each one makes" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21v-panel-declarative-preset-search-5ce4da39c9272819b0f73b4507f24663.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same search on a phone" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21v-panel-mobile-preset-search-56d3d996927a49028e2c51855f06d293.png" width="390" height="844" class="img_ev3q"></p>
+<p>These integrations have presets:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Type of device</th><th>Integrations</th></tr></thead><tbody><tr><td>Air and ventilation</td><td>Dantherm ventilation, Dreo, Duco ventilation, Duux, Dyson, Flexit (Modbus), Flexit Nordic, Genvex Connect / Nilan gateway, Govee (purifiers), IKEA Trådfri (STARKVIND), Matter, Nest (legacy API), Nilan (CTS602 Modbus), Philips AirPurifier (CoAP), Pluggit ventilation, Pura fragrance diffusers, Renson Endura Delta, Samsung (Local Things), Tuya Local, Venstar thermostat, VeSync (Levoit), Winix, Zehnder ComfoConnect Pro (Modbus), Zigbee (ZHA)</td></tr><tr><td>Cars</td><td>Bosch eBike (Smart System &amp; eBike System 2), FordConnect Query, Porsche Connect, Smart #1 / #3 (Hello Smart), Stellantis (Peugeot/Citroën/DS/Opel/Fiat…), Škoda (MySkoda)</td></tr><tr><td>Garden and pool</td><td>Hot Spring spas, Husqvarna Automower, Mammotion (Luba), Ondilo ICO, Pentair ScreenLogic, Robonect (Husqvarna/Gardena/Flymo), Sunseeker mowers, Worx Landroid, Worx Landroid Vision</td></tr><tr><td>Heating and water</td><td>AquaCell softener, BWT AQA Perla (BLE), BWT Perla, DROP (water treatment), Fumis (pellet stoves), iQua softener, OpenTherm Gateway, Plugwise (Anna/Adam), Rehlko / Kohler generators, Salt Sentry, Stiebel Eltron ISG (LWZ), SYR Connect (softeners), Unique Waterontharder, Victron GX (generator), Viessmann ViCare</td></tr><tr><td>Kitchen and laundry</td><td>Candy Simply-Fi, ConnectLife (Hisense / Gorenje / ASKO), Electrolux (OCP API), Haier hOn (Haier/Candy/Hoover), Home Connect, Home Connect Local, HomeWhiz (Beko / Grundig / Arçelik), LG ThinQ, Midea (core), Miele, Whirlpool</td></tr><tr><td>Personal care</td><td>Philips shaver, Philips Sonicare (BLE)</td></tr><tr><td>Pets</td><td>EHEIM Digital (aquarium), Litter-Robot, PetKit, PETLIBRO</td></tr><tr><td>Printers</td><td>Brother printer, HP printer, Samsung SyncThru printer</td></tr><tr><td>Robot vacuums</td><td>Ecovacs, iRobot Roomba, Maytronics Dolphin, Roborock, Roomba+ (local MQTT), SmartThings, TP-Link Tapo vacuum, Tuya, Xiaomi Miio, Xiaomi Vacuum (cloud)</td></tr><tr><td>Storage (NAS)</td><td>MOS NAS, QNAP NAS, Synology NAS, UniFi UNAS (REST), Unraid, Unraid API, Unraid Management Agent</td></tr></tbody></table>
+<p>For an integration that is not in the list, write a declarative companion with the
+keys of its entities. The key of an entity is in the translation file of its
+integration.</p>
 <h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="task-labels-and-notes">Task labels and notes<a href="#task-labels-and-notes" class="hash-link" aria-label="Direct link to Task labels and notes" title="Direct link to Task labels and notes" translate="no">​</a></h5>
 <p>Use <strong>Task labels</strong> to find the tasks of one declarative companion. Set them in the
 <strong>Task template</strong> section of the dialog. Each task that the declarative companion makes
