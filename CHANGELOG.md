@@ -6,6 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b7]
+
+### Fixed
+
+- **[To-do due dates](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  A task due in the evening now shows on its correct day in a synced to-do list. Before,
+  it showed 1 day late in time zones behind UTC.
+- **[Deleted list items](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  If you delete an item from a synced to-do list or shopping list, Home Keeper no longer
+  marks its task complete or restocks its part.
+- **[New shopping items](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  A new buy reminder no longer matches the item that you ticked off the last time.
+- **[Sync to a new list](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  A profile sync that you move to a new list now works when the old list is gone.
+- **[Task on 2 lists](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  A task on the lists of 2 profiles now completes 1 time when you tick it off.
+
 ## [0.28.0b6]
 
 ### Fixed
