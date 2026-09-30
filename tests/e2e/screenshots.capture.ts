@@ -408,12 +408,24 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#add-btn')).toBeVisible();
 
   // 1f. Orphan cleanup — when a managing integration is uninstalled, its tasks are
-  // no longer protected: a warning banner offers a one-click "Remove orphaned tasks",
-  // and each orphaned task shows the "Integration offline" chip.
+  // no longer protected: a warning banner offers "Remove orphaned tasks", which asks
+  // first (71 below), and each orphaned task shows the "Integration offline" chip.
   await expect(panel.locator('.hk-orphan-banner')).toBeVisible();
   await expect(panel.locator('ha-assist-chip.hk-orphaned').first()).toBeVisible();
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/12-panel-orphan-cleanup.png`, fullPage: true });
+
+  // 71. "Remove orphaned tasks" asks first: a confirm dialog that names the count,
+  // with the keyboard on Cancel. Cancelled, so the seeded orphan stays for 13 below.
+  // Asserted in tests/orphan-cleanup.spec.ts.
+  await panel.locator('#cleanup-orphans-btn').click();
+  const orphanConfirm = page.getByRole('dialog', { name: 'Delete 1 orphaned task?' });
+  await expect(orphanConfirm).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(500);
+  // Viewport screenshot — the scrim is position:fixed on document.body.
+  await page.screenshot({ path: `${OUT}/71-panel-orphan-confirm.png` });
+  await orphanConfirm.locator('ha-button').filter({ hasText: 'Cancel' }).click();
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
 
   // 1g. Orphaned task detail — the Delete button returns (protection lifts) with an
   // explanation that the owning integration is gone.
@@ -1276,6 +1288,41 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   });
   await expect(docForm.locator('#hk-upload')).toHaveCount(0, { timeout: 30_000 });
 
+  // 72. Removing a document asks first: the backend deletes an uploaded file at once
+  // and the drawer's Cancel does not bring it back. Cancelled, so nothing changes.
+  await settleToasts(page);
+  const docCard = docForm.locator('.hk-doc-card').first();
+  await centre(docCard);
+  await docCard.locator('ha-icon-button[label="Remove document"]').click();
+  const docConfirm = page.getByRole('dialog', { name: /^Remove ".+"\?$/ });
+  await expect(docConfirm).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/72-panel-document-remove-confirm.png` });
+  await docConfirm.locator('ha-button').filter({ hasText: 'Cancel' }).click();
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
+
+  // 73. A link the backend refuses (no https://) shows its error under Add link, and
+  // the name and URL the user typed stay in the boxes to be corrected.
+  const docAdd = docForm.locator('.hk-doc-add');
+  await fillText(docAdd, 0, 'Warranty card');
+  await fillText(docAdd, 1, 'example.com/warranty');
+  await docAdd.locator('ha-button', { hasText: 'Add link' }).click();
+  const linkError = docAdd.locator('ha-alert[alert-type="error"]');
+  await expect(linkError).toBeVisible({ timeout: 10_000 });
+  await expect(docAdd.locator('ha-selector-text').nth(0).locator('input')).toHaveValue(
+    'Warranty card',
+  );
+  await expect(docAdd.locator('ha-selector-text').nth(1).locator('input')).toHaveValue(
+    'example.com/warranty',
+  );
+  await centre(docAdd);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/73-panel-document-link-error.png` });
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await settleToasts(page);
+
   // 35. Part delete confirmation dialog — clicking the trash icon on a part now
   // shows a confirmation dialog before removing it (previously the icon was
   // invisible and deletion was immediate). Navigate to the water heater edit form,
@@ -1942,6 +1989,53 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-bottombar')).toBeVisible();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/52-panel-mobile-tasks.png` });
+
+  // 71c. The orphan cleanup confirm on a phone: the dialog keeps a 16px margin
+  // each side and its buttons stay on one row.
+  await expect(panel.locator('.hk-orphan-banner')).toBeVisible();
+  await panel.locator('#cleanup-orphans-btn').click();
+  const orphanConfirmPhone = page.getByRole('dialog', { name: 'Delete 1 orphaned task?' });
+  await expect(orphanConfirmPhone).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/71c-panel-mobile-orphan-confirm.png` });
+  await orphanConfirmPhone.locator('ha-button').filter({ hasText: 'Cancel' }).click();
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
+
+  // 72c/73c. The document Remove confirm and a refused link on a phone, where the
+  // appliance editor is a page rather than a drawer.
+  await panel.locator('#mtab-appliances').click();
+  await panel.locator(`.detail-open[data-detail-id="${ASSET.waterHeater}"]`).click();
+  await panel.locator('.d-edit').click();
+  const docFormPhone = panel.locator('#hk-asset-form');
+  await expect(docFormPhone).toBeVisible();
+  const docCardPhone = docFormPhone.locator('.hk-doc-card').first();
+  await centre(docCardPhone);
+  await docCardPhone.locator('ha-icon-button[label="Remove document"]').click();
+  const docConfirmPhone = page.getByRole('dialog', { name: /^Remove ".+"\?$/ });
+  await expect(docConfirmPhone).toBeVisible({ timeout: 5_000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${OUT}/72c-panel-mobile-document-remove-confirm.png` });
+  await docConfirmPhone.locator('ha-button').filter({ hasText: 'Cancel' }).click();
+  await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0, { timeout: 5_000 });
+
+  const docAddPhone = docFormPhone.locator('.hk-doc-add');
+  await fillText(docAddPhone, 0, 'Warranty card');
+  await fillText(docAddPhone, 1, 'example.com/warranty');
+  await docAddPhone.locator('ha-button', { hasText: 'Add link' }).click();
+  await expect(docAddPhone.locator('ha-alert[alert-type="error"]')).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(docAddPhone.locator('ha-selector-text').nth(1).locator('input')).toHaveValue(
+    'example.com/warranty',
+  );
+  await centre(docAddPhone);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/73c-panel-mobile-document-link-error.png` });
+  await panel.locator('#a-cancel').click();
+  await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
+  await settleToasts(page);
+  await openPanel(page);
 
   // 8f (phone). The orphaned appliance's actions on a phone, where the action row
   // wraps under the head.

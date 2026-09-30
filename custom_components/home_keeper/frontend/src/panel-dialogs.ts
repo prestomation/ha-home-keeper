@@ -327,7 +327,24 @@ function renderConfirmDeleteDialog(p: PanelHost): void {
   p._confirmScrim = scrim;
   document.body.appendChild(scrim);
   // Cancel (or Close) takes the keyboard: the safe choice for a destructive dialog.
-  cancel.focus();
+  // In a real browser `ha-button` renders its inner <button> asynchronously, and its
+  // focus() throws until it has one — which aborted this function and left the
+  // keyboard on the opener behind the scrim. So try now (a test double, or a button
+  // already rendered), and again once it has rendered, if this dialog is still open.
+  const focusCancel = (): void => {
+    try {
+      cancel.focus();
+    } catch {
+      // Not rendered yet: the deferred call below focuses it.
+    }
+  };
+  focusCancel();
+  void customElements
+    .whenDefined('ha-button')
+    .then(() => (cancel as HTMLElement & { updateComplete?: Promise<unknown> }).updateComplete)
+    .then(() => {
+      if (p._confirmScrim === scrim && cancel.isConnected) focusCancel();
+    });
 }
 
 // ── dialog shell and the two dialogs built on it ────────────────────────────
