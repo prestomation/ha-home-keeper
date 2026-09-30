@@ -6,6 +6,22 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b13]
+
+### Fixed
+
+- **[Schedule after history edits](https://prestomation.github.io/ha-home-keeper/docs/guide/completions).**
+  A deleted, moved or back-filled completion no longer undoes a later skip, snooze or
+  due today. Undo of the latest completion on a fixed schedule now puts back the due
+  date it had before.
+- **[Snooze on fixed schedules](https://prestomation.github.io/ha-home-keeper/docs/guide/snooze-and-skip).**
+  Done on a snoozed fixed task now moves to the next date on the schedule. The
+  calendar now shows the snoozed date in place of the old one.
+- **[Times in the Home Assistant zone](https://prestomation.github.io/ha-home-keeper/docs/guide/completions).**
+  The panel and the card now show and save dates in the Home Assistant time zone, not
+  the browser zone. Due today and the day counts are now correct for a browser in a
+  different zone.
+
 ## [0.28.0b12]
 
 ### Fixed
