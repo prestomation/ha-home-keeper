@@ -27,27 +27,41 @@ on:
 # Previews deploy to pr-preview/pr-<n>/ on the gh-pages branch and two sticky
 # comments are posted on the PR: the preview URL (pr-preview-action) and a list
 # of deep links to the doc pages this PR changed (changed-pages.mjs).
+#
+# Read-only by default. `preview` runs `npm ci`, `pip install` and the PR's own
+# scripts, so it gets no write token. `publish` holds the write token and runs no
+# code from the PR: it deploys the site `preview` built and posts the comments.
+# Dependabot PRs for /website are same-repo PRs and got the write token here, so a
+# compromised dependency's install script could have pushed or cut a release.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: docs-preview-${{ github.event.number }}
   cancel-in-progress: true
 
 jobs:
+  # Build: the job name stays `preview`, so a build failure still shows as the
+  # `preview` check.
   preview:
     runs-on: ubuntu-latest
-    # Forked PRs cannot get a preview (no write token); skip them gracefully.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Forked PRs cannot get a preview (no write token for `publish`); skip them
+    # gracefully. A closed PR has nothing to build; `publish` removes the preview.
+    if: >
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.action != 'closed'
+    permissions:
+      contents: read
+    outputs:
+      has_pages: ${{ steps.changed.outputs.has_pages }}
     steps:
       - uses: actions/checkout@v7
         with:
           # Need history back to the PR base so we can diff which docs changed.
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
-        if: github.event.action != 'closed'
         with:
           node-version: 20
           cache: npm
@@ -62,31 +76,97 @@ jobs:
       # an ancient HA instead of failing, and the schema would be built from an API
       # nobody runs (#199).
       - uses: actions/setup-python@v7
-        if: github.event.action != 'closed'
         with:
           python-version: "3.14"
 
+      # --ignore-scripts: the only install scripts in the lockfile are core-js's
+      # funding notice and fsevents (macOS-only), so the site needs none of them.
       - name: Install
-        if: github.event.action != 'closed'
         working-directory: website
         run: |
           pip install PyYAML homeassistant Babel
-          npm ci
+          npm ci --ignore-scripts
 
       - name: Report and verify the Home Assistant version being used
-        if: github.event.action != 'closed'
         run: python ci/check-ha-version.py
 
       - name: Install the schema generator's converter, as Home Assistant pins it
-        if: github.event.action != 'closed'
         run: bash ci/install-schema-deps.sh
 
       - name: Build
-        if: github.event.action != 'closed'
         working-directory: website
         env:
           DOCS_BASE_URL: /ha-home-keeper/pr-preview/pr-${{ github.event.number }}/
         run: npm run build
+
+      - name: Compute changed doc pages
+        id: changed
+        env:
+          PREVIEW_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-preview/pr-${{ github.event.number }}/
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Files this PR changed (three-dot: since divergence from base).
+          git diff --name-only "$BASE_SHA"...HEAD > /tmp/changed.txt
+          mkdir -p _changed_pages
+          CHANGED_FILES="$(cat /tmp/changed.txt)" \
+            node website/scripts/changed-pages.mjs > _changed_pages/changed-pages.md
+          if grep -q '^- \[' _changed_pages/changed-pages.md; then
+            echo "has_pages=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_pages=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload the built site
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-preview-site
+          path: website/build
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload the changed-pages list
+        uses: actions/upload-artifact@v7
+        with:
+          name: docs-preview-changed-pages
+          path: _changed_pages
+          retention-days: 1
+          if-no-files-found: error
+
+  # Publish: deploy (or remove) the preview and post the comments. This job holds
+  # the write token, so it runs no code from the PR. It checks out the base commit
+  # only because the deploy action needs a checkout to work in.
+  publish:
+    needs: preview
+    runs-on: ubuntu-latest
+    # On open/sync, deploy only a site that built. On close, `preview` is skipped
+    # and this job removes the preview.
+    if: >
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !cancelled() &&
+      (github.event.action == 'closed' || needs.preview.result == 'success')
+    permissions:
+      contents: write
+      pull-requests: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Download the built site
+        if: github.event.action != 'closed'
+        uses: actions/download-artifact@v8
+        with:
+          name: docs-preview-site
+          path: website/build
+
+      - name: Download the changed-pages list
+        if: github.event.action != 'closed'
+        uses: actions/download-artifact@v8
+        with:
+          name: docs-preview-changed-pages
+          path: _changed_pages
 
       - name: Deploy preview
         uses: rossjrw/pr-preview-action@v1
@@ -94,23 +174,6 @@ jobs:
           source-dir: website/build
           preview-branch: gh-pages
           umbrella-dir: pr-preview
-
-      - name: Compute changed doc pages
-        id: changed
-        if: github.event.action != 'closed'
-        env:
-          PREVIEW_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-preview/pr-${{ github.event.number }}/
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          # Files this PR changed (three-dot: since divergence from base).
-          git diff --name-only "$BASE_SHA"...HEAD > /tmp/changed.txt
-          CHANGED_FILES="$(cat /tmp/changed.txt)" \
-            node website/scripts/changed-pages.mjs > /tmp/changed-pages.md
-          if grep -q '^- \[' /tmp/changed-pages.md; then
-            echo "has_pages=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_pages=false" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Find existing changed-pages comment
         id: find
@@ -126,11 +189,11 @@ jobs:
       - name: Post changed-pages comment
         if: >
           github.event.action != 'closed' &&
-          (steps.changed.outputs.has_pages == 'true' ||
+          (needs.preview.outputs.has_pages == 'true' ||
            steps.find.outputs.comment-id != '')
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.find.outputs.comment-id }}
           issue-number: ${{ github.event.number }}
-          body-path: /tmp/changed-pages.md
+          body-path: _changed_pages/changed-pages.md
           edit-mode: replace

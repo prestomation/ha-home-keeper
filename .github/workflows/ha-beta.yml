@@ -25,7 +25,10 @@ jobs:
   integration:
     name: Integration (HA ${{ github.event.inputs.ha_tag || 'beta' }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The tier took 13.3 minutes on 2026-09-29 (7 in late August), and the PR lane
+    # in integration.yml already allows 20. A timeout ends the job as `cancelled`,
+    # and `report` below files an issue for that too.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
 
@@ -189,7 +192,13 @@ jobs:
   report:
     name: File a regression issue
     needs: [integration, e2e, upgrade, typing]
-    if: failure() && github.event_name == 'schedule'
+    # A job that hits its `timeout-minutes` ends as `cancelled`, not `failure`, so
+    # `failure()` alone let a timed-out nightly go quiet. `!cancelled()` stays true
+    # when only a job timed out, and is false when someone cancels the whole run by
+    # hand, so a manual cancel files nothing.
+    if: >
+      github.event_name == 'schedule' && !cancelled() &&
+      (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -204,7 +213,7 @@ jobs:
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = `Nightly Home Assistant \`beta\` run failed: ${runUrl}\n\n` +
               `Home Keeper may be broken on the next Home Assistant release. ` +
-              `Check which job failed — \`upgrade\` points at a device/entity registry ` +
+              `Check which job failed or timed out — \`upgrade\` points at a device/entity registry ` +
               `migration change, \`typing\` at a deprecated or changed API.`;
 
             // Make sure the label exists before searching or applying it.

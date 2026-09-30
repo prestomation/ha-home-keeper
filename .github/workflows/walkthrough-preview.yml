@@ -18,57 +18,68 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, closed]
 
-# gh-pages push + sticky comment.
+# Read-only by default. Only the `publish` job gets a write token, and it runs no
+# code from the PR: it downloads the media the `walkthrough` job built and pushes it
+# to gh-pages. The `walkthrough` job runs `npm ci` and the PR's own capture scripts,
+# so it must never hold a write token. Dependabot PRs are same-repo PRs and got the
+# workflow's write token here, so a compromised dependency's install script could
+# have pushed or cut a release before anyone reviewed the PR.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: walkthrough-preview-${{ github.event.number }}
   cancel-in-progress: true
 
 jobs:
+  # Build: capture the tour with a read-only token. The job name stays
+  # `walkthrough`, because it is the hard gate on the capture.
   walkthrough:
     runs-on: ubuntu-latest
-    # Forked PRs get no write token — skip gracefully (same as the docs preview).
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Forked PRs get no write token for `publish` — skip gracefully (same as the
+    # docs preview). A closed PR has nothing to capture; `publish` removes the preview.
+    if: >
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.action != 'closed'
+    permissions:
+      contents: read
     timeout-minutes: 30
+    outputs:
+      capture: ${{ steps.capture.outcome }}
+      walkthrough: ${{ steps.variants.outputs.walkthrough }}
+      walkthrough_phone: ${{ steps.variants.outputs.walkthrough_phone }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
-        if: github.event.action != 'closed'
         with:
           node-version: "20"
 
+      # --ignore-scripts: no package in these lockfiles needs an install script
+      # (fsevents is macOS-only), so none gets to run.
       - name: Install frontend deps
-        if: github.event.action != 'closed'
-        run: npm ci --prefix custom_components/home_keeper/frontend
+        run: npm ci --ignore-scripts --prefix custom_components/home_keeper/frontend
 
       - name: Build panel JS
-        if: github.event.action != 'closed'
         run: bash ci/build-panel.sh
 
       - name: Install e2e deps
-        if: github.event.action != 'closed'
-        run: npm ci --prefix tests/e2e
+        run: npm ci --ignore-scripts --prefix tests/e2e
 
       - name: Install Playwright Chromium
-        if: github.event.action != 'closed'
         working-directory: tests/e2e
         run: npx playwright install --with-deps chromium
 
       - name: Install ffmpeg
-        if: github.event.action != 'closed'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Start Home Assistant
-        if: github.event.action != 'closed'
         working-directory: tests/integration
         run: docker compose up -d
 
       - name: Wait for Home Assistant
-        if: github.event.action != 'closed'
         run: |
           for i in $(seq 1 60); do
             code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8123/api/ 2>/dev/null || true)
@@ -85,7 +96,6 @@ jobs:
 
       - name: Capture walkthrough video
         id: capture
-        if: github.event.action != 'closed'
         continue-on-error: true
         env:
           # Output to a workspace dir, never docs/videos — nothing is committed.
@@ -100,7 +110,6 @@ jobs:
       # image next to a good one.
       - name: Note which tours were captured
         id: variants
-        if: github.event.action != 'closed'
         env:
           VIDEO_DIR: ${{ github.workspace }}/_walkthrough_out
         run: |
@@ -114,19 +123,80 @@ jobs:
           done
 
       - name: Dump Home Assistant logs on capture failure
-        if: github.event.action != 'closed' && steps.capture.outcome == 'failure'
+        if: steps.capture.outcome == 'failure'
         working-directory: tests/integration
         run: docker compose logs homeassistant
 
       - name: Cleanup Home Assistant
-        if: always() && github.event.action != 'closed'
+        if: always()
         working-directory: tests/integration
         run: docker compose down -v
+
+      # Hand the media to `publish`. Only a good capture is uploaded, so `publish`
+      # never deploys a partial set.
+      - name: Upload the walkthrough media
+        if: steps.capture.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: walkthrough-media
+          path: _walkthrough_out
+          retention-days: 1
+          if-no-files-found: error
+
+      # The capture step above keeps `continue-on-error` so every diagnostic still
+      # runs: the Home Assistant log dump, the container cleanup, the upload, and (in
+      # `publish`) the sticky comment that says what failed. This step is what turns
+      # a failed capture into a red check, so "all checks green" cannot mean "the
+      # tour is broken". It stays in this job so the `walkthrough` check is the gate.
+      #
+      # A cancelled run is excluded for the same reason the sticky comment excludes
+      # it: this job's concurrency group cancels in-progress runs, and a superseded
+      # run must not report a failure for a capture nothing was wrong with.
+      #
+      # This reads `outcome == 'failure'`, so it only fires when the capture actually
+      # ran and failed. Give the capture step an `if:` of its own and a skip makes
+      # `outcome` 'skipped', which passes this gate silently — the exact hole the gate
+      # exists to close. Gate on the skip too if the capture ever becomes conditional.
+      - name: Fail the check when the capture failed
+        if: ${{ !cancelled() && steps.capture.outcome == 'failure' }}
+        run: |
+          echo "::error::The walkthrough capture failed. See the sticky PR comment and the Playwright output above."
+          exit 1
+
+  # Publish: deploy (or remove) the preview and write the sticky comment. This job
+  # holds the write token, so it runs no code from the PR: it checks out the base
+  # commit only because the deploy action needs a checkout to work in, and the
+  # media is the artifact `walkthrough` uploaded.
+  publish:
+    needs: walkthrough
+    runs-on: ubuntu-latest
+    # `!cancelled()` so this job runs when `walkthrough` failed (the comment says
+    # the capture failed) and when it was skipped on a closed PR (remove the
+    # preview). A run that a newer push cancelled stops here, see the comment step.
+    if: >
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !cancelled()
+    permissions:
+      contents: write
+      pull-requests: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Download the walkthrough media
+        if: github.event.action != 'closed' && needs.walkthrough.outputs.capture == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          name: walkthrough-media
+          path: _walkthrough_out
 
       # Deploy on open/sync (when capture succeeded); remove on close. A separate
       # umbrella from the docs preview so the two don't fight over pr-<n>/.
       - name: Publish / remove preview
-        if: github.event.action == 'closed' || steps.capture.outcome == 'success'
+        if: github.event.action == 'closed' || needs.walkthrough.outputs.capture == 'success'
         uses: rossjrw/pr-preview-action@v1
         with:
           source-dir: ./_walkthrough_out
@@ -146,9 +216,9 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/github-script@v9
         env:
-          CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
-          HAS_DESKTOP: ${{ steps.variants.outputs.walkthrough }}
-          HAS_PHONE: ${{ steps.variants.outputs.walkthrough_phone }}
+          CAPTURE_OUTCOME: ${{ needs.walkthrough.outputs.capture }}
+          HAS_DESKTOP: ${{ needs.walkthrough.outputs.walkthrough }}
+          HAS_PHONE: ${{ needs.walkthrough.outputs.walkthrough_phone }}
           EVENT_ACTION: ${{ github.event.action }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
@@ -211,22 +281,3 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number: n, body });
             }
-
-      # The capture step above keeps `continue-on-error` so every diagnostic still
-      # runs: the Home Assistant log dump, the container cleanup, and the sticky
-      # comment that says what failed. This step is what turns a failed capture into
-      # a red check, so "all checks green" cannot mean "the tour is broken".
-      #
-      # A cancelled run is excluded for the same reason the sticky comment excludes
-      # it: this job's concurrency group cancels in-progress runs, and a superseded
-      # run must not report a failure for a capture nothing was wrong with.
-      #
-      # This reads `outcome == 'failure'`, so it only fires when the capture actually
-      # ran and failed. Give the capture step an `if:` of its own and a skip makes
-      # `outcome` 'skipped', which passes this gate silently — the exact hole the gate
-      # exists to close. Gate on the skip too if the capture ever becomes conditional.
-      - name: Fail the check when the capture failed
-        if: ${{ !cancelled() && github.event.action != 'closed' && steps.capture.outcome == 'failure' }}
-        run: |
-          echo "::error::The walkthrough capture failed. See the sticky PR comment and the Playwright output above."
-          exit 1
