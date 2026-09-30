@@ -107,6 +107,10 @@
           "name": "Vaadi tunnisteen lukemista",
           "description": "Vain liitetty tunniste voi suorittaa tämän tehtävän. Kaikki muut tavat merkitä se tehdyksi hylätään. Vaatii tunnisteen."
         },
+        "snooze_hours": {
+          "name": "Lykkäyksen pituus",
+          "description": "Tunnit, joilla Lykkää siirtää tätä tehtävää. Lykkää-ikkuna alkaa tästä pituudesta, ja ilmoituksen Lykkää-painike käyttää sitä. Jätä tyhjäksi, niin tavalliset pituudet ovat käytössä."
+        },
         "source": {
           "name": "Lähde",
           "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Home Keeper tallentaa ja toistaa sen sanatarkasti eikä koskaan tarkastele sitä. Katso docs/INTEGRATING.md."
@@ -200,6 +204,10 @@
         "require_tag_scan": {
           "name": "Vaadi tunnisteen lukemista",
           "description": "Vain liitetty tunniste voi suorittaa tämän tehtävän. Vaatii tunnisteen."
+        },
+        "snooze_hours": {
+          "name": "Lykkäyksen pituus",
+          "description": "Tunnit, joilla Lykkää siirtää tätä tehtävää. Lähetä tyhjä arvo palataksesi tavallisiin pituuksiin."
         },
         "source": {
           "name": "Lähde",

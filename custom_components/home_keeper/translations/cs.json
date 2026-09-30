@@ -107,6 +107,10 @@
           "name": "Vyžadovat načtení štítku",
           "description": "Tento úkol lze dokončit pouze připojeným štítkem. Jakýkoli jiný způsob označení jako hotové je odmítnut. Vyžaduje štítek."
         },
+        "snooze_hours": {
+          "name": "Délka odložení",
+          "description": "Počet hodin, o které Odložit posune tento úkol. Dialog Odložit začne na této délce a tlačítko Odložit v oznámení ji použije. Nechte prázdné pro obvyklé délky."
+        },
         "source": {
           "name": "Zdroj",
           "description": "Neprůhledný údaj o původu vlastněný integrací, která úkol vytvořila. Home Keeper jej ukládá a vrací doslovně a nikdy jej nezkoumá. Viz docs/INTEGRATING.md."
@@ -200,6 +204,10 @@
         "require_tag_scan": {
           "name": "Vyžadovat načtení štítku",
           "description": "Tento úkol lze dokončit pouze připojeným štítkem. Vyžaduje štítek."
+        },
+        "snooze_hours": {
+          "name": "Délka odložení",
+          "description": "Počet hodin, o které Odložit posune tento úkol. Pošlete prázdnou hodnotu pro návrat k obvyklým délkám."
         },
         "source": {
           "name": "Zdroj",

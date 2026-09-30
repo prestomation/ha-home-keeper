@@ -107,6 +107,10 @@
           "name": "Scan des Tags verlangen",
           "description": "Diese Aufgabe lässt sich nur mit dem verknüpften Tag abschließen. Jeder andere Weg, sie als erledigt zu markieren, wird abgelehnt. Erfordert ein Tag."
         },
+        "snooze_hours": {
+          "name": "Verschiebedauer",
+          "description": "Stunden, um die Verschieben diese Aufgabe verschiebt. Der Dialog Verschieben startet mit dieser Dauer, und die Schaltfläche Verschieben einer Benachrichtigung verwendet sie. Leer lassen für die üblichen Dauern."
+        },
         "source": {
           "name": "Quelle",
           "description": "Undurchsichtige Herkunftsangabe, die der Integration gehört, die die Aufgabe erstellt hat. Home Keeper speichert und gibt sie unverändert zurück und wertet sie nie aus. Siehe docs/INTEGRATING.md."
@@ -200,6 +204,10 @@
         "require_tag_scan": {
           "name": "Scan des Tags verlangen",
           "description": "Diese Aufgabe lässt sich nur mit dem verknüpften Tag abschließen. Erfordert ein Tag."
+        },
+        "snooze_hours": {
+          "name": "Verschiebedauer",
+          "description": "Stunden, um die Verschieben diese Aufgabe verschiebt. Einen leeren Wert senden, um wieder die üblichen Dauern zu verwenden."
         },
         "source": {
           "name": "Quelle",

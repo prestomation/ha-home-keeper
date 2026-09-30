@@ -46,6 +46,9 @@ import {
   recurrenceSummary,
   relativeDay,
   resolveSnoozePreset,
+  snoozePresetForHours,
+  snoozePresetHours,
+  taskSnoozeHours,
   safeFileHref,
   safeHref,
   setBtnWeight,
@@ -1944,6 +1947,7 @@ describe('snooze presets', () => {
 
   it('resolves each offset from the given instant', () => {
     expect(resolveSnoozePreset('1h', from)).toEqual(new Date(2026, 7, 30, 10, 0));
+    expect(resolveSnoozePreset('4h', from)).toEqual(new Date(2026, 7, 30, 13, 0));
     expect(resolveSnoozePreset('1d', from)).toEqual(new Date(2026, 7, 31, 9, 0));
     expect(resolveSnoozePreset('1w', from)).toEqual(new Date(2026, 8, 6, 9, 0));
     expect(resolveSnoozePreset('1mo', from)).toEqual(new Date(2026, 8, 30, 9, 0));
@@ -1984,6 +1988,51 @@ describe('snooze presets', () => {
 
   it('ends with custom, so the escape hatch sits last in the dropdown', () => {
     expect(SNOOZE_PRESETS[SNOOZE_PRESETS.length - 1].id).toBe('custom');
+  });
+});
+
+describe('snooze preset hours', () => {
+  it('gives each preset its length in whole hours', () => {
+    expect(snoozePresetHours('1h')).toBe(1);
+    expect(snoozePresetHours('4h')).toBe(4);
+    expect(snoozePresetHours('1d')).toBe(24);
+    expect(snoozePresetHours('1w')).toBe(168);
+    // A month is 30 days, which is what a task stores and a notification applies.
+    expect(snoozePresetHours('1mo')).toBe(720);
+  });
+
+  it('has no length for custom or an unknown id', () => {
+    expect(snoozePresetHours('custom')).toBeNull();
+    expect(snoozePresetHours('1y')).toBeNull();
+  });
+
+  it('finds the preset of an exact length', () => {
+    expect(snoozePresetForHours(1)).toBe('1h');
+    expect(snoozePresetForHours(4)).toBe('4h');
+    expect(snoozePresetForHours(24)).toBe('1d');
+    expect(snoozePresetForHours(168)).toBe('1w');
+    expect(snoozePresetForHours(720)).toBe('1mo');
+  });
+
+  it('finds no preset for a length none of them has', () => {
+    expect(snoozePresetForHours(3)).toBeNull();
+    expect(snoozePresetForHours(0)).toBeNull();
+  });
+});
+
+describe('taskSnoozeHours', () => {
+  it('reads a whole number of hours of 1 or more', () => {
+    expect(taskSnoozeHours({ snooze_hours: 1 })).toBe(1);
+    expect(taskSnoozeHours({ snooze_hours: 720 })).toBe(720);
+  });
+
+  it('reads anything else as no length of its own', () => {
+    for (const snooze_hours of [undefined, null, 0, -4, 1.5, '4', true, NaN]) {
+      expect(taskSnoozeHours({ snooze_hours })).toBeNull();
+    }
+    expect(taskSnoozeHours({})).toBeNull();
+    expect(taskSnoozeHours(null)).toBeNull();
+    expect(taskSnoozeHours(undefined)).toBeNull();
   });
 });
 

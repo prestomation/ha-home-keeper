@@ -1505,6 +1505,7 @@ export function sortedCompletions(completions?: { ts: string }[]): Date[] {
  */
 export const SNOOZE_PRESETS = [
   { id: '1h', hours: 1 },
+  { id: '4h', hours: 4 },
   { id: '1d', days: 1 },
   { id: '1w', days: 7 },
   { id: '1mo', months: 1 },
@@ -1516,6 +1517,39 @@ export type SnoozePresetId = (typeof SNOOZE_PRESETS)[number]['id'];
 /** The preset the dialog opens on. A week is the middle of the range and the one a
  *  "not this time" deferral most often means. */
 export const DEFAULT_SNOOZE_PRESET: SnoozePresetId = '1w';
+
+/**
+ * The length of a snooze preset in whole hours, or `null` for `custom`.
+ *
+ * A month counts as 30 days (720 hours). That is the value a task stores as its own
+ * snooze length, because the backend and a notification measure a snooze in hours.
+ */
+export function snoozePresetHours(id: SnoozePresetId): number | null {
+  const preset = SNOOZE_PRESETS.find((p) => p.id === id) as
+    | { hours?: number; days?: number; months?: number }
+    | undefined;
+  if (!preset) return null;
+  if (preset.hours) return preset.hours;
+  if (preset.days) return preset.days * 24;
+  if (preset.months) return preset.months * 720;
+  return null;
+}
+
+/** The preset whose length is exactly *hours*, or `null` when no preset matches. */
+export function snoozePresetForHours(hours: number): SnoozePresetId | null {
+  return SNOOZE_PRESETS.find((p) => snoozePresetHours(p.id) === hours)?.id ?? null;
+}
+
+/**
+ * A task's own snooze length in whole hours, or `null` when it has none.
+ *
+ * The backend stores an integer of 1 or more, or null. Anything else (a task from an
+ * older version has no key at all) means "use the usual length".
+ */
+export function taskSnoozeHours(task: { snooze_hours?: unknown } | null | undefined): number | null {
+  const hours = task?.snooze_hours;
+  return typeof hours === 'number' && Number.isInteger(hours) && hours >= 1 ? hours : null;
+}
 
 /**
  * Resolve a snooze preset to a real instant, measured from *from*.

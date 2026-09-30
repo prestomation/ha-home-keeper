@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone
 
 import hk_notifications as n
+import pytest
 
 TZ = timezone(timedelta(hours=-4))
 
@@ -440,6 +441,46 @@ def test_build_notification_walk_actions_and_tag():
     # The companion app stacks a channel's notifications by `group`, so the exact
     # string is a payload contract, not decoration.
     assert payload["data"]["group"] == "home_keeper"
+
+
+def test_build_notification_snooze_button_uses_the_task_snooze_length():
+    # A task with its own snooze length shows that length on the button, not the
+    # notification's. The tap handler reads the same helper, so the label is the
+    # length the tap applies.
+    now = dt(2026, 6, 13, 12)
+    notif = n.normalize_notification(
+        {"id": "n1", "actions": ["snooze"], "snooze_hours": 24}
+    )
+    t = task("t1", "Take medicine", dt(2026, 6, 13), snooze_hours=1)
+    payload = n.build_notification(t, notification=notif, now=now)
+    assert [a["title"] for a in payload["data"]["actions"]] == ["Snooze 1h"]
+
+
+@pytest.mark.parametrize(
+    ("own", "notification", "expected"),
+    [
+        (1, {"snooze_hours": 24}, 1),
+        (720, {"snooze_hours": 6}, 720),
+        (None, {"snooze_hours": 6}, 6),
+        # A bad stored value is ignored, not trusted.
+        (0, {"snooze_hours": 6}, 6),
+        (-2, {"snooze_hours": 6}, 6),
+        (True, {"snooze_hours": 6}, 6),
+        ("3", {"snooze_hours": 6}, 6),
+        (1.5, {"snooze_hours": 6}, 6),
+        # No notification (deleted since the card was sent): the default applies.
+        (None, None, n.DEFAULT_SNOOZE_HOURS),
+        (4, None, 4),
+    ],
+)
+def test_snooze_hours_for(own, notification, expected):
+    t = {"id": "t1"} if own is None else {"id": "t1", "snooze_hours": own}
+    assert n.snooze_hours_for(t, notification) == expected
+
+
+def test_snooze_hours_for_a_missing_task_uses_the_notification():
+    assert n.snooze_hours_for(None, {"snooze_hours": 6}) == 6
+    assert n.snooze_hours_for(None, None) == n.DEFAULT_SNOOZE_HOURS
 
 
 def test_build_notification_falls_back_to_the_product_name_for_a_nameless_task():

@@ -558,10 +558,9 @@ def async_setup_notifications(
                     coord, notifications.ACTION_SNOOZE
                 ) and not notifications.is_completion_blocked(task):
                     return
-                hours = (
-                    notification["snooze_hours"]
-                    if notification
-                    else notifications.DEFAULT_SNOOZE_HOURS
+                # The task's own snooze length wins over the notification's.
+                hours = notifications.snooze_hours_for(
+                    coord.store.get_task(task_id), notification
                 )
                 await coord.store.snooze_task(
                     task_id,

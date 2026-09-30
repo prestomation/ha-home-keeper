@@ -107,6 +107,10 @@
           "name": "Wymagaj zeskanowania znacznika",
           "description": "To zadanie może zakończyć tylko powiązany znacznik. Każdy inny sposób oznaczenia go jako wykonanego zostanie odrzucony. Wymaga znacznika."
         },
+        "snooze_hours": {
+          "name": "Czas odłożenia",
+          "description": "Liczba godzin, o które Odłóż przesuwa to zadanie. Okno Odłóż zaczyna od tego czasu, a przycisk Odłóż w powiadomieniu go używa. Zostaw puste, aby używać zwykłych czasów."
+        },
         "source": {
           "name": "Źródło",
           "description": "Nieprzejrzyste dane o pochodzeniu należące do integracji, która utworzyła zadanie. Home Keeper przechowuje je i zwraca dosłownie oraz nigdy ich nie sprawdza. Zobacz docs/INTEGRATING.md."
@@ -200,6 +204,10 @@
         "require_tag_scan": {
           "name": "Wymagaj zeskanowania znacznika",
           "description": "To zadanie może zakończyć tylko powiązany znacznik. Wymaga znacznika."
+        },
+        "snooze_hours": {
+          "name": "Czas odłożenia",
+          "description": "Liczba godzin, o które Odłóż przesuwa to zadanie. Wyślij pustą wartość, aby wrócić do zwykłych czasów."
         },
         "source": {
           "name": "Źródło",

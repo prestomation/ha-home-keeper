@@ -91,6 +91,18 @@ async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Pr
  * rod" task wears an NFC chip while the tag is set, and every other shot of the task
  * list documents that row without one.
  */
+/** Set (or, with `null`, clear) a task's own snooze length through the service. */
+async function setSnoozeHours(page: Page, taskId: string, hours: number | null): Promise<void> {
+  await page.evaluate(
+    async ({ id, h }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hass = (document.querySelector('home-assistant') as any)?.hass;
+      await hass.callService('home_keeper', 'update_task', { task_id: id, snooze_hours: h });
+    },
+    { id: taskId, h: hours },
+  );
+}
+
 async function setAnodeTag(page: Page, tagId: string | null): Promise<void> {
   await page.evaluate(
     async ({ ASSET: assetIds, PART: partIds, tagId: tag }) => {
@@ -314,6 +326,34 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#f-cancel').click();
   await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
   await expect(panel.locator('.d-edit')).toBeVisible();
+
+  // 71. A task's own snooze length (#367), in the Completion section of the form. A
+  // reminder to take medicine wants 1 hour and a filter change wants 1 week, so the
+  // length is set per task. Set through the service first so the field shows a value.
+  await setSnoozeHours(page, TASK.fridgeFilter, 1);
+  await panel.locator('.d-edit').click();
+  const snoozeField = panel
+    .locator('#hk-task-form ha-selector-select')
+    .filter({ hasText: 'Snooze length' });
+  await expect(snoozeField).toBeVisible({ timeout: 10_000 });
+  await expect(snoozeField).toContainText('1 hour');
+  await centre(snoozeField);
+  await page.waitForTimeout(600);
+  await shotWithDrawer(page, `${OUT}/71-panel-task-snooze-length.png`);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
+  // 71b. The snooze dialog for that task opens on its own length, not on 1 week.
+  const snoozeActions = panel.locator('.hk-detail-actions');
+  await snoozeActions.locator('.hk-split-caret').click();
+  await snoozeActions.locator('.hk-defer-snooze').click();
+  await expect(panel.locator('ha-dialog[open] .hk-snooze-hint')).toBeVisible({ timeout: 15_000 });
+  await expect(panel.locator('ha-dialog[open]')).toContainText('1 hour');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/71b-panel-snooze-dialog-task-length.png`, fullPage: true });
+  await page.keyboard.press('Escape');
+  await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+  // Clear it again, so every later shot sees the seeded task unchanged.
+  await setSnoozeHours(page, TASK.fridgeFilter, null);
 
   // 56. Duplicate. The button opens the *create* form already filled in with a copy of
   // this task — the answer to a row of near-identical tasks that differ by a sensor and
@@ -2130,6 +2170,23 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/62-panel-mobile-form-summary.png` });
   await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+
+  // 71c. A task's own snooze length on a phone, where the form is a page of its own.
+  await setSnoozeHours(page, TASK.fridgeFilter, 1);
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  await panel.locator('.d-edit').click();
+  const phoneSnoozeField = panel
+    .locator('#hk-task-form ha-selector-select')
+    .filter({ hasText: 'Snooze length' });
+  await expect(phoneSnoozeField).toContainText('1 hour', { timeout: 10_000 });
+  await centre(phoneSnoozeField);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/71c-panel-mobile-task-snooze-length.png` });
+  await panel.locator('#f-cancel').click();
+  await setSnoozeHours(page, TASK.fridgeFilter, null);
+  await openPanel(page);
   await expect(panel.locator('#hk-list')).toBeVisible();
 
   await panel.locator('#mtab-appliances').click();

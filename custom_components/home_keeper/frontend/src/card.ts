@@ -28,7 +28,13 @@ import {
 } from './forms';
 import type { SkipState, SnoozeState } from './defer';
 import type { DeferDialogHost } from './defer-dialogs';
-import { deferRowActions, deferVerbs, emptySkipState, emptySnoozeState } from './defer';
+import {
+  deferRowActions,
+  deferVerbs,
+  emptySkipState,
+  emptySnoozeState,
+  snoozeStateFor,
+} from './defer';
 import { renderSkipDialog, renderSnoozeDialog } from './defer-dialogs';
 import { makeDialog, makeForm } from './dialogs';
 import type { SignedFileRef } from './documents';
@@ -1205,7 +1211,7 @@ export class HomeKeeperCard extends HTMLElement {
       });
     };
     wireAction('.hk-defer-snooze', MDI_CLOCK, 'btn.snooze', 'defer.snoozeHint', (task) => {
-      this._snooze = { ...emptySnoozeState(), open: true, task };
+      this._snooze = snoozeStateFor(task);
       this._render();
     });
     wireAction('.hk-defer-skip', MDI_SKIP, 'btn.skip', 'defer.skipHint', (task) => {

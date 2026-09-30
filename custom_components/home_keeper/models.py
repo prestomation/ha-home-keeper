@@ -488,6 +488,30 @@ def normalize_tag_id(value: Any) -> str | None:
     return value.strip() or None
 
 
+def normalize_snooze_hours(value: Any) -> int | None:
+    """Normalize a task's ``snooze_hours`` — how long Snooze moves this task.
+
+    ``None`` or an empty string means "no length of its own": the snooze dialog opens
+    on its usual preset and a notification's Snooze button uses the notification's
+    own ``snooze_hours``. Anything else must be a whole number of hours, 1 or more.
+    A boolean is refused, because ``True`` is an ``int`` in Python and would store as
+    a 1-hour snooze.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, float) and value.is_integer():
+        hours = int(value)
+    elif isinstance(value, int) and not isinstance(value, bool):
+        hours = value
+    elif isinstance(value, str) and value.strip().removeprefix("-").isdigit():
+        hours = int(value.strip())
+    else:
+        raise TaskValidationError("snooze_hours must be a whole number of hours")
+    if hours < 1:
+        raise TaskValidationError("snooze_hours must be at least 1")
+    return hours
+
+
 def _reject_boolean(value: Any, field: str) -> Any:
     """Refuse a boolean where text belongs, instead of storing its repr.
 
@@ -985,6 +1009,8 @@ def build_task(data: dict, *, now: datetime) -> dict:
         # way to complete it (a physical presence check: you have to be at the thing).
         "tag_id": tag_id,
         "require_tag_scan": require_tag_scan,
+        # How long Snooze moves this task, in hours, or None for the usual lengths.
+        "snooze_hours": normalize_snooze_hours(data.get("snooze_hours")),
         **fields,
     }
     seed = data.get("last_completed")
@@ -1154,6 +1180,9 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         merged["tag_id"] = normalize_tag_id(updates["tag_id"])
     if "require_tag_scan" in updates:
         merged["require_tag_scan"] = bool(updates["require_tag_scan"])
+    # The snooze length follows the same rule: send ``None`` to clear it.
+    if "snooze_hours" in updates:
+        merged["snooze_hours"] = normalize_snooze_hours(updates["snooze_hours"])
     # Checked against the *merged* task rather than the payload: requiring a scan with
     # no tag to scan would lock the task out of every completion surface, and that
     # state is reachable by clearing the tag alone (leaving the flag standing) just as

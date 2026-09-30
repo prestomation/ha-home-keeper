@@ -107,6 +107,10 @@
           "name": "Kräv skanning av taggen",
           "description": "Bara den kopplade taggen får slutföra den här uppgiften. Alla andra sätt att markera den som utförd avvisas. Kräver en tagg."
         },
+        "snooze_hours": {
+          "name": "Uppskjutningslängd",
+          "description": "Timmar som Skjut upp flyttar den här uppgiften. Dialogen Skjut upp börjar på den här längden, och knappen Skjut upp i en avisering använder den. Lämna tomt för de vanliga längderna."
+        },
         "source": {
           "name": "Källa",
           "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Home Keeper lagrar och återger den ordagrant och inspekterar den aldrig. Se docs/INTEGRATING.md."
@@ -200,6 +204,10 @@
         "require_tag_scan": {
           "name": "Kräv skanning av taggen",
           "description": "Bara den kopplade taggen får slutföra den här uppgiften. Kräver en tagg."
+        },
+        "snooze_hours": {
+          "name": "Uppskjutningslängd",
+          "description": "Timmar som Skjut upp flyttar den här uppgiften. Skicka ett tomt värde för att använda de vanliga längderna igen."
         },
         "source": {
           "name": "Källa",

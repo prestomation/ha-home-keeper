@@ -16,8 +16,11 @@ import {
   emptySkipState,
   emptySnoozeState,
   snoozeHintText,
+  snoozeStateFor,
   snoozeTarget,
 } from '../src/defer.ts';
+import { isoToHaDateTime } from '../src/forms.ts';
+import { DEFAULT_SNOOZE_PRESET } from '../src/utils.ts';
 import { t } from '../src/i18n.ts';
 
 // The clock is pinned so a fixture's due date cannot quietly drift past it and
@@ -317,5 +320,34 @@ describe('deferRowActions', () => {
       skip: true,
     });
     expect(html).not.toContain('<script>');
+  });
+});
+
+describe('snoozeStateFor', () => {
+  it('opens on the usual preset for a task with no length of its own', () => {
+    const tk = task();
+    expect(snoozeStateFor(tk, NOW)).toEqual({ open: true, task: tk, preset: DEFAULT_SNOOZE_PRESET });
+    expect(snoozeStateFor(task({ snooze_hours: null }), NOW).preset).toBe(DEFAULT_SNOOZE_PRESET);
+  });
+
+  it('opens on the preset of the task length', () => {
+    const tk = task({ snooze_hours: 1 });
+    expect(snoozeStateFor(tk, NOW)).toEqual({ open: true, task: tk, preset: '1h' });
+    expect(snoozeStateFor(task({ snooze_hours: 4 }), NOW).preset).toBe('4h');
+    expect(snoozeStateFor(task({ snooze_hours: 24 }), NOW).preset).toBe('1d');
+    expect(snoozeStateFor(task({ snooze_hours: 720 }), NOW).preset).toBe('1mo');
+  });
+
+  it('opens on custom, filled in, for a length no preset has', () => {
+    const tk = task({ snooze_hours: 3 });
+    const s = snoozeStateFor(tk, NOW);
+    expect(s).toEqual({
+      open: true,
+      task: tk,
+      preset: 'custom',
+      customAt: isoToHaDateTime('2026-09-15T15:00:00Z'),
+    });
+    // The date field resolves to exactly the task length from now.
+    expect(snoozeTarget(s, NOW)).toEqual(new Date('2026-09-15T15:00:00Z'));
   });
 });

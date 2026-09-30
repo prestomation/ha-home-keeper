@@ -107,6 +107,10 @@
           "name": "Krev skanning av brikken",
           "description": "Bare den tilknyttede brikken kan fullføre denne oppgaven. Alle andre måter å merke den som utført på avvises. Krever en brikke."
         },
+        "snooze_hours": {
+          "name": "Utsettelseslengde",
+          "description": "Timer som Utsett flytter denne oppgaven. Utsett-dialogen starter på denne lengden, og Utsett-knappen i et varsel bruker den. La feltet stå tomt for å bruke de vanlige lengdene."
+        },
         "source": {
           "name": "Kilde",
           "description": "Ugjennomsiktig opphav eid av integrasjonen som opprettet oppgaven. Home Keeper lagrer og gjengir det ordrett og inspiserer det aldri. Se docs/INTEGRATING.md."
@@ -200,6 +204,10 @@
         "require_tag_scan": {
           "name": "Krev skanning av brikken",
           "description": "Bare den tilknyttede brikken kan fullføre denne oppgaven. Krever en brikke."
+        },
+        "snooze_hours": {
+          "name": "Utsettelseslengde",
+          "description": "Timer som Utsett flytter denne oppgaven. Send en tom verdi for å bruke de vanlige lengdene igjen."
         },
         "source": {
           "name": "Kilde",

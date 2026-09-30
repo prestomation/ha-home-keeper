@@ -8,7 +8,7 @@ today moves the due date to today, also without changing the recurrence.
 
 Open a task and select **Snooze**, **Skip** or **Due today** next to **Done**.
 
-- **Snooze** takes a duration. Select 1 of 4 durations, or set a date. The dialog
+- **Snooze** takes a duration. Select 1 of 5 durations, or set a date. The dialog
   shows the new due date before it is applied. The recurrence does not change, so
   a task snoozed from the 29th to the 6th is due again on the 29th of the next
   month.
@@ -28,6 +28,23 @@ Wednesday after **Due today** is next due on the Saturday after that.
 <img src="docs/images/51-panel-skip-snooze-menu.png" alt="A task's Done button with its caret open, showing Snooze, Skip and Due today with a line each explaining what they do" width="820">
 
 <img src="docs/images/52-panel-snooze-dialog.png" alt="The snooze dialog: a duration dropdown and a line stating the date the due date moves to" width="820">
+
+## Snooze length for each task
+
+Some tasks need a short snooze and others a long one. A reminder to take medicine
+can wait 1 hour, and a filter change can wait 1 week. To set the length for a task,
+edit the task and set **Snooze length** in the **Completion** section. The choices
+are 1 hour, 4 hours, 1 day, 1 week and 1 month.
+
+When a task has a snooze length, the snooze dialog opens on that length. The
+**Snooze** button on a notification also uses it, in place of the snooze duration
+of the notification. A month is 30 days on a notification button. Set the field
+to **Usual length** to use the usual lengths again.
+
+<img src="docs/images/71-panel-task-snooze-length.png" alt="The Completion section of the task form, with the Snooze length field open on its list of lengths" width="820">
+
+The `snooze_hours` field of `home_keeper.add_task` and `home_keeper.update_task`
+sets the same length in hours. Send an empty value to clear it.
 
 Home Keeper records a skip in the task history, in a list separate from the
 completions. A skip is never counted as a completion, so the completion tally and

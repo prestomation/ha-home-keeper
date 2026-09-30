@@ -171,6 +171,11 @@ ADD_TASK_SCHEMA = vol.Schema(
         # the link, which is why the value is nullable rather than a bare string.
         vol.Optional("tag_id"): vol.Any(None, cv.string),
         vol.Optional("require_tag_scan"): cv.boolean,
+        # How long Snooze moves this task, in hours. ``None`` clears it, and the task
+        # then uses the dialog's usual preset and the notification's own length.
+        vol.Optional("snooze_hours"): vol.Any(
+            None, vol.All(vol.Coerce(int), vol.Range(min=1))
+        ),
         # Restrict a floating/fixed task to one or more date ranges each year. A list
         # of ``{"start": "MM-DD", "end": "MM-DD"}`` windows; a single window may be
         # passed as one object, and ``None`` clears the season. Validated by
@@ -212,6 +217,10 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         # ``require_tag_scan`` stays on is rejected — see models.merge_update).
         vol.Optional("tag_id"): vol.Any(None, cv.string),
         vol.Optional("require_tag_scan"): cv.boolean,
+        # See ADD_TASK_SCHEMA: ``None`` clears the snooze length.
+        vol.Optional("snooze_hours"): vol.Any(
+            None, vol.All(vol.Coerce(int), vol.Range(min=1))
+        ),
         # See ADD_TASK_SCHEMA: ``None`` clears the season, one object is one window.
         vol.Optional("active_season"): vol.Any(None, dict, [dict]),
         # See ADD_TASK_SCHEMA. Off takes the task out of every schedule surface and
