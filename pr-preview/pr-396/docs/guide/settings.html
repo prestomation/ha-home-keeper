@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Settings | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Settings | Home Keeper"><meta data-rh="true" name="description" content="The Settings tab in the panel edits the integration options. The form matches the"><meta data-rh="true" property="og:description" content="The Settings tab in the panel edits the integration options. The form matches the"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-396/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Settings","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-396/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-396/assets/js/runtime~main.098898d9.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-396/assets/js/runtime~main.33211349.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-396/assets/js/main.ebbd0ade.js" defer="defer"></script>
 </head>
 <body>
@@ -77,8 +77,8 @@ that <a href="#integration-presets" class="">Integration presets</a> describes.<
 <ul>
 <li class=""><strong>Device Pulse</strong> watches the ping status of each device in
 <a href="https://github.com/studiobts/home-assistant-device-pulse" target="_blank" rel="noopener noreferrer" class="">studiobts/home-assistant-device-pulse</a>.
-It opens a task when a device is offline for 1 hour. The task closes when the
-device replies again. The Device Pulse integration must be installed.</li>
+It opens a task when a device is offline for 1 hour. Home Keeper completes the
+task when the device replies again. The Device Pulse integration must be installed.</li>
 <li class=""><strong>Firmware update available</strong> matches every <code>update.*</code> entity that reports <code>on</code>.
 This covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab.</li>
 <li class=""><strong>Device stopped reporting</strong> matches every <code>sensor.*_last_seen</code> timestamp sensor. It
@@ -87,7 +87,8 @@ Zigbee or Z-Wave devices that dropped off the mesh. It needs no other integratio
 </ul>
 <p>A declarative companion keeps the settings it was saved with. A Device Pulse companion
 from before version 0.28.0b3 watches the total count of failed pings. That count never
-goes down, so its tasks do not close. Delete that companion and add the preset again.</p>
+goes down, so Home Keeper never completes its tasks. Delete that companion and add the
+preset again.</p>
 <p>When a preset matches entities in your home, the Tasks tab suggests it. See
 <a class="" href="/ha-home-keeper/pr-preview/pr-396/docs/guide/panel#presets-for-your-home">Presets for your home</a>.</p>
 <p>A preset writes the task name and notes in the Home Assistant language. A later change
@@ -118,8 +119,8 @@ back. The preview shows 10 matches at most. To exclude an entity that is not in 
 preview, select it in the excluded entities list.</p>
 <p><img decoding="async" loading="lazy" alt="The declarative companion dialog with More filters open and one excluded entity in the Exclusions block" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21j-panel-declarative-filters-2b7e5a3e80b68dce582cab758580a4d7.png" width="612" height="2552" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The same dialog on a phone, with an Exclude button on each preview row" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21k-panel-mobile-declarative-filters-942c31fa383b70d769093875563d5f71.png" width="390" height="844" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21c-panel-declarative-preset-picker-08a48071ebf043b3ceeb0285187b184e.png" width="1280" height="720" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21d-panel-declarative-add-dialog-fb1ac7c699d9bae77b6311b26fb41b24.png" width="612" height="1682" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21c-panel-declarative-preset-picker-bb21360d06c1f085d1522c3fad0adac4.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The Add dialog seeded from the Firmware update available preset, with the preset box at the top and the live preview at the bottom" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21d-panel-declarative-add-dialog-f996dd1384ec04335816a77c0683b5a5.png" width="612" height="1752" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The page of a task a declarative companion made, with Edit and Edit companion buttons and no Done button while the task is monitored" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21e-panel-declarative-task-detail-ac7a46a408391a1443d1e0c6448be76c.png" width="1280" height="720" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The same task page on a phone" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21e-mobile-companion-task-3f4cf0e209c7f1bc188e1e95712f9420.png" width="390" height="844" class="img_ev3q"></p>
 <p>A declarative companion you switch off keeps the tasks it made. The tasks stop until
@@ -148,6 +149,21 @@ task: <code>{{ task_name }}: {{ device_name }}</code>. A key with no task name u
 name. The key of the entity is also available as <code>{{ translation_key }}</code>.</p>
 <p><img decoding="async" loading="lazy" alt="The declarative companion dialog with two entity keys, one of them with the task name Replace the battery" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21u-panel-declarative-entity-keys-8949ca8d6f5a2bc7a39f81c4e18a4c2b.png" width="612" height="2552" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The entity keys on a phone, with each key above its task name" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21u-panel-mobile-declarative-entity-keys-eb5118cc8a74bf3dbefba005259e0308.png" width="390" height="844" class="img_ev3q"></p>
+<h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="what-a-preset-does">What a preset does<a href="#what-a-preset-does" class="hash-link" aria-label="Direct link to What a preset does" title="Direct link to What a preset does" translate="no">​</a></h5>
+<p>When you add a declarative companion from a preset, a box at the top of the dialog
+says what the preset does. It also names the tasks that the preset makes. An
+integration preset also gives its limit. A time limit shows in days when it is 2 days
+or more. The limit of a reading such as a water pressure is in the unit of the sensor.</p>
+<p>The box names each section that you change. The text in the box always describes the
+preset and not your changes. Click <strong>Reset to preset</strong> to put those sections back.
+Your name, description and exclusions do not change.</p>
+<p>Each row in the preview shows what the entity reads now. When a preset opens a task
+above a limit, a bar shows how near the reading is to that limit.</p>
+<p><img decoding="async" loading="lazy" alt="The preset box at the top of the Add dialog, with what the Tuya Local preset does and its task" src="/ha-home-keeper/pr-preview/pr-396/assets/images/73-panel-preset-summary-dde4573357b5756535abd793a382a54a.png" width="612" height="852" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The preset box after a change to the trigger, with the Changed chip and Reset to preset" src="/ha-home-keeper/pr-preview/pr-396/assets/images/73b-panel-preset-summary-changed-2607d2b43a923ccff5842709095fc3c2.png" width="612" height="852" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The preview row with the reading of the entity now" src="/ha-home-keeper/pr-preview/pr-396/assets/images/73a-panel-preset-reading-08e830619e5231853f782d6ddde6504f.png" width="612" height="852" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The preset box on a phone, after a change to the trigger" src="/ha-home-keeper/pr-preview/pr-396/assets/images/73c-panel-mobile-preset-summary-2efbe69cd5d4881882afdfec0d928116.png" width="390" height="844" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The preview row on a phone, with the reading of the entity now" src="/ha-home-keeper/pr-preview/pr-396/assets/images/73d-panel-mobile-preset-reading-7f4d3a029ae3e62d606450395bf08a20.png" width="390" height="844" class="img_ev3q"></p>
 <h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="integration-presets">Integration presets<a href="#integration-presets" class="hash-link" aria-label="Direct link to Integration presets" title="Direct link to Integration presets" translate="no">​</a></h5>
 <p>Many devices report the wear of their parts, such as the hours left on the filter of a
 robot vacuum or the toner level of a printer. An integration preset turns these
@@ -170,10 +186,10 @@ The preset reads the time in any unit, from seconds to weeks.</li>
 pressure of a boiler, passes its service level.</li>
 <li class=""><strong>Service alerts</strong>: the device reports that it needs service.</li>
 </ul>
-<p>Each task closes when the reading recovers. Reset the part on the device, or refill
-the salt, and the task completes.</p>
-<p><img decoding="async" loading="lazy" alt="The preset picker with a search for filter, showing the integration presets and the tasks each one makes" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21v-panel-declarative-preset-search-5ce4da39c9272819b0f73b4507f24663.png" width="1280" height="720" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The same search on a phone" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21v-panel-mobile-preset-search-56d3d996927a49028e2c51855f06d293.png" width="390" height="844" class="img_ev3q"></p>
+<p>Home Keeper completes each task when the reading recovers. To complete it, reset the
+part on the device or refill the salt.</p>
+<p><img decoding="async" loading="lazy" alt="The preset picker with a search for filter, showing the integration presets and the tasks each one makes" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21v-panel-declarative-preset-search-e673e7b07343b60043bb55d58a84955f.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same search on a phone" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21v-panel-mobile-preset-search-757c0be3b5c56b8c9cf723720ff03446.png" width="390" height="844" class="img_ev3q"></p>
 <p>These integrations have presets:</p>
 
 
