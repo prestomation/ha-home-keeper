@@ -129,6 +129,8 @@ class HttpViewSpec:
     url: str
     methods: tuple[str, ...]
     requires_auth: bool = True
+    admin_methods: tuple[str, ...] = ()
+    """The methods that carry ``@require_admin`` (a write is admin-only)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,7 +172,7 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("update_completion"),
     ServiceSpec("delete_completion"),
     ServiceSpec("move_completion"),
-    ServiceSpec("delete_archived_completion"),
+    ServiceSpec("delete_archived_completion", admin_only=True),
     ServiceSpec("trigger_task"),
     ServiceSpec("set_task_meter"),
     ServiceSpec("snooze_task"),
@@ -753,7 +755,9 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/move_skip", service="move_skip"),
     WebsocketSpec("home_keeper/delete_skip", service="delete_skip"),
     WebsocketSpec(
-        "home_keeper/delete_archived_completion", service="delete_archived_completion"
+        "home_keeper/delete_archived_completion",
+        admin_only=True,
+        service="delete_archived_completion",
     ),
     WebsocketSpec("home_keeper/get_assets", service="list_assets"),
     WebsocketSpec("home_keeper/add_asset", admin_only=True, service="add_asset"),
@@ -835,11 +839,13 @@ HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
         "api:home_keeper:document",
         const.DOCUMENT_URL_PREFIX + "/{asset_id}/{document_id}",
         ("GET", "POST"),
+        admin_methods=("POST",),
     ),
     HttpViewSpec(
         "api:home_keeper:part_document",
         const.PART_FILE_URL_PREFIX + "/{asset_id}/{part_id}",
         ("GET", "POST"),
+        admin_methods=("POST",),
     ),
 )
 

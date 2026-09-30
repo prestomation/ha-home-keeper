@@ -61,12 +61,12 @@
         "recurrence_type": "floating",
         "interval": 12,
         "unit": "months",
-        "device_id": "931e7113223918e734141d37f756fa85",
+        "device_id": "ac6b8e04307eb6d0c63d0c433a61b6cc",
         "area_id": null,
         "enabled": true,
         "created": "2022-05-10T10:00:00-04:00",
-        "last_completed": "2025-05-01T10:00:00-04:00",
-        "next_due": "2026-05-01T10:00:00-04:00",
+        "last_completed": "2026-09-30T12:32:02.924727-04:00",
+        "next_due": "2027-09-30T12:32:02.924727-04:00",
         "completions": [
           {
             "ts": "2023-05-01T10:00:00-04:00"
@@ -76,6 +76,14 @@
           },
           {
             "ts": "2025-05-01T10:00:00-04:00"
+          },
+          {
+            "ts": "2026-09-30T12:32:02.924727-04:00",
+            "stock_drawn": {
+              "asset_id": "e8d76383-4067-415c-975f-2ee73f475fa1",
+              "part_id": "c91fd864-9e72-4645-9ab7-cdca418bb2bc",
+              "quantity": 1
+            }
           }
         ],
         "source": {
@@ -455,7 +463,7 @@
         "name": "Replace T&P relief valve (Garage water heater)",
         "notes": "",
         "recurrence_type": "floating",
-        "device_id": "931e7113223918e734141d37f756fa85",
+        "device_id": "ac6b8e04307eb6d0c63d0c433a61b6cc",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -646,7 +654,7 @@
         "name": "Wear rain jacket",
         "notes": "",
         "recurrence_type": "use",
-        "device_id": "b9f1223099917301411905498a0a6482",
+        "device_id": "e7375852901fd9d3caf9a8d3a0dfb060",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
@@ -680,13 +688,179 @@
         "name": "Renew DWR coating (Rain jacket)",
         "notes": "",
         "recurrence_type": "triggered",
-        "device_id": "b9f1223099917301411905498a0a6482",
+        "device_id": "e7375852901fd9d3caf9a8d3a0dfb060",
         "area_id": null,
         "enabled": true,
         "completion_detail": "none",
         "completion_required_fields": [],
         "active_season": null,
         "next_due": null
+      },
+      "cc979db9-76de-42fe-81a4-e571ac85d6d4": {
+        "id": "cc979db9-76de-42fe-81a4-e571ac85d6d4",
+        "created": "2026-09-30T12:32:02.773010-04:00",
+        "last_completed": null,
+        "completions": [],
+        "skips": [],
+        "source": null,
+        "managed_by": null,
+        "external_id": "",
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "tag_id": null,
+        "require_tag_scan": false,
+        "name": "Empty dehumidifier tank",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": "3abd10e7509457b92280b446e0f07426",
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "active_season": null,
+        "interval": 2,
+        "unit": "days",
+        "next_due": "2026-09-30T12:32:02.773010-04:00"
+      },
+      "24291531-7c9f-4028-a7b6-417731c08081": {
+        "id": "24291531-7c9f-4028-a7b6-417731c08081",
+        "created": "2026-09-30T12:32:07.488457-04:00",
+        "last_completed": "2026-09-30T12:32:07.504659-04:00",
+        "completions": [
+          {
+            "ts": "2026-09-30T12:32:07.504659-04:00",
+            "stock_drawn": {
+              "asset_id": "65f62ca3-b5f1-4027-bc41-bf978b2fbd32",
+              "part_id": "d5d2f429-6a06-4d60-bf50-b38929fd48d3",
+              "quantity": 1
+            }
+          }
+        ],
+        "skips": [],
+        "source": {
+          "part": {
+            "asset_id": "65f62ca3-b5f1-4027-bc41-bf978b2fbd32",
+            "part_id": "d5d2f429-6a06-4d60-bf50-b38929fd48d3",
+            "manual": true
+          }
+        },
+        "managed_by": null,
+        "external_id": "",
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "tag_id": null,
+        "require_tag_scan": false,
+        "name": "Replace filter Fridge df3d6369",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "active_season": null,
+        "interval": 6,
+        "unit": "months",
+        "next_due": "2027-03-30T12:32:07.504659-04:00"
+      },
+      "31e5807d-c0f0-4064-835e-dfd3f16cec42": {
+        "id": "31e5807d-c0f0-4064-835e-dfd3f16cec42",
+        "created": "2026-09-30T12:32:07.559676-04:00",
+        "last_completed": null,
+        "completions": [],
+        "skips": [],
+        "source": null,
+        "managed_by": null,
+        "external_id": "",
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "tag_id": null,
+        "require_tag_scan": false,
+        "name": "Replace filter Fridge a1011604",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "active_season": null,
+        "interval": 6,
+        "unit": "months",
+        "next_due": "2026-09-30T12:32:07.559676-04:00"
+      },
+      "4688a7df-ca35-4bbb-a6fa-d9f938428f5d": {
+        "id": "4688a7df-ca35-4bbb-a6fa-d9f938428f5d",
+        "created": "2026-09-30T12:32:08.761450-04:00",
+        "last_completed": null,
+        "completions": [],
+        "skips": [],
+        "source": null,
+        "managed_by": null,
+        "external_id": "",
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "tag_id": null,
+        "require_tag_scan": false,
+        "name": "Replace filter Fridge c8b8ad6b",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "active_season": null,
+        "interval": 6,
+        "unit": "months",
+        "next_due": "2026-09-30T12:32:08.761450-04:00"
+      },
+      "5a68a9c7-ae5a-452a-b6e9-a6c67d2f0ebb": {
+        "id": "5a68a9c7-ae5a-452a-b6e9-a6c67d2f0ebb",
+        "created": "2026-09-30T12:32:09.364418-04:00",
+        "last_completed": "2026-09-30T12:32:09.381143-04:00",
+        "completions": [
+          {
+            "ts": "2026-09-30T12:32:09.381143-04:00",
+            "stock_drawn": {
+              "asset_id": "83539bb5-4b80-4aab-be61-facec61f328c",
+              "part_id": "2a18a824-e83a-4e60-acb9-65a6eb6964a3",
+              "quantity": 2
+            }
+          }
+        ],
+        "skips": [],
+        "source": {
+          "part": {
+            "asset_id": "83539bb5-4b80-4aab-be61-facec61f328c",
+            "part_id": "2a18a824-e83a-4e60-acb9-65a6eb6964a3",
+            "manual": true,
+            "quantity": 2
+          }
+        },
+        "managed_by": null,
+        "external_id": "",
+        "labels": [],
+        "card_links": [],
+        "task_chips": [],
+        "tag_id": null,
+        "require_tag_scan": false,
+        "name": "Replace battery Batteries d34b3529",
+        "notes": "",
+        "recurrence_type": "floating",
+        "device_id": null,
+        "area_id": null,
+        "enabled": true,
+        "completion_detail": "none",
+        "completion_required_fields": [],
+        "active_season": null,
+        "interval": 6,
+        "unit": "months",
+        "next_due": "2027-03-30T12:32:09.381143-04:00"
       }
     },
     "assets": {
@@ -694,7 +868,7 @@
         "id": "e8d76383-4067-415c-975f-2ee73f475fa1",
         "kind": "virtual",
         "name": "Garage water heater",
-        "device_id": "931e7113223918e734141d37f756fa85",
+        "device_id": "ac6b8e04307eb6d0c63d0c433a61b6cc",
         "identifiers": [
           [
             "home_keeper",
@@ -703,7 +877,7 @@
         ],
         "connections": [],
         "area_id": null,
-        "manufacturer": "Rheem",
+        "manufacturer": "poke",
         "model": "XE50T10HS45U0",
         "cost": 649.0,
         "icon": "mdi:water-boiler",
@@ -715,15 +889,27 @@
             "type": "wear",
             "vendor": "Home Depot",
             "cost": 35.0,
-            "file_name": "anode-rod-receipt.pdf",
-            "file_content_type": "application/pdf",
-            "file_size": 591,
+            "url": "",
             "notes": "Torque to **40 Nm**. Needs a 1‑1/16\" socket and a breaker bar.",
             "replace_interval": 12,
             "replace_unit": "months",
-            "last_replaced": "2025-05-01",
-            "stock": 2,
-            "reorder_at": 2
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
+            "last_replaced": "2026-09-30",
+            "stock": 12,
+            "reorder_at": 2,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
           },
           {
             "id": "11a79824-31d5-4ccc-b5b9-12104ff7e327",
@@ -732,12 +918,27 @@
             "type": "wear",
             "vendor": "Home Depot",
             "cost": 18.0,
+            "url": "",
             "notes": "",
             "replace_interval": 36,
             "replace_unit": "months",
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
             "last_replaced": null,
             "stock": null,
-            "reorder_at": null
+            "reorder_at": null,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
           },
           {
             "id": "ae2b576d-67f4-4d4b-9aaf-d0bcebc5953b",
@@ -750,11 +951,23 @@
             "notes": "",
             "replace_interval": null,
             "replace_unit": null,
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
             "last_replaced": null,
             "stock": 750,
             "reorder_at": 500,
             "stock_unit": "ml",
-            "consume_quantity": 250
+            "consume_quantity": 250,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
           },
           {
             "id": "f8319a3a-c717-48c2-a53e-79a205fb4a48",
@@ -767,9 +980,23 @@
             "notes": "",
             "replace_interval": null,
             "replace_unit": null,
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
             "last_replaced": null,
             "stock": 4,
-            "reorder_at": 1
+            "reorder_at": 1,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
           }
         ],
         "parent_asset_id": null,
@@ -832,28 +1059,28 @@
             "value": "Garage corner, behind the shelving"
           },
           {
+            "id": "4f3ed25f-795d-42b3-865c-afaee7edcb98",
             "type": "link",
             "label": "Reorder filter",
-            "value": "https://example.com/reorder-water-filter",
-            "id": "4f3ed25f-795d-42b3-865c-afaee7edcb98"
+            "value": "https://example.com/reorder-water-filter"
           }
         ],
         "documents": [
           {
             "id": "d1d75bd3-9830-431d-a7b2-cf0ab97c1d3f",
             "kind": "link",
-            "name": "Owner's manual",
+            "created": "",
             "url": "https://example.com/water-heater-manual",
-            "created": ""
+            "name": "Owner's manual"
           },
           {
             "id": "56656a41-c3a1-4db7-9adf-d1b0fb9e0c23",
             "kind": "file",
-            "name": "Installation guide (PDF)",
             "created": "",
+            "size": 605,
             "filename": "manual.pdf",
             "content_type": "application/pdf",
-            "size": 605
+            "name": "Installation guide (PDF)"
           }
         ],
         "serial_number": "RH-2021-0099823",
@@ -863,7 +1090,7 @@
         "id": "1f938cf8-c2a3-4438-aab3-840d0d749725",
         "kind": "virtual",
         "name": "Living room shades",
-        "device_id": "6feca1792f7a7d971825b77623bdaebc",
+        "device_id": "26a3c1f92b78ed0aad91df1f0ca28c4b",
         "identifiers": [
           [
             "home_keeper",
@@ -888,7 +1115,7 @@
         "id": "23e02da0-0411-4b16-9a63-10126f2ca7e6",
         "kind": "virtual",
         "name": "Radio shade controller",
-        "device_id": "4b93ba48303ac236644a5891062e51a0",
+        "device_id": "c48ae350a4a6d90360b6d5d2cd30ba23",
         "identifiers": [
           [
             "home_keeper",
@@ -914,7 +1141,7 @@
         "name": "Rain jacket",
         "kind": "virtual",
         "external_id": "",
-        "device_id": "b9f1223099917301411905498a0a6482",
+        "device_id": "e7375852901fd9d3caf9a8d3a0dfb060",
         "area_id": null,
         "manufacturer": "Fjallraven",
         "model": "Keb Eco-Shell",
@@ -965,7 +1192,7 @@
         "id": "5d2c9e71-4b8a-4f36-9e1d-7a0c3b2f8e64",
         "kind": "virtual",
         "name": "Batteries",
-        "device_id": "4e9b1c7d2a6f3e8b5c0d9a1f7e2b6c4d",
+        "device_id": "70562de06747842c17ea95730edf7bbb",
         "identifiers": [
           [
             "home_keeper",
@@ -1060,6 +1287,596 @@
             "restock_quantity": null
           }
         ]
+      },
+      "8b8e9435-a820-4f1c-a51e-832442fde86d": {
+        "id": "8b8e9435-a820-4f1c-a51e-832442fde86d",
+        "created": "2026-09-30T12:32:02.727917-04:00",
+        "device_id": "3abd10e7509457b92280b446e0f07426",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_8b8e9435-a820-4f1c-a51e-832442fde86d"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": null,
+        "managed_by": null,
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Test dehumidifier",
+        "parent_asset_id": null,
+        "manufacturer": "Frigidaire",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [],
+        "cost": null,
+        "parts": [],
+        "related_device_ids": []
+      },
+      "790bde09-4fe9-4b56-99b9-877cac0d1162": {
+        "id": "790bde09-4fe9-4b56-99b9-877cac0d1162",
+        "created": "2026-09-30T12:32:02.811385-04:00",
+        "device_id": "c5ae7164869e558c30ea4847df0e53b0",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_790bde09-4fe9-4b56-99b9-877cac0d1162"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": null,
+        "managed_by": null,
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Snapshot host device",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [],
+        "cost": null,
+        "parts": [],
+        "related_device_ids": []
+      },
+      "0c6ae869-e843-469e-8e84-06c7241187d6": {
+        "id": "0c6ae869-e843-469e-8e84-06c7241187d6",
+        "created": "2026-09-30T12:32:02.848155-04:00",
+        "device_id": "c5ae7164869e558c30ea4847df0e53b0",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_790bde09-4fe9-4b56-99b9-877cac0d1162"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": null,
+        "managed_by": null,
+        "kind": "existing",
+        "area_id": null,
+        "name": "",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [
+          {
+            "id": "bdb813e3-b234-44e0-9498-b1edf7a8dd83",
+            "type": "text",
+            "label": "Warranty provider",
+            "value": "ACME"
+          }
+        ],
+        "cost": null,
+        "parts": [],
+        "related_device_ids": []
+      },
+      "e4a47921-62a3-44ee-9c83-7795f4c629e0": {
+        "id": "e4a47921-62a3-44ee-9c83-7795f4c629e0",
+        "created": "2026-09-30T12:32:04.690766-04:00",
+        "device_id": "fb04a558ff9ef2c2fc30d40f731c5e3e",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_e4a47921-62a3-44ee-9c83-7795f4c629e0"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": null,
+        "managed_by": null,
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Living room piano",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "mdi:piano",
+        "metadata": [],
+        "cost": null,
+        "parts": [],
+        "related_device_ids": [
+          "ac6b8e04307eb6d0c63d0c433a61b6cc"
+        ]
+      },
+      "23287132-1bbc-4928-b82e-02313fe87c17": {
+        "id": "23287132-1bbc-4928-b82e-02313fe87c17",
+        "created": "2026-09-30T12:32:04.889044-04:00",
+        "device_id": "f8c6032ef0c8a63460183aae1bf66486",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_23287132-1bbc-4928-b82e-02313fe87c17"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": null,
+        "managed_by": null,
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Temp asset to archive",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [],
+        "cost": null,
+        "parts": [],
+        "related_device_ids": [],
+        "archived_at": "2026-09-30T16:32:04.933154+00:00"
+      },
+      "0615afc3-5406-46de-9a99-c441b59408b7": {
+        "id": "0615afc3-5406-46de-9a99-c441b59408b7",
+        "created": "2026-09-30T12:32:04.940665-04:00",
+        "device_id": "263c2e3cb83dcc69ad1924d24e7ed42f",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_0615afc3-5406-46de-9a99-c441b59408b7"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": null,
+        "managed_by": null,
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Temp asset to restore",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [],
+        "cost": null,
+        "parts": [],
+        "related_device_ids": [],
+        "archived_at": null
+      },
+      "65f62ca3-b5f1-4027-bc41-bf978b2fbd32": {
+        "id": "65f62ca3-b5f1-4027-bc41-bf978b2fbd32",
+        "created": "2026-09-30T12:32:07.444193-04:00",
+        "device_id": "6b8d2dc0436136531a8810246ac5c9d3",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_65f62ca3-b5f1-4027-bc41-bf978b2fbd32"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": null,
+        "managed_by": null,
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Fridge df3d6369",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [],
+        "cost": null,
+        "parts": [
+          {
+            "id": "d5d2f429-6a06-4d60-bf50-b38929fd48d3",
+            "name": "Water filter",
+            "part_number": "",
+            "type": "consumable",
+            "vendor": "",
+            "cost": null,
+            "url": "",
+            "notes": "",
+            "replace_interval": null,
+            "replace_unit": null,
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
+            "last_replaced": "2026-09-30",
+            "stock": 1,
+            "reorder_at": 1,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
+          }
+        ],
+        "related_device_ids": []
+      },
+      "294bf4e8-9ca9-4a76-b5e6-a9c551e8bedf": {
+        "id": "294bf4e8-9ca9-4a76-b5e6-a9c551e8bedf",
+        "created": "2026-09-30T12:32:07.527176-04:00",
+        "device_id": "e4a10edd2114712d52a0c86568780e6a",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_294bf4e8-9ca9-4a76-b5e6-a9c551e8bedf"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": null,
+        "managed_by": null,
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Fridge a1011604",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "X",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [],
+        "cost": null,
+        "parts": [
+          {
+            "id": "705f1b0f-3a9e-4b7b-940b-efd11fa90b02",
+            "name": "Water filter",
+            "part_number": "",
+            "type": "consumable",
+            "vendor": "",
+            "cost": null,
+            "url": "",
+            "notes": "",
+            "replace_interval": null,
+            "replace_unit": null,
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
+            "last_replaced": null,
+            "stock": 5,
+            "reorder_at": 1,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
+          }
+        ],
+        "related_device_ids": []
+      },
+      "f7f881a2-cf7d-4529-a6ce-9d2c629e825b": {
+        "id": "f7f881a2-cf7d-4529-a6ce-9d2c629e825b",
+        "created": "2026-09-30T12:32:08.627145-04:00",
+        "device_id": "22cdd81e8b22834d5b26356b38592f6e",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_f7f881a2-cf7d-4529-a6ce-9d2c629e825b"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": null,
+        "managed_by": null,
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Fridge b46842af",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [],
+        "cost": null,
+        "parts": [
+          {
+            "id": "02c86109-04eb-4597-833e-e04da04ca980",
+            "name": "Water filter",
+            "part_number": "",
+            "type": "consumable",
+            "vendor": "",
+            "cost": null,
+            "url": "",
+            "notes": "",
+            "replace_interval": null,
+            "replace_unit": null,
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
+            "last_replaced": null,
+            "stock": 3,
+            "reorder_at": 1,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
+          }
+        ],
+        "related_device_ids": []
+      },
+      "cacaa4b4-f24f-44b9-bb7b-d203c71081da": {
+        "id": "cacaa4b4-f24f-44b9-bb7b-d203c71081da",
+        "created": "2026-09-30T12:32:08.811356-04:00",
+        "device_id": "cf7e7d3c628619ec5b48bba41f4b4db8",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_cacaa4b4-f24f-44b9-bb7b-d203c71081da"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": {
+          "battery_notes": {
+            "role": "battery_stock"
+          }
+        },
+        "managed_by": {
+          "integration": "battery_notes",
+          "display_name": "Battery Notes",
+          "locked_fields": [
+            "name",
+            "parts"
+          ]
+        },
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Batteries 366de554 pool",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [],
+        "cost": null,
+        "parts": [
+          {
+            "id": "f2117782-2f24-4b04-97a6-eaed66a2a1da",
+            "name": "AAA",
+            "part_number": "",
+            "type": "consumable",
+            "vendor": "",
+            "cost": null,
+            "url": "",
+            "notes": "Used by 2 devices",
+            "replace_interval": null,
+            "replace_unit": null,
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
+            "last_replaced": null,
+            "stock": 4,
+            "reorder_at": null,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
+          },
+          {
+            "id": "4146ae93-8a7f-48b2-a90d-626a1622ef1b",
+            "name": "CR2032",
+            "part_number": "",
+            "type": "consumable",
+            "vendor": "",
+            "cost": null,
+            "url": "",
+            "notes": "",
+            "replace_interval": null,
+            "replace_unit": null,
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
+            "last_replaced": null,
+            "stock": null,
+            "reorder_at": null,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
+          }
+        ],
+        "related_device_ids": []
+      },
+      "8e92a45e-8ee0-43df-a350-44d3985f7f8c": {
+        "id": "8e92a45e-8ee0-43df-a350-44d3985f7f8c",
+        "created": "2026-09-30T12:32:08.938069-04:00",
+        "device_id": "63364a652ff860005eca45257579aa32",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_8e92a45e-8ee0-43df-a350-44d3985f7f8c"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": null,
+        "managed_by": null,
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Fridge 3d9755a4",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [],
+        "cost": null,
+        "parts": [
+          {
+            "id": "dfedf8bc-8e71-4fd3-8260-d935d1e0409d",
+            "name": "Water filter",
+            "part_number": "",
+            "type": "consumable",
+            "vendor": "",
+            "cost": null,
+            "url": "",
+            "notes": "",
+            "replace_interval": null,
+            "replace_unit": null,
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
+            "last_replaced": null,
+            "stock": 2,
+            "reorder_at": 1,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
+          }
+        ],
+        "related_device_ids": []
+      },
+      "83539bb5-4b80-4aab-be61-facec61f328c": {
+        "id": "83539bb5-4b80-4aab-be61-facec61f328c",
+        "created": "2026-09-30T12:32:09.002653-04:00",
+        "device_id": "b2cd208fcace0f2114f2fede80e76760",
+        "identifiers": [
+          [
+            "home_keeper",
+            "asset_83539bb5-4b80-4aab-be61-facec61f328c"
+          ]
+        ],
+        "connections": [],
+        "external_id": "",
+        "source": {
+          "battery_notes": {
+            "role": "battery_stock"
+          }
+        },
+        "managed_by": {
+          "integration": "battery_notes",
+          "display_name": "Battery Notes",
+          "locked_fields": [
+            "name",
+            "parts"
+          ]
+        },
+        "kind": "virtual",
+        "area_id": null,
+        "name": "Batteries d34b3529",
+        "parent_asset_id": null,
+        "manufacturer": "",
+        "model": "",
+        "serial_number": "",
+        "notes": "",
+        "documents": [],
+        "icon": "",
+        "metadata": [],
+        "cost": null,
+        "parts": [
+          {
+            "id": "2a18a824-e83a-4e60-acb9-65a6eb6964a3",
+            "name": "AAA",
+            "part_number": "",
+            "type": "consumable",
+            "vendor": "",
+            "cost": null,
+            "url": "",
+            "notes": "",
+            "replace_interval": null,
+            "replace_unit": null,
+            "replace_also_every": null,
+            "action": "replace",
+            "tag_id": null,
+            "require_tag_scan": false,
+            "use_noun": "",
+            "use_task_name": "",
+            "carried_uses": 0,
+            "last_replaced": "2026-09-30",
+            "stock": 2,
+            "reorder_at": 1,
+            "stock_unit": "",
+            "consume_quantity": null,
+            "create_buy_task": false,
+            "restock_quantity": null,
+            "file_name": null,
+            "file_content_type": null,
+            "file_size": null
+          }
+        ],
+        "related_device_ids": []
       }
     },
     "problem_notes": {

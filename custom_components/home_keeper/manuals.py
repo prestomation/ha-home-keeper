@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from aiohttp import BodyPartReader, hdrs, web
-from homeassistant.components.http import HomeAssistantView
+from homeassistant.components.http import HomeAssistantView, require_admin
 from homeassistant.components.http.auth import async_sign_path
 from homeassistant.components.http.const import KEY_HASS_USER
 from homeassistant.core import HomeAssistant
@@ -583,6 +583,9 @@ class HomeKeeperDocumentView(HomeAssistantView):
             hass, asset_id, document_id, document["filename"] if document else None
         )
 
+    # Uploads are admin-only, like the ``add_asset_document`` service: a write
+    # changes an appliance, and the reply carries the full, unprojected asset.
+    @require_admin
     async def post(
         self, request: web.Request, asset_id: str, document_id: str
     ) -> web.Response:
@@ -696,6 +699,8 @@ class HomeKeeperPartFileView(HomeAssistantView):
             part["file_name"] if part else None,
         )
 
+    # Admin-only for the same reasons as a document upload.
+    @require_admin
     async def post(
         self, request: web.Request, asset_id: str, part_id: str
     ) -> web.Response:

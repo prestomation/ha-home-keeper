@@ -1275,6 +1275,7 @@ def _register_services(hass: HomeAssistant) -> None:
         await coord.async_request_refresh()
 
     async def handle_delete_archived_completion(call: ServiceCall) -> None:
+        await _verify_admin(call)
         coord = _coordinator()
         asset_id = _asset_ref(coord, call.data["asset_id"])
         task_id = _task_ref(coord, call.data["task_id"])

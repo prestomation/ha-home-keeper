@@ -175,6 +175,11 @@ def test_export_appliance_report_still_works_for_an_admin(ha):
             "add_asset_document",
             {"asset_id": "x", "document": {"name": "n", "url": "https://e.com"}},
         ),
+        # B03-1: it deletes appliance history, like the other asset writes.
+        (
+            "delete_archived_completion",
+            {"asset_id": "x", "task_id": "x", "ts": "2026-01-01T00:00:00+00:00"},
+        ),
     ],
 )
 def test_asset_mutation_services_refuse_a_non_admin(non_admin, service, data):
@@ -624,6 +629,68 @@ def test_asset_mutation_commands_refuse_a_non_admin(non_admin_token, priced_asse
     )
     assert not msg.get("success")
     assert msg["error"]["code"] == "unauthorized"
+
+
+def test_delete_archived_completion_refuses_a_non_admin(non_admin_token, priced_asset):
+    # B03-1: this command echoed the full asset even when it deleted nothing, so a
+    # bogus task id was enough to read every cost and serial number.
+    msg = ws_send(
+        non_admin_token,
+        {
+            "type": "home_keeper/delete_archived_completion",
+            "asset_id": priced_asset["id"],
+            "task_id": "x",
+            "ts": "x",
+        },
+    )
+    assert not msg.get("success"), "a non-admin deleted archived history"
+    assert msg["error"]["code"] == "unauthorized", msg
+    assert "SN-SECRET-1" not in str(msg)
+
+
+def test_delete_archived_completion_still_answers_an_admin(ha, priced_asset):
+    msg = ws_send(
+        _owner_token(ha),
+        {
+            "type": "home_keeper/delete_archived_completion",
+            "asset_id": priced_asset["id"],
+            "task_id": "x",
+            "ts": "x",
+        },
+    )
+    assert msg.get("success"), msg
+    assert msg["result"]["asset"]["id"] == priced_asset["id"]
+
+
+PNG_BYTES = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f"
+    b"\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+@pytest.mark.parametrize("route", ["document", "part_document"])
+def test_uploads_refuse_a_non_admin(non_admin_token, priced_asset, route):
+    # B06-1: an upload changes an appliance, and its reply carries the full asset.
+    slot = str(uuid.uuid4()) if route == "document" else priced_asset["parts"][0]["id"]
+    r = requests.post(
+        f"{HA_URL}/api/home_keeper/{route}/{priced_asset['id']}/{slot}",
+        headers={"Authorization": f"Bearer {non_admin_token}"},
+        files={"file": ("probe.png", PNG_BYTES, "image/png")},
+        timeout=30,
+    )
+    assert r.status_code == 401, f"{route} took a non-admin upload: {r.status_code}"
+    assert "SN-SECRET-1" not in r.text
+
+
+def test_the_device_registry_does_not_carry_the_serial_number(
+    non_admin_token, priced_asset
+):
+    # X01-5: any signed-in user can list the device registry, so the serial number
+    # stays in the admin-only appliance record.
+    msg = ws_send(non_admin_token, {"type": "config/device_registry/list"})
+    assert msg.get("success"), msg
+    assert "SN-SECRET-1" not in str(msg["result"])
 
 
 # ── the panel is admin-only ─────────────────────────────────────────────────

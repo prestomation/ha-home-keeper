@@ -6,6 +6,18 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b3]
+
+### Fixed
+
+- **Admin-only appliance writes.** A user who is not an admin can no longer upload an
+  appliance file or delete archived appliance history. These actions also showed that
+  user the private appliance fields, such as costs and serial numbers.
+- **Private data in diagnostics.** The diagnostics file no longer includes completion
+  notes, skip notes, costs, vendors, part numbers, links or custom fields.
+- **Serial numbers on devices.** Home Keeper no longer copies the serial number of an
+  appliance to its Home Assistant device, where any signed-in user can read it.
+
 ## [0.28.0b2]
 
 ### Added

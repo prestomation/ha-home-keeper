@@ -126,14 +126,17 @@ def _websocket_commands() -> list[tuple[str, str, bool]]:
 
 
 def _view_classes() -> dict[str, dict[str, Any]]:
-    """Class-level ``url`` / ``name`` / ``requires_auth`` per ``HomeAssistantView``."""
+    """Class-level ``url`` / ``name`` / ``requires_auth`` per ``HomeAssistantView``.
+
+    Also the HTTP methods and which of them carry ``@require_admin``.
+    """
     found: dict[str, dict[str, Any]] = {}
     for node in ast.walk(_MANUALS_TREE):
         if not isinstance(node, ast.ClassDef):
             continue
         if not any("HomeAssistantView" in ast.unparse(b) for b in node.bases):
             continue
-        attrs: dict[str, Any] = {"methods": []}
+        attrs: dict[str, Any] = {"methods": [], "admin_methods": []}
         for statement in node.body:
             if isinstance(statement, ast.Assign) and isinstance(
                 statement.targets[0], ast.Name
@@ -143,6 +146,10 @@ def _view_classes() -> dict[str, dict[str, Any]]:
                 statement, ast.FunctionDef | ast.AsyncFunctionDef
             ) and statement.name in ("get", "post", "put", "delete"):
                 attrs["methods"].append(statement.name.upper())
+                if any(
+                    ast.unparse(d) == "require_admin" for d in statement.decorator_list
+                ):
+                    attrs["admin_methods"].append(statement.name.upper())
         found[node.name] = attrs
     return found
 
@@ -771,6 +778,12 @@ def test_http_views_match_source() -> None:
                 **wrong.get(name, {}),
                 "source_methods": sorted(attrs["methods"]),
                 "model_methods": sorted(spec.methods),
+            }
+        if set(attrs["admin_methods"]) != set(spec.admin_methods):
+            wrong[name] = {
+                **wrong.get(name, {}),
+                "source_admin_methods": sorted(attrs["admin_methods"]),
+                "model_admin_methods": sorted(spec.admin_methods),
             }
     assert not wrong, {"http_view_mismatch": wrong, "fix": _FIX}
 
