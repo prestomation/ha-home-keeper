@@ -11,9 +11,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Fixed
 
 - **[Disabled entities](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
-  When you disable an entity, its device or its integration, the declarative companion
-  task stays with its history and is turned off. It is turned on again when you enable
-  the entity.
+  A declarative companion task now keeps its history when its entity is disabled, also
+  through its device or integration. Home Keeper turns the task off, and turns it on
+  again when the entity is enabled.
 - **[Empty task names](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
   A name template that gives an empty name for one entity no longer stops all
   declarative companions, and Home Assistant no longer fails to set up Home Keeper.
