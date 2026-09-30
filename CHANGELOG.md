@@ -6,6 +6,32 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b10]
+
+### Fixed
+
+- **[Disabled entities](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  When you disable an entity, its device or its integration, the declarative companion
+  task stays with its history and is turned off. It is turned on again when you enable
+  the entity.
+- **[Empty task names](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  A name template that gives an empty name for one entity no longer stops all
+  declarative companions, and Home Assistant no longer fails to set up Home Keeper.
+- **Task names at restart.** A restart no longer renames declarative companion tasks
+  before their entities have a state.
+- **Entity names on one device.** Tasks that one declarative companion makes for
+  entities on the same device now get different entity names.
+- **Renamed problem sensors.** A problem sensor task now keeps its labels, history and
+  note when you change the entity ID of its sensor.
+- **Deleted declarative companions.** The device page entities of a deleted declarative
+  companion now go away at once.
+- **Actions during a reload.** The `home_keeper.*` actions now stay available while
+  Home Keeper reloads. A call at that time gives a clear error that says to try again.
+- **Device split repair.** The repair after the Home Assistant 2026.8 device split now
+  also updates related devices, profile device filters and problem sensor exclusions.
+- **Future Home Assistant versions.** Home Keeper no longer uses device registry calls
+  that Home Assistant 2027.8 removes.
+
 ## [0.28.0b9]
 
 ### Fixed
