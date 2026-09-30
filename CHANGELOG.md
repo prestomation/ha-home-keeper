@@ -6,6 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b9]
+
+### Fixed
+
+- **[Automatic notifications](https://prestomation.github.io/ha-home-keeper/docs/guide/notifications).**
+  An automatic notification now sends only when a task in its own profile becomes
+  overdue or due soon.
+- **[Old notification buttons](https://prestomation.github.io/ha-home-keeper/docs/guide/notifications).**
+  Snooze and Skip on an old notification now do nothing when the task has changed
+  since the notification was sent.
+- **[Snooze on a blocked task](https://prestomation.github.io/ha-home-keeper/docs/guide/notifications).**
+  The Snooze button on a notification for a task that Home Keeper completes by itself
+  now works when snooze is turned off in Settings.
+- **[Next task in a notification](https://prestomation.github.io/ha-home-keeper/docs/guide/notifications).**
+  After a tap on a button, the next notification shows the next task, not the task that
+  you acted on.
+
 ## [0.28.0b8]
 
 ### Fixed

@@ -223,15 +223,21 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._persist_edge_state()
             for event_name, payload in fired:
                 self.hass.bus.async_fire(event_name, payload)
-            # Automatic notification source: send to any profile whose auto trigger
-            # matches a transition that fired this cycle (once per profile, deduped).
+            # Automatic notification source: send each notification whose auto
+            # trigger matches a transition that fired this cycle, for a task in its
+            # profile (once per notification, deduped). The task id goes with the
+            # kind so the notifier can check the profile (B16-1).
             kinds = {
                 EVENT_TASK_OVERDUE: "overdue",
                 EVENT_TASK_DUE_SOON: "due_soon",
             }
-            fired_kinds = {kinds[name] for name, _ in fired if name in kinds}
-            if fired_kinds:
-                await notifier.async_send_auto(self.hass, self, fired_kinds)
+            crossed = [
+                (kinds[name], str(payload["task_id"]))
+                for name, payload in fired
+                if name in kinds and payload.get("task_id")
+            ]
+            if crossed:
+                await notifier.async_send_auto(self.hass, self, crossed)
         elif not self._had_prior_edge_state:
             # Fresh start (HA restart / first setup): adopt the detected state as the
             # silent baseline so a task already overdue at startup doesn't replay.
