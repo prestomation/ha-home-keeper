@@ -210,14 +210,17 @@ def registry():
     """
     entries: dict[str, object] = {}
     sibling = sys.modules["hk.shopping_sync"]
-    original = sibling.er
-    sibling.er = types.SimpleNamespace(
+    # The shared driver reads the registry too, to tell a list that is gone
+    # from one that is only down (B10-2).
+    driver = sys.modules["hk.todo_sync_driver"]
+    original, original_driver = sibling.er, driver.er
+    sibling.er = driver.er = types.SimpleNamespace(
         async_get=lambda _hass: types.SimpleNamespace(entities=entries)
     )
     try:
         yield entries
     finally:
-        sibling.er = original
+        sibling.er, driver.er = original, original_driver
 
 
 @pytest.fixture(autouse=True)
@@ -384,6 +387,26 @@ def _services(hass, service):
 
 
 # ── the happy path ────────────────────────────────────────────────────────────
+
+
+def test_b10_2_a_list_with_no_state_and_no_registry_entry_is_gone(registry):
+    # B10-2: only a list that has neither is gone. One that is down, or not
+    # loaded yet at startup, keeps its registry entry.
+    hass = _FakeHass({LIST: [], OTHER: []}, missing=(OTHER,))
+    sync, _ = _build(hass, _FakeStore())
+    assert sync._gone_lists([LIST, OTHER, "todo.old"]) == {OTHER, "todo.old"}
+    registry["todo.old"] = object()
+    assert sync._gone_lists([LIST, OTHER, "todo.old"]) == {OTHER}
+
+
+def test_b10_2_a_sync_moved_off_a_list_that_is_gone_reaches_the_new_one():
+    hass = _FakeHass({LIST: []})
+    store = _FakeStore(
+        tasks={T1: _task()}, items=_tracked(_entry(entity_id="todo.old"))
+    )
+    _sync(hass, store)
+    assert [call["entity_id"] for call in _services(hass, "add_item")] == [LIST]
+    assert store.get_todo_list_items()[KEY]["entity_id"] == LIST
 
 
 def test_a_due_task_lands_on_the_list_with_its_date_and_notes():

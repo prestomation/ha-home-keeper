@@ -18,6 +18,7 @@ import asyncio
 import importlib.util
 import sys
 import types
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import hk_shopping as sh
@@ -32,6 +33,7 @@ _COMPONENT_DIR = (
 TARGET = "todo.shopping_list"
 OURS = "todo.home_keeper_tasks"
 KEY = "asset1:part1"
+NOW = datetime(2026, 6, 15, 9, 0, tzinfo=timezone(timedelta(hours=-4)))
 
 # Everything the built-in shopping list supports.
 _ALL_FEATURES = 1 | 2 | 4 | 8
@@ -54,6 +56,8 @@ def _load_module() -> types.ModuleType:
     module = importlib.util.module_from_spec(spec)
     sys.modules["hk.shopping_sync"] = module
     spec.loader.exec_module(module)
+    # Pin the clock that stamps a fresh add: the shared stub tree keeps none.
+    module.dt_util = types.SimpleNamespace(now=lambda: NOW)
     return module
 
 
@@ -71,14 +75,18 @@ def registry():
     write to.
     """
     entries: dict[str, object] = {}
-    original = shopping_sync.er
-    shopping_sync.er = types.SimpleNamespace(
+    fake = types.SimpleNamespace(
         async_get=lambda _hass: types.SimpleNamespace(entities=entries)
     )
+    # The shared driver reads the registry too, to tell a list that is gone
+    # from one that is only down (B10-2).
+    driver = sys.modules["hk.todo_sync_driver"]
+    original, original_driver = shopping_sync.er, driver.er
+    shopping_sync.er = driver.er = fake
     try:
         yield entries
     finally:
-        shopping_sync.er = original
+        shopping_sync.er, driver.er = original, original_driver
 
 
 # ── fakes ─────────────────────────────────────────────────────────────────────
@@ -176,7 +184,12 @@ def test_a_low_part_puts_an_item_on_the_list_and_is_remembered():
         {"entity_id": TARGET, "item": "Buy Anode rod"}
     ]
     assert store.get_shopping_items() == {
-        KEY: {"entity_id": TARGET, "summary": "Buy Anode rod", "uid": None}
+        KEY: {
+            "entity_id": TARGET,
+            "summary": "Buy Anode rod",
+            "uid": None,
+            "added_at": NOW.isoformat(),
+        }
     }
 
 
@@ -190,7 +203,12 @@ def test_a_measured_part_puts_its_amount_on_the_line():
         {"entity_id": TARGET, "item": "Buy Anode rod (500 ml)"}
     ]
     assert store.get_shopping_items() == {
-        KEY: {"entity_id": TARGET, "summary": "Buy Anode rod (500 ml)", "uid": None}
+        KEY: {
+            "entity_id": TARGET,
+            "summary": "Buy Anode rod (500 ml)",
+            "uid": None,
+            "added_at": NOW.isoformat(),
+        }
     }
 
 
@@ -470,6 +488,7 @@ def test_a_list_with_descriptions_gets_the_amount_there():
             "entity_id": TARGET,
             "summary": "Buy Anode rod",
             "uid": None,
+            "added_at": NOW.isoformat(),
             "description": "500 ml",
         }
     }

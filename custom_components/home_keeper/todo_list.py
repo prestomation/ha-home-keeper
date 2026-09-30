@@ -97,11 +97,14 @@ from .todo_items import (
     CAP_DUE_DATE,
     STATUS_COMPLETED,
     STATUS_NEEDS_ACTION,
+    UNCONFIRMED_GRACE,
     find_open,
     item_identity,
     item_is_open,
     resolve_tracked,
 )
+from .todo_items import add_unconfirmed as _add_unconfirmed
+from .todo_items import added_stamp as _added_stamp
 from .transitions import DUE_SOON_WINDOW
 
 __all__ = [
@@ -109,6 +112,7 @@ __all__ = [
     "CAP_DUE_DATE",
     "STATUS_COMPLETED",
     "STATUS_NEEDS_ACTION",
+    "UNCONFIRMED_GRACE",
     "AddOp",
     "CompleteOp",
     "RemoveOp",
@@ -122,23 +126,6 @@ __all__ = [
     "sync_key",
 ]
 
-
-# How long an entry whose add we could not confirm is held before it is re-added.
-# It is a *staleness budget*, not a formula: it has to comfortably clear the slowest
-# provider's visibility lag, and the slowest known is Home Assistant's CalDAV entity,
-# which polls every 15 minutes. A grace below that could fire before the provider had
-# any chance to show the item, recreating the duplicate this exists to prevent.
-#
-# Wall clock rather than a count of passes, deliberately: ``TodoSyncDriver`` runs up
-# to four passes back to back with no delay between them, so "unseen for two passes"
-# can elapse in milliseconds — entirely inside the window we are waiting out.
-#
-# What comes back to look once it expires is the coordinator's periodic sweep
-# (``todo_list_sync.async_schedule_sweep``, every ``coordinator.SCAN_INTERVAL``),
-# because a grace running out is neither a store mutation nor a list state change
-# and so wakes nothing by itself. That sweep has to stay unconditional for this to
-# repair at all; its docstring says so.
-UNCONFIRMED_GRACE = timedelta(minutes=20)
 
 # Separator joining a profile id to a task id in a bookkeeping key. Profile ids are
 # uuid hex and task ids are opaque, so the first ``:`` is unambiguous.
@@ -288,8 +275,16 @@ def desired_by_sync(
             name = str(task.get("name") or "").strip()
             if not name:
                 continue
-            # matches_filter has already guaranteed a next_due.
-            due = datetime.fromisoformat(task["next_due"]).date().isoformat()
+            # matches_filter has already guaranteed a next_due. The date is taken
+            # in Home Assistant's own zone, as the native to-do list takes it
+            # (#250): the panel stores a one-off due or a snooze in UTC, and its
+            # date in UTC can be a day away from the local one (X04-1).
+            due = (
+                datetime.fromisoformat(task["next_due"])
+                .astimezone(now.tzinfo)
+                .date()
+                .isoformat()
+            )
             wants[str(task["id"])] = {
                 "task_id": str(task["id"]),
                 "name": name,
@@ -324,51 +319,6 @@ def _entry(
     }
 
 
-def _added_stamp(entry: dict[str, Any], *, now: datetime) -> str:
-    """The stamp to hold *entry* under, replacing one that cannot be trusted.
-
-    Re-stamping rather than keeping whatever is there matters because the hold is
-    open-ended until the stamp ages out: a value that is unparsable, or in the
-    future because the clock jumped backwards before NTP corrected it, would never
-    age out at all. That turns "hold, never duplicate" into "hold, never deliver" —
-    a silent, permanent absence, which is the failure this whole path exists to
-    avoid, only pointing the other way.
-    """
-    stamped = entry.get("added_at")
-    try:
-        # ``str`` because the store holds these entries as opaque JSON and hands
-        # back whatever is in the document: a number, or a value some other write
-        # left behind, must read as "cannot be trusted" rather than raise.
-        if stamped and datetime.fromisoformat(str(stamped)) <= now:
-            return str(stamped)
-    except (TypeError, ValueError):
-        pass
-    return now.isoformat()
-
-
-def _add_unconfirmed(
-    entry: dict[str, Any],
-    *,
-    now: datetime,
-    grace: timedelta = UNCONFIRMED_GRACE,
-) -> bool:
-    """Whether a uid-less entry we cannot resolve should be added again.
-
-    "I cannot see it" is not proof the add failed — see the module docstring — so
-    the answer is normally no, and both unreadable cases answer no as well: a
-    missing stamp starts the clock this pass, and an unparsable one is not evidence
-    of anything. The safe direction is always the one that cannot duplicate, which
-    is the same call :func:`completed_since` makes about an unparsable timestamp.
-    """
-    stamped = entry.get("added_at")
-    if not stamped:
-        return False
-    try:
-        return now - datetime.fromisoformat(str(stamped)) > grace
-    except (TypeError, ValueError):
-        return False
-
-
 def plan_sync(
     *,
     synced: list[dict[str, Any]],
@@ -377,6 +327,7 @@ def plan_sync(
     items_by_entity: dict[str, list[dict[str, Any]]],
     capabilities: dict[str, frozenset[str]],
     now: datetime,
+    gone: frozenset[str] = frozenset(),
 ) -> TodoListPlan:
     """Decide what every sync wants done this pass.
 
@@ -390,6 +341,15 @@ def plan_sync(
     its bookkeeping is carried forward untouched. An unreadable list is not an
     empty one, and that distinction is what stops a broken to-do integration from
     quietly deleting a sync's memory of what it put there.
+
+    *gone* names the lists that do not exist at all any more: no state and no
+    entity registry entry (the entity was renamed, or its integration removed). An
+    entry on such a list that no profile syncs to now is dropped, because its line
+    went with the list. Carrying it forward would keep its key taken for good, so
+    the task would never reach the list the profile now points at (B10-2).
+
+    A task completes at most once per pass, however many profiles hold it: two
+    ticks in one snapshot are one household telling Home Keeper one thing (B10-3).
 
     A profile that was deleted, or whose list was cleared, does get its items
     taken back off: with the sync living inside the profile those are the same
@@ -408,6 +368,14 @@ def plan_sync(
     # list. Only inbound completions land here: the household ticked the item off
     # and a second copy would undo exactly what they just did.
     settled: set[str] = set()
+    # Tasks this pass already completes, so a second profile's tick adds nothing.
+    completing: set[str] = set()
+
+    def complete(key: str, task_id: str) -> None:
+        settled.add(key)
+        if task_id not in completing:
+            completing.add(task_id)
+            plan.complete.append(CompleteOp(key, task_id))
 
     for key in sorted(tracked):
         entry = tracked[key]
@@ -422,7 +390,8 @@ def plan_sync(
             # off clears what it wrote — leaving the chores behind would strand
             # them somewhere nothing updates them any more.
             if items is None:
-                plan.tracked[key] = dict(entry)
+                if entity_id not in gone:
+                    plan.tracked[key] = dict(entry)
                 continue
             item = resolve_tracked(
                 items,
@@ -442,7 +411,8 @@ def plan_sync(
         # so there is nothing left for it to fail to resolve.
         want = desired[profile_id].get(task_id)
         if items is None:
-            plan.tracked[key] = dict(entry)
+            if entity_id == target or entity_id not in gone:
+                plan.tracked[key] = dict(entry)
             continue
 
         item = resolve_tracked(
@@ -467,9 +437,13 @@ def plan_sync(
                     sync["two_way"]
                     and sync["vanish_as_completed"]
                     and not want["blocked"]
+                    # Completed in Home Keeper already: the line going away is
+                    # that completion, not a second one.
+                    and not completed_since(
+                        entry.get("last_completed"), want["last_completed"]
+                    )
                 ):
-                    plan.complete.append(CompleteOp(key, task_id))
-                    settled.add(key)
+                    complete(key, task_id)
                 continue
             if _add_unconfirmed(entry, now=now):
                 # The hold is up. Whatever happened to that add, waiting longer
@@ -512,8 +486,7 @@ def plan_sync(
                         # Only the sensor recovering clears this task. Drop the
                         # entry so pass two puts a fresh open item back.
                         continue
-                    plan.complete.append(CompleteOp(key, task_id))
-                    settled.add(key)
+                    complete(key, task_id)
                 else:
                     # Inbound is inert, so the tick means nothing to Home Keeper —
                     # but freezing the entry keeps pass two from putting the chore

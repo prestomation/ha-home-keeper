@@ -29,6 +29,7 @@ Two rules shape the plan:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from .assets import find_part, part_restock_label
@@ -38,6 +39,8 @@ from .todo_items import (
     CAP_DESCRIPTION,
     STATUS_COMPLETED,
     STATUS_NEEDS_ACTION,
+    add_unconfirmed,
+    added_stamp,
     find_open,
     item_identity,
     item_is_open,
@@ -293,7 +296,9 @@ def plan_sync(
     desired: dict[str, dict[str, Any]],
     items_by_entity: dict[str, list[dict[str, Any]]],
     target: str,
+    now: datetime,
     capabilities: dict[str, frozenset[str]] | None = None,
+    gone: frozenset[str] = frozenset(),
 ) -> SyncPlan:
     """Decide what to do about the mirror this pass.
 
@@ -315,7 +320,15 @@ def plan_sync(
     A list absent from *items_by_entity* could not be read — it is unavailable,
     or the integration behind it is not loaded — so nothing is planned for it and
     its bookkeeping is carried forward untouched. That is what keeps a broken
-    shopping list from quietly deleting the mirror's memory of it.
+    shopping list from quietly deleting the mirror's memory of it. A list in
+    *gone* does not exist at all any more (no state, no registry entry): an entry
+    on it that is not on *target* is dropped, because its line went with the list,
+    and pass two can then put the reminder on the new list (B10-2).
+
+    A fresh add carries ``added_at`` (stamped from *now*) until a pass sees the
+    line. While it does, a ticked-off line with the same text is last episode's
+    record, not our new line, so it is not read as "bought" (B09-2). See
+    ``todo_items.UNCONFIRMED_GRACE``.
     """
     plan = SyncPlan()
     caps_by_entity = capabilities or {}
@@ -338,7 +351,8 @@ def plan_sync(
 
         items = items_by_entity.get(entity_id)
         if items is None:
-            plan.tracked[key] = dict(entry)
+            if entity_id == target or entity_id not in gone:
+                plan.tracked[key] = dict(entry)
             continue
 
         item = resolve_tracked(
@@ -365,6 +379,16 @@ def plan_sync(
             # Ticked off. If the reminder is still open, that tick is the user
             # telling Home Keeper they bought it.
             if want is not None and not want["completed"]:
+                if entry.get("added_at") and not add_unconfirmed(entry, now=now):
+                    # An add we have not seen back yet, resolving to a ticked-off
+                    # line: that is last episode's record, found by its text
+                    # because the list cannot show our new line yet. Hold until
+                    # an open line shows (it wins over a ticked one) or the
+                    # grace runs out.
+                    held = dict(entry)
+                    held["added_at"] = added_stamp(entry, now=now)
+                    plan.tracked[key] = held
+                    continue
                 plan.complete.append(CompleteOp(key, str(want["task_id"])))
                 settled.add(key)
             continue
@@ -461,7 +485,12 @@ def plan_sync(
         # No uid: ``todo.add_item`` answers with nothing. The next pass binds one
         # by summary (see ``todo_items.resolve_tracked``), and until then the
         # summary is a perfectly good handle for ``update_item``/``remove_item``.
-        added: dict[str, Any] = {"entity_id": target, "summary": name, "uid": None}
+        added: dict[str, Any] = {
+            "entity_id": target,
+            "summary": name,
+            "uid": None,
+            "added_at": now.isoformat(),
+        }
         if description:
             added["description"] = description
         plan.tracked[key] = added
