@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Settings | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/docs/guide/settings"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Settings | Home Keeper"><meta data-rh="true" name="description" content="The Settings tab in the panel edits the integration options. The form matches the"><meta data-rh="true" property="og:description" content="The Settings tab in the panel edits the integration options. The form matches the"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-395/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/docs/guide/settings"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/docs/guide/settings" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/docs/guide/settings" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Settings","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-395/docs/guide/settings"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-395/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-395/assets/js/runtime~main.498e0a34.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-395/assets/js/runtime~main.4e877d2a.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-395/assets/js/main.b34c997b.js" defer="defer"></script>
 </head>
 <body>
@@ -112,7 +112,7 @@ back. The preview shows 10 matches at most. To exclude an entity that is not in 
 preview, select it in the excluded entities list.</p>
 <p><img decoding="async" loading="lazy" alt="The declarative companion dialog with More filters open and one excluded entity in the Exclusions block" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21j-panel-declarative-filters-2b7e5a3e80b68dce582cab758580a4d7.png" width="612" height="2552" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The same dialog on a phone, with an Exclude button on each preview row" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21k-panel-mobile-declarative-filters-942c31fa383b70d769093875563d5f71.png" width="390" height="844" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21c-panel-declarative-preset-picker-8ab8bf985a5cafcfd4dbce98f8cd9bd7.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21c-panel-declarative-preset-picker-eb561cf45d3c09dcde67a47d78034928.png" width="1280" height="720" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21d-panel-declarative-add-dialog-fb1ac7c699d9bae77b6311b26fb41b24.png" width="612" height="1682" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The page of a task a declarative companion made, with Edit and Edit companion buttons and no Done button while the task is monitored" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21e-panel-declarative-task-detail-ac7a46a408391a1443d1e0c6448be76c.png" width="1280" height="720" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The same task page on a phone" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21e-mobile-companion-task-3f4cf0e209c7f1bc188e1e95712f9420.png" width="390" height="844" class="img_ev3q"></p>
@@ -148,10 +148,12 @@ robot vacuum or the toner level of a printer. An integration preset turns these
 readings into tasks for one integration.
 Each preset selects the entities by their <a href="#entity-keys-and-task-names" class="">entity keys</a>
 and gives each key its own task name, such as <em>Replace the main brush</em>.</p>
-<p>The picker shows the presets for the integrations you have installed first. Then it
-shows the general presets. Click <strong>Show more presets</strong> to see the presets for the
-other integrations, or type in the search box to find a brand or a part. Each preset
-card lists the tasks that it makes.</p>
+<p>The picker shows first the presets that match entities you have, with the number of
+entities each one matches. An installed integration is not enough. A Tuya light has
+no filter or brush, so the Tuya vacuum preset is not in that group. Then the picker
+shows the general presets. Click <strong>Show more presets</strong> to see the other presets, or
+type in the search box to find a brand or a part. Each preset card lists the tasks
+that it makes.</p>
 <p>Each integration can have up to 6 presets, one for each type of reading:</p>
 <ul>
 <li class=""><strong>Parts and supplies running low</strong>: a percentage falls below 10%.</li>
@@ -164,8 +166,8 @@ pressure of a boiler, passes its service level.</li>
 </ul>
 <p>Each task closes when the reading recovers. Reset the part on the device, or refill
 the salt, and the task completes.</p>
-<p><img decoding="async" loading="lazy" alt="The preset picker with a search for filter, showing the integration presets and the tasks each one makes" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21v-panel-declarative-preset-search-e1566103a8099cd9d59bcce8c429b19d.png" width="1280" height="720" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The same search on a phone" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21v-panel-mobile-preset-search-2d1c537fa2283612dbe8fb4478f36012.png" width="390" height="844" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The preset picker with a search for filter, showing the integration presets and the tasks each one makes" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21v-panel-declarative-preset-search-5ce4da39c9272819b0f73b4507f24663.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same search on a phone" src="/ha-home-keeper/pr-preview/pr-395/assets/images/21v-panel-mobile-preset-search-56d3d996927a49028e2c51855f06d293.png" width="390" height="844" class="img_ev3q"></p>
 <p>These integrations have presets:</p>
 
 
