@@ -7,9 +7,13 @@ import {
   HK_DOMAIN,
   formatDate,
   formatQuantity,
+  getTimeZone,
   normalizeIcon,
   recurrenceSummary,
   round1,
+  zonedParts,
+  zonedMidnight,
+  zonedTimeToMs,
 } from './utils';
 import type {
   Asset,
@@ -189,18 +193,31 @@ function monthOptions(): { value: string; label: string }[] {
 }
 
 // ── datetime <-> HA selector string helpers ────────────────────────────────
-// HA's datetime selector uses local "YYYY-MM-DD HH:mm:ss"; we persist ISO.
-export function isoToHaDateTime(iso?: string | null): string | undefined {
+// HA's datetime selector uses a zone-less "YYYY-MM-DD HH:mm:ss"; we persist ISO.
+// The zone-less text is a time in Home Assistant's zone (`setTimeZone`), not in the
+// browser zone (X04-7). Without a zone set, the browser zone is used.
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+export function isoToHaDateTime(iso?: string | null, tz = getTimeZone()): string | undefined {
   if (!iso) return undefined;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return undefined;
-  const p = (n: number): string => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(
-    d.getMinutes(),
-  )}:${p(d.getSeconds())}`;
+  const [y, mo, day, h, mi, s] = tz
+    ? zonedParts(d.getTime(), tz)
+    : [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()];
+  return `${y}-${pad2(mo)}-${pad2(day)} ${pad2(h)}:${pad2(mi)}:${pad2(s)}`;
 }
-export function haDateTimeToIso(value?: string | null): string | undefined {
+
+const HA_DATETIME = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/;
+
+export function haDateTimeToIso(value?: string | null, tz = getTimeZone()): string | undefined {
   if (!value) return undefined;
+  const m = tz ? HA_DATETIME.exec(value) : null;
+  if (m) {
+    // `m` is set only when `tz` is set. An absent seconds part reads as 0.
+    const parts = m.slice(1).map((part) => Number(part ?? 0));
+    return new Date(zonedTimeToMs(parts, tz as string)).toISOString();
+  }
   const d = new Date(value.replace(' ', 'T'));
   if (Number.isNaN(d.getTime())) return undefined;
   return d.toISOString();
@@ -2136,20 +2153,23 @@ export function partFirstDue(part: Part): Date | null {
   // way, exactly as it does for the absent date this line is written for.
   const from = (part.last_replaced ?? '').trim();
   if (!interval || !unit || !from || partCountsUses(part)) return null;
-  const out = new Date(`${from}T00:00:00`);
+  // Calendar arithmetic on a UTC date, so no zone and no daylight-saving change can
+  // move the day. The result is that date's midnight in Home Assistant's zone, the
+  // zone `formatDate` shows it in (X04-7).
+  const out = new Date(`${from}T00:00:00Z`);
   if (Number.isNaN(out.getTime())) return null;
-  if (unit === 'days') out.setDate(out.getDate() + interval);
-  else if (unit === 'weeks') out.setDate(out.getDate() + interval * 7);
+  if (unit === 'days') out.setUTCDate(out.getUTCDate() + interval);
+  else if (unit === 'weeks') out.setUTCDate(out.getUTCDate() + interval * 7);
   else {
-    const day = out.getDate();
+    const day = out.getUTCDate();
     // Day 1 first: `setMonth` on the 31st of a month whose target is shorter rolls
     // *forward* into the month after (Jan 31 -> Mar 3), the opposite of clamping.
-    out.setDate(1);
-    out.setMonth(out.getMonth() + interval);
-    const lastDay = new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate();
-    out.setDate(Math.min(day, lastDay));
+    out.setUTCDate(1);
+    out.setUTCMonth(out.getUTCMonth() + interval);
+    const lastDay = new Date(Date.UTC(out.getUTCFullYear(), out.getUTCMonth() + 1, 0)).getUTCDate();
+    out.setUTCDate(Math.min(day, lastDay));
   }
-  return out;
+  return zonedMidnight(out.getUTCFullYear(), out.getUTCMonth() + 1, out.getUTCDate());
 }
 
 /**

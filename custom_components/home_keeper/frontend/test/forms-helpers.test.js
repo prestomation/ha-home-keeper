@@ -1,4 +1,12 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  formatDate,
+  formatDateTime,
+  getTimeZone,
+  setTimeZone,
+  zonedParts,
+  zonedTimeToMs,
+} from '../src/utils';
 import {
   DEFAULT_BACKSTOP_INTERVAL,
   MAX_SEASON_WINDOWS,
@@ -746,5 +754,80 @@ describe('skipSnoozeFlags', () => {
       allowSkip: false,
       allowDueToday: false,
     });
+  });
+});
+
+// X04-7: a zone-less selector value is a time in Home Assistant's zone, not in the
+// browser zone. Each test names its zone, so the result does not depend on the zone
+// the suite runs in.
+describe('Home Assistant time zone (X04-7)', () => {
+  afterEach(() => setTimeZone(undefined));
+
+  it('shows a stored instant on the wall clock of the HA zone', () => {
+    expect(isoToHaDateTime('2026-01-01T08:30:00Z', 'America/Los_Angeles')).toBe(
+      '2026-01-01 00:30:00',
+    );
+    // Midnight reads as 00, not 24.
+    expect(isoToHaDateTime('2026-01-01T15:00:00Z', 'Asia/Tokyo')).toBe('2026-01-02 00:00:00');
+  });
+
+  it('reads a typed time in the HA zone, on both sides of daylight saving', () => {
+    expect(haDateTimeToIso('2026-01-01 00:30:00', 'America/Los_Angeles')).toBe(
+      '2026-01-01T08:30:00.000Z',
+    );
+    expect(haDateTimeToIso('2026-07-01 00:30', 'America/Los_Angeles')).toBe(
+      '2026-07-01T07:30:00.000Z',
+    );
+    // The first guess is in PST and the answer is in PDT: the second pass corrects it.
+    expect(haDateTimeToIso('2026-03-08 03:30:00', 'America/Los_Angeles')).toBe(
+      '2026-03-08T10:30:00.000Z',
+    );
+    expect(haDateTimeToIso('2026-03-08T01:30:00', 'America/Los_Angeles')).toBe(
+      '2026-03-08T09:30:00.000Z',
+    );
+  });
+
+  it('keeps a value that already carries a zone', () => {
+    expect(haDateTimeToIso('2026-01-01T00:00:00Z', 'Asia/Tokyo')).toBe(
+      '2026-01-01T00:00:00.000Z',
+    );
+    expect(haDateTimeToIso('not-a-date', 'Asia/Tokyo')).toBeUndefined();
+    // Only a whole value reads as a date and time, not one with text before it.
+    expect(haDateTimeToIso('x2026-01-01 09:00:00', 'Asia/Tokyo')).toBeUndefined();
+  });
+
+  it('round-trips through the form in the HA zone', () => {
+    const iso = '2026-10-31T23:45:07.000Z';
+    const shown = isoToHaDateTime(iso, 'Pacific/Kiritimati');
+    expect(shown).toBe('2026-11-01 13:45:07');
+    expect(haDateTimeToIso(shown, 'Pacific/Kiritimati')).toBe(iso);
+  });
+
+  it('uses the zone that set hass gives when the caller names none', () => {
+    setTimeZone('Asia/Tokyo');
+    expect(getTimeZone()).toBe('Asia/Tokyo');
+    expect(isoToHaDateTime('2026-01-01T00:00:00Z')).toBe('2026-01-01 09:00:00');
+    expect(haDateTimeToIso('2026-01-01 09:00:00')).toBe('2026-01-01T00:00:00.000Z');
+    expect(formatDate('2026-01-01T23:30:00Z', 'en-US')).toBe('Jan 2, 2026');
+    expect(formatDateTime('2026-01-01T23:30:00Z', 'en-US')).toBe('Jan 2, 2026, 8:30 AM');
+  });
+
+  it('ignores an empty or unknown zone name', () => {
+    setTimeZone('Asia/Tokyo');
+    setTimeZone('Not/A_Zone');
+    expect(getTimeZone()).toBeUndefined();
+    setTimeZone('Asia/Tokyo');
+    setTimeZone(null);
+    expect(getTimeZone()).toBeUndefined();
+    setTimeZone('Asia/Tokyo');
+    setTimeZone('');
+    expect(getTimeZone()).toBeUndefined();
+  });
+
+  it('gives the wall-clock parts and their instant back', () => {
+    const ms = Date.UTC(2026, 5, 13, 16, 8, 7);
+    const parts = zonedParts(ms, 'America/Los_Angeles');
+    expect(parts).toEqual([2026, 6, 13, 9, 8, 7]);
+    expect(zonedTimeToMs(parts, 'America/Los_Angeles')).toBe(ms);
   });
 });

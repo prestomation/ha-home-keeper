@@ -695,7 +695,9 @@ class HomeKeeperStore:
                 "is currently scheduled. Re-arm it instead (undo a completion, or wait "
                 "for its condition/sensor)."
             )
-        existing["next_due"] = until.isoformat()
+        # ``defer`` also keeps the grid occurrence of a fixed task, so a later Done
+        # moves the schedule past it (B07-5).
+        recurrence.defer(existing, until, now=dt_util.now())
         await self._save()
         _LOGGER.debug("Snoozed task %s until %s", task_id, existing["next_due"])
         self._hass.bus.async_fire(
@@ -748,7 +750,8 @@ class HomeKeeperStore:
                 "that is currently scheduled. Re-arm it instead (undo a "
                 "completion, or wait for its condition/sensor)."
             )
-        existing["next_due"] = dt_util.now().isoformat()
+        now = dt_util.now()
+        recurrence.defer(existing, now, now=now)
         await self._save()
         _LOGGER.debug("Set task %s due now (%s)", task_id, existing["next_due"])
         self._hass.bus.async_fire(
@@ -2275,8 +2278,12 @@ class HomeKeeperStore:
         # (``meter_start``), before the reset below overwrites it. Undoing the
         # completion then restores exactly the meter progress the user had, rather
         # than leaving it stranded at zero (see ``delete_completion``).
-        self._stamp_meter_start(updated, when)
-        self._reset_usage_baseline(updated, reading)
+        # A completion older than the latest completion or skip only fills in the
+        # log. The meter stays on the baseline that the later decision set (B07-3).
+        latest_decision = recurrence._parse(sensor_tasks.latest_decision_ts(existing))
+        if latest_decision is None or when >= latest_decision:
+            self._stamp_meter_start(updated, when)
+            self._reset_usage_baseline(updated, reading)
         self._tasks[task_id] = updated
         # A task carries at most one reserved source, so exactly one stock side-effect
         # applies: a part-linked completion *consumes* a spare, a buy reminder

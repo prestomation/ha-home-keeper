@@ -35,10 +35,17 @@ The `home_keeper.complete_task` and `home_keeper.update_completion` services
 accept the same fields.
 
 The dialog's **Completed at** field defaults to now. A user can set it to log
-a completion for the time the work happened.
+a completion for the time the work happened. The date and time fields in the panel
+use the time zone of Home Assistant, not the time zone of the browser.
 
 The next due date of a **floating** task is measured from the completion date, so
-the completion date moves the schedule.
+the completion date moves the schedule. A completion that is older than the most
+recent one only adds an entry to the history. It does not move the due date.
+
+Only a change to the most recent completion moves the due date. A delete or a move
+of an older entry keeps the due date, and also keeps a snooze or a skip. A delete of
+the most recent completion of a fixed task puts back the due date that the task
+had before that completion.
 
 The **move date** button on a history row changes the date of that entry. The
 **edit** button changes the recorded details and not the date. The

@@ -102,6 +102,7 @@ import {
   type SettingsSection,
   RELOAD_RETRIES,
   RELOAD_RETRY_MS,
+  setTimeZone,
 } from './utils';
 
 
@@ -292,6 +293,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const first = !this._hass;
     // Keep the i18n module pointed at the user's HA language before any render.
     setLanguage(hass.language);
+    setTimeZone(hass.config?.time_zone);
     this._hass = hass;
     // Keep selectors/pickers current without a disruptive full re-render.
     for (const el of this._liveHassEls) el.hass = hass;

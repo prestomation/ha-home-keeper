@@ -316,6 +316,9 @@ def replacement_backstop_due(
         return None
     if anchor.tzinfo is None:
         anchor = anchor.replace(tzinfo=tz) if tz is not None else anchor.astimezone()
+    elif tz is not None:
+        # Count on Home Assistant's wall clock, not the stored offset (B07-4).
+        anchor = anchor.astimezone(tz)
     return recurrence.add_interval(
         anchor, int(backstop["interval"]), str(backstop["unit"])
     )

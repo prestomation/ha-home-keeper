@@ -2373,6 +2373,43 @@ def test_b04_4_skips_merge_by_date_with_the_stored_ones():
     ]
 
 
+def _stored_fixed() -> dict:
+    stored = _task(
+        external_id="filter",
+        recurrence_type="fixed",
+        freq="DAILY",
+        interval=1,
+        anchor="2026-06-01T18:00:00-04:00",
+    )
+    stored["next_due"] = "2026-06-12T18:00:00-04:00"
+    tr.recurrence.apply_completion(
+        stored, datetime(2026, 6, 12, 18, tzinfo=TZ), now=NOW
+    )
+    return stored
+
+
+def test_b07_1_an_import_keeps_the_prior_due_of_a_stored_completion():
+    # The stored completion replaced a due date a user saw, so an undo after the
+    # import must still put that date back. Only the replayed entries lose theirs.
+    stored = _stored_fixed()
+    payload = _update(stored, [{"completed_at": "2026-06-05T18:00:00-04:00"}])
+    older, newer = payload["completions"]
+    assert tr.recurrence.PRIOR_DUE not in older
+    assert newer[tr.recurrence.PRIOR_DUE] == "2026-06-12T18:00:00-04:00"
+    assert payload["last_completed"] == stored["last_completed"]
+    assert payload["next_due"] == stored["next_due"]
+
+
+def test_b07_1_a_newer_replayed_completion_carries_no_prior_due():
+    stored = _stored_fixed()
+    payload = _update(stored, [{"completed_at": "2026-06-13T09:00:00-04:00"}])
+    stored_entry, replayed = payload["completions"]
+    assert stored_entry[tr.recurrence.PRIOR_DUE] == "2026-06-12T18:00:00-04:00"
+    assert tr.recurrence.PRIOR_DUE not in replayed
+    assert payload["last_completed"] == "2026-06-13T09:00:00-04:00"
+    assert payload["next_due"] == "2026-06-13T18:00:00-04:00"
+
+
 # ── A consumable link the user made (B09-4) ──────────────────────────────────
 
 

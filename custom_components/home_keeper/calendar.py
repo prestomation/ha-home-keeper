@@ -3,7 +3,7 @@
 Surfaces upcoming task occurrences as calendar events so users can see "what's due
 when" on HA's built-in Calendar card. Floating tasks contribute a single event at
 their current ``next_due``; fixed tasks are expanded across the requested range by
-the recurrence engine.
+the recurrence engine, and their ``next_due`` replaces the grid occurrences before it.
 """
 
 from __future__ import annotations
@@ -43,6 +43,30 @@ def _event_for(task: dict, start: datetime) -> CalendarEvent:
         uid=f"{task['id']}_{start.isoformat()}",
         description=task.get("notes") or None,
     )
+
+
+def _due(task: dict) -> datetime | None:
+    """The task's ``next_due`` as a datetime, or None."""
+    due_iso = task.get("next_due")
+    return dt_util.parse_datetime(due_iso) if due_iso else None
+
+
+def _follow_next_due(
+    starts: list[datetime], due: datetime, start_date: datetime, end_date: datetime
+) -> list[datetime]:
+    """Grid occurrences of a fixed task, corrected by its ``next_due`` (B11-2).
+
+    The grid occurrences from now up to ``next_due`` are done, skipped or deferred,
+    so they are removed. ``next_due`` itself is added when it is off the grid (a
+    snooze or a due-today) and in the window. A ``next_due`` in the past is an
+    overdue occurrence, so nothing is removed for it.
+    """
+    cutoff = dt_util.now() - EVENT_DURATION
+    if due > cutoff:
+        starts = [occ for occ in starts if not cutoff <= occ < due]
+    if due not in starts and due < end_date and due + EVENT_DURATION > start_date:
+        starts = sorted([*starts, due])
+    return starts
 
 
 class HomeKeeperCalendarEntity(
@@ -89,6 +113,12 @@ class HomeKeeperCalendarEntity(
         if task.get("recurrence_type") in (REC_TRIGGERED, REC_SENSOR):
             return None
         if task.get("recurrence_type") == REC_FIXED:
+            due = _due(task)
+            if due is not None and due + EVENT_DURATION > now:
+                # ``next_due`` is what every other surface shows. A completion before
+                # the time of day, a skip, a snooze and a due-today all move it off
+                # the next grid occurrence, so the calendar follows it (B11-2).
+                return due
             anchor = dt_util.parse_datetime(task["anchor"])
             if anchor is None:
                 return None
@@ -141,16 +171,21 @@ class HomeKeeperCalendarEntity(
                 if anchor is None:
                     continue
                 season = task.get("active_season")
-                for occ in recurrence.expand_fixed_occurrences(
-                    anchor,
-                    task["freq"],
-                    int(task["interval"]),
-                    start_date - EVENT_DURATION,
-                    end_date,
-                ):
-                    if season and not recurrence.in_season(occ, season):
-                        continue
-                    events.append(_event_for(task, occ))
+                starts = [
+                    occ
+                    for occ in recurrence.expand_fixed_occurrences(
+                        anchor,
+                        task["freq"],
+                        int(task["interval"]),
+                        start_date - EVENT_DURATION,
+                        end_date,
+                    )
+                    if not season or recurrence.in_season(occ, season)
+                ]
+                due = _due(task)
+                if due is not None:
+                    starts = _follow_next_due(starts, due, start_date, end_date)
+                events.extend(_event_for(task, occ) for occ in starts)
             else:
                 due_iso = task.get("next_due")
                 due = dt_util.parse_datetime(due_iso) if due_iso else None

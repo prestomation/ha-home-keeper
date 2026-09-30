@@ -1,6 +1,7 @@
 """Unit tests for fixed (anchored schedule) recurrence."""
 
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import hk_recurrence as r
 
@@ -373,3 +374,185 @@ def test_an_overdue_fixed_task_still_collapses_the_missed_occurrences():
     now = dt(2026, 2, 4, 10)  # a Wednesday, 4 Mondays later
     out = r.apply_completion(task, now, now=now)
     assert out["next_due"] == dt(2026, 2, 9, 9).isoformat()
+
+
+# --- Schedule state that the log does not hold (B07-1, B07-2, B07-5) ---------
+
+LA = ZoneInfo("America/Los_Angeles")
+
+
+def la(y, m, d, hh=0, mm=0):
+    return datetime(y, m, d, hh, mm, tzinfo=LA)
+
+
+def _fixed(anchor, freq="DAILY", **over):
+    task = {
+        "recurrence_type": "fixed",
+        "interval": 1,
+        "freq": freq,
+        "anchor": anchor.isoformat(),
+        "next_due": anchor.isoformat(),
+        "completions": [],
+    }
+    task.update(over)
+    return task
+
+
+def test_b07_1_undo_on_an_overdue_fixed_task_puts_the_overdue_occurrence_back():
+    """B07-1: Done by mistake on an overdue task, then Undo, keeps it overdue."""
+    task = _fixed(la(2026, 1, 1, 9), "MONTHLY", next_due=la(2026, 9, 1, 9).isoformat())
+    now = la(2026, 9, 20, 12)
+    assert r.is_overdue(task, now=now)
+    r.apply_completion(task, now, now=now)
+    assert task["next_due"] == la(2026, 10, 1, 9).isoformat()
+    assert task["completions"][-1][r.PRIOR_DUE] == la(2026, 9, 1, 9).isoformat()
+    r.remove_completion(task, now.isoformat(), now=now)
+    assert task["next_due"] == la(2026, 9, 1, 9).isoformat()
+    assert r.is_overdue(task, now=now)
+    assert task["last_completed"] is None
+
+
+def test_b07_1_a_task_with_no_due_date_records_no_prior_due():
+    """Nothing to put back, so the undo calculates the date from the anchor."""
+    task = _fixed(dt(2026, 1, 1, 8))
+    del task["next_due"]
+    now = dt(2026, 6, 13, 9)
+    r.apply_completion(task, now, now=now)
+    assert r.PRIOR_DUE not in task["completions"][0]
+    r.remove_completion(task, now.isoformat(), now=now)
+    assert task["next_due"] == dt(2026, 6, 14, 8).isoformat()
+
+
+def test_b07_1_a_later_skip_keeps_its_due_date_after_the_undo():
+    task = _fixed(la(2026, 9, 1, 10))
+    done = la(2026, 9, 1, 11)
+    r.apply_completion(task, done, now=done)
+    skipped = la(2026, 9, 2, 11)
+    r.skip_occurrence(task, now=skipped)
+    assert task["next_due"] == la(2026, 9, 3, 10).isoformat()
+    r.remove_completion(task, done.isoformat(), now=skipped)
+    assert task["next_due"] == la(2026, 9, 3, 10).isoformat()
+    assert task["last_completed"] is None
+
+
+def test_b07_1_an_undo_after_an_earlier_skip_puts_the_date_back():
+    """A skip before the undone completion does not block the undo."""
+    task = _fixed(la(2026, 9, 1, 10))
+    skipped = la(2026, 9, 1, 11)
+    r.skip_occurrence(task, now=skipped)
+    done = la(2026, 9, 2, 11)
+    r.apply_completion(task, done, now=done)
+    assert task["next_due"] == la(2026, 9, 3, 10).isoformat()
+    r.remove_completion(task, done.isoformat(), now=done)
+    assert task["next_due"] == la(2026, 9, 2, 10).isoformat()
+
+
+def test_b07_2_deleting_an_old_row_keeps_an_early_completion():
+    """B07-2 (a): a stray old row goes, today's early Done stays done."""
+    old = la(2026, 8, 1, 10)
+    task = _fixed(la(2026, 7, 1, 10))
+    r.apply_completion(task, old, now=old)
+    task["next_due"] = la(2026, 9, 30, 10).isoformat()
+    early = la(2026, 9, 30, 9)
+    r.apply_completion(task, early, now=early)
+    assert task["next_due"] == la(2026, 10, 1, 10).isoformat()
+    r.remove_completion(task, old.isoformat(), now=early)
+    assert task["next_due"] == la(2026, 10, 1, 10).isoformat()
+    assert task["last_completed"] == early.isoformat()
+    assert not r.is_overdue(task, now=la(2026, 9, 30, 10, 1))
+
+
+def test_b07_2_an_unknown_ts_changes_nothing():
+    task = _fixed(la(2026, 9, 1, 10), next_due=la(2026, 9, 20, 18).isoformat())
+    r.remove_completion(task, la(2020, 1, 1).isoformat(), now=la(2026, 9, 2))
+    assert task["next_due"] == la(2026, 9, 20, 18).isoformat()
+
+
+def test_b07_5_due_today_then_done_moves_past_the_occurrence_it_replaced():
+    """B07-5: Saturdays at 10:00; Due today on Wednesday, then Done."""
+    task = _fixed(
+        la(2026, 9, 5, 10), "WEEKLY", next_due=la(2026, 10, 3, 10).isoformat()
+    )
+    wed = la(2026, 9, 30, 12)
+    r.defer(task, wed, now=wed)
+    assert task["next_due"] == wed.isoformat()
+    assert task[r.DEFERRED_FROM] == la(2026, 10, 3, 10).isoformat()
+    r.apply_completion(task, wed, now=wed)
+    assert task["next_due"] == la(2026, 10, 10, 10).isoformat()
+
+
+def test_b07_5_monthly_due_today_then_done():
+    task = _fixed(
+        la(2026, 1, 28, 9), "MONTHLY", next_due=la(2026, 10, 28, 9).isoformat()
+    )
+    now = la(2026, 10, 10, 12)
+    r.defer(task, now, now=now)
+    r.apply_completion(task, now, now=now)
+    assert task["next_due"] == la(2026, 11, 28, 9).isoformat()
+
+
+def test_b07_5_an_early_snooze_then_done_before_the_time_of_day():
+    """Snooze 24 h on Friday, Done on Saturday at 09:00, before the 10:00 slot."""
+    task = _fixed(
+        la(2026, 9, 5, 10), "WEEKLY", next_due=la(2026, 10, 3, 10).isoformat()
+    )
+    fri = la(2026, 10, 2, 8)
+    r.defer(task, fri + timedelta(hours=24), now=fri)
+    # A second snooze keeps the occurrence that the first one moved.
+    r.defer(task, la(2026, 10, 3, 8, 30), now=fri)
+    assert task[r.DEFERRED_FROM] == la(2026, 10, 3, 10).isoformat()
+    sat = la(2026, 10, 3, 9)
+    r.apply_completion(task, sat, now=sat)
+    assert task["next_due"] == la(2026, 10, 10, 10).isoformat()
+
+
+def test_b07_5_skip_after_due_today_moves_past_the_occurrence_too():
+    task = _fixed(
+        la(2026, 9, 5, 10), "WEEKLY", next_due=la(2026, 10, 3, 10).isoformat()
+    )
+    wed = la(2026, 9, 30, 12)
+    r.defer(task, wed, now=wed)
+    r.skip_occurrence(task, now=wed)
+    assert task["next_due"] == la(2026, 10, 10, 10).isoformat()
+
+
+def test_b07_5_a_record_off_the_grid_is_ignored():
+    """A stale record from an old schedule does not move the new one."""
+    task = _fixed(
+        la(2026, 9, 5, 10), "WEEKLY", next_due=la(2026, 9, 30, 12).isoformat()
+    )
+    task[r.DEFERRED_FROM] = la(2026, 10, 3, 11).isoformat()
+    now = la(2026, 9, 30, 12)
+    r.apply_completion(task, now, now=now)
+    assert task["next_due"] == la(2026, 10, 3, 10).isoformat()
+
+
+def test_b07_5_defer_records_nothing_for_an_off_grid_or_floating_task():
+    task = _fixed(
+        la(2026, 9, 5, 10), "WEEKLY", next_due=la(2026, 10, 1, 12).isoformat()
+    )
+    r.defer(task, la(2026, 10, 2), now=la(2026, 9, 30))
+    assert r.DEFERRED_FROM not in task
+    floating = {"recurrence_type": "floating", "next_due": la(2026, 10, 3).isoformat()}
+    r.defer(floating, la(2026, 10, 5), now=la(2026, 9, 30))
+    assert floating == {
+        "recurrence_type": "floating",
+        "next_due": la(2026, 10, 5).isoformat(),
+    }
+
+
+def test_b07_5_defer_of_a_task_with_no_due_date_only_sets_it():
+    task = _fixed(la(2026, 9, 5, 10), "WEEKLY")
+    del task["next_due"]
+    r.defer(task, la(2026, 10, 2), now=la(2026, 9, 30))
+    assert r.DEFERRED_FROM not in task
+    assert task["next_due"] == la(2026, 10, 2).isoformat()
+
+
+def test_b07_5_defer_reads_the_grid_in_the_ha_zone():
+    """A stored -07:00 due date after the DST change is still on the grid."""
+    task = _fixed(la(2026, 9, 5, 10), "WEEKLY")
+    stored = datetime(2026, 11, 7, 10, tzinfo=timezone(timedelta(hours=-8)))
+    task["next_due"] = stored.isoformat()
+    r.defer(task, la(2026, 11, 5, 12), now=la(2026, 11, 5, 12))
+    assert task[r.DEFERRED_FROM] == stored.isoformat()

@@ -21,6 +21,10 @@ Open a task and select **Snooze**, **Skip** or **Due today** next to **Done**.
   it never records a completion. A task that is already due or overdue does not
   show it, because there is no due date to bring nearer.
 
+On a fixed schedule, **Done** or **Skip** after a snooze or a due today moves the
+task past the date that it showed before. A task due each Saturday that is done on
+Wednesday after **Due today** is next due on the Saturday after that.
+
 <img src="docs/images/51-panel-skip-snooze-menu.png" alt="A task's Done button with its caret open, showing Snooze, Skip and Due today with a line each explaining what they do" width="820">
 
 <img src="docs/images/52-panel-snooze-dialog.png" alt="The snooze dialog: a duration dropdown and a line stating the date the due date moves to" width="820">

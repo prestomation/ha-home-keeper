@@ -247,7 +247,9 @@ class HomeKeeperNextDueSensor(HomeKeeperTaskEntity, SensorEntity):
             attrs["usage_consumed"] = round(consumed, 3)
             attrs["usage_remaining"] = round(target - consumed, 3)
             attrs["usage_percent"] = round(min(100.0, consumed / target * 100), 1)
-        due_at = sensor_tasks.backstop_due(task, cfg)
+        due_at = sensor_tasks.backstop_due(
+            task, cfg, tz=dt_util.get_default_time_zone()
+        )
         if due_at is not None:
             attrs["backstop_due"] = due_at.isoformat()
         # How much use each past service interval actually ran, summarized. The
