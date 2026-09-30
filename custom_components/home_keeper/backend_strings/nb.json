@@ -16,5 +16,17 @@
   "declarative_preset.firmware_update_available.description": "Overvåker hver oppdateringsentitet (UniFi, ESPHome, HACS, kameraer, skrivere osv.) og åpner en oppgave for å installere den nye versjonen.",
   "declarative_preset.device_stopped_reporting.name": "Enhet har blitt stille",
   "declarative_preset.device_stopped_reporting.description": "Overvåker alle sist sett-sensorer og oppretter en oppgave for hver enhet som ikke har meldt seg på 24 timer. Bruk den til å finne Zigbee- eller Z-Wave-enhetene som har falt av nettet.",
+  "declarative_preset.shape.percent_low.name": "{integration}: deler og forbruksvarer som går tom",
+  "declarative_preset.shape.percent_low.description": "Åpner en oppgave når en del eller forbruksvare på en {integration}-enhet går tom. Oppgaven lukkes når nivået går opp igjen.",
+  "declarative_preset.shape.life_low.name": "{integration}: deler nær slutten av levetiden",
+  "declarative_preset.shape.life_low.description": "Åpner en oppgave når en del på en {integration}-enhet har lite levetid igjen. Oppgaven lukkes når du nullstiller delen på enheten.",
+  "declarative_preset.shape.wear_high.name": "{integration}: slitasjetellere",
+  "declarative_preset.shape.wear_high.description": "Åpner en oppgave når en slitasjeteller på en {integration}-enhet passerer servicegrensen. Oppgaven lukkes når du nullstiller telleren på enheten.",
+  "declarative_preset.shape.reading_low.name": "{integration}: for lave målinger",
+  "declarative_preset.shape.reading_low.description": "Åpner en oppgave når en måling fra en {integration}-enhet faller under servicenivået. Oppgaven lukkes når målingen går opp igjen.",
+  "declarative_preset.shape.reading_high.name": "{integration}: for høye målinger",
+  "declarative_preset.shape.reading_high.description": "Åpner en oppgave når en måling fra en {integration}-enhet stiger over servicenivået. Oppgaven lukkes når målingen går ned igjen.",
+  "declarative_preset.shape.alert.name": "{integration}: servicevarsler",
+  "declarative_preset.shape.alert.description": "Åpner en oppgave når en {integration}-enhet melder at den trenger service. Oppgaven lukkes når enheten fjerner varselet.",
   "declarative_task.completion_prompt": "Åpnet av den deklarative companion-en «{name}». Home Keeper fullfører denne oppgaven automatisk når betingelsen forsvinner, så den kan ikke fullføres manuelt."
 }

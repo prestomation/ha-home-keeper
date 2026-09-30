@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b2]
+
+### Added
+
+- **[Integration presets](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  More than 100 presets turn the wear readings of vacuums, printers, appliances, heaters and
+  other devices into tasks. The picker shows first the presets that match your devices,
+  and a search finds a brand or a part.
+
 ## [0.28.0b1]
 
 ### Added

@@ -55,6 +55,7 @@ import { t, tn } from './i18n';
 import { makeDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { indentGroup } from './panel-indent';
+import { groupPresets, presetTaskNames } from './preset-picker';
 import type {
   DeclarativeCompanion,
   DeclarativeCompanionPreset,
@@ -436,17 +437,34 @@ function renderPresetPicker(p: PanelHost, host: HTMLElement): void {
     ...(p._installedIntegrations ?? []),
     ...Object.values(p._entryDomains),
   ]);
+
+  // The search box stays put while the list under it is drawn again on each key, so
+  // typing never loses focus.
+  const search = document.createElement('div');
+  search.className = 'hk-decl-preset-search';
+  search.innerHTML = `<ha-icon icon="mdi:magnify"></ha-icon>`;
+  const input = document.createElement('input');
+  input.type = 'search';
+  input.id = 'hk-decl-preset-q';
+  input.className = 'hk-decl-preset-q';
+  input.autocomplete = 'off';
+  input.placeholder = t('declarative.companions.preset_search');
+  input.setAttribute('aria-label', t('declarative.companions.preset_search'));
+  input.value = p._declDialog.presetQuery ?? '';
+  search.appendChild(input);
   const list = document.createElement('div');
-  list.className = 'hk-decl-preset-list';
-  for (const preset of p._declarativePresets ?? []) {
+  list.className = 'hk-decl-preset-groups';
+  body.append(search, list);
+
+  const card = (preset: DeclarativeCompanionPreset): HTMLElement => {
     const missing =
       preset.requires_integration !== null && !installed.has(preset.requires_integration);
     // A real button, so the picker is keyboard-reachable like the rest of the panel.
-    const card = document.createElement('button');
-    card.type = 'button';
-    card.className = 'hk-decl-preset-card' + (missing ? ' hk-decl-preset-disabled' : '');
-    card.dataset.presetId = preset.id;
-    card.disabled = missing;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'hk-decl-preset-card' + (missing ? ' hk-decl-preset-disabled' : '');
+    el.dataset.presetId = preset.id;
+    el.disabled = missing;
     const requires = missing
       ? `<span class="hk-decl-preset-req">${escapeHTML(
           t('declarative.companions.requires_integration', {
@@ -454,19 +472,82 @@ function renderPresetPicker(p: PanelHost, host: HTMLElement): void {
           }),
         )}</span>`
       : '';
-    card.innerHTML = `
+    // How many entities the preset would match now, so a user sees why it is first.
+    const count =
+      typeof preset.matches === 'number' && preset.matches > 0
+        ? `<span class="hk-decl-preset-count">${escapeHTML(
+            tn('declarative.companions.keys_entities', preset.matches),
+          )}</span>`
+        : '';
+    const tasks = presetTaskNames(preset);
+    const chips = tasks.length
+      ? `<span class="hk-decl-preset-tasks">${tasks
+          .map((name) => `<span class="hk-decl-preset-task">${escapeHTML(name)}</span>`)
+          .join('')}</span>`
+      : '';
+    el.innerHTML = `
         <ha-icon icon="${escapeHTML(preset.icon)}"></ha-icon>
         <span class="hk-decl-preset-text">
-          <span class="hk-decl-preset-name">${escapeHTML(preset.name)}</span>
+          <span class="hk-decl-preset-name">${escapeHTML(preset.name)}${count}</span>
           <span class="hk-decl-preset-desc">${escapeHTML(preset.description)}</span>
+          ${chips}
           ${requires}
         </span>`;
     if (!missing) {
-      card.addEventListener('click', () => void openDeclarativeForm(p, seededFrom(preset)));
+      el.addEventListener('click', () => void openDeclarativeForm(p, seededFrom(preset)));
     }
-    list.appendChild(card);
-  }
-  body.appendChild(list);
+    return el;
+  };
+
+  const draw = (): void => {
+    const query = p._declDialog.presetQuery ?? '';
+    const groups = groupPresets(
+      p._declarativePresets ?? [],
+      installed,
+      query,
+      p._declDialog.presetShowAll ?? false,
+    );
+    list.innerHTML = '';
+    const section = (key: string, presets: DeclarativeCompanionPreset[]): void => {
+      if (!presets.length) return;
+      const head = document.createElement('div');
+      head.className = 'hk-decl-preset-group';
+      head.dataset.group = key;
+      head.textContent = t('declarative.companions.preset_group_' + key);
+      const grid = document.createElement('div');
+      grid.className = 'hk-decl-preset-list';
+      grid.dataset.group = key;
+      for (const preset of presets) grid.appendChild(card(preset));
+      list.append(head, grid);
+    };
+    section('mine', groups.mine);
+    section('general', groups.general);
+    section('other', groups.other);
+    if (!groups.mine.length && !groups.general.length && !groups.other.length) {
+      const empty = document.createElement('div');
+      empty.className = 'hk-decl-preset-empty';
+      empty.textContent = t('declarative.companions.preset_none');
+      list.appendChild(empty);
+    }
+    if (!query.trim() && (groups.hidden || p._declDialog.presetShowAll)) {
+      const toggle = document.createElement('ha-button');
+      toggle.className = 'hk-decl-preset-all';
+      setBtnWeight(toggle, 'tertiary');
+      toggle.textContent = groups.hidden
+        ? tn('declarative.companions.preset_show_all', groups.hidden)
+        : t('declarative.companions.preset_hide_other');
+      toggle.addEventListener('click', () => {
+        p._declDialog.presetShowAll = !p._declDialog.presetShowAll;
+        draw();
+      });
+      list.appendChild(toggle);
+    }
+  };
+  input.addEventListener('input', () => {
+    p._declDialog.presetQuery = input.value;
+    draw();
+  });
+  draw();
 
   const cancel = document.createElement('ha-button');
   cancel.setAttribute('slot', 'secondaryAction');

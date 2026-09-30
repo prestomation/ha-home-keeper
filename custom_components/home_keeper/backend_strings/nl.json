@@ -16,5 +16,17 @@
   "declarative_preset.firmware_update_available.description": "Bewaakt elke update-entiteit (UniFi, ESPHome, HACS, camera's, printers enz.) en opent een taak om de nieuwe versie te installeren.",
   "declarative_preset.device_stopped_reporting.name": "Apparaat is stil gevallen",
   "declarative_preset.device_stopped_reporting.description": "Bewaakt alle laatst-gezien-sensoren en opent een taak voor elk apparaat dat 24 uur niets heeft gemeld. Gebruik dit om de Zigbee- of Z-Wave-apparaten te vinden die van het netwerk zijn gevallen.",
+  "declarative_preset.shape.percent_low.name": "{integration}: onderdelen en verbruiksartikelen bijna op",
+  "declarative_preset.shape.percent_low.description": "Opent een taak wanneer een onderdeel of verbruiksartikel van een {integration}-apparaat bijna op is. De taak sluit wanneer het niveau weer stijgt.",
+  "declarative_preset.shape.life_low.name": "{integration}: onderdelen aan het einde van hun levensduur",
+  "declarative_preset.shape.life_low.description": "Opent een taak wanneer een onderdeel van een {integration}-apparaat weinig levensduur over heeft. De taak sluit wanneer je het onderdeel op het apparaat reset.",
+  "declarative_preset.shape.wear_high.name": "{integration}: slijtagetellers",
+  "declarative_preset.shape.wear_high.description": "Opent een taak wanneer een slijtageteller van een {integration}-apparaat de onderhoudslimiet passeert. De taak sluit wanneer je de teller op het apparaat reset.",
+  "declarative_preset.shape.reading_low.name": "{integration}: metingen te laag",
+  "declarative_preset.shape.reading_low.description": "Opent een taak wanneer een meting van een {integration}-apparaat onder het onderhoudsniveau zakt. De taak sluit wanneer de meting weer stijgt.",
+  "declarative_preset.shape.reading_high.name": "{integration}: metingen te hoog",
+  "declarative_preset.shape.reading_high.description": "Opent een taak wanneer een meting van een {integration}-apparaat boven het onderhoudsniveau stijgt. De taak sluit wanneer de meting weer daalt.",
+  "declarative_preset.shape.alert.name": "{integration}: onderhoudsmeldingen",
+  "declarative_preset.shape.alert.description": "Opent een taak wanneer een {integration}-apparaat meldt dat het onderhoud nodig heeft. De taak sluit wanneer het apparaat de melding wist.",
   "declarative_task.completion_prompt": "Geopend door de declaratieve companion „{name}“. Home Keeper rondt deze taak automatisch af zodra de conditie verdwijnt, dus kan de taak niet handmatig worden afgevinkt."
 }

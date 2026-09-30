@@ -152,7 +152,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
     expect(errors, `panel errors:\n${errors.join('\n')}`).toHaveLength(0);
   });
 
-  test('the preset picker offers every preset and gates the one that needs an integration', async ({
+  test('the preset picker groups the presets, searches them, and gates the ones that need an integration', async ({
     page,
   }) => {
     const errors = trackPanelErrors(page);
@@ -161,7 +161,20 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await panel.locator('.hk-decl-preset').click();
     const picker = panel.locator('ha-dialog.hk-decl-picker');
     await expectDialogOpen(picker, '.hk-decl-preset-card');
-    await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(3);
+    // The Tuya Local stub has one sensor with the filter_life key, so that preset is
+    // the only one in For your devices, with its count. The 3 general presets follow,
+    // and the rest wait behind Show all.
+    const mine = picker.locator('.hk-decl-preset-list[data-group="mine"] .hk-decl-preset-card');
+    await expect(mine).toHaveCount(1);
+    await expect(mine).toHaveAttribute('data-preset-id', 'tuya_local_percent_low');
+    await expect(mine.locator('.hk-decl-preset-count')).toHaveText('1 entity');
+    await expect(picker.locator('.hk-decl-preset-group[data-group="mine"]')).toHaveText(
+      'For your devices',
+    );
+    const general = picker.locator('.hk-decl-preset-list[data-group="general"] .hk-decl-preset-card');
+    await expect(general).toHaveCount(3);
+    await expect(picker.locator('.hk-decl-preset-list[data-group="other"]')).toHaveCount(0);
+    await expect(picker.locator('.hk-decl-preset-all')).toHaveText(/^Show \d+ more presets\s*$/);
 
     // Firmware update available needs nothing installed, so it is pickable.
     const firmware = picker.locator('.hk-decl-preset-card', {
@@ -177,6 +190,21 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await expect(devicePulse.locator('.hk-decl-preset-req')).toHaveText(
       'Requires the device_pulse integration',
     );
+
+    // A search reaches the hidden integrations too. The Roborock preset lists the
+    // tasks it makes, and it is gated because Roborock is not installed here.
+    await picker.locator('#hk-decl-preset-q').fill('roborock');
+    const roborock = picker.locator('.hk-decl-preset-card[data-preset-id="roborock_life_low"]');
+    await expect(roborock).toBeVisible();
+    await expect(roborock).toBeDisabled();
+    await expect(roborock.locator('.hk-decl-preset-task').first()).toHaveText(/^Replace/);
+    await expect(general).toHaveCount(0);
+    await picker.locator('#hk-decl-preset-q').fill('');
+    await picker.locator('.hk-decl-preset-all').click();
+    await expect(
+      picker.locator('.hk-decl-preset-list[data-group="other"] .hk-decl-preset-card').first(),
+    ).toBeVisible();
+    await expect(picker.locator('.hk-decl-preset-all')).toHaveText(/^Hide other devices\s*$/);
 
     await picker.locator('.hk-decl-cancel').click();
     await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);

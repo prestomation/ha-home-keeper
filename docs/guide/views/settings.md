@@ -71,7 +71,8 @@ a completion or a skip by hand from a service call or an automation. Home Assist
 entity ID when the entity is first made and does not change it later. To get a
 shorter entity ID for an older entity, rename it in Home Assistant.
 
-The *Add from preset* picker offers 3 presets.
+The *Add from preset* picker offers 3 general presets, and the integration presets
+that [Integration presets](#integration-presets) describes.
 
 - **Device Pulse** targets the per-device ping sensors from
   [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse).
@@ -161,6 +162,57 @@ name. The key of the entity is also available as `{{ translation_key }}`.
 ![The declarative companion dialog with two entity keys, one of them with the task name Replace the battery](../../images/21u-panel-declarative-entity-keys.png)
 
 ![The entity keys on a phone, with each key above its task name](../../images/21u-panel-mobile-declarative-entity-keys.png)
+
+##### Integration presets
+
+Many devices report the wear of their parts, such as the hours left on the filter of a
+robot vacuum or the toner level of a printer. An integration preset turns these
+readings into tasks for one integration.
+Each preset selects the entities by their [entity keys](#entity-keys-and-task-names)
+and gives each key its own task name, such as *Replace the main brush*.
+
+The picker shows first the presets that match entities you have, with the number of
+entities each one matches. An installed integration is not enough. A Tuya light has
+no filter or brush, so the Tuya preset for vacuum parts is not in that group. Then the picker
+shows the general presets. Click **Show more presets** to see the other presets, or
+type in the search box to find a brand or a part. Each preset card lists the tasks
+that it makes.
+
+Each integration can have up to 6 presets, one for each type of reading:
+
+- **Parts and supplies running low**: a percentage falls below 10%.
+- **Parts near the end of their life**: the time left on a part falls below a limit.
+  The preset reads the time in any unit, from seconds to weeks.
+- **Wear counters**: a counter that the device resets passes a service limit.
+- **Readings too low** and **readings too high**: a measurement, such as the water
+  pressure of a boiler, passes its service level.
+- **Service alerts**: the device reports that it needs service.
+
+Each task closes when the reading recovers. Reset the part on the device, or refill
+the salt, and the task completes.
+
+![The preset picker with a search for filter, showing the integration presets and the tasks each one makes](../../images/21v-panel-declarative-preset-search.png)
+
+![The same search on a phone](../../images/21v-panel-mobile-preset-search.png)
+
+These integrations have presets:
+
+| Type of device | Integrations |
+|---|---|
+| Air and ventilation | Dantherm ventilation, Dreo, Duco ventilation, Duux, Dyson, Flexit (Modbus), Flexit Nordic, Genvex Connect / Nilan gateway, Govee (purifiers), IKEA Trådfri (STARKVIND), Matter, Nest (legacy API), Nilan (CTS602 Modbus), Philips AirPurifier (CoAP), Pluggit ventilation, Pura fragrance diffusers, Renson Endura Delta, Samsung (Local Things), Tuya Local, Venstar thermostat, VeSync (Levoit), Winix, Zehnder ComfoConnect Pro (Modbus), Zigbee (ZHA) |
+| Cars | Bosch eBike (Smart System & eBike System 2), FordConnect Query, Porsche Connect, Smart #1 / #3 (Hello Smart), Stellantis (Peugeot/Citroën/DS/Opel/Fiat…), Škoda (MySkoda) |
+| Garden and pool | Hot Spring spas, Husqvarna Automower, Mammotion (Luba), Ondilo ICO, Pentair ScreenLogic, Robonect (Husqvarna/Gardena/Flymo), Sunseeker mowers, Worx Landroid, Worx Landroid Vision |
+| Heating and water | AquaCell softener, BWT AQA Perla (BLE), BWT Perla, DROP (water treatment), Fumis (pellet stoves), iQua softener, OpenTherm Gateway, Plugwise (Anna/Adam), Rehlko / Kohler generators, Salt Sentry, Stiebel Eltron ISG (LWZ), SYR Connect (softeners), Unique Waterontharder, Victron GX (generator), Viessmann ViCare |
+| Kitchen and laundry | Candy Simply-Fi, ConnectLife (Hisense / Gorenje / ASKO), Electrolux (OCP API), Haier hOn (Haier/Candy/Hoover), Home Connect, Home Connect Local, HomeWhiz (Beko / Grundig / Arçelik), LG ThinQ, Midea (core), Miele, Whirlpool |
+| Personal care | Philips shaver, Philips Sonicare (BLE) |
+| Pets | EHEIM Digital (aquarium), Litter-Robot, PetKit, PETLIBRO |
+| Printers | Brother printer, HP printer, Samsung SyncThru printer |
+| Robot vacuums | Ecovacs, iRobot Roomba, Maytronics Dolphin, Roborock, Roomba+ (local MQTT), SmartThings, TP-Link Tapo vacuum, Tuya, Xiaomi Miio, Xiaomi Vacuum (cloud) |
+| Storage (NAS) | MOS NAS, QNAP NAS, Synology NAS, UniFi UNAS (REST), Unraid, Unraid API, Unraid Management Agent |
+
+For an integration that is not in the list, write a declarative companion with the
+keys of its entities. The key of an entity is in the translation file of its
+integration.
 
 ##### Task labels and notes
 

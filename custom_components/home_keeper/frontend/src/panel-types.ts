@@ -30,6 +30,10 @@ export interface DeclarativeDialogState {
   /** Whether **More filters** is open. Unset until the user toggles it, so the
    *  default (open when a filter in it is set) applies on the first render. */
   moreOpen?: boolean;
+  /** The preset picker's search text, kept across a re-render of the picker. */
+  presetQuery?: string;
+  /** Whether the preset picker shows the integrations that are not installed. */
+  presetShowAll?: boolean;
 }
 
 /** What the inline notes editor on a detail page is currently editing. */

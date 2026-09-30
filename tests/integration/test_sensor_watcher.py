@@ -8,12 +8,11 @@ its target), and cleared again when the task is completed. Driving a real
 subscription + evaluation path that the pure unit tests can't.
 """
 
-import importlib.util
 import time
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 from conftest import HA_URL, call_service, get_state
+from presets_loader import load_declarative_presets
 
 METER = "input_number.hk_demo_meter"
 
@@ -1162,17 +1161,7 @@ def test_the_stopped_reporting_preset_keeps_its_task_open_when_the_device_drops(
     template must fail to render there instead, which decides nothing.
     """
     # Read from the component source, so the test covers the template that ships.
-    # ``declarative_presets.py`` imports only ``typing``, so it loads by path.
-    path = (
-        Path(__file__).resolve().parents[2]
-        / "custom_components"
-        / "home_keeper"
-        / "declarative_presets.py"
-    )
-    spec = importlib.util.spec_from_file_location("hk_presets_for_watcher", path)
-    assert spec and spec.loader
-    presets = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(presets)
+    presets = load_declarative_presets()
     trigger = presets.preset_by_id("device_stopped_reporting")["default_spec"][
         "trigger"
     ]

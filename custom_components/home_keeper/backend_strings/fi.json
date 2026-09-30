@@ -16,5 +16,17 @@
   "declarative_preset.firmware_update_available.description": "Seuraa jokaista päivitysentiteettiä (UniFi, ESPHome, HACS, kamerat, tulostimet jne.) ja avaa tehtävän uuden version asentamiseksi.",
   "declarative_preset.device_stopped_reporting.name": "Laite on hiljentynyt",
   "declarative_preset.device_stopped_reporting.description": "Valvoo kaikkia viimeksi nähty -antureita ja avaa tehtävän jokaiselle laitteelle, joka ei ole raportoinut 24 tuntiin. Etsi sillä Zigbee- tai Z-Wave-laitteet, jotka ovat pudonneet verkosta.",
+  "declarative_preset.shape.percent_low.name": "{integration}: vähissä olevat osat ja tarvikkeet",
+  "declarative_preset.shape.percent_low.description": "Avaa tehtävän, kun {integration}-laitteen osa tai tarvike on vähissä. Tehtävä sulkeutuu, kun taso nousee taas.",
+  "declarative_preset.shape.life_low.name": "{integration}: käyttöikänsä lopussa olevat osat",
+  "declarative_preset.shape.life_low.description": "Avaa tehtävän, kun {integration}-laitteen osalla on vähän käyttöikää jäljellä. Tehtävä sulkeutuu, kun nollaat osan laitteessa.",
+  "declarative_preset.shape.wear_high.name": "{integration}: kulumislaskurit",
+  "declarative_preset.shape.wear_high.description": "Avaa tehtävän, kun {integration}-laitteen kulumislaskuri ylittää huoltorajan. Tehtävä sulkeutuu, kun nollaat laskurin laitteessa.",
+  "declarative_preset.shape.reading_low.name": "{integration}: liian matalat lukemat",
+  "declarative_preset.shape.reading_low.description": "Avaa tehtävän, kun {integration}-laitteen lukema laskee huoltotason alle. Tehtävä sulkeutuu, kun lukema nousee taas.",
+  "declarative_preset.shape.reading_high.name": "{integration}: liian korkeat lukemat",
+  "declarative_preset.shape.reading_high.description": "Avaa tehtävän, kun {integration}-laitteen lukema nousee huoltotason yli. Tehtävä sulkeutuu, kun lukema laskee taas.",
+  "declarative_preset.shape.alert.name": "{integration}: huoltoilmoitukset",
+  "declarative_preset.shape.alert.description": "Avaa tehtävän, kun {integration}-laite ilmoittaa tarvitsevansa huoltoa. Tehtävä sulkeutuu, kun laite poistaa ilmoituksen.",
   "declarative_task.completion_prompt": "Avattu deklaratiivisella kumppanilla ”{name}”. Home Keeper suorittaa tämän tehtävän automaattisesti, kun ehto poistuu, joten sitä ei voi merkitä valmiiksi käsin."
 }

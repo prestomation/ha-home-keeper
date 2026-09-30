@@ -18,11 +18,13 @@ services:
       # read-only custom_components over the parent — that blocks Docker from
       # creating the nested mountpoints. The stubs give Settings → Companions real
       # connected companions: Pawsistant (push self-registration) and the Battery
-      # Notes glue (catalog detection). The stubs are not part of the shipped
+      # Notes glue (catalog detection). The Tuya Local stub gives one integration
+      # preset a real matching entity. The stubs are not part of the shipped
       # component; the created /config/custom_components dir is gitignored.
       - ../../custom_components/home_keeper:/config/custom_components/home_keeper:ro
       - ./stubs/pawsistant:/config/custom_components/pawsistant:ro
       - ./stubs/home_keeper_battery_notes:/config/custom_components/home_keeper_battery_notes:ro
+      - ./stubs/tuya_local:/config/custom_components/tuya_local:ro
     environment:
       - TZ=America/New_York
     tmpfs:

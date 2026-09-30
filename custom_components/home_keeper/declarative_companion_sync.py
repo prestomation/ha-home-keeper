@@ -470,6 +470,12 @@ class DeclarativeCompanionSync:
             self._registry_snapshot(), integration, domain
         )
 
+    def match_counts(self, selections: dict[str, dict[str, Any]]) -> dict[str, int]:
+        """How many entities each of *selections* matches, from one registry read."""
+        return declarative_companions.count_matches(
+            selections, self._registry_snapshot()
+        )
+
     def preview(self, spec: dict[str, Any]) -> dict[str, Any]:
         """Return the WS ``preview_declarative_companion`` payload for *spec*.
 

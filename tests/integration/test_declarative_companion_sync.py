@@ -33,15 +33,13 @@ container's store is the committed seed fixture, so a leak is a permanent additi
 to it.
 """
 
-import importlib.util
-import sys
 import time
-from pathlib import Path
 
 import pytest
 import requests
 from conftest import HA_URL, call_service, list_states, poll_state
 from ha_registry import ws_send
+from presets_loader import load_declarative_presets
 
 TANK = "binary_sensor.hk_demo_water_tank_low"
 BATTERY = "binary_sensor.hk_demo_remote_battery"
@@ -52,7 +50,6 @@ FIRMWARE = "update.hk_demo_router_firmware"
 # The one entity in the container that has a real device AND is not Home Keeper's own.
 DEVICE_BATTERY = "sensor.e2e_battery_device_battery"
 
-_ROOT = Path(__file__).resolve().parents[2]
 
 # How long a reconcile pass may take to show up in the task list. The store fires a
 # dispatcher signal, the reconciler schedules a task, and the coordinator refresh
@@ -60,24 +57,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 SETTLE = 45
 
 
-def _declarative_presets():
-    """Load the shipped preset catalog straight from the component source.
-
-    ``declarative_presets.py`` imports nothing but ``typing``, so it loads by path
-    with no package dance. Reading it here rather than restating a preset means the
-    test exercises what actually ships — the same defaults the panel's preset picker
-    hands the Add dialog.
-    """
-    path = _ROOT / "custom_components" / "home_keeper" / "declarative_presets.py"
-    spec = importlib.util.spec_from_file_location("hk_declarative_presets", path)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-declarative_presets = _declarative_presets()
+declarative_presets = load_declarative_presets()
 
 
 # ── service helpers ──────────────────────────────────────────────────────────
@@ -694,6 +674,26 @@ def test_the_key_list_names_the_keys_of_an_integration(ha):
         },
     )
     assert reply["result"] == {"keys": [], "without_key": 0}
+
+
+def test_the_preset_list_counts_the_entities_each_integration_preset_matches(ha):
+    """The picker puts an integration preset first only when an entity matches it.
+
+    The Tuya Local stub has one sensor with the ``filter_life`` key, so its preset
+    matches 1 entity. The container has no device for the other integration presets,
+    so each of those counts 0, and a general preset carries no count at all.
+    """
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(token, {"type": "home_keeper/list_declarative_presets"})
+    assert reply.get("success"), reply
+    presets = reply["result"]["presets"]
+    integration = [p for p in presets if p["group"] == "integration"]
+    general = [p for p in presets if p["group"] == "general"]
+    assert len(integration) > 50
+    counted = {p["id"]: p["matches"] for p in integration}
+    assert counted.pop("tuya_local_percent_low") == 1
+    assert set(counted.values()) == {0}
+    assert general and all(p["matches"] is None for p in general)
 
 
 def test_only_these_devices_selects_the_entities_of_one_device(ha, specs):

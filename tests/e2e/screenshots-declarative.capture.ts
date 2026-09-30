@@ -43,17 +43,39 @@ test('capture declarative-companion panel surfaces', async ({ page }) => {
   await page.waitForTimeout(500);
   await companions.screenshot({ path: `${OUT}/21-panel-companions.png` });
 
-  // 21c. The preset picker: one card per bundled preset. Device Pulse is greyed out
-  // and says which integration it needs, because the e2e container does not have it.
+  // 21c. The preset picker. The Tuya Local stub's filter sensor puts that preset in
+  // For your devices, with its entity count. Device Pulse is greyed out and says which
+  // integration it needs, because the e2e container does not have it.
   await panel.locator('.hk-decl-preset').click();
   const picker = panel.locator('ha-dialog.hk-decl-picker');
   // `ha-dialog` portals its surface, so the host itself never reports visible —
   // wait on a node inside it, the way the specs do.
   await expect(picker.locator('.hk-decl-preset-card').first()).toBeVisible({ timeout: 20_000 });
-  await expect(picker.locator('.hk-decl-preset-card')).toHaveCount(3);
-  await expect(picker.locator('.hk-decl-preset-card.hk-decl-preset-disabled')).toHaveCount(1);
+  const generalCards = picker.locator(
+    '.hk-decl-preset-list[data-group="general"] .hk-decl-preset-card',
+  );
+  await expect(generalCards).toHaveCount(3);
+  await expect(generalCards.and(picker.locator('.hk-decl-preset-disabled'))).toHaveCount(1);
+  await expect(
+    picker.locator('.hk-decl-preset-list[data-group="mine"] .hk-decl-preset-count'),
+  ).toHaveText('1 entity');
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/21c-panel-declarative-preset-picker.png` });
+
+  // 21v. A search reaches the integration presets. The Tuya Local preset matches the
+  // stub's sensor and stays first. The others are for integrations this container does
+  // not have, so each of those cards is greyed out and names the integration it needs.
+  // Each card lists the tasks it makes.
+  await picker.locator('#hk-decl-preset-q').fill('filter');
+  await expect(picker.locator('.hk-decl-preset-list[data-group="other"]')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/21v-panel-declarative-preset-search.png` });
+  await page.setViewportSize(PHONE);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/21v-panel-mobile-preset-search.png` });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await picker.locator('#hk-decl-preset-q').fill('');
 
   // 21d. The add dialog, seeded from Firmware update available (the one preset that
   // needs no upstream integration).

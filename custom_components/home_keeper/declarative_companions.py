@@ -498,6 +498,36 @@ def summarize_keys(
     }
 
 
+def count_matches(
+    selections: dict[str, dict[str, Any]], registry_snapshot: dict[str, Any]
+) -> dict[str, int]:
+    """How many entities each selection in *selections* matches, by the same key.
+
+    The preset picker uses this to put first only the presets that would make a
+    task: an installed integration can have none of the entities a preset selects,
+    as a Tuya light has none of the parts of a Tuya vacuum. The entities are
+    grouped by integration once, so a selection with a target integration reads
+    only that integration's entities.
+    """
+    entities = registry_snapshot.get("entities") or []
+    by_platform: dict[str, list[dict[str, Any]]] = {}
+    # The grouping only saves work: ``_entity_matches`` checks the target integration
+    # again, so a mutant that breaks the lookup gives the same counts.
+    for entry in entities:
+        platform = entry.get("platform") or ""  # pragma: no mutate
+        by_platform.setdefault(platform, []).append(entry)
+    counts: dict[str, int] = {}
+    for name, selection in selections.items():
+        target = selection.get("target_integration")  # pragma: no mutate
+        pool = by_platform.get(target, []) if target else entities
+        pattern = selection.get("entity_regex")
+        regex = re.compile(pattern) if pattern else None
+        counts[name] = sum(
+            1 for entry in pool if _entity_matches(entry, selection, regex)
+        )
+    return counts
+
+
 def expand_spec(
     spec: dict[str, Any], registry_snapshot: dict[str, Any]
 ) -> dict[tuple[str, str], dict[str, Any]]:

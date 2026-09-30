@@ -592,12 +592,12 @@ bash ci/test-mutation-frontend.sh --all
   `assets`, `reconcile`, `todo_items`, `shopping`, `notifications`, `sensor_tasks`,
   `problem_tasks`, `appliance_report`, `profiles`, `documents`, `events`, `transitions`,
   `tags`, `card_resource`, `options`) and the focused frontend modules (`utils`, `forms`,
-  `card-filter`, `documents`, `markdown`, `i18n`, `limits`, `defer`, `shopping-preview`, `declarative-filters`).
+  `card-filter`, `documents`, `markdown`, `i18n`, `limits`, `defer`, `shopping-preview`, `declarative-filters`, `preset-picker`).
   `options.py` counts as
   pure because its Home Assistant imports are `TYPE_CHECKING`-only. Excluded on
   purpose: everything else importing Home Assistant
   (only the Docker tiers cover it — far too slow to run once per mutant),
-  `const.py` / `companions_catalog.py` (data, not logic), `backend_i18n.py` (pure
+  `const.py` / `companions_catalog.py` / `declarative_presets_catalog.py` / `declarative_preset_text.py` (data, not logic), `backend_i18n.py` (pure
   but with no unit-test entry point), `testing.py` (already coverage-omitted), and
   `panel.ts` + its flat `panel-*.ts` region modules / `card.ts` / `api.ts` (only
   indirectly covered, through the element's own tests; they would score near

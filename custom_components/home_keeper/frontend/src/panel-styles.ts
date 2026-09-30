@@ -2005,8 +2005,37 @@ export const STYLES = `
   .hk-decl-preset-card ha-icon { flex: 0 0 auto; }
   .hk-decl-preset-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .hk-decl-preset-name { font-weight: 500; }
+  .hk-decl-preset-count {
+    margin-left: 8px; font-weight: 400; font-size: 0.8rem;
+    color: var(--secondary-text-color); white-space: nowrap;
+  }
   .hk-decl-preset-desc { color: var(--secondary-text-color); font-size: 0.9rem; }
   .hk-decl-preset-req { color: var(--warning-color); font-size: 0.85rem; }
+  .hk-decl-preset-search {
+    display: flex; align-items: center; gap: 8px; padding: 0 12px; margin-bottom: 12px;
+    background: var(--input-fill-color, var(--secondary-background-color));
+    border-bottom: 1px solid var(--secondary-text-color); border-radius: 4px 4px 0 0;
+    color: var(--secondary-text-color);
+  }
+  .hk-decl-preset-search:focus-within { border-bottom: 2px solid var(--primary-color); }
+  .hk-decl-preset-q {
+    appearance: none; flex: 1; min-width: 0; border: 0; background: transparent;
+    font: inherit; font-size: 1rem; padding: 12px 0; color: var(--primary-text-color);
+    outline: none;
+  }
+  .hk-decl-preset-q::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+  .hk-decl-preset-groups { display: flex; flex-direction: column; gap: 10px; }
+  .hk-decl-preset-group {
+    font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--secondary-text-color); margin-top: 6px;
+  }
+  .hk-decl-preset-tasks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .hk-decl-preset-task {
+    font-size: 0.75rem; padding: 1px 8px; border-radius: 10px;
+    background: var(--secondary-background-color); color: var(--primary-text-color);
+  }
+  .hk-decl-preset-empty { color: var(--secondary-text-color); padding: 8px 0; }
+  .hk-decl-preset-all { align-self: flex-start; }
   /* No min-width: an ha-dialog is a fixed width (580px at its default "medium"),
      so a body wider than that dialog's content box does not widen the dialog — it
      overruns it. A 560px floor put every row 28px past the right padding edge, and
@@ -2146,7 +2175,7 @@ export const STYLES = `
     .hk-decl-toggle-text { display: none; }
     /* 16px exactly, so the companion app's WKWebView does not zoom on focus. The key
        and its name stack, since two boxes side by side leave each too narrow to read. */
-    .hk-decl-key-input, .hk-decl-keylist-q { font-size: 16px; }
+    .hk-decl-key-input, .hk-decl-preset-q, .hk-decl-keylist-q { font-size: 16px; }
     .hk-decl-keylist-options { max-height: none; }
     .hk-decl-keyopt { min-height: 44px; }
     .hk-decl-key-row { grid-template-columns: minmax(0, 1fr) auto; }

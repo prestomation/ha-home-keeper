@@ -1302,7 +1302,7 @@ def test_managed_by_keeps_completion_for_a_usage_meter():
 
 
 def test_every_auto_clearing_preset_blocks_completion():
-    # Both shipped presets set clear_on_recover, so neither should offer Done.
+    # Every shipped preset sets clear_on_recover, so none of them offers Done.
     for preset in presets.CATALOG_PRESETS:
         spec = dc.normalize_declarative_companion(dict(preset["default_spec"]))
         managed_by = dc.build_managed_by(spec, ENTRY)
@@ -1516,7 +1516,9 @@ def test_every_translation_keeps_the_jinja_variables():
     import re
 
     for texts in presets.PRESET_TASK_TEXT.values():
-        for variants in texts.values():
+        for field, variants in texts.items():
+            if field == "task_names":
+                continue  # plain text, no Jinja; see the task-name tests below
             english = set(re.findall(r"\{\{ ([a-z_.]+)", variants["en"]))
             for lang, text in variants.items():
                 assert set(re.findall(r"\{\{ ([a-z_.]+)", text)) == english, lang
@@ -1876,6 +1878,179 @@ def test_a_preset_without_task_names_leaves_the_table_alone():
     assert presets.localized_task_template(spec, "de")["task_names"] == {"k": "Mine"}
 
 
+# --- Integration presets -----------------------------------------------------
+
+_INTEGRATION_PRESETS = [p for p in presets.CATALOG_PRESETS if "name_args" in p]
+_LANGS = sorted(
+    path.stem
+    for path in (
+        __import__("pathlib").Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "home_keeper"
+        / "backend_strings"
+    ).glob("*.json")
+)
+
+
+def test_the_integration_presets_are_built_from_the_catalog():
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    assert len(catalog) > 50
+    built = {p["requires_integration"] for p in _INTEGRATION_PRESETS}
+    assert built == {entry["domain"] for entry in catalog}
+    # The 3 general presets stay first, so the picker lists them the same way.
+    assert [p["id"] for p in presets.CATALOG_PRESETS[:3]] == [
+        "device_pulse",
+        "firmware_update_available",
+        "device_stopped_reporting",
+    ]
+
+
+def test_preset_ids_are_unique_and_fit_the_field():
+    ids = [p["id"] for p in presets.CATALOG_PRESETS]
+    assert len(ids) == len(set(ids))
+    assert all(len(i) <= 100 for i in ids)
+
+
+def test_every_catalog_key_reaches_exactly_one_preset_with_a_task_name():
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    names = __import__("hk_declarative_preset_text").DUTY_NAMES
+    for entry in catalog:
+        mine = [
+            p
+            for p in _INTEGRATION_PRESETS
+            if p["requires_integration"] == entry["domain"]
+        ]
+        for duty in entry["duties"]:
+            for key in duty["keys"]:
+                owners = [
+                    p
+                    for p in mine
+                    if key in p["default_spec"]["selection"]["translation_keys"]
+                ]
+                platform = duty.get("platform", "sensor")
+                owners = [
+                    p
+                    for p in owners
+                    if p["default_spec"]["selection"]["domain"] == platform
+                ]
+                assert len(owners) == 1, (entry["domain"], key)
+                spec = owners[0]["default_spec"]
+                assert spec["selection"]["target_integration"] == entry["domain"]
+                assert (
+                    spec["task_template"]["task_names"][key]
+                    == names[duty["duty"]]["en"]
+                )
+
+
+def test_every_integration_preset_selects_by_key_and_never_by_regex():
+    for preset in _INTEGRATION_PRESETS:
+        selection = preset["default_spec"]["selection"]
+        assert "entity_regex" not in selection, preset["id"]
+        assert selection["translation_keys"], preset["id"]
+
+
+def test_every_duty_has_a_name_in_every_language():
+    names = __import__("hk_declarative_preset_text").DUTY_NAMES
+    for duty, table in names.items():
+        assert sorted(table) == _LANGS, duty
+        assert all(text.strip() for text in table.values()), duty
+
+
+def test_every_integration_preset_ships_its_task_names_in_every_language():
+    for preset in _INTEGRATION_PRESETS:
+        tables = presets.PRESET_TASK_TEXT[preset["id"]]["task_names"]
+        assert sorted(tables) == _LANGS, preset["id"]
+        english = preset["default_spec"]["task_template"]["task_names"]
+        assert tables["en"] == english
+        for lang, table in tables.items():
+            assert set(table) == set(english), (preset["id"], lang)
+
+
+def test_a_preset_names_the_entity_when_two_keys_share_a_task_name():
+    for preset in _INTEGRATION_PRESETS:
+        template = preset["default_spec"]["task_template"]
+        names = list(template["task_names"].values())
+        expected = (
+            "{{ friendly_name }}" if len(set(names)) < len(names) else "device_name"
+        )
+        assert expected in template["name_template"], preset["id"]
+
+
+def test_the_english_preset_name_matches_the_backend_string():
+    for preset in _INTEGRATION_PRESETS:
+        assert preset["default_spec"]["name"] == backend_i18n.resolve_string(
+            "en", preset["name_key"], **preset["name_args"]
+        )
+
+
+def test_every_shape_string_exists_in_every_language():
+    for preset in _INTEGRATION_PRESETS:
+        for lang in _LANGS:
+            for key in (preset["name_key"], preset["description_key"]):
+                text = backend_i18n.resolve_string(lang, key, **preset["name_args"])
+                assert text != key, (lang, key)
+                assert preset["name_args"]["integration"] in text, (lang, key)
+
+
+def test_a_single_limit_is_a_threshold_and_mixed_limits_look_up_the_key():
+    one = [{"keys": ["a"], "limit": 10}, {"keys": ["b"], "limit": 10}]
+    assert presets._trigger("percent_low", one) == {
+        "mode": "threshold",
+        "comparison": "<",
+        "value": 10,
+        "clear_on_recover": True,
+    }
+    assert presets._trigger("reading_high", one)["comparison"] == ">"
+    mixed = [{"keys": ["a", "b"], "limit": 10}, {"keys": ["c"], "limit": 5}]
+    trigger = presets._trigger("reading_low", mixed)
+    assert trigger == {
+        "mode": "template",
+        "template": "{{ state | float < {'a': 10, 'b': 10, 'c': 5}[translation_key] }}",
+        "clear_on_recover": True,
+    }
+
+
+def test_the_time_triggers_compare_in_hours():
+    life = presets._trigger("life_low", [{"keys": ["a"], "limit": 24}])
+    assert life["template"] == (
+        "{{ state | float < 10 if attributes.unit_of_measurement == '%' "
+        "else state | float * "
+        + presets._TIME_FACTORS
+        + "[attributes.unit_of_measurement]"
+        " < 24 }}"
+    )
+    wear = presets._trigger("wear_high", [{"keys": ["a"], "limit": 100}])
+    assert wear["template"] == (
+        "{{ state | float * "
+        + presets._TIME_FACTORS
+        + ".get(attributes.get('unit_of_measurement'), 1) > 100 }}"
+    )
+    assert wear["clear_on_recover"] is True
+
+
+def test_an_alert_watches_its_state():
+    assert presets._trigger("alert", [{"keys": ["a"], "state": "present"}]) == {
+        "mode": "state",
+        "state": "present",
+        "clear_on_recover": True,
+    }
+
+
+def test_the_time_table_reads_every_spelling_of_a_time_unit():
+    # The table is Jinja, and as a Python expression it is a plain dict literal.
+    factors = eval(presets._TIME_FACTORS, {"__builtins__": {}})
+    hours = {"h": 1, "hr": 1, "hrs": 1, "hours": 1}
+    assert {unit: factors[unit] for unit in hours} == hours
+    assert factors["minutes"] == factors["mins"] == factors["min"] == 1 / 60
+    assert factors["seconds"] == factors["sec"] == factors["s"] == 1 / 3600
+    assert factors["days"] == factors["day"] == factors["d"] == 24
+    assert factors["weeks"] == factors["week"] == factors["w"] == 168
+    assert factors["ms"] == 1 / 3600000
+    # Every shipped trigger still fits the template field.
+    for preset in presets.CATALOG_PRESETS:
+        assert len(preset["default_spec"]["trigger"].get("template", "")) <= 1000
+
+
 # --- Only these devices -----------------------------------------------------
 
 
@@ -1970,3 +2145,116 @@ def test_summarize_keys_narrows_to_a_domain_and_handles_no_name():
     assert only_binary["keys"][0]["example_name"] == ""
     assert only_binary["without_key"] == 0
     assert dc.summarize_keys(snapshot, "nothing") == {"keys": [], "without_key": 0}
+
+
+_SHIPPED_IDS = __import__("pathlib").Path(__file__).with_name("shipped_preset_ids.txt")
+
+
+def test_shipped_preset_ids_never_change():
+    # A saved companion keeps its preset_id, and the panel and the task text use it
+    # to find the preset. A renamed or removed id breaks every companion that has it.
+    shipped = {
+        line.strip()
+        for line in _SHIPPED_IDS.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+    current = {p["id"] for p in presets.CATALOG_PRESETS}
+    assert shipped - current == set(), "a shipped preset id changed or went away"
+    assert current - shipped == set(), "add the new preset id to shipped_preset_ids.txt"
+
+
+def test_every_catalog_duty_has_a_known_shape_and_a_numeric_limit():
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    for entry in catalog:
+        for duty in entry["duties"]:
+            where = (entry["domain"], duty["duty"])
+            assert duty["shape"] in presets.SHAPES, where
+            assert duty.get("platform", "sensor") in {"sensor", "binary_sensor"}, where
+            assert duty["keys"], where
+            for key in duty["keys"]:
+                assert isinstance(key, str) and key and key == key.strip(), where
+            if duty["shape"] == "alert":
+                assert duty.get("limit") is None, where
+                state = duty.get("state")
+                assert isinstance(state, str) and state, where
+                assert state == state.strip(), where
+            else:
+                limit = duty["limit"]
+                assert isinstance(limit, int | float), where
+                assert not isinstance(limit, bool), where
+                assert limit > 0, where
+                if duty["shape"] == "percent_low":
+                    assert limit < 100, where
+
+
+def _ent(entity_id, platform, key=None, **over):
+    return {
+        "entity_id": entity_id,
+        "entity_registry_id": "r-" + entity_id,
+        "platform": platform,
+        "domain": entity_id.split(".")[0],
+        "translation_key": key,
+        "disabled": False,
+        **over,
+    }
+
+
+_COUNT_SNAPSHOT = {
+    "entities": [
+        # A Tuya light: the integration is installed, but it has no vacuum parts.
+        _ent("light.desk", "tuya", "light"),
+        _ent("sensor.vac_filter", "roborock", "filter_time_left"),
+        _ent("sensor.vac_brush", "roborock", "main_brush_time_left"),
+        _ent("sensor.vac_old", "roborock", "filter_time_left", disabled=True),
+        _ent("binary_sensor.vac_filter", "roborock", "filter_time_left"),
+        _ent("sensor.other_filter", "ecovacs", "filter_time_left"),
+    ]
+}
+
+
+def test_count_matches_counts_each_selection_by_its_own_filters():
+    counts = dc.count_matches(
+        {
+            "tuya_vacuum": {
+                "target_integration": "tuya",
+                "domain": "sensor",
+                "translation_keys": ["filter_life"],
+            },
+            "roborock": {
+                "target_integration": "roborock",
+                "domain": "sensor",
+                "translation_keys": ["filter_time_left", "main_brush_time_left"],
+            },
+            "roborock_filter_any_domain": {
+                "target_integration": "roborock",
+                "translation_keys": ["filter_time_left"],
+            },
+            "missing": {"target_integration": "nothing_here"},
+        },
+        _COUNT_SNAPSHOT,
+    )
+    # The disabled entity and the other integration's entity with the same key do
+    # not count; the binary sensor counts only where no domain is set.
+    assert counts == {
+        "tuya_vacuum": 0,
+        "roborock": 2,
+        "roborock_filter_any_domain": 2,
+        "missing": 0,
+    }
+
+
+def test_count_matches_without_a_target_reads_every_integration_and_the_regex():
+    counts = dc.count_matches(
+        {
+            "any_filter": {"translation_keys": ["filter_time_left"]},
+            "regex": {"entity_regex": r"sensor\.vac_.*"},
+            "everything": {},
+        },
+        _COUNT_SNAPSHOT,
+    )
+    assert counts == {"any_filter": 3, "regex": 2, "everything": 5}
+
+
+def test_count_matches_handles_an_empty_registry():
+    assert dc.count_matches({"a": {"target_integration": "x"}}, {}) == {"a": 0}
+    assert dc.count_matches({}, _COUNT_SNAPSHOT) == {}
