@@ -17,6 +17,7 @@ branch is unit-testable without an HA runtime (see
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
 __all__ = [
@@ -24,6 +25,9 @@ __all__ = [
     "CAP_DUE_DATE",
     "STATUS_COMPLETED",
     "STATUS_NEEDS_ACTION",
+    "UNCONFIRMED_GRACE",
+    "add_unconfirmed",
+    "added_stamp",
     "find_open",
     "item_identity",
     "item_is_open",
@@ -41,6 +45,22 @@ STATUS_COMPLETED = "completed"
 # drops a field would otherwise be rewritten on every pass, forever.
 CAP_DUE_DATE = "due"
 CAP_DESCRIPTION = "description"
+
+# How long an entry whose add we could not confirm is held before it is re-added.
+# It is a *staleness budget*, not a formula: it has to comfortably clear the slowest
+# provider's visibility lag, and the slowest known is Home Assistant's CalDAV entity,
+# which polls every 15 minutes. A grace below that could fire before the provider had
+# any chance to show the item, recreating the duplicate this exists to prevent.
+#
+# Wall clock rather than a count of passes, deliberately: ``TodoSyncDriver`` runs up
+# to four passes back to back with no delay between them, so "unseen for two passes"
+# can elapse in milliseconds — entirely inside the window we are waiting out.
+#
+# What comes back to look once it expires is each sync's periodic sweep (every
+# ``coordinator.SCAN_INTERVAL``), because a grace running out is neither a store
+# mutation nor a list state change and so wakes nothing by itself. That sweep has to
+# stay unconditional for this to repair at all; its docstring says so.
+UNCONFIRMED_GRACE = timedelta(minutes=20)
 
 
 def item_identity(item: dict[str, Any]) -> str:
@@ -75,8 +95,14 @@ def resolve_tracked(
     (``todo.add_item`` returns nothing, so there is no uid to record at the
     time), and how a sync re-attaches to its own items if the bookkeeping is
     ever lost. An open item wins over a ticked-off one with the same text.
+
+    When we captured a uid and no live item carries it, only an *open* item with
+    the same text can take its place: the list recreated our line under a new uid.
+    A ticked-off item with the same text is some earlier record, never ours, and
+    reading it as our line turns a deleted item into a completed task (B09-1).
     """
-    if isinstance(uid, str) and uid:
+    bound = isinstance(uid, str) and bool(uid)
+    if bound:
         for item in items:
             claim = (entity_id, item_identity(item))
             if item.get("uid") == uid and claim not in claimed:
@@ -90,6 +116,8 @@ def resolve_tracked(
     for item in by_summary:
         if item_is_open(item):
             return item
+    if bound:
+        return None
     return by_summary[0] if by_summary else None
 
 
@@ -109,3 +137,47 @@ def find_open(
         ):
             return item
     return None
+
+
+def added_stamp(entry: dict[str, Any], *, now: datetime) -> str:
+    """The stamp to hold *entry* under, replacing one that cannot be trusted.
+
+    Re-stamping rather than keeping whatever is there matters because the hold is
+    open-ended until the stamp ages out: a value that is unparsable, or in the
+    future because the clock jumped backwards before NTP corrected it, would never
+    age out at all. That turns "hold, never duplicate" into "hold, never deliver" —
+    a silent, permanent absence, which is the failure this whole path exists to
+    avoid, only pointing the other way.
+    """
+    stamped = entry.get("added_at")
+    try:
+        # ``str`` because the store holds these entries as opaque JSON and hands
+        # back whatever is in the document: a number, or a value some other write
+        # left behind, must read as "cannot be trusted" rather than raise.
+        if stamped and datetime.fromisoformat(str(stamped)) <= now:
+            return str(stamped)
+    except (TypeError, ValueError):
+        pass
+    return now.isoformat()
+
+
+def add_unconfirmed(
+    entry: dict[str, Any],
+    *,
+    now: datetime,
+    grace: timedelta = UNCONFIRMED_GRACE,
+) -> bool:
+    """Whether the hold on an add we could not confirm has run out.
+
+    "I cannot see it" is not proof the add failed, so the answer is normally no,
+    and both unreadable cases answer no as well: a missing stamp starts the clock
+    this pass, and an unparsable one is not evidence of anything. The safe
+    direction is always the one that cannot duplicate.
+    """
+    stamped = entry.get("added_at")
+    if not stamped:
+        return False
+    try:
+        return now - datetime.fromisoformat(str(stamped)) > grace
+    except (TypeError, ValueError):
+        return False

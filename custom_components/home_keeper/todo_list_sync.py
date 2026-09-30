@@ -180,9 +180,8 @@ class TodoListSync(TodoSyncDriver):
             str(profile["sync"]["entity_id"])
             for profile in profiles.synced_profiles(synced)
         }
-        items_by_entity = await self._read_lists(
-            todo_list.lists_to_read(tracked, synced), targets=targets
-        )
+        to_read = todo_list.lists_to_read(tracked, synced)
+        items_by_entity = await self._read_lists(to_read, targets=targets)
         if self._stopped:
             return False
         capabilities = {
@@ -195,6 +194,7 @@ class TodoListSync(TodoSyncDriver):
             items_by_entity=items_by_entity,
             capabilities=capabilities,
             now=now,
+            gone=self._gone_lists(to_read),
         )
         settled = await self._apply(plan, before=tracked)
         if self._stopped:

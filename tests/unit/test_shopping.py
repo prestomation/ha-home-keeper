@@ -8,12 +8,16 @@ Assistant runtime; ``shopping_sync.py`` (the driver that reads the list and
 applies the plan) has its own suite.
 """
 
+from datetime import datetime, timedelta, timezone
+
 import hk_shopping as sh
 import pytest
 
 TARGET = "todo.shopping_list"
 OTHER = "todo.groceries"
 KEY = "asset1:part1"
+NOW = datetime(2026, 6, 15, 9, 0, tzinfo=timezone(timedelta(hours=-4)))
+ADDED = NOW.isoformat()
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -62,6 +66,7 @@ def _plan(tracked=None, desired=None, items=None, target=TARGET, entity=None):
     if items is not None:
         by_entity[entity or target or TARGET] = items
     return sh.plan_sync(
+        now=NOW,
         tracked=tracked or {},
         desired=desired or {},
         items_by_entity=by_entity,
@@ -223,7 +228,12 @@ def test_an_open_reminder_is_added_to_the_target_list():
     plan = _plan(desired=sh.buy_tasks_by_part({"t1": _buy_task()}), items=[])
     assert plan.add == [sh.AddOp(KEY, TARGET, "Buy Anode rod")]
     assert plan.tracked == {
-        KEY: {"entity_id": TARGET, "summary": "Buy Anode rod", "uid": None}
+        KEY: {
+            "entity_id": TARGET,
+            "summary": "Buy Anode rod",
+            "uid": None,
+            "added_at": ADDED,
+        }
     }
     assert plan.update == [] and plan.remove == [] and plan.complete == []
 
@@ -383,6 +393,7 @@ def test_a_reminder_that_went_away_unbought_takes_its_item_with_it():
 
 def test_switching_the_target_list_moves_the_item():
     plan = sh.plan_sync(
+        now=NOW,
         tracked=_tracked(entity_id=OTHER),
         desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
         items_by_entity={OTHER: [_item()], TARGET: []},
@@ -391,12 +402,18 @@ def test_switching_the_target_list_moves_the_item():
     assert plan.remove == [sh.RemoveOp(KEY, OTHER, "i1")]
     assert plan.add == [sh.AddOp(KEY, TARGET, "Buy Anode rod")]
     assert plan.tracked == {
-        KEY: {"entity_id": TARGET, "summary": "Buy Anode rod", "uid": None}
+        KEY: {
+            "entity_id": TARGET,
+            "summary": "Buy Anode rod",
+            "uid": None,
+            "added_at": ADDED,
+        }
     }
 
 
 def test_turning_the_mirror_off_clears_the_items_it_put_there():
     plan = sh.plan_sync(
+        now=NOW,
         tracked=_tracked(),
         desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
         items_by_entity={TARGET: [_item()]},
@@ -418,12 +435,108 @@ def test_an_item_addressed_by_summary_when_the_list_hands_out_no_uid():
 
 def test_an_unreadable_list_leaves_its_bookkeeping_untouched():
     tracked = _tracked()
-    plan = sh.plan_sync(tracked=tracked, desired={}, items_by_entity={}, target=TARGET)
+    plan = sh.plan_sync(
+        tracked=tracked, desired={}, items_by_entity={}, target=TARGET, now=NOW
+    )
     assert plan.remove == [] and plan.update == [] and plan.add == []
     assert plan.tracked == tracked
 
 
 # ── the shopper's side ────────────────────────────────────────────────────────
+
+
+def test_b11_1_deleting_the_new_line_beside_an_old_ticked_one_buys_nothing():
+    # B11-1 / B09-1: last episode's ticked line "old" is still on the list. The
+    # shopper deletes this episode's line "new". The old line is not ours, so it
+    # is not read as "bought": the reminder stays open and nothing is restocked.
+    tracked = _tracked(uid="new")
+    plan = _plan(
+        tracked=tracked,
+        desired=sh.buy_tasks_by_part({"t2": _buy_task(tid="t2")}),
+        items=[_item(uid="old", status=sh.STATUS_COMPLETED)],
+    )
+    assert plan.complete == [] and plan.add == []
+    assert plan.tracked == tracked
+
+
+def _unconfirmed(minutes_ago=0):
+    """A fresh add stamped *minutes_ago*, not seen back on the list yet."""
+    stamp = (NOW - timedelta(minutes=minutes_ago)).isoformat()
+    return {KEY: {**_tracked(uid=None)[KEY], "added_at": stamp}}
+
+
+def test_b09_2_an_unconfirmed_add_is_not_bought_by_an_old_ticked_line():
+    # B09-2: the list (CalDAV) cannot show the new line yet, and last episode's
+    # ticked line reads the same. The entry is held, not completed.
+    plan = _plan(
+        tracked=_unconfirmed(minutes_ago=5),
+        desired=sh.buy_tasks_by_part({"t2": _buy_task(tid="t2")}),
+        items=[_item(uid="old", status=sh.STATUS_COMPLETED)],
+    )
+    assert plan.complete == [] and plan.add == []
+    assert plan.tracked == _unconfirmed(minutes_ago=5)
+
+
+def test_b09_2_a_held_add_with_a_stamp_it_cannot_trust_is_stamped_now():
+    tracked = {KEY: {**_tracked(uid=None)[KEY], "added_at": "whenever"}}
+    plan = _plan(
+        tracked=tracked,
+        desired=sh.buy_tasks_by_part({"t2": _buy_task(tid="t2")}),
+        items=[_item(uid="old", status=sh.STATUS_COMPLETED)],
+    )
+    assert plan.complete == []
+    assert plan.tracked[KEY]["added_at"] == ADDED
+
+
+def test_b09_2_a_tick_after_the_hold_runs_out_is_read_as_bought():
+    # The hold is bounded: past the grace the ticked line is the shopper's tick.
+    plan = _plan(
+        tracked=_unconfirmed(minutes_ago=21),
+        desired=sh.buy_tasks_by_part({"t2": _buy_task(tid="t2")}),
+        items=[_item(uid="old", status=sh.STATUS_COMPLETED)],
+    )
+    assert plan.complete == [sh.CompleteOp(KEY, "t2")]
+
+
+def test_b09_2_a_held_add_binds_once_the_list_shows_the_new_line():
+    # The open line wins over the old record, and the stamp goes.
+    plan = _plan(
+        tracked=_unconfirmed(minutes_ago=5),
+        desired=sh.buy_tasks_by_part({"t2": _buy_task(tid="t2")}),
+        items=[
+            _item(uid="old", status=sh.STATUS_COMPLETED),
+            _item(uid="new"),
+        ],
+    )
+    assert plan.complete == []
+    assert plan.tracked == _tracked(uid="new")
+
+
+def test_b10_2_a_line_on_a_list_that_is_gone_moves_to_the_new_one():
+    # B10-2: the old list does not exist any more, so its line went with it.
+    plan = sh.plan_sync(
+        now=NOW,
+        tracked=_tracked(entity_id=OTHER),
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items_by_entity={TARGET: []},
+        target=TARGET,
+        gone=frozenset({OTHER}),
+    )
+    assert plan.add == [sh.AddOp(KEY, TARGET, "Buy Anode rod")]
+    assert plan.tracked[KEY]["entity_id"] == TARGET
+
+
+def test_b10_2_a_target_that_is_gone_keeps_its_bookkeeping():
+    tracked = _tracked()
+    plan = sh.plan_sync(
+        now=NOW,
+        tracked=tracked,
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items_by_entity={},
+        target=TARGET,
+        gone=frozenset({TARGET}),
+    )
+    assert plan.tracked == tracked
 
 
 def test_ticking_the_item_off_completes_the_home_keeper_reminder():
@@ -707,6 +820,7 @@ def test_each_part_is_planned_independently_in_one_pass():
         "a:new": {"task_id": "t-new", "name": "Buy anode", "completed": False},
     }
     plan = sh.plan_sync(
+        now=NOW,
         tracked=tracked,
         desired=desired,
         items_by_entity={
@@ -737,8 +851,18 @@ def test_each_part_is_planned_independently_in_one_pass():
     assert plan.tracked == {
         "a:keep": {"entity_id": TARGET, "summary": "Buy filter", "uid": "k"},
         "a:name": {"entity_id": TARGET, "summary": "Seife kaufen", "uid": "n"},
-        "a:moved": {"entity_id": TARGET, "summary": "Buy oil", "uid": None},
-        "a:new": {"entity_id": TARGET, "summary": "Buy anode", "uid": None},
+        "a:moved": {
+            "entity_id": TARGET,
+            "summary": "Buy oil",
+            "uid": None,
+            "added_at": ADDED,
+        },
+        "a:new": {
+            "entity_id": TARGET,
+            "summary": "Buy anode",
+            "uid": None,
+            "added_at": ADDED,
+        },
     }
 
 
@@ -856,6 +980,7 @@ def _desired(amount="500 ml", name="Buy Anode rod", completed=False):
 
 def _plan_caps(tracked=None, desired=None, items=None, caps=_DESC):
     return sh.plan_sync(
+        now=NOW,
         tracked=tracked or {},
         desired=desired or {},
         items_by_entity={TARGET: items or []},
@@ -872,6 +997,7 @@ def test_a_new_line_carries_its_amount_as_the_description():
         "summary": "Buy Anode rod",
         "uid": None,
         "description": "500 ml",
+        "added_at": ADDED,
     }
 
 

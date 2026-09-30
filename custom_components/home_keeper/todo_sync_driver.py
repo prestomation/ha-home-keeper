@@ -54,6 +54,7 @@ from homeassistant.core import (
     HomeAssistant,
     callback,
 )
+from homeassistant.helpers import entity_registry as er
 
 from .shopping import normalize_items
 from .todo_items import (
@@ -231,6 +232,20 @@ class TodoSyncDriver(ABC):
                 continue
             snapshots[entity_id] = items
         return snapshots
+
+    def _gone_lists(self, entity_ids: list[str]) -> frozenset[str]:
+        """The lists in *entity_ids* that do not exist at all any more.
+
+        No state *and* no entity registry entry: the entity was renamed, or the
+        integration behind it was removed. A list that is only down, or not
+        loaded yet at startup, still has its registry entry, so it is not gone.
+        """
+        registered = er.async_get(self._hass).entities
+        return frozenset(
+            entity_id
+            for entity_id in entity_ids
+            if self._hass.states.get(entity_id) is None and entity_id not in registered
+        )
 
     # ── writing ──────────────────────────────────────────────────────────────
     async def _call(

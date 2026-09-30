@@ -34,8 +34,11 @@ Synchronization works in both directions:
 - If a task is completed in Home Keeper, the item is marked complete on the list.
 - If a task no longer matches the profile or is rescheduled or disabled, Home
   Keeper removes its open item from the list.
+- If 2 profiles sync the same task and the task is marked complete on both lists,
+  Home Keeper completes the task one time.
 
 Items include the task's due date and notes if the list supports these fields.
+The due date is the date in the Home Assistant time zone.
 Home Keeper modifies only the items it added and does not modify an item that is
 already complete. Home Keeper keeps the name that you give an item on the list and
 still syncs the other fields of that item. This works on a list that gives each item
