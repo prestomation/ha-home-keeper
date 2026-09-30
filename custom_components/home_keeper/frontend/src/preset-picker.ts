@@ -2,20 +2,21 @@
  * The preset picker's grouping and search.
  *
  * About a hundred integration presets ship next to the general ones, so the picker
- * cannot be one flat list. It shows three groups: the presets for integrations the
- * household has, then the general presets, then the other integrations, which stay
- * hidden until the user asks for them or searches. Pure helpers only, so the mutation
+ * cannot be one flat list. It shows three groups: the presets that match entities
+ * the household has, then the general presets, then the other integration presets,
+ * which stay hidden until the user asks for them or searches. An installed
+ * integration is not enough: a Tuya light has none of the parts of a Tuya vacuum. Pure helpers only, so the mutation
  * gate can score them; `panel-declarative.ts` builds the DOM.
  */
 
 import type { DeclarativeCompanionPreset } from './types';
 
 export interface PresetGroups {
-  /** Integration presets whose integration is installed. */
+  /** Integration presets that match at least one entity. */
   mine: DeclarativeCompanionPreset[];
   /** The general presets, in catalog order. */
   general: DeclarativeCompanionPreset[];
-  /** Integration presets whose integration is not installed, when they are shown. */
+  /** The other integration presets, when they are shown. */
   other: DeclarativeCompanionPreset[];
   /** How many presets **Show all** would add. */
   hidden: number;
@@ -50,6 +51,19 @@ const byName = (a: DeclarativeCompanionPreset, b: DeclarativeCompanionPreset): n
   a.name.localeCompare(b.name);
 
 /**
+ * Whether *preset* goes in the first group. The backend counts the entities it would
+ * match; a backend that sends no count leaves the installed integration to decide.
+ */
+export function presetIsMine(
+  preset: DeclarativeCompanionPreset,
+  installed: ReadonlySet<string>,
+): boolean {
+  if (typeof preset.matches === 'number') return preset.matches > 0;
+  // Stryker disable next-line StringLiteral: no installed domain is '' or the mutant text.
+  return installed.has(preset.requires_integration ?? '');
+}
+
+/**
  * Split *presets* into the picker's groups. A search shows every group that has a
  * match, the other integrations included; with no search they show only when
  * *showAll* is set.
@@ -64,14 +78,8 @@ export function groupPresets(
   const matching = presets.filter((p) => presetMatches(p, query));
   const general = matching.filter((p) => p.group !== 'integration');
   const integration = matching.filter((p) => p.group === 'integration');
-  // Stryker disable next-line StringLiteral: no installed domain is '' or the mutant text.
-  const mine = integration
-    .filter((p) => installed.has(p.requires_integration ?? ''))
-    .sort(byName);
-  const rest = integration
-    // Stryker disable next-line StringLiteral: no installed domain is '' or the mutant text.
-    .filter((p) => !installed.has(p.requires_integration ?? ''))
-    .sort(byName);
+  const mine = integration.filter((p) => presetIsMine(p, installed)).sort(byName);
+  const rest = integration.filter((p) => !presetIsMine(p, installed)).sort(byName);
   const shown = showAll || searching;
   return { mine, general, other: shown ? rest : [], hidden: shown ? 0 : rest.length };
 }

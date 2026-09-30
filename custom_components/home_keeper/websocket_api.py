@@ -1422,10 +1422,25 @@ async def ws_list_declarative_presets(
     """
     from .backend_i18n import resolve_string  # local import: no HA dep in presets
 
-    if _coordinator(hass) is None:
+    coord = _coordinator(hass)
+    if coord is None:
         _not_loaded(hass, connection, msg)
         return
     lang = hass.config.language
+    # The picker puts an integration preset first only when some entity would match
+    # it: an installed integration can have none of the entities a preset selects.
+    sync = coord.declarative_sync
+    counts = (
+        sync.match_counts(
+            {
+                preset["id"]: preset["default_spec"]["selection"]
+                for preset in declarative_presets.CATALOG_PRESETS
+                if "name_args" in preset
+            }
+        )
+        if sync is not None
+        else {}
+    )
     presets_out = []
     for preset in declarative_presets.CATALOG_PRESETS:
         # An integration preset fills the integration's name into a string that
@@ -1442,6 +1457,9 @@ async def ws_list_declarative_presets(
                 # The picker lists the presets made for one integration apart from the
                 # general ones, and hides those for an integration that is not there.
                 "group": "integration" if "name_args" in preset else "general",
+                # The entities an integration preset would match now; null for a
+                # general preset, which the picker does not sort by it.
+                "matches": counts.get(preset["id"]),
                 # Seeded in the household's language, so a new companion is saved
                 # with task text a user can read.
                 "default_spec": declarative_presets.localized_default_spec(

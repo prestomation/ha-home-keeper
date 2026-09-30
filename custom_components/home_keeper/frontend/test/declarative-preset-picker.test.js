@@ -3,8 +3,9 @@ import { definePanelStubs, waitFor } from './panel-harness.js';
 
 /**
  * The preset picker mounted in the real panel: the groups, the search box and Show
- * all. The fake backend serves two general presets and three integration presets,
- * and reports Roborock as the one installed integration.
+ * all. The fake backend serves two general presets and four integration presets.
+ * Roborock and Tuya are installed, but only the Roborock preset matches entities: the
+ * Tuya one is for a vacuum, and this household has a Tuya light.
  */
 beforeAll(() => {
   definePanelStubs();
@@ -50,6 +51,7 @@ const PRESETS = [
     icon: 'mdi:robot-vacuum',
     requires_integration: 'roborock',
     group: 'integration',
+    matches: 3,
     default_spec: spec({ filter_time_left: 'Replace the filter', side: 'Replace the side brush' }),
   },
   {
@@ -59,6 +61,7 @@ const PRESETS = [
     icon: 'mdi:printer',
     requires_integration: 'brother',
     group: 'integration',
+    matches: 0,
     default_spec: spec({ black: 'Replace the toner' }),
   },
   {
@@ -68,7 +71,18 @@ const PRESETS = [
     icon: 'mdi:robot-vacuum',
     requires_integration: 'ecovacs',
     group: 'integration',
+    matches: 0,
     default_spec: spec({ lifespan_filter: 'Replace the filter' }),
+  },
+  {
+    id: 'tuya_percent_low',
+    name: 'Tuya vacuum: parts and supplies running low',
+    description: 'Opens a task when a part runs low.',
+    icon: 'mdi:robot-vacuum',
+    requires_integration: 'tuya',
+    group: 'integration',
+    matches: 0,
+    default_spec: spec({ filter_life: 'Replace the filter' }),
   },
 ];
 
@@ -90,7 +104,7 @@ function makeHass() {
         case 'home_keeper/list_declarative_presets':
           return Promise.resolve({ presets: PRESETS });
         case 'home_keeper/installed_integrations':
-          return Promise.resolve({ integrations: ['roborock'] });
+          return Promise.resolve({ integrations: ['roborock', 'tuya'] });
         case 'frontend/get_user_data':
           return Promise.resolve({ value: msg.key === 'home_keeper_intro_dismissed' });
         default:
@@ -117,30 +131,43 @@ const ids = (panel, group) =>
   );
 
 describe('the preset picker', () => {
-  it('lists the installed integration first, then the general presets, and hides the rest', async () => {
+  it('lists the presets that match entities first, then the general presets, and hides the rest', async () => {
     const panel = await openPicker();
     expect(ids(panel, 'mine')).toEqual(['roborock_life_low']);
     expect(ids(panel, 'general')).toEqual(['firmware_update_available', 'device_pulse']);
     expect(ids(panel, 'other')).toEqual([]);
     const heads = [...panel.shadowRoot.querySelectorAll('.hk-decl-preset-group')].map((h) => h.textContent);
-    expect(heads).toEqual(['For your integrations', 'General']);
+    expect(heads).toEqual(['For your devices', 'General']);
+    // The card says how many entities the preset would match.
+    expect(
+      panel.shadowRoot.querySelector('[data-preset-id="roborock_life_low"] .hk-decl-preset-count').textContent,
+    ).toBe('3 entities');
     // Each integration card lists the tasks it makes.
     const chips = [
       ...panel.shadowRoot.querySelectorAll('[data-preset-id="roborock_life_low"] .hk-decl-preset-task'),
     ].map((c) => c.textContent);
     expect(chips).toEqual(['Replace the filter', 'Replace the side brush']);
-    expect(panel.shadowRoot.querySelector('.hk-decl-preset-all').textContent).toBe('Show 2 more presets');
+    expect(panel.shadowRoot.querySelector('.hk-decl-preset-all').textContent).toBe('Show 3 more presets');
   });
 
-  it('shows and hides the other integrations', async () => {
+  it('shows and hides the other presets', async () => {
     const panel = await openPicker();
     panel.shadowRoot.querySelector('.hk-decl-preset-all').click();
-    expect(ids(panel, 'other')).toEqual(['brother_percent_low', 'ecovacs_percent_low']);
+    expect(ids(panel, 'other')).toEqual([
+      'brother_percent_low',
+      'ecovacs_percent_low',
+      'tuya_percent_low',
+    ]);
     // A preset for an integration that is not installed cannot be picked.
     const brother = panel.shadowRoot.querySelector('[data-preset-id="brother_percent_low"]');
     expect(brother.disabled).toBe(true);
+    // An installed integration with no matching entity can still be picked, and
+    // shows no count.
+    const tuya = panel.shadowRoot.querySelector('[data-preset-id="tuya_percent_low"]');
+    expect(tuya.disabled).toBe(false);
+    expect(tuya.querySelector('.hk-decl-preset-count')).toBeNull();
     const all = panel.shadowRoot.querySelector('.hk-decl-preset-all');
-    expect(all.textContent).toBe('Hide other integrations');
+    expect(all.textContent).toBe('Hide other devices');
     all.click();
     expect(ids(panel, 'other')).toEqual([]);
   });
@@ -153,7 +180,7 @@ describe('the preset picker', () => {
     input.dispatchEvent(new Event('input'));
     expect(ids(panel, 'mine')).toEqual(['roborock_life_low']);
     expect(ids(panel, 'general')).toEqual([]);
-    expect(ids(panel, 'other')).toEqual(['ecovacs_percent_low']);
+    expect(ids(panel, 'other')).toEqual(['ecovacs_percent_low', 'tuya_percent_low']);
     expect(panel.shadowRoot.querySelector('.hk-decl-preset-all')).toBeNull();
     expect(panel.shadowRoot.activeElement).toBe(input);
 

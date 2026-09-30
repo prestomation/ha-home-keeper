@@ -2185,3 +2185,76 @@ def test_every_catalog_duty_has_a_known_shape_and_a_numeric_limit():
                 assert limit > 0, where
                 if duty["shape"] == "percent_low":
                     assert limit < 100, where
+
+
+def _ent(entity_id, platform, key=None, **over):
+    return {
+        "entity_id": entity_id,
+        "entity_registry_id": "r-" + entity_id,
+        "platform": platform,
+        "domain": entity_id.split(".")[0],
+        "translation_key": key,
+        "disabled": False,
+        **over,
+    }
+
+
+_COUNT_SNAPSHOT = {
+    "entities": [
+        # A Tuya light: the integration is installed, but it has no vacuum parts.
+        _ent("light.desk", "tuya", "light"),
+        _ent("sensor.vac_filter", "roborock", "filter_time_left"),
+        _ent("sensor.vac_brush", "roborock", "main_brush_time_left"),
+        _ent("sensor.vac_old", "roborock", "filter_time_left", disabled=True),
+        _ent("binary_sensor.vac_filter", "roborock", "filter_time_left"),
+        _ent("sensor.other_filter", "ecovacs", "filter_time_left"),
+    ]
+}
+
+
+def test_count_matches_counts_each_selection_by_its_own_filters():
+    counts = dc.count_matches(
+        {
+            "tuya_vacuum": {
+                "target_integration": "tuya",
+                "domain": "sensor",
+                "translation_keys": ["filter_life"],
+            },
+            "roborock": {
+                "target_integration": "roborock",
+                "domain": "sensor",
+                "translation_keys": ["filter_time_left", "main_brush_time_left"],
+            },
+            "roborock_filter_any_domain": {
+                "target_integration": "roborock",
+                "translation_keys": ["filter_time_left"],
+            },
+            "missing": {"target_integration": "nothing_here"},
+        },
+        _COUNT_SNAPSHOT,
+    )
+    # The disabled entity and the other integration's entity with the same key do
+    # not count; the binary sensor counts only where no domain is set.
+    assert counts == {
+        "tuya_vacuum": 0,
+        "roborock": 2,
+        "roborock_filter_any_domain": 2,
+        "missing": 0,
+    }
+
+
+def test_count_matches_without_a_target_reads_every_integration_and_the_regex():
+    counts = dc.count_matches(
+        {
+            "any_filter": {"translation_keys": ["filter_time_left"]},
+            "regex": {"entity_regex": r"sensor\.vac_.*"},
+            "everything": {},
+        },
+        _COUNT_SNAPSHOT,
+    )
+    assert counts == {"any_filter": 3, "regex": 2, "everything": 5}
+
+
+def test_count_matches_handles_an_empty_registry():
+    assert dc.count_matches({"a": {"target_integration": "x"}}, {}) == {"a": 0}
+    assert dc.count_matches({}, _COUNT_SNAPSHOT) == {}

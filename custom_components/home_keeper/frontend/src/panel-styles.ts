@@ -2005,6 +2005,10 @@ export const STYLES = `
   .hk-decl-preset-card ha-icon { flex: 0 0 auto; }
   .hk-decl-preset-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .hk-decl-preset-name { font-weight: 500; }
+  .hk-decl-preset-count {
+    margin-left: 8px; font-weight: 400; font-size: 0.8rem;
+    color: var(--secondary-text-color); white-space: nowrap;
+  }
   .hk-decl-preset-desc { color: var(--secondary-text-color); font-size: 0.9rem; }
   .hk-decl-preset-req { color: var(--warning-color); font-size: 0.85rem; }
   .hk-decl-preset-search {

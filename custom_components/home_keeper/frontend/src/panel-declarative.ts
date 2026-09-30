@@ -472,6 +472,13 @@ function renderPresetPicker(p: PanelHost, host: HTMLElement): void {
           }),
         )}</span>`
       : '';
+    // How many entities the preset would match now, so a user sees why it is first.
+    const count =
+      typeof preset.matches === 'number' && preset.matches > 0
+        ? `<span class="hk-decl-preset-count">${escapeHTML(
+            tn('declarative.companions.keys_entities', preset.matches),
+          )}</span>`
+        : '';
     const tasks = presetTaskNames(preset);
     const chips = tasks.length
       ? `<span class="hk-decl-preset-tasks">${tasks
@@ -481,7 +488,7 @@ function renderPresetPicker(p: PanelHost, host: HTMLElement): void {
     el.innerHTML = `
         <ha-icon icon="${escapeHTML(preset.icon)}"></ha-icon>
         <span class="hk-decl-preset-text">
-          <span class="hk-decl-preset-name">${escapeHTML(preset.name)}</span>
+          <span class="hk-decl-preset-name">${escapeHTML(preset.name)}${count}</span>
           <span class="hk-decl-preset-desc">${escapeHTML(preset.description)}</span>
           ${chips}
           ${requires}

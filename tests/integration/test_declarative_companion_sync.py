@@ -676,6 +676,23 @@ def test_the_key_list_names_the_keys_of_an_integration(ha):
     assert reply["result"] == {"keys": [], "without_key": 0}
 
 
+def test_the_preset_list_counts_the_entities_each_integration_preset_matches(ha):
+    """The picker puts an integration preset first only when an entity matches it.
+
+    The test container has none of the devices the integration presets are made for,
+    so each count is 0, and a general preset carries no count at all.
+    """
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(token, {"type": "home_keeper/list_declarative_presets"})
+    assert reply.get("success"), reply
+    presets = reply["result"]["presets"]
+    integration = [p for p in presets if p["group"] == "integration"]
+    general = [p for p in presets if p["group"] == "general"]
+    assert len(integration) > 50
+    assert {p["matches"] for p in integration} == {0}
+    assert general and all(p["matches"] is None for p in general)
+
+
 def test_only_these_devices_selects_the_entities_of_one_device(ha, specs):
     first = specs(_device_battery_spec())
     device_id = _one_task(ha, first["id"])["device_id"]

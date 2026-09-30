@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { groupPresets, presetMatches, presetTaskNames } from '../src/preset-picker.ts';
+import {
+  groupPresets,
+  presetIsMine,
+  presetMatches,
+  presetTaskNames,
+} from '../src/preset-picker.ts';
 
 /**
- * The preset picker's grouping and search: the installed integrations first, the
+ * The preset picker's grouping and search: the presets that match entities first, the
  * general presets next, and the rest hidden until Show all or a search.
  */
 
@@ -13,6 +18,7 @@ const preset = (id, over = {}) => ({
   icon: 'mdi:x',
   requires_integration: over.requires ?? null,
   group: over.group ?? 'general',
+  ...('matches' in over ? { matches: over.matches } : {}),
   default_spec: {
     task_template: { name_template: '', notes_template: '', labels: [], task_names: over.tasks },
   },
@@ -116,5 +122,50 @@ describe('groupPresets', () => {
       other: [],
       hidden: 0,
     });
+  });
+});
+
+describe('presetIsMine', () => {
+  const installed = new Set(['tuya']);
+  const tuya = (matches) =>
+    preset('tuya_percent_low', { requires: 'tuya', group: 'integration', matches });
+
+  it('follows the entity count when the backend sends one', () => {
+    // A Tuya light: the integration is installed, but no entity has a vacuum key.
+    expect(presetIsMine(tuya(0), installed)).toBe(false);
+    expect(presetIsMine(tuya(1), installed)).toBe(true);
+    expect(presetIsMine(tuya(3), new Set())).toBe(true);
+  });
+
+  it('falls back to the installed integration when there is no count', () => {
+    expect(presetIsMine(tuya(undefined), installed)).toBe(true);
+    expect(presetIsMine(tuya(null), installed)).toBe(true);
+    expect(presetIsMine(tuya(null), new Set(['roborock']))).toBe(false);
+    const noCount = preset('tuya_alert', { requires: 'tuya', group: 'integration' });
+    expect(presetIsMine(noCount, installed)).toBe(true);
+    expect(presetIsMine(noCount, new Set())).toBe(false);
+  });
+});
+
+describe('groupPresets with entity counts', () => {
+  it('moves an installed integration with no matching entity to the other group', () => {
+    const vacuum = preset('tuya_percent_low', {
+      name: 'Tuya vacuum: parts and supplies running low',
+      requires: 'tuya',
+      group: 'integration',
+      matches: 0,
+    });
+    const printer = preset('brother_percent_low', {
+      name: 'Brother: parts and supplies running low',
+      requires: 'brother',
+      group: 'integration',
+      matches: 4,
+    });
+    const groups = groupPresets([vacuum, printer, FIRMWARE], new Set(['tuya']), '', false);
+    expect(groups.mine.map((p) => p.id)).toEqual(['brother_percent_low']);
+    expect(groups.other).toEqual([]);
+    expect(groups.hidden).toBe(1);
+    const all = groupPresets([vacuum, printer], new Set(['tuya']), '', true);
+    expect(all.other.map((p) => p.id)).toEqual(['tuya_percent_low']);
   });
 });
