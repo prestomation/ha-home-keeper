@@ -454,11 +454,6 @@ async def _reconcile_virtual(
         "model": asset.get("model") or None,
         "configuration_url": configuration_url,
     }
-    # serial_number reached DeviceInfo/async_get_or_create later than the others; only
-    # seed it on create when this HA version accepts it (the update loop below is
-    # likewise guarded), so an older core still provisions the device cleanly.
-    if _supports_kwarg(registry.async_get_or_create, "serial_number"):
-        create_kwargs["serial_number"] = asset.get("serial_number") or None
     if via_device is not None:
         create_kwargs["via_device"] = via_device
     device = registry.async_get_or_create(**create_kwargs)
@@ -468,7 +463,11 @@ async def _reconcile_virtual(
     if device.name != asset["name"]:
         updates["name"] = asset["name"]
     for field in ("manufacturer", "model", "serial_number"):
-        desired = asset.get(field) or None
+        # The serial number stays in the admin-only appliance record. Any signed-in
+        # user can list the device registry (``config/device_registry/list`` is not
+        # admin-only), so the device never carries it, and an older release's copy
+        # is cleared here.
+        desired = None if field == "serial_number" else asset.get(field) or None
         if getattr(device, field, None) != desired and _supports_kwarg(
             registry.async_update_device, field
         ):

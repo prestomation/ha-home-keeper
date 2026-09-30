@@ -12,9 +12,9 @@ A Home Assistant instance usually has 1 or 2 admins and a few users, such as
 a partner, older children, a housemate, or a guest account on a wall tablet.
 
 Home Assistant reserves Settings and Developer tools for admins. Home
-Assistant also restricts its own `config/*` commands, such as the device
-registry, the entity registry, and config entries, to admins. Home Keeper
-follows the same rule.
+Assistant also restricts the changes that its own `config/*` commands make,
+such as changes to the device registry, the entity registry, and config
+entries, to admins. Home Keeper follows the same rule.
 
 The risks are small. A guest account must not:
 
@@ -33,16 +33,21 @@ panel uses, and the matching `home_keeper.*` service.
 | Operation | Services |
 | --- | --- |
 | Create, edit, delete, archive and restore appliances | `add_asset`, `update_asset`, `delete_asset`, `archive_asset`, `restore_asset` |
-| Appliance documents and part files | `add_asset_document`, `update_asset_document`, `remove_asset_document`, `remove_part_file` |
+| Appliance documents and part files | `add_asset_document`, `update_asset_document`, `remove_asset_document`, `remove_part_file`, and a file upload (`POST`) to `/api/home_keeper/document/…` or `/api/home_keeper/part_document/…` |
+| Delete an archived completion from an appliance's history | `delete_archived_completion` |
 | Spare-part stock adjustments | `adjust_part_stock` |
 | Settings, profiles and notification delivery | `set_options` |
 | The appliance report (costs, serials, value totals) | `export_appliance_report` |
 | Data export and import (every task, note, serial and cost) | `export_data`, `import_data` |
 
 Home Keeper creates a Home Assistant device for each appliance, and removes
-the device when it deletes the appliance. Home Assistant reserves the
-device registry for admins, so appliance changes are admin-only for this
+the device when it deletes the appliance. Home Assistant reserves device
+registry changes for admins, so appliance changes are admin-only for this
 reason too.
+
+Any signed-in user can read the device registry, which shows the name, make,
+model and area of each appliance. For this reason, Home Keeper keeps the serial
+number only in the appliance record and does not copy it to the device.
 
 A websocket command and its service twin share one authenticated
 connection. If Home Keeper gates only the websocket command, `call_service`

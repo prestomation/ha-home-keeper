@@ -694,6 +694,7 @@ async def ws_delete_skip(
         vol.Required("ts"): str,
     }
 )
+@websocket_api.require_admin
 @websocket_api.async_response
 @_with_coordinator(not_found="asset_id")
 async def ws_delete_archived_completion(
