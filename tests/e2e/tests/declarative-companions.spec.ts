@@ -161,8 +161,16 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await panel.locator('.hk-decl-preset').click();
     const picker = panel.locator('ha-dialog.hk-decl-picker');
     await expectDialogOpen(picker, '.hk-decl-preset-card');
-    // No integration preset is for an integration this container has, so the picker
-    // opens on the 3 general presets and hides the rest behind Show all.
+    // The Tuya Local stub has one sensor with the filter_life key, so that preset is
+    // the only one in For your devices, with its count. The 3 general presets follow,
+    // and the rest wait behind Show all.
+    const mine = picker.locator('.hk-decl-preset-list[data-group="mine"] .hk-decl-preset-card');
+    await expect(mine).toHaveCount(1);
+    await expect(mine).toHaveAttribute('data-preset-id', 'tuya_local_percent_low');
+    await expect(mine.locator('.hk-decl-preset-count')).toHaveText('1 entity');
+    await expect(picker.locator('.hk-decl-preset-group[data-group="mine"]')).toHaveText(
+      'For your devices',
+    );
     const general = picker.locator('.hk-decl-preset-list[data-group="general"] .hk-decl-preset-card');
     await expect(general).toHaveCount(3);
     await expect(picker.locator('.hk-decl-preset-list[data-group="other"]')).toHaveCount(0);
@@ -196,7 +204,7 @@ test.describe('Home Keeper panel — declarative companions', () => {
     await expect(
       picker.locator('.hk-decl-preset-list[data-group="other"] .hk-decl-preset-card').first(),
     ).toBeVisible();
-    await expect(picker.locator('.hk-decl-preset-all')).toHaveText(/^Hide other integrations\s*$/);
+    await expect(picker.locator('.hk-decl-preset-all')).toHaveText(/^Hide other devices\s*$/);
 
     await picker.locator('.hk-decl-cancel').click();
     await expect(panel.locator('ha-dialog[open]')).toHaveCount(0);

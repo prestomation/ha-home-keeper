@@ -679,8 +679,9 @@ def test_the_key_list_names_the_keys_of_an_integration(ha):
 def test_the_preset_list_counts_the_entities_each_integration_preset_matches(ha):
     """The picker puts an integration preset first only when an entity matches it.
 
-    The test container has none of the devices the integration presets are made for,
-    so each count is 0, and a general preset carries no count at all.
+    The Tuya Local stub has one sensor with the ``filter_life`` key, so its preset
+    matches 1 entity. The container has no device for the other integration presets,
+    so each of those counts 0, and a general preset carries no count at all.
     """
     token = ha.headers["Authorization"].split(" ", 1)[1]
     reply = ws_send(token, {"type": "home_keeper/list_declarative_presets"})
@@ -689,7 +690,9 @@ def test_the_preset_list_counts_the_entities_each_integration_preset_matches(ha)
     integration = [p for p in presets if p["group"] == "integration"]
     general = [p for p in presets if p["group"] == "general"]
     assert len(integration) > 50
-    assert {p["matches"] for p in integration} == {0}
+    counted = {p["id"]: p["matches"] for p in integration}
+    assert counted.pop("tuya_local_percent_low") == 1
+    assert set(counted.values()) == {0}
     assert general and all(p["matches"] is None for p in general)
 
 

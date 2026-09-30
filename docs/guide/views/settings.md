@@ -171,10 +171,12 @@ readings into tasks for one integration.
 Each preset selects the entities by their [entity keys](#entity-keys-and-task-names)
 and gives each key its own task name, such as *Replace the main brush*.
 
-The picker shows the presets for the integrations you have installed first. Then it
-shows the general presets. Click **Show more presets** to see the presets for the
-other integrations, or type in the search box to find a brand or a part. Each preset
-card lists the tasks that it makes.
+The picker shows first the presets that match entities you have, with the number of
+entities each one matches. An installed integration is not enough. A Tuya light has
+no filter or brush, so the Tuya vacuum preset is not in that group. Then the picker
+shows the general presets. Click **Show more presets** to see the other presets, or
+type in the search box to find a brand or a part. Each preset card lists the tasks
+that it makes.
 
 Each integration can have up to 6 presets, one for each type of reading:
 
