@@ -175,3 +175,174 @@ def test_the_blank_name_record_stays_bounded(monkeypatch):
     for n in range(5):
         sync._warn_blank_name({"id": "a", "name": "A"}, f"sensor.e{n}")
     assert len(sync._blank_names) <= 2
+
+
+# ── a spec change waits for its reload ───────────────────────────────────────
+class _ReloadHass:
+    """The part of Home Assistant a pass and its reload touch."""
+
+    def __init__(self, log):
+        self.log = log
+        self.states = _States({})
+        self.config_entries = SimpleNamespace(async_reload=self._reload)
+
+    def async_create_task(self, coro):
+        return asyncio.get_running_loop().create_task(coro)
+
+    async def _reload(self, entry_id):
+        self.log.append(("reload start", entry_id))
+        await asyncio.sleep(0.01)
+        self.log.append(("reload end", entry_id))
+
+
+def _spec_sync(log, *, changed=True):
+    sync = sync_mod.DeclarativeCompanionSync.__new__(sync_mod.DeclarativeCompanionSync)
+    sync._hass = _ReloadHass(log)
+    sync._entry = SimpleNamespace(entry_id="entry1")
+    sync._pass_lock = asyncio.Lock()
+    sync._spec_pass = None
+    sync._reload_task = None
+    sync._stopped = False
+
+    async def _refresh():
+        log.append(("refresh",))
+
+    sync._coordinator = SimpleNamespace(async_request_refresh=_refresh)
+
+    async def _reconcile_all():
+        log.append(("pass start",))
+        await asyncio.sleep(0)
+        log.append(("pass end",))
+        return changed, []
+
+    sync._reconcile_all = _reconcile_all
+    return sync
+
+
+def test_a_spec_change_waits_for_its_pass_and_the_reload_it_asks_for(monkeypatch):
+    # The service answered before the reload its pass asked for, so the next call of
+    # the same script came during the reload and failed as "not loaded".
+    monkeypatch.setattr(sync_mod.sensor_watcher, "async_mark_tasks_new", lambda *a: 0)
+    log = []
+
+    async def _scenario():
+        sync = _spec_sync(log)
+        sync._handle_specs_changed()
+        await sync.async_wait_for_spec_change()
+        log.append(("answered",))
+
+    asyncio.run(_scenario())
+    assert log == [
+        ("pass start",),
+        ("pass end",),
+        ("reload start", "entry1"),
+        ("reload end", "entry1"),
+        ("answered",),
+    ]
+
+
+def test_a_spec_change_without_a_reload_answers_after_its_pass():
+    log = []
+
+    async def _scenario():
+        sync = _spec_sync(log, changed=False)
+        sync._handle_specs_changed()
+        await sync.async_wait_for_spec_change()
+        log.append(("answered",))
+
+    asyncio.run(_scenario())
+    assert log == [("pass start",), ("pass end",), ("refresh",), ("answered",)]
+
+
+def test_a_spec_change_does_not_go_through_the_debouncer():
+    # The debouncer drops a call while a pass runs and holds one for its cooldown,
+    # so a spec saved then had no pass, or a late one.
+    log = []
+
+    async def _scenario():
+        sync = _spec_sync(log, changed=False)
+        sync._reconcile_debouncer = SimpleNamespace(
+            async_call=lambda: pytest.fail("a spec change went to the debouncer")
+        )
+        sync._handle_specs_changed()
+        await sync.async_wait_for_spec_change()
+
+    asyncio.run(_scenario())
+    assert ("pass start",) in log
+
+
+def test_passes_run_one_at_a_time():
+    log = []
+
+    async def _scenario():
+        sync = _spec_sync(log, changed=False)
+        await asyncio.gather(
+            sync._async_reconcile_and_maybe_reload(),
+            sync._async_reconcile_and_maybe_reload(),
+        )
+
+    asyncio.run(_scenario())
+    assert log == [
+        ("pass start",),
+        ("pass end",),
+        ("refresh",),
+        ("pass start",),
+        ("pass end",),
+        ("refresh",),
+    ]
+
+
+def test_a_pass_after_the_unload_does_nothing():
+    log = []
+
+    async def _scenario():
+        sync = _spec_sync(log)
+        sync._stop()
+        sync._handle_specs_changed()
+        await sync.async_wait_for_spec_change()
+
+    asyncio.run(_scenario())
+    assert log == []
+
+
+def test_one_reload_for_passes_that_overlap_it(monkeypatch):
+    monkeypatch.setattr(sync_mod.sensor_watcher, "async_mark_tasks_new", lambda *a: 0)
+    log = []
+
+    async def _scenario():
+        sync = _spec_sync(log)
+        await sync._async_reconcile_and_maybe_reload()
+        await sync._async_reconcile_and_maybe_reload()
+        await sync.async_wait_for_spec_change()
+
+    asyncio.run(_scenario())
+    assert log.count(("reload start", "entry1")) == 1
+
+
+def test_a_failed_reload_is_logged_and_the_wait_ends(caplog):
+    log = []
+
+    async def _fail(entry_id):
+        raise RuntimeError("entry is in the wrong state")
+
+    async def _scenario():
+        sync = _spec_sync(log)
+        sync._hass.config_entries.async_reload = _fail
+        sync._reload_task = asyncio.get_running_loop().create_task(sync._async_reload())
+        await sync.async_wait_for_spec_change()
+
+    with caplog.at_level(logging.ERROR, logger=sync_mod.__name__):
+        asyncio.run(_scenario())
+    assert "after a companion change" in caplog.text
+
+
+def test_settle_waits_on_the_sync_of_the_coordinator():
+    calls = []
+
+    class _Sync:
+        async def async_wait_for_spec_change(self):
+            calls.append("waited")
+
+    asyncio.run(sync_mod.async_settle(SimpleNamespace(declarative_sync=_Sync())))
+    asyncio.run(sync_mod.async_settle(SimpleNamespace(declarative_sync=None)))
+    assert calls == ["waited"]

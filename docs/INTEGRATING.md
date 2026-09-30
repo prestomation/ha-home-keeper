@@ -734,6 +734,11 @@ fills `task_names` for each key. The catalog is `declarative_presets_catalog.py`
 `home_keeper_task_*` events. Filter to declarative tasks via
 `managed_by.integration == "home_keeper"` and `source.declarative_companion.spec_id`.
 
+A call to `add_declarative_companion`, `update_declarative_companion` or
+`delete_declarative_companion` returns when the reconcile is complete. A change that
+makes or removes a task with device-page entities reloads the config entry. The call
+returns after that reload, so your next call finds Home Keeper loaded.
+
 `selection.translation_keys` matches the `translation_key` that the integration sets
 on each entity in the entity registry. A rename, the Home Assistant language, and a
 change to how Home Assistant builds entity ids leave that key alone, so prefer it to

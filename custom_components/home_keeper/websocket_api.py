@@ -20,6 +20,7 @@ from homeassistant.util import dt as dt_util
 from . import (
     appliance_report,
     companions,
+    declarative_companion_sync,
     declarative_presets,
     devices,
     manuals,
@@ -1321,6 +1322,7 @@ async def ws_add_declarative_companion(
         return
     try:
         spec = await coord.store.async_add_declarative_companion(msg["companion"])
+        await declarative_companion_sync.async_settle(coord)
     except TaskValidationError as err:
         _err(
             hass,
@@ -1360,6 +1362,7 @@ async def ws_update_declarative_companion(
         spec = await coord.store.async_update_declarative_companion(
             msg["companion_id"], msg["updates"]
         )
+        await declarative_companion_sync.async_settle(coord)
     except KeyError:
         _err(
             hass,
@@ -1403,6 +1406,7 @@ async def ws_delete_declarative_companion(
         _not_loaded(hass, connection, msg)
         return
     removed = await coord.store.async_delete_declarative_companion(msg["companion_id"])
+    await declarative_companion_sync.async_settle(coord)
     # B03-2: the removed tasks' device-page entities go only on a reload, because the
     # platforms prune the entity registry at setup.
     if removed:

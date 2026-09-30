@@ -233,6 +233,17 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   once cost 50 full passes. `DeclarativeCompanionSync._reconcile_debouncer`
   (`immediate=True`, `RECONCILE_DEBOUNCE_SECONDS`) keeps the first pass prompt and folds
   the rest of a burst into one trailing pass; it is shut down with the listeners.
+- **A spec change gets its own reconcile pass, and its call answers after the reload.**
+  `_handle_specs_changed` starts a pass directly, not through the debouncer: the
+  debouncer drops a call while a pass runs and holds one for its cooldown, so a saved
+  spec was reconciled late or not at all. `_pass_lock` runs passes one at a time, and a
+  pass that waited past the unload does nothing (`_stopped`). The services and websocket
+  commands that add, update or delete a spec then await
+  `declarative_companion_sync.async_settle`, which waits for that pass and for the
+  entry reload it asked for. Before, the call answered first and the caller's next call
+  came during the reload, so it failed with `integration_not_loaded` (or "action not
+  found" before B02-1). Any new call that starts a reload in the background must wait
+  for it the same way.
 - **A declarative companion's notes are re-rendered when the task arms.** The reconcile
   pass renders name/notes from live state, but it runs on *registry* changes, so a
   template that quotes the reading (`{{ state }} h left`) froze at whatever the entity

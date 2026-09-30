@@ -4,9 +4,11 @@
   reconcile runs, so the reconcile keeps the task.
 * B03-2: deleting a declarative companion reloads the entry when a removed task had
   device-page entities, in the websocket command and in the service.
+* A call that adds, changes or deletes a declarative companion answers only after
+  the reconcile pass and the reload it started (``async_settle``).
 
 The rename handler runs against fakes. The import guard is the one
-``test_template_error_log.py`` explains. The delete handlers are checked on the
+``test_template_error_log.py`` explains. The companion handlers are checked on the
 source, as ``test_api_surface.py`` checks the service registrations: they are
 closures and decorated websocket commands with no unit entry point, and
 ``tests/integration/test_declarative_companion_sync.py`` drives them for real.
@@ -149,3 +151,60 @@ def test_b03_2_deleting_a_companion_reloads_when_the_entity_set_changed(
     # handlers ignored it, so those entities stayed until an unrelated reload.
     tree = ast.parse((_COMPONENT / module).read_text(encoding="utf-8"))
     assert _reloads_when_delete_says_so(_function(tree, handler))
+
+
+# ── a spec change answers after its reload ───────────────────────────────────
+def _settles_after(func: ast.AsyncFunctionDef, store_call: str) -> bool:
+    """Whether *func* awaits ``async_settle`` after it awaits *store_call*."""
+    calls = [
+        ast.unparse(node.value.func)
+        for node in ast.walk(func)
+        if isinstance(node, ast.Await) and isinstance(node.value, ast.Call)
+    ]
+    store = [i for i, name in enumerate(calls) if name.endswith(store_call)]
+    settle = [i for i, name in enumerate(calls) if name.endswith(".async_settle")]
+    return bool(store and settle) and settle[0] > store[0]
+
+
+@pytest.mark.parametrize(
+    ("module", "handler", "store_call"),
+    [
+        (
+            "websocket_api.py",
+            "ws_add_declarative_companion",
+            "async_add_declarative_companion",
+        ),
+        (
+            "websocket_api.py",
+            "ws_update_declarative_companion",
+            "async_update_declarative_companion",
+        ),
+        (
+            "websocket_api.py",
+            "ws_delete_declarative_companion",
+            "async_delete_declarative_companion",
+        ),
+        (
+            "__init__.py",
+            "handle_add_declarative_companion",
+            "async_add_declarative_companion",
+        ),
+        (
+            "__init__.py",
+            "handle_update_declarative_companion",
+            "async_update_declarative_companion",
+        ),
+        (
+            "__init__.py",
+            "handle_delete_declarative_companion",
+            "async_delete_declarative_companion",
+        ),
+    ],
+)
+def test_a_spec_change_answers_after_the_reload_it_asked_for(
+    module: str, handler: str, store_call: str
+) -> None:
+    # The call answered before the reload its reconcile pass asked for, so the next
+    # call of the same script came during the reload and failed as "not loaded".
+    tree = ast.parse((_COMPONENT / module).read_text(encoding="utf-8"))
+    assert _settles_after(_function(tree, handler), store_call)

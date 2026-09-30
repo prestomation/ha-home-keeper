@@ -38,6 +38,7 @@ from . import (
     backend_i18n,
     card,
     companions,
+    declarative_companion_sync,
     devices,
     manuals,
     notifications,
@@ -1899,6 +1900,7 @@ def _register_services(hass: HomeAssistant) -> None:
         await _verify_admin(call)
         coord = _coordinator()
         spec = await coord.store.async_add_declarative_companion(dict(call.data))
+        await declarative_companion_sync.async_settle(coord)
         return {"companion": spec}
 
     async def handle_update_declarative_companion(
@@ -1909,14 +1911,19 @@ def _register_services(hass: HomeAssistant) -> None:
         data = dict(call.data)
         spec_id = data.pop("id")
         spec = await coord.store.async_update_declarative_companion(spec_id, data)
+        await declarative_companion_sync.async_settle(coord)
         return {"companion": spec}
 
     async def handle_delete_declarative_companion(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
+        removed = await coord.store.async_delete_declarative_companion(call.data["id"])
+        # The pass the delete started runs to its end before the reload replaces
+        # the store it writes.
+        await declarative_companion_sync.async_settle(coord)
         # B03-2: reload when a removed task had device-page entities, as delete_task
         # does, because only the platform setup prunes them.
-        if await coord.store.async_delete_declarative_companion(call.data["id"]):
+        if removed:
             await hass.config_entries.async_reload(coord.entry.entry_id)
 
     async def handle_list_declarative_companions(
