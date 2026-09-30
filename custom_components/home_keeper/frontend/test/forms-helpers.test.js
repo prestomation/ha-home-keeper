@@ -792,6 +792,8 @@ describe('Home Assistant time zone (X04-7)', () => {
       '2026-01-01T00:00:00.000Z',
     );
     expect(haDateTimeToIso('not-a-date', 'Asia/Tokyo')).toBeUndefined();
+    // Only a whole value reads as a date and time, not one with text before it.
+    expect(haDateTimeToIso('x2026-01-01 09:00:00', 'Asia/Tokyo')).toBeUndefined();
   });
 
   it('round-trips through the form in the HA zone', () => {

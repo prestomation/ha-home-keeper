@@ -633,6 +633,9 @@ let haTimeZone: string | undefined;
 /** Set the zone the panel uses for dates and times (`hass.config.time_zone`). */
 export function setTimeZone(tz?: string | null): void {
   haTimeZone = undefined;
+  // Stryker disable next-line ConditionalExpression: equivalent. Without the guard,
+  // `Intl` reads an absent zone as the browser zone and throws on an empty name, and
+  // both leave `haTimeZone` undefined, as the guard does.
   if (!tz) return;
   try {
     // An unknown zone name makes every `Intl` call throw, so use the browser zone.
@@ -648,8 +651,11 @@ export function getTimeZone(): string | undefined {
   return haTimeZone;
 }
 
-/** The wall-clock parts of the instant *ms* in *tz*. Month is 1-based. */
-export function zonedParts(ms: number, tz: string): number[] {
+/**
+ * The wall-clock parts of the instant *ms* in *tz*. Month is 1-based. An undefined
+ * *tz* is the browser zone.
+ */
+export function zonedParts(ms: number, tz: string | undefined): number[] {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
     hourCycle: 'h23',
@@ -660,6 +666,8 @@ export function zonedParts(ms: number, tz: string): number[] {
     minute: '2-digit',
     second: '2-digit',
   }).formatToParts(new Date(ms));
+  // Stryker disable next-line OptionalChaining: equivalent. `formatToParts` gives
+  // every part that the options ask for, so `find` always finds one.
   const get = (type: string): number => Number(parts.find((p) => p.type === type)?.value);
   return [get('year'), get('month'), get('day'), get('hour'), get('minute'), get('second')];
 }
@@ -671,7 +679,7 @@ export function zonedParts(ms: number, tz: string): number[] {
  * guess. A second pass corrects again when the guess and the answer are on the 2
  * sides of a daylight-saving change.
  */
-export function zonedTimeToMs(parts: number[], tz: string): number {
+export function zonedTimeToMs(parts: number[], tz: string | undefined): number {
   const [y, mo, d, h, mi, s] = parts;
   const asUtc = Date.UTC(y, mo - 1, d, h, mi, s);
   const offsetAt = (ms: number): number => {
@@ -683,38 +691,28 @@ export function zonedTimeToMs(parts: number[], tz: string): number {
 }
 
 /**
- * The calendar date of the instant *ms* in Home Assistant's zone, or in the browser
- * zone when none is set. Month is 1-based.
- */
-function zonedDate(ms: number): number[] {
-  // `Intl` throws on an invalid instant. NaN parts give NaN, as `getDate()` does.
-  if (Number.isNaN(ms)) return [Number.NaN, Number.NaN, Number.NaN];
-  if (haTimeZone) return zonedParts(ms, haTimeZone).slice(0, 3);
-  const d = new Date(ms);
-  return [d.getFullYear(), d.getMonth() + 1, d.getDate()];
-}
-
-/**
  * The calendar day of the instant *ms* in Home Assistant's zone, as a count of days.
+ * Without a zone set, the browser zone is used.
  *
  * Only the difference between 2 values has a meaning. "Today" and "tomorrow" are days
  * in Home Assistant's zone, the same days that the to-do list and the calendar use
  * (X04-7).
  */
 export function zonedDayNumber(ms: number): number {
-  const [y, mo, d] = zonedDate(ms);
+  // `Intl` throws on an invalid instant. An invalid instant is on no day.
+  if (Number.isNaN(ms)) return Number.NaN;
+  const [y, mo, d] = zonedParts(ms, haTimeZone);
   return Date.UTC(y, mo - 1, d) / 86_400_000;
 }
 
 /** The instant at which the date *y*-*mo*-*d* starts in Home Assistant's zone. */
 export function zonedMidnight(y: number, mo: number, d: number): Date {
-  if (haTimeZone) return new Date(zonedTimeToMs([y, mo, d, 0, 0, 0], haTimeZone));
-  return new Date(y, mo - 1, d);
+  return new Date(zonedTimeToMs([y, mo, d, 0, 0, 0], haTimeZone));
 }
 
 /** The last millisecond of the day that holds the instant *ms*, in Home Assistant's zone. */
 export function endOfZonedDay(ms: number): number {
-  const [y, mo, d] = zonedDate(ms);
+  const [y, mo, d] = zonedParts(ms, haTimeZone);
   return zonedMidnight(y, mo, d + 1).getTime() - 1;
 }
 
