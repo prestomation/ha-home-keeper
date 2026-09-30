@@ -712,10 +712,67 @@ def test_b09_3_a_recorded_completion_on_the_new_date_keeps_the_schedule():
     tid = _only(tasks)["id"]
     # Exactly at local midnight of the new date: a completion stamps the part with
     # its own local date, so this is the case an undo must not snap back to.
-    tasks[tid] = r.apply_completion(
+    done = r.apply_completion(
         dict(tasks[tid]), datetime(2026, 5, 1, tzinfo=TZ), now=NOW
     )
+    # The completion alone blocks the move, whatever last_completed says.
+    tasks[tid] = {**done, "last_completed": None}
     assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+def test_b09_3_a_naive_completion_stamp_is_read_in_the_home_timezone():
+    before, after = _edited(_wear_part(), _wear_part(last_replaced="2026-05-01"))
+    tasks, _ = _reconcile({"a1": before})
+    tid = _only(tasks)["id"]
+    # Local midnight of the new date, stored without an offset.
+    tasks[tid] = {**tasks[tid], "completions": [{"ts": "2026-05-01T00:00:00"}]}
+    assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+def test_b09_3_skipped_tasks_and_parts_before_the_edited_one_do_not_stop_it():
+    """Every skip moves on to the next task or part; none ends the search."""
+    new_part = _wear_part(pid="p0", name="Belt", last_replaced="2026-05-01")
+    same = _wear_part(pid="p2", name="Filter", last_replaced="2026-01-01")
+    before = _asset(parts=[same, _wear_part()])
+    after = _asset(parts=[new_part, same, _wear_part(last_replaced="2026-05-01")])
+    reconciled, _ = _reconcile({"a1": before})
+    target = next(
+        t for t in reconciled.values() if t["source"]["part"]["part_id"] == "p1"
+    )
+    link = target["source"]["part"]
+    distractors = {
+        "plain": {**target, "id": "plain", "source": None},
+        "manual": {
+            **target,
+            "id": "manual",
+            "source": {"part": {**link, "manual": True}},
+        },
+        "elsewhere": {
+            **target,
+            "id": "elsewhere",
+            "source": {"part": {**link, "asset_id": "a2"}},
+        },
+        "other_part": {
+            **target,
+            "id": "other_part",
+            "source": {"part": {**link, "part_id": "p2"}},
+        },
+        "triggered": {**target, "id": "triggered", "recurrence_type": "triggered"},
+        "use": {**target, "id": "use", "source": {"part": {**link, "role": "use"}}},
+        "done": {
+            **target,
+            "id": "done",
+            "completions": [{"ts": datetime(2026, 5, 2, tzinfo=TZ).isoformat()}],
+        },
+        "anchored": {
+            **target,
+            "id": "anchored",
+            "last_completed": datetime(2026, 5, 1, tzinfo=TZ).isoformat(),
+        },
+    }
+    tasks = {**distractors, target["id"]: target}
+    moved = rc.reanchor_edited_parts(before, after, tasks, now=NOW)
+    assert list(moved) == [target["id"]]
 
 
 def test_b09_3_an_earlier_recorded_completion_does_not_block_the_move():

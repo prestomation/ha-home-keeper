@@ -1616,8 +1616,9 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
             "parent_asset_id", existing.get("parent_asset_id")
         ),
         # An update without ``parts`` does not touch them: the stored parts are kept
-        # below as they are, never normalized again (B05-1).
-        "parts": updates.get("parts", []),
+        # below as they are, never normalized again (B05-1). Equivalent mutant: the
+        # default is replaced by the stored parts below, and None normalizes to [].
+        "parts": updates.get("parts", []),  # pragma: no mutate
         "metadata": updates.get("metadata", existing.get("metadata", [])),
         "documents": updates.get("documents", existing.get("documents", [])),
         "related_device_ids": updates.get(
