@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Settings | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Settings | Home Keeper"><meta data-rh="true" name="description" content="The Settings tab in the panel edits the integration options. The form matches the"><meta data-rh="true" property="og:description" content="The Settings tab in the panel edits the integration options. The form matches the"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-396/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Settings","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/settings"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-396/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-396/assets/js/runtime~main.4ee4f6a0.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-396/assets/js/runtime~main.4f11cf07.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-396/assets/js/main.ebbd0ade.js" defer="defer"></script>
 </head>
 <body>
@@ -74,15 +74,19 @@ entity ID when the entity is first made and does not change it later. To get a
 shorter entity ID for an older entity, rename it in Home Assistant.</p>
 <p>The <em>Add from preset</em> picker offers 3 presets.</p>
 <ul>
-<li class=""><strong>Device Pulse</strong> targets the per-device ping sensors from
+<li class=""><strong>Device Pulse</strong> watches the ping status of each device in
 <a href="https://github.com/studiobts/home-assistant-device-pulse" target="_blank" rel="noopener noreferrer" class="">studiobts/home-assistant-device-pulse</a>.
-The Device Pulse integration must be installed.</li>
+It opens a task when a device is offline for 1 hour. The task closes when the
+device replies again. The Device Pulse integration must be installed.</li>
 <li class=""><strong>Firmware update available</strong> matches every <code>update.*</code> entity that reports <code>on</code>.
 This covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab.</li>
-<li class=""><strong>Device stopped reporting</strong> matches every <code>sensor.*_last_seen</code> entity. It opens a
-task for each device that has not reported for 24 hours. This finds the Zigbee or
-Z-Wave devices that dropped off the mesh. It needs no other integration.</li>
+<li class=""><strong>Device stopped reporting</strong> matches every <code>sensor.*_last_seen</code> timestamp sensor. It
+opens a task for each device that has not reported for 48 hours. This finds the
+Zigbee or Z-Wave devices that dropped off the mesh. It needs no other integration.</li>
 </ul>
+<p>A declarative companion keeps the settings it was saved with. A Device Pulse companion
+from before version 0.28.0b2 watches the total count of failed pings. That count never
+goes down, so its tasks do not close. Delete that companion and add the preset again.</p>
 <p>When a preset matches entities in your home, the Tasks tab suggests it. See
 <a class="" href="/ha-home-keeper/pr-preview/pr-396/docs/guide/panel#presets-for-your-home">Presets for your home</a>.</p>
 <p>A preset writes the task name and notes in the Home Assistant language. A later change
@@ -113,7 +117,7 @@ back. The preview shows 10 matches at most. To exclude an entity that is not in 
 preview, select it in the excluded entities list.</p>
 <p><img decoding="async" loading="lazy" alt="The declarative companion dialog with More filters open and one excluded entity in the Exclusions block" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21j-panel-declarative-filters-2b7e5a3e80b68dce582cab758580a4d7.png" width="612" height="2552" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The same dialog on a phone, with an Exclude button on each preview row" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21k-panel-mobile-declarative-filters-942c31fa383b70d769093875563d5f71.png" width="390" height="844" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21c-panel-declarative-preset-picker-c4d1c4323b7eab09e76a531749c03022.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21c-panel-declarative-preset-picker-6be6a6be30e2467b2f3391fce9bde940.png" width="1280" height="720" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21d-panel-declarative-add-dialog-b4de8259b8459bebdc5a742ee550a439.png" width="612" height="1682" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The page of a task a declarative companion made, with Edit and Edit companion buttons and no Done button while the task is monitored" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21e-panel-declarative-task-detail-ac7a46a408391a1443d1e0c6448be76c.png" width="1280" height="720" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The same task page on a phone" src="/ha-home-keeper/pr-preview/pr-396/assets/images/21e-mobile-companion-task-3f4cf0e209c7f1bc188e1e95712f9420.png" width="390" height="844" class="img_ev3q"></p>
