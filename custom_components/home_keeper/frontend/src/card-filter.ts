@@ -6,6 +6,7 @@ import {
   HK_DOMAIN,
   areaName,
   deviceName,
+  endOfZonedDay,
   groupableDeviceId,
   isBuyTask,
   isUseTask,
@@ -118,11 +119,9 @@ export const DUE_SOON_DAYS = 3;
 /** One day in milliseconds — the unit every "due in N days" window is counted in. */
 export const DAY_MS = 86_400_000;
 
-/** End of the local calendar day containing `now` (23:59:59.999). */
+/** End of the calendar day containing `now` (23:59:59.999), in Home Assistant's zone. */
 function endOfToday(now: number): number {
-  const d = new Date(now);
-  d.setHours(23, 59, 59, 999);
-  return d.getTime();
+  return endOfZonedDay(now);
 }
 
 /**

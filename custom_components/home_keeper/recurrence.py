@@ -588,7 +588,12 @@ def apply_completion(
     if rec_type == REC_FLOATING:
         task["next_due"] = _clamp_season(
             compute_floating_next_due(
-                _local(completed_at, now), int(task["interval"]), task["unit"], now=now
+                _local(completed_at, now),
+                int(task["interval"]),
+                task["unit"],
+                # Equivalent mutant: ``now`` is read only when the first argument is
+                # None, and a completion is never None here.
+                now=now,  # pragma: no mutate
             ),
             task,
         ).isoformat()

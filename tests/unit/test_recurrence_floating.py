@@ -274,6 +274,31 @@ def test_b07_2_deleting_the_latest_row_still_rewinds_the_clock():
     assert task["last_completed"] == jul1.isoformat()
 
 
+def test_b07_2_a_skip_at_the_same_instant_as_the_deleted_row_keeps_next_due():
+    """A skip at the instant of the removed completion is not before it."""
+    task = _monthly()
+    jul1, aug1 = la(2026, 7, 1, 9), la(2026, 8, 1, 9)
+    r.apply_completion(task, jul1, now=jul1)
+    r.apply_completion(task, aug1, now=aug1)
+    r.skip_occurrence(task, now=aug1)
+    skipped_due = task["next_due"]
+    assert skipped_due != la(2026, 8, 1, 9).isoformat()
+    r.remove_completion(task, aug1.isoformat(), now=la(2026, 8, 2))
+    assert task["last_completed"] == jul1.isoformat()
+    assert task["next_due"] == skipped_due
+
+
+def test_b07_3_a_first_completion_on_a_task_with_no_log_key():
+    """A task stored by an older release can have no ``completions`` key."""
+    task = _monthly()
+    del task["completions"]
+    done = la(2026, 7, 1, 9)
+    r.apply_completion(task, done, now=done)
+    assert task["last_completed"] == done.isoformat()
+    assert task["next_due"] == la(2026, 8, 1, 9).isoformat()
+    assert [c["ts"] for c in task["completions"]] == [done.isoformat()]
+
+
 def test_b07_4_undo_recalculates_on_the_ha_wall_clock_across_dst():
     """B07-4: done 23:30 PST, undo of a later Done keeps 23:30 PDT on Mar 20."""
     task = _monthly()

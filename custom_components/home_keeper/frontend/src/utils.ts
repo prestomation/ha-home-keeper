@@ -682,6 +682,42 @@ export function zonedTimeToMs(parts: number[], tz: string): number {
   return asUtc - offsetAt(first);
 }
 
+/**
+ * The calendar date of the instant *ms* in Home Assistant's zone, or in the browser
+ * zone when none is set. Month is 1-based.
+ */
+function zonedDate(ms: number): number[] {
+  // `Intl` throws on an invalid instant. NaN parts give NaN, as `getDate()` does.
+  if (Number.isNaN(ms)) return [Number.NaN, Number.NaN, Number.NaN];
+  if (haTimeZone) return zonedParts(ms, haTimeZone).slice(0, 3);
+  const d = new Date(ms);
+  return [d.getFullYear(), d.getMonth() + 1, d.getDate()];
+}
+
+/**
+ * The calendar day of the instant *ms* in Home Assistant's zone, as a count of days.
+ *
+ * Only the difference between 2 values has a meaning. "Today" and "tomorrow" are days
+ * in Home Assistant's zone, the same days that the to-do list and the calendar use
+ * (X04-7).
+ */
+export function zonedDayNumber(ms: number): number {
+  const [y, mo, d] = zonedDate(ms);
+  return Date.UTC(y, mo - 1, d) / 86_400_000;
+}
+
+/** The instant at which the date *y*-*mo*-*d* starts in Home Assistant's zone. */
+export function zonedMidnight(y: number, mo: number, d: number): Date {
+  if (haTimeZone) return new Date(zonedTimeToMs([y, mo, d, 0, 0, 0], haTimeZone));
+  return new Date(y, mo - 1, d);
+}
+
+/** The last millisecond of the day that holds the instant *ms*, in Home Assistant's zone. */
+export function endOfZonedDay(ms: number): number {
+  const [y, mo, d] = zonedDate(ms);
+  return zonedMidnight(y, mo, d + 1).getTime() - 1;
+}
+
 // ── Dates and times, as a person would write them ───────────────────────────
 /**
  * A date, in the viewer's language — "1 Jul 2026", not "7/1/2026".
@@ -1104,14 +1140,9 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
   }
   if (!task.next_due) return t('due.none');
   const due = new Date(task.next_due);
-  // Compare calendar days (local midnights), not rolling 24h windows: at 20:00 a
-  // task due 08:00 tomorrow should read "tomorrow", not "today".
-  const startOfDay = (d: Date) => {
-    const x = new Date(d);
-    x.setHours(0, 0, 0, 0);
-    return x.getTime();
-  };
-  const days = Math.round((startOfDay(due) - startOfDay(now)) / 86_400_000);
+  // Compare calendar days in Home Assistant's zone, not rolling 24h windows: at 20:00
+  // a task due 08:00 tomorrow should read "tomorrow", not "today".
+  const days = zonedDayNumber(due.getTime()) - zonedDayNumber(now.getTime());
   if (days === 0) return t('due.today');
   if (days > 0) return days === 1 ? t('due.tomorrow') : tn('due.in_days', days);
   const ago = Math.abs(days);
