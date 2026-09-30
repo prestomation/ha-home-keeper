@@ -778,6 +778,24 @@ def reconcile_part_tasks(
                     merged["next_due"] = recurrence.compute_next_due(
                         merged, now=now
                     ).isoformat()
+            if (
+                anchored
+                and rec_type == REC_FLOATING
+                and before.get("recurrence_type") != REC_FLOATING
+            ):
+                # A counted part switched back to time (B09-3). The replacement task
+                # was dormant, so its last_completed can be older than the part's
+                # recorded replacement, or empty. Start the time cycle from the later
+                # of the 2, as creation does. This runs once, on the conversion, so a
+                # later undo of a completion is never snapped back to the part date.
+                last = qualify_iso(merged.get("last_completed"), now.tzinfo)
+                if last is None or datetime.fromisoformat(
+                    anchored
+                ) > datetime.fromisoformat(last):
+                    merged = {**merged, "last_completed": anchored}
+                    merged["next_due"] = recurrence.compute_next_due(
+                        merged, now=now
+                    ).isoformat()
             if merged is not before:
                 result[existing_tid] = merged
                 changed = True

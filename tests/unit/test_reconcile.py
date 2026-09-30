@@ -839,3 +839,62 @@ def test_b09_3_a_use_role_task_does_not_move():
     use_link = {"asset_id": "a1", "part_id": "p1", "role": "use"}
     tasks[tid] = {**tasks[tid], "source": {"part": use_link}}
     assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+# ── a counted part switched back to time (B09-3) ─────────────────────────────
+_COUNTED = {"replace_unit": "uses", "replace_interval": 25}
+
+
+def _replace_task(tasks):
+    return next(t for t in tasks.values() if rc.part_role(t) == "replace")
+
+
+def _switched_to_months(last_replaced, *, last_completed=None):
+    """Reconcile a counted part, then the same part measured in months."""
+    counted = _wear_part(last_replaced=last_replaced, **_COUNTED)
+    tasks, _ = _reconcile({"a1": _asset(parts=[counted])})
+    replace = _replace_task(tasks)
+    assert replace["recurrence_type"] == "triggered"
+    if last_completed is not None:
+        tasks[replace["id"]] = {**replace, "last_completed": last_completed}
+    timed = _wear_part(last_replaced=last_replaced, interval=6)
+    new_tasks, changed = _reconcile({"a1": _asset(parts=[timed])}, tasks)
+    assert changed is True
+    return _only(new_tasks)
+
+
+def test_b09_3_switching_a_counted_part_to_months_starts_from_last_replaced():
+    """B09-3: the time cycle starts from the part's date, not from now."""
+    task = _switched_to_months("2026-05-01")
+    anchor = datetime(2026, 5, 1, tzinfo=TZ)
+    assert task["recurrence_type"] == "floating"
+    assert task["last_completed"] == anchor.isoformat()
+    assert task["next_due"] == datetime(2026, 11, 1, tzinfo=TZ).isoformat()
+
+
+def test_b09_3_switching_to_months_keeps_a_later_completion():
+    later = datetime(2026, 5, 20, 9, tzinfo=TZ).isoformat()
+    task = _switched_to_months("2026-05-01", last_completed=later)
+    assert task["last_completed"] == later
+    assert task["next_due"] == datetime(2026, 11, 20, 9, tzinfo=TZ).isoformat()
+
+
+def test_b09_3_switching_to_months_moves_past_an_earlier_completion():
+    earlier = datetime(2026, 4, 30, 23, tzinfo=TZ).isoformat()
+    task = _switched_to_months("2026-05-01", last_completed=earlier)
+    assert task["last_completed"] == datetime(2026, 5, 1, tzinfo=TZ).isoformat()
+
+
+def test_b09_3_switching_to_months_with_no_date_stays_due_now():
+    task = _switched_to_months(None)
+    assert task["last_completed"] is None
+    assert task["next_due"] == NOW.isoformat()
+
+
+def test_b09_3_an_existing_floating_task_is_not_moved_by_the_reconcile():
+    """Only the conversion re-anchors. An edit goes through reanchor_edited_parts."""
+    tasks, _ = _reconcile({"a1": _asset(parts=[_wear_part()])})
+    dated = _asset(parts=[_wear_part(last_replaced="2026-05-01")])
+    again, changed = _reconcile({"a1": dated}, tasks)
+    assert changed is False
+    assert _only(again)["last_completed"] is None

@@ -1019,9 +1019,19 @@ class HomeKeeperStore:
         because a task points at an appliance's device.
         """
         events_to_fire: list[tuple[str, dict[str, Any]]] = []
+        # (asset_id, parts before, parts after) for each appliance the import merged
+        # into, so the files of parts it removed are deleted after the save (B06-3).
+        replaced_parts: list[tuple[str, Any, Any]] = []
+        # The appliance before and after, for a changed "Last replaced" (B09-3).
+        merged_assets: list[tuple[dict[str, Any], dict[str, Any]]] = []
         for asset_id, record, is_new in assets_to_write:
             existing = self._assets.get(asset_id)
             self._assets[asset_id] = record
+            if existing is not None:
+                replaced_parts.append(
+                    (asset_id, existing.get("parts"), record.get("parts"))
+                )
+                merged_assets.append((existing, record))
             if is_new or existing is None:
                 events_to_fire.append(
                     (EVENT_ASSET_CREATED, events.asset_event_data(record))
@@ -1061,7 +1071,32 @@ class HomeKeeperStore:
                             ),
                         )
                     )
+        # A task the import wrote carries its own schedule; only a task it left
+        # alone follows its appliance's changed "Last replaced" date (B09-3).
+        imported_task_ids = {task_id for task_id, _record, _new in tasks_to_write}
+        untouched = {
+            tid: task
+            for tid, task in self._tasks.items()
+            if tid not in imported_task_ids
+        }
+        now = dt_util.now()
+        for before, after in merged_assets:
+            reanchored = _reanchor_edited_parts(before, after, untouched, now=now)
+            self._tasks.update(reanchored)
+            untouched.update(reanchored)
+            for task in reanchored.values():
+                events_to_fire.append(
+                    (
+                        EVENT_TASK_UPDATED,
+                        events.task_event_data(
+                            task,
+                            extra={"changed_fields": ["last_completed", "next_due"]},
+                        ),
+                    )
+                )
         await self._save()
+        for asset_id, parts_before, parts_after in replaced_parts:
+            await self._delete_dropped_part_files(asset_id, parts_before, parts_after)
         _LOGGER.debug(
             "Imported %d appliances and %d tasks",
             len(assets_to_write),

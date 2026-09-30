@@ -937,3 +937,87 @@ def test_b15_3_a_restock_past_the_maximum_keeps_the_appliance_editable(store):
     assert _run(store.update_asset(asset["id"], {"parts": parts}))["parts"][0][
         "stock"
     ] == (10000)
+
+
+# ── an import merge (B06-3 and B09-3 on the import path) ─────────────────────
+
+
+def _import_merge(store, asset, parts, *, tasks_to_write=()):
+    """Write an import that merges *parts* into *asset*, as transfer_runner does."""
+    record = assets_model.merge_update(asset, {"parts": parts}, now=NOW)
+    _run(
+        store.async_import_records(
+            assets_to_write=[(asset["id"], record, False)],
+            tasks_to_write=list(tasks_to_write),
+        )
+    )
+    return record
+
+
+def test_b06_3_an_import_that_removes_a_part_deletes_its_file(
+    store, deleted_part_files
+):
+    asset = _asset(store, parts=[{"name": "Filter"}, {"name": "Belt"}])
+    filter_part, belt = asset["parts"]
+    assets_model.set_part_file(asset, filter_part["id"], _FILE)
+    assets_model.set_part_file(asset, belt["id"], _FILE)
+
+    _import_merge(store, asset, [{"id": belt["id"], "name": "Belt"}])
+
+    assert deleted_part_files == [(asset["id"], filter_part["id"], "receipt.pdf")]
+    assert store._assets[asset["id"]]["parts"][0]["file_name"] == "receipt.pdf"
+
+
+def test_b06_3_an_import_of_a_new_appliance_deletes_no_file(store, deleted_part_files):
+    record = assets_model.build_asset({"name": "New", "parts": []}, now=NOW)
+    _run(
+        store.async_import_records(
+            assets_to_write=[(record["id"], record, True)], tasks_to_write=[]
+        )
+    )
+    assert deleted_part_files == []
+
+
+_WEAR = {"name": "Filter", "type": "wear", "replace_interval": 6}
+
+
+def _wear_asset_and_task(store):
+    asset = _asset(store, parts=[_WEAR])
+    _run(store.reconcile_part_tasks())
+    task = next(iter(store._tasks.values()))
+    assert task["last_completed"] is None
+    return asset, task
+
+
+def test_b09_3_an_import_that_changes_last_replaced_moves_the_wear_task(store):
+    asset, task = _wear_asset_and_task(store)
+    part = asset["parts"][0]
+
+    _import_merge(
+        store, asset, [{**_WEAR, "id": part["id"], "last_replaced": "2026-05-01"}]
+    )
+
+    moved = store._tasks[task["id"]]
+    assert moved["last_completed"] == datetime(2026, 5, 1, tzinfo=TZ).isoformat()
+    assert moved["next_due"] == datetime(2026, 11, 1, tzinfo=TZ).isoformat()
+    updated = store._hass.bus.of("home_keeper_task_updated")
+    assert [(e["task_id"], e["changed_fields"]) for e in updated] == [
+        (task["id"], ["last_completed", "next_due"])
+    ]
+
+
+def test_b09_3_an_import_keeps_the_schedule_of_a_task_it_writes(store):
+    """A task in the same import carries its own schedule; it is not moved."""
+    asset, task = _wear_asset_and_task(store)
+    part = asset["parts"][0]
+    imported = {**task, "name": "Imported"}
+
+    _import_merge(
+        store,
+        asset,
+        [{**_WEAR, "id": part["id"], "last_replaced": "2026-05-01"}],
+        tasks_to_write=[(task["id"], imported, False)],
+    )
+
+    assert store._tasks[task["id"]] is imported
+    assert imported["last_completed"] is None
