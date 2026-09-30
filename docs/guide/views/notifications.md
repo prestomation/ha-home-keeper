@@ -10,6 +10,10 @@ tasks from their own profile. The buttons act on the task in Home Keeper:
 - **Skip** moves the task to its next occurrence.
 - **Open** opens the task in Home Keeper.
 
+A notification can stay on the phone after the task changes, such as when a user
+completes the task in the panel. Mark done, Snooze, and Skip on that old
+notification then do nothing, so the task does not move again.
+
 #### Configuration
 
 Configure notifications in **Settings → Notifications**. Each notification has these
