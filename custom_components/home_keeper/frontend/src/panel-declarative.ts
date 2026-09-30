@@ -877,7 +877,9 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       target: trig.target,
       template: trig.template,
       for_seconds: trig.for_seconds ?? 0,
-      clear_on_recover: trig.clear_on_recover !== false,
+      // The backend stores this flag only when on in the edge modes, so a missing key
+      // means off there. Availability defaults it on (F06-1), as the task form does.
+      clear_on_recover: trig.clear_on_recover ?? mode === 'availability',
       attribute: trig.attribute,
     },
     (v) => {
@@ -889,7 +891,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       if ('target' in v) trig.target = num(v.target);
       if ('template' in v) trig.template = String(v.template ?? '');
       if ('for_seconds' in v) trig.for_seconds = num(v.for_seconds) ?? 0;
-      if ('clear_on_recover' in v) trig.clear_on_recover = v.clear_on_recover !== false;
+      if ('clear_on_recover' in v) trig.clear_on_recover = v.clear_on_recover === true;
       if ('attribute' in v) {
         const attribute = str(v.attribute);
         if (attribute) trig.attribute = attribute;

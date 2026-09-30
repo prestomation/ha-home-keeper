@@ -106,6 +106,8 @@
   "confirm.cannotUndo": "Dette kan ikke angres.",
   "confirm.completeTask": "Merk \"{name}\" som fullført?",
   "confirm.deleteAsset": "Slett \"{name}\"?",
+  "confirm.deleteOrphans.one": "Slette {n} foreldreløs oppgave?",
+  "confirm.deleteOrphans.other": "Slette {n} foreldreløse oppgaver?",
   "confirm.deleteProfile": "Slette \"{name}\"?",
   "confirm.deleteTask": "Slett \"{name}\"?",
   "confirm.profileInUseBody": "Disse varslene bruker denne profilen: {notifications}. Endre eller slett hvert av dem, og prøv igjen.",

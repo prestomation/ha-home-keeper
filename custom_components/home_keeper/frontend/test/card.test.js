@@ -175,6 +175,37 @@ describe('HomeKeeperCard completion guard', () => {
     expect(completeCalls, 'only one completion should be sent').toBe(1);
     resolveComplete?.({});
   });
+
+  it('X12-4: sends one add for a double press of Create', async () => {
+    const card = makeCard();
+    let addCalls = 0;
+    let resolveAdd;
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: sampleTasks };
+        if (msg.type === 'home_keeper/add_task') {
+          addCalls++;
+          // A device-linked add waits for an entry reload before it replies.
+          await new Promise((r) => (resolveAdd = r));
+          return { task: { id: 'new' } };
+        }
+        return {};
+      },
+    };
+    await waitFor(() => sr(card)?.querySelector('.hk-done'));
+    card._edit = { open: true, task: { name: 'Clean gutters', recurrence_type: 'floating' } };
+    card._render();
+    const create = sr(card).querySelector('.hk-form-actions ha-button');
+    create.click();
+    expect(create.hasAttribute('disabled')).toBe(true);
+    create.click();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(addCalls, 'only one add should be sent').toBe(1);
+    resolveAdd?.();
+    await waitFor(() => !card._edit.open);
+    expect(card._edit.open).toBe(false);
+  });
 });
 
 describe('HomeKeeperCard monitored rows (issue #231)', () => {

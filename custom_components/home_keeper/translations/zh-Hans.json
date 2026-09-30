@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "删除孤立任务",
+      "description": "删除由未加载（已移除、已禁用或未设置）的集成管理的每个任务。仅限管理员。在 \"deleted\" 键下返回已删除任务的 ID。"
+    },
     "complete_task": {
       "name": "完成任务",
       "description": "将任务标记为完成并推进其重复周期。",

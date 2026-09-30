@@ -807,7 +807,21 @@ def test_availability_clear_on_recover_can_be_disabled():
             "clear_on_recover": False,
         }
     )
-    assert "clear_on_recover" not in cfg
+    assert cfg["clear_on_recover"] is False
+
+
+def test_f06_2_availability_clear_on_recover_off_survives_a_second_normalize():
+    # The declarative reconciler and build_task normalize the binding again. A dropped
+    # False read back as the default True, so auto-clear could never be turned off.
+    once = m.normalize_sensor(
+        {"entity_id": "sensor.node", "mode": "availability", "clear_on_recover": False}
+    )
+    twice = m.normalize_sensor(once)
+    assert twice == once
+    assert twice["clear_on_recover"] is False
+    default = m.normalize_sensor({"entity_id": "sensor.node", "mode": "availability"})
+    assert m.normalize_sensor(default) == default
+    assert default["clear_on_recover"] is True
 
 
 @pytest.mark.parametrize(

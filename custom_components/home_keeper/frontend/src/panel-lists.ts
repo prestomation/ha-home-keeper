@@ -32,6 +32,7 @@ import {
   scopeMatches,
 } from './panel-controls';
 import { deferMenu } from './panel-defer';
+import { openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { TASK_CARD_INLINE_CHIPS } from './panel-styles';
 import { LS_TREE_COLLAPSED } from './panel-types';
@@ -128,7 +129,7 @@ export function tasksList(p: PanelHost): string {
 /**
  * A dismissable-style warning shown above the task list when one or more managed
  * tasks have been orphaned (their integration was uninstalled/disabled). Offers a
- * one-click "Remove orphaned tasks" cleanup so the user isn't stuck with tasks no
+ * "Remove orphaned tasks" cleanup (it asks first) so the user is not stuck with tasks no
  * integration owns any more.
  */
 function orphanBanner(p: PanelHost): string {
@@ -143,13 +144,26 @@ function orphanBanner(p: PanelHost): string {
       </ha-alert>`;
 }
 
-/** Delete every orphaned managed task (the bulk cleanup action). */
-async function cleanupOrphans(p: PanelHost): Promise<void> {
+/**
+ * Delete every orphaned managed task (the bulk cleanup action), after a confirmation
+ * that names the count (F07-5). One backend call deletes them all, with one save and
+ * at most one reload (X08-1); a loop of single deletes reloaded once per task.
+ */
+function cleanupOrphans(p: PanelHost): void {
+  const n = p._tasks.filter((task) => isManagedOrphan(p, task)).length;
+  if (!n) return;
+  openConfirmDialog(
+    p,
+    tn('confirm.deleteOrphans', n),
+    () => void removeOrphans(p),
+    `${tn('managed.orphanBanner', n)} ${t('confirm.cannotUndo')}`,
+  );
+}
+
+async function removeOrphans(p: PanelHost): Promise<void> {
   if (!p._hass) return;
-  const orphans = p._tasks.filter((task) => isManagedOrphan(p, task));
-  if (!orphans.length) return;
   try {
-    for (const task of orphans) await api.deleteTask(p._hass, task.id);
+    await api.deleteOrphanedTasks(p._hass);
   } catch (err) {
     toast(p, String((err as { message?: string })?.message || err));
   }
@@ -423,7 +437,7 @@ export function assetAncestry(p: PanelHost, assetId: string): string {
 export function wireLists(p: PanelHost, root: ParentNode): void {
   root
     .querySelector<HTMLElement>('#cleanup-orphans-btn')
-    ?.addEventListener('click', () => void cleanupOrphans(p));
+    ?.addEventListener('click', () => cleanupOrphans(p));
 
   // The way out of a filter that matches nothing: clears the text, the scope *and*
   // any active Profile, since any of the three can be what emptied the list.
@@ -474,7 +488,7 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
     root.querySelectorAll<HTMLElement>('.done-btn').forEach((b) =>
       b.addEventListener('click', () => {
         const task = p._tasks.find((x) => x.id === b.dataset.id);
-        if (task) void p._complete(task);
+        if (task) void p._complete(task, b);
       }),
     );
     // One caret per row, each resolving its own task.

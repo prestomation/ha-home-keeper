@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Verweesde taken verwijderen",
+      "description": "Verwijdert elke taak die een integratie beheert wanneer die integratie niet geladen is (verwijderd, uitgeschakeld of niet ingesteld). Alleen voor beheerders. Geeft de ID's van de verwijderde taken terug onder \"deleted\"."
+    },
     "complete_task": {
       "name": "Taak voltooien",
       "description": "Markeer een taak als voltooid en zet de herhaling vooruit.",

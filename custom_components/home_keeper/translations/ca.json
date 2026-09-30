@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Elimina les tasques òrfenes",
+      "description": "Elimina cada tasca gestionada per una integració quan aquesta integració no està carregada (eliminada, desactivada o sense configurar). Només per a administradors. Retorna els ID de les tasques eliminades a \"deleted\"."
+    },
     "complete_task": {
       "name": "Completar tasca",
       "description": "Marcar una tasca com a completada i avançar la seva recurrència.",

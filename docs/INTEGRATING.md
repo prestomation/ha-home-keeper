@@ -336,9 +336,11 @@ owner is present, so a user is never stuck with tasks they can't remove:
 - **Orphan detection.** When the `config_entry_id` you recorded is no longer loaded
   (uninstalled, disabled, or failing to set up), Home Keeper treats the task as
   *orphaned*: the chip flips to **"Integration offline"**, the **Delete** button comes
-  back, and the task list shows a **"Remove orphaned tasks"** banner for one-click bulk
-  cleanup. Supplying `config_entry_id` matters, since that's how Home Keeper knows
-  your integration went away.
+  back, and the task list shows a **"Remove orphaned tasks"** banner for bulk cleanup.
+  The button asks for confirmation, then calls `home_keeper.delete_orphaned_tasks`
+  (admin-only), which deletes all orphaned tasks in one save and reloads Home Keeper
+  once at most. Supplying `config_entry_id` matters, since that's how Home Keeper
+  knows your integration went away.
 - **Force escape hatch.** `home_keeper.delete_task` accepts `force: true`, which bypasses
   protection entirely. It's the last-resort path (e.g. Developer Tools → Actions) for a
   task that has no `config_entry_id` recorded, or any other edge case:

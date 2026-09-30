@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Supprimer les tâches orphelines",
+      "description": "Supprime chaque tâche gérée par une intégration lorsque cette intégration n'est pas chargée (supprimée, désactivée ou non configurée). Réservé aux administrateurs. Renvoie les ID des tâches supprimées sous \"deleted\"."
+    },
     "complete_task": {
       "name": "Terminer la tâche",
       "description": "Marquer une tâche comme terminée et faire avancer sa récurrence.",

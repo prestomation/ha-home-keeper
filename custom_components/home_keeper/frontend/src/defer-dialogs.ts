@@ -18,7 +18,7 @@ import { selDateTime, selSelect, selText } from './forms';
 import { t } from './i18n';
 import type { Hass, Task } from './types';
 import type { SnoozePresetId } from './utils';
-import { SNOOZE_PRESETS, setBtnWeight, taskRecordsReading } from './utils';
+import { SNOOZE_PRESETS, guardWrite, setBtnWeight, taskRecordsReading } from './utils';
 
 /** What a host must supply for the menu to do anything. */
 export interface DeferMenuHost {
@@ -146,14 +146,14 @@ export interface DeferDialogHost {
 function footerButtons(
   footer: HTMLElement,
   primaryLabel: string,
-  onPrimary: () => void,
+  onPrimary: (button: Element) => void,
   onCancel: () => void,
 ): void {
   const primary = document.createElement('ha-button');
   primary.setAttribute('slot', 'primaryAction');
   setBtnWeight(primary, 'primary');
   primary.textContent = primaryLabel;
-  primary.addEventListener('click', onPrimary);
+  primary.addEventListener('click', () => onPrimary(primary));
   footer.appendChild(primary);
 
   const cancel = document.createElement('ha-button');
@@ -211,7 +211,7 @@ export function renderSnoozeDialog(
   body.appendChild(hint);
 
   errorAlert(body, s.error);
-  footerButtons(footer, t('btn.snooze'), () => void submitSnooze(host, s, close), close);
+  footerButtons(footer, t('btn.snooze'), (b) => void submitSnooze(host, s, close, b), close);
   mount();
   mountTo.appendChild(dialog);
 }
@@ -226,18 +226,27 @@ export async function submitSnooze(
   host: DeferDialogHost,
   s: SnoozeState,
   close: () => void,
+  button?: Element | null,
 ): Promise<void> {
   const until = snoozeTarget(s);
   const hass = host.hass();
-  if (!hass || !s.task || !until) return;
-  try {
-    await api.snoozeTask(hass, s.task.id, until.toISOString());
-    close();
-    await host.refresh();
-  } catch (err) {
-    s.error = String((err as { message?: string })?.message || err);
-    host.rerender();
-  }
+  const task = s.task;
+  if (!hass || !task || !until) return;
+  // A second press while the first call runs is ignored (X12-3).
+  await guardWrite(
+    s,
+    async () => {
+      try {
+        await api.snoozeTask(hass, task.id, until.toISOString());
+        close();
+        await host.refresh();
+      } catch (err) {
+        s.error = String((err as { message?: string })?.message || err);
+        host.rerender();
+      }
+    },
+    button,
+  );
 }
 
 /**
@@ -302,7 +311,7 @@ export function renderSkipDialog(
   footerButtons(
     footer,
     editing ? t('btn.save') : t('btn.skip'),
-    () => void submitSkip(host, s, close),
+    (b) => void submitSkip(host, s, close, b),
     close,
   );
   mount();
@@ -313,16 +322,25 @@ export async function submitSkip(
   host: DeferDialogHost,
   s: SkipState,
   close: () => void,
+  button?: Element | null,
 ): Promise<void> {
   const hass = host.hass();
-  if (!hass || !s.task) return;
-  try {
-    if (s.ts != null) await api.updateSkip(hass, s.task.id, s.ts, s.data);
-    else await api.skipTask(hass, s.task.id, s.data);
-    close();
-    await host.refresh();
-  } catch (err) {
-    s.error = String((err as { message?: string })?.message || err);
-    host.rerender();
-  }
+  const task = s.task;
+  if (!hass || !task) return;
+  // A double click must not skip two occurrences (X12-3).
+  await guardWrite(
+    s,
+    async () => {
+      try {
+        if (s.ts != null) await api.updateSkip(hass, task.id, s.ts, s.data);
+        else await api.skipTask(hass, task.id, s.data);
+        close();
+        await host.refresh();
+      } catch (err) {
+        s.error = String((err as { message?: string })?.message || err);
+        host.rerender();
+      }
+    },
+    button,
+  );
 }

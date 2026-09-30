@@ -106,6 +106,8 @@
   "confirm.cannotUndo": "This cannot be undone.",
   "confirm.completeTask": "Mark \"{name}\" done?",
   "confirm.deleteAsset": "Delete \"{name}\"?",
+  "confirm.deleteOrphans.one": "Delete {n} orphaned task?",
+  "confirm.deleteOrphans.other": "Delete {n} orphaned tasks?",
   "confirm.deleteProfile": "Delete \"{name}\"?",
   "confirm.deleteTask": "Delete \"{name}\"?",
   "confirm.profileInUseBody": "These notifications use this profile: {notifications}. Change or delete each one, and then try again.",

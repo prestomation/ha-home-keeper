@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Smazat osiřelé úkoly",
+      "description": "Smaže každý úkol spravovaný integrací, když tato integrace není načtena (odebrána, zakázána nebo nenastavena). Pouze pro správce. Vrací ID smazaných úkolů pod klíčem \"deleted\"."
+    },
     "complete_task": {
       "name": "Dokončit úkol",
       "description": "Označit úkol jako dokončený a posunout jeho opakování.",

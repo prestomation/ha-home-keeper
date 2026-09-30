@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Eliminar tareas huérfanas",
+      "description": "Elimina cada tarea gestionada por una integración cuando esa integración no está cargada (eliminada, desactivada o sin configurar). Solo para administradores. Devuelve los ID de las tareas eliminadas en \"deleted\"."
+    },
     "complete_task": {
       "name": "Completar tarea",
       "description": "Marcar una tarea como completada y avanzar su recurrencia.",

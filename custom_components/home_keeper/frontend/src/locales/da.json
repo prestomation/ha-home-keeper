@@ -106,6 +106,8 @@
   "confirm.cannotUndo": "Dette kan ikke fortrydes.",
   "confirm.completeTask": "Marker \"{name}\" som udført?",
   "confirm.deleteAsset": "Slet \"{name}\"?",
+  "confirm.deleteOrphans.one": "Slet {n} forældreløs opgave?",
+  "confirm.deleteOrphans.other": "Slet {n} forældreløse opgaver?",
   "confirm.deleteProfile": "Slet \"{name}\"?",
   "confirm.deleteTask": "Slet \"{name}\"?",
   "confirm.profileInUseBody": "Disse notifikationer bruger denne profil: {notifications}. Ret eller slet hver af dem, og prøv igen.",

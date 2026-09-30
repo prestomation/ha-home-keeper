@@ -106,6 +106,8 @@
   "confirm.cannotUndo": "此操作无法撤销。",
   "confirm.completeTask": "将“{name}”标记为完成？",
   "confirm.deleteAsset": "删除\"{name}\"？",
+  "confirm.deleteOrphans.one": "删除 {n} 个孤立任务？",
+  "confirm.deleteOrphans.other": "删除 {n} 个孤立任务？",
   "confirm.deleteProfile": "要删除“{name}”吗？",
   "confirm.deleteTask": "删除\"{name}\"？",
   "confirm.profileInUseBody": "以下通知正在使用此配置文件：{notifications}。请更改或删除每一条，然后重试。",

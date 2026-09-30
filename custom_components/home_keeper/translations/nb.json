@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Slett foreldreløse oppgaver",
+      "description": "Sletter hver oppgave som en integrasjon administrerer, når denne integrasjonen ikke er lastet inn (fjernet, deaktivert eller ikke satt opp). Kun for administratorer. Returnerer ID-ene til de slettede oppgavene under \"deleted\"."
+    },
     "complete_task": {
       "name": "Fullfør oppgave",
       "description": "Merk en oppgave som fullført og gå videre til neste gjentakelse.",

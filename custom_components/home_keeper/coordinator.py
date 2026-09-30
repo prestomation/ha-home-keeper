@@ -77,6 +77,23 @@ def task_has_entities(task: dict[str, Any] | None) -> bool:
     return bool(task and task.get("device_id") and task.get("enabled", True))
 
 
+async def async_delete_orphaned_tasks(
+    hass: HomeAssistant, coord: HomeKeeperCoordinator
+) -> list[str]:
+    """Delete every orphaned managed task, then reload or refresh once (X08-1).
+
+    Shared by the ``delete_orphaned_tasks`` service and its websocket twin. One store
+    save for the whole batch, and at most one entry reload: a reload per task flapped
+    every Home Keeper entity once per deleted task. Returns the deleted task ids.
+    """
+    removed = await coord.store.delete_orphaned_tasks()
+    if any(task_has_entities(task) for task in removed):
+        await hass.config_entries.async_reload(coord.entry.entry_id)
+    elif removed:
+        await coord.async_request_refresh()
+    return [task["id"] for task in removed]
+
+
 class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     """Coordinator exposing the current task map to all entities."""
 

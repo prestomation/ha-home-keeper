@@ -50,10 +50,10 @@ import type { PanelHost } from './panel-host';
 import { MDI_CONSUMABLE, MDI_DELETE, MDI_EDIT, MDI_OPEN_IN_NEW, MDI_WEAR } from './panel-icons';
 import { UPLOAD_KEY_DOCUMENT, uploadKeyPart } from './panel-types';
 import {
+  failInline,
   filePicker,
   renderUploadStatus,
   runUpload,
-  setAssetError,
   uploadButtonLabel,
 } from './panel-upload';
 import type { Asset, AssetDocument, Hass, MetadataEntry, MetadataType, Part } from './types';
@@ -212,10 +212,16 @@ function renderDocumentCard(p: PanelHost, inner: HTMLElement, d: AssetDocument):
       },
       remove: {
         label: t('btn.removeDocument'),
-        onClick: () => void removeDocument(p, d),
+        // The backend deletes an uploaded file at once, and the drawer's Cancel does
+        // not bring it back, so ask first (F08-3).
+        onClick: () =>
+          openConfirmDialog(p, t('confirm.removeNamed', { name: documentLabel(d) }), () => {
+            void removeDocument(p, d);
+          }),
       },
     }),
   );
+  renderUploadStatus(p, inner, docErrorKey(d));
 }
 
 /** The name + URL a link document is described by. The same grid serves the add form
@@ -239,7 +245,15 @@ function renderDocumentEdit(p: PanelHost, inner: HTMLElement, d: AssetDocument):
   const box = document.createElement('div');
   box.className = 'hk-entry hk-doc-edit';
   const isLink = d.kind === 'link';
-  const draft = { name: d.name || '', url: d.kind === 'link' ? d.url ?? '' : '' };
+  // Kept on the drawer state, so a failed Save (or any other render) keeps the
+  // correction the user typed rather than the stored values (F08-1).
+  const kept = p._assetEdit.docEditDraft;
+  const draft =
+    kept && kept.id === d.id
+      ? kept
+      : { id: d.id ?? '', name: d.name || '', url: d.kind === 'link' ? d.url ?? '' : '' };
+  p._assetEdit.docEditDraft = draft;
+  const key = docErrorKey(d);
   const schema: FormField[] = isLink ? documentSchema() : [{ name: 'doc_name', selector: selText() }];
   const data = isLink ? { doc_name: draft.name, doc_url: draft.url } : { doc_name: draft.name };
   box.appendChild(
@@ -262,11 +276,19 @@ function renderDocumentEdit(p: PanelHost, inner: HTMLElement, d: AssetDocument):
   cancel.textContent = t('btn.cancel');
   cancel.addEventListener('click', () => {
     p._assetEdit.editingDocId = undefined;
+    p._assetEdit.docEditDraft = undefined;
+    if (p._assetEdit.uploadError?.key === key) p._assetEdit.uploadError = undefined;
     p._render();
   });
   row.append(save, cancel);
   box.appendChild(row);
+  renderUploadStatus(p, box, key);
   inner.appendChild(box);
+}
+
+/** The inline-error key for one document's card or editor. */
+function docErrorKey(d: AssetDocument): string {
+  return `doc:${d.id ?? ''}`;
 }
 
 /** The "add a document" area: a name + URL link form (always available, even before
@@ -280,9 +302,11 @@ function renderDocumentAdd(p: PanelHost, inner: HTMLElement): void {
   title.textContent = t('doc.addHeading');
   add.appendChild(title);
 
-  const draft: { name: string; url: string } = { name: '', url: '' };
+  // On the drawer state, so a failed Add link — or an unrelated render such as Add
+  // part — keeps what the user typed (F08-1). `addLinkDocument` clears it on success.
+  const draft = (p._assetEdit.docDraft ??= { name: '', url: '' });
   add.appendChild(
-    p._makeForm(documentSchema(), { doc_name: '', doc_url: '' }, (value) => {
+    p._makeForm(documentSchema(), { doc_name: draft.name, doc_url: draft.url }, (value) => {
       draft.name = String(value.doc_name ?? '');
       draft.url = String(value.doc_url ?? '');
     }),
@@ -399,11 +423,15 @@ function setEditDocuments(p: PanelHost, asset: Asset): void {
 async function mutateDocuments(
   p: PanelHost,
   op: {
+    /** Where a failure shows: the control the user pressed (F08-1). */
+    key: string;
     local: () => void;
     remote: (hass: Hass, assetId: string) => Promise<Asset>;
     done?: () => void;
   },
 ): Promise<void> {
+  // A previous failure is stale the moment the user tries again.
+  p._assetEdit.uploadError = undefined;
   const assetId = p._assetEdit.asset?.id;
   if (!assetId) {
     op.local();
@@ -417,20 +445,26 @@ async function mutateDocuments(
     op.done?.();
     setEditDocuments(p, asset);
   } catch (err) {
-    setAssetError(p, String((err as { message?: string })?.message || err));
-    p._render();
+    // Inline next to the control, with a toast, rather than the banner at the foot
+    // of the drawer that the user cannot see. The drafts on the state keep the typed
+    // values through the re-render.
+    failInline(p, op.key, String((err as { message?: string })?.message || err));
   }
 }
 
 async function addLinkDocument(p: PanelHost, name: string, url: string): Promise<void> {
   if (!url.trim()) return;
   await mutateDocuments(p, {
+    key: UPLOAD_KEY_DOCUMENT,
     local: () => {
       const list = [...(p._assetEdit.asset?.documents || [])];
       list.push({ id: randomId(), kind: 'link', name, url });
       p._assetEdit.asset!.documents = list;
     },
     remote: (hass, assetId) => api.addAssetDocument(hass, assetId, { name, url }),
+    done: () => {
+      p._assetEdit.docDraft = undefined;
+    },
   });
 }
 
@@ -442,6 +476,7 @@ async function updateDocument(
   if (!doc.id) return;
   const docId = doc.id;
   await mutateDocuments(p, {
+    key: docErrorKey(doc),
     local: () => {
       const list = [...(p._assetEdit.asset?.documents || [])];
       const idx = list.findIndex((d) => d.id === doc.id);
@@ -455,6 +490,7 @@ async function updateDocument(
     remote: (hass, assetId) => api.updateAssetDocument(hass, assetId, docId, changes),
     done: () => {
       p._assetEdit.editingDocId = undefined;
+      p._assetEdit.docEditDraft = undefined;
     },
   });
 }
@@ -464,6 +500,7 @@ async function removeDocument(p: PanelHost, doc: AssetDocument): Promise<void> {
   const docId = doc.id;
   if (p._assetEdit.editingDocId === doc.id) p._assetEdit.editingDocId = undefined;
   await mutateDocuments(p, {
+    key: docErrorKey(doc),
     local: () => {
       p._assetEdit.asset!.documents = (p._assetEdit.asset?.documents || []).filter(
         (d) => d.id !== doc.id,
@@ -872,10 +909,15 @@ function renderPartFile(p: PanelHost, box: HTMLElement, part: Part, i: number): 
         },
         remove: {
           label: t('btn.removePartFile'),
-          onClick: () => void removePartFile(p, part, i),
+          // The stored file goes at once and Cancel does not restore it (F08-3).
+          onClick: () =>
+            openConfirmDialog(p, t('confirm.removeNamed', { name: part.file_name ?? '' }), () => {
+              void removePartFile(p, part, i);
+            }),
         },
       }),
     );
+    if (part.id) renderUploadStatus(p, box, uploadKeyPart(part.id));
     return;
   }
   if (!assetId || !part.id) return;
@@ -929,6 +971,8 @@ async function uploadPartFile(p: PanelHost, part: Part, i: number, file: File): 
 async function removePartFile(p: PanelHost, part: Part, i: number): Promise<void> {
   const assetId = p._assetEdit.asset?.id;
   if (!p._hass || !assetId || !part.id) return;
+  const key = uploadKeyPart(part.id);
+  if (p._assetEdit.uploadError?.key === key) p._assetEdit.uploadError = undefined;
   try {
     await api.removePartFile(p._hass, assetId, part.id);
     const list = [...(p._assetEdit.asset?.parts || [])];
@@ -936,7 +980,7 @@ async function removePartFile(p: PanelHost, part: Part, i: number): Promise<void
     p._assetEdit.asset!.parts = list;
     p._render();
   } catch (err) {
-    setAssetError(p, String((err as { message?: string })?.message || err));
-    p._render();
+    // Next to the part's file, not in the banner at the foot of the drawer (F08-1).
+    failInline(p, key, String((err as { message?: string })?.message || err));
   }
 }

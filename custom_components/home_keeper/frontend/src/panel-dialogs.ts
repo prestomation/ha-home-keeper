@@ -32,7 +32,7 @@ import { t } from './i18n';
 import type { MarkdownPreview } from './markdown';
 import type { PanelHost } from './panel-host';
 import type { Completion, Hass, Task } from './types';
-import { setBtnWeight, taskRecordsReading } from './utils';
+import { guardWrite, setBtnWeight, taskRecordsReading } from './utils';
 
 // ── completion dialog lifecycle ─────────────────────────────────────────────
 
@@ -80,19 +80,28 @@ function closeMoveCompletion(p: PanelHost): void {
   p._render();
 }
 
-async function submitMoveCompletion(p: PanelHost): Promise<void> {
+async function submitMoveCompletion(p: PanelHost, button?: Element | null): Promise<void> {
   const m = p._moveCompletion;
-  if (!p._hass || !m.task || !m.newTs) return;
-  try {
-    // Same dialog, two logs: `kind` says which list the entry being re-dated is in.
-    if (m.kind === 'skip') await api.moveSkip(p._hass, m.task.id, m.ts, m.newTs);
-    else await api.moveCompletion(p._hass, m.task.id, m.ts, m.newTs);
-    closeMoveCompletion(p);
-    await p._refresh();
-  } catch (err) {
-    m.error = String((err as { message?: string })?.message || err);
-    p._render();
-  }
+  const hass = p._hass;
+  const task = m.task;
+  const newTs = m.newTs;
+  if (!hass || !task || !newTs) return;
+  await guardWrite(
+    m,
+    async () => {
+      try {
+        // Same dialog, two logs: `kind` says which list the entry being re-dated is in.
+        if (m.kind === 'skip') await api.moveSkip(hass, task.id, m.ts, newTs);
+        else await api.moveCompletion(hass, task.id, m.ts, newTs);
+        closeMoveCompletion(p);
+        await p._refresh();
+      } catch (err) {
+        m.error = String((err as { message?: string })?.message || err);
+        p._render();
+      }
+    },
+    button,
+  );
 }
 
 /** True when every required field of the in-progress completion is filled. */
@@ -105,26 +114,35 @@ function completionMissing(p: PanelHost): string[] {
 }
 
 /** Save the dialog: a new completion (with metadata) or an edit of a past one. */
-async function submitCompletion(p: PanelHost): Promise<void> {
+async function submitCompletion(p: PanelHost, button?: Element | null): Promise<void> {
   const c = p._completion;
-  if (!p._hass || !c.task) return;
+  const hass = p._hass;
+  const task = c.task;
+  if (!hass || !task) return;
   if (c.ts == null && completionMissing(p).length) {
     c.error = t('completion.required');
     p._render();
     return;
   }
-  try {
-    if (c.ts != null) {
-      await api.updateCompletion(p._hass, c.task.id, c.ts, c.data);
-    } else {
-      await api.completeTask(p._hass, c.task.id, c.data, c.data.completedAt);
-    }
-    closeCompletionDialog(p);
-    await p._refresh();
-  } catch (err) {
-    c.error = String((err as { message?: string })?.message || err);
-    p._render();
-  }
+  // A double click on Mark done must not log two completions (X12-3).
+  await guardWrite(
+    c,
+    async () => {
+      try {
+        if (c.ts != null) {
+          await api.updateCompletion(hass, task.id, c.ts, c.data);
+        } else {
+          await api.completeTask(hass, task.id, c.data, c.data.completedAt);
+        }
+        closeCompletionDialog(p);
+        await p._refresh();
+      } catch (err) {
+        c.error = String((err as { message?: string })?.message || err);
+        p._render();
+      }
+    },
+    button,
+  );
 }
 
 // ── destructive-action confirmation ─────────────────────────────────────────
@@ -152,12 +170,27 @@ export function teardownOverlay(p: PanelHost): void {
   }
 }
 
-export function openConfirmDialog(p: PanelHost, label: string, onConfirm: () => void): void {
+export function openConfirmDialog(
+  p: PanelHost,
+  label: string,
+  onConfirm: () => void,
+  body: string = t('confirm.cannotUndo'),
+): void {
   // Drop any prior scrim (and its keydown listener) before opening a new one, so a
   // second open — or a stale scrim — can't orphan the earlier overlay + handler.
   teardownOverlay(p);
-  p._confirmDelete = { open: true, label, body: t('confirm.cannotUndo'), onConfirm };
+  p._confirmDelete = { open: true, label, body, onConfirm };
   renderConfirmDeleteDialog(p);
+}
+
+/** The element that had the keyboard when a confirmation opened, per panel. */
+const confirmOpeners = new WeakMap<PanelHost, HTMLElement>();
+
+/** The focused element, looking through open shadow roots to the real control. */
+function deepActiveElement(): Element | null {
+  let active: Element | null = document.activeElement;
+  while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+  return active;
 }
 
 /**
@@ -181,6 +214,10 @@ function closeConfirmDialog(p: PanelHost): void {
   // Delete the reader thought better of left the drawer standing with no way out
   // but the mouse, for the rest of that edit.
   p._syncDrawerModality();
+  // Give the keyboard back to the control that opened the dialog (X11-1).
+  const opener = confirmOpeners.get(p);
+  confirmOpeners.delete(p);
+  if (opener?.isConnected) opener.focus();
 }
 
 function renderConfirmDeleteDialog(p: PanelHost): void {
@@ -194,32 +231,35 @@ function renderConfirmDeleteDialog(p: PanelHost): void {
     'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
     'justify-content:center;background:rgba(0,0,0,.4)';
 
+  // A real modal dialog to assistive technology (X11-1): it names itself from its
+  // heading, reads its body as the description, and says the page behind is inert.
+  // Border-box and the viewport cap keep it on a 320px screen.
   const modal = document.createElement('div');
+  modal.className = 'hk-confirm-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'hk-confirm-title');
+  modal.setAttribute('aria-describedby', 'hk-confirm-body');
   modal.style.cssText =
     'background:var(--ha-card-background,var(--card-background-color,#fff));' +
     'border-radius:28px;padding:24px;min-width:280px;max-width:400px;' +
+    'box-sizing:border-box;max-width:min(400px,calc(100vw - 32px));' +
     'box-shadow:0 8px 32px rgba(0,0,0,.24)';
 
   const h2 = document.createElement('h2');
+  h2.id = 'hk-confirm-title';
   h2.style.cssText =
     'margin:0 0 16px;font-size:1.25rem;font-weight:500;' +
     'color:var(--primary-text-color,#000)';
   h2.textContent = label;
 
   const para = document.createElement('p');
+  para.id = 'hk-confirm-body';
   para.style.cssText = 'margin:0 0 24px;color:var(--secondary-text-color,#666)';
   para.textContent = body;
 
   const row = document.createElement('div');
   row.style.cssText = 'display:flex;justify-content:flex-end;gap:8px';
-
-  // Held on an instance field so disconnectedCallback can remove it if we unmount
-  // while the dialog is open; closeConfirmDialog is the single teardown path.
-  const onKey = (e: KeyboardEvent): void => {
-    if (e.key === 'Escape') closeConfirmDialog(p);
-  };
-  p._confirmOnKey = onKey;
-  document.addEventListener('keydown', onKey);
 
   const close = (): void => {
     closeConfirmDialog(p);
@@ -262,8 +302,32 @@ function renderConfirmDeleteDialog(p: PanelHost): void {
     if (e.target === scrim) close();
   });
 
+  // Escape closes. Tab and Shift+Tab move between the dialog's own buttons and never
+  // reach the page behind the scrim (X11-1). Held on an instance field so
+  // disconnectedCallback can remove it if we unmount while the dialog is open;
+  // closeConfirmDialog is the single teardown path.
+  const buttons = [...row.children] as HTMLElement[];
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === 'Escape') {
+      closeConfirmDialog(p);
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const at = buttons.indexOf(document.activeElement as HTMLElement);
+    const step = e.shiftKey ? -1 : 1;
+    const next = at < 0 ? (e.shiftKey ? buttons.length - 1 : 0) : at + step;
+    buttons[(next + buttons.length) % buttons.length].focus();
+  };
+  p._confirmOnKey = onKey;
+  document.addEventListener('keydown', onKey);
+
+  const opener = deepActiveElement();
+  if (opener instanceof HTMLElement && opener !== document.body) confirmOpeners.set(p, opener);
   p._confirmScrim = scrim;
   document.body.appendChild(scrim);
+  // Cancel (or Close) takes the keyboard: the safe choice for a destructive dialog.
+  cancel.focus();
 }
 
 // ── dialog shell and the two dialogs built on it ────────────────────────────
@@ -432,7 +496,7 @@ export function renderCompletionDialog(p: PanelHost, host: HTMLElement): void {
   primary.setAttribute('slot', 'primaryAction');
   setBtnWeight(primary, 'primary');
   primary.textContent = editing ? t('btn.save') : t('completion.markDone');
-  primary.addEventListener('click', () => void submitCompletion(p));
+  primary.addEventListener('click', () => void submitCompletion(p, primary));
   footer.appendChild(primary);
 
   if (!editing && c.task.completion_detail === 'optional') {
@@ -441,8 +505,9 @@ export function renderCompletionDialog(p: PanelHost, host: HTMLElement): void {
     setBtnWeight(skip, 'secondary');
     skip.textContent = t('completion.skip');
     skip.addEventListener('click', () => {
+      if (p._completion.busy) return;
       p._completion.data = {};
-      void submitCompletion(p);
+      void submitCompletion(p, skip);
     });
     footer.appendChild(skip);
   }
@@ -491,7 +556,7 @@ export function renderMoveCompletionDialog(p: PanelHost, host: HTMLElement): voi
   primary.setAttribute('slot', 'primaryAction');
   setBtnWeight(primary, 'primary');
   primary.textContent = t('btn.save');
-  primary.addEventListener('click', () => void submitMoveCompletion(p));
+  primary.addEventListener('click', () => void submitMoveCompletion(p, primary));
   footer.appendChild(primary);
 
   const cancel = document.createElement('ha-button');

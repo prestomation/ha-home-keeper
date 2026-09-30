@@ -32,6 +32,7 @@ from .backend_i18n import resolve_exception
 from .const import COMPLETION_ENTRY_FIELDS, OPTION_PROFILES, SENSOR_MODE_TEMPLATE
 from .coordinator import (
     HomeKeeperCoordinator,
+    async_delete_orphaned_tasks,
     find_coordinator,
     task_has_entities,
 )
@@ -210,6 +211,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_add_task)
     websocket_api.async_register_command(hass, ws_update_task)
     websocket_api.async_register_command(hass, ws_delete_task)
+    websocket_api.async_register_command(hass, ws_delete_orphaned_tasks)
     websocket_api.async_register_command(hass, ws_set_task_consumable)
     websocket_api.async_register_command(hass, ws_complete_task)
     websocket_api.async_register_command(hass, ws_update_completion)
@@ -342,6 +344,23 @@ async def ws_delete_task(
     else:
         await coord.async_request_refresh()
     connection.send_result(msg["id"], {"ok": True})
+
+
+@websocket_api.websocket_command(
+    {vol.Required("type"): "home_keeper/delete_orphaned_tasks"}
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_delete_orphaned_tasks(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    # Admin-only, like its service twin: it deletes tasks in bulk.
+    deleted = await async_delete_orphaned_tasks(hass, coord)
+    connection.send_result(msg["id"], {"deleted": deleted})
 
 
 @websocket_api.websocket_command(

@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Poista orvot tehtävät",
+      "description": "Poistaa jokaisen tehtävän, jota integraatio hallinnoi, kun kyseistä integraatiota ei ole ladattu (poistettu, poistettu käytöstä tai ei määritetty). Vain järjestelmänvalvojille. Palauttaa poistettujen tehtävien tunnukset avaimella \"deleted\"."
+    },
     "complete_task": {
       "name": "Merkitse tehtävä valmiiksi",
       "description": "Merkitse tehtävä valmiiksi ja siirrä sen toistuvuutta eteenpäin.",

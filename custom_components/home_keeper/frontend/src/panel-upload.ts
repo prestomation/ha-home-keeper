@@ -97,7 +97,7 @@ export async function runUpload<T>(
   // wastes minutes, and on a slow link looks like a hang.
   const tooLarge = uploadSizeError(file);
   if (tooLarge) {
-    failUpload(p, key, tooLarge);
+    failInline(p, key, tooLarge);
     return undefined;
   }
 
@@ -133,7 +133,7 @@ export async function runUpload<T>(
     // A cancellation is the user's own doing — no error to report.
     if (!e?.aborted) {
       const { message, link } = uploadErrorMessage(e, file);
-      failUpload(p, key, message, link);
+      failInline(p, key, message, link);
     }
     return undefined;
   } finally {
@@ -174,9 +174,10 @@ function uploadErrorMessage(e: api.UploadError, file: File): { message: string; 
   return { message: t('doc.uploadFailed', { error: String(e?.message ?? '') }) };
 }
 
-/** Report an upload failure where the user is actually looking: inline next to the
- *  control, plus HA's toast (viewport-fixed, so it can't scroll out of sight). */
-function failUpload(p: PanelHost, key: string, message: string, link?: string): void {
+/** Report a failure where the user is actually looking: inline next to the control
+ *  that *key* names, plus HA's toast (viewport-fixed, so it can't scroll out of
+ *  sight). Uploads use it, and so do the document and part-file changes (F08-1). */
+export function failInline(p: PanelHost, key: string, message: string, link?: string): void {
   p._assetEdit.uploadError = { key, message, link };
   toast(p, message);
   p._scrollToError = key;

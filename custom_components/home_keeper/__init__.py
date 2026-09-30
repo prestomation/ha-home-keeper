@@ -79,6 +79,7 @@ from .const import (
 )
 from .coordinator import (
     HomeKeeperCoordinator,
+    async_delete_orphaned_tasks,
     discard_edge_state,
     find_coordinator,
     task_has_entities,
@@ -1241,6 +1242,13 @@ def _register_services(hass: HomeAssistant) -> None:
         else:
             await coord.async_request_refresh()
 
+    async def handle_delete_orphaned_tasks(call: ServiceCall) -> dict[str, Any]:
+        # Admin-only: it deletes tasks in bulk. Mirrors
+        # ``ws_delete_orphaned_tasks``'s ``require_admin``.
+        await _verify_admin(call)
+        deleted = await async_delete_orphaned_tasks(hass, _coordinator())
+        return {"deleted": deleted}
+
     def _completion_metadata(data: dict) -> dict[str, Any]:
         """Lift the per-completion metadata keys out of a service call's data."""
         return {k: data[k] for k in _COMPLETION_METADATA_KEYS if k in data}
@@ -1706,6 +1714,13 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, "delete_task", handle_delete_task, DELETE_TASK_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "delete_orphaned_tasks",
+        handle_delete_orphaned_tasks,
+        vol.Schema({}),
+        supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
         DOMAIN, "complete_task", handle_complete_task, COMPLETE_TASK_SCHEMA

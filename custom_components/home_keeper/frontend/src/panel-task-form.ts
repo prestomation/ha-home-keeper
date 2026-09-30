@@ -284,7 +284,7 @@ export function drawerHead(
   title: string,
   subtitle: string,
   saveLabel: string,
-  onSave: () => void,
+  onSave: (button: Element) => void,
   onCancel: () => void,
   ids: { save: string; cancel: string },
   helpUrl?: string,
@@ -316,7 +316,7 @@ export function drawerHead(
   setBtnWeight(save, 'primary');
   save.id = ids.save;
   save.textContent = saveLabel;
-  save.addEventListener('click', onSave);
+  save.addEventListener('click', () => onSave(save));
   head.append(close, titles, cancel, save);
   return head;
 }
@@ -331,7 +331,7 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       task.id ? t('form.task.edit') : t('form.task.new'),
       String(task.name ?? ''),
       task.id ? t('btn.save') : t('btn.create'),
-      () => void p._submitForm(),
+      (b) => void p._submitForm(b),
       () => p._closeForm(),
       { save: 'f-save', cancel: 'f-cancel' },
       SENSOR_DOCS_URL,
