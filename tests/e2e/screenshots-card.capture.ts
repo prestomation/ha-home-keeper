@@ -261,4 +261,17 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await expect(mobileNoteDialog.locator('.hk-note-body')).toBeVisible();
   await page.waitForTimeout(300);
   await shotDialog(page, mobileNoteDialog, `${OUT}/card-note-dialog-mobile.png`);
+  await mobileNoteDialog.locator('ha-button', { hasText: 'Close' }).click();
+  await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
+
+  // 7c. The create form at phone width. Create is disabled while an add runs, so a
+  // second tap cannot make a duplicate task (F05-3); the form itself looks the same.
+  await mobileCard.locator('#hk-add').click();
+  const mobileForm = mobileCard.locator('.hk-form');
+  await expect(mobileForm.locator('ha-form').first()).toBeVisible();
+  await fillText(mobileForm, 0, 'Replace dishwasher filter');
+  await page.waitForTimeout(400);
+  // The form is taller than a phone screen, so shoot the form element itself: the
+  // element shot scrolls and stitches, and it ends at Create and Cancel.
+  await mobileForm.screenshot({ path: `${OUT}/card-mobile-add-form.png` });
 });
