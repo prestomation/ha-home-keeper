@@ -53,14 +53,17 @@ const notification = (id, name) => ({
  * of the options as they stood when that write was applied, which is what makes a
  * late-arriving answer a *stale* one rather than merely an old copy of the same thing.
  *
- * With `outOfOrder`, the first write's answer is held until the second has been
- * answered. Writes still apply in arrival order — only the answers are reordered, which
- * is all a websocket guarantees.
+ * With `slowFirst`, the first write's answer comes late. The panel used to send the
+ * second write before that answer, so the two answers could arrive out of order. The
+ * panel now queues its option writes (X12-2), so the second write goes only after
+ * the first answer, but the rows edited in between must still all be kept.
  *
  * `hold(n)` returns a promise the nth write waits on before answering, for watching the
- * in-flight state. `fail` rejects every write with that message.
+ * in-flight state. `fail` rejects every write with that message. `notLoaded` fails
+ * that many writes with `not_loaded`, the way a write sent during a reload fails.
+ * `log` records each write as it is sent and each answer as it is given.
  */
-function makeHass(notifications, { outOfOrder = false, hold, fail } = {}) {
+function makeHass(notifications, { slowFirst = false, hold, fail, notLoaded = 0 } = {}) {
   const options = {
     sync_problem_sensors: false,
     problem_sensor_exclude_entities: [],
@@ -73,11 +76,9 @@ function makeHass(notifications, { outOfOrder = false, hold, fail } = {}) {
     notifications,
   };
   const saves = [];
+  const log = [];
   let nextId = 0;
-  let releaseFirst;
-  const firstAnswer = new Promise((r) => {
-    releaseFirst = r;
-  });
+  let notLoadedLeft = notLoaded;
   const hass = {
     language: 'en',
     states: { 'notify.mobile_app_phone': { entity_id: 'notify.mobile_app_phone' } },
@@ -91,7 +92,16 @@ function makeHass(notifications, { outOfOrder = false, hold, fail } = {}) {
         case 'home_keeper/get_options':
           return Promise.resolve({ options, own_todo_entities: [] });
         case 'home_keeper/set_options': {
+          if (notLoadedLeft > 0) {
+            notLoadedLeft -= 1;
+            log.push('not_loaded');
+            const err = new Error("Home Keeper isn't loaded right now.");
+            err.code = 'not_loaded';
+            return Promise.reject(err);
+          }
           saves.push(structuredClone(msg.options));
+          const n = saves.length;
+          log.push(`send ${n}`);
           if (fail) return Promise.reject(new Error(fail));
           const held = hold?.(saves.length);
           if (held) {
@@ -112,10 +122,13 @@ function makeHass(notifications, { outOfOrder = false, hold, fail } = {}) {
           }
           Object.assign(options, msg.options);
           const answer = { options: structuredClone(options) };
-          if (!outOfOrder) return Promise.resolve(answer);
-          if (saves.length === 1) return firstAnswer.then(() => answer);
-          if (saves.length === 2) return Promise.resolve(answer).then((a) => (releaseFirst(), a));
-          return Promise.resolve(answer);
+          const delay = slowFirst && n === 1 ? 80 : 0;
+          return new Promise((r) =>
+            setTimeout(() => {
+              log.push(`answer ${n}`);
+              r(answer);
+            }, delay),
+          );
         }
         case 'home_keeper/get_companions':
           return Promise.resolve({ companions: [] });
@@ -126,7 +139,7 @@ function makeHass(notifications, { outOfOrder = false, hold, fail } = {}) {
       }
     },
   };
-  return { hass, options, saves, panelIds: () => options.notifications.map((n) => n.id) };
+  return { hass, options, saves, log, panelIds: () => options.notifications.map((n) => n.id) };
 }
 
 async function mountSettings(hass) {
@@ -181,14 +194,14 @@ describe('Settings → Notifications — autosave across rows', () => {
   });
 
   it('drops an out-of-date answer instead of writing it back over a newer row', async () => {
-    // Two rows can have writes in flight at once, and a websocket does not promise the
-    // answers come back in the order they were sent. An early answer landing last used
-    // to put the panel's own copy of the options back to before the later row saved,
-    // and the next row to build a list from that copy wrote the staleness to disk. The
-    // third edit here is what turns a stale copy into a value lost for good.
+    // Two rows can save at once. The first answer is out of date by the time it lands:
+    // the second row has already put its own value in the panel's copy of the options.
+    // Writing that answer back put the copy back to before the later row saved, and the
+    // next row to build a list from that copy wrote the staleness to disk. The third
+    // edit here is what turns a stale copy into a value lost for good.
     const { hass, options } = makeHass(
       [notification('n1', 'A'), notification('n2', 'B'), notification('n3', 'C')],
-      { outOfOrder: true },
+      { slowFirst: true },
     );
     const panel = await mountSettings(hass);
 
@@ -208,7 +221,7 @@ describe('Settings → Notifications — autosave across rows', () => {
     // did nothing.
     const { hass, options } = makeHass(
       [notification('n1', 'A'), notification('n2', 'B')],
-      { outOfOrder: true },
+      { slowFirst: true },
     );
     const panel = await mountSettings(hass);
 
@@ -225,7 +238,7 @@ describe('Settings → Notifications — autosave across rows', () => {
     // Two adds in quick succession means the second answer holds both new rows, so an
     // add reading the shared options would open the other one's row — and reading them
     // before any answer landed would put the blank id in the set for good.
-    const { hass, panelIds } = makeHass([notification('n1', 'A')], { outOfOrder: true });
+    const { hass, panelIds } = makeHass([notification('n1', 'A')], { slowFirst: true });
     const panel = await mountSettings(hass);
     const add = () => panel.shadowRoot.querySelector('#hk-notify-add');
 
@@ -384,5 +397,204 @@ describe('Settings → Profiles — autosave across rows', () => {
       'Everything renamed',
       'Downstairs renamed',
     ]);
+  });
+});
+
+/** Emit a change from *form* the way `ha-form` does: its whole `data`, one field set. */
+function change(form, patch) {
+  const value = { ...form.data, ...patch };
+  form.data = value;
+  form.dispatchEvent(new CustomEvent('value-changed', { detail: { value } }));
+}
+
+const generalForm = (panel) => panel.shadowRoot.querySelector('#hk-settings-general ha-form');
+const cardForms = (panel, id) => [...panel.shadowRoot.querySelectorAll(`#${id} ha-form`)];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+describe('Settings option cards — each card saves only its own fields (F03-1)', () => {
+  it('seeds each option form with its own fields only', async () => {
+    const { hass } = makeHass([notification('n1', 'A')]);
+    const panel = await mountSettings(hass);
+    expect(Object.keys(generalForm(panel).data)).toEqual(['one_off_retention_days']);
+    const [toggle, exclusions] = cardForms(panel, 'hk-settings');
+    expect(Object.keys(toggle.data)).toEqual(['sync_problem_sensors']);
+    expect(Object.keys(exclusions.data)).not.toContain('sync_problem_sensors');
+    expect(Object.keys(exclusions.data)).not.toContain('notifications');
+    const [shopping] = cardForms(panel, 'hk-settings-shopping');
+    expect(Object.keys(shopping.data).sort()).toEqual([
+      'shopping_line_style',
+      'shopping_list_entity',
+    ]);
+  });
+
+  it('keeps the sync switch on when an exclusion changes after it', async () => {
+    // Both forms of the Problem card were seeded with the options as drawn, so the
+    // exclusions form sent `sync_problem_sensors: false` back, and the reload removed
+    // every synced task while the switch still showed on.
+    const { hass, options, saves } = makeHass([notification('n1', 'A')]);
+    const panel = await mountSettings(hass);
+    const [toggle, exclusions] = cardForms(panel, 'hk-settings');
+
+    change(toggle, { sync_problem_sensors: true });
+    await waitFor(() => options.sync_problem_sensors === true);
+    change(exclusions, { problem_sensor_exclude_areas: ['garage'] });
+    await waitFor(() => saves.length === 2);
+    await waitFor(() => status(panel, 'hk-settings') === 'Saved');
+
+    expect(options.sync_problem_sensors).toBe(true);
+    expect(options.problem_sensor_exclude_areas).toEqual(['garage']);
+    expect(saves[1]).not.toHaveProperty('sync_problem_sensors');
+  });
+
+  it('leaves a notification alone when another card saves after it', async () => {
+    // Configure a notification, then change a card: that card sent its copy of the
+    // notifications as drawn, and the configured row went back to blank.
+    const { hass, options, saves } = makeHass([notification('n1', 'A')]);
+    const panel = await mountSettings(hass);
+
+    edit(panel, 0, { channel: 'Trash' });
+    await waitFor(() => options.notifications[0].channel === 'Trash');
+    const [skipsnooze] = cardForms(panel, 'hk-settings-skipsnooze');
+    change(skipsnooze, { allow_snooze: false });
+    await waitFor(() => options.allow_snooze === false);
+    await waitFor(() => status(panel, 'hk-settings-skipsnooze') === 'Saved');
+
+    expect(options.notifications[0].channel).toBe('Trash');
+    expect(options.profiles).toEqual([PROFILE]);
+    // The card sent its own field and no copy of the notifications or the profiles.
+    expect(saves[saves.length - 1]).toEqual({ allow_snooze: false });
+  });
+
+  it('sends only the two shopping keys, and keeps a saved style when a list is picked', async () => {
+    const { hass, options, saves } = makeHass([notification('n1', 'A')]);
+    options.shopping_line_style = 'product_only';
+    const panel = await mountSettings(hass);
+    const [shopping] = cardForms(panel, 'hk-settings-shopping');
+
+    change(shopping, { shopping_list_entity: 'todo.groceries' });
+    await waitFor(() => saves.length === 1);
+
+    expect(saves[0]).toEqual({
+      shopping_list_entity: 'todo.groceries',
+      shopping_line_style: 'product_only',
+    });
+    // The form keeps only its own keys after the change, too.
+    expect(Object.keys(shopping.data).sort()).toEqual([
+      'shopping_line_style',
+      'shopping_list_entity',
+    ]);
+  });
+
+  it('still sends an empty list picker as the empty string', async () => {
+    const { hass, options, saves } = makeHass([notification('n1', 'A')]);
+    options.shopping_list_entity = 'todo.groceries';
+    const panel = await mountSettings(hass);
+    const [shopping] = cardForms(panel, 'hk-settings-shopping');
+
+    change(shopping, { shopping_list_entity: undefined });
+    await waitFor(() => saves.length === 1);
+    expect(saves[0].shopping_list_entity).toBe('');
+  });
+});
+
+describe('Settings → General — the retention box saves on leave (X12-1)', () => {
+  it('does not save the partial values typed on the way to a number', async () => {
+    // Each save reloads the entry, and the purge in that reload ran with the partial
+    // value: typing "30" deleted every one-off completed more than 3 days ago.
+    const { hass, saves } = makeHass([notification('n1', 'A')]);
+    const panel = await mountSettings(hass);
+    const form = generalForm(panel);
+
+    change(form, { one_off_retention_days: 3 });
+    change(form, { one_off_retention_days: 30 });
+    await sleep(50);
+    expect(saves).toEqual([]);
+
+    form.dispatchEvent(new FocusEvent('focusout', { bubbles: true, composed: true }));
+    await waitFor(() => saves.length === 1);
+    expect(saves).toEqual([{ one_off_retention_days: 30 }]);
+  });
+
+  it('saves on Enter', async () => {
+    const { hass, saves } = makeHass([notification('n1', 'A')]);
+    const panel = await mountSettings(hass);
+    const form = generalForm(panel);
+
+    change(form, { one_off_retention_days: 14 });
+    form.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+    await sleep(50);
+    expect(saves).toEqual([]);
+    form.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await waitFor(() => saves.length === 1);
+    expect(saves).toEqual([{ one_off_retention_days: 14 }]);
+  });
+
+  it('saves a value once, however often focus leaves', async () => {
+    const { hass, saves } = makeHass([notification('n1', 'A')]);
+    const panel = await mountSettings(hass);
+    const form = generalForm(panel);
+
+    form.dispatchEvent(new FocusEvent('focusout'));
+    change(form, { one_off_retention_days: 7 });
+    form.dispatchEvent(new FocusEvent('focusout'));
+    form.dispatchEvent(new FocusEvent('focusout'));
+    await waitFor(() => status(panel, 'hk-settings-general') === 'Saved');
+    await sleep(50);
+    expect(saves).toEqual([{ one_off_retention_days: 7 }]);
+  });
+
+  it('stops the box at the backend maximum (B19-1)', async () => {
+    const { hass } = makeHass([notification('n1', 'A')]);
+    const panel = await mountSettings(hass);
+    const [field] = generalForm(panel).schema;
+    expect(field.selector.number).toMatchObject({ min: 0, max: 3650 });
+  });
+});
+
+describe('Settings — option writes go one at a time (X12-2)', () => {
+  it('sends a second write only after the first has answered', async () => {
+    // Each write reloads the entry, and a write sent during that reload failed with
+    // not_loaded: turning off Snooze and then Skip within a second lost the second.
+    const { hass, options, log } = makeHass([notification('n1', 'A')], { slowFirst: true });
+    const panel = await mountSettings(hass);
+    const [form] = cardForms(panel, 'hk-settings-skipsnooze');
+
+    change(form, { allow_snooze: false });
+    change(form, { allow_skip: false });
+    await waitFor(() => log.length === 4);
+
+    expect(log).toEqual(['send 1', 'answer 1', 'send 2', 'answer 2']);
+    expect(options.allow_snooze).toBe(false);
+    expect(options.allow_skip).toBe(false);
+  });
+
+  it('tries a write again when the entry is reloading', async () => {
+    const { hass, options, log } = makeHass([notification('n1', 'A')], { notLoaded: 1 });
+    const panel = await mountSettings(hass);
+    const toasts = [];
+    panel.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+    const [form] = cardForms(panel, 'hk-settings-skipsnooze');
+
+    change(form, { allow_skip: false });
+    await waitFor(() => status(panel, 'hk-settings-skipsnooze') === 'Saved', 4000);
+
+    expect(log).toEqual(['not_loaded', 'send 1', 'answer 1']);
+    expect(options.allow_skip).toBe(false);
+    expect(toasts).toEqual([]);
+  });
+
+  it('drops the armed autosave of a row when Test saves that row', async () => {
+    // Test saves the row, then the armed autosave fired into the reload that save
+    // started, and the card said Not saved for a value that was saved.
+    const { hass, options, saves } = makeHass([notification('n1', 'A')]);
+    const panel = await mountSettings(hass);
+
+    edit(panel, 0, { channel: 'Trash' });
+    rows(panel)[0].querySelector('.hk-notify-test').click();
+    await waitFor(() => saves.length === 1);
+    await sleep(800);
+
+    expect(saves).toHaveLength(1);
+    expect(options.notifications[0].channel).toBe('Trash');
   });
 });

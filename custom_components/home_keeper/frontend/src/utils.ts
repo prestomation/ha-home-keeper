@@ -263,6 +263,52 @@ export function toast(el: EventTarget, message: string): void {
 }
 
 /**
+ * How many times a command waits out an unloaded integration, and how long it waits
+ * between tries. A config-entry reload is a second or two, so five tries a second
+ * apart cover a slow one with room to spare, and a failure that is not a reload
+ * gives up on the first try (see the panel's `_reload` and `writeQueue`).
+ */
+export const RELOAD_RETRIES = 5;
+export const RELOAD_RETRY_MS = 1000;
+
+/** Send one write and get its answer. */
+export type QueuedWrite = <T>(write: () => Promise<T>) => Promise<T>;
+
+/**
+ * A queue that sends writes one at a time, in the order they arrive.
+ *
+ * Each options write reloads the config entry, and every Home Keeper command fails
+ * while the entry is unloaded. So a second write sent during the reload of the
+ * first one fails, and the edit it carries is lost. The queue holds each write until
+ * the one before it has answered. A write that still fails with an error that
+ * *isRetryable* accepts waits *waitMs* and tries again, at most *retries* times. A
+ * failed write does not stop the writes after it.
+ */
+export function writeQueue(
+  isRetryable: (err: unknown) => boolean,
+  retries = RELOAD_RETRIES,
+  waitMs = RELOAD_RETRY_MS,
+): QueuedWrite {
+  let tail: Promise<unknown> = Promise.resolve();
+  const attempt = async <T>(write: () => Promise<T>, left: number): Promise<T> => {
+    try {
+      return await write();
+    } catch (err) {
+      if (left > 0 && isRetryable(err)) {
+        await new Promise((r) => setTimeout(r, waitMs));
+        return attempt(write, left - 1);
+      }
+      throw err;
+    }
+  };
+  return <T>(write: () => Promise<T>): Promise<T> => {
+    const run = tail.then(() => attempt(write, retries));
+    tail = run.catch(() => undefined);
+    return run;
+  };
+}
+
+/**
  * Send Home Assistant's SPA router to *path* — a device page, an integration page, the
  * Home Keeper panel — without a full page load.
  *

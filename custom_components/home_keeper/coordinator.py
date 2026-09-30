@@ -32,7 +32,7 @@ from .const import (
     OPTION_ONE_OFF_RETENTION_DAYS,
 )
 from .device_compat import resolve_device
-from .options import current_options
+from .options import current_options, take_retention_grace
 from .reconcile import buy_source
 from .store import HomeKeeperStore
 
@@ -268,6 +268,12 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         retention is a config-entry option in days; ``0`` (the default) keeps
         completed one-offs forever, so this is a no-op until the user opts in.
         """
+        if take_retention_grace(self.entry.entry_id):
+            # The write that started this reload lowered the retention. Wait one
+            # periodic tick before a lower value can delete tasks, so a value that
+            # is only on its way to a higher number deletes no task (see
+            # ``options.take_retention_grace``).
+            return
         retention = int(
             current_options(self.entry).get(OPTION_ONE_OFF_RETENTION_DAYS, 0)
         )

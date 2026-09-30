@@ -189,3 +189,42 @@ def test_the_guard_does_not_fire_on_a_save_that_changes_nothing() -> None:
     merged = _set(hass, entry, stored)
     assert merged == stored
     assert hass.config_entries.updated == []
+
+
+# -------------------------------------------------- lowered retention (X12-1)
+
+
+def test_x12_1_a_write_that_lowers_retention_grants_the_grace() -> None:
+    """X12-1: the reload of a write that lowers the retention must not purge."""
+    hass, entry = _FakeHass(), _FakeEntry({const.OPTION_ONE_OFF_RETENTION_DAYS: 30})
+    entry.entry_id = "x12-lower"
+    _set(hass, entry, {const.OPTION_ONE_OFF_RETENTION_DAYS: 3})
+    assert opts.take_retention_grace("x12-lower") is True
+
+
+def test_x12_1_a_write_that_raises_retention_grants_no_grace() -> None:
+    hass, entry = _FakeHass(), _FakeEntry({const.OPTION_ONE_OFF_RETENTION_DAYS: 3})
+    entry.entry_id = "x12-raise"
+    _set(hass, entry, {const.OPTION_ONE_OFF_RETENTION_DAYS: 30})
+    assert opts.take_retention_grace("x12-raise") is False
+
+
+def test_x12_1_a_write_that_leaves_retention_alone_grants_no_grace() -> None:
+    hass, entry = _FakeHass(), _FakeEntry({const.OPTION_ONE_OFF_RETENTION_DAYS: 3})
+    entry.entry_id = "x12-other"
+    _set(hass, entry, {const.OPTION_SYNC_PROBLEM_SENSORS: True})
+    assert opts.take_retention_grace("x12-other") is False
+
+
+def test_b19_1_a_huge_retention_is_stored_clamped() -> None:
+    """B19-1: the service and the panel had no maximum, so a huge value was stored."""
+    hass, entry = _FakeHass(), _FakeEntry({})
+    entry.entry_id = "b19-huge"
+    merged = _set(hass, entry, {const.OPTION_ONE_OFF_RETENTION_DAYS: 9999999})
+    # 0 -> 3650 lowers the retention, so this write granted a grace. Take it, so no
+    # later test inherits it.
+    assert opts.take_retention_grace("b19-huge") is True
+    assert (
+        merged[const.OPTION_ONE_OFF_RETENTION_DAYS] == const.MAX_ONE_OFF_RETENTION_DAYS
+    )
+    assert entry.options[const.OPTION_ONE_OFF_RETENTION_DAYS] == 3650

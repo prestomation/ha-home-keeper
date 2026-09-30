@@ -31,6 +31,7 @@ from homeassistant.helpers import selector
 from . import options
 from .const import (
     DOMAIN,
+    MAX_ONE_OFF_RETENTION_DAYS,
     OPTION_ONE_OFF_RETENTION_DAYS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_AREAS,
     OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES,
@@ -94,7 +95,10 @@ def _options_schema(hass: HomeAssistant, current: dict[str, Any]) -> vol.Schema:
                 default=current[OPTION_ONE_OFF_RETENTION_DAYS],
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(
-                    min=0, max=3650, step=1, mode=selector.NumberSelectorMode.BOX
+                    min=0,
+                    max=MAX_ONE_OFF_RETENTION_DAYS,
+                    step=1,
+                    mode=selector.NumberSelectorMode.BOX,
                 )
             ),
             # The to-do list auto-buy reminders are mirrored onto. Deliberately

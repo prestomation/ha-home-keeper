@@ -56,6 +56,7 @@ from .assets import AssetValidationError, card_projection
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     DOMAIN,
+    MAX_ONE_OFF_RETENTION_DAYS,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
@@ -762,7 +763,7 @@ SET_OPTIONS_SCHEMA = vol.Schema(
         vol.Optional(OPTION_ALLOW_SKIP): cv.boolean,
         vol.Optional(OPTION_ALLOW_DUE_TODAY): cv.boolean,
         vol.Optional(OPTION_ONE_OFF_RETENTION_DAYS): vol.All(
-            vol.Coerce(int), vol.Range(min=0)
+            vol.Coerce(int), vol.Range(min=0, max=MAX_ONE_OFF_RETENTION_DAYS)
         ),
         vol.Optional(OPTION_PROBLEM_SENSOR_EXCLUDE_ENTITIES): vol.All(
             cv.ensure_list, [cv.string]
