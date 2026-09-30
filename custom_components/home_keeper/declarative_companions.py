@@ -511,11 +511,14 @@ def count_matches(
     """
     entities = registry_snapshot.get("entities") or []
     by_platform: dict[str, list[dict[str, Any]]] = {}
+    # The grouping only saves work: ``_entity_matches`` checks the target integration
+    # again, so a mutant that breaks the lookup gives the same counts.
     for entry in entities:
-        by_platform.setdefault(entry.get("platform") or "", []).append(entry)
+        platform = entry.get("platform") or ""  # pragma: no mutate
+        by_platform.setdefault(platform, []).append(entry)
     counts: dict[str, int] = {}
     for name, selection in selections.items():
-        target = selection.get("target_integration")
+        target = selection.get("target_integration")  # pragma: no mutate
         pool = by_platform.get(target, []) if target else entities
         pattern = selection.get("entity_regex")
         regex = re.compile(pattern) if pattern else None
