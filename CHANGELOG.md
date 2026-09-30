@@ -11,9 +11,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Fixed
 
 - **[Retention box](https://prestomation.github.io/ha-home-keeper/docs/guide/one-off-tasks).**
-  The box that deletes completed one-off tasks now saves when you leave it or press
-  Enter, not at each key. A lower value takes effect at the next check, about 5 minutes
-  later, and the largest value is 3650 days.
+  The box that deletes completed one-off tasks now saves only when you leave the box or
+  press Enter. A lower value takes effect at the next check, about 5 minutes later. The
+  largest value is 3650 days.
 - **[Settings cards](https://prestomation.github.io/ha-home-keeper/docs/guide/settings).**
   A change in one Settings card no longer undoes a change that you made before in
   another card, a profile or a notification.
