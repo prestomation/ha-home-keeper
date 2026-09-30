@@ -1712,8 +1712,43 @@ def test_card_projection_keeps_what_the_card_renders():
             "stock": 2,
             "reorder_at": 1,
             "stock_unit": "",
+            "replace_interval": None,
+            "use_noun": "",
+            "carried_uses": 0,
         }
     ]
+
+
+def test_card_projection_f09_2_keeps_counted_wear_progress_fields():
+    # F09-2: the card reads the target, the noun and the carried count to show
+    # "17 of 25 wears". Without them a non-admin sees "Counting" for ever.
+    asset = a.build_asset(
+        {
+            "name": "Rain jacket",
+            "parts": [
+                {
+                    "name": "Shell",
+                    "part_type": "wear",
+                    "replace_unit": "uses",
+                    "replace_interval": 25,
+                    "use_noun": "wears",
+                    "carried_uses": 4,
+                    "cost": 120.0,
+                    "vendor": "Outdoor Co",
+                }
+            ],
+        },
+        now=NOW,
+    )
+    part = a.card_projection([asset])[0]["parts"][0]
+    assert (part["replace_interval"], part["use_noun"], part["carried_uses"]) == (
+        25,
+        "wears",
+        4,
+    )
+    assert "cost" not in part
+    assert "vendor" not in part
+    assert "replace_unit" not in part
 
 
 def test_card_projection_drops_report_value_data():

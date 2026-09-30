@@ -737,3 +737,293 @@ describe('HomeKeeperCard NFC tag binding (issue #211)', () => {
     expect(navigations).toEqual([]);
   });
 });
+
+/** A Home Keeper state push that changes the card's state signal, so it refreshes. */
+let pushSeq = 0;
+function statePush() {
+  pushSeq++;
+  return {
+    'todo.home_keeper_tasks': {
+      entity_id: 'todo.home_keeper_tasks',
+      state: String(pushSeq),
+      last_updated: new Date(Date.now() + pushSeq * 1000).toISOString(),
+      attributes: {},
+    },
+  };
+}
+
+describe('HomeKeeperCard event subscription (F09-1)', () => {
+  function connection(result) {
+    const conn = { calls: 0 };
+    conn.subscribeEvents = async () => {
+      conn.calls++;
+      if (result === 'refuse') throw { code: 'unauthorized', message: 'Unauthorized' };
+      return () => {};
+    };
+    return conn;
+  }
+
+  it('F09-1: does not subscribe for a non-admin user', async () => {
+    const card = makeCard();
+    const conn = connection('ok');
+    const callWS = async () => ({ tasks: sampleTasks });
+    const user = { is_admin: false };
+    card.hass = { callWS, language: 'en', connection: conn, user };
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    card.hass = { callWS, language: 'en', connection: conn, user, states: statePush() };
+    await new Promise((r) => setTimeout(r, 30));
+    expect(conn.calls).toBe(0);
+  });
+
+  it('F09-1: does not try again on a connection that refused the subscription', async () => {
+    const card = makeCard();
+    const conn = connection('refuse');
+    const callWS = async () => ({ tasks: sampleTasks });
+    card.hass = { callWS, language: 'en', connection: conn };
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    for (let i = 0; i < 3; i++) {
+      card.hass = { callWS, language: 'en', connection: conn, states: statePush() };
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(conn.calls).toBe(1);
+
+    // A new connection (a websocket reconnect) gets one new attempt.
+    const fresh = connection('ok');
+    card.hass = { callWS, language: 'en', connection: fresh };
+    await waitFor(() => fresh.calls === 1);
+    expect(fresh.calls).toBe(1);
+  });
+
+  it('F09-1: still subscribes for an admin user', async () => {
+    const card = makeCard();
+    const conn = connection('ok');
+    card.hass = {
+      callWS: async () => ({ tasks: sampleTasks }),
+      language: 'en',
+      connection: conn,
+      user: { is_admin: true },
+    };
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(conn.calls).toBe(1);
+  });
+});
+
+describe('HomeKeeperCard counted wear progress for a non-admin (F09-2)', () => {
+  // The part exactly as `assets.card_projection` sends it to a non-admin: only the
+  // allowlisted keys, with no cost, vendor or part number.
+  const PROJECTED = {
+    id: 'a1',
+    documents: [],
+    metadata: [],
+    parts: [
+      {
+        id: 'p1',
+        name: 'Shell',
+        url: null,
+        stock: 0,
+        reorder_at: 0,
+        stock_unit: '',
+        replace_interval: 25,
+        use_noun: 'wears',
+        carried_uses: 17,
+      },
+    ],
+  };
+  const useTask = {
+    id: 'u1',
+    name: 'Wear the jacket',
+    recurrence_type: 'use',
+    next_due: null,
+    completions: [],
+    source: { part: { asset_id: 'a1', part_id: 'p1', role: 'use' } },
+  };
+
+  it('F09-2: shows "17 of 25 wears" from the projected part', async () => {
+    const card = makeCard();
+    card.hass = {
+      language: 'en',
+      user: { is_admin: false },
+      callWS: async (msg) =>
+        msg.type === 'home_keeper/get_tasks'
+          ? { tasks: [useTask] }
+          : msg.type === 'home_keeper/get_assets'
+            ? { assets: [PROJECTED] }
+            : {},
+    };
+    await waitFor(() => sr(card)?.querySelector('.hk-counted'));
+    expect(sr(card).querySelector('.hk-counted')?.getAttribute('label')).toBe('17 of 25 wears');
+  });
+});
+
+describe('HomeKeeperCard create guard (F05-3)', () => {
+  async function openFilledForm(card) {
+    await waitFor(() => sr(card)?.querySelector('#hk-add'));
+    sr(card).querySelector('#hk-add').click();
+    const form = sr(card).querySelector('ha-form');
+    form.dispatchEvent(
+      new CustomEvent('value-changed', { detail: { value: { ...form.data, name: 'New filter' } } }),
+    );
+  }
+
+  it('F05-3: a second tap on Create while add_task is in flight adds nothing', async () => {
+    const card = makeCard();
+    let addCalls = 0;
+    let resolveAdd;
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: sampleTasks };
+        if (msg.type === 'home_keeper/add_task') {
+          addCalls++;
+          await new Promise((r) => (resolveAdd = r));
+          return { task: { id: 'new' } };
+        }
+        return {};
+      },
+    };
+    await openFilledForm(card);
+
+    const create = sr(card).querySelector('#hk-create');
+    expect(create.hasAttribute('disabled')).toBe(false);
+    create.click();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(create.hasAttribute('disabled'), 'Create is disabled while in flight').toBe(true);
+    create.click();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(addCalls, 'only one add_task should be sent').toBe(1);
+
+    resolveAdd?.();
+    await waitFor(() => !sr(card).querySelector('.hk-form'));
+    expect(sr(card).querySelector('.hk-form')).toBeNull();
+  });
+
+  it('F05-3: Create is live again after a failed add', async () => {
+    const card = makeCard();
+    let addCalls = 0;
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: sampleTasks };
+        if (msg.type === 'home_keeper/add_task') {
+          addCalls++;
+          throw new Error('boom');
+        }
+        return {};
+      },
+    };
+    await openFilledForm(card);
+    sr(card).querySelector('#hk-create').click();
+    await waitFor(() => sr(card).querySelector('.hk-form ha-alert'));
+    const create = sr(card).querySelector('#hk-create');
+    expect(create.hasAttribute('disabled')).toBe(false);
+    create.click();
+    await waitFor(() => addCalls === 2);
+    expect(addCalls).toBe(2);
+  });
+
+  it('F05-3: a new form after a good add has a live Create', async () => {
+    const card = makeCard();
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) =>
+        msg.type === 'home_keeper/get_tasks'
+          ? { tasks: sampleTasks }
+          : msg.type === 'home_keeper/add_task'
+            ? { task: { id: 'new' } }
+            : {},
+    };
+    await openFilledForm(card);
+    sr(card).querySelector('#hk-create').click();
+    await waitFor(() => !sr(card).querySelector('.hk-form'));
+    sr(card).querySelector('#hk-add').click();
+    expect(sr(card).querySelector('#hk-create').hasAttribute('disabled')).toBe(false);
+  });
+});
+
+describe('HomeKeeperCard refresh with an open overlay (X11-3)', () => {
+  beforeAll(() => {
+    if (!customElements.get('ha-dialog')) {
+      customElements.define('ha-dialog', class extends HTMLElement {});
+    }
+  });
+
+  function liveCard(config) {
+    const card = makeCard(config);
+    const state = { tasks: sampleTasks, gets: 0 };
+    const callWS = async (msg) => {
+      if (msg.type === 'home_keeper/get_tasks') {
+        state.gets++;
+        return { tasks: state.tasks };
+      }
+      return {};
+    };
+    card.hass = { callWS, language: 'en' };
+    const push = () => {
+      card.hass = { callWS, language: 'en', states: statePush() };
+    };
+    return { card, state, push };
+  }
+
+  const renamed = [{ ...sampleTasks[0], name: 'Replace filter now' }];
+
+  it('X11-3: keeps the create form in place and updates the list', async () => {
+    const { card, state, push } = liveCard();
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    sr(card).querySelector('#hk-add').click();
+    const form = sr(card).querySelector('.hk-form');
+    const header = sr(card).querySelector('.hk-head');
+    expect(form).toBeTruthy();
+
+    state.tasks = renamed;
+    const before = state.gets;
+    push();
+    await waitFor(() => sr(card).textContent.includes('Replace filter now'));
+
+    expect(state.gets).toBeGreaterThan(before);
+    expect(sr(card).querySelector('.hk-form'), 'the same form node').toBe(form);
+    expect(sr(card).querySelector('.hk-head'), 'the same header node').toBe(header);
+    // The new rows are live: Done is wired on them.
+    expect(sr(card).querySelector('.hk-done').path).toBeTruthy();
+  });
+
+  it('X11-3: keeps an open Snooze dialog in place', async () => {
+    const { card, state, push } = liveCard();
+    await waitFor(() => sr(card)?.querySelector('.hk-defer-snooze'));
+    sr(card).querySelector('.hk-defer-snooze').click();
+    const dialog = sr(card).querySelector('ha-dialog');
+    expect(dialog).toBeTruthy();
+
+    state.tasks = renamed;
+    push();
+    await waitFor(() => sr(card).textContent.includes('Replace filter now'));
+    expect(sr(card).querySelector('ha-dialog'), 'the same dialog node').toBe(dialog);
+    // The new rows are wired: their Snooze button carries its icon.
+    expect(sr(card).querySelector('.hk-defer-snooze').path).toBeTruthy();
+  });
+
+  it('X11-3: hides the card behind an open form when the list goes empty', async () => {
+    const { card, state, push } = liveCard({
+      type: 'custom:home-keeper-card',
+      hide_when_empty: true,
+    });
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    sr(card).querySelector('#hk-add').click();
+    expect(card.style.display).toBe('');
+
+    state.tasks = [];
+    push();
+    await waitFor(() => card.style.display === 'none');
+    expect(card.style.display).toBe('none');
+  });
+
+  it('X11-3: renders the whole card again when no overlay is open', async () => {
+    const { card, state, push } = liveCard();
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    const header = sr(card).querySelector('.hk-head');
+
+    state.tasks = renamed;
+    push();
+    await waitFor(() => sr(card).textContent.includes('Replace filter now'));
+    expect(sr(card).querySelector('.hk-head')).not.toBe(header);
+  });
+});

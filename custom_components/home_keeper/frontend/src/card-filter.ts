@@ -502,7 +502,10 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
       // one idea and must not disagree about which tasks it holds.
       return dated && due <= now && !isBuyTask(task);
     case 'soon':
-      return statusBucket(task, now) === 'soon';
+      // No Today bucket here, the same as the panel's Due soon pill (PANEL_BUCKETS).
+      // With the card default a task due later today is 'today', so a Due soon card
+      // dropped it on its due day (F05-1).
+      return statusBucket(task, now, { today: false }) === 'soon';
     case 'today':
       // Everything actionable today: overdue plus anything due before midnight.
       return dated && due <= endOfToday(now);

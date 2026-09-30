@@ -1788,9 +1788,22 @@ def tasks_for_asset(asset: dict, tasks: list[dict]) -> list[dict]:
 
 # The fields of a part a non-admin may read: the product-URL chip on the card, and
 # the count, reorder point and unit, which every spares ``number`` entity already
-# shows to any user. Cost, vendor, part number and notes are administration and stay
+# shows to any user. A counted wear item also needs its target
+# (``replace_interval``), its noun (``use_noun``) and an imported count
+# (``carried_uses``), so the card can show "17 of 25 wears" to the person who
+# records the uses. Cost, vendor, part number and notes are administration and stay
 # admin-only.
-_CARD_PART_FIELDS = ("id", "name", "url", "stock", "reorder_at", "stock_unit")
+_CARD_PART_FIELDS = (
+    "id",
+    "name",
+    "url",
+    "stock",
+    "reorder_at",
+    "stock_unit",
+    "replace_interval",
+    "use_noun",
+    "carried_uses",
+)
 
 
 def card_projection(assets: list[dict]) -> list[dict]:
@@ -1806,7 +1819,8 @@ def card_projection(assets: list[dict]) -> list[dict]:
     The card needs exactly three things: an asset's ``documents`` (a card link can
     point at one), its ``link``-typed ``metadata`` entries (a card link can point at
     one of those too, and its value is a URL the user chose to publish), and a part's
-    id/name/url plus its stock count, reorder point and unit. This is a
+    id/name/url, its stock count, reorder point and unit, and the three fields a
+    counted wear item's progress reads (target, noun, carried count). This is a
     **whitelist**: a field added to the asset record later is private until someone
     adds it here on purpose.
     """

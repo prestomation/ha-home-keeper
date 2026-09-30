@@ -23,7 +23,14 @@ The card editor has these options:
 - **Hide card when empty** removes the card from the dashboard when the filter matches
   no task. Without it the card shows "No tasks match this filter."
 
-A completion made in the panel or on another surface is shown on the card immediately.
+The **Due soon** filter shows the tasks that are due in the next 7 days. This
+includes a task that is due later today, the same as the **Due soon** filter in
+the panel.
+
+The card shows a completion made in the panel or on another surface immediately.
+This applies to an admin user only, because Home Assistant does not send this event
+to a non-admin user. For a non-admin user, the card updates when a Home Keeper
+entity changes its state.
 
 ![Home Keeper task card grouped into status sections](../../images/card-grouped.png)
 
