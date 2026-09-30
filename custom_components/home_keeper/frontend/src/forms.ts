@@ -1,5 +1,6 @@
 import { companionKeys } from './card-filter';
 import { t, tn } from './i18n';
+import { MAX_ONE_OFF_RETENTION_DAYS } from './limits';
 import {
   COMPANION_KEY_DECLARATIVE_PREFIX,
   COMPANION_KEY_PROBLEM_SENSORS,
@@ -1540,7 +1541,12 @@ export function problemSyncExclusionsSchema(): FormField[] {
  * completed one-off retention (auto-delete after N days; 0 keeps them forever).
  */
 export function generalSchema(): FormField[] {
-  return [{ name: 'one_off_retention_days', selector: selNumber(0) }];
+  return [
+    {
+      name: 'one_off_retention_days',
+      selector: selNumber(0, undefined, MAX_ONE_OFF_RETENTION_DAYS),
+    },
+  ];
 }
 
 /**

@@ -118,6 +118,8 @@ export interface PanelHost extends HTMLElement {
   /** Run *fn* once the key has been quiet for *ms*, so a per-keystroke save doesn't
    *  fire a config-entry reload on every character. */
   _debounce(key: string, fn: () => void, ms?: number): void;
+  /** Drop the pending call under *key* (a save that another write already made). */
+  _cancelDebounce(key: string): void;
   /** The declarative-companion dialogs' state: the preset picker, or the add/edit
    *  form with the companion it is editing. */
   _declDialog: DeclarativeDialogState;

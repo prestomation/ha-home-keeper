@@ -57,3 +57,9 @@ export function importFrameBytes(document: string): number {
 export function importFitsWebsocket(document: string): boolean {
   return importFrameBytes(document) <= MAX_IMPORT_WS_BYTES;
 }
+
+/**
+ * The largest one-off retention in days — mirrors MAX_ONE_OFF_RETENTION_DAYS in
+ * const.py. The backend clamps to it, so the General card's number box stops there.
+ */
+export const MAX_ONE_OFF_RETENTION_DAYS = 3650;

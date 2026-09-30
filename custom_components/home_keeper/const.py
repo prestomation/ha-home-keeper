@@ -292,6 +292,11 @@ OPTION_PROBLEM_SENSOR_EXCLUDE_LABELS = "problem_sensor_exclude_labels"
 # (the default) keeps completed one-offs forever; ``N > 0`` purges them once
 # ``last_completed + N days`` has passed, via the coordinator's periodic refresh.
 OPTION_ONE_OFF_RETENTION_DAYS = "one_off_retention_days"
+# The largest retention the options accept: 10 years. Every write path and the read
+# path clamp to it (``options._coerce_days``), because a very large number of days
+# overflows the date arithmetic of the purge and stops the entry from loading.
+# ``frontend/src/limits.ts`` mirrors it for the panel's number box.
+MAX_ONE_OFF_RETENTION_DAYS = 3650
 # Whether Home Keeper *offers* Snooze and Skip. Both default **on**: they are
 # long-standing verbs, and defaulting them off would hide a feature people already
 # struggle to find (#268). Turning one off withdraws it from the surfaces Home Keeper

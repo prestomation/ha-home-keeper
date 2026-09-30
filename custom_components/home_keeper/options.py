@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from . import notifications, profiles, shopping
 from .const import (
+    MAX_ONE_OFF_RETENTION_DAYS,
     OPTION_ALLOW_DUE_TODAY,
     OPTION_ALLOW_SKIP,
     OPTION_ALLOW_SNOOZE,
@@ -130,6 +131,31 @@ def caller_is_reloading(entry_id: str) -> bool:
     return entry_id in _CALLER_RELOADING
 
 
+# Entry ids whose last ``async_set_options`` write lowered the one-off retention. The
+# coordinator skips the purge once for each, in the first refresh of that reload.
+# A lower retention deletes tasks for good, so it takes effect one periodic tick
+# after the write, not in the reload of the write. A value that is only on its way to
+# a higher number (the "3" of "30") then deletes no task, because the next write
+# replaces it before the purge reads it.
+_RETENTION_GRACE: set[str] = set()
+
+
+def retention_lowered(old: int, new: int) -> bool:
+    """Whether a retention change from *old* to *new* can delete more tasks.
+
+    ``0`` keeps completed one-offs forever, so any positive value lowers it.
+    """
+    return new > 0 and (old == 0 or new < old)
+
+
+def take_retention_grace(entry_id: str) -> bool:
+    """Return True once after a write lowered *entry_id*'s retention, then False."""
+    if entry_id in _RETENTION_GRACE:
+        _RETENTION_GRACE.discard(entry_id)
+        return True
+    return False
+
+
 def current_options(entry: ConfigEntry) -> dict[str, Any]:
     """Return the entry's options with every key defaulted (toggle off, lists empty).
 
@@ -145,12 +171,18 @@ def current_options(entry: ConfigEntry) -> dict[str, Any]:
 
 
 def _coerce_days(value: Any) -> int:
-    """Coerce a retention-days value to a non-negative int (garbage/negative -> 0)."""
+    """Coerce a retention-days value to an int in ``0..MAX_ONE_OFF_RETENTION_DAYS``.
+
+    Garbage and negatives read as ``0``. A value above the maximum reads as the
+    maximum. This is the read path too, so a value stored before the clamp existed
+    reads back clamped, and the entry loads again with no user action.
+    """
     try:
         days = int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
-    return days if days > 0 else 0
+    # ``>= 0`` is equivalent: min(0, MAX) is 0 as well.
+    return min(days, MAX_ONE_OFF_RETENTION_DAYS) if days > 0 else 0  # pragma: no mutate
 
 
 def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
@@ -333,6 +365,10 @@ async def async_set_options(
         # are also the **read** path, and an options document that already holds a
         # dangling ``profile_id`` has to keep reading back.
         raise ProfileInUseError(blocked)
+    if retention_lowered(
+        base[OPTION_ONE_OFF_RETENTION_DAYS], merged[OPTION_ONE_OFF_RETENTION_DAYS]
+    ):
+        _RETENTION_GRACE.add(entry.entry_id)
     _CALLER_RELOADING.add(entry.entry_id)
     try:
         hass.config_entries.async_update_entry(entry, options=merged)

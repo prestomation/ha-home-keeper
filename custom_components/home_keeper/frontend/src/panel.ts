@@ -98,16 +98,10 @@ import {
   TASK_TABS,
   type TaskTab,
   type SettingsSection,
+  RELOAD_RETRIES,
+  RELOAD_RETRY_MS,
 } from './utils';
 
-/**
- * How many times a load waits out an unloaded integration, and how long it waits
- * between tries. A config-entry reload is a second or two, so five tries a second
- * apart cover a slow one with room to spare, and a failure that is not a reload
- * gives up on the first try (see `_reload`).
- */
-const RELOAD_RETRIES = 5;
-const RELOAD_RETRY_MS = 1000;
 
 /**
  * The Home Keeper panel is built entirely from Home Assistant's own web
@@ -1503,6 +1497,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       delete this._persistTimers[key];
       fn();
     }, ms);
+  }
+
+  /** Drop the pending call under *key*, if one is armed. */
+  _cancelDebounce(key: string): void {
+    const prev = this._persistTimers[key];
+    if (prev) clearTimeout(prev);
+    delete this._persistTimers[key];
   }
 
   /** Trigger a client-side file download (no server round-trip for the blob). */

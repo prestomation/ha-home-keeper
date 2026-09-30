@@ -546,3 +546,65 @@ def test_the_options_flow_cannot_remove_a_profile() -> None:
     merged = opts.merge_flow_input(_entry(_FULL), _SUBMISSION)
     assert merged[const.OPTION_PROFILES] == base[const.OPTION_PROFILES]
     assert opts.profile_removals_in_use(base, merged) == []
+
+
+# ------------------------------------------------------- retention bounds (B19-1)
+
+
+@pytest.mark.parametrize(
+    ("stored", "expected"),
+    [
+        (0, 0),
+        (-5, 0),
+        (1, 1),
+        (30.9, 30),
+        (const.MAX_ONE_OFF_RETENTION_DAYS, const.MAX_ONE_OFF_RETENTION_DAYS),
+        (const.MAX_ONE_OFF_RETENTION_DAYS + 1, const.MAX_ONE_OFF_RETENTION_DAYS),
+        (9999999, const.MAX_ONE_OFF_RETENTION_DAYS),
+        (float("inf"), 0),
+        ("junk", 0),
+        (None, 0),
+    ],
+)
+def test_b19_1_retention_reads_back_inside_its_bounds(
+    stored: Any, expected: int
+) -> None:
+    """B19-1: a retention of millions of days overflowed the purge's date arithmetic
+    and stopped the entry from loading. The read path clamps it, so a value stored
+    before the clamp existed loads again with no user action."""
+    result = opts.current_options(_entry({const.OPTION_ONE_OFF_RETENTION_DAYS: stored}))
+    assert result[const.OPTION_ONE_OFF_RETENTION_DAYS] == expected
+
+
+def test_b19_1_the_maximum_is_ten_years() -> None:
+    """B19-1: the options flow offered at most 3650. The other paths now agree."""
+    assert const.MAX_ONE_OFF_RETENTION_DAYS == 3650
+
+
+# --------------------------------------------- lowered retention grace (X12-1)
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "lowered"),
+    [
+        (0, 3, True),  # forever -> 3 days deletes more
+        (0, 1, True),  # the smallest positive value counts too
+        (5, 1, True),
+        (30, 3, True),
+        (30, 29, True),
+        (3, 30, False),
+        (30, 30, False),
+        (30, 0, False),  # back to forever deletes nothing
+        (0, 0, False),
+    ],
+)
+def test_x12_1_retention_lowered(old: int, new: int, lowered: bool) -> None:
+    """X12-1: only a change that can delete more tasks waits for a tick."""
+    assert opts.retention_lowered(old, new) is lowered
+
+
+def test_x12_1_the_grace_is_taken_once() -> None:
+    opts._RETENTION_GRACE.add("grace-entry")
+    assert opts.take_retention_grace("grace-entry") is True
+    assert opts.take_retention_grace("grace-entry") is False
+    assert opts.take_retention_grace("other-entry") is False
