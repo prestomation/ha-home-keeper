@@ -72,6 +72,11 @@ appliance's documents, its link-type custom fields, and each part's name,
 product URL, stock count, reorder point and stock unit. Stock is not private: the
 spares `number` entity of each part shows the count to every user.
 
+For a counted wear item, the narrowed view also has the replacement target, the
+name of the uses, and the count that came in with an import. The card uses these
+fields to show the progress, such as "17 of 25 wears". The user who records the
+uses can then see the count.
+
 The narrowed view withholds purchase costs, part costs, part vendors, part numbers,
 serial numbers, warranty dates, and free-text custom fields. The narrowed view is an allowlist. A new appliance field stays private until a
 developer adds it to the allowlist.

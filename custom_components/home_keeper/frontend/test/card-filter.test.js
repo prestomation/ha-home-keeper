@@ -206,6 +206,16 @@ describe('filterTasks', () => {
     expect(filterTasks(all, { type: '', filter: 'overdue' }, {}, NOW).map((t) => t.id)).toEqual(['o']);
   });
 
+  // F05-1: the card default puts a task due later today in a Today bucket, so a Due
+  // soon card dropped it on its due day. The panel's Due soon pill keeps it.
+  it('F05-1: soon keeps a task due later today, the same as the panel pill', () => {
+    expect(statusBucket(today, NOW)).toBe('today');
+    expect(filterTasks(all, { type: '', filter: 'soon' }, {}, NOW).map((t) => t.id)).toEqual([
+      't',
+      's',
+    ]);
+  });
+
   it('overdue means late work, so a buy reminder is not one', () => {
     // A buy reminder is past due by the clock — dateless one-off, therefore due now —
     // but `filter: shopping` is how a card asks for those. A card set to `overdue`

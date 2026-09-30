@@ -403,6 +403,9 @@ export class HomeKeeperCard extends HTMLElement {
   // The websocket connection our event subscription is bound to, so we can
   // re-subscribe if HA hands us a fresh connection after a reconnect.
   private _subConn?: Hass['connection'];
+  // The connection that refused our subscription (F09-1). We do not try again on
+  // that connection: each refusal is one more ERROR line in the Home Assistant log.
+  private _refusedConn?: Hass['connection'];
 
   // ── Lovelace lifecycle ──────────────────────────────────────────────────────
   static getConfigElement(): HTMLElement {
@@ -522,10 +525,21 @@ export class HomeKeeperCard extends HTMLElement {
     return `${n}:${max}`;
   }
 
-  /** Subscribe to the task-completed event for instant cross-surface updates. */
+  /**
+   * Subscribe to the task-completed event for instant cross-surface updates.
+   *
+   * Only an admin can subscribe. Home Assistant lets a non-admin subscribe only to
+   * the core events in its allowlist, and it logs an ERROR for each refusal. The
+   * card calls this on each `hass` update, so an attempt for a non-admin would
+   * write one error for each state push. A non-admin card refreshes through the
+   * state signal only. If a subscription fails on a connection, we do not try it
+   * again on that connection.
+   */
   private async _subscribe(): Promise<void> {
     const conn = this._hass?.connection;
     if (!conn) return;
+    if (this._hass?.user?.is_admin === false) return;
+    if (this._refusedConn === conn) return;
     // Drop a stale subscription if HA reconnected with a new connection object.
     if (this._unsub && this._subConn && this._subConn !== conn) {
       this._unsub();
@@ -548,6 +562,8 @@ export class HomeKeeperCard extends HTMLElement {
       this._subConn = conn;
     } catch {
       // Subscription unavailable — the state-signal path still keeps us current.
+      // Remember the refusal, so the next `hass` update does not send it again.
+      this._refusedConn = conn;
     } finally {
       this._subscribing = false;
     }
@@ -587,7 +603,42 @@ export class HomeKeeperCard extends HTMLElement {
       this._loaded = true;
       this._refreshing = false;
     }
+    this._renderAfterRefresh();
+  }
+
+  /** Whether the create form or a dialog is open on the card. */
+  private _overlayOpen(): boolean {
+    return this._edit.open || this._snooze.open || this._skip.open || this._noteView.open;
+  }
+
+  /**
+   * Show the result of a refresh (X11-3).
+   *
+   * A refresh can come from any Home Keeper change, also while the user types in
+   * the create form or uses a dialog. A full render replaces the whole shadow tree,
+   * so the focused field goes away and focus falls to the page body. The next keys
+   * then go to the global hotkeys of Home Assistant. While an overlay is open, we
+   * replace only the list. The form and the dialogs stay in the DOM.
+   *
+   * An open note is for a task that can be gone now. Then the full render closes
+   * the note (see `_renderNoteDialog`).
+   */
+  private _renderAfterRefresh(): void {
+    const noteGone =
+      this._noteView.open && !this._tasks.some((x) => x.id === this._noteView.task?.id);
+    if (this._overlayOpen() && !noteGone && this._patchBody()) return;
     this._render();
+  }
+
+  /** Replace only the list body. Returns false when there is no body to patch. */
+  private _patchBody(): boolean {
+    const body = this.shadowRoot?.querySelector<HTMLElement>('.hk-body');
+    if (!body) return false;
+    this._applyHiddenEmpty();
+    this._ensureMarkdown();
+    body.innerHTML = this._bodyHtml();
+    this._hydrateList(body);
+    return true;
   }
 
   // ── data shaping ──────────────────────────────────────────────────────────
@@ -757,20 +808,12 @@ export class HomeKeeperCard extends HTMLElement {
     // Collapse the whole card out of masonry/grid layouts when configured to
     // hide on an empty result (see getCardSize) — re-evaluated on every render
     // so the card reappears as soon as a task matches again.
-    this.style.display = this._loaded && this._isHiddenEmpty(this._visibleCount()) ? 'none' : '';
+    this._applyHiddenEmpty();
     this._ensureMarkdown();
     this._liveHassEls = [];
     const title = this._config.title ?? t('tab.tasks');
     const showAdd = this._config.show_add !== false;
-
-    let body: string;
-    if (!this._loaded) {
-      body = `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
-    } else if (this._error) {
-      body = `<div class="hk-empty"><ha-alert alert-type="error">${escapeHTML(t('card.loadError'))}</ha-alert></div>`;
-    } else {
-      body = this._listHtml();
-    }
+    const body = this._bodyHtml();
 
     const header =
       title || showAdd
@@ -788,6 +831,22 @@ export class HomeKeeperCard extends HTMLElement {
         <div class="hk-body">${body}</div>
       </ha-card>`;
     this._hydrate();
+  }
+
+  /** Collapse the card when `hide_when_empty` applies (see getCardSize). */
+  private _applyHiddenEmpty(): void {
+    this.style.display = this._loaded && this._isHiddenEmpty(this._visibleCount()) ? 'none' : '';
+  }
+
+  /** The markup inside `.hk-body`: the spinner, the load error, or the list. */
+  private _bodyHtml(): string {
+    if (!this._loaded) {
+      return `<div class="hk-loading"><ha-spinner size="large"></ha-spinner></div>`;
+    }
+    if (this._error) {
+      return `<div class="hk-empty"><ha-alert alert-type="error">${escapeHTML(t('card.loadError'))}</ha-alert></div>`;
+    }
+    return this._listHtml();
   }
 
   private _listHtml(): string {
@@ -1038,10 +1097,6 @@ export class HomeKeeperCard extends HTMLElement {
     const root = this.shadowRoot;
     if (!root) return;
 
-    // `markdownBlock` carries its text in `data-md`; `content` is a property, so it
-    // has to be assigned after the markup lands in the DOM.
-    wireMarkdown(root);
-
     const add = root.getElementById('hk-add');
     if (add) {
       (add as HTMLElement & { path?: string }).path = MDI_PLUS;
@@ -1050,6 +1105,33 @@ export class HomeKeeperCard extends HTMLElement {
 
     const host = root.getElementById('hk-form-host');
     if (host && this._edit.open) this._renderForm(host);
+
+    const body = root.querySelector<HTMLElement>('.hk-body');
+    if (body) this._hydrateList(body);
+
+    if (host && this._snooze.open) {
+      renderSnoozeDialog(this._deferHost, this._snooze, host, () => {
+        this._snooze = emptySnoozeState();
+        this._render();
+      });
+    }
+    if (host && this._skip.open) {
+      renderSkipDialog(this._deferHost, this._skip, host, () => {
+        this._skip = emptySkipState();
+        this._render();
+      });
+    }
+    if (host && this._noteView.open) this._renderNoteDialog(host);
+  }
+
+  /**
+   * Wire the rows in *root* (the `.hk-body`). A refresh while an overlay is open
+   * replaces only the body, so this part must run without the header and the form.
+   */
+  private _hydrateList(root: HTMLElement): void {
+    // `markdownBlock` carries its text in `data-md`; `content` is a property, so it
+    // has to be assigned after the markup lands in the DOM.
+    wireMarkdown(root);
 
     root.querySelectorAll<HTMLElement>('.hk-done').forEach((b) => {
       (b as HTMLElement & { path?: string }).path = MDI_CHECK;
@@ -1137,19 +1219,6 @@ export class HomeKeeperCard extends HTMLElement {
       'defer.dueTodayPress',
     );
 
-    if (host && this._snooze.open) {
-      renderSnoozeDialog(this._deferHost, this._snooze, host, () => {
-        this._snooze = emptySnoozeState();
-        this._render();
-      });
-    }
-    if (host && this._skip.open) {
-      renderSkipDialog(this._deferHost, this._skip, host, () => {
-        this._skip = emptySkipState();
-        this._render();
-      });
-    }
-
     root.querySelectorAll<HTMLElement>('.hk-note-chip').forEach((chip) => {
       chip.addEventListener('click', (e) => {
         // The row has no click handler of its own, but stop anyway, so a future
@@ -1159,7 +1228,6 @@ export class HomeKeeperCard extends HTMLElement {
         if (task) this._openNote(task);
       });
     });
-    if (host && this._noteView.open) this._renderNoteDialog(host);
 
     root.querySelectorAll<HTMLDetailsElement>('details.hk-group').forEach((d) =>
       d.addEventListener('toggle', () => {
@@ -1252,6 +1320,7 @@ export class HomeKeeperCard extends HTMLElement {
     const actions = document.createElement('div');
     actions.className = 'hk-form-actions';
     const save = document.createElement('ha-button');
+    save.id = 'hk-create';
     save.setAttribute('raised', '');
     save.textContent = t('btn.create');
     save.addEventListener('click', () => void this._submitForm(save));
