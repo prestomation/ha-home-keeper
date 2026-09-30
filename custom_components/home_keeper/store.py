@@ -1308,6 +1308,38 @@ class HomeKeeperStore:
             await self._save()
         return changed
 
+    async def async_repoint_sensor_entity(
+        self, old_entity_id: str, new_entity_id: str
+    ) -> list[str]:
+        """Point every sensor binding on *old_entity_id* at *new_entity_id*.
+
+        Home Assistant does not rewrite integration storage when a user renames an
+        entity id, so the sensor watcher calls this on the rename (X10-1). Disabled
+        tasks are rewritten too: a task that is enabled later must not bring the
+        old id back. One write for all tasks, then one ``home_keeper_task_updated``
+        event per task. Bypasses ``models.merge_update`` like
+        :meth:`async_repoint_device_ids`: this follows a pointer that Home Assistant
+        moved, it is not an edit, so a locked ``sensor`` field must not stop it.
+        Returns the ids of the tasks that changed.
+        """
+        if not old_entity_id or not new_entity_id or old_entity_id == new_entity_id:
+            return []
+        changed: list[dict[str, Any]] = []
+        for task in self._tasks.values():
+            binding = task.get("sensor")
+            if isinstance(binding, dict) and binding.get("entity_id") == old_entity_id:
+                task["sensor"] = {**binding, "entity_id": new_entity_id}
+                changed.append(task)
+        if not changed:
+            return []
+        await self._save()
+        for task in changed:
+            self._hass.bus.async_fire(
+                EVENT_TASK_UPDATED,
+                events.task_event_data(task, extra={"changed_fields": ["sensor"]}),
+            )
+        return [task["id"] for task in changed]
+
     async def async_set_declarative_notes(self, task_id: str, notes: str) -> bool:
         """Write the notes a declarative companion rendered; return whether they moved.
 

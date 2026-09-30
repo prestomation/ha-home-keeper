@@ -12,6 +12,7 @@ import time
 from datetime import UTC, datetime, timedelta
 
 from conftest import HA_URL, call_service, get_state
+from ha_registry import ws_send
 from presets_loader import load_declarative_presets
 
 METER = "input_number.hk_demo_meter"
@@ -1336,3 +1337,42 @@ def test_a_template_with_a_syntax_error_is_refused_when_saved(ha):
         assert _require_task(ha, task_id)["sensor"]["template"] == good
     finally:
         _delete(ha, task_id)
+
+
+# ── an entity id rename follows into the binding (X10-1) ────────────────────
+# Home Assistant does not rewrite integration storage on a rename, so the watcher
+# listens to the entity registry and rewrites every binding on the old id.
+RENAMED_FLAG = "input_boolean.hk_demo_flag_renamed"
+
+
+def _rename_entity(ha, entity_id, new_entity_id):
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    msg = ws_send(
+        token,
+        {
+            "type": "config/entity_registry/update",
+            "entity_id": entity_id,
+            "new_entity_id": new_entity_id,
+        },
+    )
+    assert msg.get("success"), f"rename failed: {msg}"
+
+
+def test_a_renamed_entity_keeps_its_sensor_task(ha):
+    _set_flag(ha, False)
+    task_id = _add_sensor_task(ha, {"entity_id": FLAG, "mode": "state", "state": "on"})
+    renamed = False
+    try:
+        _poll_task(ha, task_id, lambda t: t.get("recurrence_type") == "sensor")
+        _rename_entity(ha, FLAG, RENAMED_FLAG)
+        renamed = True
+        _poll_task(ha, task_id, lambda t: t["sensor"].get("entity_id") == RENAMED_FLAG)
+        # The task reads the entity at its new id: a crossing there arms it.
+        call_service(ha, "input_boolean", "turn_on", {"entity_id": RENAMED_FLAG})
+        _poll_task(ha, task_id, lambda t: t.get("next_due") is not None)
+    finally:
+        _delete(ha, task_id)
+        if renamed:
+            call_service(ha, "input_boolean", "turn_off", {"entity_id": RENAMED_FLAG})
+            _rename_entity(ha, RENAMED_FLAG, FLAG)
+        _set_flag(ha, False)

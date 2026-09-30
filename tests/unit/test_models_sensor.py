@@ -408,6 +408,20 @@ def test_state_is_required(state):
         )
 
 
+@pytest.mark.parametrize("state", [True, False])
+def test_b08_2_state_rejects_a_yaml_boolean(state):
+    # B08-2: YAML reads a bare ``state: on`` as True, and ``str()`` stored "True",
+    # which no entity reports. ``state: off`` failed as "is required" instead.
+    with raises_exactly(
+        m.TaskValidationError,
+        "sensor.state must be text. YAML reads a bare yes, no, on and off as true "
+        "or false, so put quotation marks around the value.",
+    ):
+        m.normalize_sensor(
+            {"entity_id": "binary_sensor.x", "mode": "state", "state": state}
+        )
+
+
 def test_state_over_length_rejected():
     # Home Assistant caps a state at 255 chars, so a longer one could never match.
     with raises_exactly(
