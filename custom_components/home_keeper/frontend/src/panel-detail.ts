@@ -76,6 +76,7 @@ import {
   safeHref,
   scanRequired,
   snapStock,
+  typedStock,
   countedProgress,
   isUseTask,
   statusChipHtml,
@@ -959,7 +960,15 @@ function wireStockSteppers(p: PanelHost, root: ShadowRoot, asset: Asset): void {
     };
     dec.addEventListener('click', () => void commit(committed - tap));
     inc.addEventListener('click', () => void commit(committed + tap));
-    input.addEventListener('change', () => void commit(Number(input.value)));
+    input.addEventListener('change', () => {
+      // An empty box is not a count of zero: put the stored count back (F07-3).
+      const typed = typedStock(input);
+      if (typed == null) {
+        input.value = String(committed);
+        return;
+      }
+      void commit(typed);
+    });
     input.addEventListener('keydown', (e) => {
       if ((e as KeyboardEvent).key === 'Enter') input.blur();
     });
@@ -1137,7 +1146,8 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
   if (d.kind === 'task') {
     const task = p._tasks.find((x) => x.id === d.id);
     if (!task) return;
-    root.querySelector('.d-done')?.addEventListener('click', () => void p._complete(task));
+    const done = root.querySelector('.d-done');
+    done?.addEventListener('click', () => void p._complete(task, done));
     root
       .querySelector('.d-done-blocked-wrap')
       ?.addEventListener('click', () => p._notifyBlocked(task));

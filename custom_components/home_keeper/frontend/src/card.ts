@@ -56,6 +56,7 @@ import {
   setBtnWeight,
   statusChipHtml,
   toast,
+  guardWrite,
 } from './utils';
 
 // mdi:check-circle-outline — the trailing "mark done" action on each row.
@@ -331,6 +332,8 @@ interface EditState {
   open: boolean;
   task: Partial<Task> | null;
   error?: string;
+  /** Set while Create runs, so a second press is ignored (X12-4). */
+  busy?: boolean;
 }
 
 /** A resolved "show on card" document chip — always a plain anchor. `url` is the
@@ -707,24 +710,34 @@ export class HomeKeeperCard extends HTMLElement {
     this._render();
   }
 
-  private async _submitForm(): Promise<void> {
-    if (!this._hass || !this._edit.task) return;
-    const task = this._edit.task;
+  private async _submitForm(button?: Element | null): Promise<void> {
+    const hass = this._hass;
+    const edit = this._edit;
+    const task = edit.task;
+    if (!hass || !task) return;
     if (!task.name || !String(task.name).trim()) {
-      this._edit.error = t('error.nameRequired');
+      edit.error = t('error.nameRequired');
       this._render();
       return;
     }
     // The card only *creates* tasks (the header "+" button). Editing and deleting
-    // live in the sidebar panel, so there's no update/delete path here.
-    try {
-      await api.addTask(this._hass, buildTaskPayload(task));
-      this._closeForm();
-      await this._refresh();
-    } catch (err) {
-      this._edit.error = String((err as { message?: string })?.message || err);
-      this._render();
-    }
+    // live in the sidebar panel, so there's no update/delete path here. A second
+    // press while the add runs (a device-linked add waits for a reload) must not
+    // create a second task (X12-4).
+    await guardWrite(
+      edit,
+      async () => {
+        try {
+          await api.addTask(hass, buildTaskPayload(task));
+          this._closeForm();
+          await this._refresh();
+        } catch (err) {
+          edit.error = String((err as { message?: string })?.message || err);
+          this._render();
+        }
+      },
+      button,
+    );
   }
 
   // ── rendering ───────────────────────────────────────────────────────────────
@@ -1241,7 +1254,7 @@ export class HomeKeeperCard extends HTMLElement {
     const save = document.createElement('ha-button');
     save.setAttribute('raised', '');
     save.textContent = t('btn.create');
-    save.addEventListener('click', () => void this._submitForm());
+    save.addEventListener('click', () => void this._submitForm(save));
     const cancel = document.createElement('ha-button');
     cancel.textContent = t('btn.cancel');
     cancel.addEventListener('click', () => this._closeForm());

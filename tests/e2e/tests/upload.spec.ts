@@ -103,6 +103,11 @@ test('a valid upload shows progress and adds the document', async ({ page }) => 
 
   // Put the seeded appliance back: this test uploads to shared fixture data, and a
   // document left behind changes what the other appliance specs see.
+  // Removing a stored file asks first (F08-3).
   await card.locator('ha-icon-button[label="Remove document"]').click();
+  const scrim = page.locator('.hk-confirm-scrim');
+  await expect(scrim).toBeVisible();
+  await scrim.locator('ha-button').filter({ hasText: /Delete/i }).click();
+  await expect(scrim).toHaveCount(0);
   await expect(card).toHaveCount(0);
 });

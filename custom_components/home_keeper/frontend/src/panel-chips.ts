@@ -51,7 +51,9 @@ export function isManagedAssetOrphan(p: PanelHost, asset: Asset): boolean {
 /** The one reading of "the owner is no longer here", shared by both surfaces. */
 function ownerIsGone(p: PanelHost, mb?: ManagedByBase | null): boolean {
   const id = mb?.config_entry_id;
-  return Boolean(id) && !p._loadedEntryIds.has(id as string);
+  // Unknown owners are not gone: a failed lookup must not offer to delete them.
+  const loaded = p._loadedEntryIds;
+  return Boolean(id) && loaded !== null && !loaded.has(id as string);
 }
 
 /**

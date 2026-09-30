@@ -72,6 +72,15 @@ describe('markdownBlock', () => {
       expect(html).toContain('class="hk-md"');
     });
 
+    it('F04-1: sets breaks so a single line break in a note survives', () => {
+      const host = document.createElement('div');
+      host.innerHTML = markdownBlock('Filter: 16x25x1\nBrand: Filtrete');
+      const el = host.querySelector('ha-markdown');
+      expect(el.hasAttribute('breaks')).toBe(true);
+      expect(el.getAttribute('breaks')).toBe('');
+      expect(el.getAttribute('class')).toBe('hk-md');
+    });
+
     it('appends the extra class', () => {
       expect(markdownBlock('hi', 'hk-md-compact')).toContain('class="hk-md hk-md-compact"');
     });

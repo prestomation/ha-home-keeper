@@ -82,6 +82,8 @@ import type {
 } from './types';
 import {
   toast,
+  guardWrite,
+  type WriteGuard,
   btnAttrs,
   type BtnWeight,
   buildPath,
@@ -163,8 +165,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // config entry id -> integration domain, for resolving device brand logos.
   _entryDomains: Record<string, string> = {};
   // config entry ids that are currently loaded, for managed-task orphan detection.
-  _loadedEntryIds: Set<string> = new Set();
+  // Null until known, or when the lookup failed: then no task reads as orphaned.
+  _loadedEntryIds: Set<string> | null = null;
   _edit: EditState = { open: false, task: null };
+  // One in-flight guard per task id for the quick Done button (X12-3).
+  _completing: Record<string, WriteGuard> = {};
   // On `PanelHost`, so `panel-history.collapsibleSection` can remember which advanced
   // sections the user left open. Hazard for anything else that reaches it: `.asset` is
   // mutated **in place** by the appliance editors (each field handler merges into the
@@ -775,7 +780,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         api.getTasks(this._hass),
         api.getAssets(this._hass),
         this._soft(api.getEntryDomains(this._hass), {}),
-        this._soft(api.getLoadedEntryIds(this._hass), new Set<string>()),
+        // Null, not an empty set, when the call fails: an empty set read every
+        // managed task as orphaned and offered to delete them all (F07-5).
+        this._soft(api.getLoadedEntryIds(this._hass), null),
         this._soft(api.getOptions(this._hass), null),
         this._soft(api.getCompanions(this._hass), [] as Companion[]),
         this._soft(
@@ -925,7 +932,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._render();
   }
 
-  async _submitForm(): Promise<void> {
+  async _submitForm(button?: Element | null): Promise<void> {
+    if (!this._hass || !this._edit.task) return;
+    // A second press while the first save runs must not create a second task (X12-4).
+    await guardWrite(this._edit, () => this._saveTaskForm(), button);
+  }
+
+  private async _saveTaskForm(): Promise<void> {
     if (!this._hass || !this._edit.task) return;
     const task = this._edit.task;
     if (!task.name || !String(task.name).trim()) {
@@ -1087,7 +1100,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     input.addEventListener('input', () => preview.update(input.value));
   }
 
-  async _complete(task: Task): Promise<void> {
+  async _complete(task: Task, button?: Element | null): Promise<void> {
     if (!this._hass) return;
     // A scan-locked task is completed by its tag, not by this button. The backend
     // rejects the call outright, so say why here rather than surfacing its error.
@@ -1101,13 +1114,23 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       openCompletionDialog(this, task);
       return;
     }
-    try {
-      await api.completeTask(this._hass, task.id);
-    } catch (err) {
-      console.error('home-keeper: complete failed', err);
-      toast(this, t('error.actionFailed'));
-    }
-    await this._refresh();
+    // One completion at a time per task: a double click must not log two (X12-3).
+    const guard = (this._completing[task.id] ??= {});
+    await guardWrite(
+      guard,
+      async () => {
+        const hass = this._hass;
+        if (!hass) return;
+        try {
+          await api.completeTask(hass, task.id);
+        } catch (err) {
+          console.error('home-keeper: complete failed', err);
+          toast(this, t('error.actionFailed'));
+        }
+        await this._refresh();
+      },
+      button,
+    );
   }
 
   /**
@@ -1313,7 +1336,13 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._render();
   }
 
-  async _submitAssetForm(): Promise<void> {
+  async _submitAssetForm(button?: Element | null): Promise<void> {
+    if (!this._hass || !this._assetEdit.asset) return;
+    // A second press while the first save runs must not create a second appliance.
+    await guardWrite(this._assetEdit, () => this._saveAssetForm(), button);
+  }
+
+  private async _saveAssetForm(): Promise<void> {
     if (!this._hass || !this._assetEdit.asset) return;
     const a = this._assetEdit.asset;
     if (a.kind === 'virtual' && !String(a.name || '').trim()) {

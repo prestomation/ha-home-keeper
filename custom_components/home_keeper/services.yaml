@@ -433,6 +433,13 @@ delete_task:
       selector:
         boolean:
 
+delete_orphaned_tasks:
+  name: Delete orphaned tasks
+  description: >-
+    Delete every task that an integration manages when that integration is not
+    loaded (removed, disabled or not set up). Admin-only. Returns the IDs of the
+    deleted tasks under "deleted".
+
 complete_task:
   name: Complete task
   description: Mark a task complete and advance its recurrence.

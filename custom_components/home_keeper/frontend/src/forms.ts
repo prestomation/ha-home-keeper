@@ -315,6 +315,17 @@ function seasonWindowData(task: Partial<Task>, i: number): Record<string, unknow
 }
 
 /**
+ * An optional flat `sensor_*` value from the edit state, else the loaded binding's.
+ *
+ * A key the edit state holds wins even when its value is `undefined`. Home Assistant's
+ * text and number selectors emit `undefined` for a box the user emptied, so a `??`
+ * fallback put the stored attribute, hold or unit back on save (F02-2).
+ */
+function flatSensor(sd: Record<string, unknown>, key: string, stored: unknown): unknown {
+  return key in sd ? sd[key] : stored;
+}
+
+/**
  * Whether a state-mode binding points at a `binary_sensor`, from either representation.
  *
  * Binary sensors are the reason this mode exists and they only ever report `on`/`off`,
@@ -328,7 +339,9 @@ function seasonWindowData(task: Partial<Task>, i: number): Record<string, unknow
  */
 export function isBinarySensorBinding(task: Partial<Task>): boolean {
   const sd = task as Record<string, unknown>;
-  const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
+  const attribute = String(
+    flatSensor(sd, 'sensor_attribute', task.sensor?.attribute) ?? '',
+  ).trim();
   if (attribute) return false;
   const entityId = String(sd.sensor_entity_id ?? task.sensor?.entity_id ?? '');
   return entityId.startsWith('binary_sensor.');
@@ -864,9 +877,9 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
       sd.sensor_clear_on_recover ??
       task.sensor?.clear_on_recover ??
       (sd.sensor_mode ?? task.sensor?.mode) === 'availability',
-    sensor_for: sd.sensor_for ?? task.sensor?.for_seconds ?? 0,
-    sensor_attribute: sd.sensor_attribute ?? task.sensor?.attribute ?? '',
-    sensor_unit: sd.sensor_unit ?? task.sensor?.unit ?? '',
+    sensor_for: flatSensor(sd, 'sensor_for', task.sensor?.for_seconds) ?? 0,
+    sensor_attribute: flatSensor(sd, 'sensor_attribute', task.sensor?.attribute) ?? '',
+    sensor_unit: flatSensor(sd, 'sensor_unit', task.sensor?.unit) ?? '',
     sensor_baseline: sd.sensor_baseline ?? task.sensor?.baseline ?? undefined,
     sensor_backstop_on: backstopEnabled(task),
     // Seeded rather than left at 0 so switching the backstop on gives a working rule
@@ -1077,11 +1090,11 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     const attribute =
       mode === 'template'
         ? ''
-        : String(sd.sensor_attribute ?? task.sensor?.attribute ?? '').trim();
+        : String(flatSensor(sd, 'sensor_attribute', task.sensor?.attribute) ?? '').trim();
     if (attribute) sensor.attribute = attribute;
     if (mode === 'usage') {
       sensor.target = Number(sd.sensor_target ?? task.sensor?.target) || 0;
-      const unit = String(sd.sensor_unit ?? task.sensor?.unit ?? '').trim();
+      const unit = String(flatSensor(sd, 'sensor_unit', task.sensor?.unit) ?? '').trim();
       if (unit) sensor.unit = unit;
       // The meter's starting point. Only sent when the box actually holds a number:
       // blank on create means "anchor at the live reading" (the backend leaves
@@ -1123,7 +1136,7 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
           '>=';
         sensor.value = Number(sd.sensor_value ?? task.sensor?.value) || 0;
       }
-      const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds) || 0;
+      const forSeconds = Number(flatSensor(sd, 'sensor_for', task.sensor?.for_seconds)) || 0;
       if (forSeconds > 0) sensor.for_seconds = forSeconds;
       const clearOnRecover = sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover;
       if (mode === 'availability') {
@@ -1364,7 +1377,7 @@ export function sensorHintText(
   const unit = ctx.unit ? ` ${ctx.unit}` : '';
 
   // The edge-driven modes share the hold wording and the clear-on-recover suffix.
-  const forSeconds = Number(sd.sensor_for ?? task.sensor?.for_seconds ?? 0) || 0;
+  const forSeconds = Number(flatSensor(sd, 'sensor_for', task.sensor?.for_seconds)) || 0;
   const withRecovery = (base: string): string =>
     (sd.sensor_clear_on_recover ?? task.sensor?.clear_on_recover)
       ? `${base} ${t('hint.sensor.clearOnRecover')}`
@@ -1457,7 +1470,7 @@ export function sensorLive(
   if (!entityId) return {};
   const state = hass?.states?.[entityId];
   if (!state) return {};
-  const attribute = String(sd.sensor_attribute ?? task.sensor?.attribute ?? '');
+  const attribute = String(flatSensor(sd, 'sensor_attribute', task.sensor?.attribute) ?? '');
   const raw = attribute ? (state.attributes?.[attribute] as unknown) : state.state;
   const num = raw == null || raw === '' ? NaN : Number(raw);
   const unit = state.attributes?.unit_of_measurement as string | undefined;

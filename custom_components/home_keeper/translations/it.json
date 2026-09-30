@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Elimina attività orfane",
+      "description": "Elimina ogni attività gestita da un'integrazione quando quell'integrazione non è caricata (rimossa, disattivata o non configurata). Solo per amministratori. Restituisce gli ID delle attività eliminate in \"deleted\"."
+    },
     "complete_task": {
       "name": "Completa attività",
       "description": "Contrassegna un'attività come completata e fai avanzare la sua ricorrenza.",

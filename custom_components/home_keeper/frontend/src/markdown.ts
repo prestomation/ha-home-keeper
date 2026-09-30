@@ -96,7 +96,9 @@ export function markdownBlock(text: unknown, extraClass = ''): string {
     // author's own line breaks and indentation survive.
     return `<div class="${cls} hk-md-plain">${escapeHTML(value)}</div>`;
   }
-  return `<ha-markdown class="${cls}" data-md="${escapeHTML(value)}"></ha-markdown>`;
+  // `breaks` keeps a single line break in a note, as the fallback and HA's own
+  // Markdown card do. Without it, marked joins the lines of a plain list of facts.
+  return `<ha-markdown breaks class="${cls}" data-md="${escapeHTML(value)}"></ha-markdown>`;
 }
 
 /** Move `data-md` onto each `ha-markdown`'s `content` property. Run after every render. */

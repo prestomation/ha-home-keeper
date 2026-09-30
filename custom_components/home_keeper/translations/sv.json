@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Ta bort föräldralösa uppgifter",
+      "description": "Tar bort varje uppgift som en integration hanterar när den integrationen inte är inläst (borttagen, inaktiverad eller inte konfigurerad). Endast för administratörer. Returnerar ID:n för de borttagna uppgifterna under \"deleted\"."
+    },
     "complete_task": {
       "name": "Slutför uppgift",
       "description": "Markera en uppgift som slutförd och gå vidare till nästa återkommande tillfälle.",

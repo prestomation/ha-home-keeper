@@ -40,11 +40,15 @@ export interface DeclarativeDialogState {
 export type NoteTarget = { kind: 'task' | 'asset'; id: string };
 
 export interface EditState {
+  /** Set while Create/Save runs, so a second press is ignored (X12-4). */
+  busy?: boolean;
   open: boolean;
   task: Partial<Task> | null;
   error?: string;
 }
 export interface AssetEditState {
+  /** Set while Create/Save runs, so a second press is ignored (X12-4). */
+  busy?: boolean;
   open: boolean;
   asset: Partial<Asset> | null;
   error?: string;
@@ -71,6 +75,11 @@ export interface AssetEditState {
   // form-level `error` above is hundreds of pixels away from the upload buttons, which
   // is what made these failures look silent (issue #159).
   uploadError?: { key: string; message: string; link?: string };
+  // The link typed in the "add a document" form, kept across a re-render so a failed
+  // Add link, or any other render, does not clear it (F08-1). Cleared when it is added.
+  docDraft?: { name: string; url: string };
+  // The same for the inline editor of document `id`. Cleared on Save and on Cancel.
+  docEditDraft?: { id: string; name: string; url: string };
 }
 
 /** Progress of the in-flight upload. `key` scopes it to the control that started it:
@@ -100,6 +109,8 @@ export const UPLOAD_BAR_DELAY_MS = 150;
  * metadata; `required` is the set of fields that must be filled before saving.
  */
 export interface CompletionDialogState {
+  /** Set while the save runs, so a second press is ignored (X12-3). */
+  busy?: boolean;
   open: boolean;
   task: Task | null;
   ts?: string;
@@ -120,6 +131,8 @@ export interface CompletionDialogState {
  * edit-metadata mode, which never touches the timestamp.
  */
 export interface MoveCompletionDialogState {
+  /** Set while the save runs, so a second press is ignored (X12-3). */
+  busy?: boolean;
   open: boolean;
   task: Task | null;
   ts: string;

@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Verwaiste Aufgaben löschen",
+      "description": "Löscht jede Aufgabe, die eine Integration verwaltet, wenn diese Integration nicht geladen ist (entfernt, deaktiviert oder nicht eingerichtet). Nur für Administratoren. Gibt die IDs der gelöschten Aufgaben unter \"deleted\" zurück."
+    },
     "complete_task": {
       "name": "Aufgabe abschließen",
       "description": "Eine Aufgabe als abgeschlossen markieren und ihre Wiederholung weiterschalten.",

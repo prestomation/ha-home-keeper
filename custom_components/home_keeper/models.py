@@ -135,6 +135,35 @@ def normalize_completion_metadata(
     return result
 
 
+def normalize_entry_edit_metadata(
+    data: Any, *, allow_reading: bool, stored_reading: Any
+) -> dict[str, Any]:
+    """Clean the metadata for an edit of a logged completion or skip.
+
+    When the task records readings, this is :func:`normalize_completion_metadata`.
+    When it does not (its type or sensor mode changed after the entry was logged), the
+    entry can still keep the reading it has. An edit form sends that reading back, so a
+    reading equal to *stored_reading* is not a change, and an absent one does not
+    clear it: the reading box is not shown for this task, so the user cannot mean to
+    clear it. Only a new, different reading is refused (F10-1).
+    """
+    if allow_reading:
+        return normalize_completion_metadata(data, allow_reading=True)
+    rest = dict(data) if isinstance(data, dict) else {}
+    reading = rest.pop("reading", None)
+    changed = reading is not None and reading != ""
+    if changed and (
+        stored_reading is None or _finite_float(reading, "reading") != stored_reading
+    ):
+        raise TaskValidationError(
+            "reading is only valid for a sensor task with a numeric binding"
+        )
+    result = normalize_completion_metadata(rest)
+    if stored_reading is not None:
+        result["reading"] = stored_reading
+    return result
+
+
 def task_records_reading(task: Any) -> bool:
     """Whether completing *task* should record the bound sensor's reading.
 
@@ -405,11 +434,13 @@ def normalize_sensor(
             result["for_seconds"] = for_seconds
         # ``clear_on_recover`` defaults to True in this mode (an offline device
         # returning to reachable *is* the recovery signal); the panel still surfaces
-        # a checkbox, and an explicit ``False`` disables auto-clear. Stored only when
-        # True so a dict-equality test does not care about default padding.
+        # a checkbox, and an explicit ``False`` disables auto-clear. Always stored, so
+        # a second pass reads the same value: a dropped ``False`` would come back as
+        # the default True on the next normalize (F06-2).
         clear_on_recover = data.get("clear_on_recover")
-        if clear_on_recover is None or bool(clear_on_recover):
-            result["clear_on_recover"] = True
+        result["clear_on_recover"] = (
+            True if clear_on_recover is None else bool(clear_on_recover)
+        )
     else:  # SENSOR_MODE_TEMPLATE
         # The condition is one Jinja template, so every operator and target field
         # belongs to another mode. ``attribute`` goes too: a template reads

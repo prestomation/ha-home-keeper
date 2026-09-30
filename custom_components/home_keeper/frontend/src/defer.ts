@@ -152,6 +152,8 @@ export function deferRowActions(task: Task, verbs: DeferVerbs): string {
 }
 
 export interface SnoozeState {
+  /** Set while the save runs, so a second press is ignored (X12-3). */
+  busy?: boolean;
   open: boolean;
   task: Task | null;
   preset: SnoozePresetId;
@@ -160,6 +162,8 @@ export interface SnoozeState {
 }
 
 export interface SkipState {
+  /** Set while the save runs, so a second press is ignored (X12-3). */
+  busy?: boolean;
   open: boolean;
   task: Task | null;
   ts?: string;

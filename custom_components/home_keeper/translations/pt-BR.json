@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Excluir tarefas órfãs",
+      "description": "Exclui cada tarefa gerenciada por uma integração quando essa integração não está carregada (removida, desativada ou não configurada). Somente para administradores. Retorna os IDs das tarefas excluídas em \"deleted\"."
+    },
     "complete_task": {
       "name": "Concluir tarefa",
       "description": "Marcar uma tarefa como concluída e avançar sua recorrência.",

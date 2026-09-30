@@ -333,7 +333,9 @@ receipts. A document is an external **link** or an **uploaded file**. The upload
 file is a PDF or an image that is stored under the Home Assistant config directory
 and served through an authenticated endpoint with a short-lived signed URL. Open
 the appliance's **Manuals & documents** editor to add a link or to **Upload file**.
-A removed document and a deleted appliance delete the stored file.
+A removed document and a deleted appliance delete the stored file. For this
+reason, the panel asks for confirmation before it removes a document or the file
+of a part.
 
 **Open** shows the document in a new tab. **Edit** renames a document and changes
 the URL of a link. An uploaded file can be renamed only. A link can be added while

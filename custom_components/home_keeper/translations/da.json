@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Slet forældreløse opgaver",
+      "description": "Sletter hver opgave, som en integration administrerer, når denne integration ikke er indlæst (fjernet, deaktiveret eller ikke sat op). Kun for administratorer. Returnerer id'erne for de slettede opgaver under \"deleted\"."
+    },
     "complete_task": {
       "name": "Fuldfør opgave",
       "description": "Marker en opgave som fuldført, og gå videre til næste gentagelse.",

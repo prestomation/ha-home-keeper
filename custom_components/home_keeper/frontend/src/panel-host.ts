@@ -114,7 +114,7 @@ export interface PanelHost extends HTMLElement {
    *  `position:fixed` resolves against the viewport). */
   _confirmScrim: HTMLElement | null;
   /** Record a completion for *task* (opening the details dialog when one is wanted). */
-  _complete(task: Task): Promise<void>;
+  _complete(task: Task, button?: Element | null): Promise<void>;
   /** Run *fn* once the key has been quiet for *ms*, so a per-keystroke save doesn't
    *  fire a config-entry reload on every character. */
   _debounce(key: string, fn: () => void, ms?: number): void;
@@ -179,8 +179,9 @@ export interface PanelHost extends HTMLElement {
    *  live in is replaced — a region that reset it would stop feeding `hass` to
    *  everything an earlier pass registered. */
   _liveHassEls: Array<{ hass?: Hass }>;
-  /** config entry ids currently loaded, for managed-task orphan detection. */
-  _loadedEntryIds: Set<string>;
+  /** config entry ids currently loaded, for managed-task orphan detection. Null when
+   *  the lookup failed, so that no task reads as orphaned (F07-5). */
+  _loadedEntryIds: Set<string> | null;
   /** Build one live `ha-form`, registered for `hass` updates. The panel's only
    *  `ha-form` constructor; *labelling* is for a form whose fields are not named from
    *  `field.<name>` (see the panel's own doc comment). */
@@ -276,9 +277,9 @@ export interface PanelHost extends HTMLElement {
   /** The snooze dialog's state. */
   _snooze: SnoozeState;
   /** Save the open appliance drawer (validates, then creates or updates). */
-  _submitAssetForm(): Promise<void>;
+  _submitAssetForm(button?: Element | null): Promise<void>;
   /** Save the open task drawer (validates, then creates or updates). */
-  _submitForm(): Promise<void>;
+  _submitForm(button?: Element | null): Promise<void>;
   /** Short-lived signed URLs for the uploaded files on screen; a detail page reads the
    *  href out of it as it renders and `_signFiles` fills in what wasn't minted yet. */
   _signedFiles: SignedUrlCache;

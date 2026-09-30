@@ -193,6 +193,24 @@ def _reject_scan_required(task: dict[str, Any], origin: str | None) -> None:
     )
 
 
+def _edit_metadata(
+    task: dict[str, Any], log: str, ts: str, metadata: dict[str, Any]
+) -> dict[str, Any]:
+    """Clean the metadata for an edit of the entry at *ts* in *log*.
+
+    *log* is ``completions`` or ``skips``. The entry's stored reading goes with it, so
+    an edit of a task that no longer records readings keeps that reading (F10-1).
+    """
+    stored = next(
+        (e.get("reading") for e in task.get(log) or [] if e.get("ts") == ts), None
+    )
+    return models.normalize_entry_edit_metadata(
+        metadata,
+        allow_reading=models.task_records_reading(task),
+        stored_reading=stored,
+    )
+
+
 def _changed_fields(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     """Top-level keys whose value differs between *before* and *after*.
 
@@ -839,7 +857,50 @@ class HomeKeeperStore:
 
     async def delete_task(self, task_id: str, *, force: bool = False) -> None:
         task = self._tasks.get(task_id)
-        if task is not None and _part_source(task) and not _is_manual_part_link(task):
+        if task is not None:
+            self._check_deletable(task, force=force)
+        if task_id in self._tasks:
+            removed = self._tasks[task_id]
+            self._archive_task_history(removed)
+            del self._tasks[task_id]
+            await self._save()
+            self._hass.bus.async_fire(
+                EVENT_TASK_DELETED, events.task_event_data(removed)
+            )
+
+    async def delete_orphaned_tasks(self) -> list[dict[str, Any]]:
+        """Delete every managed task whose owning integration is gone, in one save.
+
+        The bulk twin of :meth:`delete_task` behind the panel's "Remove orphaned
+        tasks" (X08-1). "Orphaned" is :meth:`managed_task_orphaned`, the same rule a
+        single delete uses to lift deletion protection. A task that a single delete
+        would refuse (a wear-part or buy task) is left in place, and the others still
+        go. Each deleted task fires its own ``task_deleted`` event after the one save.
+        Returns the deleted tasks, so the caller can reload the entry once if any of
+        them owned per-task entities.
+        """
+        removed: list[dict[str, Any]] = []
+        for task_id, task in list(self._tasks.items()):
+            if not self.managed_task_orphaned(task):
+                continue
+            try:
+                self._check_deletable(task, force=False)
+            except models.TaskValidationError:
+                continue
+            self._archive_task_history(task)
+            del self._tasks[task_id]
+            removed.append(task)
+        if removed:
+            await self._save()
+            for task in removed:
+                self._hass.bus.async_fire(
+                    EVENT_TASK_DELETED, events.task_event_data(task)
+                )
+        return removed
+
+    def _check_deletable(self, task: dict[str, Any], *, force: bool) -> None:
+        """Raise ``TaskValidationError`` when *task* must not be deleted here."""
+        if _part_source(task) and not _is_manual_part_link(task):
             # Derived from a wear part; deleting it here would just be recreated by
             # the next reconcile. Direct the user to manage the part instead. A *manual*
             # consumable link is user-owned, so it is freely deletable (the link is just
@@ -848,31 +909,20 @@ class HomeKeeperStore:
                 "This task is managed by an appliance wear part; remove or change "
                 "the part to delete it."
             )
-        if task is not None and _buy_source(task):
+        if _buy_source(task):
             # System-managed auto-buy reminder; the reconciler would recreate it while
             # the part is still low. Direct the user to restock or turn off the option.
             raise models.TaskValidationError(
                 "This is an auto-created buy reminder; restock the part or turn off "
                 "its auto-buy option to remove it."
             )
-        if task is not None:
-            managed_by = task.get("managed_by")
-            orphaned = self.managed_task_orphaned(task)
-            if models.deletion_blocked(task, orphaned=orphaned, force=force):
-                display_name = (managed_by or {}).get(
-                    "display_name"
-                ) or "an integration"
-                raise models.TaskValidationError(
-                    f"This task is managed by {display_name}. "
-                    f"Delete it from {display_name} instead."
-                )
-        if task_id in self._tasks:
-            removed = self._tasks[task_id]
-            self._archive_task_history(removed)
-            del self._tasks[task_id]
-            await self._save()
-            self._hass.bus.async_fire(
-                EVENT_TASK_DELETED, events.task_event_data(removed)
+        managed_by = task.get("managed_by")
+        orphaned = self.managed_task_orphaned(task)
+        if models.deletion_blocked(task, orphaned=orphaned, force=force):
+            display_name = (managed_by or {}).get("display_name") or "an integration"
+            raise models.TaskValidationError(
+                f"This task is managed by {display_name}. "
+                f"Delete it from {display_name} instead."
             )
 
     def managed_task_orphaned(self, task: dict[str, Any]) -> bool:
@@ -2284,9 +2334,7 @@ class HomeKeeperStore:
             raise KeyError(task_id)
         # A synced problem task's history is owned by the sync, not the user.
         _reject_synced_problem(existing, None)
-        clean_metadata = models.normalize_completion_metadata(
-            metadata, allow_reading=models.task_records_reading(existing)
-        )
+        clean_metadata = _edit_metadata(existing, "completions", ts, metadata)
         try:
             updated, _replaced_photo = recurrence.update_completion(
                 dict(existing),
@@ -2482,9 +2530,7 @@ class HomeKeeperStore:
             raise KeyError(task_id)
         # A synced problem task's history is owned by the sync, not the user.
         _reject_synced_problem(existing, None)
-        clean_metadata = models.normalize_completion_metadata(
-            metadata, allow_reading=models.task_records_reading(existing)
-        )
+        clean_metadata = _edit_metadata(existing, "skips", ts, metadata)
         try:
             updated = recurrence.update_skip(
                 dict(existing),

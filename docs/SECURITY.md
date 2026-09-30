@@ -35,6 +35,7 @@ panel uses, and the matching `home_keeper.*` service.
 | Create, edit, delete, archive and restore appliances | `add_asset`, `update_asset`, `delete_asset`, `archive_asset`, `restore_asset` |
 | Appliance documents and part files | `add_asset_document`, `update_asset_document`, `remove_asset_document`, `remove_part_file`, and a file upload (`POST`) to `/api/home_keeper/document/…` or `/api/home_keeper/part_document/…` |
 | Delete an archived completion from an appliance's history | `delete_archived_completion` |
+| Delete every orphaned task (a task whose managing integration is not loaded) | `delete_orphaned_tasks` |
 | Spare-part stock adjustments | `adjust_part_stock` |
 | Settings, profiles and notification delivery | `set_options` |
 | The appliance report (costs, serials, value totals) | `export_appliance_report` |

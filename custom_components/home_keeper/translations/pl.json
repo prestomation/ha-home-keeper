@@ -237,6 +237,10 @@
         }
       }
     },
+    "delete_orphaned_tasks": {
+      "name": "Usuń osierocone zadania",
+      "description": "Usuwa każde zadanie zarządzane przez integrację, gdy ta integracja nie jest załadowana (usunięta, wyłączona lub nieskonfigurowana). Tylko dla administratorów. Zwraca identyfikatory usuniętych zadań w kluczu \"deleted\"."
+    },
     "complete_task": {
       "name": "Ukończ zadanie",
       "description": "Oznacz zadanie jako ukończone i przejdź do jego kolejnego powtórzenia.",

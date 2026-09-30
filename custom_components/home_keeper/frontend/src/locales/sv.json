@@ -106,6 +106,8 @@
   "confirm.cannotUndo": "Det går inte att ångra.",
   "confirm.completeTask": "Markera \"{name}\" som klar?",
   "confirm.deleteAsset": "Ta bort \"{name}\"?",
+  "confirm.deleteOrphans.one": "Ta bort {n} föräldralös uppgift?",
+  "confirm.deleteOrphans.other": "Ta bort {n} föräldralösa uppgifter?",
   "confirm.deleteProfile": "Ta bort \"{name}\"?",
   "confirm.deleteTask": "Ta bort \"{name}\"?",
   "confirm.profileInUseBody": "Dessa aviseringar använder den här profilen: {notifications}. Ändra eller ta bort var och en och försök igen.",

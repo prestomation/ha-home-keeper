@@ -186,6 +186,37 @@ export function setBtnWeight(el: Element, weight: BtnWeight): void {
   el.setAttribute('data-hk-weight', weight);
 }
 
+/** State that one write marks while it runs. See {@link guardWrite}. */
+export interface WriteGuard {
+  busy?: boolean;
+}
+
+/**
+ * Run *write* only when no write is running on *state* (X12-3). A second press of
+ * Done, Skip, Snooze or Save while the first call runs does nothing, so it cannot log
+ * two completions or create two tasks. The pressed *button* is disabled for the same
+ * time, so the user sees that the press was taken. A re-render during the call draws
+ * a new, enabled button; the `busy` flag still ignores it.
+ *
+ * Returns false when the press was ignored.
+ */
+export async function guardWrite(
+  state: WriteGuard,
+  write: () => Promise<void>,
+  button?: Element | null,
+): Promise<boolean> {
+  if (state.busy) return false;
+  state.busy = true;
+  button?.setAttribute('disabled', '');
+  try {
+    await write();
+  } finally {
+    state.busy = false;
+    button?.removeAttribute('disabled');
+  }
+  return true;
+}
+
 /**
  * A random UUID-v4 string for client-minted ids (document ids, working-copy entries).
  *
@@ -519,6 +550,25 @@ export function assetPartsLocked(asset?: Partial<Asset> | null): boolean {
 export function snapStock(value: number, step: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.round(Math.round(value / step) * step * 1000) / 1000);
+}
+
+/**
+ * The number typed in a stock box, or null when the box holds no number (F07-3).
+ *
+ * An empty box reads as `''`, and `Number('')` is 0: a user who deleted the old count
+ * to type a new one, and then tapped away, set the stock to 0. That can fire the
+ * out-of-stock event and make a buy task. A number box with text that is not a number
+ * also reads as `''`, with `validity.badInput` set.
+ */
+export function typedStock(input: {
+  value: string;
+  validity?: { badInput?: boolean };
+}): number | null {
+  if (input.validity?.badInput) return null;
+  const text = input.value.trim();
+  if (!text) return null;
+  const value = Number(text);
+  return Number.isFinite(value) ? value : null;
 }
 
 /**

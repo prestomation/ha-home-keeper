@@ -191,6 +191,14 @@ export async function deleteTask(hass: Hass, taskId: string): Promise<void> {
   await hass.callWS({ type: 'home_keeper/delete_task', task_id: taskId });
 }
 
+/** Delete every orphaned managed task in one call; returns the deleted ids. */
+export async function deleteOrphanedTasks(hass: Hass): Promise<string[]> {
+  const res = await hass.callWS<{ deleted: string[] }>({
+    type: 'home_keeper/delete_orphaned_tasks',
+  });
+  return res?.deleted ?? [];
+}
+
 /**
  * Link a task to an appliance consumable/part (so completing it draws down stock
  * and fires the low-stock reorder event), or clear the link by passing nulls.

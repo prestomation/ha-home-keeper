@@ -16,7 +16,8 @@ lists all of them with their fields.
   today instead, independent of the periodic schedule, also without completing
   it. `set_task_consumable` links a task to an
   appliance consumable, so a completion draws down its stock. Omit the ids to
-  unlink. `list_tasks` returns a response.
+  unlink. `list_tasks` returns a response. `delete_orphaned_tasks` deletes each task
+  whose managing integration is not loaded. It is admin-only.
 <!-- vale ai-tells.OverusedVocabulary = NO -->
 - **Notifications**: `home_keeper.notify` sends an actionable notification for the
   tasks that are due, from a saved notification or profile. It returns

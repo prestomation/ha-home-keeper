@@ -6,6 +6,33 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b11]
+
+### Fixed
+
+- **Double presses.** A second press on Done, Skip, Snooze or Save while the first one
+  still runs no longer makes a second completion or a second task.
+- **Cleared sensor fields.** A cleared Attribute or Hold box on a sensor task now saves
+  as empty.
+- **[Empty stock box](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  An empty stock box on the appliance page no longer sets the stock to 0.
+- **Remove orphaned tasks.** The panel now asks before it deletes orphaned tasks, and
+  it deletes them in one step. It no longer shows every managed task as orphaned when
+  it cannot read the loaded integrations.
+- **[Document errors](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  An error on a document or a part file now shows next to it, and the link that you
+  typed stays in the box.
+- **[File removal](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  The panel now asks before it removes a document or the file of a part.
+- **Line breaks in notes.** A single line break in a note now shows as a new line.
+- **[Clear on recover](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  When you turn off Clear on recover in the declarative companion dialog, it now stays
+  off.
+- **Edits of old history.** You can now edit an old completion or skip of a task after
+  the task changed its type.
+- **Confirm dialog on a keyboard.** The confirm dialog now takes the focus and keeps it
+  until you close the dialog.
+
 ## [0.28.0b10]
 
 ### Fixed
