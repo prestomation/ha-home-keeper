@@ -47,8 +47,8 @@
 | custom\_components/home\_keeper/sensor.py                        |      164 |      164 |       42 |        0 |      0% |    16-382 |
 | custom\_components/home\_keeper/sensor\_tasks.py                 |      184 |        3 |       76 |        4 |     97% |144, 177-\>172, 196, 202 |
 | custom\_components/home\_keeper/sensor\_watcher.py               |      267 |      200 |      114 |        0 |     19% |79, 93-96, 102, 113-122, 131, 142-143, 166-181, 240-256, 271-279, 291-322, 327, 334-339, 358-419, 424-426, 430-432, 442-444, 449-451, 462-465, 477-478, 483-489, 497, 510-581, 586-600, 614-620, 625-626, 641-642, 657-658, 705-706, 736-742, 758-776 |
-| custom\_components/home\_keeper/shopping.py                      |      206 |        0 |       92 |        0 |    100% |           |
-| custom\_components/home\_keeper/shopping\_sync.py                |      103 |       10 |       40 |        8 |     86% |89-92, 115, 140, 150, 183-\>173, 230, 232, 233-\>235, 242 |
+| custom\_components/home\_keeper/shopping.py                      |      213 |        0 |       96 |        0 |    100% |           |
+| custom\_components/home\_keeper/shopping\_sync.py                |      105 |       10 |       40 |        8 |     86% |90-93, 116, 141, 153, 186-\>176, 233, 235, 236-\>238, 245 |
 | custom\_components/home\_keeper/store.py                         |     1080 |      529 |      488 |       74 |     48% |143-144, 169-171, 189, 262, 272, 280-292, 304-307, 309, 316, 318, 327, 348, 363, 367, 382-386, 411, 414, 428-446, 457-467, 474-509, 546, 553, 577, 582, 584, 626-640, 667-689, 720-739, 766-805, 822-837, 846, 853, 857-\>868, 861-864, 868-\>exit, 889-893, 919-933, 938, 941, 944, 949-955, 962, 1039-\>1027, 1052, 1064, 1065-\>1048, 1122-1133, 1146-1151, 1162-1174, 1186-1192, 1205-1211, 1222-1236, 1261-1268, 1277-1279, 1296-1309, 1320-1329, 1339-1346, 1389, 1403, 1436-\>1446, 1440-\>1439, 1471-1474, 1555-\>1566, 1568, 1576-1577, 1580, 1591, 1597-1598, 1606, 1623-1629, 1633-1639, 1673-1674, 1683, 1687-\>1686, 1696, 1718-1747, 1768-1778, 1804, 1808-\>1807, 1815-1818, 1824-1829, 1840, 1843, 1860-1880, 1892-1924, 1938, 1945-\>1944, 1951-\>1950, 1955-\>1950, 1973-1985, 2032, 2036-\>2035, 2044-2049, 2054-\>2042, 2056-2080, 2118, 2128, 2140-2144, 2162-2163, 2206-2235, 2247-2267, 2290, 2301, 2315-2317, 2348-2386, 2404-2431, 2438-2453, 2468-2495, 2508-2524, 2533-2546, 2567-2570, 2590, 2595, 2603, 2606, 2620-\>exit, 2651, 2659-\>exit, 2694-2704, 2738, 2741 |
 | custom\_components/home\_keeper/tag\_listener.py                 |       29 |       29 |        8 |        0 |      0% |     12-69 |
 | custom\_components/home\_keeper/tags.py                          |       11 |        0 |        2 |        0 |    100% |           |
@@ -56,15 +56,15 @@
 | custom\_components/home\_keeper/task\_entities.py                |       33 |        0 |       14 |        0 |    100% |           |
 | custom\_components/home\_keeper/template\_context.py             |       50 |       10 |       18 |        4 |     74% |109, 149-151, 155-157, 160-162 |
 | custom\_components/home\_keeper/todo.py                          |       64 |        6 |       20 |        0 |     93% |41-42, 58-59, 152-153 |
-| custom\_components/home\_keeper/todo\_items.py                   |       30 |        0 |       16 |        0 |    100% |           |
-| custom\_components/home\_keeper/todo\_list.py                    |      234 |        0 |       98 |        0 |    100% |           |
-| custom\_components/home\_keeper/todo\_list\_sync.py              |      120 |        2 |       48 |        2 |     98% |  187, 201 |
-| custom\_components/home\_keeper/todo\_sync\_driver.py            |      103 |        4 |       26 |        3 |     95% |124, 204-\>210, 230-231, 278 |
+| custom\_components/home\_keeper/todo\_items.py                   |       51 |        0 |       22 |        0 |    100% |           |
+| custom\_components/home\_keeper/todo\_list.py                    |      225 |        0 |      100 |        0 |    100% |           |
+| custom\_components/home\_keeper/todo\_list\_sync.py              |      121 |        2 |       48 |        2 |     98% |  186, 201 |
+| custom\_components/home\_keeper/todo\_sync\_driver.py            |      107 |        4 |       26 |        2 |     95% |125, 231-232, 293 |
 | custom\_components/home\_keeper/transfer.py                      |      574 |        2 |      230 |        4 |     99% |585-\>601, 818, 837, 1353-\>1352 |
 | custom\_components/home\_keeper/transfer\_runner.py              |       51 |       25 |       16 |        1 |     43% |   102-164 |
 | custom\_components/home\_keeper/transitions.py                   |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py                |      592 |      592 |       78 |        0 |      0% |    8-1595 |
-| **TOTAL**                                                        | **9772** | **3454** | **3478** |  **182** | **66%** |           |
+| **TOTAL**                                                        | **9798** | **3454** | **3490** |  **181** | **66%** |           |
 
 
 ## Setup coverage badge
