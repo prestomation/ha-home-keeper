@@ -193,7 +193,25 @@ class ProblemSensorSync:
         ):
             return
         self._resubscribe_state()
+        old_entity_id = event.data.get("old_entity_id")
+        if event.data.get("action") == "update" and old_entity_id:
+            # An entity_id rename (B18-2): move the mirror to the new id first, so the
+            # reconcile keeps the task and its history instead of making a new one.
+            self._hass.async_create_task(
+                self._async_rename_then_reconcile(
+                    str(old_entity_id), event.data["entity_id"]
+                )
+            )
+            return
         self._hass.async_create_task(self._async_reconcile())
+
+    async def _async_rename_then_reconcile(
+        self, old_entity_id: str, new_entity_id: str
+    ) -> None:
+        await self._coordinator.store.async_rename_problem_sensor(
+            old_entity_id, new_entity_id
+        )
+        await self._async_reconcile()
 
     async def _async_reconcile(self) -> None:
         entity_set_changed = (

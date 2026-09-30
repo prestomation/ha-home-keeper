@@ -210,3 +210,71 @@ def test_note_hydration_only_seeds_new_tasks_not_existing_ones():
     )
     assert tasks2[tid]["notes"] == "edited on the task"
     assert [kind for kind, _ in ops] == ["cleared"]
+
+
+# ── entity_id rename (B18-2) ──────────────────────────────────────────────────
+OLD = "binary_sensor.node_5_problem"
+NEW = "binary_sensor.sump_pump_problem"
+
+
+def test_b18_2_a_rename_keeps_the_mirror_its_labels_history_and_note():
+    # A rename was a delete of the old mirror and a create of an empty new one.
+    tasks, _ops, _ = _reconcile(_eligible(OLD, is_problem=True))
+    task = _only(tasks)
+    task["labels"] = ["sump"]
+    task["completions"] = [{"ts": NOW.isoformat()}]
+    notes = {OLD: "Check the float", "binary_sensor.other": "x"}
+
+    assert pt.rename_problem_entity(tasks, notes, OLD, NEW) is True
+    assert pt.problem_sensor_entity_id(task) == NEW
+    assert notes == {NEW: "Check the float", "binary_sensor.other": "x"}
+
+    after, ops, _ = pt.reconcile_problem_tasks(
+        _eligible(NEW, is_problem=True),
+        tasks,
+        config_entry_id=ENTRY,
+        now=NOW,
+        notes_by_entity=notes,
+    )
+    kept = _only(after)
+    assert kept["id"] == task["id"]
+    assert kept["labels"] == ["sump"]
+    assert kept["completions"] == [{"ts": NOW.isoformat()}]
+    assert [kind for kind, _ in ops] == []
+    assert NEW in kept["managed_by"]["completion_prompt"]
+
+
+def test_b18_2_a_rename_without_a_note_moves_only_the_task():
+    tasks, _ops, _ = _reconcile(_eligible(OLD, is_problem=False))
+    notes: dict[str, str] = {}
+    assert pt.rename_problem_entity(tasks, notes, OLD, NEW) is True
+    assert pt.problem_sensor_entity_id(_only(tasks)) == NEW
+    assert notes == {}
+
+
+def test_b18_2_a_rename_of_an_entity_with_no_mirror_changes_nothing():
+    tasks, _ops, _ = _reconcile(_eligible(OLD, is_problem=False))
+    notes = {"binary_sensor.a": "note"}
+    assert pt.rename_problem_entity(tasks, notes, "binary_sensor.a", NEW) is False
+    assert notes == {"binary_sensor.a": "note"}
+    assert pt.problem_sensor_entity_id(_only(tasks)) == OLD
+
+
+def test_b18_2_a_rename_onto_an_existing_mirror_changes_nothing():
+    tasks, _ops, _ = _reconcile(
+        {**_eligible(OLD, is_problem=False), **_eligible(NEW, is_problem=False)}
+    )
+    notes = {OLD: "old note"}
+    assert pt.rename_problem_entity(tasks, notes, OLD, NEW) is False
+    assert notes == {OLD: "old note"}
+    assert sorted(pt.problem_sensor_entity_id(t) for t in tasks.values()) == [
+        OLD,
+        NEW,
+    ]
+
+
+def test_b18_2_a_rename_to_the_same_id_changes_nothing():
+    tasks, _ops, _ = _reconcile(_eligible(OLD, is_problem=False))
+    notes = {OLD: "note"}
+    assert pt.rename_problem_entity(tasks, notes, OLD, OLD) is False
+    assert notes == {OLD: "note"}

@@ -173,13 +173,20 @@ def test_service_names_are_unique() -> None:
     assert len(names) == len(set(names)), "duplicate ServiceSpec name"
 
 
-def test_service_teardown_iterates_the_model() -> None:
-    """``async_unload_entry`` removes every modelled service, not a second list.
+def _init_function(name: str) -> ast.AsyncFunctionDef:
+    return next(
+        node
+        for node in ast.walk(_INIT_TREE)
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == name
+    )
 
-    ``set_task_meter`` was registered for releases while a hand-maintained
-    ``_SERVICES`` tuple beside it went one short, so it was never removed on
-    unload. A derived list can't be one short; this keeps the literal from
-    coming back.
+
+def test_services_register_once_in_async_setup() -> None:
+    """B02-1: the services live for the Home Assistant run, not for the entry.
+
+    Registered in ``async_setup_entry`` and removed in ``async_unload_entry``, they
+    went away on every reload, so a call during a reload failed with "action not
+    found". Home Assistant's ``action-setup`` rule puts them in ``async_setup``.
     """
     source = (_COMPONENT / "__init__.py").read_text(encoding="utf-8")
     assert "_SERVICES = (" not in source, (
@@ -187,12 +194,11 @@ def test_service_teardown_iterates_the_model() -> None:
         "Iterate api_surface.SERVICE_NAMES instead — a list nobody derives is a "
         "list somebody forgets."
     )
-    unload = next(
-        node
-        for node in ast.walk(_INIT_TREE)
-        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_unload_entry"
-    )
-    assert "SERVICE_NAMES" in ast.unparse(unload)
+    assert "_register_services(hass)" in ast.unparse(_init_function("async_setup"))
+    assert "_register_services" not in ast.unparse(_init_function("async_setup_entry"))
+    unload = ast.unparse(_init_function("async_unload_entry"))
+    assert "services.async_remove" not in unload
+    assert "SERVICE_NAMES" not in unload
 
 
 def test_service_response_kind_matches_source() -> None:

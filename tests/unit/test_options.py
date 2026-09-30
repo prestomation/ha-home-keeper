@@ -608,3 +608,77 @@ def test_x12_1_the_grace_is_taken_once() -> None:
     assert opts.take_retention_grace("grace-entry") is True
     assert opts.take_retention_grace("grace-entry") is False
     assert opts.take_retention_grace("other-entry") is False
+
+
+# ── X03-8: device ids after the Home Assistant 2026.8 device split ────────────
+DEAD = "dead_composite"
+LIVE = "live_device"
+
+
+def _device_options() -> dict[str, Any]:
+    return {
+        const.OPTION_SYNC_PROBLEM_SENSORS: True,
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: [DEAD, "keep"],
+        const.OPTION_PROFILES: [
+            {"id": "p1", "filter": {"devices": [DEAD], "exclude_devices": ["x"]}},
+            {"id": "p2", "filter": {"devices": [], "exclude_devices": [DEAD, LIVE]}},
+            {"id": "p3"},  # no filter block
+            "not a profile",
+        ],
+    }
+
+
+def test_x03_8_device_ids_in_options_finds_every_device_reference():
+    assert opts.device_ids_in_options(_device_options()) == {DEAD, "keep", "x", LIVE}
+    assert opts.device_ids_in_options({}) == set()
+
+
+def test_x03_8_repoint_device_ids_moves_exclusions_and_profile_filters():
+    stored = _device_options()
+    before = json.dumps(stored, sort_keys=True)
+    new = opts.repoint_device_ids(stored, {DEAD: LIVE})
+    assert new == {
+        const.OPTION_SYNC_PROBLEM_SENSORS: True,
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: [LIVE, "keep"],
+        const.OPTION_PROFILES: [
+            {"id": "p1", "filter": {"devices": [LIVE], "exclude_devices": ["x"]}},
+            # The dead id and the live id are one device now: listed once.
+            {"id": "p2", "filter": {"devices": [], "exclude_devices": [LIVE]}},
+            {"id": "p3"},
+            "not a profile",
+        ],
+    }
+    # The stored options are not changed in place.
+    assert json.dumps(stored, sort_keys=True) == before
+
+
+def test_x03_8_repoint_device_ids_reports_no_change():
+    assert opts.repoint_device_ids(_device_options(), {"other": LIVE}) is None
+    assert opts.repoint_device_ids({}, {DEAD: LIVE}) is None
+
+
+def test_x03_8_repoint_device_ids_moves_only_a_profile_filter():
+    stored = {
+        const.OPTION_PROFILES: [{"id": "p", "filter": {"exclude_devices": [DEAD]}}]
+    }
+    assert opts.repoint_device_ids(stored, {DEAD: LIVE}) == {
+        const.OPTION_PROFILES: [{"id": "p", "filter": {"exclude_devices": [LIVE]}}]
+    }
+
+
+def test_x03_8_repoint_device_ids_moves_only_the_exclusions():
+    stored = {const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: [DEAD]}
+    assert opts.repoint_device_ids(stored, {DEAD: LIVE}) == {
+        const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: [LIVE]
+    }
+
+
+def test_x03_8_device_ids_in_options_reads_past_a_bad_profile():
+    stored = {
+        const.OPTION_PROFILES: [
+            "not a profile",
+            {"id": "p0"},
+            {"id": "p", "filter": {"devices": [DEAD]}},
+        ]
+    }
+    assert opts.device_ids_in_options(stored) == {DEAD}

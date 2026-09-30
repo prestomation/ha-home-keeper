@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from datetime import datetime
 from typing import Any
 
@@ -576,6 +576,31 @@ def expand_spec(
     return matches
 
 
+def dormant_keys(
+    spec: dict[str, Any], registry_snapshot: dict[str, Any]
+) -> set[tuple[str, str]]:
+    """The ``(spec_id, entity_registry_id)`` keys of disabled entities *spec* selects.
+
+    A disabled entity does not match (:func:`_entity_matches`), but its registry
+    entry is still there. Home Assistant disables every entity of a device or of an
+    integration that a person disables, often only for a short time. The reconcile
+    pass switches off the task of such an entity and keeps it with its history
+    (B12-1), as :func:`pause_spec_tasks` does for a disabled companion.
+    """
+    selection = spec.get("selection") or {}
+    pattern = selection.get("entity_regex")
+    regex = re.compile(pattern) if pattern else None
+    keys: set[tuple[str, str]] = set()
+    for entry in registry_snapshot.get("entities") or []:
+        if not entry.get("disabled"):
+            continue
+        if not _entity_matches({**entry, "disabled": False}, selection, regex):
+            continue
+        ent_reg_id = entry.get("entity_registry_id") or entry.get("entity_id")
+        keys.add((spec["id"], ent_reg_id))
+    return keys
+
+
 # --- Managed-by + reconcile -------------------------------------------------
 
 
@@ -751,6 +776,8 @@ def reconcile_declarative_tasks(
     config_entry_id: str,
     now: datetime,
     lang: str = "en",
+    dormant: Collection[tuple[str, str]] = (),
+    stale: Collection[tuple[str, str]] = (),
 ) -> tuple[dict[str, dict[str, Any]], list[tuple[str, dict[str, Any]]], bool]:
     """Diff *spec*'s current match set against *tasks* and return the update plan.
 
@@ -764,7 +791,8 @@ def reconcile_declarative_tasks(
     * ``new_tasks`` — a fresh task map (non-declarative tasks and tasks from other
       specs are carried through untouched).
     * ``ops`` — ordered ``(kind, task)`` events the store must fire:
-      ``"created"`` / ``"deleted"`` / ``"updated"`` / ``"resumed"``. A ``"resumed"``
+      ``"created"`` / ``"deleted"`` / ``"updated"`` / ``"resumed"`` / ``"paused"``
+      (see *dormant* below). A ``"resumed"``
       task is an ordinary update that also counts as freshly made, because the companion
       that had paused it is on again (see :func:`pause_spec_tasks`). Arm/clear
       transitions are not handled here — the sensor watcher owns those on the
@@ -775,6 +803,17 @@ def reconcile_declarative_tasks(
     name/notes/device/area from template + entity registry), rename (task's
     ``sensor.entity_id`` follows the current entity_id under the same registry id,
     ``source`` echoes the fresh id), orphaned (delete).
+
+    *dormant* holds the keys of disabled entities the spec still selects
+    (:func:`dormant_keys`). Their tasks are not orphans: each one is switched off
+    with the ``paused`` marker and kept, with a ``"paused"`` op, and the update path
+    switches it on again when the entity matches again (B12-1).
+
+    A rendered name that is blank never becomes a task name (B12-2): the match
+    makes no task, and an existing task keeps its name. *stale* holds the keys whose
+    entity had no live state when the templates rendered, for example during Home
+    Assistant start. Their render is not trusted, so an existing task keeps its
+    name and notes (B12-3).
     """
     result = dict(tasks)
     ops: list[tuple[str, dict[str, Any]]] = []
@@ -790,16 +829,31 @@ def reconcile_declarative_tasks(
 
     # Orphan pass: registered entity vanished, was excluded, or the spec narrowed.
     for key, tid in list(existing_by_key.items()):
-        if key not in matches:
-            ops.append(("deleted", result.pop(tid)))
-            existing_by_key.pop(key, None)
-            changed = True
+        if key in matches:
+            continue
+        if key in dormant:
+            task = result[tid]
+            # Off already: this pass paused it before, or the person switched it off.
+            # A marker on the second would make it theirs no longer to undo.
+            if task.get("enabled", True):
+                task["enabled"] = False
+                # ``task_key`` proved the provenance block is a mapping.
+                task["source"][TASK_SOURCE_DECLARATIVE_COMPANION]["paused"] = True
+                ops.append(("paused", task))
+                changed = True
+            continue
+        ops.append(("deleted", result.pop(tid)))
+        changed = True
 
     # Create / update pass.
     for key, match in matches.items():
         rendered_name, rendered_notes = rendered_by_key.get(key, ("", ""))
         existing_tid = existing_by_key.get(key)
         if existing_tid is None:
+            if not rendered_name.strip():
+                # No name, so no task: ``build_task`` refuses a blank name, and one
+                # entity must not stop the pass for every other one.
+                continue
             task = _build_task(
                 spec,
                 match,
@@ -838,10 +892,14 @@ def reconcile_declarative_tasks(
             },
         }
         task_changed = False
-        owned: list[tuple[str, Any]] = [("name", rendered_name)]
+        owned: list[tuple[str, Any]] = []
+        # A render without live state, or a blank name, keeps what the task has.
+        trusted = key not in stale
+        if trusted and rendered_name.strip():
+            owned.append(("name", rendered_name))
         # A spec with no notes template does not own the notes: the task keeps
         # whatever a person wrote there (see :func:`owns_notes`).
-        if owns_notes(spec):
+        if trusted and owns_notes(spec):
             owned.append(("notes", rendered_notes))
         owned += [
             ("device_id", entry.get("device_id")),

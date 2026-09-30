@@ -32,6 +32,12 @@ Guard **every** service call with
 `hass.services.has_service("home_keeper", "<service>")` so your integration works fine
 when Home Keeper is absent.
 
+The actions stay registered while Home Keeper is installed, also while its config
+entry reloads or is disabled. A call at that time raises `HomeAssistantError` with the
+translation key `integration_not_loaded`. Catch that error where a failed call must
+not stop your own code, and try again when Home Keeper sends
+`home_keeper_register_companions` (see [Discovery](#7-discovery-announce-yourself-so-users-can-find-you-optional)).
+
 This guide teaches the flow. For the complete list of actions, their fields, every
 event and its payload, see the [API reference](https://prestomation.github.io/ha-home-keeper/developer/api), which is generated from the
 integration and shows the same labels Home Assistant does.
@@ -89,9 +95,16 @@ Resolving a device registry id from your own identifiers:
 ```python
 from homeassistant.helpers import device_registry as dr
 
-dev = dr.async_get(hass).async_get_device(identifiers={("my_integration", thing_id)})
+dev = dr.async_get(hass).async_get_device_by_identifier(
+    ("my_integration", thing_id), entry.entry_id
+)
 my_device_id = dev.id if dev else None  # omit device_id if None
 ```
+
+`async_get_device_by_identifier` is in Home Assistant 2026.9 and later. Home
+Assistant 2026.9 deprecates `async_get_device`, and 2027.8 removes it. On an
+older Home Assistant, use `async_get_device(identifiers={("my_integration",
+thing_id)})`.
 
 ## 2. Getting the task id back
 
@@ -720,6 +733,11 @@ fills `task_names` for each key. The catalog is `declarative_presets_catalog.py`
 `list_declarative_companions` services (admin-only). Managed tasks fire the ordinary
 `home_keeper_task_*` events. Filter to declarative tasks via
 `managed_by.integration == "home_keeper"` and `source.declarative_companion.spec_id`.
+
+A call to `add_declarative_companion`, `update_declarative_companion` or
+`delete_declarative_companion` returns when the reconcile is complete. A change that
+makes or removes a task with device-page entities reloads the config entry. The call
+returns after that reload, so your next call finds Home Keeper loaded.
 
 `selection.translation_keys` matches the `translation_key` that the integration sets
 on each entity in the entity registry. A rename, the Home Assistant language, and a

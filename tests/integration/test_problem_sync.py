@@ -9,6 +9,7 @@ import time
 from datetime import UTC, datetime, timedelta
 
 from conftest import HA_URL, call_service
+from ha_registry import ws_send
 
 SENSOR = "binary_sensor.sump_pump_problem"
 
@@ -208,4 +209,70 @@ def test_synced_problem_task_walks_with_a_snooze_only_button_set(ha):
         )
         call_service(
             ha, "home_keeper", "set_options", {"profiles": [], "notifications": []}
+        )
+
+
+def _rename_entity(ha, entity_id, new_entity_id):
+    """Change an entity id in the registry, as a person does in the entity settings."""
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(
+        token,
+        {
+            "type": "config/entity_registry/update",
+            "entity_id": entity_id,
+            "new_entity_id": new_entity_id,
+        },
+    )
+    assert reply.get("success"), reply
+
+
+def _mirror_of(ha, entity_id, timeout=45):
+    """The mirror task whose source names *entity_id*, polled; None on a timeout."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            for task in _list_tasks(ha):
+                src = (task.get("source") or {}).get("problem_sensor")
+                if src and src.get("entity_id") == entity_id:
+                    return task
+        except Exception:
+            pass
+        time.sleep(1)
+    return None
+
+
+def test_b18_2_an_entity_id_rename_keeps_the_mirror_task(ha):
+    """Renaming the sensor's entity_id moves its mirror; nothing is made again.
+
+    The entity-registry ``update`` event carries ``old_entity_id``. Home Keeper read
+    only the new id, so the old mirror was an orphan and was deleted with its labels,
+    history and note, and an empty mirror was made for the new id.
+    """
+    task = _synced_task(ha)
+    assert task is not None
+    label = "b18_2_rename_label"
+    r = ha.post(
+        f"{HA_URL}/api/services/home_keeper/update_task",
+        json={"task_id": task["id"], "labels": [*task.get("labels", []), label]},
+    )
+    assert r.status_code < 400, r.text
+
+    renamed = "binary_sensor.sump_pump_problem_renamed_b18_2"
+    _rename_entity(ha, SENSOR, renamed)
+    try:
+        moved = _mirror_of(ha, renamed)
+        assert moved is not None, "the mirror must follow the rename"
+        assert moved["id"] == task["id"], "a rename must not replace the mirror"
+        assert label in moved["labels"]
+        assert _mirror_of(ha, SENSOR, timeout=1) is None
+    finally:
+        _rename_entity(ha, renamed, SENSOR)
+        back = _mirror_of(ha, SENSOR)
+        assert back is not None and back["id"] == task["id"]
+        ha.post(
+            f"{HA_URL}/api/services/home_keeper/update_task",
+            json={
+                "task_id": task["id"],
+                "labels": [lab for lab in back.get("labels", []) if lab != label],
+            },
         )

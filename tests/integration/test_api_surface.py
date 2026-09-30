@@ -3,9 +3,10 @@
 ``tests/unit/test_api_surface.py`` proves the model matches the integration's
 *source*. That is most of the job, but two things only a real Home Assistant can
 answer: whether every modelled action is actually registered on the bus, and
-whether unloading really takes them all away again. The second is what went wrong
-with ``set_task_meter`` — registered on setup, absent from the teardown list, and
-so still callable after the entry unloaded until Home Assistant restarted.
+whether they stay registered while the entry is not loaded (B02-1). Home Keeper
+registers its actions once in ``async_setup``, as Home Assistant's
+``action-setup`` rule asks, so a reload no longer makes a call fail with "action
+not found"; a call while no entry is loaded gets a clear error instead.
 
 Both rest on Home Assistant framework contracts (service registration, the
 config-entry unload lifecycle), which a unit test mocks away, so they belong
@@ -113,38 +114,52 @@ def _wait_until(predicate, timeout: int = 60) -> bool:
     return False
 
 
-def test_unloading_removes_every_service(ha) -> None:
-    """Disabling the entry takes every action off the bus, leaving none behind.
+def _entry_state(ha, entry_id: str) -> str:
+    entries = ws_send(
+        _token(ha), {"type": "config_entries/get", "domain": "home_keeper"}
+    )
+    assert entries.get("success"), entries
+    return next(e["state"] for e in entries["result"] if e["entry_id"] == entry_id)
 
-    This is the check that would have caught ``set_task_meter``: it was missing
-    from the teardown list, so it stayed callable against an integration that had
-    unloaded. Now that the teardown iterates the model, one straggler here means
-    either the model or the ``async_loaded_entries`` gate is wrong — and that gate
-    has been quietly dead once already.
+
+def test_services_stay_registered_while_the_entry_is_not_loaded(ha) -> None:
+    """B02-1: an unloaded entry keeps every action, and a call fails cleanly.
+
+    The actions used to go away on every unload, and so on every reload, so an
+    automation that called one during a reload stopped with "action not found".
+    Now they stay registered for the Home Assistant run, and a call while the entry
+    is not loaded raises the localized ``integration_not_loaded`` error.
     """
     entry_id = _entry_id(ha)
     try:
         result = _set_entry_disabled(ha, entry_id, True)
         # Home Keeper implements async_unload_entry, so Home Assistant must be able
-        # to take it down in place. Needing a restart would mean the unload path
-        # itself is broken, and the rest of this test could not observe anything.
+        # to take it down in place.
         assert not result.get("require_restart"), result
-        gone = _wait_until(lambda: not _home_keeper_services(ha))
-        leftover = sorted(_home_keeper_services(ha))
-        assert gone, {
-            "still_registered_after_unload": leftover,
-            "why": "async_unload_entry must remove every SERVICE_NAMES entry",
-        }
+        assert _wait_until(lambda: _entry_state(ha, entry_id) == "not_loaded")
+        assert _home_keeper_services(ha) == set(api_surface.SERVICE_NAMES), (
+            "every modelled action must stay registered while the entry is unloaded"
+        )
+        reply = ws_send(
+            _token(ha),
+            {
+                "type": "call_service",
+                "domain": "home_keeper",
+                "service": "list_tasks",
+                "service_data": {},
+                "return_response": True,
+            },
+        )
+        assert not reply.get("success"), reply
+        assert reply["error"].get("translation_key") == "integration_not_loaded", reply
     finally:
         # Every later test in this suite drives a loaded Home Keeper, so put the
         # entry back before anything else runs — and fail loudly rather than
         # silently leaving the container in a state nothing else can use.
         _set_entry_disabled(ha, entry_id, False)
-        restored = _wait_until(
-            lambda: _home_keeper_services(ha) == set(api_surface.SERVICE_NAMES)
-        )
+        restored = _wait_until(lambda: _entry_state(ha, entry_id) == "loaded")
         if not restored:
             pytest.fail(
                 "Home Keeper did not come back after re-enabling its config entry; "
-                f"services now: {sorted(_home_keeper_services(ha))}"
+                f"state now: {_entry_state(ha, entry_id)}"
             )

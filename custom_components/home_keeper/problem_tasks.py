@@ -217,3 +217,32 @@ def reconcile_problem_tasks(
             changed = True
 
     return result, ops, changed
+
+
+def rename_problem_entity(
+    tasks: dict[str, dict[str, Any]],
+    notes_by_entity: dict[str, str],
+    old_entity_id: str,
+    new_entity_id: str,
+) -> bool:
+    """Make the mirror of *old_entity_id* follow its rename to *new_entity_id*.
+
+    Mirrors are keyed by ``entity_id``. Without this, the next reconcile sees the old
+    mirror as an orphan and the renamed sensor as new, so a rename deleted the task
+    with its labels, history and note, and made an empty one (B18-2). The source key
+    and the saved note move to the new id in place. Changes *tasks* and
+    *notes_by_entity* in place and returns whether anything moved.
+
+    Nothing moves when a mirror of *new_entity_id* is already there: that task is the
+    one the reconcile keeps.
+    """
+    if old_entity_id == new_entity_id:
+        return False
+    owners = {problem_sensor_entity_id(task): task for task in tasks.values()}
+    task = owners.get(old_entity_id)
+    if task is None or new_entity_id in owners:
+        return False
+    task["source"][TASK_SOURCE_PROBLEM_SENSOR]["entity_id"] = new_entity_id
+    if old_entity_id in notes_by_entity:
+        notes_by_entity[new_entity_id] = notes_by_entity.pop(old_entity_id)
+    return True

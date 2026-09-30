@@ -170,6 +170,74 @@ def current_options(entry: ConfigEntry) -> dict[str, Any]:
     return _normalize(dict(entry.options), _empty_options())
 
 
+# The device-id lists in a profile filter. A profile filter matches a task on these.
+_PROFILE_DEVICE_KEYS = ("devices", "exclude_devices")
+
+
+def _repoint_ids(ids: Any, mapping: dict[str, str]) -> list[str] | None:
+    """*ids* with each id in *mapping* replaced; ``None`` when nothing changed.
+
+    Keeps the order and removes a duplicate that the replacement makes (two dead ids
+    of one device map to one live id).
+    """
+    if not isinstance(ids, list) or not any(i in mapping for i in ids):
+        return None
+    values: list[str] = ids
+    return list(dict.fromkeys(mapping.get(i, i) for i in values))
+
+
+def device_ids_in_options(options: dict[str, Any]) -> set[str]:
+    """Every device id that *options* refers to.
+
+    These are the problem-sensor device exclusions and the device lists of each
+    profile filter. The device-split repair in ``devices.py`` resolves them.
+    """
+    found = set(options.get(OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES) or [])
+    for profile in options.get(OPTION_PROFILES) or []:
+        filt = profile.get("filter") if isinstance(profile, dict) else None
+        if not isinstance(filt, dict):
+            continue
+        for key in _PROFILE_DEVICE_KEYS:
+            found.update(filt.get(key) or [])
+    return found
+
+
+def repoint_device_ids(
+    options: dict[str, Any], mapping: dict[str, str]
+) -> dict[str, Any] | None:
+    """*options* with each dead device id in *mapping* set to its live id.
+
+    Home Assistant 2026.8 gave some devices a new id (#183). The repair moves the
+    tasks and the appliances to the new id, and this moves the options that refer to
+    a device: the problem-sensor device exclusions and the profile device filters.
+    Returns a new options dict, or ``None`` when no id changed, so the caller writes
+    the entry only when it must. *options* is not changed.
+    """
+    result = dict(options)
+    # None reads as False in the return below, so that mutant is equivalent.
+    changed = False  # pragma: no mutate
+    excluded = _repoint_ids(options.get(OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES), mapping)
+    if excluded is not None:
+        result[OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES] = excluded
+        changed = True
+    new_profiles: list[Any] = []
+    for profile in options.get(OPTION_PROFILES) or []:
+        filt = profile.get("filter") if isinstance(profile, dict) else None
+        if not isinstance(filt, dict):
+            new_profiles.append(profile)
+            continue
+        new_filt = dict(filt)
+        for key in _PROFILE_DEVICE_KEYS:
+            ids = _repoint_ids(filt.get(key), mapping)
+            if ids is not None:
+                new_filt[key] = ids
+                changed = True
+        new_profiles.append({**profile, "filter": new_filt})
+    if OPTION_PROFILES in options:
+        result[OPTION_PROFILES] = new_profiles
+    return result if changed else None
+
+
 def _coerce_days(value: Any) -> int:
     """Coerce a retention-days value to an int in ``0..MAX_ONE_OFF_RETENTION_DAYS``.
 

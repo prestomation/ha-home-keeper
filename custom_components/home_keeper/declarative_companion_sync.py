@@ -20,6 +20,7 @@ rather than one full pass per event.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -99,6 +100,16 @@ def _project_entry(
     }
 
 
+async def async_settle(coordinator: HomeKeeperCoordinator) -> None:
+    """Wait for the reconcile pass, and any reload, that a spec change started.
+
+    See :meth:`DeclarativeCompanionSync.async_wait_for_spec_change`. The services and
+    the websocket commands that change a spec call this before they answer.
+    """
+    if (sync := coordinator.declarative_sync) is not None:
+        await sync.async_wait_for_spec_change()
+
+
 class DeclarativeCompanionSync:
     """Materializes managed sensor tasks for every declarative-companion spec."""
 
@@ -115,7 +126,18 @@ class DeclarativeCompanionSync:
         self._unsub_device_registry: CALLBACK_TYPE | None = None
         self._unsub_area_registry: CALLBACK_TYPE | None = None
         self._unsub_specs: CALLBACK_TYPE | None = None
-        self._reload_scheduled = False
+        # Passes run one at a time: the debounced registry pass and the pass a spec
+        # change starts both read the specs and write the store.
+        self._pass_lock = asyncio.Lock()
+        # The pass the last spec change started, and the entry reload a pass asked
+        # for. A call that changes a spec waits for both (see
+        # :meth:`async_wait_for_spec_change`).
+        self._spec_pass: asyncio.Task[None] | None = None
+        self._reload_task: asyncio.Task[None] | None = None
+        # Set when the entry unloads. A pass that waited on ``_pass_lock`` past that
+        # point would write the store the reload replaced, and the setup that follows
+        # reconciles every spec again anyway.
+        self._stopped = False
         # The last render error logged per (entity id, template source), so a broken
         # name or notes template is reported once instead of on every pass and every
         # preview keystroke. See ``_render_one``. The source is part of the key: name
@@ -124,12 +146,15 @@ class DeclarativeCompanionSync:
         # name logged again on every pass. An entry goes when that pair renders
         # cleanly again, and the whole map is capped by ``_RENDER_ERRORS_MAX``.
         self._render_errors: dict[tuple[str, str], str] = {}
+        # (spec id, entity id) pairs whose blank task name was logged, so the warning
+        # shows once and not on every pass. Capped like ``_render_errors``.
+        self._blank_names: set[tuple[str, str]] = set()
         # One reconcile per burst of registry events. Home Assistant fires an entity
         # registry event per entity, so an integration loading 50 of them used to run
         # 50 full passes — each one walking every spec over every entity, rendering
         # Jinja per match and writing the store. ``immediate`` keeps the first pass
-        # prompt (a companion saved in the panel must show its tasks at once) and folds
-        # the rest of the burst into one trailing pass.
+        # prompt and folds the rest of the burst into one trailing pass. A spec change
+        # does not come through here (see ``_handle_specs_changed``).
         self._reconcile_debouncer = Debouncer(
             hass,
             _LOGGER,
@@ -192,6 +217,7 @@ class DeclarativeCompanionSync:
         # A pass still pending when the entry unloads would run against the objects
         # the reload replaced, so the debouncer is shut down with the listeners.
         self._entry.async_on_unload(self._reconcile_debouncer.async_shutdown)
+        self._entry.async_on_unload(self._stop)
 
     # ── snapshot builders ────────────────────────────────────────────────────
     def _registry_snapshot(self) -> dict[str, Any]:
@@ -332,35 +358,79 @@ class DeclarativeCompanionSync:
         created: list[str] = []
         specs = self._coordinator.store.get_declarative_companions()
         for spec in list(specs.values()):
-            if not spec.get("enabled", True):
-                # A disabled spec's managed tasks are switched off rather than
-                # removed, so a companion can be turned off for a week without losing
-                # the completions recorded on the tasks it made. Re-enabling the
-                # companion brings them back (see ``pause_spec_tasks``).
-                await self._coordinator.store.pause_declarative_companion_tasks(
-                    spec["id"]
-                )
-                continue
+            # One spec that fails must not stop the pass for the specs after it, and
+            # at setup it must not stop Home Keeper from loading (B12-2).
             try:
-                matches = declarative_companions.expand_spec(spec, snapshot)
+                changed, made = await self._reconcile_spec(spec, snapshot)
             except Exception:
                 _LOGGER.exception(
-                    "expand_spec failed for %s (%s)", spec.get("id"), spec.get("name")
+                    "Could not reconcile declarative companion %s (%s)",
+                    spec.get("id"),
+                    spec.get("name"),
                 )
                 continue
-            rendered = {
-                key: self._render_match(spec, match) for key, match in matches.items()
-            }
-            store = self._coordinator.store
-            changed, made = await store.reconcile_declarative_companion_tasks(
-                spec,
-                matches,
-                rendered,
-                config_entry_id=self._entry.entry_id,
-            )
             entity_set_changed = entity_set_changed or changed
             created.extend(made)
         return entity_set_changed, created
+
+    async def _reconcile_spec(
+        self, spec: dict[str, Any], snapshot: dict[str, Any]
+    ) -> tuple[bool, list[str]]:
+        """Reconcile one spec; the same return shape as :meth:`_reconcile_all`."""
+        store = self._coordinator.store
+        if not spec.get("enabled", True):
+            # A disabled spec's managed tasks are switched off rather than
+            # removed, so a companion can be turned off for a week without losing
+            # the completions recorded on the tasks it made. Re-enabling the
+            # companion brings them back (see ``pause_spec_tasks``).
+            await store.pause_declarative_companion_tasks(spec["id"])
+            return False, []
+        matches = declarative_companions.expand_spec(spec, snapshot)
+        rendered: dict[tuple[str, str], tuple[str, str]] = {}
+        stale: set[tuple[str, str]] = set()
+        for key, match in matches.items():
+            name, notes = self._render_match(spec, match)
+            rendered[key] = (name, notes)
+            entity_id = match["entity"]["entity_id"]
+            if not name.strip():
+                self._warn_blank_name(spec, entity_id)
+            if not self._has_live_state(entity_id):
+                stale.add(key)
+        return await store.reconcile_declarative_companion_tasks(
+            spec,
+            matches,
+            rendered,
+            config_entry_id=self._entry.entry_id,
+            dormant=declarative_companions.dormant_keys(spec, snapshot),
+            stale=stale,
+        )
+
+    def _has_live_state(self, entity_id: str) -> bool:
+        """Whether *entity_id* has a state that its integration wrote (B12-3).
+
+        During Home Assistant start an entity has no state until its integration
+        loads, and Home Assistant then writes a ``restored`` placeholder for an
+        entity that did not come back. A template renders ``friendly_name`` from the
+        registry and ``state`` as ``None`` then, so that render must not replace
+        the name and notes a task already has.
+        """
+        state = self._hass.states.get(entity_id)
+        return state is not None and not state.attributes.get("restored")
+
+    def _warn_blank_name(self, spec: dict[str, Any], entity_id: str) -> None:
+        """Log once that *spec*'s name template is blank for *entity_id* (B12-2)."""
+        key = (spec.get("id") or "", entity_id)
+        if key in self._blank_names:
+            return
+        if len(self._blank_names) >= _RENDER_ERRORS_MAX:
+            self._blank_names.clear()
+        self._blank_names.add(key)
+        _LOGGER.warning(
+            "The name template of declarative companion %s is blank for %s; "
+            "no task is made for this entity",
+            spec.get("name"),
+            entity_id,
+        )
 
     # ── notes refresh (called by the sensor watcher on an arm) ───────────────
     async def async_refresh_task_notes(self, task_id: str) -> None:
@@ -434,10 +504,45 @@ class DeclarativeCompanionSync:
 
     @callback
     def _handle_specs_changed(self) -> None:
-        """Store fired ``SIGNAL_DECLARATIVE_SPECS_CHANGED`` after a spec CRUD."""
-        self._hass.async_create_task(self._reconcile_debouncer.async_call())
+        """Store fired ``SIGNAL_DECLARATIVE_SPECS_CHANGED`` after a spec CRUD.
+
+        Not through the debouncer. The debouncer drops a call while a pass runs and
+        holds one for up to its cooldown, so a spec saved then was reconciled late or
+        not at all. A spec change is one event, not a burst, so it gets its own pass;
+        ``_pass_lock`` puts it after a pass that is running.
+        """
+        self._spec_pass = self._hass.async_create_task(
+            self._async_reconcile_and_maybe_reload()
+        )
+
+    async def async_wait_for_spec_change(self) -> None:
+        """Wait for the pass of the last spec change and for the reload it asked for.
+
+        A spec change that makes or removes a task with device-page entities
+        reloads the entry. The service and websocket calls that change a spec
+        await this before they answer, as ``delete_task`` awaits its reload, so the
+        caller sees the new task set on a loaded entry. Before, the call answered
+        first, and the next call of the same script came during the reload and
+        failed with ``integration_not_loaded``.
+
+        Shielded: a caller that goes away must not cancel a reload that has started.
+        """
+        if (spec_pass := self._spec_pass) is not None:
+            await asyncio.shield(spec_pass)
+        if (reload := self._reload_task) is not None:
+            await asyncio.shield(reload)
+
+    @callback
+    def _stop(self) -> None:
+        self._stopped = True
 
     async def _async_reconcile_and_maybe_reload(self) -> None:
+        async with self._pass_lock:
+            if self._stopped:
+                return
+            await self._async_reconcile_pass()
+
+    async def _async_reconcile_pass(self) -> None:
         entity_set_changed, created = await self._reconcile_all()
         if entity_set_changed:
             # The reload re-runs setup, which baselines the sensor watcher's edge
@@ -447,9 +552,8 @@ class DeclarativeCompanionSync:
             sensor_watcher.async_mark_tasks_new(
                 self._hass, self._entry.entry_id, created
             )
-            if not self._reload_scheduled:
-                self._reload_scheduled = True
-                self._hass.async_create_task(self._async_reload())
+            if self._reload_task is None or self._reload_task.done():
+                self._reload_task = self._hass.async_create_task(self._async_reload())
         else:
             # No reload, so no baseline pass: the watcher has never seen these ids,
             # and its next evaluation already reads a standing condition as a fresh
@@ -458,10 +562,13 @@ class DeclarativeCompanionSync:
             await self._coordinator.async_request_refresh()
 
     async def _async_reload(self) -> None:
+        # A caller of :meth:`async_wait_for_spec_change` awaits this task. Its spec
+        # is saved, so a reload that fails is logged here and the entry state tells
+        # the rest; the call does not fail for it.
         try:
             await self._hass.config_entries.async_reload(self._entry.entry_id)
-        finally:
-            self._reload_scheduled = False
+        except Exception:
+            _LOGGER.exception("Could not reload Home Keeper after a companion change")
 
     # ── preview (used by the panel's live-preview UX) ────────────────────────
     def entity_keys(self, integration: str, domain: str | None) -> dict[str, Any]:

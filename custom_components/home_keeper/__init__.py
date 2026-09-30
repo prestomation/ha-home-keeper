@@ -38,6 +38,7 @@ from . import (
     backend_i18n,
     card,
     companions,
+    declarative_companion_sync,
     devices,
     manuals,
     notifications,
@@ -51,7 +52,6 @@ from . import (
     transfer,
     websocket_api,
 )
-from .api_surface import SERVICE_NAMES
 from .assets import AssetValidationError, card_projection
 from .const import (
     COMPLETION_ENTRY_FIELDS,
@@ -795,8 +795,22 @@ SET_OPTIONS_SCHEMA = vol.Schema(
 )
 
 
+# Home Keeper is set up from the UI only. ``async_setup`` exists to register the
+# services, so Home Assistant asks for a schema that says so.
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up the integration (config-entry only)."""
+    """Set up the integration (config-entry only).
+
+    The services are registered here, once for the Home Assistant run, and not in
+    ``async_setup_entry`` (B02-1). Home Assistant's ``action-setup`` rule asks for
+    this: a reload unloads the entry and sets it up again, and a service that went
+    away with the unload made each call in that time fail with "action not found".
+    Each handler finds the coordinator when it is called, and raises the localized
+    ``integration_not_loaded`` error when no entry is loaded.
+    """
+    _register_services(hass)
     return True
 
 
@@ -861,11 +875,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Platforms have removed entities for deleted/excluded tasks; drop Home Keeper
     # from any device that no longer carries one of our entities so disabling Problem
     # Sensor Sync (or an exclusion) leaves no empty device card behind.
-    await devices.async_detach_legacy_merged_devices(hass, entry)
-    await devices.async_prune_orphaned_devices(hass, entry)
+    #
+    # The platforms are set up now, so a failure here must not fail the setup: an
+    # entry in setup error keeps its platforms, and the next reload cannot set them
+    # up again. A device that is not pruned is the worst result.
+    try:
+        await devices.async_detach_legacy_merged_devices(hass, entry)
+        await devices.async_prune_orphaned_devices(hass, entry)
+    except Exception:
+        _LOGGER.exception("Could not remove Home Keeper from unused devices")
 
-    _register_services(hass)
-    # Now that the register_companion service exists, ask companions to (re-)announce
+    # The services exist from ``async_setup``, so ask companions to (re-)announce
     # themselves and run a catalog-detection pass. Companions that set up before Home
     # Keeper listen for this ping; those that set up after register at their own setup.
     companions.async_request_registration(hass)
@@ -998,7 +1018,10 @@ def _instance_base_url(hass: HomeAssistant) -> str:
 
 
 def _register_services(hass: HomeAssistant) -> None:
-    """Register Home Keeper services (idempotent across reloads).
+    """Register Home Keeper services, once per Home Assistant run.
+
+    Called from ``async_setup``. The services stay registered while the entry
+    reloads or is disabled; a handler raises ``integration_not_loaded`` then.
 
     These are the automation-facing surface and the same store methods the panel
     and entities use. DEFERRED: a `home_keeper.contribute_task` service (plus the
@@ -1008,9 +1031,9 @@ def _register_services(hass: HomeAssistant) -> None:
 
     def _coordinator() -> HomeKeeperCoordinator:
         if (coord := find_coordinator(hass)) is None:
-            # Reachable transiently mid-reload (the entry is momentarily unloaded
-            # while its services are still registered). Surface a localized HA error
-            # rather than a bare RuntimeError that would present as an opaque 500.
+            # Reachable while the entry reloads, is disabled or failed to set up:
+            # the services stay registered (see ``async_setup``). Surface a localized
+            # HA error rather than a bare RuntimeError that shows as an opaque 500.
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="integration_not_loaded"
             )
@@ -1877,6 +1900,7 @@ def _register_services(hass: HomeAssistant) -> None:
         await _verify_admin(call)
         coord = _coordinator()
         spec = await coord.store.async_add_declarative_companion(dict(call.data))
+        await declarative_companion_sync.async_settle(coord)
         return {"companion": spec}
 
     async def handle_update_declarative_companion(
@@ -1887,12 +1911,20 @@ def _register_services(hass: HomeAssistant) -> None:
         data = dict(call.data)
         spec_id = data.pop("id")
         spec = await coord.store.async_update_declarative_companion(spec_id, data)
+        await declarative_companion_sync.async_settle(coord)
         return {"companion": spec}
 
     async def handle_delete_declarative_companion(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
-        await coord.store.async_delete_declarative_companion(call.data["id"])
+        removed = await coord.store.async_delete_declarative_companion(call.data["id"])
+        # The pass the delete started runs to its end before the reload replaces
+        # the store it writes.
+        await declarative_companion_sync.async_settle(coord)
+        # B03-2: reload when a removed task had device-page entities, as delete_task
+        # does, because only the platform setup prunes them.
+        if removed:
+            await hass.config_entries.async_reload(coord.entry.entry_id)
 
     async def handle_list_declarative_companions(
         call: ServiceCall,
@@ -1999,41 +2031,46 @@ async def _delete_asset(
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    # Only tear down when the last entry goes away. Gate on *loaded* entries, not
-    # ``async_entries``: HA removes the entry from the registry only *after* this
-    # unload returns (and a disabled entry stays registered), so
-    # ``async_entries(DOMAIN)`` is never empty here and the teardown was dead code —
-    # leaving all services registered until restart. ``async_loaded_entries``
-    # excludes the entry currently unloading.
-    if unloaded and not hass.config_entries.async_loaded_entries(DOMAIN):
-        for service in SERVICE_NAMES:
-            hass.services.async_remove(DOMAIN, service)
-        # The sidebar panel is deliberately *not* dropped on an ordinary unload,
-        # because most unloads are the first half of a reload — and a reload is
-        # routine here (saving options, a synced problem sensor appearing, a purged
-        # one-off). Removing the panel deletes ``home-keeper`` from ``hass.panels``
-        # for as long as setup takes, and Home Assistant's ``partial-panel-resolver``
-        # answers a panel disappearing under an open page by navigating to the
-        # default one: #247's reporter was thrown back to their dashboard "every 10
-        # seconds or so". Nothing about the registration is entry-scoped — it names a
-        # static module URL served for the whole HA run and is re-registered
-        # identically — so leaving it up costs nothing. ``card.py`` takes the same
-        # stance, for the same reason.
-        #
-        # A *disabled* entry is the one unload that isn't coming back on its own, and
-        # HA sets ``disabled_by`` before unloading, so the sidebar entry still goes
-        # away when the user turns the integration off. Deleting it is handled in
-        # ``async_remove_entry``.
-        #
-        # The one case this trades away: when the *setup* half of a reload fails, the
-        # sidebar entry now stays up against an entry in ``SETUP_ERROR``/``SETUP_RETRY``
-        # instead of vanishing. That is the better half of the trade — every websocket
-        # command already answers ``integration_not_loaded`` when it finds no loaded
-        # coordinator (see ``websocket_api._not_loaded``), so the panel reports the
-        # real state, and HA is usually about to retry setup anyway. Dropping the
-        # sidebar entry instead would hide that Home Keeper is even installed.
-        if entry.disabled_by is not None:
-            panel.async_unregister_panel(hass)
+    # The services are not removed here (B02-1). ``async_setup`` registers them once
+    # for the Home Assistant run, as Home Assistant's ``action-setup`` rule asks, and
+    # a handler answers ``integration_not_loaded`` while no entry is loaded. Most
+    # unloads are the first half of a reload, and removing the services made each
+    # call during the reload fail with "action not found".
+    #
+    # Gate on *loaded* entries, not ``async_entries``: HA removes the entry from the
+    # registry only *after* this unload returns (and a disabled entry stays
+    # registered). ``async_loaded_entries`` excludes the entry currently unloading.
+    #
+    # The sidebar panel is deliberately *not* dropped on an ordinary unload,
+    # because most unloads are the first half of a reload — and a reload is
+    # routine here (saving options, a synced problem sensor appearing, a purged
+    # one-off). Removing the panel deletes ``home-keeper`` from ``hass.panels``
+    # for as long as setup takes, and Home Assistant's ``partial-panel-resolver``
+    # answers a panel disappearing under an open page by navigating to the
+    # default one: #247's reporter was thrown back to their dashboard "every 10
+    # seconds or so". Nothing about the registration is entry-scoped — it names a
+    # static module URL served for the whole HA run and is re-registered
+    # identically — so leaving it up costs nothing. ``card.py`` takes the same
+    # stance, for the same reason.
+    #
+    # A *disabled* entry is the one unload that isn't coming back on its own, and
+    # HA sets ``disabled_by`` before unloading, so the sidebar entry still goes
+    # away when the user turns the integration off. Deleting it is handled in
+    # ``async_remove_entry``.
+    #
+    # The one case this trades away: when the *setup* half of a reload fails, the
+    # sidebar entry now stays up against an entry in ``SETUP_ERROR``/``SETUP_RETRY``
+    # instead of vanishing. That is the better half of the trade — every websocket
+    # command already answers ``integration_not_loaded`` when it finds no loaded
+    # coordinator (see ``websocket_api._not_loaded``), so the panel reports the
+    # real state, and HA is usually about to retry setup anyway. Dropping the
+    # sidebar entry instead would hide that Home Keeper is even installed.
+    if (
+        unloaded
+        and entry.disabled_by is not None
+        and not hass.config_entries.async_loaded_entries(DOMAIN)
+    ):
+        panel.async_unregister_panel(hass)
     return unloaded
 
 

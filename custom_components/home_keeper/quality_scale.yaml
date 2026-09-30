@@ -11,8 +11,10 @@ rules:
   action-setup:
     status: done
     comment: >-
-      All data actions are home_keeper.* services; handlers validate input and
-      raise a localized ServiceValidationError when an id/area is unknown.
+      async_setup registers every home_keeper.* service once, and unload does not
+      remove them, so a reload never takes an action away. A handler raises the
+      localized integration_not_loaded error while no entry is loaded, and a
+      localized ServiceValidationError when an id/area is unknown.
   appropriate-polling:
     status: done
     comment: >-

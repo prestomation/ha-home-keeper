@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Collection
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntryState
@@ -78,6 +78,7 @@ from .const import (
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
 from .problem_tasks import problem_source as _problem_source
 from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks
+from .problem_tasks import rename_problem_entity as _rename_problem_entity
 from .reconcile import adopt_part_tags as _adopt_part_tags
 from .reconcile import buy_source as _buy_source
 from .reconcile import is_manual_part_link as _is_manual_part_link
@@ -1367,11 +1368,20 @@ class HomeKeeperStore:
         device's task and its asset are always repointed together (see
         ``devices.async_heal_split_device_ids``). One write for the whole batch
         rather than one per asset, because this runs during setup.
+
+        ``related_device_ids`` moves too (X03-8): a task relates to an appliance
+        through that list, so a dead id there drops the task from the appliance.
         """
         changed = 0
         for asset in self._assets.values():
             if (new_id := mapping.get(asset.get("device_id") or "")) is not None:
                 asset["device_id"] = new_id
+                changed += 1
+            related = asset.get("related_device_ids") or []
+            if any(device_id in mapping for device_id in related):
+                asset["related_device_ids"] = list(
+                    dict.fromkeys(mapping.get(d, d) for d in related)
+                )
                 changed += 1
         if changed:
             await self._save()
@@ -1809,6 +1819,23 @@ class HomeKeeperStore:
             await self.trigger_task(task_id)
         return trimmed or bool(to_arm)
 
+    async def async_rename_problem_sensor(
+        self, old_entity_id: str, new_entity_id: str
+    ) -> bool:
+        """Move a problem-sensor mirror to the new ``entity_id`` of its sensor (B18-2).
+
+        The sync calls this for an entity-registry rename, before it reconciles, so the
+        reconcile finds the same task under the new id. The change happens before the
+        first ``await``, so a reconcile that runs next sees it. Delegates to
+        :func:`problem_tasks.rename_problem_entity`; returns whether a mirror moved.
+        """
+        if not _rename_problem_entity(
+            self._tasks, self._problem_notes, old_entity_id, new_entity_id
+        ):
+            return False
+        await self._save()
+        return True
+
     async def reconcile_problem_sensor_tasks(
         self, eligible: dict[str, dict[str, Any]], *, config_entry_id: str
     ) -> bool:
@@ -2023,8 +2050,14 @@ class HomeKeeperStore:
         rendered_by_key: dict[tuple[str, str], tuple[str, str]],
         *,
         config_entry_id: str,
+        dormant: Collection[tuple[str, str]] = (),
+        stale: Collection[tuple[str, str]] = (),
     ) -> tuple[bool, list[str]]:
         """Materialize / update / orphan the managed tasks for *spec*.
+
+        *dormant* and *stale* pass through to the pure pass: the keys of disabled
+        entities the spec selects (their tasks are switched off, not removed) and
+        the keys whose render had no live state (their names and notes are kept).
 
         Called from ``declarative_companion_sync.py`` after it has built the
         registry snapshot, expanded the spec (:func:`expand_spec`) and rendered
@@ -2059,6 +2092,8 @@ class HomeKeeperStore:
             # Localizes the completion prompt on a companion that auto-clears, the
             # same way the problem-sensor sync localizes its own.
             lang=self._hass.config.language,
+            dormant=dormant,
+            stale=stale,
         )
         if not changed:
             return False, []
@@ -2096,6 +2131,15 @@ class HomeKeeperStore:
                     events.task_event_data(task, extra={"changed_fields": ["enabled"]}),
                 )
                 if _task_owns_entities(task):
+                    entity_set_changed = True
+            elif kind == "paused":
+                # The entity of this task is disabled (B12-1). The task stays, with
+                # its history, and its device-page entities go on the reload.
+                self._hass.bus.async_fire(
+                    EVENT_TASK_UPDATED,
+                    events.task_event_data(task, extra={"changed_fields": ["enabled"]}),
+                )
+                if task["id"] in keys_before:
                     entity_set_changed = True
             elif kind == "updated":
                 self._hass.bus.async_fire(

@@ -59,7 +59,11 @@ class HomeKeeperTaskEntity(CoordinatorEntity[HomeKeeperCoordinator]):
         prefix = ""
         if self.device_entry is not None:
             device = self.device_entry
-            label = entity_name_prefix(task, device.name_by_user or device.name)
+            label = entity_name_prefix(
+                task,
+                device.name_by_user or device.name,
+                coordinator.data.values(),
+            )
             prefix = f"{label}: " if label else ""
         self._attr_translation_placeholders = {"task_name": prefix}
 
