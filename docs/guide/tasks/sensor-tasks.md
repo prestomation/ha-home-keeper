@@ -46,6 +46,9 @@ again.
 If you change the condition of a task, Home Keeper reads the entity against the new
 condition. A task opens when the entity already meets the new condition.
 
+If you rename the entity ID of the bound entity, Home Keeper changes the task to
+the new entity ID.
+
 An armed sensor task behaves like any other task. It is on the to-do list and the
 calendar. It sets the device's overdue sensor and fires the
 `home_keeper_task_overdue` event.
@@ -133,7 +136,8 @@ Use **State** mode. Select the entity and the state that arms the task.
   remains in that state. After a completion the task arms again only after the
   sensor returns to normal and reaches the state again.
 - If the sensor is already in the state when Home Assistant starts, the task does
-  not arm again.
+  not arm again. This is also true when the integration of the sensor starts after
+  Home Keeper.
 - An optional hold ignores short trips, such as a door that must stay open for 10
   minutes before the task arms.
 - For an entity that is not a binary sensor the state field accepts free text.

@@ -317,6 +317,118 @@ def test_threshold_armed_stays_armed_no_action():
     assert out["action"] is None
 
 
+def test_b14_5_a_crossing_while_armed_is_consumed():
+    # B14-5: the battery flaps 21 -> 19 while the task is armed. That crossing must not
+    # stay, or the pass after Done arms the task again on it.
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_threshold(
+        _threshold("<", 20, armed=True),
+        reading=19,
+        condition_met_prev=False,
+        crossed_at=None,
+        now=now,
+    )
+    assert out == {
+        "action": None,
+        "condition_met": True,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+    # Done is pressed, and the sensor still reads 19: the task stays dormant.
+    later = now + timedelta(minutes=5)
+    after = s.evaluate_threshold(
+        _threshold("<", 20),
+        reading=19,
+        condition_met_prev=out["condition_met"],
+        crossed_at=out["crossed_at"],
+        now=later,
+    )
+    assert after["action"] is None
+    # A carried crossing on an armed task is dropped too, with a hold or not.
+    held = s.evaluate_state(
+        _state("on", for_seconds=300, armed=True),
+        state="on",
+        condition_met_prev=True,
+        crossed_at=now,
+        now=later,
+    )
+    assert held["crossed_at"] is None
+    assert held["action"] is None
+
+
+def test_b14_1_the_first_reading_after_an_unknown_baseline_does_not_arm():
+    # B14-1: the entity was not loaded when the baseline was taken. Its first real
+    # reading is a baseline, not a crossing, in every edge mode.
+    now = dt(2026, 6, 1, 10)
+    silent = {
+        "action": None,
+        "condition_met": True,
+        "crossed_at": None,
+        "hold_due_at": None,
+    }
+    assert (
+        s.evaluate_state(
+            _state("on"), state="on", condition_met_prev=None, crossed_at=None, now=now
+        )
+        == silent
+    )
+    assert (
+        s.evaluate_threshold(
+            _threshold("<", 20),
+            reading=5,
+            condition_met_prev=None,
+            crossed_at=None,
+            now=now,
+        )
+        == silent
+    )
+    avail = _state("on")
+    avail["sensor"] = {"entity_id": "sensor.x", "mode": "availability"}
+    assert (
+        s.evaluate_availability(
+            avail,
+            status=s.AVAILABILITY_UNAVAILABLE,
+            condition_met_prev=None,
+            crossed_at=None,
+            now=now,
+        )
+        == silent
+    )
+    # A not-met reading records "not met", so the next crossing arms as usual.
+    out = s.evaluate_state(
+        _state("on"), state="off", condition_met_prev=None, crossed_at=None, now=now
+    )
+    assert out["condition_met"] is False
+    assert out["action"] is None
+    armed = s.evaluate_state(
+        _state("on"), state="on", condition_met_prev=False, crossed_at=None, now=now
+    )
+    assert armed["action"] == "arm"
+
+
+def test_b14_1_an_unknown_baseline_stays_unknown_without_a_reading():
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_state(
+        _state("on"), state=None, condition_met_prev=None, crossed_at=None, now=now
+    )
+    assert out["condition_met"] is None
+    assert out["action"] is None
+
+
+def test_b14_1_an_armed_task_still_clears_after_an_unknown_baseline():
+    # The clear is level-triggered: a device that came back while Home Assistant was
+    # down still completes a clear_on_recover task.
+    now = dt(2026, 6, 1, 10)
+    out = s.evaluate_state(
+        _state("on", clear_on_recover=True, armed=True),
+        state="off",
+        condition_met_prev=None,
+        crossed_at=None,
+        now=now,
+    )
+    assert out["action"] == "clear"
+
+
 def test_threshold_hold_delays_arming():
     cross = dt(2026, 6, 1, 10, 0, 0)
     task = _threshold(">", 90, for_seconds=300)  # must stay >90 for 5 minutes

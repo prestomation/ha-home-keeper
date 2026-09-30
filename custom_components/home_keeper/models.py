@@ -376,7 +376,10 @@ def normalize_sensor(
             (*USAGE_ONLY_SENSOR_FIELDS, "comparison", "value", "template"),
             "state",
         )
-        state = str(data.get("state") or "").strip()
+        # A bare ``state: on`` in YAML is the boolean ``True``, and ``str()`` stored it
+        # as ``"True"``, which no entity reports (B08-2). YAML also reads yes and no
+        # as booleans, so a mapping to ``on`` and ``off`` would guess.
+        state = str(_reject_boolean(data.get("state"), "sensor.state") or "").strip()
         if not state:
             raise TaskValidationError("sensor.state is required")
         if len(state) > MAX_SENSOR_STATE_LEN:

@@ -6,6 +6,28 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b8]
+
+### Fixed
+
+- **[Sensor task completions](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  A task that clears when its sensor recovers now completes 1 time, also when many
+  devices recover together.
+- **[Sensor tasks at restart](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  A restart no longer arms sensor tasks again when their entity loads late, or when the
+  entity shows unavailable during the start of Home Assistant.
+- **[Meter resets](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  One short drop in a meter reading no longer resets the count of a usage task.
+- **[Done on an armed task](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  A sensor task that you mark done no longer arms again at once.
+- **[Sensor task speed](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  A change of one entity now checks only the tasks that use that entity.
+- **[Renamed entities](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  A sensor task now follows its entity when you change the entity ID.
+- **[State values in a file](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  An import with `state: on` without quotation marks now shows an error. Before, the
+  task was saved with the state True and never armed.
+
 ## [0.28.0b7]
 
 ### Fixed
