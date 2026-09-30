@@ -24,7 +24,7 @@
 | custom\_components/home\_keeper/declarative\_preset\_text.py     |        2 |        0 |        0 |        0 |    100% |           |
 | custom\_components/home\_keeper/declarative\_presets.py          |       95 |        0 |       34 |        0 |    100% |           |
 | custom\_components/home\_keeper/declarative\_presets\_catalog.py |        3 |        0 |        0 |        0 |    100% |           |
-| custom\_components/home\_keeper/device\_compat.py                |       17 |        0 |        6 |        0 |    100% |           |
+| custom\_components/home\_keeper/device\_compat.py                |       22 |        0 |        6 |        0 |    100% |           |
 | custom\_components/home\_keeper/device\_trigger.py               |       69 |       69 |       24 |        0 |      0% |    23-163 |
 | custom\_components/home\_keeper/devices.py                       |      217 |      121 |      112 |        2 |     43% |57, 74, 85-87, 92, 97-107, 116, 123-124, 140-146, 161-193, 249-\>256, 348, 380-390, 411-424, 436-503, 511-538, 595-603 |
 | custom\_components/home\_keeper/diagnostics.py                   |       23 |        0 |        0 |        0 |    100% |           |
@@ -60,11 +60,11 @@
 | custom\_components/home\_keeper/todo\_list.py                    |      234 |        0 |       98 |        0 |    100% |           |
 | custom\_components/home\_keeper/todo\_list\_sync.py              |      120 |        2 |       48 |        2 |     98% |  187, 201 |
 | custom\_components/home\_keeper/todo\_sync\_driver.py            |      103 |        4 |       26 |        3 |     95% |124, 204-\>210, 230-231, 278 |
-| custom\_components/home\_keeper/transfer.py                      |      523 |        9 |      212 |        5 |     98% |274-283, 526-\>537, 752, 771, 1231-\>1230, 1359-\>1362 |
-| custom\_components/home\_keeper/transfer\_runner.py              |       43 |       43 |       14 |        0 |      0% |    13-141 |
+| custom\_components/home\_keeper/transfer.py                      |      574 |        2 |      230 |        4 |     99% |585-\>601, 818, 837, 1353-\>1352 |
+| custom\_components/home\_keeper/transfer\_runner.py              |       51 |       25 |       16 |        1 |     43% |   102-164 |
 | custom\_components/home\_keeper/transitions.py                   |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py                |      592 |      592 |       78 |        0 |      0% |    8-1595 |
-| **TOTAL**                                                        | **9573** | **3619** | **3384** |  **150** | **63%** |           |
+| **TOTAL**                                                        | **9637** | **3594** | **3404** |  **150** | **64%** |           |
 
 
 ## Setup coverage badge
