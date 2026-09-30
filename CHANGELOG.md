@@ -6,6 +6,21 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b5]
+
+### Fixed
+
+- **[Retention box](https://prestomation.github.io/ha-home-keeper/docs/guide/one-off-tasks).**
+  The box that deletes completed one-off tasks now saves when you leave it or press
+  Enter, not at each key. A lower value takes effect at the next check, about 5 minutes
+  later, and the largest value is 3650 days.
+- **[Settings cards](https://prestomation.github.io/ha-home-keeper/docs/guide/settings).**
+  A change in one Settings card no longer undoes a change that you made before in
+  another card, a profile or a notification.
+- **[Quick setting changes](https://prestomation.github.io/ha-home-keeper/docs/guide/settings).**
+  2 setting changes in quick succession now both save, where the second change failed
+  before.
+
 ## [0.28.0b4]
 
 ### Fixed
