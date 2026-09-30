@@ -88,3 +88,22 @@ def device_connections(device: dr.DeviceEntry) -> set[tuple[str, str]]:
     if getattr(device, "parent_device_id", None) is not None:
         return set()
     return device.connections
+
+
+class RegistryDeviceIds:
+    """The ids of every device on this install, main and child, for ``in`` only.
+
+    ``device_id in RegistryDeviceIds(registry)`` asks the registry for that one id.
+    Iterating ``DeviceRegistry.devices`` cannot give this answer: before Home
+    Assistant 2026.9 it yields ids and not entries, and from 2026.9 it lists main
+    devices only, so a child device would read as not on this install (B04-1).
+    """
+
+    def __init__(self, registry: dr.DeviceRegistry) -> None:
+        self._registry = registry
+
+    def __contains__(self, device_id: object) -> bool:
+        return (
+            isinstance(device_id, str)
+            and resolve_device(self._registry, device_id) is not None
+        )

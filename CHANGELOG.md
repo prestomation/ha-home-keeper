@@ -6,6 +6,25 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b4]
+
+### Fixed
+
+- **[Import on older Home Assistant](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  Import and the dry run work again on Home Assistant 2026.8 and older.
+- **[Restore of nested appliances](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  A file with appliances inside other appliances now restores onto a new install.
+- **[Appliances with one name](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  When 2 appliances have the same name, an export now keeps each task on the correct
+  appliance. An import that cannot tell them apart shows an error.
+- **[History on a repeated import](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  An import of the same file again no longer moves a task back to an older date, and
+  it keeps the newest history entries.
+- **[Tasks linked to a part](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  An export now includes a task that you linked to a spare part by hand.
+- **Import and export speed.** A large import or export no longer stops Home Assistant
+  while it reads or writes the file.
+
 ## [0.28.0b3]
 
 ### Fixed

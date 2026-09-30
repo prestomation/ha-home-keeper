@@ -149,3 +149,36 @@ def test_a_child_device_reports_no_connections_instead_of_raising():
     # shim that logs a deprecation and stops answering in HA 2027.9; the fake has no
     # such shim, so reading the attribute here would raise outright.
     assert device_compat.device_connections(CHILD) == set()
+
+
+# ── RegistryDeviceIds (B04-1) ────────────────────────────────────────────────
+
+
+def test_b04_1_device_ids_answer_on_a_mapping_registry():
+    # Before 2026.9 iterating ``devices`` yields ids, so reading ``.id`` off each one
+    # raised AttributeError and every import failed.
+    ids = device_compat.RegistryDeviceIds(MappingRegistry([DEV_A, DEV_B]))
+    assert "a" in ids
+    assert "b" in ids
+    assert "nope" not in ids
+
+
+def test_b04_1_device_ids_include_a_child_that_devices_does_not_list():
+    # From 2026.9 ``devices`` lists main devices only. ``async_get`` answers both.
+    registry = CollectionRegistry([DEV_A])
+    registry._by_id[CHILD.id] = CHILD
+    ids = device_compat.RegistryDeviceIds(registry)
+    assert "a" in ids
+    assert "c" in ids
+    assert "b" not in ids
+
+
+def test_b04_1_device_ids_answer_no_for_an_empty_or_odd_value():
+    class Exploding:
+        def async_get(self, device_id):
+            raise AssertionError(f"registry consulted for {device_id!r}")
+
+    ids = device_compat.RegistryDeviceIds(Exploding())
+    assert "" not in ids
+    assert None not in ids
+    assert 7 not in ids
