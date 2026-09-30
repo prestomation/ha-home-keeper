@@ -56,8 +56,8 @@
         </aside>
         <h2>
             <span class="text">193 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">191<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">2<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">192<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">1<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">1<span class="text"> partial</span></button>
         </h2>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_coordinator_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-30 18:29 +0000
+            created at 2026-09-30 19:01 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -92,7 +92,7 @@
     <p class="pln"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t"><span class="com"># Frontend panel.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t9" href="#t9">9</a></span><span class="t"><span class="com"># PANEL_VERSION is the single source of truth that release.yml validates against</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t10" href="#t10">10</a></span><span class="t"><span class="com"># manifest.json&#x27;s &quot;version&quot; (mirrors Pawsistant&#x27;s CARD_VERSION check).</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t"><span class="nam">PANEL_VERSION</span> <span class="op">=</span> <span class="str">&quot;0.28.0b5&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t"><span class="nam">PANEL_VERSION</span> <span class="op">=</span> <span class="str">&quot;0.28.0b6&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t12" href="#t12">12</a></span><span class="t"><span class="nam">PANEL_URL_PATH</span> <span class="op">=</span> <span class="str">&quot;home-keeper&quot;</span>  <span class="com"># sidebar route -&gt; /home-keeper</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t13" href="#t13">13</a></span><span class="t"><span class="nam">PANEL_STATIC_URL</span> <span class="op">=</span> <span class="str">&quot;/home_keeper_panel&quot;</span>  <span class="com"># static path that serves the JS bundle</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="nam">PANEL_JS_FILENAME</span> <span class="op">=</span> <span class="str">&quot;home-keeper-panel.js&quot;</span>&nbsp;</span><span class="r"></span></p>
@@ -1041,7 +1041,7 @@
     <p class="pln"><span class="n"><a id="t957" href="#t957">957</a></span><span class="t"><span class="str">    name before handing it to the pure reconciler. A part that sets ``use_task_name``</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t958" href="#t958">958</a></span><span class="t"><span class="str">    overrides the result outright.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t959" href="#t959">959</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t960" href="#t960">960</a></span><span class="t">    <span class="key">return</span> <span class="nam">_pick_localized</span><span class="op">(</span><span class="nam">USE_TASK_NAME_TEMPLATES</span><span class="op">,</span> <span class="nam">language</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t960" href="#t960">960</a></span><span class="t">    <span class="key">return</span> <span class="nam">_pick_localized</span><span class="op">(</span><span class="nam">USE_TASK_NAME_TEMPLATES</span><span class="op">,</span> <span class="nam">language</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t961" href="#t961">961</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t962" href="#t962">962</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t963" href="#t963">963</a></span><span class="t"><span class="key">def</span> <span class="nam">resolve_action_task_naming</span><span class="op">(</span><span class="nam">action</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span><span class="op">,</span> <span class="nam">language</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">str</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -1064,7 +1064,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_coordinator_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-30 18:29 +0000
+            created at 2026-09-30 19:01 +0000
         </p>
     </div>
 </footer>
