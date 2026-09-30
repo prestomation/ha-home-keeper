@@ -6,6 +6,22 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b12]
+
+### Fixed
+
+- **[Card errors in the log](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  The dashboard card no longer writes an error to the Home Assistant log at each update
+  for a user who is not an admin.
+- **[Wear progress on the card](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  A user who is not an admin now sees the progress of a counted wear part on the card,
+  such as 17 of 25 wears.
+- **[Due soon on the card](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  The Due soon filter of the card now shows a task on the day it is due, the same as the
+  panel.
+- **[Card focus](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  A refresh of the card no longer moves the focus out of an open form or dialog.
+
 ## [0.28.0b11]
 
 ### Fixed
