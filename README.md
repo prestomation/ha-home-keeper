@@ -18,7 +18,7 @@
 | custom\_components/home\_keeper/companions\_catalog.py           |       40 |        1 |       12 |        0 |     98% |        61 |
 | custom\_components/home\_keeper/config\_flow.py                  |       30 |        7 |        4 |        1 |     71% |147-153, 159, 182 |
 | custom\_components/home\_keeper/const.py                         |      193 |        1 |       12 |        1 |     99% |       972 |
-| custom\_components/home\_keeper/coordinator.py                   |      143 |       72 |       50 |        3 |     45% |58, 63, 86-128, 144, 148, 174, 184, 186-\>exit, 198-201, 204-262, 318, 330, 340, 351, 364-374, 405-416, 436-440 |
+| custom\_components/home\_keeper/coordinator.py                   |      143 |       72 |       50 |        3 |     45% |58, 63, 86-128, 144, 148, 174, 184, 186-\>exit, 198-201, 204-268, 324, 336, 346, 357, 370-380, 411-422, 442-446 |
 | custom\_components/home\_keeper/declarative\_companion\_sync.py  |      185 |      123 |       32 |        1 |     31% |77-78, 111-133, 153-154, 168-194, 205-210, 221-225, 235, 246-250, 254, 273, 304-308, 330-363, 386-406, 414, 421, 428, 433, 438, 441-458, 461-464, 469, 475, 488-554, 569-574 |
 | custom\_components/home\_keeper/declarative\_companions.py       |      367 |        3 |      182 |        3 |     99% |136, 262, 264 |
 | custom\_components/home\_keeper/declarative\_preset\_text.py     |        2 |        0 |        0 |        0 |    100% |           |
@@ -34,7 +34,7 @@
 | custom\_components/home\_keeper/manuals.py                       |      316 |      316 |       66 |        0 |      0% |    21-790 |
 | custom\_components/home\_keeper/models.py                        |      459 |       10 |      276 |        6 |     98% |194, 197-198, 204, 521, 664, 668, 761, 765-766 |
 | custom\_components/home\_keeper/notifications.py                 |      229 |        5 |       76 |        1 |     98% |355, 467-468, 476-477 |
-| custom\_components/home\_keeper/notifier.py                      |      173 |       82 |       74 |       10 |     46% |61-62, 102-104, 106-108, 130-132, 137-142, 152-153, 247, 297-306, 321-326, 361-\>378, 366, 374, 379-381, 404-414, 421, 439-556 |
+| custom\_components/home\_keeper/notifier.py                      |      188 |       32 |       80 |       17 |     79% |61-62, 102-104, 108, 130-132, 142, 152-153, 260, 313-318, 348, 365, 407-\>424, 412, 420, 425-427, 450-460, 467, 497, 575-582, 597-\>exit, 621 |
 | custom\_components/home\_keeper/number.py                        |       72 |       72 |       14 |        0 |      0% |    11-159 |
 | custom\_components/home\_keeper/options.py                       |       82 |        0 |       32 |        0 |    100% |           |
 | custom\_components/home\_keeper/panel.py                         |       29 |       29 |        4 |        0 |      0% |    10-107 |
@@ -64,7 +64,7 @@
 | custom\_components/home\_keeper/transfer\_runner.py              |       51 |       25 |       16 |        1 |     43% |   102-164 |
 | custom\_components/home\_keeper/transitions.py                   |       31 |        0 |       10 |        0 |    100% |           |
 | custom\_components/home\_keeper/websocket\_api.py                |      592 |      592 |       78 |        0 |      0% |    8-1595 |
-| **TOTAL**                                                        | **9908** | **3326** | **3544** |  **209** | **68%** |           |
+| **TOTAL**                                                        | **9923** | **3276** | **3550** |  **216** | **68%** |           |
 
 
 ## Setup coverage badge
