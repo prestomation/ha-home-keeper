@@ -57,6 +57,7 @@ import {
   statusChipHtml,
   toast,
   guardWrite,
+  setTimeZone,
 } from './utils';
 
 // mdi:check-circle-outline — the trailing "mark done" action on each row.
@@ -440,6 +441,7 @@ export class HomeKeeperCard extends HTMLElement {
   set hass(hass: Hass) {
     const first = !this._hass;
     setLanguage(hass.language);
+    setTimeZone(hass.config?.time_zone);
     this._hass = hass;
     for (const el of this._liveHassEls) el.hass = hass;
     // (Re)subscribe — picks up a fresh connection after a websocket reconnect.

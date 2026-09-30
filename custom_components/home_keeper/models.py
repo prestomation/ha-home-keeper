@@ -1022,6 +1022,37 @@ def build_task(data: dict, *, now: datetime) -> dict:
     return task
 
 
+def _same_schedule_value(key: str, new: Any, old: Any) -> bool:
+    """Whether 2 values of a schedule field mean the same schedule (B08-1).
+
+    ``due`` and ``anchor`` compare as instants, to the second: the panel keeps
+    milliseconds or no fraction, and a service keeps microseconds. ``active_season``
+    compares as the (month, day) pairs of its windows, so ``"4-1"`` and ``"04-01"``
+    are equal. Text that does not parse compares as text.
+    """
+    if key == "active_season":
+        return _season_key(new) == _season_key(old)
+    try:
+        return datetime.fromisoformat(str(new)).replace(
+            microsecond=0
+        ) == datetime.fromisoformat(str(old)).replace(microsecond=0)
+    except ValueError:
+        return bool(new == old)
+
+
+def _season_key(season: Any) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+    """The windows of *season* as (month, day) pairs.
+
+    Both values went through :func:`normalize_active_season`, so they parse.
+    """
+    if not season:
+        return []
+    return [
+        (recurrence._parse_mmdd(w["start"]), recurrence._parse_mmdd(w["end"]))
+        for w in recurrence._normalize_season(season)
+    ]
+
+
 def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     """Return *existing* updated with *updates*, recomputing next_due if needed.
 
@@ -1154,6 +1185,16 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # (next_due derived from its past ``due``) and silently cancelled a snooze
     # (next_due snapped back to the schedule). Comparing merged-vs-existing keeps a
     # no-op field edit a no-op while still rescheduling on a genuine change.
+    #
+    # The comparison is by meaning, not by text (B08-1). The panel sends a date as UTC
+    # text with milliseconds, and a service stores it with the local offset and
+    # microseconds. The same instant in 2 forms is not a change, so the stored text
+    # stays and ``next_due`` stays.
+    for key in ("due", "anchor", "active_season"):
+        if key in updates and _same_schedule_value(
+            key, merged.get(key), existing.get(key)
+        ):
+            merged[key] = existing.get(key)
     recurrence_changed = any(
         key in updates and merged.get(key) != existing.get(key)
         for key in recurrence_keys

@@ -270,3 +270,77 @@ def test_move_completion_fixed_keeps_an_advanced_due_date():
     # ``test_move_completion_fixed_stays_schedule_driven``, whose fixture has the two
     # agreeing.
     assert r.compute_next_due(out, now=now).isoformat() == anchor.isoformat()
+
+
+def test_b07_2_moving_an_old_row_keeps_a_snooze():
+    """B07-2 (c): snoozed to Sep 20, then the old Jul 1 row moves by a day."""
+    jul1, aug1 = dt(2026, 7, 1, 9), dt(2026, 8, 1, 9)
+    task = {
+        "recurrence_type": "floating",
+        "interval": 1,
+        "unit": "months",
+        "completions": [],
+    }
+    r.apply_completion(task, jul1, now=jul1)
+    r.apply_completion(task, aug1, now=aug1)
+    task["next_due"] = dt(2026, 9, 20, 9).isoformat()  # a snooze
+    r.move_completion(
+        task, jul1.isoformat(), dt(2026, 7, 2, 9).isoformat(), now=dt(2026, 9, 2)
+    )
+    assert task["next_due"] == dt(2026, 9, 20, 9).isoformat()
+    assert task["last_completed"] == aug1.isoformat()
+
+
+def test_b07_2_moving_an_old_row_past_the_latest_recalculates():
+    jul1, aug1 = dt(2026, 7, 1, 9), dt(2026, 8, 1, 9)
+    task = {
+        "recurrence_type": "floating",
+        "interval": 1,
+        "unit": "months",
+        "completions": [],
+    }
+    r.apply_completion(task, jul1, now=jul1)
+    r.apply_completion(task, aug1, now=aug1)
+    task["next_due"] = dt(2026, 9, 20, 9).isoformat()
+    r.move_completion(
+        task, jul1.isoformat(), dt(2026, 8, 5, 9).isoformat(), now=dt(2026, 9, 2)
+    )
+    assert task["last_completed"] == dt(2026, 8, 5, 9).isoformat()
+    assert task["next_due"] == dt(2026, 9, 5, 9).isoformat()
+
+
+def test_b07_2_moving_the_latest_row_before_a_later_skip_keeps_the_skip():
+    """A skip after both the old and the new time keeps its due date."""
+    jul1, aug1 = dt(2026, 7, 1, 9), dt(2026, 8, 1, 9)
+    task = {
+        "recurrence_type": "floating",
+        "interval": 1,
+        "unit": "months",
+        "completions": [],
+    }
+    r.apply_completion(task, jul1, now=jul1)
+    r.apply_completion(task, aug1, now=aug1)
+    r.skip_occurrence(task, now=dt(2026, 8, 20, 9))
+    assert task["next_due"] == dt(2026, 9, 20, 9).isoformat()
+    r.move_completion(
+        task, aug1.isoformat(), dt(2026, 8, 3, 9).isoformat(), now=dt(2026, 9, 2)
+    )
+    assert task["last_completed"] == dt(2026, 8, 3, 9).isoformat()
+    assert task["next_due"] == dt(2026, 9, 20, 9).isoformat()
+
+
+def test_b07_2_moving_the_latest_row_past_a_skip_recalculates():
+    jul1, aug1 = dt(2026, 7, 1, 9), dt(2026, 8, 1, 9)
+    task = {
+        "recurrence_type": "floating",
+        "interval": 1,
+        "unit": "months",
+        "completions": [],
+    }
+    r.apply_completion(task, jul1, now=jul1)
+    r.apply_completion(task, aug1, now=aug1)
+    r.skip_occurrence(task, now=dt(2026, 8, 20, 9))
+    r.move_completion(
+        task, aug1.isoformat(), dt(2026, 8, 25, 9).isoformat(), now=dt(2026, 9, 2)
+    )
+    assert task["next_due"] == dt(2026, 9, 25, 9).isoformat()

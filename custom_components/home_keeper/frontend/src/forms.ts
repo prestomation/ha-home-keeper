@@ -7,9 +7,12 @@ import {
   HK_DOMAIN,
   formatDate,
   formatQuantity,
+  getTimeZone,
   normalizeIcon,
   recurrenceSummary,
   round1,
+  zonedParts,
+  zonedTimeToMs,
 } from './utils';
 import type {
   Asset,
@@ -189,18 +192,31 @@ function monthOptions(): { value: string; label: string }[] {
 }
 
 // ── datetime <-> HA selector string helpers ────────────────────────────────
-// HA's datetime selector uses local "YYYY-MM-DD HH:mm:ss"; we persist ISO.
-export function isoToHaDateTime(iso?: string | null): string | undefined {
+// HA's datetime selector uses a zone-less "YYYY-MM-DD HH:mm:ss"; we persist ISO.
+// The zone-less text is a time in Home Assistant's zone (`setTimeZone`), not in the
+// browser zone (X04-7). Without a zone set, the browser zone is used.
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+export function isoToHaDateTime(iso?: string | null, tz = getTimeZone()): string | undefined {
   if (!iso) return undefined;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return undefined;
-  const p = (n: number): string => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(
-    d.getMinutes(),
-  )}:${p(d.getSeconds())}`;
+  const [y, mo, day, h, mi, s] = tz
+    ? zonedParts(d.getTime(), tz)
+    : [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()];
+  return `${y}-${pad2(mo)}-${pad2(day)} ${pad2(h)}:${pad2(mi)}:${pad2(s)}`;
 }
-export function haDateTimeToIso(value?: string | null): string | undefined {
+
+const HA_DATETIME = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/;
+
+export function haDateTimeToIso(value?: string | null, tz = getTimeZone()): string | undefined {
   if (!value) return undefined;
+  const m = tz ? HA_DATETIME.exec(value) : null;
+  if (m) {
+    // `m` is set only when `tz` is set. An absent seconds part reads as 0.
+    const parts = m.slice(1).map((part) => Number(part ?? 0));
+    return new Date(zonedTimeToMs(parts, tz as string)).toISOString();
+  }
   const d = new Date(value.replace(' ', 'T'));
   if (Number.isNaN(d.getTime())) return undefined;
   return d.toISOString();

@@ -1398,3 +1398,30 @@ def test_holds_edge_state_treats_an_unknown_mode_as_a_meter():
     assert s.holds_edge_state("banana") is False
     assert s.holds_edge_state(None) is False
     assert s.holds_edge_state("") is False
+
+
+def test_b07_4_backstop_counts_on_the_ha_wall_clock():
+    """B07-4: 1 month from 23:30 PST on Feb 20 is 23:30 PDT on Mar 20."""
+    from zoneinfo import ZoneInfo
+
+    la = ZoneInfo("America/Los_Angeles")
+    task = _backstop(300, 660, 1, "months", created=dt(2026, 1, 15).isoformat())
+    task["last_completed"] = datetime(2026, 2, 20, 23, 30, tzinfo=la).isoformat()
+    assert s.backstop_due(task, task["sensor"], tz=la) == datetime(
+        2026, 3, 20, 23, 30, tzinfo=la
+    )
+    # Without a zone the stored offset is used, as before.
+    assert s.backstop_due(task, task["sensor"]) == datetime(
+        2026, 3, 21, 0, 30, tzinfo=la
+    )
+
+
+def test_b07_4_the_watcher_arms_the_backstop_on_the_ha_wall_clock():
+    """At 00:00 PDT on Mar 21 the 1-month backstop from 23:30 PST is due."""
+    from zoneinfo import ZoneInfo
+
+    la = ZoneInfo("America/Los_Angeles")
+    task = _backstop(300, 660, 1, "months", created=dt(2026, 1, 15).isoformat())
+    task["last_completed"] = datetime(2026, 2, 20, 23, 30, tzinfo=la).isoformat()
+    now = datetime(2026, 3, 21, 0, 0, tzinfo=la)
+    assert s.evaluate_usage(task, reading=661, now=now)["action"] == "arm"

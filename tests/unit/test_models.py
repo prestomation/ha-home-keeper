@@ -1,6 +1,6 @@
 """Unit tests for task construction / validation / updates."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import hk_models as m
 import pytest
@@ -2026,3 +2026,126 @@ def test_a_sensor_task_keeps_its_binding_across_a_rename():
     assert (
         m.merge_update(task, {"name": "Renamed"}, now=NOW)["sensor"] == task["sensor"]
     )
+
+
+# --- B08-1: the panel sends the same instant as UTC text ----------------------
+
+_PDT = timezone(timedelta(hours=-7))
+
+
+def _panel_iso(stored: str) -> str:
+    """What `haDateTimeToIso(stored)` sends: UTC, millisecond precision, a `Z`."""
+    when = datetime.fromisoformat(stored).astimezone(UTC)
+    return when.strftime("%Y-%m-%dT%H:%M:%S.") + f"{when.microsecond // 1000:03d}Z"
+
+
+def test_b08_1_a_panel_rename_keeps_a_completed_one_off_done():
+    created = datetime(2026, 9, 28, 14, 23, 45, 123456, tzinfo=_PDT)
+    task = m.build_task(
+        {"name": "Take out bins", "recurrence_type": "one-off"}, now=created
+    )
+    stored_due = task["due"]
+    assert stored_due == "2026-09-28T14:23:45.123456-07:00"
+    task["next_due"] = None  # completed
+    task["last_completed"] = created.isoformat()
+    payload = {
+        "name": "Take out the bins",
+        "recurrence_type": "one-off",
+        "due": _panel_iso(stored_due),
+    }
+    assert payload["due"] == "2026-09-28T21:23:45.123Z"
+    merged = m.merge_update(task, payload, now=created + timedelta(days=2))
+    assert merged["next_due"] is None
+    assert merged["due"] == stored_due  # the stored text stays
+
+
+def test_b08_1_a_panel_rename_keeps_an_early_fixed_completion():
+    anchor = datetime(2026, 9, 1, 9, tzinfo=_PDT)
+    now = datetime(2026, 9, 30, 8, 5, tzinfo=_PDT)
+    task = m.build_task(
+        {
+            "name": "Meds",
+            "recurrence_type": "fixed",
+            "freq": "DAILY",
+            "interval": 1,
+            "anchor": anchor.isoformat(),
+        },
+        now=now,
+    )
+    tomorrow = datetime(2026, 10, 1, 9, tzinfo=_PDT).isoformat()
+    task["next_due"] = tomorrow  # done early today
+    payload = {
+        "name": "Morning meds",
+        "recurrence_type": "fixed",
+        "freq": "DAILY",
+        "interval": 1,
+        "anchor": _panel_iso(task["anchor"]),
+    }
+    merged = m.merge_update(task, payload, now=now)
+    assert merged["next_due"] == tomorrow
+    assert merged["anchor"] == anchor.isoformat()
+
+
+def test_b08_1_seconds_are_the_precision_of_a_schedule():
+    """The panel selector drops the fraction, so under 1 second is not a change."""
+    due = "2026-09-28T14:23:45.999999-07:00"
+    task = m.build_task(
+        {"name": "Bins", "recurrence_type": "one-off", "due": due}, now=NOW
+    )
+    task["next_due"] = None
+    merged = m.merge_update(
+        task, {"recurrence_type": "one-off", "due": "2026-09-28T21:23:45Z"}, now=NOW
+    )
+    assert merged["next_due"] is None
+
+
+def test_b08_1_a_real_change_of_due_still_reschedules():
+    due = "2026-09-28T14:23:45-07:00"
+    task = m.build_task(
+        {"name": "Bins", "recurrence_type": "one-off", "due": due}, now=NOW
+    )
+    task["next_due"] = None
+    merged = m.merge_update(
+        task, {"recurrence_type": "one-off", "due": "2026-09-28T21:23:46Z"}, now=NOW
+    )
+    assert merged["next_due"] == "2026-09-28T21:23:46+00:00"
+
+
+def test_b08_1_a_season_in_another_form_is_not_a_change():
+    task = m.build_task(
+        {
+            "name": "Mow",
+            "interval": 1,
+            "unit": "weeks",
+            "active_season": {"start": "4-1", "end": "10-31"},
+        },
+        now=NOW,
+    )
+    snoozed = datetime(2026, 6, 20, 9, tzinfo=TZ).isoformat()
+    task["next_due"] = snoozed
+    merged = m.merge_update(
+        task, {"active_season": [{"start": "04-01", "end": "10-31"}]}, now=NOW
+    )
+    assert merged["next_due"] == snoozed
+    assert merged["active_season"] == [{"start": "4-1", "end": "10-31"}]
+    changed = m.merge_update(
+        task, {"active_season": [{"start": "04-02", "end": "10-31"}]}, now=NOW
+    )
+    assert changed["next_due"] != snoozed
+
+
+def test_b08_1_adding_a_season_is_a_change():
+    task = m.build_task({"name": "Mow", "interval": 1, "unit": "weeks"}, now=NOW)
+    snoozed = datetime(2026, 6, 20, 9, tzinfo=TZ).isoformat()
+    task["next_due"] = snoozed
+    merged = m.merge_update(
+        task, {"active_season": [{"start": "12-01", "end": "12-31"}]}, now=NOW
+    )
+    assert merged["next_due"] == datetime(2026, 12, 1, tzinfo=TZ).isoformat()
+
+
+def test_b08_1_same_schedule_value_compares_text_that_does_not_parse():
+    assert m._same_schedule_value("anchor", None, None)
+    assert not m._same_schedule_value("anchor", "x", None)
+    assert m._same_schedule_value("due", "2026-01-01T00:00:00Z", "2026-01-01T00:00Z")
+    assert m._season_key(None) == []

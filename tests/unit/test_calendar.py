@@ -328,3 +328,95 @@ def test_collect_events_keeps_the_local_hour_across_a_dst_transition():
     hours = {e.start.astimezone(zone).hour for e in entity._collect_events(start, end)}
 
     assert hours == {9}, f"occurrences drifted off 09:00 local: {sorted(hours)}"
+
+
+# --- B11-2: a fixed task follows its next_due, as every other surface does ----
+
+
+def _starts(entity, start, end):
+    return [e.start for e in entity._collect_events(start, end)]
+
+
+def test_b11_2_a_fixed_task_done_early_shows_its_next_occurrence(monkeypatch):
+    """Daily 10:00, done at 09:00: the event is tomorrow, not today at 10:00."""
+    now = _dt(2026, 9, 30, 9)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    task = _fixed_task(_dt(2026, 9, 1, 10), next_due=_dt(2026, 10, 1, 10).isoformat())
+    entity = _entity({"t_fixed": task})
+    assert entity.event.start == _dt(2026, 10, 1, 10)
+    assert _starts(entity, _dt(2026, 9, 30), _dt(2026, 10, 3)) == [
+        _dt(2026, 10, 1, 10),
+        _dt(2026, 10, 2, 10),
+    ]
+
+
+def test_b11_2_a_snoozed_fixed_task_shows_the_snooze_time(monkeypatch):
+    now = _dt(2026, 9, 30, 9)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    snoozed = _dt(2026, 10, 3, 18)
+    task = _fixed_task(_dt(2026, 9, 1, 10), next_due=snoozed.isoformat())
+    entity = _entity({"t_fixed": task})
+    assert entity.event.start == snoozed
+    assert _starts(entity, _dt(2026, 9, 29), _dt(2026, 10, 5)) == [
+        # The past occurrence before now stays: it is history, not the snooze.
+        _dt(2026, 9, 29, 10),
+        snoozed,
+        _dt(2026, 10, 4, 10),
+    ]
+
+
+def test_b11_2_due_today_on_a_fixed_task_shows_today(monkeypatch):
+    now = _dt(2026, 9, 30, 12)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    task = _fixed_task(_dt(2026, 9, 5, 10), freq="WEEKLY", next_due=now.isoformat())
+    entity = _entity({"t_fixed": task})
+    assert entity.event.start == now
+    assert _starts(entity, _dt(2026, 9, 30), _dt(2026, 10, 4)) == [
+        now,
+        _dt(2026, 10, 3, 10),
+    ]
+
+
+def test_b11_2_an_overdue_fixed_task_keeps_its_grid(monkeypatch):
+    """A next_due in the past removes nothing, and is not shown twice."""
+    now = _dt(2026, 9, 30, 12)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    task = _fixed_task(_dt(2026, 9, 1, 10), next_due=_dt(2026, 9, 29, 10).isoformat())
+    entity = _entity({"t_fixed": task})
+    assert entity.event.start == _dt(2026, 10, 1, 10)
+    assert _starts(entity, _dt(2026, 9, 29), _dt(2026, 10, 2)) == [
+        _dt(2026, 9, 29, 10),
+        _dt(2026, 9, 30, 10),
+        _dt(2026, 10, 1, 10),
+    ]
+
+
+def test_b11_2_an_in_progress_next_due_is_still_the_event(monkeypatch):
+    """next_due 30 minutes ago is inside its 1-hour event, like the grid case."""
+    now = _dt(2026, 9, 30, 10, 30)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    snoozed = _dt(2026, 9, 30, 10, 0)
+    task = _fixed_task(_dt(2026, 9, 1, 8), next_due=snoozed.isoformat())
+    entity = _entity({"t_fixed": task})
+    assert entity.event.start == snoozed
+    ended = _fixed_task(
+        _dt(2026, 9, 1, 8), next_due=_dt(2026, 9, 30, 9, 30).isoformat()
+    )
+    assert _entity({"t_fixed": ended}).event.start == _dt(2026, 10, 1, 8)
+
+
+def test_b11_2_a_next_due_outside_the_window_is_not_added(monkeypatch):
+    now = _dt(2026, 9, 30, 9)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    task = _fixed_task(_dt(2026, 9, 1, 10), next_due=_dt(2026, 10, 10, 18).isoformat())
+    entity = _entity({"t_fixed": task})
+    # Every grid occurrence before the snooze goes, and the snooze is past the end.
+    assert _starts(entity, _dt(2026, 10, 1), _dt(2026, 10, 3)) == []
+    # A window that ends before the snooze starts, and one that starts after it ends.
+    assert _starts(entity, _dt(2026, 10, 10, 19), _dt(2026, 10, 12)) == [
+        _dt(2026, 10, 11, 10)
+    ]
+    assert _dt(2026, 10, 10, 18) in _starts(
+        entity, _dt(2026, 10, 10, 18, 30), _dt(2026, 10, 11)
+    )
+    assert _starts(entity, _dt(2026, 10, 10), _dt(2026, 10, 10, 18)) == []

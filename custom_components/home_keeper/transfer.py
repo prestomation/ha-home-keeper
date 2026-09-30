@@ -69,6 +69,11 @@ EXCLUDED_TASK_KEYS: tuple[tuple[str, str], ...] = (
         "was made on another install's clock",
     ),
     ("next_due", "derived from the schedule and the history, recomputed on import"),
+    (
+        "deferred_from",
+        "the occurrence a snooze moved; it has a meaning only next to `next_due`, "
+        "which does not travel",
+    ),
     ("last_completed", "derived from the history, restated by replaying it"),
     ("completions", "re-shaped as `history`, keyed like the complete_task service"),
     ("skips", "re-shaped as `skips`, keyed like the completion entries"),
@@ -918,6 +923,13 @@ def apply_history(
         # *history* so an import carrying none cannot snap a stored (e.g. snoozed) due
         # date back onto the grid.
         task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
+        # The replay stamped each replayed entry with a due date that no user saw.
+        # Remove it, so an undo calculates the due date from the anchor again. A
+        # stored entry keeps its own, because that one is a real due date.
+        stored_ids = {id(entry) for entry in stored_completions}
+        for entry in task.get("completions") or []:
+            if id(entry) not in stored_ids:
+                entry.pop(recurrence.PRIOR_DUE, None)
     # A task stored by an older release can have no ``skips`` key at all.
     task["completions"] = _merge_log(stored_completions, task.get("completions") or [])
     task["skips"] = _merge_log(stored_skips, task.get("skips") or [])

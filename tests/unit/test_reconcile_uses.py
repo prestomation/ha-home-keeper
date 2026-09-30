@@ -606,3 +606,15 @@ def test_deleting_the_skip_that_retired_the_carry_brings_it_back_too():
     assert rc.counted_uses(use, replace, part) == 0
     replace["skips"] = []
     assert rc.counted_uses(use, replace, part) == 24
+
+
+def test_b07_4_the_wear_backstop_counts_on_the_ha_wall_clock():
+    """B07-4: a stored -08:00 stamp plus 1 month is 23:30 PDT, not 00:30 PDT."""
+    from zoneinfo import ZoneInfo
+
+    la = ZoneInfo("America/Los_Angeles")
+    part = _counted_part(replace_also_every={"interval": 1, "unit": "months"})
+    replace_task = {"last_completed": "2026-02-20T23:30:00-08:00", "skips": []}
+    assert rc.replacement_backstop_due(part, replace_task, tz=la) == datetime(
+        2026, 3, 20, 23, 30, tzinfo=la
+    )

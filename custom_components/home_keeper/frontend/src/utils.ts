@@ -623,6 +623,65 @@ export function readingUnit(
   return (state?.attributes?.unit_of_measurement as string | undefined) || '';
 }
 
+// ── Home Assistant's time zone ───────────────────────────────────────────────
+// A time that the user types in the panel is a time in Home Assistant's zone, the
+// same as the same text sent to a `home_keeper` service. The browser can be in a
+// different zone (a remote admin, travel), so the panel must not use the browser
+// zone to read or write a time (X04-7). `set hass` keeps this value current.
+let haTimeZone: string | undefined;
+
+/** Set the zone the panel uses for dates and times (`hass.config.time_zone`). */
+export function setTimeZone(tz?: string | null): void {
+  haTimeZone = undefined;
+  if (!tz) return;
+  try {
+    // An unknown zone name makes every `Intl` call throw, so use the browser zone.
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    haTimeZone = tz;
+  } catch {
+    /* an unknown zone name — keep the browser zone */
+  }
+}
+
+/** The zone the panel uses, or undefined for the browser zone. */
+export function getTimeZone(): string | undefined {
+  return haTimeZone;
+}
+
+/** The wall-clock parts of the instant *ms* in *tz*. Month is 1-based. */
+export function zonedParts(ms: number, tz: string): number[] {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(ms));
+  const get = (type: string): number => Number(parts.find((p) => p.type === type)?.value);
+  return [get('year'), get('month'), get('day'), get('hour'), get('minute'), get('second')];
+}
+
+/**
+ * The instant at which the wall clock in *tz* shows the given parts. Month is 1-based.
+ *
+ * The first guess reads the parts as UTC and corrects by the zone offset at that
+ * guess. A second pass corrects again when the guess and the answer are on the 2
+ * sides of a daylight-saving change.
+ */
+export function zonedTimeToMs(parts: number[], tz: string): number {
+  const [y, mo, d, h, mi, s] = parts;
+  const asUtc = Date.UTC(y, mo - 1, d, h, mi, s);
+  const offsetAt = (ms: number): number => {
+    const [py, pmo, pd, ph, pmi, ps] = zonedParts(ms, tz);
+    return Date.UTC(py, pmo - 1, pd, ph, pmi, ps) - ms;
+  };
+  const first = asUtc - offsetAt(asUtc);
+  return asUtc - offsetAt(first);
+}
+
 // ── Dates and times, as a person would write them ───────────────────────────
 /**
  * A date, in the viewer's language — "1 Jul 2026", not "7/1/2026".
@@ -639,6 +698,7 @@ export function formatDate(value: string | Date | null | undefined, lang?: strin
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    timeZone: haTimeZone,
   });
 }
 
@@ -658,6 +718,7 @@ export function formatDateTime(value: string | Date | null | undefined, lang?: s
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: haTimeZone,
   });
 }
 

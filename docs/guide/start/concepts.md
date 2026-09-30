@@ -9,7 +9,8 @@ A task has a name, notes, an optional attached device, and a recurrence:
 - Fixed, shown as **Repeats on a fixed schedule** in the form, is an anchored calendar schedule.
   An example is medicine every day at 8am. A completion moves the task to the next
   occurrence on the schedule. The dates that follow do not move, and they keep the same
-  time of day when the clocks change.
+  time of day when the clocks change. The calendar shows the task on its next due
+  date, so a snooze or an early completion also moves the calendar event.
 - One-off, shown as **Just once** in the form, runs one time. See
   [One-off tasks](../tasks/one-off-tasks.md) below.
 - Triggered is monitored and condition-driven, with no schedule. See below.

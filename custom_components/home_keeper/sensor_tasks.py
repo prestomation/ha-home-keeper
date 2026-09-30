@@ -47,7 +47,7 @@ the next true reading starts the clock again (:func:`_evaluate_indeterminate`).
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 from typing import Any
 
 from . import recurrence
@@ -179,7 +179,9 @@ def latest_decision_ts(task: dict[str, Any]) -> str | None:
     return max(parsed)[1] if parsed else None
 
 
-def backstop_due(task: dict[str, Any], cfg: dict[str, Any]) -> datetime | None:
+def backstop_due(
+    task: dict[str, Any], cfg: dict[str, Any], *, tz: tzinfo | None = None
+) -> datetime | None:
     """When a usage task's time backstop comes due, or ``None`` if it has none.
 
     The backstop measures time since the last decision about the task (see
@@ -200,6 +202,10 @@ def backstop_due(task: dict[str, Any], cfg: dict[str, Any]) -> datetime | None:
         return None
     if anchor is None:
         return None
+    if tz is not None:
+        # Count the interval on Home Assistant's wall clock, not in the stored UTC
+        # offset, so a daylight-saving change does not move it by 1 hour (B07-4).
+        anchor = anchor.astimezone(tz)
     return recurrence.add_interval(
         anchor, int(also_every["interval"]), str(also_every["unit"])
     )
@@ -398,7 +404,7 @@ def evaluate_usage(
         and raw_baseline is not None
         and (reading - float(raw_baseline)) >= target
     )
-    due_at = backstop_due(task, cfg)
+    due_at = backstop_due(task, cfg, tz=now.tzinfo)
     time_met = due_at is not None and now >= due_at
     if due_at is None:
         met = usage_met
