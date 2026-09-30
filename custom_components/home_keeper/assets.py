@@ -30,6 +30,7 @@ by the caller.
 
 from __future__ import annotations
 
+import copy
 import decimal
 import functools
 import math
@@ -967,6 +968,24 @@ def set_part_file(asset: dict, part_id: str, file_meta: dict) -> dict | None:
     return None
 
 
+def dropped_part_files(before: list, after: list) -> list[tuple[str, str]]:
+    """Return ``(part_id, file_name)`` for each part with a file that *after* drops.
+
+    An update removes a part by leaving it out of the list, so its file has no
+    record left. The caller deletes these files after it saves (B06-3). A part
+    that is still in *after* keeps its file, even when *after* has no file on it.
+    """
+    kept = {part.get("id") for part in after or [] if isinstance(part, dict)}
+    return [
+        (part["id"], part["file_name"])
+        for part in before or []
+        if isinstance(part, dict)
+        and part.get("id")
+        and part.get("file_name")
+        and part.get("id") not in kept
+    ]
+
+
 def clear_part_file(asset: dict, part_id: str) -> dict | None:
     """Detach *part_id*'s file, in place; return its *prior* file fields.
 
@@ -1356,7 +1375,11 @@ def consume_part_stock(part: dict, *, quantity: float | None = None) -> str:
 
 
 def adjust_part_stock(part: dict, delta: float) -> str:
-    """Adjust a part's on-hand ``stock`` by ``delta`` (clamped at zero).
+    """Adjust a part's on-hand ``stock`` by ``delta`` (clamped to 0..MAX_INTERVAL).
+
+    The upper clamp is the same limit ``_normalize_stock`` and the spares number
+    apply. Without it a restock can store a count that every later edit of the
+    appliance refuses (B15-3).
 
     Begins tracking from zero for a previously untracked part. ``delta`` may be
     fractional (``-0.33`` of a bottle is as valid as ``-1`` filter). Returns the edge
@@ -1365,7 +1388,7 @@ def adjust_part_stock(part: dict, delta: float) -> str:
     the reorder point, else ``"none"``.
     """
     old = _round_stock(part.get("stock") or 0)
-    new = _round_stock(max(0.0, old + float(delta)))
+    new = _round_stock(min(float(MAX_INTERVAL), max(0.0, old + float(delta))))
     part["stock"] = new
     return stock_transition(old, new, part.get("reorder_at"))
 
@@ -1592,7 +1615,10 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "parent_asset_id": updates.get(
             "parent_asset_id", existing.get("parent_asset_id")
         ),
-        "parts": updates.get("parts", existing.get("parts", [])),
+        # An update without ``parts`` does not touch them: the stored parts are kept
+        # below as they are, never normalized again (B05-1). Equivalent mutant: the
+        # default is replaced by the stored parts below, and None normalizes to [].
+        "parts": updates.get("parts", []),  # pragma: no mutate
         "metadata": updates.get("metadata", existing.get("metadata", [])),
         "documents": updates.get("documents", existing.get("documents", [])),
         "related_device_ids": updates.get(
@@ -1613,6 +1639,10 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
             fields["parts"] = _merge_managed_parts(
                 existing.get("parts", []), fields["parts"]
             )
+    else:
+        # Normalizing a stored part again clears its file fields and can refuse a
+        # value that was valid when it was stored, so keep the parts as stored.
+        fields["parts"] = copy.deepcopy(existing.get("parts") or [])
     # File documents are upload-only: a generic write controls only links, and always
     # carries the stored file documents through (see _merge_documents).
     if "documents" in updates:

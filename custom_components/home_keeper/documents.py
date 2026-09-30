@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import re
 import time
+import uuid
+from collections.abc import Iterable
 from pathlib import Path, PurePath
 
 from .assets import AssetValidationError
@@ -97,6 +99,34 @@ def validate_upload(filename: str, data: bytes) -> tuple[str, str]:
     stream variant for anything that could be large.
     """
     return validate_upload_stream(filename, data[:SNIFF_BYTES], len(data))
+
+
+def upload_document_id(requested: str, taken: Iterable[str]) -> str:
+    """Return the id to store a new uploaded document under (B06-2).
+
+    The client sends the id, and the file goes on disk under it before the
+    metadata is saved. So an id that another document already has, or that is not
+    a uuid in hex digits and hyphens only, gets a new uuid here, before any file is
+    written. An id in another shape can put 2 records on one path (``part_<id>`` is
+    a part's file key, and ``__`` splits the id from the file name).
+    """
+    if _is_plain_uuid(requested) and requested not in set(taken):
+        return requested
+    return str(uuid.uuid4())
+
+
+def _is_plain_uuid(value: str) -> bool:
+    """Whether *value* is a uuid written with hex digits and hyphens only."""
+    if not isinstance(value, str) or not _HEX_ID.fullmatch(value):
+        return False
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        return False
+    return True
+
+
+_HEX_ID = re.compile(r"[0-9a-fA-F-]+")
 
 
 def purge_stale_temps(tmp_root: Path, max_age_s: float) -> None:

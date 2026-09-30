@@ -615,7 +615,13 @@ class HomeKeeperDocumentView(HomeAssistantView):
             # reacting to the event — sees a document whose backing file isn't there
             # yet, so a GET 404s in that gap. We store under the caller-supplied
             # ``document_id``, which the store honours (see ``add_asset_document``),
-            # so the metadata + blob agree.
+            # so the metadata + blob agree. An id that is taken or not a uuid gets a
+            # new one first, so the move never writes over another document's file.
+            current = coord.store.get_asset(asset_id) or {}
+            document_id = documents.upload_document_id(
+                document_id,
+                (d.get("id") for d in current.get("documents") or []),
+            )
             try:
                 await async_store_document(
                     hass, asset_id, document_id, safe_name, uploaded

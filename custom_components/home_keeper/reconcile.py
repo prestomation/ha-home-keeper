@@ -778,6 +778,24 @@ def reconcile_part_tasks(
                     merged["next_due"] = recurrence.compute_next_due(
                         merged, now=now
                     ).isoformat()
+            if (
+                anchored
+                and rec_type == REC_FLOATING
+                and before.get("recurrence_type") != REC_FLOATING
+            ):
+                # A counted part switched back to time (B09-3). The replacement task
+                # was dormant, so its last_completed can be older than the part's
+                # recorded replacement, or empty. Start the time cycle from the later
+                # of the 2, as creation does. This runs once, on the conversion, so a
+                # later undo of a completion is never snapped back to the part date.
+                last = qualify_iso(merged.get("last_completed"), now.tzinfo)
+                if last is None or datetime.fromisoformat(
+                    anchored
+                ) > datetime.fromisoformat(last):
+                    merged = {**merged, "last_completed": anchored}
+                    merged["next_due"] = recurrence.compute_next_due(
+                        merged, now=now
+                    ).isoformat()
             if merged is not before:
                 result[existing_tid] = merged
                 changed = True
@@ -808,6 +826,71 @@ def reconcile_part_tasks(
             changed = True
 
     return result, changed
+
+
+def reanchor_edited_parts(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    tasks: dict[str, dict[str, Any]],
+    *,
+    now: datetime,
+) -> dict[str, dict[str, Any]]:
+    """Move a wear part's task when an edit changes ``last_replaced`` (B09-3).
+
+    :func:`reconcile_part_tasks` anchors a floating task to ``last_replaced`` only
+    when it creates the task. This function applies a later edit of that date:
+    *before* and *after* are the appliance before and after one update. Returns
+    ``{task_id: updated task}`` for each task it moved. The input is not mutated.
+
+    Only an edit starts this. A completion also writes ``last_replaced``, but not
+    through an appliance update, so undoing or moving a completion never snaps the
+    task back to the part's date. A task keeps its schedule when it has a recorded
+    completion at or after the new date, because that completion is newer evidence.
+    """
+    old_dates = {
+        part.get("id"): part.get("last_replaced")
+        for part in before.get("parts") or []
+        if isinstance(part, dict)
+    }
+    edited: dict[Any, str] = {}
+    for part in after.get("parts") or []:
+        part_id = part.get("id")
+        # A new part has no task yet; the reconcile anchors it when it creates one.
+        if part_id not in old_dates:
+            continue
+        if part.get("last_replaced") == old_dates[part_id]:
+            continue
+        anchored = qualify_iso(part.get("last_replaced"), now.tzinfo)
+        if anchored:
+            edited[part_id] = anchored
+
+    moved: dict[str, dict[str, Any]] = {}
+    if not edited:
+        return moved
+    for tid, task in tasks.items():
+        src = part_source(task)
+        if not src or src.get("manual") or src.get("asset_id") != after.get("id"):
+            continue
+        anchored = edited.get(src.get("part_id"))
+        if anchored is None:
+            continue
+        if task.get("recurrence_type") != REC_FLOATING:
+            continue
+        if part_role(task) != PART_ROLE_REPLACE:
+            continue
+        anchor_at = datetime.fromisoformat(anchored)
+        if any(
+            datetime.fromisoformat(stamp) >= anchor_at
+            for entry in task.get("completions") or []
+            if (stamp := qualify_iso(entry.get("ts"), now.tzinfo))
+        ):
+            continue
+        if task.get("last_completed") == anchored:
+            continue
+        updated = {**task, "last_completed": anchored}
+        updated["next_due"] = recurrence.compute_next_due(updated, now=now).isoformat()
+        moved[tid] = updated
+    return moved
 
 
 def reconcile_buy_tasks(

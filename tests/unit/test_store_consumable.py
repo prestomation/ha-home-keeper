@@ -559,3 +559,465 @@ def test_update_managed_asset_refuses_an_empty_name(store):
     with raises_exactly(AssetValidationError, "name must not be empty"):
         _run(store.update_managed_asset(asset["id"], name="   "))
     assert asset["name"] == "Batteries"
+
+
+# ── the split-duplicate merge (B17-1) ────────────────────────────────────────
+# These run the REAL ``async_merge_split_duplicates``. ``test_device_heal.py``
+# replaces it with a fake, so nothing else covers what it deletes.
+
+
+def _dated_task(store, created, **overrides):
+    task = _task(store, **overrides)
+    task["created"] = created
+    return task
+
+
+def _battery_tasks(store, devices, *, canonical_payload=False):
+    """One 'Replace battery' task per device, each linked to one AAA part."""
+    asset = _asset(store)
+    part = asset["parts"][0]
+    tasks = []
+    for index, device in enumerate(devices):
+        task = _dated_task(
+            store,
+            f"2026-01-0{index + 1}T00:00:00+00:00",
+            name=f"Replace battery {index}",
+            device_id=device,
+            source={GLUE: {"device_id": device}},
+        )
+        _run(store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=2))
+        tasks.append(task)
+    return tasks
+
+
+def _snapshot(store):
+    return {
+        tid: (task["device_id"], dict(task["source"][GLUE]))
+        for tid, task in store._tasks.items()
+    }
+
+
+def test_b17_1_merge_with_no_split_keeps_tasks_linked_to_one_part(store):
+    """B17-1: an empty map (no split anywhere) deletes and moves nothing."""
+    _battery_tasks(store, ["dev_hall", "dev_kitchen", "dev_bedroom"])
+    before = _snapshot(store)
+    assert len(before) == 3
+
+    assert _run(store.async_merge_split_duplicates({})) == 0
+
+    assert _snapshot(store) == before
+    assert store._hass.bus.of("home_keeper_task_deleted") == []
+
+
+def test_b17_1_two_manual_links_to_one_part_are_not_merged_by_a_split_elsewhere(
+    store,
+):
+    """B17-1: a real split of another device does not turn the merge on for parts."""
+    asset = _asset(store)
+    part = asset["parts"][0]
+    first = _dated_task(store, "2026-01-01T00:00:00+00:00", device_id="dev_kitchen")
+    second = _dated_task(store, "2026-02-01T00:00:00+00:00", device_id="dev_garage")
+    for task in (first, second):
+        _run(store.set_task_consumable(task["id"], asset["id"], part["id"], quantity=2))
+    assert first["source"]["part"] == second["source"]["part"]
+
+    split = {"zw_half": "composite", "sb_half": "composite"}
+    assert _run(store.async_merge_split_duplicates(split)) == 0
+
+    assert set(store._tasks) == {first["id"], second["id"]}
+    assert (first["device_id"], second["device_id"]) == ("dev_kitchen", "dev_garage")
+
+
+def test_b17_1_tasks_on_the_same_half_of_a_split_are_not_merged(store):
+    split = {"zw_half": "composite", "sb_half": "composite"}
+    older = _dated_task(
+        store,
+        "2026-01-01T00:00:00+00:00",
+        device_id="zw_half",
+        source={GLUE: {"device_id": "zw_half", "item": "filter"}},
+    )
+    newer = _dated_task(
+        store,
+        "2026-02-01T00:00:00+00:00",
+        device_id="zw_half",
+        source={GLUE: {"device_id": "zw_half", "item": "filter"}},
+    )
+    assert _run(store.async_merge_split_duplicates(split)) == 0
+    assert set(store._tasks) == {older["id"], newer["id"]}
+
+
+def test_b17_1_a_real_split_duplicate_is_still_merged(store):
+    """The repair the merge exists for: 2 copies on 2 halves of one device."""
+    split = {"zw_half": "composite", "sb_half": "composite"}
+    older = _dated_task(
+        store,
+        "2026-01-01T00:00:00+00:00",
+        device_id="zw_half",
+        source={GLUE: {"device_id": "zw_half", "item": "filter"}},
+    )
+    newer = _dated_task(
+        store,
+        "2026-02-01T00:00:00+00:00",
+        device_id="sb_half",
+        source={GLUE: {"device_id": "sb_half", "item": "filter"}},
+    )
+    # Another item on the same device is a different task, not a duplicate.
+    other = _dated_task(
+        store,
+        "2026-01-15T00:00:00+00:00",
+        device_id="zw_half",
+        source={GLUE: {"device_id": "zw_half", "item": "firmware"}},
+    )
+
+    assert _run(store.async_merge_split_duplicates(split)) == 1
+
+    assert set(store._tasks) == {older["id"], other["id"]}
+    # The survivor (oldest on a tie) takes the newest copy's device.
+    assert older["device_id"] == "sb_half"
+    assert older["source"][GLUE]["device_id"] == "sb_half"
+    assert other["device_id"] == "zw_half"
+    deleted = store._hass.bus.of("home_keeper_task_deleted")
+    assert [event["task_id"] for event in deleted] == [newer["id"]]
+
+
+def test_b17_1_a_duplicate_on_the_undivided_composite_id_is_merged(store):
+    """A task still on the dead composite id and one on a live half are one."""
+    split = {"sb_half": "composite"}
+    older = _dated_task(
+        store,
+        "2026-01-01T00:00:00+00:00",
+        device_id="composite",
+        source={GLUE: {"device_id": "composite", "item": "filter"}},
+    )
+    _dated_task(
+        store,
+        "2026-02-01T00:00:00+00:00",
+        device_id="sb_half",
+        source={GLUE: {"device_id": "sb_half", "item": "filter"}},
+    )
+    assert _run(store.async_merge_split_duplicates(split)) == 1
+    assert list(store._tasks) == [older["id"]]
+    assert older["device_id"] == "sb_half"
+
+
+def test_b17_1_the_survivor_keeps_a_device_the_user_chose(store):
+    """Only a device id that came from the split is rewritten on the survivor."""
+    split = {"zw_half": "composite", "sb_half": "composite"}
+    older = _dated_task(
+        store,
+        "2026-01-01T00:00:00+00:00",
+        device_id="dev_user_choice",
+        source={GLUE: {"device_id": "zw_half", "item": "filter"}},
+    )
+    _dated_task(
+        store,
+        "2026-02-01T00:00:00+00:00",
+        device_id="sb_half",
+        source={GLUE: {"device_id": "sb_half", "item": "filter"}},
+    )
+    assert _run(store.async_merge_split_duplicates(split)) == 1
+    assert older["device_id"] == "dev_user_choice"
+    # The contributor's own payload still follows its device.
+    assert older["source"][GLUE]["device_id"] == "sb_half"
+
+
+def test_b17_1_a_copy_with_completions_is_never_deleted(store):
+    split = {"zw_half": "composite", "sb_half": "composite"}
+    older = _dated_task(
+        store,
+        "2026-01-01T00:00:00+00:00",
+        device_id="zw_half",
+        source={GLUE: {"device_id": "zw_half", "item": "filter"}},
+    )
+    newer = _dated_task(
+        store,
+        "2026-02-01T00:00:00+00:00",
+        device_id="sb_half",
+        source={GLUE: {"device_id": "sb_half", "item": "filter"}},
+    )
+    newer["completions"] = [{"ts": NOW.isoformat()}]
+    older["completions"] = [{"ts": NOW.isoformat()}]
+    assert _run(store.async_merge_split_duplicates(split)) == 0
+    assert set(store._tasks) == {older["id"], newer["id"]}
+
+
+def test_b17_1_a_wear_part_task_in_a_group_is_skipped_not_raised_on(store):
+    """``delete_task`` refuses a derived part task; the merge must not abort."""
+    split = {"zw_half": "composite", "sb_half": "composite"}
+    older = _dated_task(
+        store,
+        "2026-01-01T00:00:00+00:00",
+        device_id="zw_half",
+        source={GLUE: {"device_id": "zw_half", "item": "filter"}},
+    )
+    derived = _dated_task(
+        store,
+        "2026-02-01T00:00:00+00:00",
+        device_id="sb_half",
+        source={
+            GLUE: {"device_id": "sb_half", "item": "filter"},
+            "part": {"asset_id": "a1", "part_id": "p1"},
+        },
+    )
+    buy = _dated_task(
+        store,
+        "2026-03-01T00:00:00+00:00",
+        device_id="sb_half",
+        source={
+            GLUE: {"device_id": "sb_half", "item": "filter"},
+            "buy": {"asset_id": "a1", "part_id": "p1"},
+        },
+    )
+    assert _run(store.async_merge_split_duplicates(split)) == 0
+    assert set(store._tasks) == {older["id"], derived["id"], buy["id"]}
+
+
+# ── bulk deletes keep the completion history (B01-4) ─────────────────────────
+
+
+def _purifier_with_task(store, source):
+    """An appliance on a device, and a task with one completion on that device."""
+    asset = _asset(store, name="Air purifier")
+    asset["device_id"] = "dev_purifier"
+    task = _task(store, name="Replace HEPA filter", device_id="dev_purifier")
+    task["source"] = source
+    task["completions"] = [{"ts": NOW.isoformat()}]
+    return asset, task
+
+
+def _archived_ids(asset):
+    return [entry["task_id"] for entry in asset.get("task_history") or []]
+
+
+def test_b01_4_deleting_a_declarative_companion_archives_its_tasks_history(
+    store, monkeypatch
+):
+    """B01-4: the companion's tasks keep their completions on the appliance."""
+    monkeypatch.setattr(store_mod, "async_dispatcher_send", lambda *args: None)
+    link = {"spec_id": "spec1", "entity_registry_id": "reg1"}
+    asset, task = _purifier_with_task(store, {"declarative_companion": link})
+    store._declarative_companions["spec1"] = {"id": "spec1", "name": "HEPA"}
+
+    _run(store.async_delete_declarative_companion("spec1"))
+
+    assert task["id"] not in store._tasks
+    assert _archived_ids(asset) == [task["id"]]
+    assert asset["task_history"][0]["completions"] == [{"ts": NOW.isoformat()}]
+
+
+def test_b01_4_a_companion_reconcile_that_deletes_a_task_archives_it(store):
+    link = {"spec_id": "spec1", "entity_registry_id": "reg1"}
+    asset, task = _purifier_with_task(store, {"declarative_companion": link})
+    spec = {"id": "spec1", "name": "HEPA", "task_template": {}}
+
+    # No entity matches the companion any more, so its task is an orphan.
+    _run(
+        store.reconcile_declarative_companion_tasks(
+            spec, {}, {}, config_entry_id="entry1"
+        )
+    )
+
+    assert task["id"] not in store._tasks
+    assert _archived_ids(asset) == [task["id"]]
+
+
+def test_b01_4_a_problem_sensor_sync_that_deletes_a_task_archives_it(store):
+    source = {"problem_sensor": {"entity_id": "binary_sensor.purifier_filter"}}
+    asset, task = _purifier_with_task(store, source)
+
+    _run(store.reconcile_problem_sensor_tasks({}, config_entry_id="entry1"))
+
+    assert task["id"] not in store._tasks
+    assert _archived_ids(asset) == [task["id"]]
+
+
+# ── an appliance edit (B05-1, B06-3, B09-3, B15-3) ───────────────────────────
+
+
+@pytest.fixture
+def deleted_part_files(monkeypatch):
+    """Record the part files the store asks ``manuals`` to delete."""
+    calls: list[tuple[str, str, str]] = []
+
+    async def _delete(hass: object, asset_id: str, part_id: str, name: str) -> None:
+        calls.append((asset_id, part_id, name))
+
+    holders = [sys.modules["hk.manuals"]]
+    package = sys.modules.get("hk")
+    if package is not None and hasattr(package, "manuals"):
+        holders.append(package.manuals)
+    for holder in holders:
+        monkeypatch.setattr(holder, "async_delete_part_file", _delete, raising=False)
+    return calls
+
+
+_FILE = {"filename": "receipt.pdf", "content_type": "application/pdf", "size": 64}
+
+
+def test_b06_3_removing_a_part_deletes_its_file(store, deleted_part_files):
+    """B06-3: a part the update leaves out has its file deleted from disk."""
+    asset = _asset(store, parts=[{"name": "Filter"}, {"name": "Belt"}])
+    filter_part, belt = asset["parts"]
+    assets_model.set_part_file(asset, filter_part["id"], _FILE)
+    assets_model.set_part_file(asset, belt["id"], _FILE)
+
+    _run(
+        store.update_asset(asset["id"], {"parts": [{"id": belt["id"], "name": "Belt"}]})
+    )
+
+    assert deleted_part_files == [(asset["id"], filter_part["id"], "receipt.pdf")]
+    assert store._assets[asset["id"]]["parts"][0]["file_name"] == "receipt.pdf"
+
+
+def test_b05_1_a_notes_edit_keeps_and_deletes_no_part_file(store, deleted_part_files):
+    """B05-1: the inline Notes edit sends only ``notes``."""
+    asset = _asset(store)
+    assets_model.set_part_file(asset, asset["parts"][0]["id"], _FILE)
+
+    updated = _run(store.update_asset(asset["id"], {"notes": "Spares in the drawer"}))
+
+    assert updated["parts"][0]["file_name"] == "receipt.pdf"
+    assert deleted_part_files == []
+
+
+def test_b06_3_a_managed_owner_dropping_a_part_deletes_its_file(
+    store, deleted_part_files
+):
+    asset = _protected(store)
+    # The owner can remove only a part that tracks no stock.
+    asset["parts"][0]["stock"] = None
+    part = asset["parts"][0]
+    assets_model.set_part_file(asset, part["id"], _FILE)
+
+    _run(store.update_managed_asset(asset["id"], parts=[{"name": "AA"}]))
+
+    assert deleted_part_files == [(asset["id"], part["id"], "receipt.pdf")]
+
+
+def test_b09_3_editing_last_replaced_moves_the_wear_task(store):
+    """B09-3: the store applies the edit and announces the moved task."""
+    wear = {"name": "Filter", "type": "wear", "replace_interval": 6}
+    asset = _asset(store, parts=[wear])
+    _run(store.reconcile_part_tasks())
+    task = next(iter(store._tasks.values()))
+    assert task["last_completed"] is None
+    part = asset["parts"][0]
+
+    _run(
+        store.update_asset(
+            asset["id"],
+            {"parts": [{**wear, "id": part["id"], "last_replaced": "2026-05-01"}]},
+        )
+    )
+
+    moved = store._tasks[task["id"]]
+    anchor = datetime(2026, 5, 1, tzinfo=TZ)
+    assert moved["last_completed"] == anchor.isoformat()
+    assert moved["next_due"] == datetime(2026, 11, 1, tzinfo=TZ).isoformat()
+    updated = store._hass.bus.of("home_keeper_task_updated")
+    assert [(e["task_id"], e["changed_fields"]) for e in updated] == [
+        (task["id"], ["last_completed", "next_due"])
+    ]
+    # The reconcile that runs after an appliance edit leaves the new date in place.
+    _run(store.reconcile_part_tasks())
+    assert store._tasks[task["id"]]["last_completed"] == anchor.isoformat()
+
+
+def test_b15_3_a_restock_past_the_maximum_keeps_the_appliance_editable(store):
+    """B15-3: stock stops at the spares maximum, so a later rename still saves."""
+    asset = _asset(store, parts=[{"name": "Descaler", "stock": 9500}])
+    part = asset["parts"][0]
+
+    report = _run(store.adjust_part_stock(asset["id"], part["id"], 1000))
+
+    assert (report["stock"], report["applied_delta"]) == (10000, 500)
+    renamed = _run(store.update_asset(asset["id"], {"name": "Kettle"}))
+    assert renamed["name"] == "Kettle"
+    parts = [{"id": part["id"], "name": "Descaler", "stock": part["stock"]}]
+    assert _run(store.update_asset(asset["id"], {"parts": parts}))["parts"][0][
+        "stock"
+    ] == (10000)
+
+
+# ── an import merge (B06-3 and B09-3 on the import path) ─────────────────────
+
+
+def _import_merge(store, asset, parts, *, tasks_to_write=()):
+    """Write an import that merges *parts* into *asset*, as transfer_runner does."""
+    record = assets_model.merge_update(asset, {"parts": parts}, now=NOW)
+    _run(
+        store.async_import_records(
+            assets_to_write=[(asset["id"], record, False)],
+            tasks_to_write=list(tasks_to_write),
+        )
+    )
+    return record
+
+
+def test_b06_3_an_import_that_removes_a_part_deletes_its_file(
+    store, deleted_part_files
+):
+    asset = _asset(store, parts=[{"name": "Filter"}, {"name": "Belt"}])
+    filter_part, belt = asset["parts"]
+    assets_model.set_part_file(asset, filter_part["id"], _FILE)
+    assets_model.set_part_file(asset, belt["id"], _FILE)
+
+    _import_merge(store, asset, [{"id": belt["id"], "name": "Belt"}])
+
+    assert deleted_part_files == [(asset["id"], filter_part["id"], "receipt.pdf")]
+    assert store._assets[asset["id"]]["parts"][0]["file_name"] == "receipt.pdf"
+
+
+def test_b06_3_an_import_of_a_new_appliance_deletes_no_file(store, deleted_part_files):
+    record = assets_model.build_asset({"name": "New", "parts": []}, now=NOW)
+    _run(
+        store.async_import_records(
+            assets_to_write=[(record["id"], record, True)], tasks_to_write=[]
+        )
+    )
+    assert deleted_part_files == []
+
+
+_WEAR = {"name": "Filter", "type": "wear", "replace_interval": 6}
+
+
+def _wear_asset_and_task(store):
+    asset = _asset(store, parts=[_WEAR])
+    _run(store.reconcile_part_tasks())
+    task = next(iter(store._tasks.values()))
+    assert task["last_completed"] is None
+    return asset, task
+
+
+def test_b09_3_an_import_that_changes_last_replaced_moves_the_wear_task(store):
+    asset, task = _wear_asset_and_task(store)
+    part = asset["parts"][0]
+
+    _import_merge(
+        store, asset, [{**_WEAR, "id": part["id"], "last_replaced": "2026-05-01"}]
+    )
+
+    moved = store._tasks[task["id"]]
+    assert moved["last_completed"] == datetime(2026, 5, 1, tzinfo=TZ).isoformat()
+    assert moved["next_due"] == datetime(2026, 11, 1, tzinfo=TZ).isoformat()
+    updated = store._hass.bus.of("home_keeper_task_updated")
+    assert [(e["task_id"], e["changed_fields"]) for e in updated] == [
+        (task["id"], ["last_completed", "next_due"])
+    ]
+
+
+def test_b09_3_an_import_keeps_the_schedule_of_a_task_it_writes(store):
+    """A task in the same import carries its own schedule; it is not moved."""
+    asset, task = _wear_asset_and_task(store)
+    part = asset["parts"][0]
+    imported = {**task, "name": "Imported"}
+
+    _import_merge(
+        store,
+        asset,
+        [{**_WEAR, "id": part["id"], "last_replaced": "2026-05-01"}],
+        tasks_to_write=[(task["id"], imported, False)],
+    )
+
+    assert store._tasks[task["id"]] is imported
+    assert imported["last_completed"] is None

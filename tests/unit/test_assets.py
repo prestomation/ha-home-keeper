@@ -760,6 +760,86 @@ def test_merge_update_cannot_inject_or_clear_part_file():
     assert injected["parts"][0]["file_name"] is None
 
 
+_RECEIPT = {"filename": "receipt.pdf", "content_type": "application/pdf", "size": 64}
+
+
+def _asset_with_part_file(**extra):
+    asset = a.build_asset(
+        {"name": "Furnace", "parts": [{"name": "Filter", "stock": 2}], **extra},
+        now=NOW,
+    )
+    a.set_part_file(asset, asset["parts"][0]["id"], _RECEIPT)
+    return asset
+
+
+@pytest.mark.parametrize(
+    "update",
+    [{"notes": "Check in May"}, {"name": "Gas furnace"}, {"area_id": "basement"}],
+)
+def test_b05_1_an_update_without_parts_keeps_the_part_file(update):
+    """B05-1: an edit that does not send ``parts`` keeps every part as stored."""
+    asset = _asset_with_part_file()
+    updated = a.merge_update(asset, update, now=NOW)
+    part = updated["parts"][0]
+    assert (part["file_name"], part["file_content_type"], part["file_size"]) == (
+        "receipt.pdf",
+        "application/pdf",
+        64,
+    )
+    assert updated["parts"] == asset["parts"]
+    # A copy, not the stored list: changing the result leaves the old record alone.
+    assert updated["parts"] is not asset["parts"]
+    assert updated["parts"][0] is not asset["parts"][0]
+
+
+def test_b05_1_a_managed_appliance_keeps_the_part_file_on_a_notes_edit():
+    asset = _asset_with_part_file(
+        managed_by={
+            "integration": "battery_notes",
+            "config_entry_id": "entry1",
+            "locked_fields": ["name", "parts"],
+        }
+    )
+    updated = a.merge_update(asset, {"notes": "Spare pack in the drawer"}, now=NOW)
+    assert updated["notes"] == "Spare pack in the drawer"
+    assert updated["parts"][0]["file_name"] == "receipt.pdf"
+
+
+def test_b05_1_an_update_without_parts_does_not_validate_them_again():
+    """A stored value the validator now refuses does not block a rename."""
+    asset = _asset_with_part_file()
+    asset["parts"][0]["stock"] = const.MAX_INTERVAL + 500
+    updated = a.merge_update(asset, {"name": "Gas furnace"}, now=NOW)
+    assert updated["name"] == "Gas furnace"
+    assert updated["parts"][0]["stock"] == const.MAX_INTERVAL + 500
+
+
+def test_b06_3_dropped_part_files_names_each_removed_part_with_a_file():
+    """B06-3: a part left out of the update has its file listed for deletion."""
+    before = [
+        {"id": "p1", "file_name": "one.pdf"},
+        {"id": "p2", "file_name": "two.pdf"},
+        {"id": "p3", "file_name": None},
+        {"id": "p4", "file_name": "four.pdf"},
+    ]
+    # p2 is kept (even with no file on the incoming copy), p3 had no file.
+    after = [{"id": "p2"}, {"id": "p5", "file_name": "new.pdf"}]
+    assert a.dropped_part_files(before, after) == [
+        ("p1", "one.pdf"),
+        ("p4", "four.pdf"),
+    ]
+    assert a.dropped_part_files(before, before) == []
+    assert a.dropped_part_files([], after) == []
+    assert a.dropped_part_files(before, []) == [
+        ("p1", "one.pdf"),
+        ("p2", "two.pdf"),
+        ("p4", "four.pdf"),
+    ]
+    # Junk entries and a part with no id are skipped, not raised on.
+    assert a.dropped_part_files(["junk", {"file_name": "x.pdf"}], []) == []
+    assert a.dropped_part_files(None, None) == []
+
+
 def test_part_notes_edit_preserves_backend_managed_fields():
     """Editing a part's notes must not orphan its file or reset its cadence.
 
@@ -1413,6 +1493,29 @@ def test_adjust_part_stock_restock_and_clamp():
     # Consume 5 -> clamps at 0: out of stock.
     assert a.adjust_part_stock(part, -5) == a.STOCK_OUT
     assert part["stock"] == 0
+
+
+def test_b15_3_adjust_part_stock_clamps_at_the_spares_maximum():
+    """B15-3: a restock cannot store a count the validator refuses."""
+    part = {"stock": 9500, "reorder_at": 100}
+    assert a.adjust_part_stock(part, 1000) == a.STOCK_NONE
+    assert part["stock"] == const.MAX_INTERVAL
+    # Exactly at the limit is kept as is, and a further restock stays there.
+    a.adjust_part_stock(part, 0.5)
+    assert part["stock"] == const.MAX_INTERVAL
+    # The stored count still passes the validator, so the appliance stays editable.
+    asset = a.build_asset({"name": "Kettle", "parts": [{"name": "Descaler"}]}, now=NOW)
+    asset["parts"][0]["stock"] = part["stock"]
+    parts = [{"id": asset["parts"][0]["id"], "name": "Descaler", "stock": 10000}]
+    assert a.merge_update(asset, {"parts": parts}, now=NOW)["parts"][0]["stock"] == (
+        const.MAX_INTERVAL
+    )
+
+
+def test_b15_3_adjust_part_stock_below_the_maximum_is_not_clamped():
+    part = {"stock": 9000}
+    a.adjust_part_stock(part, 999.5)
+    assert part["stock"] == 9999.5
 
 
 def test_adjust_part_stock_begins_tracking_from_zero():

@@ -642,3 +642,259 @@ def test_a_reminder_from_an_older_version_is_judged_by_its_shape():
     tasks3, changed = _buy_reconcile({"a1": asset}, {old["id"]: old})
     assert changed is False
     assert _only(tasks3)["name"] == "Nassfutter"
+
+
+# ── an edited last_replaced moves the task (B09-3) ────────────────────────────
+def _edited(before_part, after_part, *, aid="a1"):
+    """The appliance before and after an edit of one wear part."""
+    return _asset(aid, parts=[before_part]), _asset(aid, parts=[after_part])
+
+
+def test_b09_3_setting_last_replaced_later_moves_the_task():
+    """B09-3: a date set on an existing part re-anchors its floating task."""
+    before, after = _edited(_wear_part(), _wear_part(last_replaced="2026-05-01"))
+    tasks, _ = _reconcile({"a1": before})
+    task = _only(tasks)
+    assert task["last_completed"] is None
+
+    moved = rc.reanchor_edited_parts(before, after, tasks, now=NOW)
+
+    anchor = datetime.fromisoformat("2026-05-01").replace(tzinfo=TZ)
+    assert list(moved) == [task["id"]]
+    assert moved[task["id"]]["last_completed"] == anchor.isoformat()
+    assert (
+        moved[task["id"]]["next_due"]
+        == r.compute_floating_next_due(anchor, 12, "months", now=NOW).isoformat()
+    )
+    assert task["last_completed"] is None, "the input task is not mutated"
+    # The reconcile that follows the edit leaves the moved task alone.
+    again, changed = _reconcile({"a1": after}, {**tasks, **moved})
+    assert changed is False
+    assert again[task["id"]]["last_completed"] == anchor.isoformat()
+
+
+def test_b09_3_correcting_last_replaced_earlier_moves_an_uncompleted_task():
+    before, after = _edited(
+        _wear_part(last_replaced="2026-05-01"), _wear_part(last_replaced="2026-03-01")
+    )
+    tasks, _ = _reconcile({"a1": before})
+    moved = rc.reanchor_edited_parts(before, after, tasks, now=NOW)
+    anchor = datetime.fromisoformat("2026-03-01").replace(tzinfo=TZ)
+    assert _only(moved)["last_completed"] == anchor.isoformat()
+
+
+def test_b09_3_an_unchanged_date_moves_nothing():
+    part = _wear_part(last_replaced="2026-05-01")
+    before, after = _edited(part, dict(part))
+    tasks, _ = _reconcile({"a1": before})
+    # Even a task whose schedule differs from the part is left alone: only an edit
+    # of the date moves it.
+    tid = _only(tasks)["id"]
+    tasks[tid] = {**tasks[tid], "last_completed": None}
+    assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+def test_b09_3_a_cleared_date_moves_nothing():
+    before, after = _edited(_wear_part(last_replaced="2026-05-01"), _wear_part())
+    tasks, _ = _reconcile({"a1": before})
+    assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+def test_b09_3_a_task_already_on_the_new_date_is_not_reported():
+    before, after = _edited(_wear_part(), _wear_part(last_replaced="2026-05-01"))
+    tasks, _ = _reconcile({"a1": after})
+    assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+def test_b09_3_a_recorded_completion_on_the_new_date_keeps_the_schedule():
+    before, after = _edited(_wear_part(), _wear_part(last_replaced="2026-05-01"))
+    tasks, _ = _reconcile({"a1": before})
+    tid = _only(tasks)["id"]
+    # Exactly at local midnight of the new date: a completion stamps the part with
+    # its own local date, so this is the case an undo must not snap back to.
+    done = r.apply_completion(
+        dict(tasks[tid]), datetime(2026, 5, 1, tzinfo=TZ), now=NOW
+    )
+    # The completion alone blocks the move, whatever last_completed says.
+    tasks[tid] = {**done, "last_completed": None}
+    assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+def test_b09_3_a_naive_completion_stamp_is_read_in_the_home_timezone():
+    before, after = _edited(_wear_part(), _wear_part(last_replaced="2026-05-01"))
+    tasks, _ = _reconcile({"a1": before})
+    tid = _only(tasks)["id"]
+    # Local midnight of the new date, stored without an offset.
+    tasks[tid] = {**tasks[tid], "completions": [{"ts": "2026-05-01T00:00:00"}]}
+    assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+def test_b09_3_skipped_tasks_and_parts_before_the_edited_one_do_not_stop_it():
+    """Every skip moves on to the next task or part; none ends the search."""
+    new_part = _wear_part(pid="p0", name="Belt", last_replaced="2026-05-01")
+    same = _wear_part(pid="p2", name="Filter", last_replaced="2026-01-01")
+    before = _asset(parts=[same, _wear_part()])
+    after = _asset(parts=[new_part, same, _wear_part(last_replaced="2026-05-01")])
+    reconciled, _ = _reconcile({"a1": before})
+    target = next(
+        t for t in reconciled.values() if t["source"]["part"]["part_id"] == "p1"
+    )
+    link = target["source"]["part"]
+    distractors = {
+        "plain": {**target, "id": "plain", "source": None},
+        "manual": {
+            **target,
+            "id": "manual",
+            "source": {"part": {**link, "manual": True}},
+        },
+        "elsewhere": {
+            **target,
+            "id": "elsewhere",
+            "source": {"part": {**link, "asset_id": "a2"}},
+        },
+        "other_part": {
+            **target,
+            "id": "other_part",
+            "source": {"part": {**link, "part_id": "p2"}},
+        },
+        "triggered": {**target, "id": "triggered", "recurrence_type": "triggered"},
+        "use": {**target, "id": "use", "source": {"part": {**link, "role": "use"}}},
+        "done": {
+            **target,
+            "id": "done",
+            "completions": [{"ts": datetime(2026, 5, 2, tzinfo=TZ).isoformat()}],
+        },
+        "anchored": {
+            **target,
+            "id": "anchored",
+            "last_completed": datetime(2026, 5, 1, tzinfo=TZ).isoformat(),
+        },
+    }
+    tasks = {**distractors, target["id"]: target}
+    moved = rc.reanchor_edited_parts(before, after, tasks, now=NOW)
+    assert list(moved) == [target["id"]]
+
+
+def test_b09_3_an_earlier_recorded_completion_does_not_block_the_move():
+    before, after = _edited(_wear_part(), _wear_part(last_replaced="2026-05-01"))
+    tasks, _ = _reconcile({"a1": before})
+    tid = _only(tasks)["id"]
+    tasks[tid] = r.apply_completion(
+        dict(tasks[tid]), datetime(2026, 4, 30, 23, tzinfo=TZ), now=NOW
+    )
+    moved = rc.reanchor_edited_parts(before, after, tasks, now=NOW)
+    anchor = datetime.fromisoformat("2026-05-01").replace(tzinfo=TZ)
+    assert moved[tid]["last_completed"] == anchor.isoformat()
+
+
+def test_b09_3_only_the_edited_parts_own_replace_task_moves():
+    other = _wear_part(pid="p2", name="Filter")
+    before = _asset(parts=[_wear_part(), other])
+    after = _asset(parts=[_wear_part(last_replaced="2026-05-01"), other])
+    tasks, _ = _reconcile({"a1": before})
+    # A manual link to the same part, a task of another appliance with the same
+    # part id, and a plain task all stay as they are.
+    tasks["manual"] = {
+        "id": "manual",
+        "recurrence_type": "floating",
+        "last_completed": None,
+        "source": {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+    }
+    tasks["elsewhere"] = {
+        "id": "elsewhere",
+        "recurrence_type": "floating",
+        "last_completed": None,
+        "source": {"part": {"asset_id": "a2", "part_id": "p1"}},
+    }
+    tasks["plain"] = {"id": "plain", "recurrence_type": "floating", "source": None}
+    moved = rc.reanchor_edited_parts(before, after, tasks, now=NOW)
+    assert len(moved) == 1
+    assert _only(moved)["source"]["part"] == {"asset_id": "a1", "part_id": "p1"}
+
+
+def test_b09_3_a_new_part_is_left_to_the_reconcile():
+    before = _asset(parts=[])
+    after = _asset(parts=[_wear_part(last_replaced="2026-05-01")])
+    tasks, _ = _reconcile({"a1": after})
+    tid = _only(tasks)["id"]
+    tasks[tid] = {**tasks[tid], "last_completed": None}
+    assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+def test_b09_3_a_counted_parts_tasks_do_not_move():
+    counted = {"replace_unit": "uses", "replace_interval": 25}
+    before, after = _edited(
+        _wear_part(**counted), _wear_part(last_replaced="2026-05-01", **counted)
+    )
+    tasks, _ = _reconcile({"a1": before})
+    assert len(tasks) == 2
+    assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+def test_b09_3_a_use_role_task_does_not_move():
+    """A floating task that names the use role is not the replacement half."""
+    before, after = _edited(_wear_part(), _wear_part(last_replaced="2026-05-01"))
+    tasks, _ = _reconcile({"a1": before})
+    tid = _only(tasks)["id"]
+    use_link = {"asset_id": "a1", "part_id": "p1", "role": "use"}
+    tasks[tid] = {**tasks[tid], "source": {"part": use_link}}
+    assert rc.reanchor_edited_parts(before, after, tasks, now=NOW) == {}
+
+
+# ── a counted part switched back to time (B09-3) ─────────────────────────────
+_COUNTED = {"replace_unit": "uses", "replace_interval": 25}
+
+
+def _replace_task(tasks):
+    return next(t for t in tasks.values() if rc.part_role(t) == "replace")
+
+
+def _switched_to_months(last_replaced, *, last_completed=None):
+    """Reconcile a counted part, then the same part measured in months."""
+    counted = _wear_part(last_replaced=last_replaced, **_COUNTED)
+    tasks, _ = _reconcile({"a1": _asset(parts=[counted])})
+    replace = _replace_task(tasks)
+    assert replace["recurrence_type"] == "triggered"
+    if last_completed is not None:
+        tasks[replace["id"]] = {**replace, "last_completed": last_completed}
+    timed = _wear_part(last_replaced=last_replaced, interval=6)
+    new_tasks, changed = _reconcile({"a1": _asset(parts=[timed])}, tasks)
+    assert changed is True
+    return _only(new_tasks)
+
+
+def test_b09_3_switching_a_counted_part_to_months_starts_from_last_replaced():
+    """B09-3: the time cycle starts from the part's date, not from now."""
+    task = _switched_to_months("2026-05-01")
+    anchor = datetime(2026, 5, 1, tzinfo=TZ)
+    assert task["recurrence_type"] == "floating"
+    assert task["last_completed"] == anchor.isoformat()
+    assert task["next_due"] == datetime(2026, 11, 1, tzinfo=TZ).isoformat()
+
+
+def test_b09_3_switching_to_months_keeps_a_later_completion():
+    later = datetime(2026, 5, 20, 9, tzinfo=TZ).isoformat()
+    task = _switched_to_months("2026-05-01", last_completed=later)
+    assert task["last_completed"] == later
+    assert task["next_due"] == datetime(2026, 11, 20, 9, tzinfo=TZ).isoformat()
+
+
+def test_b09_3_switching_to_months_moves_past_an_earlier_completion():
+    earlier = datetime(2026, 4, 30, 23, tzinfo=TZ).isoformat()
+    task = _switched_to_months("2026-05-01", last_completed=earlier)
+    assert task["last_completed"] == datetime(2026, 5, 1, tzinfo=TZ).isoformat()
+
+
+def test_b09_3_switching_to_months_with_no_date_stays_due_now():
+    task = _switched_to_months(None)
+    assert task["last_completed"] is None
+    assert task["next_due"] == NOW.isoformat()
+
+
+def test_b09_3_an_existing_floating_task_is_not_moved_by_the_reconcile():
+    """Only the conversion re-anchors. An edit goes through reanchor_edited_parts."""
+    tasks, _ = _reconcile({"a1": _asset(parts=[_wear_part()])})
+    dated = _asset(parts=[_wear_part(last_replaced="2026-05-01")])
+    again, changed = _reconcile({"a1": dated}, tasks)
+    assert changed is False
+    assert _only(again)["last_completed"] is None
