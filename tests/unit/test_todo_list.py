@@ -868,6 +868,17 @@ def test_b10_3_a_vanished_item_completed_in_home_keeper_is_not_completed_again()
     assert plan.add == [tm.AddOp(KEY, LIST, NAME, due=DUE)]
 
 
+def test_b10_3_a_vanished_item_with_no_new_completion_still_completes_the_task():
+    # B10-3, the other half: the snapshot and the task agree, so the line going
+    # is the household's tick and the task completes.
+    plan = _plan(
+        tracked=_tracked(_entry(last_completed=OLD_ISO)),
+        desired=_desired([_want(last_completed=OLD_ISO)]),
+        items=[],
+    )
+    assert plan.complete == [tm.CompleteOp(KEY, T1)]
+
+
 def test_b10_3_two_profiles_ticking_one_task_complete_it_once():
     # B10-3: two profiles hold one task on two lists and both lines are ticked in
     # one snapshot. That is one chore done, so one completion, and neither list

@@ -539,6 +539,44 @@ def test_b10_2_a_target_that_is_gone_keeps_its_bookkeeping():
     assert plan.tracked == tracked
 
 
+def test_b09_2_b10_2_a_gone_or_held_line_never_stops_the_next_part():
+    # Each part is planned on its own: a line on a list that is gone, a held
+    # add, and a deleted line are each followed by a part that still completes.
+    held = (NOW - timedelta(minutes=5)).isoformat()
+    tracked = {
+        "a:1gone": {"entity_id": OTHER, "summary": "Buy oil", "uid": "g"},
+        "a:2held": {
+            "entity_id": TARGET,
+            "summary": "Buy filter",
+            "uid": None,
+            "added_at": held,
+        },
+        "a:3deleted": {"entity_id": TARGET, "summary": "Buy fuse", "uid": "d"},
+        "a:4ticked": {"entity_id": TARGET, "summary": "Buy bulb", "uid": "t"},
+    }
+    desired = {
+        key: {"task_id": f"t-{key}", "name": entry["summary"], "completed": False}
+        for key, entry in tracked.items()
+    }
+    plan = sh.plan_sync(
+        now=NOW,
+        tracked=tracked,
+        desired=desired,
+        items_by_entity={
+            TARGET: [
+                _item("Buy filter", "old", sh.STATUS_COMPLETED),
+                _item("Buy bulb", "t", sh.STATUS_COMPLETED),
+            ]
+        },
+        target=TARGET,
+        gone=frozenset({OTHER}),
+    )
+    assert plan.complete == [sh.CompleteOp("a:4ticked", "t-a:4ticked")]
+    assert plan.add == [sh.AddOp("a:1gone", TARGET, "Buy oil")]
+    assert plan.tracked["a:2held"] == tracked["a:2held"]
+    assert plan.tracked["a:3deleted"] == tracked["a:3deleted"]
+
+
 def test_ticking_the_item_off_completes_the_home_keeper_reminder():
     plan = _plan(
         tracked=_tracked(),

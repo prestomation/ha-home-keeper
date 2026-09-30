@@ -47,7 +47,7 @@ from datetime import datetime
 
 import pytest
 from conftest import call_service, poll_state
-from ha_registry import ws_command
+from ha_registry import ws_command, ws_send
 
 SYNC_LIST = "todo.family_chores"
 #: Every task and item this suite creates. Shares the "probe" marker
@@ -100,23 +100,25 @@ def _get_task(ha, task_id):
     return next((t for t in _list_tasks(ha) if t["id"] == task_id), None)
 
 
-def _items(ha, status=None):
+def _items(ha, status=None, entity_id=SYNC_LIST):
     """The synced list's items, optionally filtered by status."""
-    data = {"entity_id": SYNC_LIST}
+    data = {"entity_id": entity_id}
     if status is not None:
         data["status"] = status
     resp = call_service(ha, "todo", "get_items", data, return_response=True)
     body = resp.get("service_response", resp)
-    return body[SYNC_LIST]["items"]
+    return body[entity_id]["items"]
 
 
 def _summaries(ha, status=None):
     return [item["summary"] for item in _items(ha, status)]
 
 
-def _find(ha, summary, status=None):
+def _find(ha, summary, status=None, entity_id=SYNC_LIST):
     """The item on the list reading *summary*, or None."""
-    return next((i for i in _items(ha, status) if i["summary"] == summary), None)
+    return next(
+        (i for i in _items(ha, status, entity_id) if i["summary"] == summary), None
+    )
 
 
 def _poll(fn, *, timeout=60):
@@ -395,3 +397,125 @@ def test_clearing_the_list_takes_the_profiles_lines_back_off(ha, synced):
     assert after is not None, "clearing the list must not delete the profile"
     assert after["sync"]["entity_id"] == ""
     assert after["filter"]["status"] == DUE_NOW_PROFILE["filter"]["status"]
+
+
+def test_b10_1_deleting_the_line_beside_its_ticked_record_completes_nothing(
+    ha, synced_all
+):
+    """B10-1: a deleted line is a deletion, even beside an old ticked line.
+
+    ``local_todo`` keeps a ticked line as the household's record, and the next
+    occurrence goes on beside it with the same text. When the household deletes
+    that new line, the uid Home Keeper bound is gone. The old ticked line reads the
+    same, but it is not the line Home Keeper bound, so it must not be read as a
+    second tick: the task keeps its one completion, and the chore goes back on the
+    list (the switch that reads a removed item as done is off here).
+    """
+    task_id = _add_probe(ha, "F")
+    name = f"{PROBE} F"
+    first = _poll(lambda: _find(ha, name, ["needs_action"]))
+    assert first, "expected the synced item"
+
+    call_service(
+        ha,
+        "todo",
+        "update_item",
+        {"entity_id": SYNC_LIST, "item": first["uid"], "status": "completed"},
+    )
+    assert _poll(lambda: (_get_task(ha, task_id) or {}).get("last_completed"))
+    fresh = _poll(
+        lambda: next(
+            (
+                i
+                for i in _items(ha, ["needs_action"])
+                if i["summary"] == name and i["uid"] != first["uid"]
+            ),
+            None,
+        )
+    )
+    assert fresh, "the next occurrence should be on the list beside the record"
+    # Let the pass that the add started bind the new line's uid.
+    time.sleep(5)
+
+    call_service(
+        ha, "todo", "remove_item", {"entity_id": SYNC_LIST, "item": [fresh["uid"]]}
+    )
+
+    again = _poll(
+        lambda: next(
+            (
+                i
+                for i in _items(ha, ["needs_action"])
+                if i["summary"] == name and i["uid"] != fresh["uid"]
+            ),
+            None,
+        )
+    )
+    assert again, "a deleted line should go back on the list"
+    task = _get_task(ha, task_id)
+    assert len(task["completions"]) == 1, "deleting a line must not complete the task"
+
+
+def _rename_entity(ha, entity_id, new_entity_id):
+    """Change an entity id in the registry, as a person does in the entity settings."""
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(
+        token,
+        {
+            "type": "config/entity_registry/update",
+            "entity_id": entity_id,
+            "new_entity_id": new_entity_id,
+        },
+    )
+    assert reply.get("success"), reply
+
+
+def test_b10_2_a_sync_moved_off_a_renamed_list_keeps_working(ha, synced):
+    """B10-2: rename the list, point the profile at the new id, and tick the line.
+
+    After a rename the old entity id has no state and no registry entry. Home
+    Keeper must let go of the old id and adopt the line under the new one, so a
+    tick there still completes the task.
+    """
+    moved = f"{SYNC_LIST}_moved"
+    task_id = _add_probe(ha, "G")
+    name = f"{PROBE} G"
+    assert _poll(lambda: _find(ha, name, ["needs_action"])), "expected the synced item"
+    # Let the pass that the add started bind the line's uid.
+    time.sleep(5)
+
+    _rename_entity(ha, SYNC_LIST, moved)
+    try:
+        _set_options(
+            ha,
+            {
+                "profiles": [
+                    {**p, "sync": {**p["sync"], "entity_id": moved}}
+                    if p["id"] == DUE_NOW_PROFILE["id"]
+                    else p
+                    for p in _saved_profiles(ha)
+                ]
+            },
+        )
+        item = _poll(lambda: _find(ha, name, ["needs_action"], entity_id=moved))
+        assert item, "the line should still be on the renamed list"
+        # Let the pass that the profile save started adopt the line.
+        time.sleep(5)
+        assert (
+            len(
+                [i for i in _items(ha, ["needs_action"], moved) if i["summary"] == name]
+            )
+            == 1
+        ), "the line should be adopted, not added a second time"
+
+        call_service(
+            ha,
+            "todo",
+            "update_item",
+            {"entity_id": moved, "item": item["uid"], "status": "completed"},
+        )
+        assert _poll(lambda: (_get_task(ha, task_id) or {}).get("last_completed")), (
+            "a tick on the renamed list should complete the task"
+        )
+    finally:
+        _rename_entity(ha, moved, SYNC_LIST)
