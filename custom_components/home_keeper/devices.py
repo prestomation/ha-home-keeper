@@ -12,7 +12,6 @@ idempotent: it can run on every setup and after every asset mutation.
 
 from __future__ import annotations
 
-import inspect
 import logging
 from typing import Any
 
@@ -23,6 +22,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from . import assets as asset_model
+from . import options
 from .const import (
     ASSET_IDENTIFIER_PREFIX,
     ASSET_KIND_EXISTING,
@@ -34,8 +34,18 @@ from .const import (
 
 # Every device-registry *read* goes through device_compat, never straight at the
 # registry: Home Assistant 2026.9 changed both what ``async_get`` can answer with and
-# what iterating ``registry.devices`` yields. Read that module before adding one here.
-from .device_compat import all_devices, device_connections, resolve_device
+# what iterating ``registry.devices`` yields. It also holds the version-safe form of
+# each call that 2026.9 deprecates. Read that module before adding one here.
+from .device_compat import (
+    all_devices,
+    device_config_entries,
+    device_connections,
+    find_devices,
+    remove_config_entry,
+    resolve_device,
+    supports_kwarg,
+    via_device_kwargs,
+)
 from .store import HomeKeeperStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -117,14 +127,6 @@ def _is_asset_device(device: dr.DeviceEntry) -> bool:
         domain == DOMAIN and ident.startswith(f"{ASSET_IDENTIFIER_PREFIX}_")
         for domain, ident in device.identifiers
     )
-
-
-def _supports_kwarg(func: Any, name: str) -> bool:
-    try:
-        return name in inspect.signature(func).parameters
-    except (TypeError, ValueError):  # pragma: no cover - builtins without signatures
-        # Be conservative: if we can't confirm support, don't pass the kwarg.
-        return False
 
 
 async def async_apply_asset_change(
@@ -227,7 +229,7 @@ def _split_successor(
     resolve = getattr(registry, "async_get_devices_for_composite_device_id", None)
     if resolve is None:
         return None
-    splits = [d for d in resolve(device_id) if entry_id not in d.config_entries]
+    splits = [d for d in resolve(device_id) if entry_id not in device_config_entries(d)]
     if not splits:
         # An empty answer means one of two very different things: a collected
         # composite, or an ordinary id that was never split. Only the first is ours
@@ -245,7 +247,7 @@ def _split_successor(
         composite = registry.async_get(device_id)
         primary = getattr(composite, "primary_config_entry", None)
         if primary:
-            preferred = [d for d in splits if primary in d.config_entries]
+            preferred = [d for d in splits if primary in device_config_entries(d)]
             if preferred:
                 return preferred[0]
         # Three or more foreign splits with no primary named: nothing in the registry
@@ -318,10 +320,23 @@ async def async_heal_split_device_ids(
             # The asset dict doubles as the snapshot — ``_reconcile_existing`` keeps
             # its identifiers/connections refreshed from the live device.
             _record(asset.get("device_id"), asset)
+    # The other places that keep a device id (X03-8): the related devices of an
+    # appliance, and the options (problem-sensor exclusions and profile filters).
+    # None of them keeps a snapshot, so they come after the assets and use the
+    # answers the assets found.
+    for asset in store.list_assets():
+        for device_id in asset.get("related_device_ids") or []:
+            _record(device_id)
+    for device_id in sorted(options.device_ids_in_options(dict(entry.options))):
+        _record(device_id)
 
     if mapping:
         changed_tasks = await store.async_repoint_device_ids(mapping)
         changed_assets = await store.async_repoint_asset_device_ids(mapping)
+        new_options = options.repoint_device_ids(dict(entry.options), mapping)
+        if new_options is not None:
+            # Setup has not added the update listener yet, so this does not reload.
+            hass.config_entries.async_update_entry(entry, options=new_options)
         _LOGGER.info(
             "Repaired %s task and %s asset device reference(s) across %s device(s) "
             "that Home Assistant 2026.8 split into one device per config entry",
@@ -381,13 +396,13 @@ async def async_detach_legacy_merged_devices(
     for device in list(dr.async_entries_for_config_entry(dev_reg, entry.entry_id)):
         if any(domain == DOMAIN for domain, _ in device.identifiers):
             continue  # one of ours (virtual asset or self-owned task device)
-        others = set(device.config_entries) - {entry.entry_id}
+        others = device_config_entries(device) - {entry.entry_id}
         if not others:
             continue  # sole owner: removing us would delete the device and its entities
         _LOGGER.debug(
             "Detaching Home Keeper from %s: linked, not owned (legacy merge)", device.id
         )
-        dev_reg.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
+        remove_config_entry(dev_reg, device, entry.entry_id)
 
 
 async def async_prune_orphaned_devices(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -421,9 +436,7 @@ async def async_prune_orphaned_devices(hass: HomeAssistant, entry: ConfigEntry) 
         )
         if not has_our_entity:
             _LOGGER.debug("Pruning Home Keeper from orphaned device %s", device.id)
-            dev_reg.async_update_device(
-                device.id, remove_config_entry_id=entry.entry_id
-            )
+            remove_config_entry(dev_reg, device, entry.entry_id)
 
 
 async def _reconcile_virtual(
@@ -454,8 +467,7 @@ async def _reconcile_virtual(
         "model": asset.get("model") or None,
         "configuration_url": configuration_url,
     }
-    if via_device is not None:
-        create_kwargs["via_device"] = via_device
+    create_kwargs.update(via_device_kwargs(registry, via_device, parent_device_id))
     device = registry.async_get_or_create(**create_kwargs)
 
     # Keep the registry in sync with subsequent edits.
@@ -468,7 +480,7 @@ async def _reconcile_virtual(
         # admin-only), so the device never carries it, and an older release's copy
         # is cleared here.
         desired = None if field == "serial_number" else asset.get(field) or None
-        if getattr(device, field, None) != desired and _supports_kwarg(
+        if getattr(device, field, None) != desired and supports_kwarg(
             registry.async_update_device, field
         ):
             updates[field] = desired
@@ -486,7 +498,7 @@ async def _reconcile_virtual(
     # Re-parent / un-parent after creation (via_device on create only applies the
     # first time). via_device_id is the parent's *device id*, which parents-first
     # ordering has already resolved.
-    if _supports_kwarg(registry.async_update_device, "via_device_id"):
+    if supports_kwarg(registry.async_update_device, "via_device_id"):
         if device.via_device_id != parent_device_id:
             updates["via_device_id"] = parent_device_id
     elif parent_asset_id and device.via_device_id is None:
@@ -567,20 +579,24 @@ def _resolve_by_snapshot(
             candidates.append(device)
 
     for ident in snapshot.get("identifiers", []):
-        _add(registry.async_get_device(identifiers={tuple(ident)}))
+        for device in find_devices(registry, identifiers={(ident[0], ident[1])}):
+            _add(device)
         # With no preference there is nothing a second candidate could change, so
         # stop at the first hit rather than finishing the sweep.
         if prefer_not_entry is None and candidates:
             return candidates[0]
     connections = {tuple(c) for c in snapshot.get("connections", [])}
     if connections:
-        _add(registry.async_get_device(connections=connections))
+        for device in find_devices(registry, connections=connections):
+            _add(device)
 
     if not candidates:
         return None
     if prefer_not_entry is None:
         return candidates[0]
-    foreign = [d for d in candidates if prefer_not_entry not in d.config_entries]
+    foreign = [
+        d for d in candidates if prefer_not_entry not in device_config_entries(d)
+    ]
     return sorted(foreign or candidates, key=lambda d: d.id)[0]
 
 
@@ -596,8 +612,8 @@ async def async_remove_asset_device(
         return None
     registry = dr.async_get(hass)
     identifier = asset_model.asset_device_identifier(asset["id"])
-    device = registry.async_get_device(identifiers={identifier})
-    if device is not None:
-        registry.async_remove_device(device.id)
-        return device.id
+    found = find_devices(registry, identifiers={identifier})
+    if found:
+        registry.async_remove_device(found[0].id)
+        return found[0].id
     return asset.get("device_id")

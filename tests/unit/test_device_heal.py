@@ -29,7 +29,7 @@ import asyncio
 import importlib.util
 import sys
 import types
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from ha_stubs import install_ha_stubs
@@ -59,6 +59,10 @@ def _load_devices() -> types.ModuleType:
     module = importlib.util.module_from_spec(spec)
     sys.modules["hk.devices"] = module
     spec.loader.exec_module(module)
+    # Other suites put a fake ``hk.options`` in ``sys.modules`` at import time, and
+    # this one may import after them. The heal needs the real pure module, which
+    # conftest loads as ``hk_options``.
+    module.options = sys.modules["hk_options"]
     return module
 
 
@@ -208,6 +212,12 @@ class FakeStore:
             if (new_id := mapping.get(asset.get("device_id") or "")) is not None:
                 asset["device_id"] = new_id
                 changed += 1
+            related = asset.get("related_device_ids") or []
+            if any(device_id in mapping for device_id in related):
+                asset["related_device_ids"] = list(
+                    dict.fromkeys(mapping.get(d, d) for d in related)
+                )
+                changed += 1
         if changed:
             self.saves += 1
         return changed
@@ -220,16 +230,35 @@ class FakeStore:
 @dataclass
 class FakeEntry:
     entry_id: str = HK_ENTRY
+    options: dict = field(default_factory=dict)
 
 
-def heal(registry: FakeRegistry, store: FakeStore) -> None:
+class FakeConfigEntries:
+    """Records each options write, and applies it as Home Assistant does."""
+
+    def __init__(self) -> None:
+        self.updates: list[dict] = []
+
+    def async_update_entry(self, entry: FakeEntry, *, options: dict) -> None:
+        self.updates.append(options)
+        entry.options = options
+
+
+def heal(
+    registry: FakeRegistry, store: FakeStore, entry: FakeEntry | None = None
+) -> FakeConfigEntries:
     """Run the real ``async_heal_split_device_ids`` against *registry*/*store*."""
     original = devices.dr
     devices.dr = types.SimpleNamespace(async_get=lambda hass: registry)
+    config_entries = FakeConfigEntries()
+    hass = types.SimpleNamespace(config_entries=config_entries)
     try:
-        asyncio.run(devices.async_heal_split_device_ids(object(), FakeEntry(), store))
+        asyncio.run(
+            devices.async_heal_split_device_ids(hass, entry or FakeEntry(), store)
+        )
     finally:
         devices.dr = original
+    return config_entries
 
 
 def task(tid: str, device_id: str | None, source: dict | None = None) -> dict:
@@ -619,3 +648,106 @@ def test_heal_reads_every_device_from_a_2026_9_shaped_registry():
     store = FakeStore()
     heal(ModernFakeRegistry([survivor]), store)
     assert store.merged == {"zwave_real": DEAD_THERMOSTAT}
+
+
+# ── X03-8: the other places that keep a device id ────────────────────────────
+def test_x03_8_heal_repoints_related_devices_and_options():
+    # The heal moved task and asset device ids only. An appliance's related devices,
+    # a profile's device filters and the problem-sensor exclusions stayed on the dead
+    # id, so the appliance lost the task and the filters matched nothing.
+    registry = FakeRegistry(
+        [HK_HALF, ZWAVE_DEVICE], {DEAD_THERMOSTAT: [HK_HALF, ZWAVE_DEVICE]}
+    )
+    appliance = {
+        "id": "a1",
+        "kind": "virtual",
+        "device_id": "hk_virtual",
+        "related_device_ids": [DEAD_THERMOSTAT, "zwave_real", "other"],
+    }
+    store = FakeStore(assets=[appliance])
+    entry = FakeEntry(
+        options={
+            "problem_sensor_exclude_devices": [DEAD_THERMOSTAT],
+            "profiles": [
+                {
+                    "id": "p1",
+                    "filter": {"devices": [DEAD_THERMOSTAT], "exclude_devices": []},
+                }
+            ],
+        }
+    )
+    config_entries = heal(registry, store, entry)
+
+    assert appliance["related_device_ids"] == ["zwave_real", "other"]
+    assert config_entries.updates == [
+        {
+            "problem_sensor_exclude_devices": ["zwave_real"],
+            "profiles": [
+                {
+                    "id": "p1",
+                    "filter": {"devices": ["zwave_real"], "exclude_devices": []},
+                }
+            ],
+        }
+    ]
+
+
+def test_x03_8_heal_writes_no_options_when_no_option_id_is_dead():
+    registry = FakeRegistry(
+        [HK_HALF, ZWAVE_DEVICE], {DEAD_THERMOSTAT: [HK_HALF, ZWAVE_DEVICE]}
+    )
+    store = FakeStore(tasks={"t1": task("t1", DEAD_THERMOSTAT)})
+    entry = FakeEntry(options={"problem_sensor_exclude_devices": ["zwave_real"]})
+    config_entries = heal(registry, store, entry)
+    assert store.get_tasks()["t1"]["device_id"] == "zwave_real"
+    assert config_entries.updates == []
+
+
+# ── X13-1: the heal on a 2026.9 registry ─────────────────────────────────────
+@dataclass(frozen=True)
+class OwnedDevice:
+    """A 2026.8+ device: one config entry, in ``config_entry_id``."""
+
+    id: str
+    config_entry_id: str
+    identifiers: frozenset[tuple[str, ...]] = frozenset()
+    connections: frozenset[tuple[str, ...]] = frozenset()
+
+
+class NewLookupRegistry(FakeRegistry):
+    """A registry with ``async_get_devices``; ``async_get_device`` must not run."""
+
+    def async_get_device(self, identifiers=None, connections=None):
+        raise AssertionError("async_get_device is deprecated in HA 2026.9")
+
+    def async_get_devices(self, *, identifiers=None, connections=None):
+        self.lookups += 1
+        return [
+            d
+            for d in self.devices.values()
+            if (identifiers and d.identifiers & identifiers)
+            or (connections and d.connections & connections)
+        ]
+
+
+def test_x13_1_snapshot_resolves_through_async_get_devices():
+    ours = OwnedDevice(
+        "hk_half", HK_ENTRY, identifiers=frozenset({("zwave_js", "4268179804-12")})
+    )
+    theirs = OwnedDevice(
+        "zwave_real",
+        ZWAVE_ENTRY,
+        identifiers=frozenset({("zwave_js", "4268179804-12")}),
+    )
+    registry = NewLookupRegistry([ours, theirs])
+    found = devices._resolve_by_snapshot(
+        registry, {"identifiers": THERMOSTAT_IDENTS}, prefer_not_entry=HK_ENTRY
+    )
+    assert found is theirs
+
+
+def test_x13_1_split_successor_reads_config_entry_id():
+    ours = OwnedDevice("hk_half", HK_ENTRY)
+    theirs = OwnedDevice("zwave_real", ZWAVE_ENTRY)
+    registry = NewLookupRegistry([ours, theirs], {DEAD_THERMOSTAT: [ours, theirs]})
+    assert devices._split_successor(registry, DEAD_THERMOSTAT, HK_ENTRY) is theirs

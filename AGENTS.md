@@ -524,12 +524,13 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   `.amazonq/rules/architecture-and-code.md` and `docs/EVENTS.md`.
 - **Every integrator-facing surface is declared in `api_surface.py`.** Services, events
   and payloads, device triggers, entity platforms and attributes, options, plus the
-  internal websocket commands and HTTP views. The runtime consumes it (the service
-  teardown iterates `SERVICE_NAMES`; `device_trigger.py` builds its maps from
-  `triggers_for()`), and `tests/unit/test_api_surface.py` parses the component's source
-  to fail on drift. The model holds names and structure only — every label and
-  description is resolved from `services.yaml`/`strings.json` at generation time, so the
-  Developer Guide's **API reference** and the Home Assistant UI read from one string.
+  internal websocket commands and HTTP views. The runtime consumes it
+  (`device_trigger.py` builds its maps from `triggers_for()`), and
+  `tests/unit/test_api_surface.py` parses the component's source to fail on drift.
+  Services are registered once in `async_setup` and never removed on unload. The
+  model holds names and structure only — every label and description is resolved
+  from `services.yaml`/`strings.json` at generation time, so the Developer Guide's
+  **API reference** and the Home Assistant UI read from one string.
   `ci/generate_api_docs.py` renders that page into the gitignored `website/developer/`
   on `npm run sync`; nothing is committed and nothing is hand-written.
 - **An options flow merges; it never replaces.** Home Assistant stores what an options

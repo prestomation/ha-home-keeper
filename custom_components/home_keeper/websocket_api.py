@@ -1403,6 +1403,10 @@ async def ws_delete_declarative_companion(
         _not_loaded(hass, connection, msg)
         return
     removed = await coord.store.async_delete_declarative_companion(msg["companion_id"])
+    # B03-2: the removed tasks' device-page entities go only on a reload, because the
+    # platforms prune the entity registry at setup.
+    if removed:
+        await hass.config_entries.async_reload(coord.entry.entry_id)
     connection.send_result(msg["id"], {"ok": True, "entity_set_changed": removed})
 
 

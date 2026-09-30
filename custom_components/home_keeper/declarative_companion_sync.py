@@ -124,6 +124,9 @@ class DeclarativeCompanionSync:
         # name logged again on every pass. An entry goes when that pair renders
         # cleanly again, and the whole map is capped by ``_RENDER_ERRORS_MAX``.
         self._render_errors: dict[tuple[str, str], str] = {}
+        # (spec id, entity id) pairs whose blank task name was logged, so the warning
+        # shows once and not on every pass. Capped like ``_render_errors``.
+        self._blank_names: set[tuple[str, str]] = set()
         # One reconcile per burst of registry events. Home Assistant fires an entity
         # registry event per entity, so an integration loading 50 of them used to run
         # 50 full passes — each one walking every spec over every entity, rendering
@@ -332,35 +335,79 @@ class DeclarativeCompanionSync:
         created: list[str] = []
         specs = self._coordinator.store.get_declarative_companions()
         for spec in list(specs.values()):
-            if not spec.get("enabled", True):
-                # A disabled spec's managed tasks are switched off rather than
-                # removed, so a companion can be turned off for a week without losing
-                # the completions recorded on the tasks it made. Re-enabling the
-                # companion brings them back (see ``pause_spec_tasks``).
-                await self._coordinator.store.pause_declarative_companion_tasks(
-                    spec["id"]
-                )
-                continue
+            # One spec that fails must not stop the pass for the specs after it, and
+            # at setup it must not stop Home Keeper from loading (B12-2).
             try:
-                matches = declarative_companions.expand_spec(spec, snapshot)
+                changed, made = await self._reconcile_spec(spec, snapshot)
             except Exception:
                 _LOGGER.exception(
-                    "expand_spec failed for %s (%s)", spec.get("id"), spec.get("name")
+                    "Could not reconcile declarative companion %s (%s)",
+                    spec.get("id"),
+                    spec.get("name"),
                 )
                 continue
-            rendered = {
-                key: self._render_match(spec, match) for key, match in matches.items()
-            }
-            store = self._coordinator.store
-            changed, made = await store.reconcile_declarative_companion_tasks(
-                spec,
-                matches,
-                rendered,
-                config_entry_id=self._entry.entry_id,
-            )
             entity_set_changed = entity_set_changed or changed
             created.extend(made)
         return entity_set_changed, created
+
+    async def _reconcile_spec(
+        self, spec: dict[str, Any], snapshot: dict[str, Any]
+    ) -> tuple[bool, list[str]]:
+        """Reconcile one spec; the same return shape as :meth:`_reconcile_all`."""
+        store = self._coordinator.store
+        if not spec.get("enabled", True):
+            # A disabled spec's managed tasks are switched off rather than
+            # removed, so a companion can be turned off for a week without losing
+            # the completions recorded on the tasks it made. Re-enabling the
+            # companion brings them back (see ``pause_spec_tasks``).
+            await store.pause_declarative_companion_tasks(spec["id"])
+            return False, []
+        matches = declarative_companions.expand_spec(spec, snapshot)
+        rendered: dict[tuple[str, str], tuple[str, str]] = {}
+        stale: set[tuple[str, str]] = set()
+        for key, match in matches.items():
+            name, notes = self._render_match(spec, match)
+            rendered[key] = (name, notes)
+            entity_id = match["entity"]["entity_id"]
+            if not name.strip():
+                self._warn_blank_name(spec, entity_id)
+            if not self._has_live_state(entity_id):
+                stale.add(key)
+        return await store.reconcile_declarative_companion_tasks(
+            spec,
+            matches,
+            rendered,
+            config_entry_id=self._entry.entry_id,
+            dormant=declarative_companions.dormant_keys(spec, snapshot),
+            stale=stale,
+        )
+
+    def _has_live_state(self, entity_id: str) -> bool:
+        """Whether *entity_id* has a state that its integration wrote (B12-3).
+
+        During Home Assistant start an entity has no state until its integration
+        loads, and Home Assistant then writes a ``restored`` placeholder for an
+        entity that did not come back. A template renders ``friendly_name`` from the
+        registry and ``state`` as ``None`` then, so that render must not replace
+        the name and notes a task already has.
+        """
+        state = self._hass.states.get(entity_id)
+        return state is not None and not state.attributes.get("restored")
+
+    def _warn_blank_name(self, spec: dict[str, Any], entity_id: str) -> None:
+        """Log once that *spec*'s name template is blank for *entity_id* (B12-2)."""
+        key = (spec.get("id") or "", entity_id)
+        if key in self._blank_names:
+            return
+        if len(self._blank_names) >= _RENDER_ERRORS_MAX:
+            self._blank_names.clear()
+        self._blank_names.add(key)
+        _LOGGER.warning(
+            "The name template of declarative companion %s is blank for %s; "
+            "no task is made for this entity",
+            spec.get("name"),
+            entity_id,
+        )
 
     # ── notes refresh (called by the sensor watcher on an arm) ───────────────
     async def async_refresh_task_notes(self, task_id: str) -> None:

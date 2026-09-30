@@ -6,11 +6,10 @@ know about each other: services registered in ``__init__.py``, bus events named 
 ``device_trigger.py``, and entity platforms in ``const.PLATFORMS``. Nothing tied
 them together, so a surface could be added in one place and forgotten everywhere
 else — which is exactly how ``set_task_meter`` shipped registered but absent from
-the teardown list.
+the teardown list that unload used then.
 
 This module is that tie. It declares every surface once; the runtime *consumes* it
-(``__init__.async_unload_entry`` iterates :data:`SERVICE_NAMES`,
-``device_trigger`` builds its maps from :func:`triggers_for`), the generator
+(``device_trigger`` builds its maps from :func:`triggers_for`), the generator
 ``ci/generate_api_docs.py`` renders the Developer Guide reference from it, and
 ``tests/unit/test_api_surface.py`` fails when the source and the model disagree.
 
@@ -214,9 +213,11 @@ SERVICES: tuple[ServiceSpec, ...] = (
 SERVICE_NAMES: tuple[str, ...] = tuple(spec.name for spec in SERVICES)
 """Every registered service name, in registration order.
 
-``__init__.async_unload_entry`` iterates this rather than a second hand-written
-tuple. That second tuple is how ``set_task_meter`` went unregistered-on-unload:
-a list nobody derives is a list somebody forgets.
+``__init__.async_setup`` registers the services once per Home Assistant run and
+nothing removes them (B02-1), so no runtime code iterates this. The unit and the
+integration tests of the API surface compare the registered services to it. Never
+write a second hand-written list of service names: a list nobody derives is a
+list somebody forgets, which is how ``set_task_meter`` once went unremoved.
 """
 
 

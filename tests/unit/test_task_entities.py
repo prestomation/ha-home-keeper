@@ -72,6 +72,47 @@ def test_companion_task_uses_the_companion_name() -> None:
     assert te.entity_name_prefix(_companion_task(), DEVICE) == "Leak"
 
 
+def _ink_task(tid: str, ink: str, **over: Any) -> dict[str, Any]:
+    task = _companion_task(name=f"Replace ink: Printer {ink}", companion="Printer")
+    task["id"] = tid
+    task.update(over)
+    return task
+
+
+def test_b15_1_two_tasks_of_one_companion_on_one_device_use_their_names() -> None:
+    # A printer preset opens one task per ink on one device. The companion name is the
+    # same on each, so every Next due and Overdue entity had the same name.
+    black, cyan = _ink_task("t1", "black"), _ink_task("t2", "cyan")
+    tasks = [black, cyan]
+    assert (
+        te.entity_name_prefix(black, "Printer", tasks) == "Replace ink: Printer black"
+    )
+    assert te.entity_name_prefix(cyan, "Printer", tasks) == "Replace ink: Printer cyan"
+
+
+def test_b15_1_the_companion_name_stays_when_the_other_task_is_not_a_sibling() -> None:
+    black = _ink_task("t1", "black")
+    others = [
+        black,  # the task itself
+        _ink_task("t2", "cyan", enabled=False),  # switched off: no entities
+        _ink_task("t3", "magenta", device_id="dev2"),  # on another device
+        _ink_task(
+            "t4",
+            "yellow",
+            source={"declarative_companion": {"spec_id": "s2"}},
+        ),  # another companion
+        _task("Descale"),  # not a companion task
+    ]
+    assert te.entity_name_prefix(black, "Printer", others) == "Printer"
+
+
+def test_b15_1_a_task_with_no_source_block_is_not_a_sibling() -> None:
+    black = _ink_task("t1", "black")
+    # A sibling check that read a missing spec id as a match would call these equal.
+    stranger = {"id": "t9", "name": "x", "device_id": "dev1", "enabled": True}
+    assert te.entity_name_prefix(black, "Printer", [stranger]) == "Printer"
+
+
 def test_companion_task_without_a_companion_name_falls_back_to_the_task_name() -> None:
     task = _companion_task(name="Battery: Dishwasher Leak Sensor", companion="")
     assert te.entity_name_prefix(task, DEVICE) == "Battery"
@@ -170,3 +211,14 @@ def test_entity_set_key_ignores_other_fields() -> None:
     a = _companion_task()
     b = {**_companion_task(), "notes": "new", "next_due": "2026-01-01T00:00:00+00:00"}
     assert te.entity_set_key(a) == te.entity_set_key(b)
+
+
+def test_b15_1_a_sibling_with_no_enabled_key_counts_and_others_are_read_past() -> None:
+    black = _ink_task("t1", "black")
+    other_device = _ink_task("t3", "magenta", device_id="dev2")
+    cyan = _ink_task("t2", "cyan")
+    del cyan["enabled"]
+    tasks = [other_device, cyan]
+    assert (
+        te.entity_name_prefix(black, "Printer", tasks) == "Replace ink: Printer black"
+    )

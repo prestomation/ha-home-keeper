@@ -606,11 +606,17 @@ command for admins; Home Keeper follows that rather than inventing a weaker line
   views. A new one is not done until it has a spec there;
   `tests/unit/test_api_surface.py` parses the component's own source and fails
   otherwise, and `tests/integration/test_api_surface.py` checks the running system.
-- **The runtime consumes the model.** `__init__.async_unload_entry` iterates
-  `SERVICE_NAMES`; `device_trigger.py` builds `TASK_TRIGGERS`/`ASSET_TRIGGERS` from
-  `triggers_for()`. Never restate a modelled list as a second literal beside it —
-  that is exactly how `set_task_meter` shipped registered on setup and missing from
-  the teardown tuple, still callable against an unloaded integration.
+- **The runtime consumes the model.** `device_trigger.py` builds
+  `TASK_TRIGGERS`/`ASSET_TRIGGERS` from `triggers_for()`, and the unit and
+  integration API-surface tests compare the registered services to `SERVICE_NAMES`.
+  Never restate a modelled list as a second literal beside it — that is exactly how
+  `set_task_meter` shipped registered on setup and missing from the old teardown
+  tuple.
+- **Services are registered once, in `async_setup`, and never removed.** This is
+  Home Assistant's `action-setup` rule. A reload unloads the entry and sets it up
+  again, and services removed on unload made every call during a reload fail with
+  "action not found" (B02-1). A handler finds the coordinator per call and raises
+  the localized `integration_not_loaded` error while no entry is loaded.
 - **The model declares names and structure only.** Every string Home Assistant already
   localizes — service and field labels, trigger labels, entity names, option labels,
   error messages — is resolved at generation time from `services.yaml` /
@@ -1020,8 +1026,8 @@ as random because it is a race with the frontend's `get_panels` refetch — a fa
 reload usually wins, a slow one never does (#247). Tear both down in
 `async_remove_entry` instead, plus the panel when `entry.disabled_by` is set (HA
 sets it *before* unloading, and a disabled entry is the one unload that isn't coming
-back). Services are different: re-registering them is invisible, so they still go on
-the last loaded entry's unload.
+back). Services are not torn down at all: `async_setup` registers them once for the
+Home Assistant run (see "The runtime consumes the model" above).
 
 ### A dashboard asset ships as a Lovelace resource, not just an extra module URL
 `frontend.add_extra_js_url` reaches the browser exactly one way: `IndexView` renders an

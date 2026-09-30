@@ -1448,19 +1448,213 @@ def test_created_task_has_no_labels_when_the_template_sets_none():
     assert ops[0][1]["labels"] == []
 
 
-def test_reconcile_rejects_an_unrendered_match_rather_than_inventing_a_name():
+def test_reconcile_makes_no_task_for_an_unrendered_match():
     # The HA-bound caller renders every match, so a missing key is a bug on that
-    # side. The `("", "")` default keeps this from being a bare KeyError, and the
-    # empty name then fails `build_task`'s own validation — which is the point:
-    # the reconciler must not invent a name and materialize a task nobody asked
-    # for. A default that supplied real text would sail straight past this.
+    # side. The `("", "")` default then gives a blank name, and the reconciler must
+    # not invent a name and materialize a task nobody asked for. A default that
+    # supplied real text would sail straight past this.
     spec = _normalized_spec()
     key, m = _match("sensor.hub_total_failed_pings", spec["id"])
 
-    with raises_exactly(TaskValidationError, "missing required field: 'name'"):
-        dc.reconcile_declarative_tasks(
-            spec, {key: m}, {}, rendered_by_key={}, config_entry_id=ENTRY, now=NOW
-        )
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, {}, rendered_by_key={}, config_entry_id=ENTRY, now=NOW
+    )
+    assert (new_tasks, ops, changed) == ({}, [], False)
+
+
+# --- B12-2: a blank rendered name -------------------------------------------
+
+
+def test_b12_2_a_blank_name_skips_that_entity_and_not_the_others():
+    # A name template that renders empty for one entity raised out of the whole pass,
+    # so no entity of the spec got a task, and at setup Home Keeper failed to load.
+    spec = _normalized_spec()
+    blank_key, blank = _match("sensor.hub_total_failed_pings", spec["id"])
+    good_key, good = _match("sensor.lab_total_failed_pings", spec["id"])
+    rendered = {blank_key: ("  ", "notes"), **_rendered(good_key)}
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec,
+        {blank_key: blank, good_key: good},
+        {},
+        rendered,
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    assert changed is True
+    assert [(kind, task["name"]) for kind, task in ops] == [
+        ("created", "Rendered reg_lab_total_failed_pings")
+    ]
+    assert [dc.task_key(t) for t in new_tasks.values()] == [good_key]
+
+
+def test_b12_2_a_blank_name_keeps_the_stored_name():
+    spec = _normalized_spec()
+    stored, tid, key, m = _stored_task(spec)
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        stored,
+        {key: ("", "Notes for x")},
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    assert new_tasks[tid]["name"] == "Rendered reg_hub_total_failed_pings"
+    assert (ops, changed) == ([], False)
+
+
+# --- B12-3: a render without live state --------------------------------------
+
+
+def test_b12_3_a_stale_render_keeps_the_stored_name_and_notes():
+    # At Home Assistant start the entity has no state yet, so the render reads the
+    # registry name and a None state. That render must not rename the task.
+    spec = _normalized_spec(
+        task_template={
+            "name_template": "Check on {{ friendly_name }}",
+            "notes_template": "{{ state }}",
+        }
+    )
+    stored, tid, key, m = _stored_task(spec)
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        stored,
+        {key: ("Check on Firmware", "None")},
+        config_entry_id=ENTRY,
+        now=NOW,
+        stale={key},
+    )
+    assert new_tasks[tid]["name"] == "Rendered reg_hub_total_failed_pings"
+    assert new_tasks[tid]["notes"] == "Notes for reg_hub_total_failed_pings"
+    assert (ops, changed) == ([], False)
+
+
+def test_b12_3_a_live_render_still_renames_the_task():
+    spec = _normalized_spec(
+        task_template={
+            "name_template": "Check on {{ friendly_name }}",
+            "notes_template": "{{ state }}",
+        }
+    )
+    stored, tid, key, m = _stored_task(spec)
+    other_key, _other = _match("sensor.lab_total_failed_pings", spec["id"])
+
+    new_tasks, ops, _changed = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        stored,
+        {key: ("New name", "12")},
+        config_entry_id=ENTRY,
+        now=NOW,
+        stale={other_key},
+    )
+    assert new_tasks[tid]["name"] == "New name"
+    assert new_tasks[tid]["notes"] == "12"
+    assert [kind for kind, _task in ops] == ["updated"]
+
+
+def test_b12_3_a_stale_render_still_makes_a_new_task():
+    # The initial pass has to make tasks before the platforms set up, so a new match
+    # takes the render it has.
+    spec = _normalized_spec()
+    key, m = _match("sensor.hub_total_failed_pings", spec["id"])
+
+    _new, ops, _changed = dc.reconcile_declarative_tasks(
+        spec,
+        {key: m},
+        {},
+        _rendered(key),
+        config_entry_id=ENTRY,
+        now=NOW,
+        stale={key},
+    )
+    assert [kind for kind, _task in ops] == ["created"]
+
+
+# --- B12-1: a disabled entity ------------------------------------------------
+
+
+def test_b12_1_dormant_keys_are_the_disabled_entities_the_spec_selects():
+    spec = _normalized_spec()
+    snapshot = _snapshot(
+        _entity("sensor.hub_total_failed_pings", disabled=True),
+        _entity("sensor.lab_total_failed_pings"),  # enabled: a match, not dormant
+        _entity("sensor.router_temperature", disabled=True),  # regex miss
+        _entity("sensor.x_total_failed_pings", platform="mqtt", disabled=True),
+    )
+    assert dc.dormant_keys(spec, snapshot) == {
+        (spec["id"], "reg_hub_total_failed_pings")
+    }
+    assert dc.dormant_keys(spec, {}) == set()
+
+
+def test_b12_1_dormant_keys_fall_back_to_the_entity_id():
+    spec = _normalized_spec()
+    entry = _entity("sensor.hub_total_failed_pings", disabled=True)
+    entry["entity_registry_id"] = None
+    assert dc.dormant_keys(spec, _snapshot(entry)) == {
+        (spec["id"], "sensor.hub_total_failed_pings")
+    }
+
+
+def test_b12_1_a_disabled_entity_pauses_its_task_and_keeps_its_history():
+    # Disabling the entity (or its device or integration) deleted the task and its
+    # completions, and enabling it again made a new, empty task.
+    spec = _normalized_spec()
+    stored, tid, key, m = _stored_task(spec)
+    stored[tid]["completions"] = [{"ts": NOW.isoformat()}]
+
+    paused, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={key}
+    )
+    assert changed is True
+    assert [(kind, task["id"]) for kind, task in ops] == [("paused", tid)]
+    assert paused[tid]["enabled"] is False
+    assert paused[tid]["source"]["declarative_companion"]["paused"] is True
+    assert paused[tid]["completions"] == [{"ts": NOW.isoformat()}]
+
+    # A second pass while the entity stays disabled changes nothing.
+    again, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {}, paused, {}, config_entry_id=ENTRY, now=NOW, dormant={key}
+    )
+    assert (ops, changed) == ([], False)
+    assert again[tid]["enabled"] is False
+
+    # Enabling the entity brings the same task back.
+    resumed, ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {key: m}, again, _rendered(key), config_entry_id=ENTRY, now=NOW
+    )
+    assert [(kind, task["id"]) for kind, task in ops] == [("resumed", tid)]
+    assert resumed[tid]["enabled"] is True
+    assert resumed[tid]["completions"] == [{"ts": NOW.isoformat()}]
+
+
+def test_b12_1_a_task_the_person_switched_off_gets_no_marker():
+    spec = _normalized_spec()
+    stored, tid, key, _m = _stored_task(spec)
+    stored[tid]["enabled"] = False
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={key}
+    )
+    assert (ops, changed) == ([], False)
+    assert "paused" not in new_tasks[tid]["source"]["declarative_companion"]
+
+
+def test_b12_1_an_entity_that_is_gone_still_removes_its_task():
+    spec = _normalized_spec()
+    stored, tid, _key, _m = _stored_task(spec)
+    other_key, _other = _match("sensor.lab_total_failed_pings", spec["id"])
+
+    new_tasks, ops, changed = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={other_key}
+    )
+    assert changed is True
+    assert [(kind, task["id"]) for kind, task in ops] == [("deleted", tid)]
+    assert new_tasks == {}
 
 
 def test_reconcile_indexes_every_task_of_this_spec_past_a_foreign_one():
@@ -2258,3 +2452,74 @@ def test_count_matches_without_a_target_reads_every_integration_and_the_regex():
 def test_count_matches_handles_an_empty_registry():
     assert dc.count_matches({"a": {"target_integration": "x"}}, {}) == {"a": 0}
     assert dc.count_matches({}, _COUNT_SNAPSHOT) == {}
+
+
+def test_b12_1_dormant_keys_read_past_an_enabled_and_a_missed_entity():
+    spec = _normalized_spec()
+    snapshot = _snapshot(
+        _entity("sensor.lab_total_failed_pings"),
+        _entity("sensor.router_temperature", disabled=True),
+        _entity("sensor.hub_total_failed_pings", disabled=True),
+    )
+    assert dc.dormant_keys(spec, snapshot) == {
+        (spec["id"], "reg_hub_total_failed_pings")
+    }
+
+
+def test_b12_1_a_task_with_no_enabled_key_is_on_and_gets_paused():
+    spec = _normalized_spec()
+    stored, tid, key, _m = _stored_task(spec)
+    del stored[tid]["enabled"]
+    paused, ops, _changed = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={key}
+    )
+    assert [kind for kind, _task in ops] == ["paused"]
+    assert paused[tid]["enabled"] is False
+
+
+def test_b12_1_the_orphan_pass_reads_past_a_matched_task():
+    spec = _normalized_spec()
+    kept_key, kept = _match("sensor.hub_total_failed_pings", spec["id"])
+    gone_key, gone = _match("sensor.lab_total_failed_pings", spec["id"])
+    rendered = {**_rendered(kept_key), **_rendered(gone_key)}
+    stored, _ops, _ = dc.reconcile_declarative_tasks(
+        spec,
+        {kept_key: kept, gone_key: gone},
+        {},
+        rendered,
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    _new, ops, _ = dc.reconcile_declarative_tasks(
+        spec,
+        {kept_key: kept},
+        stored,
+        rendered,
+        config_entry_id=ENTRY,
+        now=NOW,
+        dormant={gone_key},
+    )
+    assert [(kind, dc.task_key(task)) for kind, task in ops] == [("paused", gone_key)]
+
+
+def test_b12_1_a_paused_orphan_does_not_stop_the_orphan_pass():
+    spec = _normalized_spec()
+    off_key, off = _match("sensor.hub_total_failed_pings", spec["id"])
+    gone_key, gone = _match("sensor.lab_total_failed_pings", spec["id"])
+    rendered = {**_rendered(off_key), **_rendered(gone_key)}
+    stored, _ops, _ = dc.reconcile_declarative_tasks(
+        spec,
+        {off_key: off, gone_key: gone},
+        {},
+        rendered,
+        config_entry_id=ENTRY,
+        now=NOW,
+    )
+    new_tasks, ops, _ = dc.reconcile_declarative_tasks(
+        spec, {}, stored, {}, config_entry_id=ENTRY, now=NOW, dormant={off_key}
+    )
+    assert [(kind, dc.task_key(task)) for kind, task in ops] == [
+        ("paused", off_key),
+        ("deleted", gone_key),
+    ]
+    assert [dc.task_key(t) for t in new_tasks.values()] == [off_key]

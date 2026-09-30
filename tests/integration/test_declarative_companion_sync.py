@@ -1004,3 +1004,78 @@ def test_a_shipped_preset_installs_and_materializes_as_the_picker_installs_it(
 
     armed = _poll_task(ha, spec["id"], lambda t: t.get("next_due") is not None)
     assert armed["id"] == task["id"]
+
+
+# ── (f) lifecycle: disabled entities and a deleted device-backed companion ─────
+
+
+def _set_entity_disabled(ha, entity_id, disabled):
+    """Disable or enable an entity in the registry, as a person does in its settings."""
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(
+        token,
+        {
+            "type": "config/entity_registry/update",
+            "entity_id": entity_id,
+            "disabled_by": "user" if disabled else None,
+        },
+    )
+    assert reply.get("success"), reply
+
+
+def _wait_for_state(ha, entity_id, timeout=120):
+    """Wait until *entity_id* has a state again (its integration reloads on enable)."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if any(s["entity_id"] == entity_id for s in list_states(ha)):
+            return
+        time.sleep(2)
+    raise AssertionError(f"{entity_id} did not come back after it was enabled")
+
+
+def test_b12_1_a_disabled_entity_pauses_its_task_and_keeps_its_history(ha, specs):
+    """Disabling the matched entity switches its task off; it does not delete it.
+
+    Home Assistant disables every entity of a device or integration that a person
+    disables. The reconcile pass treated the disabled entity as gone, so it deleted
+    the task and its history, and enabling the entity made a new, empty task.
+    """
+    spec = specs(_device_battery_spec(name="HK battery disable"))
+    task = _one_task(ha, spec["id"])
+
+    _set_entity_disabled(ha, DEVICE_BATTERY, True)
+    try:
+        off = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is False)
+        assert off["id"] == task["id"], "a disabled entity must not delete the task"
+        assert off["source"]["declarative_companion"].get("paused") is True
+    finally:
+        _set_entity_disabled(ha, DEVICE_BATTERY, False)
+    back = _poll_task(ha, spec["id"], lambda t: t.get("enabled") is True)
+    assert back["id"] == task["id"], "enabling the entity must bring the same task back"
+    _wait_for_state(ha, DEVICE_BATTERY)
+
+
+def test_b03_2_deleting_a_device_backed_companion_removes_its_entities(ha, specs):
+    """The next-due sensor of a removed task goes at once, not at the next reload.
+
+    The store reported that the entity set changed, and the delete did not reload,
+    so the device page kept a Next due sensor and a Mark done button for a task
+    that no longer existed.
+    """
+    spec = specs(_device_battery_spec(name="HK battery delete"))
+    task = _one_task(ha, spec["id"])
+    _next_due_sensor(ha, task["id"])
+
+    _delete_spec(ha, spec["id"])
+
+    deadline = time.monotonic() + SETTLE
+    while time.monotonic() < deadline:
+        left = [
+            s["entity_id"]
+            for s in list_states(ha)
+            if s.get("attributes", {}).get("task_id") == task["id"]
+        ]
+        if not left:
+            return
+        time.sleep(2)
+    raise AssertionError(f"entities of the deleted task are still there: {left}")
