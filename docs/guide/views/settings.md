@@ -173,7 +173,7 @@ and gives each key its own task name, such as *Replace the main brush*.
 
 The picker shows first the presets that match entities you have, with the number of
 entities each one matches. An installed integration is not enough. A Tuya light has
-no filter or brush, so the Tuya vacuum preset is not in that group. Then the picker
+no filter or brush, so the Tuya preset for vacuum parts is not in that group. Then the picker
 shows the general presets. Click **Show more presets** to see the other presets, or
 type in the search box to find a brand or a part. Each preset card lists the tasks
 that it makes.
@@ -207,7 +207,7 @@ These integrations have presets:
 | Personal care | Philips shaver, Philips Sonicare (BLE) |
 | Pets | EHEIM Digital (aquarium), Litter-Robot, PetKit, PETLIBRO |
 | Printers | Brother printer, HP printer, Samsung SyncThru printer |
-| Robot vacuums | Ecovacs, iRobot Roomba, Maytronics Dolphin, Roborock, Roomba+ (local MQTT), SmartThings, TP-Link Tapo vacuum, Tuya vacuum, Xiaomi Miio, Xiaomi Vacuum (cloud) |
+| Robot vacuums | Ecovacs, iRobot Roomba, Maytronics Dolphin, Roborock, Roomba+ (local MQTT), SmartThings, TP-Link Tapo vacuum, Tuya, Xiaomi Miio, Xiaomi Vacuum (cloud) |
 | Storage (NAS) | MOS NAS, QNAP NAS, Synology NAS, UniFi UNAS (REST), Unraid, Unraid API, Unraid Management Agent |
 
 For an integration that is not in the list, write a declarative companion with the

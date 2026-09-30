@@ -76,7 +76,7 @@ const PRESETS = [
   },
   {
     id: 'tuya_percent_low',
-    name: 'Tuya vacuum: parts and supplies running low',
+    name: 'Tuya: parts and supplies running low',
     description: 'Opens a task when a part runs low.',
     icon: 'mdi:robot-vacuum',
     requires_integration: 'tuya',

@@ -1855,7 +1855,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
     },
     {
         "domain": "tuya",
-        "brand": "Tuya vacuum",
+        "brand": "Tuya",
         "icon": "mdi:robot-vacuum",
         "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/tuya/strings.json",
         "duties": [

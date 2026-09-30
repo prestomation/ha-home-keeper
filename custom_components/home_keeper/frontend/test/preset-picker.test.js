@@ -150,7 +150,7 @@ describe('presetIsMine', () => {
 describe('groupPresets with entity counts', () => {
   it('moves an installed integration with no matching entity to the other group', () => {
     const vacuum = preset('tuya_percent_low', {
-      name: 'Tuya vacuum: parts and supplies running low',
+      name: 'Tuya: parts and supplies running low',
       requires: 'tuya',
       group: 'integration',
       matches: 0,
