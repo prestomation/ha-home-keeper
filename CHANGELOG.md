@@ -14,8 +14,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   A task that clears when its sensor recovers now completes 1 time, also when many
   devices recover together.
 - **[Sensor tasks at restart](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
-  A restart no longer arms sensor tasks again when their entity loads late or shows
-  unavailable while Home Assistant starts.
+  A restart no longer arms sensor tasks again when their entity loads late, or when the
+  entity shows unavailable during the start of Home Assistant.
 - **[Meter resets](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
   One short drop in a meter reading no longer resets the count of a usage task.
 - **[Done on an armed task](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
