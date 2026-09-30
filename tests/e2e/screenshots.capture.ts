@@ -91,16 +91,58 @@ async function chooseHaSelect(select: Locator, optionLabel: string | RegExp): Pr
  * rod" task wears an NFC chip while the tag is set, and every other shot of the task
  * list documents that row without one.
  */
-/** Set (or, with `null`, clear) a task's own snooze length through the service. */
-async function setSnoozeHours(page: Page, taskId: string, hours: number | null): Promise<void> {
-  await page.evaluate(
-    async ({ id, h }) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hass = (document.querySelector('home-assistant') as any)?.hass;
-      await hass.callService('home_keeper', 'update_task', { task_id: id, snooze_hours: h });
-    },
-    { id: taskId, h: hours },
-  );
+/** The value an `ha-selector-select` holds (its inner `ha-select`). */
+async function selectValue(field: Locator): Promise<string> {
+  return field.locator('ha-select').evaluate((el) => String((el as HTMLInputElement).value ?? ''));
+}
+
+/**
+ * Open the Snooze length select, run *whileOpen* with its list showing, then pick
+ * *label* and check that the select now holds *value*.
+ */
+async function chooseSnoozeLength(
+  page: Page,
+  field: Locator,
+  label: string,
+  value: string,
+  whileOpen?: () => Promise<void>,
+): Promise<void> {
+  await field.locator('ha-select').click();
+  const option = page.getByRole('menuitem', { name: label, exact: true }).first();
+  await expect(option).toBeVisible({ timeout: 10_000 });
+  if (whileOpen) await whileOpen();
+  await option.click();
+  await expect.poll(() => selectValue(field), { timeout: 10_000 }).toBe(value);
+}
+
+/**
+ * Open the task form from the task page, and wait until it stays open.
+ *
+ * A save closes the form and changes the route, and that route change can land after
+ * the next Edit click and close the new form too. So wait for the form to still be
+ * there a moment later, and click Edit again when it is not.
+ */
+async function openTaskEdit(page: Page, panel: Locator): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.waitForTimeout(1000);
+    if (!(await panel.locator('#hk-task-form').isVisible())) {
+      await panel.locator('.d-edit').click();
+    }
+    await expect(panel.locator('#hk-task-form')).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(1000);
+    if (await panel.locator('#hk-task-form').isVisible()) return;
+  }
+  throw new Error('the task form did not stay open');
+}
+
+/** Set the open task back to the usual snooze length through its form. */
+async function clearSnoozeLength(page: Page, panel: Locator): Promise<void> {
+  await openTaskEdit(page, panel);
+  const field = panel.locator('#hk-task-form ha-selector-select').filter({ hasText: 'Snooze length' });
+  await centre(field);
+  await chooseSnoozeLength(page, field, 'Usual length', '');
+  await panel.locator('#f-save').click();
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
 }
 
 async function setAnodeTag(page: Page, tagId: string | null): Promise<void> {
@@ -329,31 +371,33 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 71. A task's own snooze length (#367), in the Completion section of the form. A
   // reminder to take medicine wants 1 hour and a filter change wants 1 week, so the
-  // length is set per task. Set through the service first so the field shows a value.
-  await setSnoozeHours(page, TASK.fridgeFilter, 1);
-  await panel.locator('.d-edit').click();
+  // length is set per task. Chosen through the form, as a user does it.
+  await openTaskEdit(page, panel);
   const snoozeField = panel
     .locator('#hk-task-form ha-selector-select')
     .filter({ hasText: 'Snooze length' });
   await expect(snoozeField).toBeVisible({ timeout: 10_000 });
-  await expect(snoozeField).toContainText('1 hour');
   await centre(snoozeField);
-  await page.waitForTimeout(600);
-  await shotWithDrawer(page, `${OUT}/71-panel-task-snooze-length.png`);
-  await panel.locator('#f-cancel').click();
+  await chooseSnoozeLength(page, snoozeField, '1 hour', '1', async () => {
+    await page.waitForTimeout(400);
+    await shotWithDrawer(page, `${OUT}/71-panel-task-snooze-length.png`);
+  });
+  await panel.locator('#f-save').click();
   await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
   // 71b. The snooze dialog for that task opens on its own length, not on 1 week.
   const snoozeActions = panel.locator('.hk-detail-actions');
   await snoozeActions.locator('.hk-split-caret').click();
   await snoozeActions.locator('.hk-defer-snooze').click();
   await expect(panel.locator('ha-dialog[open] .hk-snooze-hint')).toBeVisible({ timeout: 15_000 });
-  await expect(panel.locator('ha-dialog[open]')).toContainText('1 hour');
+  await expect
+    .poll(() => selectValue(panel.locator('ha-dialog[open] ha-selector-select').first()))
+    .toBe('1h');
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/71b-panel-snooze-dialog-task-length.png`, fullPage: true });
   await page.keyboard.press('Escape');
   await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
   // Clear it again, so every later shot sees the seeded task unchanged.
-  await setSnoozeHours(page, TASK.fridgeFilter, null);
+  await clearSnoozeLength(page, panel);
 
   // 56. Duplicate. The button opens the *create* form already filled in with a copy of
   // this task — the answer to a row of near-identical tasks that differ by a sensor and
@@ -2173,19 +2217,19 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-list')).toBeVisible();
 
   // 71c. A task's own snooze length on a phone, where the form is a page of its own.
-  await setSnoozeHours(page, TASK.fridgeFilter, 1);
   await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
-  await panel.locator('.d-edit').click();
+  await openTaskEdit(page, panel);
   const phoneSnoozeField = panel
     .locator('#hk-task-form ha-selector-select')
     .filter({ hasText: 'Snooze length' });
-  await expect(phoneSnoozeField).toContainText('1 hour', { timeout: 10_000 });
+  await centre(phoneSnoozeField);
+  await chooseSnoozeLength(page, phoneSnoozeField, '1 hour', '1');
   await centre(phoneSnoozeField);
   await page.mouse.move(0, 0);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/71c-panel-mobile-task-snooze-length.png` });
   await panel.locator('#f-cancel').click();
-  await setSnoozeHours(page, TASK.fridgeFilter, null);
+  await expect(panel.locator('#hk-form')).toHaveCount(0, { timeout: 10_000 });
   await openPanel(page);
   await expect(panel.locator('#hk-list')).toBeVisible();
 
