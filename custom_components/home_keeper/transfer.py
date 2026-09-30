@@ -918,8 +918,9 @@ def apply_history(
         # *history* so an import carrying none cannot snap a stored (e.g. snoozed) due
         # date back onto the grid.
         task["next_due"] = recurrence.compute_next_due(task, now=now).isoformat()
-    task["completions"] = _merge_log(stored_completions, task["completions"])
-    task["skips"] = _merge_log(stored_skips, task["skips"])
+    # A task stored by an older release can have no ``skips`` key at all.
+    task["completions"] = _merge_log(stored_completions, task.get("completions") or [])
+    task["skips"] = _merge_log(stored_skips, task.get("skips") or [])
     replayed_last = task.get("last_completed")
     if stored_last and (
         not replayed_last

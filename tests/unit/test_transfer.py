@@ -2429,3 +2429,16 @@ def test_b09_4_the_exported_link_task_imports_on_a_new_install():
     plan = _plan(document)
     assert plan.ok, _errors(plan)
     assert plan.records[0].payload.get("source") is None
+
+
+def test_b04_4_a_stored_task_with_no_skips_key_takes_an_update():
+    # A task stored by an older release can have no ``skips`` key. The merge read
+    # ``task["skips"]`` and the import failed with a server error.
+    stored = _stored_with("2026-06-01")
+    del stored["skips"]
+    payload = _update(stored, [{"completed_at": "2026-03-01"}])
+    assert payload["skips"] == []
+    assert [e["ts"][:10] for e in payload["completions"]] == [
+        "2026-03-01",
+        "2026-06-01",
+    ]
