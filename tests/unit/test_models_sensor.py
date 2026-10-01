@@ -1206,3 +1206,83 @@ def test_template_mode_works_without_an_entity_id_for_a_companion():
     )
     assert "entity_id" not in cfg
     assert cfg["template"] == TEMPLATE_SRC
+
+
+# ── F06-3: allow_missing_value for the companion preview ───────────────────
+@pytest.mark.parametrize(
+    ("binding", "expected"),
+    [
+        ({"mode": "usage", "target": ""}, {"mode": "usage"}),
+        ({"mode": "usage"}, {"mode": "usage"}),
+        (
+            {"mode": "threshold", "comparison": ">", "value": None},
+            {"mode": "threshold", "comparison": ">"},
+        ),
+        (
+            {"mode": "threshold", "comparison": ">", "value": ""},
+            {"mode": "threshold", "comparison": ">"},
+        ),
+        ({"mode": "state", "state": "  "}, {"mode": "state"}),
+        ({"mode": "state"}, {"mode": "state"}),
+    ],
+)
+def test_f06_3_allow_missing_value_accepts_an_empty_box(binding, expected):
+    cfg = m.normalize_sensor(
+        binding, allow_missing_entity=True, allow_missing_value=True
+    )
+    assert cfg == expected
+
+
+@pytest.mark.parametrize(
+    ("binding", "message"),
+    [
+        ({"mode": "usage", "target": ""}, "sensor.target must be a number"),
+        (
+            {"mode": "threshold", "comparison": ">", "value": ""},
+            "sensor.value must be a number",
+        ),
+        ({"mode": "state", "state": ""}, "sensor.state is required"),
+    ],
+)
+def test_f06_3_allow_missing_value_is_off_by_default(binding, message):
+    with raises_exactly(m.TaskValidationError, message):
+        m.normalize_sensor(binding, allow_missing_entity=True)
+
+
+@pytest.mark.parametrize(
+    ("binding", "message"),
+    [
+        ({"mode": "usage", "target": 0}, "sensor.target must be > 0"),
+        ({"mode": "usage", "target": "x"}, "sensor.target must be a number"),
+        (
+            {"mode": "threshold", "comparison": ">", "value": "nan"},
+            "sensor.value must be a finite number",
+        ),
+        (
+            {"mode": "threshold", "comparison": "~", "value": ""},
+            "invalid sensor comparison: '~'",
+        ),
+        (
+            {"mode": "state", "state": "x" * 256},
+            "sensor.state must be <= 255 characters",
+        ),
+    ],
+)
+def test_f06_3_allow_missing_value_still_checks_a_set_value(binding, message):
+    with raises_exactly(m.TaskValidationError, message):
+        m.normalize_sensor(binding, allow_missing_entity=True, allow_missing_value=True)
+
+
+@pytest.mark.parametrize(
+    ("binding", "key", "value"),
+    [
+        ({"mode": "usage", "target": "5"}, "target", 5.0),
+        ({"mode": "threshold", "comparison": "<", "value": "3"}, "value", 3.0),
+        ({"mode": "state", "state": " on "}, "state", "on"),
+    ],
+)
+def test_f06_3_allow_missing_value_keeps_a_set_value(binding, key, value):
+    cfg = m.normalize_sensor(
+        binding, allow_missing_entity=True, allow_missing_value=True
+    )
+    assert cfg[key] == value

@@ -1547,8 +1547,9 @@ async def ws_preview_declarative_companion(
     try:
         # Normalize the draft so bad input fails the same way an add would — except
         # for the one field a draft is expected to be part-way through.
+        # A draft also has a blank name and an empty trigger value (F06-3).
         spec = dc.normalize_declarative_companion(
-            msg["companion"], allow_missing_template=True
+            msg["companion"], allow_missing_template=True, draft=True
         )
     except TaskValidationError as err:
         _err(

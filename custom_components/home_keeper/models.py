@@ -274,6 +274,7 @@ def normalize_sensor(
     *,
     allow_missing_entity: bool = False,
     allow_missing_template: bool = False,
+    allow_missing_value: bool = False,
 ) -> dict[str, Any]:
     """Validate and normalize a sensor-based task's ``sensor`` binding.
 
@@ -332,6 +333,12 @@ def normalize_sensor(
     per row, so the preview still says what it cannot decide. Nothing that **saves** a
     binding passes this: ``add_task``, ``update_task`` and the add/update companion
     commands all leave it at ``False``.
+
+    ``allow_missing_value`` opts out of the gates for an empty ``target`` (usage),
+    ``value`` (threshold) and ``state`` (state), for the same preview alone (F06-3).
+    The companion dialog leaves the box empty after a switch to one of these modes,
+    and the match list does not depend on the box. An empty field is left out of
+    the result. A field that is set is still checked.
     """
     if not isinstance(data, dict):
         raise TaskValidationError("a sensor task requires a sensor configuration")
@@ -362,11 +369,13 @@ def normalize_sensor(
                 )
         target_raw = data.get("target")
         if target_raw is None or target_raw == "":
-            raise TaskValidationError("sensor.target must be a number")
-        target = _finite_float(target_raw, "sensor.target")
-        if target <= 0:
-            raise TaskValidationError("sensor.target must be > 0")
-        result["target"] = target
+            if not allow_missing_value:
+                raise TaskValidationError("sensor.target must be a number")
+        else:
+            target = _finite_float(target_raw, "sensor.target")
+            if target <= 0:
+                raise TaskValidationError("sensor.target must be > 0")
+            result["target"] = target
         baseline_raw = data.get("baseline")
         if baseline_raw is not None and baseline_raw != "":
             result["baseline"] = _finite_float(baseline_raw, "sensor.baseline")
@@ -390,11 +399,12 @@ def normalize_sensor(
         if comparison not in SENSOR_COMPARISONS:
             raise TaskValidationError(f"invalid sensor comparison: {comparison!r}")
         value_raw = data.get("value")
-        if value_raw is None or value_raw == "":
-            raise TaskValidationError("sensor.value must be a number")
-        value = _finite_float(value_raw, "sensor.value")
         result["comparison"] = comparison
-        result["value"] = value
+        if value_raw is None or value_raw == "":
+            if not allow_missing_value:
+                raise TaskValidationError("sensor.value must be a number")
+        else:
+            result["value"] = _finite_float(value_raw, "sensor.value")
         if for_seconds := _normalize_for_seconds(data):
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):
@@ -409,13 +419,14 @@ def normalize_sensor(
         # as ``"True"``, which no entity reports (B08-2). YAML also reads yes and no
         # as booleans, so a mapping to ``on`` and ``off`` would guess.
         state = str(_reject_boolean(data.get("state"), "sensor.state") or "").strip()
-        if not state:
+        if not state and not allow_missing_value:
             raise TaskValidationError("sensor.state is required")
         if len(state) > MAX_SENSOR_STATE_LEN:
             raise TaskValidationError(
                 f"sensor.state must be <= {MAX_SENSOR_STATE_LEN} characters"
             )
-        result["state"] = state
+        if state:
+            result["state"] = state
         if for_seconds := _normalize_for_seconds(data):
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):

@@ -287,7 +287,7 @@ def _normalize_task_template(data: Any) -> dict[str, Any]:
 
 
 def normalize_declarative_companion(
-    data: Any, *, allow_missing_template: bool = False
+    data: Any, *, allow_missing_template: bool = False, draft: bool = False
 ) -> dict[str, Any]:
     """Validate and normalize a declarative-companion spec.
 
@@ -307,6 +307,11 @@ def normalize_declarative_companion(
     draft that has just switched to Template mode has an empty box by definition, and
     the preview is more useful showing the match list than refusing to answer. Every
     path that persists a spec leaves it ``False``.
+
+    ``draft`` is for the same preview (F06-3). It also accepts a blank ``name``, and
+    an empty trigger ``target``, ``value`` or ``state``. The Add dialog opens with a
+    blank name, and a switch of the trigger mode leaves the new box empty. The match
+    list depends on neither.
     """
     if not isinstance(data, dict):
         raise DeclarativeCompanionValidationError(
@@ -314,7 +319,7 @@ def normalize_declarative_companion(
         )
     spec_id = _clean_str(data.get("id"), "id", 100) or uuid.uuid4().hex
     name = _clean_str(
-        data.get("name"), "name", MAX_DECLARATIVE_SPEC_NAME_LEN, required=True
+        data.get("name"), "name", MAX_DECLARATIVE_SPEC_NAME_LEN, required=not draft
     )
     description = _clean_str(
         data.get("description"), "description", MAX_DECLARATIVE_SPEC_DESCRIPTION_LEN
@@ -327,6 +332,7 @@ def normalize_declarative_companion(
         data.get("trigger"),
         allow_missing_entity=True,
         allow_missing_template=allow_missing_template,
+        allow_missing_value=draft,
     )
     task_template = _normalize_task_template(data.get("task_template"))
     # ``per_entity_overrides`` is a reserved v1 field — the panel UI is deferred, but

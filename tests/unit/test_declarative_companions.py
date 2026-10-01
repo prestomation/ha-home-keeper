@@ -2787,3 +2787,57 @@ def test_every_preset_description_resolves_in_every_language(lang):
         if limit is not None:
             said = presets.format_limit(limit, lang, backend_i18n.resolve_string)
             assert said in text, (lang, preset["id"], text)
+
+
+# ── F06-3: the preview reads a draft ─────────────────────────────────────────
+def test_f06_3_a_draft_accepts_a_blank_name():
+    spec = dc.normalize_declarative_companion(_spec(name=""), draft=True)
+    assert spec["name"] == ""
+
+
+def test_f06_3_a_draft_accepts_an_empty_trigger_value():
+    draft = _spec(trigger={"mode": "threshold", "comparison": ">", "value": ""})
+    spec = dc.normalize_declarative_companion(draft, draft=True)
+    assert spec["trigger"] == {"mode": "threshold", "comparison": ">"}
+
+
+def test_f06_3_a_draft_still_caps_the_name():
+    with raises_exactly(TaskValidationError, "name must be <= 100 characters"):
+        dc.normalize_declarative_companion(_spec(name="x" * 101), draft=True)
+
+
+@pytest.mark.parametrize(
+    ("over", "message"),
+    [
+        ({"name": ""}, "name is required"),
+        (
+            {"trigger": {"mode": "usage", "target": ""}},
+            "sensor.target must be a number",
+        ),
+    ],
+)
+def test_f06_3_a_save_still_needs_the_name_and_value(over, message):
+    with raises_exactly(TaskValidationError, message):
+        dc.normalize_declarative_companion(_spec(**over))
+
+
+def test_f06_3_the_preview_reads_the_spec_as_a_draft():
+    import ast
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "home_keeper"
+        / "websocket_api.py"
+    ).read_text()
+    preview = next(
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "ws_preview_declarative_companion"
+    )
+    assert (
+        "dc.normalize_declarative_companion(msg['companion'], "
+        "allow_missing_template=True, draft=True)"
+    ) in ast.unparse(preview)
