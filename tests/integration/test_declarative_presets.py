@@ -102,3 +102,36 @@ def test_the_wear_template_converts_time_and_keeps_other_units(ha):
     # it is, and it is under the limit.
     assert rows[PRINTER]["trigger_now"] is True, rows[PRINTER]
     assert rows[BATTERY]["trigger_now"] is False, rows[BATTERY]
+
+
+def test_the_preview_sends_each_reading_and_its_unit(ha):
+    # The form draws each reading against the preset's limit, so the preview sends
+    # the state and the unit Home Assistant has for it now.
+    rows = _verdicts(
+        ha,
+        _preset_trigger("roborock_life_low"),
+        rf"{FILTER}|{BRUSH}".replace(".", r"\."),
+    )
+    assert (rows[FILTER]["state"], rows[FILTER]["unit"]) == ("600", "min")
+    assert (rows[BRUSH]["state"], rows[BRUSH]["unit"]) == ("3", "d")
+    rows = _verdicts(
+        ha,
+        _preset_trigger("roborock_life_low"),
+        r"input_number\.hk_demo_meter",
+        domain="input_number",
+    )
+    assert rows["input_number.hk_demo_meter"]["unit"] is None
+
+
+def test_the_preset_list_says_each_limit(ha):
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(token, {"type": "home_keeper/list_declarative_presets"})
+    assert reply.get("success"), reply
+    by_id = {p["id"]: p for p in reply["result"]["presets"]}
+    zha = by_id["zha_wear_high"]
+    assert zha["limit"] == {"kind": "hours", "value": 4320, "above": True}
+    assert zha["description"].endswith("Limit: above 180 days."), zha["description"]
+    # Its keys have different limits, so no one number describes it.
+    assert by_id["tplink_life_low"]["limit"] is None
+    assert "Limit:" not in by_id["tplink_life_low"]["description"]
+    assert by_id["firmware_update_available"]["limit"] is None

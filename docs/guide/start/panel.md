@@ -29,6 +29,42 @@ promises more than the list shows.
 
 ![The Tasks tab with the word filter typed in the Search box, the list narrowed to the tasks that match and the scope pill counts down to match](../../images/57-panel-task-search.png)
 
+#### Presets for your home
+
+Home Keeper has built-in [presets](../views/settings.md#declarative-companions-config-driven-no-separate-integration)
+that watch common entities, such as firmware updates. [Integration
+presets](../views/settings.md#integration-presets) watch the parts and supplies of one
+integration's devices, such as the filter of a robot vacuum. When a preset matches
+entities in your home, the **Tasks** tab tells you. You do not have to find the preset
+in Settings.
+
+The first time, a dialog shows each preset that matches, with the number of entities.
+Select the presets you want and press **Add**. Home Keeper saves them with their
+default settings. You can change each one later in **Settings**, **Companions**. A
+preset that matches more than 50 entities is not in the dialog. It shows on the card,
+where **Set up** lets you narrow it before you save.
+
+![The Presets you can use dialog, with one checked row for Firmware update available and 1 entity matches](../../images/76-panel-preset-dialog.png)
+
+Press **Not now** to close the dialog. A card above the task list then keeps the
+presets. On the card:
+
+- Press **Set up** to open the Add dialog on that preset. Check or change it, then
+  save.
+- Press **Not now** to hide the card.
+- Press **See all presets** to open **Settings**, **Companions**.
+
+![The Presets for your home card above the task list, with a Set up button for Firmware update available](../../images/77-panel-preset-card.png)
+
+The dialog opens one time for each preset. A hidden preset does not come back. A
+preset that starts to match later shows again. This can occur after you install an
+integration. Home Keeper keeps these choices for each Home Assistant user, so they
+follow you to each browser and phone.
+
+![The Presets you can use dialog on a phone](../../images/76c-panel-mobile-preset-dialog.png)
+
+![The Presets for your home card on a phone, above the task list](../../images/77c-panel-mobile-preset-card.png)
+
 ![A task's page with its edit form open in a drawer beside it, the schedule and completion history still readable](../../images/54-panel-task-detail-edit.png)
 
 The task list and the appliance list are compact, so more rows fit on the screen.

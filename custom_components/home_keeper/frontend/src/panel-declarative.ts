@@ -56,15 +56,17 @@ import { makeDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { indentGroup } from './panel-indent';
 import { groupPresets, presetTaskNames } from './preset-picker';
+import { changedSections, limitProgress, presetFor, resetToPreset } from './preset-summary';
 import type {
   DeclarativeCompanion,
   DeclarativeCompanionPreset,
   DeclarativeCompanionPreviewMatch,
   DeclarativeCompanionPreviewResult,
   EntityKeyList,
+  PresetLimit,
   Task,
 } from './types';
-import { btnAttrs, escapeHTML, setBtnWeight, toast } from './utils';
+import { btnAttrs, escapeHTML, formatReading, setBtnWeight, toast } from './utils';
 
 /** The trigger modes the form offers, in the order the dropdown lists them. */
 // `template` goes last on purpose. The four above it each answer one plain question,
@@ -253,7 +255,7 @@ export function declarativeOverlap(
   return best;
 }
 
-function errorMessage(err: unknown): string {
+export function errorMessage(err: unknown): string {
   return String((err as { message?: string })?.message || err);
 }
 
@@ -384,7 +386,7 @@ export async function openDeclarativeForm(
   p._render();
 }
 
-function seededFrom(preset: DeclarativeCompanionPreset): DeclarativeCompanion {
+export function seededFrom(preset: DeclarativeCompanionPreset): DeclarativeCompanion {
   return { id: '', ...(preset.default_spec as Omit<DeclarativeCompanion, 'id'>) };
 }
 
@@ -574,10 +576,22 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
   dialog.classList.add('hk-decl-dialog');
   body.classList.add('hk-decl-dialog-body');
 
+  // The preset this draft came from, and the box that says what it does. The box
+  // checks for changes on each edit, from the same hook the preview uses.
+  const preset = presetFor(draft, p._declarativePresets);
+  const presetBox = preset
+    ? presetSummaryBox(preset, draft, () => {
+        p._declDialog.draft = resetToPreset(draft, preset.default_spec);
+        p._render();
+      })
+    : null;
+  if (presetBox) body.appendChild(presetBox.el);
+
   const preview = document.createElement('div');
   preview.className = 'hk-decl-preview';
   preview.textContent = t('declarative.companions.preview_loading');
   const schedulePreview = (): void => {
+    presetBox?.refresh();
     // Only the dialog that is still on screen may own the pending preview. A trigger
     // mode change re-renders the dialog from *inside* the section's change handler,
     // so by the time the handler's own `schedulePreview()` runs, the new dialog has
@@ -589,7 +603,16 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
     if (!preview.isConnected) return;
     p._debounce(
       'decl-preview',
-      () => void refreshPreview(p, draft, preview, (id) => toggleExcluded(id)),
+      () =>
+        void refreshPreview(
+          p,
+          draft,
+          preview,
+          (id) => toggleExcluded(id),
+          // A reading is drawn against the preset's limit only while the trigger is
+          // still the preset's: an edited trigger has a limit of its own.
+          preset && !presetBox?.changed().includes('trigger') ? (preset.limit ?? null) : null,
+        ),
       PREVIEW_DEBOUNCE_MS,
     );
   };
@@ -1172,6 +1195,7 @@ async function refreshPreview(
   draft: DeclarativeCompanion,
   host: HTMLElement,
   onToggle: (entityId: string) => void,
+  limit: PresetLimit | null = null,
 ): Promise<void> {
   // A re-render (a mode change) replaces the dialog; the old preview node is gone
   // and the new dialog schedules its own.
@@ -1194,6 +1218,7 @@ async function refreshPreview(
       overlap,
       draft.selection.exclude_entity_ids ?? [],
       pendingTemplate,
+      limit,
     );
     host.querySelectorAll<HTMLElement>('[data-toggle-entity]').forEach((b) =>
       b.addEventListener('click', () => onToggle(b.dataset.toggleEntity ?? '')),
@@ -1235,6 +1260,85 @@ function excludedHtml(excluded: readonly string[]): string {
       </div>`;
 }
 
+/** A preview row's reading now, with a bar toward the preset's limit when the
+ *  reading must rise past it. Empty when the backend sent no state. */
+function readingHtml(m: DeclarativeCompanionPreviewMatch, limit: PresetLimit | null): string {
+  if (m.state == null || m.state === '') return '';
+  const number = Number(m.state);
+  const reading = Number.isFinite(number) ? formatReading(number, m.unit) : m.state;
+  const progress = limitProgress(m.state, m.unit, limit);
+  const pct = progress === null ? 0 : Math.round(progress * 100);
+  // The text beside the bar says the same number, so the bar is hidden from a screen
+  // reader.
+  const bar =
+    progress === null
+      ? ''
+      : `<span class="hk-decl-reading-bar" aria-hidden="true"><span style="width:${pct}%"></span></span>
+         <span class="hk-decl-reading-pct">${escapeHTML(
+           t('declarative.companions.preview_of_limit', { pct }),
+         )}</span>`;
+  return `<div class="hk-decl-reading">
+      <span>${escapeHTML(t('declarative.companions.preview_now', { value: reading }))}</span>${bar}
+    </div>`;
+}
+
+/**
+ * The box at the top of the form for a draft made from *preset*: what the preset
+ * does, its tasks, and a row that names the sections the user changed, with Reset to
+ * preset. The text always describes the preset, so the row says when the draft left it.
+ */
+function presetSummaryBox(
+  preset: DeclarativeCompanionPreset,
+  draft: DeclarativeCompanion,
+  onReset: () => void,
+): { el: HTMLElement; refresh: () => void; changed: () => string[] } {
+  const el = document.createElement('section');
+  el.className = 'hk-preset-summary';
+  el.setAttribute('aria-label', t('declarative.companions.summary_from_preset'));
+  const tasks = presetTaskNames(preset);
+  el.innerHTML = `
+      <div class="hk-preset-summary-head">
+        <span class="hk-preset-summary-icon"><ha-icon icon="${escapeHTML(preset.icon)}"></ha-icon></span>
+        <span class="hk-preset-summary-title">
+          <span class="hk-preset-summary-kicker">${escapeHTML(t('declarative.companions.summary_from_preset'))}</span>
+          <span class="hk-preset-summary-name">${escapeHTML(preset.name)}</span>
+        </span>
+      </div>
+      <p class="hk-preset-summary-desc">${escapeHTML(preset.description)}</p>
+      ${
+        tasks.length
+          ? `<div class="hk-preset-summary-tasks"><span class="hk-preset-summary-label">${escapeHTML(
+              t('declarative.companions.summary_tasks'),
+            )}</span>${tasks
+              .map((name) => `<span class="hk-decl-preset-task">${escapeHTML(name)}</span>`)
+              .join('')}</div>`
+          : ''
+      }
+      <div class="hk-preset-summary-changed" hidden>
+        <span class="hk-preset-summary-chip"></span>
+        <button type="button" class="hk-preset-summary-reset">${escapeHTML(
+          t('declarative.companions.summary_reset'),
+        )}</button>
+        <span class="hk-preset-summary-note">${escapeHTML(t('declarative.companions.summary_changed_note'))}</span>
+      </div>`;
+  const row = el.querySelector('.hk-preset-summary-changed') as HTMLElement;
+  const chip = el.querySelector('.hk-preset-summary-chip') as HTMLElement;
+  el.querySelector('.hk-preset-summary-reset')?.addEventListener('click', onReset);
+  let sections: string[] = [];
+  const refresh = (): void => {
+    sections = changedSections(draft, preset.default_spec);
+    row.hidden = sections.length === 0;
+    // The chip names each section by the heading the form gives it.
+    chip.textContent = t('declarative.companions.summary_changed', {
+      sections: sections
+        .map((s) => t('declarative.companions.section_' + (s === 'task_template' ? 'template' : s)))
+        .join(', '),
+    });
+  };
+  refresh();
+  return { el, refresh, changed: () => sections };
+}
+
 /** The preview's HTML: the count line, the warnings, the sample, and the entities
  *  excluded one by one.
  *
@@ -1247,6 +1351,7 @@ export function previewHtml(
   overlap: DeclarativeOverlap | null,
   excluded: readonly string[] = [],
   pendingTemplate = false,
+  limit: PresetLimit | null = null,
 ): string {
   if (result.over_cap) {
     return (
@@ -1291,6 +1396,7 @@ export function previewHtml(
                 ? `<div class="hk-decl-preview-key">${escapeHTML(m.translation_key)}</div>`
                 : ''
             }
+            ${readingHtml(m, limit)}
           </div>
           ${verdicts ? verdictChip(m) : ''}
           ${toggleButton(m.entity_id, false)}

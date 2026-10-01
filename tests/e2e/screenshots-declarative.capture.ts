@@ -823,3 +823,89 @@ test('capture the entity keys and task names at both widths', async ({ page }) =
     await callService('home_keeper', 'delete_declarative_companion', { id: specId });
   }
 });
+
+/**
+ * The preset summary at the top of the Add dialog, at both widths.
+ *
+ * Seeded from the Tuya Local preset, the one integration preset the container's stub
+ * matches: the box says what it does and its limit, lists its task, and each preview
+ * row says what the entity reads now. A changed Value then shows the Changed chip and
+ * Reset to preset. Cancelled each time, so nothing is saved.
+ */
+test('capture the preset summary at both widths', async ({ page }) => {
+  const openFromPreset = async () => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    await openSettingsSection(panel, 'companions');
+    await panel.locator('.hk-decl-preset').click();
+    const picker = panel.locator('ha-dialog.hk-decl-picker');
+    const card = picker.locator('.hk-decl-preset-list[data-group="mine"] .hk-decl-preset-card');
+    await expect(card).toHaveCount(1, { timeout: 20_000 });
+    await card.click();
+    const dialog = panel.locator('ha-dialog.hk-decl-dialog');
+    await expect(dialog.locator('.hk-preset-summary')).toBeVisible({ timeout: 20_000 });
+    await expect(dialog.locator('.hk-preset-summary-desc')).toContainText('Limit: below 10%');
+    await expect(dialog.locator('.hk-decl-reading').first()).toContainText('Now:', {
+      timeout: 20_000,
+    });
+    return dialog;
+  };
+  const changeValue = async (dialog: import('@playwright/test').Locator) => {
+    const value = dialog
+      .locator('[data-decl-section="trigger"] ha-selector-number')
+      .first()
+      .locator('input');
+    await value.fill('20');
+    await value.blur();
+    await expect(dialog.locator('.hk-preset-summary-chip')).toHaveText('Changed: Trigger');
+  };
+  const clipDialog = async (dialog: import('@playwright/test').Locator, path: string) => {
+    const surface = await dialog.locator('dialog').first().boundingBox();
+    if (!surface) throw new Error('the companion dialog has no rendered surface to photograph');
+    const pad = 16;
+    await page.screenshot({
+      path,
+      clip: {
+        x: Math.max(0, surface.x - pad),
+        y: Math.max(0, surface.y - pad),
+        width: surface.width + pad * 2,
+        height: surface.height + pad * 2,
+      },
+    });
+  };
+
+  // 78. The top of the dialog as the preset gives it.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  let dialog = await openFromPreset();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await clipDialog(dialog, `${OUT}/78-panel-preset-summary.png`);
+
+  // 78a. The preview at the foot of the dialog: each row says what it reads now.
+  await dialog.locator('.hk-decl-reading').first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await clipDialog(dialog, `${OUT}/78a-panel-preset-reading.png`);
+
+  // 78b. The top of the dialog after a change to the trigger.
+  await changeValue(dialog);
+  await dialog.locator('.hk-preset-summary').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(500);
+  await clipDialog(dialog, `${OUT}/78b-panel-preset-summary-changed.png`);
+  await dialog.locator('.hk-decl-cancel').click();
+
+  // 78c/78d. A phone: the box after the change, then the preview rows with their
+  // readings.
+  await page.setViewportSize(PHONE);
+  dialog = await openFromPreset();
+  await changeValue(dialog);
+  await dialog.locator('.hk-preset-summary').scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/78c-panel-mobile-preset-summary.png` });
+  await dialog.locator('.hk-decl-reading').first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/78d-panel-mobile-preset-reading.png` });
+  await dialog.locator('.hk-decl-cancel').click();
+  await page.setViewportSize({ width: 1280, height: 720 });
+});

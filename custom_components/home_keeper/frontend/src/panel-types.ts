@@ -199,3 +199,12 @@ export interface TransferState {
   /** The name of the picked file, shown so the user can tell which one is loaded. */
   filename: string;
 }
+
+/** The one-time "Presets you can use" dialog: the presets it lists, the ones still
+ *  checked, and whether an add is running. */
+export interface PresetDialogState {
+  open: boolean;
+  ids: string[];
+  selected: string[];
+  busy: boolean;
+}

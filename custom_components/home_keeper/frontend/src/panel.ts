@@ -62,9 +62,12 @@ import {
   type GroupBy,
   type MoveCompletionDialogState,
   type NoteTarget,
+  type PresetDialogState,
   type TaskFilter,
   type TransferState,
 } from './panel-types';
+import { maybeOpenPresetDialog, renderPresetDialog } from './panel-preset-nudge';
+import { mergeNudgeState, type PresetNudgeState } from './preset-nudge';
 import { setAssetError } from './panel-upload';
 import type {
   Asset,
@@ -191,11 +194,17 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _ownTodoEntities: string[] = [];
   // Companion integrations shown on the Settings tab (loaded with the rest).
   _companions: Companion[] = [];
-  // Declarative companions (loaded with the rest), the bundled presets and the
-  // installed-integration list their dialogs need (fetched on first open), and the
-  // dialogs' own state.
+  // Declarative companions and the bundled presets with their match counts (both
+  // loaded with the rest), the installed-integration list the dialogs need (fetched
+  // on first open), and the dialogs' own state.
   _declarativeCompanions: DeclarativeCompanion[] = [];
   _declarativePresets: DeclarativeCompanionPreset[] | null = null;
+  // Which preset suggestions this user has seen and hidden (per-user data; null until
+  // it loads, and then nothing is suggested), the one-time dialog, and the queue that
+  // keeps the writes in order.
+  _presetNudge: PresetNudgeState | null = null;
+  _presetDialog: PresetDialogState = { open: false, ids: [], selected: [], busy: false };
+  _presetNudgeSaving: Promise<void> = Promise.resolve();
   _installedIntegrations: string[] | null = null;
   _declDialog: DeclarativeDialogState = { open: false, kind: 'picker', draft: null };
   _transfer: TransferState = {
@@ -358,7 +367,19 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._assetEdit = { ...this._pendingAssetEdit, open: true };
       this._pendingAssetEdit = null;
     }
+    // Arriving at the task list is the other moment the suggestion dialog may open.
+    if (loc.view === 'tasks' && !loc.detail) this._offerPresets();
     this._render();
+  }
+
+  /** Open the preset suggestion dialog when the page and the state allow it. */
+  private _offerPresets(): void {
+    if (!this._loaded || this._loadError) return;
+    if (this._editingOpen() || this._declDialog.open || this._snooze.open || this._skip.open) {
+      return;
+    }
+    if (this._confirmDelete.open) return;
+    maybeOpenPresetDialog(this);
   }
 
   /**
@@ -778,6 +799,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         declarativeCompanions,
         introDismissed,
         tags,
+        presets,
+        presetNudge,
       ] = await Promise.all([
         api.getTasks(this._hass),
         api.getAssets(this._hass),
@@ -795,6 +818,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         // Best-effort: the tag registry is a convenience for the picker and the
         // chip label, never a precondition for the panel loading.
         this._soft(api.getTags(this._hass), [] as { value: string; label: string }[]),
+        // Both feed the preset suggestions only. A failed read keeps what the panel
+        // held, and an unknown nudge state suggests nothing rather than pop up again.
+        // The preset list is large (every integration preset with its default spec)
+        // and its counts change only with the entity registry, so it is read once per
+        // panel load, not on the refresh after every action.
+        this._loaded && this._declarativePresets !== null
+          ? Promise.resolve(null)
+          : this._soft(api.listDeclarativePresets(this._hass), null),
+        this._soft(api.getPresetNudge(this._hass), null),
       ]);
       this._tasks = tasks;
       this._assets = assets;
@@ -807,6 +839,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       this._declarativeCompanions = declarativeCompanions ?? [];
       this._introDismissed = introDismissed;
       this._tags = tags;
+      if (presets) this._declarativePresets = presets;
+      // A union, so a dismissal written a moment ago survives a read that missed it.
+      if (presetNudge) this._presetNudge = mergeNudgeState(this._presetNudge, presetNudge);
       // Drop a remembered Profile filter that no longer exists (deleted since), so the
       // Tasks-tab dropdown and the stored id can't disagree.
       if (this._profile && !(this._options?.profiles ?? []).some((p) => p.id === this._profile)) {
@@ -852,7 +887,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (this._refreshing) return this._refreshing;
     this._refreshing = (async () => {
       try {
+        const wasLoaded = this._loaded;
         await this._reload();
+        // The suggestion dialog opens on the first load only, never after an action's
+        // refresh: a modal must not land in the middle of what the user is doing.
+        if (!wasLoaded && this._loaded) this._offerPresets();
         this._render();
       } finally {
         this._refreshing = null;
@@ -1594,7 +1633,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         this._assetEdit.open ||
         this._noteEdit ||
         this._completion.open ||
-        this._moveCompletion.open,
+        this._moveCompletion.open ||
+        this._presetDialog.open,
     );
   }
 
@@ -2012,6 +2052,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (dialogHost && this._snooze.open) renderSnooze(this, dialogHost);
     if (dialogHost && this._skip.open) renderSkip(this, dialogHost);
     if (dialogHost && this._declDialog.open) renderDeclarativeDialog(this, dialogHost);
+    if (dialogHost && this._presetDialog.open) renderPresetDialog(this, dialogHost);
     // renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
     // The drawer is a sibling of the whole content column, so it belongs to every

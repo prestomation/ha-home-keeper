@@ -36,6 +36,7 @@
 import { test, expect, Browser, Locator, Page } from '@playwright/test';
 import { resolve } from 'path';
 import {
+  authToken,
   callService,
   gotoTab,
   openPanel,
@@ -45,6 +46,7 @@ import {
   openTaskTab,
 } from './tests/helpers';
 import { ASSET, PART, TASK } from './fixture-ids';
+import { FIRMWARE_PRESET, markAllPresetsSeen, suggestOnly } from './user-data';
 import { DESKTOP, PHONE, Viewport } from './viewports';
 
 const OUT = process.env.VIDEO_DIR || '/tmp/home-keeper-video';
@@ -52,6 +54,35 @@ const STATE_PATH = resolve(__dirname, '.auth/state.json');
 
 /** A readable pause so motion in the recording is easy to follow. */
 const BEAT = 900;
+
+/**
+ * Pick *option* in an `ha-select` and wait until *effect* reads *text*, trying again
+ * until it does.
+ *
+ * The check is on the effect, never on the select: `ha-select` holds every option as a
+ * child, so its text contains each label whether or not the pick took. One open and
+ * one click is also not enough in a drawer that is still re-rendering from the last
+ * field: the click can land on an element the re-render then replaces. Each try opens
+ * the menu unless a missed try left it open, and picks again. No Escape: the drawer
+ * closes on Escape too.
+ */
+async function pickUntil(
+  page: Page,
+  select: Locator,
+  option: RegExp,
+  effect: Locator,
+  text: string,
+): Promise<void> {
+  await expect(async () => {
+    const item = page.getByRole('menuitem', { name: option }).first();
+    if (!(await item.isVisible().catch(() => false))) {
+      await select.scrollIntoViewIfNeeded();
+      await select.click();
+    }
+    await item.click({ timeout: 3_000 });
+    await expect(effect).toHaveText(text, { timeout: 3_000 });
+  }).toPass({ intervals: [500, 1_000, 2_000], timeout: 20_000 });
+}
 
 type Tour = {
   /** Names the test, and the variant ci/capture-video.sh transcodes. */
@@ -165,6 +196,28 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   // Let the list re-render/settle after the banner collapses before clicking into it.
   await expect(panel.locator('#add-btn')).toBeVisible();
   await page.waitForTimeout(BEAT);
+
+  // 1a. Preset suggestions. The container's one update entity matches the Firmware
+  //     update available preset, so after the intro the panel offers it once in a
+  //     dialog. Not now leaves a card above the list, and the card's Not now hides
+  //     it. global-setup marks every preset seen, so clear that first, and put it back
+  //     after, so no later beat meets either surface.
+  await suggestOnly(authToken(), FIRMWARE_PRESET);
+  try {
+    await openPanel(page);
+    const presetDialog = panel.locator('ha-dialog.hk-preset-dialog');
+    await expect(presetDialog.locator('label.hk-preset-pick')).toBeVisible({ timeout: 20_000 });
+    await page.waitForTimeout(BEAT * 2);
+    await presetDialog.locator('ha-button.hk-preset-dialog-later').click();
+    const presetCard = panel.locator('.hk-preset-nudge');
+    await expect(presetCard).toBeVisible();
+    await page.waitForTimeout(BEAT * 2);
+    await presetCard.locator('ha-button.hk-preset-nudge-hide').click();
+    await expect(presetCard).toHaveCount(0);
+    await page.waitForTimeout(BEAT);
+  } finally {
+    await markAllPresetsSeen(authToken());
+  }
 
   // 1b. Put a part below its reorder point so there is a buy reminder to show. The
   //     seed has none, and a Shopping pill filtering to "No tasks match this filter"
@@ -566,14 +619,16 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   const modeSelect = panel.locator('#hk-task-form ha-select').nth(1);
   await modeSelect.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT);
-  await modeSelect.click();
-  await page.getByRole('menuitem', { name: /^State$/ }).first().click();
-  // Asserted on the control itself first, so a menu click that misses says so here
-  // rather than as a summary that never rewrites.
-  await expect(modeSelect).toContainText('State');
   // The summary rewrites itself again, now describing a transition rather than a
-  // meter — the same strip, tracking a completely different kind of rule.
-  await expect(panel.locator('#hk-form-summary-value')).toHaveText('When it changes to on');
+  // meter — the same strip, tracking a completely different kind of rule. It is also
+  // the proof the pick took, so `pickUntil` picks again until it reads so.
+  await pickUntil(
+    page,
+    modeSelect,
+    /^State$/,
+    panel.locator('#hk-form-summary-value'),
+    'When it changes to on',
+  );
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 3);
 
@@ -876,6 +931,8 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
     .click();
   const declForm = panel.locator('ha-dialog.hk-decl-dialog');
   await expect(declForm.locator('.hk-decl-preview-header')).toBeVisible();
+  // The box at the top says what the preset does, in plain words.
+  await expect(declForm.locator('.hk-preset-summary-desc')).toBeVisible();
   await page.waitForTimeout(BEAT * 3);
 
   // 6b. The template trigger, in the dialog already open. The other four modes each
@@ -899,6 +956,11 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await declForm.locator('.hk-decl-preview').scrollIntoViewIfNeeded();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(BEAT * 3);
+  // Back at the top, the preset box now says the trigger is not the preset's, and
+  // offers Reset to preset.
+  await declForm.locator('.hk-preset-summary').scrollIntoViewIfNeeded();
+  await expect(declForm.locator('.hk-preset-summary-chip')).toHaveText('Changed: Trigger');
+  await page.waitForTimeout(BEAT * 2);
 
   // More filters opens the other filters and the Exclusions block (#373), and
   // Exclude on a preview row leaves that entity out of the companion.

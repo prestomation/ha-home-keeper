@@ -9,7 +9,15 @@
  * are `ha-select` built on `ha-dropdown` (open, then click the role="menuitem").
  */
 import { test, expect, Locator, Page } from '@playwright/test';
-import { gotoTab, openPanel, openDashboard, openPart, openTaskTab } from './tests/helpers';
+import {
+  authToken,
+  gotoTab,
+  openPanel,
+  openDashboard,
+  openPart,
+  openTaskTab,
+} from './tests/helpers';
+import { FIRMWARE_PRESET, markAllPresetsSeen, suggestOnly } from './user-data';
 import {
   centre,
   expandGroup,
@@ -177,6 +185,37 @@ async function chooseEntity(
   await page.locator('ha-combo-box-item:visible').filter({ hasText: label }).first().click();
 }
 
+/**
+ * Photograph the preset suggestion dialog, then the card that Not now leaves, then put
+ * the key back so no later shot meets either one.
+ */
+async function showPresetSuggestions(
+  page: Page,
+  panel: Locator,
+  dialogShot: string,
+  cardShot: string,
+): Promise<void> {
+  await suggestOnly(authToken(), FIRMWARE_PRESET);
+  try {
+    await openPanel(page);
+    const dialog = panel.locator('ha-dialog.hk-preset-dialog');
+    await expect(dialog.locator('label.hk-preset-pick')).toHaveCount(1, { timeout: 20_000 });
+    await expect(dialog.locator('label.hk-preset-pick')).toBeVisible();
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${OUT}/${dialogShot}.png` });
+    await dialog.locator('ha-button.hk-preset-dialog-later').click();
+    await expect(dialog).toHaveCount(0);
+    const card = panel.locator('.hk-preset-nudge');
+    await expect(card).toBeVisible();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${OUT}/${cardShot}.png` });
+  } finally {
+    await markAllPresetsSeen(authToken());
+  }
+  await openPanel(page);
+  await expect(panel.locator('.hk-preset-nudge')).toHaveCount(0);
+}
+
 test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // 1. The admin sidebar panel — task list with floating + fixed + overdue tasks.
   await openPanel(page);
@@ -195,6 +234,13 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/0-panel-first-run-intro.png`, fullPage: true });
   await panel.locator('ha-button.hk-intro-dismiss').click();
   await expect(panel.locator('.hk-intro')).toHaveCount(0);
+
+  // 76/77. Preset suggestions. The container has one update entity, so Firmware update
+  // available is the one usable preset. global-setup marks every preset seen; clear
+  // that, and the dialog opens on the next load (the intro is dismissed now). Not now
+  // leaves the card above the list. The key is put back after, so the later shots
+  // keep their framing.
+  await showPresetSuggestions(page, panel, '76-panel-preset-dialog', '77-panel-preset-card');
 
   await page.screenshot({ path: `${OUT}/1-panel-task-list.png`, fullPage: true });
 
@@ -2036,6 +2082,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
   await settleToasts(page);
   await openPanel(page);
+
+  // 76c/77c. The preset suggestions on a phone: the dialog, then the card, where each
+  // preset takes the full width.
+  await showPresetSuggestions(
+    page,
+    panel,
+    '76c-panel-mobile-preset-dialog',
+    '77c-panel-mobile-preset-card',
+  );
 
   // 8f (phone). The orphaned appliance's actions on a phone, where the action row
   // wraps under the head.

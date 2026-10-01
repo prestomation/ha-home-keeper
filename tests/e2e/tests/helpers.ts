@@ -23,6 +23,11 @@ function token(): string {
   return cachedToken;
 }
 
+/** The same token, for a spec that talks to the websocket (see `user-data.ts`). */
+export function authToken(): string {
+  return token();
+}
+
 async function api(path: string, init: RequestInit = {}): Promise<unknown> {
   const r = await fetch(`${HA_URL}${path}`, {
     ...init,

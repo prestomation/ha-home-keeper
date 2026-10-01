@@ -6,6 +6,26 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b14]
+
+### Added
+
+- **[Preset suggestions](https://prestomation.github.io/ha-home-keeper/docs/guide/panel#presets-for-your-home).**
+  The Tasks tab shows the built-in presets that match entities in your home. Add them
+  all in one step, or set up each one from a card above the task list.
+- **[Preset summaries](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#what-a-preset-does).**
+  The Add dialog says in plain words what a preset watches and when it opens a task.
+  It also marks each section you change, and the preview shows what each entity reads now.
+
+### Fixed
+
+- **[Device Pulse preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  It now opens a task when a device is offline for 1 hour and completes it when the device
+  replies. A companion made from the older preset keeps tasks that never complete, so
+  delete it and add the preset again.
+- **Device stopped reporting preset.** It now waits 48 hours and reads only timestamp
+  sensors, so it stops opening tasks for phones and for devices that report once a day.
+
 ## [0.28.0b13]
 
 ### Fixed
