@@ -227,3 +227,49 @@ def test_b06_2_an_id_that_is_not_a_plain_uuid_is_replaced(requested):
     new_id = d.upload_document_id(requested, [])
     assert _is_fresh_uuid(new_id)
     assert new_id != requested
+
+
+@pytest.mark.parametrize(
+    ("raw", "shown"),
+    [
+        ("Инструкция.pdf", "Инструкция.pdf"),
+        ("说明书.pdf", "说明书.pdf"),
+        # NFD (a combining umlaut, as macOS sends it) becomes NFC.
+        ("Ku\u0308hlschrank.pdf", "K\u00fchlschrank.pdf"),
+        ("C:\\Users\\me\\Garantie.pdf", "Garantie.pdf"),
+        ("../../etc/manual.pdf", "manual.pdf"),
+        ("  bad\x00\nname\u200b.pdf  ", "badname.pdf"),
+        ("", ""),
+    ],
+)
+def test_b06_6_display_filename_keeps_the_real_name(raw, shown):
+    assert d.display_filename(raw) == shown
+    # The key on disk stays ASCII only.
+    if raw:
+        assert d.safe_filename(raw, "application/pdf").isascii()
+
+
+def test_b06_6_display_filename_is_capped():
+    assert d.display_filename("Ж" * 300 + ".pdf") == "Ж" * 200
+
+
+def test_b06_6_content_disposition_without_a_display_name():
+    assert d.content_disposition("manual.pdf") == 'inline; filename="manual.pdf"'
+    assert d.content_disposition("manual.pdf", " ") == 'inline; filename="manual.pdf"'
+
+
+def test_b06_6_content_disposition_carries_the_utf8_name():
+    assert d.content_disposition("__________.pdf", "Инструкция.pdf") == (
+        'inline; filename="__________.pdf"; '
+        "filename*=UTF-8''%D0%98%D0%BD%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%86%D0%B8%D1%8F.pdf"
+    )
+
+
+def test_b06_6_content_disposition_adds_the_missing_extension():
+    assert d.content_disposition("w.PDF", "My warranty") == (
+        "inline; filename=\"w.PDF\"; filename*=UTF-8''My%20warranty.PDF"
+    )
+    # An extension in another case is not added twice.
+    assert d.content_disposition("w.pdf", "Scan.PDF").endswith("''Scan.PDF")
+    # A stored name with no extension adds none.
+    assert d.content_disposition("w", "Scan").endswith("''Scan")

@@ -514,7 +514,11 @@ async def _stream_to_temp(
 
 
 async def _serve_signed_file(
-    hass: HomeAssistant, asset_id: str, document_id: str, filename: str | None
+    hass: HomeAssistant,
+    asset_id: str,
+    document_id: str,
+    filename: str | None,
+    display_name: str = "",
 ) -> web.StreamResponse:
     """Stream one stored blob back to the browser, or 404.
 
@@ -539,7 +543,7 @@ async def _serve_signed_file(
         return web.Response(status=HTTPStatus.NOT_FOUND)
     # Stream straight from disk (aiohttp handles range requests, content-type from
     # the file extension, etc.) rather than buffering up to MAX_DOCUMENT_BYTES.
-    disposition = f'inline; filename="{filename}"'
+    disposition = documents.content_disposition(filename, display_name)
     return web.FileResponse(path, headers={hdrs.CONTENT_DISPOSITION: disposition})
 
 
@@ -622,7 +626,11 @@ class HomeKeeperDocumentView(HomeAssistantView):
             coord.store.get_asset(asset_id) if coord else None, document_id
         )
         return await _serve_signed_file(
-            hass, asset_id, document_id, document["filename"] if document else None
+            hass,
+            asset_id,
+            document_id,
+            document["filename"] if document else None,
+            str(document.get("name") or "") if document else "",
         )
 
     # Uploads are admin-only, like the ``add_asset_document`` service: a write
@@ -683,7 +691,9 @@ class HomeKeeperDocumentView(HomeAssistantView):
                     {
                         "id": document_id,
                         "kind": "file",
-                        "name": display_name,
+                        # The safe name is ASCII only. Without a name from the
+                        # client, show the real name of the file (B06-6).
+                        "name": display_name or documents.display_filename(filename),
                         "filename": safe_name,
                         "content_type": content_type,
                         "size": uploaded.size,
