@@ -154,16 +154,15 @@ test.describe('Home Keeper panel — Settings tab', { tag: '@responsive' }, () =
       await expect(actions.locator('.hk-notify-test-alt')).toBeVisible();
       await expect(actions.locator('.hk-notify-delete')).toBeVisible();
 
-      // Pressing it reaches `home_keeper.notify`. This notification has no target, so
-      // the service rejects it — and the panel shows the service's *own* localized
-      // message rather than a generic failure. That message is the reason Test stays
-      // enabled with no target configured: it says what to do about it, which a
-      // disabled button cannot.
+      // This notification has no target, so Test sends nothing and says what to do,
+      // in the panel language. The service's own refusal came back through
+      // `call_service` in English with advice about a service field (X09-2). That
+      // message is the reason Test stays enabled with no target configured: it says
+      // what to do about it, which a disabled button cannot.
       await openRow();
       await actions.locator('.hk-notify-test').click();
       const toast = page.locator('.message');
-      await expect(toast).toContainText(/has no target to send to/i);
-      await expect(toast).toContainText(/Send to/i);
+      await expect(toast).toContainText('Choose a device in "Send to (mobile apps)" first.');
 
       // The panel stays up and does not log an error of its own.
       await expect(panel.locator('#hk-notifications')).toBeVisible();
