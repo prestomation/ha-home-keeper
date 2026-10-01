@@ -158,7 +158,7 @@ class HomeKeeperTodoListEntity(
         if not updates:
             return
         try:
-            await self.coordinator.store.update_task(item.uid, updates)
+            await self.coordinator.store.update_task(str(task["id"]), updates)
         except TaskValidationError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
