@@ -24,6 +24,7 @@ jobs:
       version: ${{ steps.check.outputs.version }}
       prerelease: ${{ steps.check.outputs.prerelease }}
       release: ${{ steps.check.outputs.release }}
+      publish: ${{ steps.publish.outputs.publish }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -67,6 +68,27 @@ jobs:
           echo "release=true" >> "$GITHUB_OUTPUT"
           echo "Will release v$VERSION"
 
+      # Only a push to main, or a dispatch on main that is not a dry run, may tag,
+      # publish a release and deploy the docs (X06-2). A notify dry run on another
+      # branch tagged and published that branch head as a real release before.
+      - name: Decide whether this run publishes
+        id: publish
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          DRY_RUN: ${{ inputs.notify_dry_run }}
+        run: |
+          PUBLISH=false
+          if [ "$REF" = "refs/heads/main" ]; then
+            if [ "$EVENT" = "push" ]; then
+              PUBLISH=true
+            elif [ "$EVENT" = "workflow_dispatch" ] && [ "$DRY_RUN" != "true" ]; then
+              PUBLISH=true
+            fi
+          fi
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+          echo "Publish: $PUBLISH ($EVENT on $REF, dry run: ${DRY_RUN:-false})"
+
       - name: Extract changelog section
         if: steps.check.outputs.release == 'true'
         id: changelog
@@ -107,7 +129,7 @@ jobs:
           echo "home_keeper.zip exists ($(du -h home_keeper.zip | cut -f1))"
 
       - name: Create and push tag
-        if: steps.check.outputs.release == 'true' && github.event_name != 'pull_request'
+        if: steps.check.outputs.release == 'true' && steps.publish.outputs.publish == 'true'
         env:
           VERSION: ${{ steps.check.outputs.version }}
         run: |
@@ -117,7 +139,7 @@ jobs:
           git push origin "v${VERSION}"
 
       - name: Create GitHub Release
-        if: steps.check.outputs.release == 'true' && github.event_name != 'pull_request'
+        if: steps.check.outputs.release == 'true' && steps.publish.outputs.publish == 'true'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: "v${{ steps.check.outputs.version }}"
@@ -137,7 +159,7 @@ jobs:
     if: >-
       needs.release.outputs.release == 'true' &&
       needs.release.outputs.prerelease == 'false' &&
-      github.event_name != 'pull_request'
+      needs.release.outputs.publish == 'true'
     permissions:
       contents: write
     uses: ./.github/workflows/docs-deploy.yml
@@ -157,7 +179,8 @@ jobs:
     needs: release
     if: >-
       github.event_name != 'pull_request' &&
-      (inputs.notify_dry_run || needs.release.outputs.release == 'true')
+      (inputs.notify_dry_run ||
+       (needs.release.outputs.release == 'true' && needs.release.outputs.publish == 'true'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

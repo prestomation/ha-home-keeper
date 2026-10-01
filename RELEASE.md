@@ -118,7 +118,8 @@ Notes on how it behaves:
 Run the workflow manually (Actions → Release → Run workflow) with **notify_dry_run**
 checked and **notify_version** set to a past release such as `0.15.0`. The job resolves
 the same issue list and writes the full plan to the run summary without posting or
-closing anything.
+closing anything. A dry run never tags, publishes or deploys, on any branch. Only a
+push to `main`, or a dispatch on `main` with **notify_dry_run** cleared, does that.
 
 The parsing itself lives in `ci/release-issues.py`, which also cuts the release notes.
 Run it locally against any version:
