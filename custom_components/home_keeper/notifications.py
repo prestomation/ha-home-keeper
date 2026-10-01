@@ -286,7 +286,7 @@ def normalize_color(value: Any) -> str:
     return color if _HEX_COLOR.match(color) else ""
 
 
-def normalize_notification(raw: Any) -> dict[str, Any]:
+def normalize_notification(raw: Any, *, warn: bool = True) -> dict[str, Any]:
     """Coerce one raw notification to its stored, fully-defaulted shape.
 
     A notification references a profile (``profile_id``) and carries delivery: an id
@@ -296,6 +296,10 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
     ``channel`` (the Android notification channel, threading reminders on iOS) and
     ``urgency`` (clamped to :data:`URGENCIES`) — and how it looks: ``icon`` and
     ``color``, each clamped to ``""`` when unusable.
+
+    *warn* logs a warning for each target the allowlist drops. A read of the stored
+    options sets it to ``False``, because a read runs on each refresh and the same
+    warning then fills the log (B16-11).
     """
     raw = raw if isinstance(raw, dict) else {}
     actions: list[str] = []
@@ -312,7 +316,7 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
     style = raw.get("style")
     urgency = raw.get("urgency")
     targets, rejected = split_targets(raw.get("targets"))
-    if rejected:
+    if rejected and warn:
         _LOGGER.warning(
             "Home Keeper dropped notify target(s) %s: only %s* and %s are supported",
             ", ".join(rejected),
@@ -351,11 +355,14 @@ def sends_when_empty(when_empty: Any) -> bool:
     return when_empty == WHEN_EMPTY_ALL_CLEAR
 
 
-def normalize_notifications(raw: Any) -> list[dict[str, Any]]:
-    """Coerce the stored notification list, dropping non-dict entries."""
+def normalize_notifications(raw: Any, *, warn: bool = True) -> list[dict[str, Any]]:
+    """Coerce the stored notification list, dropping non-dict entries.
+
+    *warn* is passed to :func:`normalize_notification`.
+    """
     if not isinstance(raw, (list, tuple)):
         return []
-    return [normalize_notification(n) for n in raw if isinstance(n, dict)]
+    return [normalize_notification(n, warn=warn) for n in raw if isinstance(n, dict)]
 
 
 def resolve_notification(

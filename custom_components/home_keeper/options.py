@@ -167,7 +167,7 @@ def current_options(entry: ConfigEntry) -> dict[str, Any]:
     and a write can't disagree about a key's shape, which is what makes
     ``async_set_options``' ``merged == base`` short-circuit trustworthy.
     """
-    return _normalize(dict(entry.options), _empty_options())
+    return _normalize(dict(entry.options), _empty_options(), warn=False)
 
 
 # The device-id lists in a profile filter. A profile filter matches a task on these.
@@ -253,7 +253,9 @@ def _coerce_days(value: Any) -> int:
     return min(days, MAX_ONE_OFF_RETENTION_DAYS) if days > 0 else 0  # pragma: no mutate
 
 
-def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
+def _normalize(
+    updates: dict[str, Any], base: dict[str, Any], *, warn: bool = True
+) -> dict[str, Any]:
     """Merge *updates* onto *base*, coercing to the stored shape (bool/int/id list).
 
     The one coercion table, shared by every read and every write. Each branch exists
@@ -271,6 +273,9 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
 
     A key absent from *updates* keeps its value from *base*, which is what makes an
     update partial.
+
+    *warn* is ``False`` on the read path, so a dropped notify target is not logged
+    again on each read (B16-11).
     """
     merged = dict(base)
     for key in _BOOL_OPTIONS:
@@ -296,7 +301,7 @@ def _normalize(updates: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
         merged[OPTION_PROFILES] = profiles.normalize_profiles(updates[OPTION_PROFILES])
     if OPTION_NOTIFICATIONS in updates:
         merged[OPTION_NOTIFICATIONS] = notifications.normalize_notifications(
-            updates[OPTION_NOTIFICATIONS]
+            updates[OPTION_NOTIFICATIONS], warn=warn
         )
     for key in _LIST_OPTIONS:
         if key in updates:

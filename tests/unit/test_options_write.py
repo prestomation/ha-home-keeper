@@ -228,3 +228,20 @@ def test_b19_1_a_huge_retention_is_stored_clamped() -> None:
         merged[const.OPTION_ONE_OFF_RETENTION_DAYS] == const.MAX_ONE_OFF_RETENTION_DAYS
     )
     assert entry.options[const.OPTION_ONE_OFF_RETENTION_DAYS] == 3650
+
+
+_N_LEGACY = {"id": "n1", "name": "Old", "targets": ["mobile_app_a", "telegram_x"]}
+
+
+def test_b16_11_a_read_does_not_warn_about_a_dropped_target(caplog) -> None:
+    entry = _FakeEntry({const.OPTION_NOTIFICATIONS: [_N_LEGACY]})
+    read = opts.current_options(entry)
+    assert read[const.OPTION_NOTIFICATIONS][0]["targets"] == ["mobile_app_a"]
+    assert "telegram_x" not in caplog.text
+
+
+def test_b16_11_a_write_warns_about_a_dropped_target(caplog) -> None:
+    hass, entry = _FakeHass(), _FakeEntry({})
+    merged = _set(hass, entry, {const.OPTION_NOTIFICATIONS: [_N_LEGACY]})
+    assert merged[const.OPTION_NOTIFICATIONS][0]["targets"] == ["mobile_app_a"]
+    assert "dropped notify target(s) telegram_x" in caplog.text

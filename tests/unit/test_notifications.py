@@ -255,6 +255,18 @@ def test_normalize_notification_drops_unsupported_targets(caplog):
     assert n.TARGET_PERSISTENT in caplog.text
 
 
+def test_b16_11_normalize_without_warn_drops_quietly(caplog):
+    raw = {"name": "Me", "targets": ["mobile_app_phone", "smtp_family"]}
+    notif = n.normalize_notification(raw, warn=False)
+    assert notif["targets"] == ["mobile_app_phone"]
+    listed = n.normalize_notifications([raw], warn=False)
+    assert listed[0]["targets"] == ["mobile_app_phone"]
+    assert "dropped notify target" not in caplog.text
+    # The default still warns, from the list form too.
+    n.normalize_notifications([raw])
+    assert "dropped notify target(s) smtp_family" in caplog.text
+
+
 def test_normalize_notification_keeps_quiet_when_every_target_is_valid(caplog):
     # No warning on the ordinary path — an alarm that cries wolf gets filtered out.
     with_valid = n.normalize_notification({"targets": ["mobile_app_phone"]})

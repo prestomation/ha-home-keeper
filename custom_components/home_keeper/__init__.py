@@ -861,6 +861,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     store = HomeKeeperStore(hass)
     await store.load()
 
+    # Warn once for each setup about a stored notify target that the allowlist drops.
+    # A read of the options runs on each refresh and does not warn (B16-11).
+    notifications.normalize_notifications(entry.options.get(OPTION_NOTIFICATIONS))
+
     # Repair device references Home Assistant invalidated when it split devices in
     # 2026.8 (#183). Before the coordinator reads the store, so everything downstream
     # sees healed ids, and before the platforms so entities land on the real device.
