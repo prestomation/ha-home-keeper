@@ -533,6 +533,37 @@ def test_f08_5_link_document_needs_a_url():
     assert kept["documents"][0]["url"] == ""
 
 
+def test_f08_5_single_document_writes_keep_the_list_whole():
+    # An asset with no documents list yet takes the first one in a new list.
+    asset = {"name": "Furnace"}
+    first = a.append_document(
+        asset, {"id": "d1", "kind": "link", "url": "https://ex.com/1"}, created=""
+    )
+    assert asset == {"name": "Furnace", "documents": [first]}
+    assert first["id"] == "d1"
+    # A colliding id is replaced with a fresh uuid; a new id is kept.
+    second = a.append_document(
+        asset, {"id": "d1", "kind": "link", "url": "https://ex.com/2"}, created=""
+    )
+    assert second["id"] not in ("d1", "None")
+    assert len(second["id"]) == 36
+    third = a.append_document(
+        asset, {"id": "d3", "kind": "link", "url": "https://ex.com/3"}, created=""
+    )
+    assert third["id"] == "d3"
+    assert [d["id"] for d in asset["documents"]] == ["d1", second["id"], "d3"]
+    # An edit writes back the same list and adds no key.
+    a.update_document(asset, "d3", {"name": "Three"})
+    assert set(asset) == {"name", "documents"}
+    assert asset["documents"][2]["name"] == "Three"
+    # The cap names its limit.
+    full = {"documents": [{"id": str(i)} for i in range(50)]}
+    with raises_exactly(
+        a.AssetValidationError, "an appliance can have at most 50 documents"
+    ):
+        a.append_document(full, {"kind": "link", "url": "https://ex.com/x"}, created="")
+
+
 def test_update_document_rejects_bad_url_and_missing_id():
     asset = a.build_asset({"name": "Furnace"}, now=NOW)
     entry = a.append_document(
