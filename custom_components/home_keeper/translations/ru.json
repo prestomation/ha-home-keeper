@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Неизвестный документ: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Счётчик есть только у задачи, привязанной к датчику использования."
+    },
+    "meter_has_no_reading": {
+      "message": "У привязанного датчика сейчас нет числового значения. Укажите начальное значение в вызове."
+    },
+    "archived_completion_not_found": {
+      "message": "У прибора нет архивного выполнения задачи {task_id} в {ts}."
+    },
     "unknown_part_file": {
       "message": "Неизвестная запчасть или нет прикреплённого файла."
     },

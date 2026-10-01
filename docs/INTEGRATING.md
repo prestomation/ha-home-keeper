@@ -270,6 +270,8 @@ events with no `origin` because moving is a user edit from the panel).
 Keep the two sides from drifting:
 
 - **Your config is removed** → call `home_keeper.delete_task` for the task ids you stored.
+  A call for an id that is already deleted succeeds. A name that matches no task gets the
+  `task_not_found` error.
 - **Home Keeper is absent** → the `has_service` guards make every call a no-op; your
   integration keeps working, and tasks you couldn't create simply don't sync.
 - **The user deletes a task directly in Home Keeper** → `home_keeper_task_deleted`

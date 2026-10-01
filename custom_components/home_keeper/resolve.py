@@ -23,6 +23,7 @@ outcome than an error naming both ids.
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
@@ -155,3 +156,36 @@ def resolve_document_id(asset: Any, key: str) -> str:
     reachable by name.
     """
     return _resolve(_entries(asset, "documents"), key, "name")
+
+
+def resolve_archived_task_id(asset: Any, key: str) -> str:
+    """The id of a deleted task in an appliance's archived history (B21-3).
+
+    An archived completion belongs to a task that was deleted, so a live task never
+    has its name. This resolves *key* against the ``task_history`` entries of
+    *asset*: first the stored ``task_id``, then the ``task_name`` snapshot.
+    """
+    raw = asset.get("task_history") if isinstance(asset, Mapping) else None
+    entries = [
+        (str(entry.get("task_id")), entry)
+        for entry in (raw if isinstance(raw, (list, tuple)) else [])
+        if isinstance(entry, Mapping) and entry.get("task_id")
+    ]
+    return _resolve(entries, key, "task_name")
+
+
+def looks_like_id(key: Any) -> bool:
+    """Whether *key* has the form of a stored id, a ``uuid4`` string.
+
+    ``delete_task`` and ``delete_asset`` use this for a key that matches no
+    record (B02-7). A key in the form of an id can be a record that is already
+    deleted, and the integrator cleanup loop in ``docs/INTEGRATING.md`` relies on
+    that call to succeed. Any other key is a name that matches no record, so the
+    call raises a not-found error.
+    """
+    if not isinstance(key, str):
+        return False
+    try:
+        return str(uuid.UUID(key)) == key.lower()
+    except ValueError:
+        return False

@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Document inconnu : {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Seule une tâche liée à un capteur d'utilisation a un compteur."
+    },
+    "meter_has_no_reading": {
+      "message": "Le capteur lié n'a pas de valeur numérique pour le moment. Indiquez une valeur de départ dans l'appel."
+    },
+    "archived_completion_not_found": {
+      "message": "L'appareil n'a aucune réalisation archivée de {task_id} à {ts}."
+    },
     "unknown_part_file": {
       "message": "Pièce inconnue ou aucun fichier joint."
     },

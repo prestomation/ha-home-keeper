@@ -2371,3 +2371,31 @@ def test_stock_report_after_a_clamped_adjustment():
         "unit": "roll",
         "status": "out",
     }
+
+
+# ── B21-3: has_archived_completion ──────────────────────────────────────────
+_ARCHIVED = {
+    "task_history": [
+        {"task_id": "old-1", "completions": [{"ts": "2026-01-01T00:00:00+00:00"}]},
+        {"task_id": "old-2", "completions": [{"ts": "2026-02-01T00:00:00+00:00"}]},
+        {"task_id": "old-3"},
+    ]
+}
+
+
+def test_b21_3_has_archived_completion_finds_the_pair():
+    assert a.has_archived_completion(_ARCHIVED, "old-2", "2026-02-01T00:00:00+00:00")
+
+
+@pytest.mark.parametrize(
+    ("asset", "task_id", "ts"),
+    [
+        (_ARCHIVED, "old-1", "2026-02-01T00:00:00+00:00"),
+        (_ARCHIVED, "old-9", "2026-01-01T00:00:00+00:00"),
+        (_ARCHIVED, "old-3", "2026-01-01T00:00:00+00:00"),
+        ({}, "old-1", "2026-01-01T00:00:00+00:00"),
+        ({"task_history": None}, "old-1", "2026-01-01T00:00:00+00:00"),
+    ],
+)
+def test_b21_3_has_archived_completion_rejects_another_pair(asset, task_id, ts):
+    assert a.has_archived_completion(asset, task_id, ts) is False

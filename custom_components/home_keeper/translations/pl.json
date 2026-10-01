@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Nieznany dokument: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Licznik ma tylko zadanie powiązane z czujnikiem zużycia."
+    },
+    "meter_has_no_reading": {
+      "message": "Powiązany czujnik nie ma teraz wartości liczbowej. Podaj wartość początkową w wywołaniu."
+    },
+    "archived_completion_not_found": {
+      "message": "Urządzenie nie ma zarchiwizowanego wykonania zadania {task_id} o {ts}."
+    },
     "unknown_part_file": {
       "message": "Nieznana część lub brak załączonego pliku."
     },

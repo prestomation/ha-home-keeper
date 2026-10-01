@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Documento desconhecido: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Apenas uma tarefa vinculada a um sensor de uso tem um medidor."
+    },
+    "meter_has_no_reading": {
+      "message": "O sensor vinculado não tem uma leitura numérica agora. Informe um valor inicial na chamada."
+    },
+    "archived_completion_not_found": {
+      "message": "O aparelho não tem uma conclusão arquivada de {task_id} em {ts}."
+    },
     "unknown_part_file": {
       "message": "Peça desconhecida ou sem arquivo anexado."
     },

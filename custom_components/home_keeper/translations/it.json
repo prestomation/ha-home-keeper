@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Documento sconosciuto: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Solo un'attività collegata a un sensore di utilizzo ha un contatore."
+    },
+    "meter_has_no_reading": {
+      "message": "Il sensore collegato non ha ora una lettura numerica. Indica un valore iniziale nella chiamata."
+    },
+    "archived_completion_not_found": {
+      "message": "L'elettrodomestico non ha un completamento archiviato di {task_id} alle {ts}."
+    },
     "unknown_part_file": {
       "message": "Ricambio sconosciuto o nessun file allegato."
     },

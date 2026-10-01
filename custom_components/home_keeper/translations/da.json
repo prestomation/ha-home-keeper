@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Ukendt dokument: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Kun en opgave med en forbrugssensor har en måler."
+    },
+    "meter_has_no_reading": {
+      "message": "Den tilknyttede sensor har ingen numerisk værdi lige nu. Angiv en startværdi i kaldet."
+    },
+    "archived_completion_not_found": {
+      "message": "Apparatet har ingen arkiveret udførelse af {task_id} kl. {ts}."
+    },
     "unknown_part_file": {
       "message": "Ukendt reservedel eller ingen vedhæftet fil."
     },

@@ -1896,6 +1896,19 @@ def append_task_history(asset: dict, entry: dict) -> bool:
     return True
 
 
+def has_archived_completion(asset: dict, task_id: str, ts: str) -> bool:
+    """Whether *asset*'s history has an archived completion of *task_id* at *ts*.
+
+    The ``delete_archived_completion`` service checks this first, so a call that
+    names no stored completion gets an error (B21-3).
+    """
+    return any(
+        entry.get("task_id") == task_id
+        and any(c.get("ts") == ts for c in entry.get("completions", []))
+        for entry in asset.get("task_history") or []
+    )
+
+
 def remove_archived_completion(asset: dict, task_id: str, ts: str) -> bool:
     """Remove a single archived completion (ISO *ts*) from *asset*'s history.
 

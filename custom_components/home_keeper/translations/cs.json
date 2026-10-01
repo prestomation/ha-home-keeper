@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Neznámý dokument: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Měřič má jen úkol s vazbou na senzor využití."
+    },
+    "meter_has_no_reading": {
+      "message": "Navázaný senzor teď nemá číselnou hodnotu. Zadejte výchozí hodnotu ve volání."
+    },
+    "archived_completion_not_found": {
+      "message": "Spotřebič nemá žádné archivované dokončení úkolu {task_id} v {ts}."
+    },
     "unknown_part_file": {
       "message": "Neznámý díl nebo bez přiloženého souboru."
     },

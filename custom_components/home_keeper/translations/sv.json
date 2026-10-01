@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Okänt dokument: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Bara en uppgift med en förbrukningssensor har en mätare."
+    },
+    "meter_has_no_reading": {
+      "message": "Den kopplade sensorn har inget numeriskt värde just nu. Ange ett startvärde i anropet."
+    },
+    "archived_completion_not_found": {
+      "message": "Apparaten har ingen arkiverad utförning av {task_id} kl. {ts}."
+    },
     "unknown_part_file": {
       "message": "Okänd del eller ingen bifogad fil."
     },

@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Tuntematon asiakirja: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Vain käyttöanturiin sidotulla tehtävällä on mittari."
+    },
+    "meter_has_no_reading": {
+      "message": "Sidotulla anturilla ei ole nyt numeerista lukemaa. Anna lähtöarvo kutsussa."
+    },
+    "archived_completion_not_found": {
+      "message": "Laitteella ei ole arkistoitua suoritusta tehtävälle {task_id} ajalla {ts}."
+    },
     "unknown_part_file": {
       "message": "Tuntematon varaosa tai ei liitettyä tiedostoa."
     },

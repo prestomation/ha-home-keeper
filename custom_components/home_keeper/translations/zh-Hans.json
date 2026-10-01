@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "未知文档：{document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "只有绑定了用量传感器的任务才有计量。"
+    },
+    "meter_has_no_reading": {
+      "message": "绑定的传感器当前没有数值读数。请在调用中提供基准值。"
+    },
+    "archived_completion_not_found": {
+      "message": "该电器没有 {task_id} 在 {ts} 的归档完成记录。"
+    },
     "unknown_part_file": {
       "message": "未知零件或没有附加文件。"
     },

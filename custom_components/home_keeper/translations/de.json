@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Unbekanntes Dokument: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Nur eine Aufgabe mit einer Verbrauchssensor-Bindung hat einen Zähler."
+    },
+    "meter_has_no_reading": {
+      "message": "Der gebundene Sensor hat gerade keinen numerischen Wert. Geben Sie im Aufruf einen Startwert an."
+    },
+    "archived_completion_not_found": {
+      "message": "Das Gerät hat keine archivierte Erledigung von {task_id} um {ts}."
+    },
     "unknown_part_file": {
       "message": "Unbekanntes Teil oder keine angehängte Datei."
     },

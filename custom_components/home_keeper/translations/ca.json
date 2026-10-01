@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Document desconegut: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Només una tasca vinculada a un sensor d'ús té un comptador."
+    },
+    "meter_has_no_reading": {
+      "message": "El sensor vinculat no té cap lectura numèrica ara. Indiqueu un valor inicial a la crida."
+    },
+    "archived_completion_not_found": {
+      "message": "L'electrodomèstic no té cap compleció arxivada de {task_id} a {ts}."
+    },
     "unknown_part_file": {
       "message": "Peça desconeguda o sense fitxer adjunt."
     },

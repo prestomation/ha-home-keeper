@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Onbekend document: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Alleen een taak met een gebruikssensor heeft een meter."
+    },
+    "meter_has_no_reading": {
+      "message": "De gekoppelde sensor heeft nu geen numerieke waarde. Geef een beginwaarde op in de aanroep."
+    },
+    "archived_completion_not_found": {
+      "message": "Het apparaat heeft geen gearchiveerde voltooiing van {task_id} op {ts}."
+    },
     "unknown_part_file": {
       "message": "Onbekend onderdeel of geen bijgevoegd bestand."
     },

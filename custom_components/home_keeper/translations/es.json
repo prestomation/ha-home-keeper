@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Documento desconocido: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Solo una tarea vinculada a un sensor de uso tiene un contador."
+    },
+    "meter_has_no_reading": {
+      "message": "El sensor vinculado no tiene una lectura numérica ahora. Indique un valor inicial en la llamada."
+    },
+    "archived_completion_not_found": {
+      "message": "El electrodoméstico no tiene ninguna realización archivada de {task_id} en {ts}."
+    },
     "unknown_part_file": {
       "message": "Pieza desconocida o sin archivo adjunto."
     },

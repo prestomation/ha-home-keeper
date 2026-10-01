@@ -228,6 +228,12 @@ def _install_exceptions() -> None:
                 self.translation_placeholders = translation_placeholders
 
         exceptions.HomeAssistantError = HomeAssistantError
+    if not hasattr(exceptions, "ServiceValidationError"):
+
+        class ServiceValidationError(exceptions.HomeAssistantError):
+            pass
+
+        exceptions.ServiceValidationError = ServiceValidationError
 
 
 def _install_helpers() -> None:

@@ -1107,6 +1107,15 @@
     "unknown_document": {
       "message": "Unknown document: {document_id}"
     },
+    "meter_requires_usage_task": {
+      "message": "Only a task with a usage sensor binding has a meter."
+    },
+    "meter_has_no_reading": {
+      "message": "The bound sensor has no numeric reading now. Add a baseline to the call."
+    },
+    "archived_completion_not_found": {
+      "message": "The appliance has no archived completion of {task_id} at {ts}."
+    },
     "unknown_part_file": {
       "message": "Unknown part or no attached file."
     },
