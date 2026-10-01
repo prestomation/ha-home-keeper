@@ -2036,6 +2036,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unloaded:
         # A re-enabled entry baselines in silence, as after a restart (B18-6).
         discard_edge_state_if_disabled(hass, entry)
+        # A pass that started before the unload still holds this store. After a
+        # reload its save would write the old snapshot over the new store's file, so
+        # the store refuses every later save (X02-2).
+        coordinator = getattr(entry, "runtime_data", None)
+        if coordinator is not None:
+            coordinator.store.close()
     # The services are not removed here (B02-1). ``async_setup`` registers them once
     # for the Home Assistant run, as Home Assistant's ``action-setup`` rule asks, and
     # a handler answers ``integration_not_loaded`` while no entry is loaded. Most

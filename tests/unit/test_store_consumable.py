@@ -1236,3 +1236,28 @@ def test_x03_11_settle_with_nothing_left_to_arm_reports_no_change(store, monkeyp
     )
     assert _run(store.settle_use_tasks()) is False
     assert store._hass.bus.of("home_keeper_task_triggered") == []
+
+
+def test_x02_2_a_closed_store_refuses_to_save(store):
+    task = _task(store)
+    _run(store.async_persist())
+    saved = store._store.saves
+    store.close()
+    with raises_exactly(
+        store_mod.StoreClosedError,
+        "Home Keeper store is closed: a write started before an unload",
+    ):
+        _run(store.complete_task(task["id"]))
+    assert store._store.saves == saved
+
+
+def test_x02_2_the_unload_closes_the_store():
+    import ast
+
+    source = (_COMPONENT_DIR / "__init__.py").read_text(encoding="utf-8")
+    unload = next(
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_unload_entry"
+    )
+    assert "coordinator.store.close()" in ast.unparse(unload)

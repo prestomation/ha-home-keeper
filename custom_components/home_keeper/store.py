@@ -250,11 +250,22 @@ def _changed_fields(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     return sorted(k for k in keys if before.get(k) != after.get(k))
 
 
+class StoreClosedError(RuntimeError):
+    """A write reached a store that an unload closed (X02-2).
+
+    A reload builds a new store that loads the file again. A pass that started
+    before the unload still holds the old store, and its save would write the old
+    snapshot over the new one. The closed store refuses the save instead.
+    """
+
+
 class HomeKeeperStore:
     """Wrapper around HA's Store helper holding the task dictionary."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self._hass = hass
+        # Set by close() when the config entry unloads. See StoreClosedError.
+        self._closed = False
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self._tasks: dict[str, dict[str, Any]] = {}
         self._assets: dict[str, dict[str, Any]] = {}
@@ -371,7 +382,15 @@ class HomeKeeperStore:
         if changed:
             await self._save()
 
+    def close(self) -> None:
+        """Refuse every later save. The config entry unload calls this (X02-2)."""
+        self._closed = True
+
     async def _save(self) -> None:
+        if self._closed:
+            raise StoreClosedError(
+                "Home Keeper store is closed: a write started before an unload"
+            )
         await self._store.async_save(
             {
                 "tasks": self._tasks,
