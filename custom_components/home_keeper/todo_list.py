@@ -59,6 +59,11 @@ The rules that shape a plan:
 * **Two-way is per profile.** With ``two_way`` off the inbound direction is inert:
   ticks and vanishes never complete tasks; a ticked item freezes its bookkeeping
   entry so the sync does not argue with the user by re-adding the task.
+* **A due date moved on the list moves the task (#398).** With two-way sync on, an
+  item with a uid whose date reads as neither the date we last wrote nor the date we
+  write now was rescheduled by someone on the list. The task is snoozed to that date
+  rather than having its old date written back over the user's. A cleared date, a
+  date that will not parse, and any edit on a one-way sync are overwritten as before.
 
 Bookkeeping (persisted by the store, silently) is a flat map
 ``sync_key(profile_id, task_id) -> entry`` with entries shaped
@@ -86,7 +91,7 @@ without due dates would be told to update the same item forever.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from . import profiles
@@ -116,6 +121,7 @@ __all__ = [
     "AddOp",
     "CompleteOp",
     "RemoveOp",
+    "RescheduleOp",
     "TodoListPlan",
     "UpdateOp",
     "completed_since",
@@ -123,6 +129,7 @@ __all__ = [
     "lists_to_read",
     "needs_pass",
     "plan_sync",
+    "reschedule_until",
     "sync_key",
 ]
 
@@ -192,6 +199,15 @@ class CompleteOp:
 
 
 @dataclass(frozen=True)
+class RescheduleOp:
+    """Move a task's ``next_due`` to *due* because its item's date was changed."""
+
+    key: str
+    task_id: str
+    due: str
+
+
+@dataclass(frozen=True)
 class TodoListPlan:
     """Everything one sync pass wants done.
 
@@ -206,6 +222,7 @@ class TodoListPlan:
     update: list[UpdateOp] = field(default_factory=list)
     remove: list[RemoveOp] = field(default_factory=list)
     complete: list[CompleteOp] = field(default_factory=list)
+    reschedule: list[RescheduleOp] = field(default_factory=list)
     tracked: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
@@ -233,6 +250,26 @@ def completed_since(snapshot: str | None, last_completed: str | None) -> bool:
         return current > datetime.fromisoformat(snapshot)
     except (TypeError, ValueError):
         return False
+
+
+def _as_date(value: str) -> str | None:
+    """*value* as an ISO date when it is one, else ``None``."""
+    try:
+        return date.fromisoformat(value).isoformat()
+    except ValueError:
+        return None
+
+
+def reschedule_until(next_due: str, day: str, *, now: datetime) -> datetime:
+    """The instant a task moved to *day* on a list is next due.
+
+    A list holds a date only, so the task keeps the local time of day it already
+    had. The date is read in *now*'s zone, the zone :func:`desired_by_sync` wrote it
+    in. With a named zone the new date gets its own offset when a DST change falls
+    between the two dates.
+    """
+    current = datetime.fromisoformat(next_due).astimezone(now.tzinfo)
+    return datetime.combine(date.fromisoformat(day), current.time(), tzinfo=now.tzinfo)
 
 
 def desired_by_sync(
@@ -370,6 +407,8 @@ def plan_sync(
     settled: set[str] = set()
     # Tasks this pass already completes, so a second profile's tick adds nothing.
     completing: set[str] = set()
+    # Tasks this pass already reschedules: one date per task, the first one read.
+    rescheduling: set[str] = set()
 
     def complete(key: str, task_id: str) -> None:
         settled.add(key)
@@ -526,10 +565,27 @@ def plan_sync(
         )
         rename = name if not user_named and live != name else None
         due = None
-        if CAP_DUE_DATE in caps and str(item.get("due") or "")[:10] != str(want["due"]):
+        moved = None
+        live_due = str(item.get("due") or "")[:10]
+        if CAP_DUE_DATE in caps and live_due != str(want["due"]):
             # A list that cannot hold a due date is never told one: comparing a
             # field it drops would rewrite the same item on every pass forever.
-            due = str(want["due"])
+            # A date that reads as neither what we last wrote nor what we write now
+            # was moved by someone on the list. On a two-way sync their date wins
+            # and the task follows it, the same as a tick (#398).
+            if (
+                profile["sync"]["two_way"]
+                and item.get("uid")
+                and entry.get("due")
+                and live_due != str(entry["due"])
+                and task_id not in rescheduling
+            ):
+                moved = _as_date(live_due)
+            if moved is None:
+                due = str(want["due"])
+            else:
+                rescheduling.add(task_id)
+                plan.reschedule.append(RescheduleOp(key, task_id, moved))
         notes = str(want["notes"])
         description = None
         if CAP_DESCRIPTION in caps and str(item.get("description") or "") != notes:
@@ -547,6 +603,11 @@ def plan_sync(
                 )
             )
         bound = _entry(entity_id, item.get("uid") or entry.get("uid"), want)
+        if moved is not None:
+            # Once the task moves, the date we want is this one. Until then the
+            # date on the list is the last one we agree on, so a reschedule that
+            # fails is written back over on the next pass rather than tried again.
+            bound["due"] = moved
         if user_named:
             bound["summary"] = live
             bound["user_named"] = True
@@ -592,6 +653,9 @@ def plan_sync(
             # ``update_item``/``remove_item``. The stamp starts the hold that keeps
             # a list too slow to show the new item from earning a second one.
             plan.tracked[key] = _entry(target, None, want, added_at=now.isoformat())
+    # A completion moves the date itself, so a move read in the same pass adds
+    # nothing to it.
+    plan.reschedule[:] = [op for op in plan.reschedule if op.task_id not in completing]
     return plan
 
 

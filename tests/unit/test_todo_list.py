@@ -12,9 +12,11 @@ live with the rest of the profile, in ``test_profiles.py``.
 """
 
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import hk_profiles as profiles
 import hk_todo_list as tm
+import pytest
 
 LIST = "todo.family"
 OTHER = "todo.chores"
@@ -1614,3 +1616,146 @@ def test_a_title_that_already_reads_as_the_new_name_is_not_a_user_rename():
     )
     assert plan.update == []
     assert "user_named" not in plan.tracked[KEY]
+
+
+# ── a date the user moved on the list (#398) ──────────────────────────────────
+
+MOVED = "2026-06-20"
+
+
+def test_398_a_date_moved_on_the_list_moves_the_task():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due=MOVED)],
+    )
+    # Their date wins: the task follows it, and the item is not written back.
+    assert plan.reschedule == [tm.RescheduleOp(KEY, T1, MOVED)]
+    assert plan.update == []
+    assert plan.tracked == {KEY: _entry(due=MOVED)}
+
+
+def test_398_a_moved_datetime_is_read_as_its_date():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due=f"{MOVED}T00:00:00+00:00")],
+    )
+    assert plan.reschedule == [tm.RescheduleOp(KEY, T1, MOVED)]
+
+
+def test_398_a_moved_date_still_lets_the_title_and_notes_sync():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want(notes="Under it")]),
+        items=[_item(due=MOVED)],
+    )
+    assert plan.update == [tm.UpdateOp(KEY, LIST, "i1", description="Under it")]
+    assert plan.reschedule == [tm.RescheduleOp(KEY, T1, MOVED)]
+
+
+def test_398_a_one_way_sync_writes_its_own_date_back():
+    plan = _plan(
+        synced=[_synced_profile(two_way=False)],
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due=MOVED)],
+    )
+    assert plan.reschedule == []
+    assert plan.update == [tm.UpdateOp(KEY, LIST, "i1", due=DUE)]
+    assert plan.tracked == _tracked()
+
+
+@pytest.mark.parametrize(
+    ("entry", "item"),
+    [
+        # No uid: the summary is the only handle, so the planner does not guess.
+        (_entry(uid=None), _item(uid=None, due=MOVED)),
+        # An entry that never recorded a date has nothing to compare with.
+        (_entry(due=""), _item(due=MOVED)),
+        # A task must have a date, so a cleared one is put back.
+        (_entry(), _item(due=None)),
+        # A date that does not parse is not a date to move a task to.
+        (_entry(), _item(due="next week")),
+    ],
+    ids=["no-uid", "no-written-date", "cleared", "unparsable"],
+)
+def test_398_only_a_real_date_on_a_known_item_moves_the_task(entry, item):
+    plan = _plan(tracked=_tracked(entry), desired=_desired([_want()]), items=[item])
+    assert plan.reschedule == []
+    assert [op.due for op in plan.update] == [DUE]
+    assert plan.tracked[KEY]["due"] == DUE
+
+
+def test_398_our_own_new_date_on_the_list_is_not_a_move():
+    # Home Keeper moved the task, and the list already shows the new date.
+    plan = _plan(
+        tracked=_tracked(_entry(due="2026-06-10")),
+        desired=_desired([_want()]),
+        items=[_item()],
+    )
+    assert plan.reschedule == [] and plan.update == []
+    assert plan.tracked == _tracked()
+
+
+def test_398_a_list_without_due_dates_never_moves_a_task():
+    plan = _plan(
+        tracked=_tracked(),
+        desired=_desired([_want()]),
+        items=[_item(due=MOVED)],
+        caps={LIST: frozenset()},
+    )
+    assert plan.reschedule == [] and plan.update == []
+
+
+def test_398_a_task_moved_on_two_lists_moves_once_and_the_other_follows():
+    other = tm.sync_key(M2, T1)
+    plan = _plan(
+        synced=[_synced_profile(), _synced_profile(M2, entity_id=OTHER)],
+        tracked={KEY: _entry(), other: _entry(entity_id=OTHER, uid="i2")},
+        desired={**_desired([_want()]), **_desired([_want()], profile_id=M2)},
+        lists={
+            LIST: [_item(due=MOVED)],
+            OTHER: [_item(uid="i2", due="2026-06-25")],
+        },
+    )
+    # The first one read wins. The second gets the task's date for now, and the
+    # moved date on the next pass, once the task has moved.
+    assert plan.reschedule == [tm.RescheduleOp(KEY, T1, MOVED)]
+    assert plan.update == [tm.UpdateOp(other, OTHER, "i2", due=DUE)]
+    assert plan.tracked[other]["due"] == DUE
+
+
+def test_398_a_task_completed_in_the_same_pass_is_not_moved_too():
+    other = tm.sync_key(M2, T1)
+    plan = _plan(
+        synced=[_synced_profile(), _synced_profile(M2, entity_id=OTHER)],
+        tracked={KEY: _entry(), other: _entry(entity_id=OTHER, uid="i2")},
+        desired={**_desired([_want()]), **_desired([_want()], profile_id=M2)},
+        lists={
+            LIST: [_item(due=MOVED)],
+            OTHER: [_item(uid="i2", status=tm.STATUS_COMPLETED)],
+        },
+    )
+    assert plan.complete == [tm.CompleteOp(other, T1)]
+    assert plan.reschedule == []
+
+
+def test_398_a_moved_task_needs_no_pass_once_it_has_moved():
+    plan = _plan(
+        tracked=_tracked(), desired=_desired([_want()]), items=[_item(due=MOVED)]
+    )
+    moved = _desired([_want(due=MOVED)])
+    assert _needs(tracked=plan.tracked, desired=moved) is False
+
+
+def test_398_reschedule_until_keeps_the_tasks_time_of_day():
+    until = tm.reschedule_until("2026-06-14T13:30:00+00:00", MOVED, now=NOW)
+    assert until.isoformat() == "2026-06-20T09:30:00-04:00"
+
+
+def test_398_reschedule_until_gives_the_new_date_its_own_offset():
+    zone = ZoneInfo("America/New_York")
+    now = datetime(2026, 10, 30, 12, 0, tzinfo=zone)
+    until = tm.reschedule_until("2026-10-30T09:00:00-04:00", "2026-11-03", now=now)
+    assert until.isoformat() == "2026-11-03T09:00:00-05:00"
