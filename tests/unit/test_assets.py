@@ -497,6 +497,36 @@ def test_update_document_file_renames_but_keeps_blob_fields():
     assert "url" not in updated
 
 
+def test_f08_5_link_document_needs_a_url():
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    for url in ("", None):
+        with raises_exactly(a.AssetValidationError, "a link document needs a url"):
+            a.append_document(asset, {"kind": "link", "name": "M", "url": url}, created="")
+    assert asset["documents"] == []
+    entry = a.append_document(
+        asset, {"kind": "link", "name": "M", "url": "https://ex.com/m"}, created=""
+    )
+    with raises_exactly(a.AssetValidationError, "a link document needs a url"):
+        a.update_document(asset, entry["id"], {"name": "M", "url": ""})
+    # The failed edit leaves the stored link as it was.
+    assert asset["documents"][0]["url"] == "https://ex.com/m"
+    # A rename without a url, and a file, still pass.
+    assert a.update_document(asset, entry["id"], {"name": "N"})["url"] == "https://ex.com/m"
+    doc = a.append_document(
+        asset,
+        {"kind": "file", "filename": "m.pdf", "content_type": "application/pdf"},
+        created="",
+    )
+    assert doc["kind"] == "file"
+    assert a.update_document(asset, doc["id"], {"name": "Manual"})["name"] == "Manual"
+    # The list normalizer keeps a link stored empty before this check, so an
+    # unrelated save of that appliance still works.
+    kept = a.build_asset(
+        {"name": "Old", "documents": [{"kind": "link", "name": "x", "url": ""}]}, now=NOW
+    )
+    assert kept["documents"][0]["url"] == ""
+
+
 def test_update_document_rejects_bad_url_and_missing_id():
     asset = a.build_asset({"name": "Furnace"}, now=NOW)
     entry = a.append_document(

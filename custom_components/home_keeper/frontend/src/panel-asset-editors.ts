@@ -468,13 +468,19 @@ async function addLinkDocument(p: PanelHost, name: string, url: string): Promise
   });
 }
 
-async function updateDocument(
+export async function updateDocument(
   p: PanelHost,
   doc: AssetDocument,
   changes: { name: string; url?: string },
 ): Promise<void> {
   if (!doc.id) return;
   const docId = doc.id;
+  // A link with no URL opens nothing, and every read surface hides it. The add path
+  // refuses one, so the edit refuses one too (F08-5).
+  if (doc.kind === 'link' && changes.url !== undefined && !changes.url.trim()) {
+    failInline(p, docErrorKey(doc), t('doc.urlRequired'));
+    return;
+  }
   await mutateDocuments(p, {
     key: docErrorKey(doc),
     local: () => {
@@ -518,7 +524,9 @@ async function uploadDocument(p: PanelHost, file: File): Promise<void> {
   const asset = await runUpload(p, UPLOAD_KEY_DOCUMENT, file, (opts) =>
     api.uploadAssetDocument(hass, assetId, documentId, file, undefined, opts),
   );
-  if (asset) setEditDocuments(p, asset);
+  // Only into the draft the upload started in. Another draft (a new appliance) would
+  // take this appliance's documents on Create (X12-8).
+  if (asset && p._assetEdit.asset?.id === assetId) setEditDocuments(p, asset);
 }
 
 // ── metadata ────────────────────────────────────────────────────────────────
@@ -838,7 +846,7 @@ function partBox(
   dep.className = 'hk-part-dep';
   if (!depSchema.length) dep.style.display = 'none';
   bodyEl.appendChild(dep);
-  renderPartFile(p, bodyEl, part, i);
+  renderPartFile(p, bodyEl, part);
   // Under the last field, above the Remove row: the last thing read before the part
   // is saved, which is the same place the task form puts its own rule box.
   bodyEl.appendChild(preview);
@@ -894,7 +902,7 @@ function partBox(
  *  Remove) when one is attached; otherwise an "Attach file" upload button — only
  *  once both the appliance and this part row are saved (a part gets its id from
  *  the backend, so a brand-new unsaved part has none yet to upload against). */
-function renderPartFile(p: PanelHost, box: HTMLElement, part: Part, i: number): void {
+function renderPartFile(p: PanelHost, box: HTMLElement, part: Part): void {
   const assetId = p._assetEdit.asset?.id;
   if (part.file_name) {
     box.appendChild(
@@ -912,7 +920,7 @@ function renderPartFile(p: PanelHost, box: HTMLElement, part: Part, i: number): 
           // The stored file goes at once and Cancel does not restore it (F08-3).
           onClick: () =>
             openConfirmDialog(p, t('confirm.removeNamed', { name: part.file_name ?? '' }), () => {
-              void removePartFile(p, part, i);
+              void removePartFile(p, part);
             }),
         },
       }),
@@ -925,7 +933,7 @@ function renderPartFile(p: PanelHost, box: HTMLElement, part: Part, i: number): 
   const upload = document.createElement('ha-button');
   setBtnWeight(upload, 'secondary');
   upload.textContent = uploadButtonLabel(p, key, t('btn.attachFile'));
-  const picker = filePicker(p, upload, (file) => void uploadPartFile(p, part, i, file));
+  const picker = filePicker(p, upload, (file) => void uploadPartFile(p, part, file));
   const row = document.createElement('div');
   row.className = 'hk-meta-seeds';
   row.append(upload, picker);
@@ -948,7 +956,7 @@ function openPartFileFallback(p: PanelHost, part: Part): void {
   if (p._hass && assetId) void openPartFile(p._hass, assetId, part);
 }
 
-async function uploadPartFile(p: PanelHost, part: Part, i: number, file: File): Promise<void> {
+async function uploadPartFile(p: PanelHost, part: Part, file: File): Promise<void> {
   const assetId = p._assetEdit.asset?.id;
   if (!p._hass || !assetId || !part.id) return;
   const hass = p._hass;
@@ -957,28 +965,48 @@ async function uploadPartFile(p: PanelHost, part: Part, i: number, file: File): 
     api.uploadPartFile(hass, assetId, partId, file, undefined, opts),
   );
   if (!updated) return;
-  const list = [...(p._assetEdit.asset?.parts || [])];
-  list[i] = {
-    ...list[i],
+  graftPartFile(p, assetId, partId, {
     file_name: updated.file_name,
     file_content_type: updated.file_content_type,
     file_size: updated.file_size,
-  };
-  p._assetEdit.asset!.parts = list;
+  });
+}
+
+/**
+ * Write a part's file fields into the open draft, by part id.
+ *
+ * Not by the row index from render time: a part removed above it while the upload
+ * ran moves every row, and the index then names a different part or none (F08-4).
+ * A draft for another appliance, or a part that is gone, takes no change (X12-8).
+ */
+export function graftPartFile(
+  p: PanelHost,
+  assetId: string,
+  partId: string,
+  fields: Pick<Part, 'file_name' | 'file_content_type' | 'file_size'>,
+): void {
+  const asset = p._assetEdit.asset;
+  if (asset?.id !== assetId) return;
+  const list = [...(asset.parts || [])];
+  const idx = list.findIndex((x) => x.id === partId);
+  if (idx < 0) return;
+  list[idx] = { ...list[idx], ...fields };
+  asset.parts = list;
   p._render();
 }
 
-async function removePartFile(p: PanelHost, part: Part, i: number): Promise<void> {
+async function removePartFile(p: PanelHost, part: Part): Promise<void> {
   const assetId = p._assetEdit.asset?.id;
   if (!p._hass || !assetId || !part.id) return;
   const key = uploadKeyPart(part.id);
   if (p._assetEdit.uploadError?.key === key) p._assetEdit.uploadError = undefined;
   try {
     await api.removePartFile(p._hass, assetId, part.id);
-    const list = [...(p._assetEdit.asset?.parts || [])];
-    list[i] = { ...list[i], file_name: null, file_content_type: null, file_size: null };
-    p._assetEdit.asset!.parts = list;
-    p._render();
+    graftPartFile(p, assetId, part.id, {
+      file_name: null,
+      file_content_type: null,
+      file_size: null,
+    });
   } catch (err) {
     // Next to the part's file, not in the banner at the foot of the drawer (F08-1).
     failInline(p, key, String((err as { message?: string })?.message || err));

@@ -372,6 +372,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (sectionOnly && this._patchSettingsSection()) return;
     // Leaving a list/detail closes any open form (forms are ephemeral overlays)...
     this._edit = { open: false, task: null };
+    // An upload belongs to the draft it started in. Closing the draft cancels it, so
+    // its result cannot land in a different draft (X12-8).
+    this._abortUpload();
     this._assetEdit = { open: false, asset: null };
     this._noteEdit = null;
     // ...unless this navigation was initiated to open a form (edit from a detail
@@ -1374,6 +1377,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // ── asset form lifecycle ────────────────────────────────────────────────────
   _openCreateAsset(): void {
     this._rememberDrawerOpener();
+    this._abortUpload();
     this._assetEdit = { open: true, asset: { kind: 'virtual', parts: [] } };
     this._render();
   }
@@ -1409,6 +1413,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         }
       : { open: true, asset: seeded };
     if (this._view === 'appliances' && this._editsThisPage('asset', asset.id)) {
+      this._abortUpload();
       this._assetEdit = state;
       this._render();
     } else {
@@ -1417,6 +1422,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     }
   }
   _closeAssetForm(): void {
+    this._abortUpload();
     this._assetEdit = { open: false, asset: null };
     this._render();
   }

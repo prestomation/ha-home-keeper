@@ -149,6 +149,7 @@
   "doc.uploadProgress": "{name} · {pct}% · {done} z {total}",
   "doc.uploadTooLargeLocal": "„{name}” ma {size} — więcej niż limit {limit}. Wybierz mniejszy plik.",
   "doc.uploadTooLargeProxy": "Przesyłany plik jest za duży — odwrotne proxy przed Home Assistant ogranicza rozmiar żądania.",
+  "doc.urlRequired": "Wpisz adres URL linku.",
   "done.autoClears": "Znika automatycznie",
   "done.blocked": "Tego nie można ukończyć w Home Keeper — czyści to integracja, która jest jego właścicielem.",
   "done.needsDetails": "Otwórz to zadanie w Home Keeper, aby dodać wymagane szczegóły.",

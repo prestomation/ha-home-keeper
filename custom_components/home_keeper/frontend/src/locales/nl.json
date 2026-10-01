@@ -137,6 +137,7 @@
   "doc.uploadProgress": "{name} · {pct}% · {done} van {total}",
   "doc.uploadTooLargeLocal": "\"{name}\" is {size} — groter dan de limiet van {limit}. Kies een kleiner bestand.",
   "doc.uploadTooLargeProxy": "Upload te groot — een reverse proxy vóór Home Assistant beperkt de grootte van het verzoek.",
+  "doc.urlRequired": "Voer de URL van de link in.",
   "done.autoClears": "Verdwijnt automatisch",
   "done.blocked": "Dit kan niet in Home Keeper worden voltooid — de eigenaar-integratie wist het.",
   "done.needsDetails": "Open deze taak in Home Keeper om de vereiste details toe te voegen.",

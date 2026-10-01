@@ -149,6 +149,7 @@
   "doc.uploadProgress": "{name} · {pct}% · {done} z {total}",
   "doc.uploadTooLargeLocal": "„{name}“ má {size} — více než limit {limit}. Vyberte menší soubor.",
   "doc.uploadTooLargeProxy": "Nahrávaný soubor je příliš velký — reverzní proxy před Home Assistantem omezuje velikost požadavku.",
+  "doc.urlRequired": "Zadejte URL odkazu.",
   "done.autoClears": "Zmizí automaticky",
   "done.blocked": "Toto nelze v Home Keeper dokončit – vymaže to integrace, která jej vlastní.",
   "done.needsDetails": "Otevřete tento úkol v Home Keeper a doplňte požadované detaily.",

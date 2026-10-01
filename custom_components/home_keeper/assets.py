@@ -352,6 +352,18 @@ def _merge_documents(existing: list[dict], incoming: list[dict]) -> list[dict]:
     return [*files, *links]
 
 
+def _require_link_url(entry: dict) -> None:
+    """Refuse a link document with no URL.
+
+    A link with an empty URL opens nothing, and the panel and the card hide it. Only
+    the paths that write one document check this (F08-5). The list normalizer does
+    not: it runs on every appliance save, so a link stored empty before this check
+    would make each later save of that appliance fail.
+    """
+    if entry["kind"] == "link" and not entry["url"]:
+        raise AssetValidationError("a link document needs a url")
+
+
 def append_document(asset: dict, raw: Any, *, created: str) -> dict:
     """Validate *raw* as a new document and append it to *asset* (in place).
 
@@ -367,6 +379,7 @@ def append_document(asset: dict, raw: Any, *, created: str) -> dict:
             f"an appliance can have at most {_MAX_DOCUMENTS} documents"
         )
     entry = _normalize_document_entry({**raw, "created": created})
+    _require_link_url(entry)
     if entry["id"] in {d.get("id") for d in documents}:
         entry["id"] = str(uuid.uuid4())
     documents.append(entry)
@@ -409,6 +422,7 @@ def update_document(asset: dict, document_id: str, changes: Any) -> dict | None:
         if document.get("kind") == "link" and "url" in changes:
             merged["url"] = changes["url"]
         updated = _normalize_document_entry(merged)
+        _require_link_url(updated)
         documents[index] = updated
         asset["documents"] = documents
         return updated

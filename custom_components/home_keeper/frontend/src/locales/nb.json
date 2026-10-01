@@ -137,6 +137,7 @@
   "doc.uploadProgress": "{name} · {pct}% · {done} av {total}",
   "doc.uploadTooLargeLocal": "«{name}» er {size} — større enn grensen på {limit}. Velg en mindre fil.",
   "doc.uploadTooLargeProxy": "Opplastingen er for stor — en omvendt proxy foran Home Assistant begrenser størrelsen på forespørselen.",
+  "doc.urlRequired": "Skriv inn URL-en til lenken.",
   "done.autoClears": "Forsvinner automatisk",
   "done.blocked": "Dette kan ikke fullføres i Home Keeper – den eiende integrasjonen tømmer det.",
   "done.needsDetails": "Åpne denne oppgaven i Home Keeper for å legge til de påkrevde detaljene.",

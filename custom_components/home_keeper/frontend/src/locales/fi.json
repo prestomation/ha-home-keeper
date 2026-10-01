@@ -137,6 +137,7 @@
   "doc.uploadProgress": "{name} · {pct}% · {done} / {total}",
   "doc.uploadTooLargeLocal": "”{name}” on {size} — suurempi kuin {limit} raja. Valitse pienempi tiedosto.",
   "doc.uploadTooLargeProxy": "Lähetys on liian suuri — Home Assistantin edessä oleva käänteinen välityspalvelin rajoittaa pyynnön kokoa.",
+  "doc.urlRequired": "Anna linkin URL-osoite.",
   "done.autoClears": "Poistuu automaattisesti",
   "done.blocked": "Tätä ei voi merkitä valmiiksi Home Keeperissä — omistava integraatio tyhjentää sen.",
   "done.needsDetails": "Avaa tämä tehtävä Home Keeperissä lisätäksesi vaaditut tiedot.",

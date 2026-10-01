@@ -101,7 +101,10 @@ export async function runUpload<T>(
     return undefined;
   }
 
-  p._assetEdit.upload = {
+  // This run's own state, timer and controller. The finally block below clears only
+  // these: when the draft closed and a second upload started, the first run must not
+  // clear the state of the second (X12-8).
+  const state = {
     key,
     filename: file.name,
     loaded: 0,
@@ -110,21 +113,24 @@ export async function runUpload<T>(
     sent: false,
     visible: false,
   };
-  p._uploadAbort = new AbortController();
+  p._assetEdit.upload = state;
+  const abort = new AbortController();
+  p._uploadAbort = abort;
   // Small files finish before this fires, so they never flash a progress bar — the
   // disabled "Uploading…" button is the only affordance they need.
-  p._uploadShowTimer = setTimeout(() => {
-    if (p._assetEdit.upload) {
-      p._assetEdit.upload.visible = true;
+  const showTimer = setTimeout(() => {
+    if (p._assetEdit.upload === state) {
+      state.visible = true;
       p._render();
     }
   }, UPLOAD_BAR_DELAY_MS);
+  p._uploadShowTimer = showTimer;
   p._render();
 
   try {
     const result = await run({
       onProgress: (progress) => onUploadProgress(p, key, progress),
-      signal: p._uploadAbort.signal,
+      signal: abort.signal,
     });
     toast(p, t('doc.uploadComplete', { name: file.name }));
     return result;
@@ -137,10 +143,10 @@ export async function runUpload<T>(
     }
     return undefined;
   } finally {
-    if (p._uploadShowTimer) clearTimeout(p._uploadShowTimer);
-    p._uploadShowTimer = undefined;
-    p._uploadAbort = undefined;
-    p._assetEdit.upload = undefined;
+    clearTimeout(showTimer);
+    if (p._uploadShowTimer === showTimer) p._uploadShowTimer = undefined;
+    if (p._uploadAbort === abort) p._uploadAbort = undefined;
+    if (p._assetEdit.upload === state) p._assetEdit.upload = undefined;
     p._render();
   }
 }
