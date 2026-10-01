@@ -362,6 +362,62 @@ ship rather than adding a parallel system.
 
 ---
 
+## Open items from the 2026-09-30 deep review
+
+The review of 0.28.0b2 is on the branch `ccr-ca7e8883-msamwh`
+(`docs/reviews/2026-09-30-deep-review/`). PRs #400 to #411 fixed every critical,
+high and medium finding, and #418 fixed the low findings. These items are still open.
+The finding text, with the failure scenario and the suggested fix, is in
+`RAW_FINDINGS.md` on that branch.
+
+### Not fixed
+
+- **X01-4: spares number entity is open to every user.** A non-admin can change a
+  part's spare count from the dashboard. Decide: gate it (the dashboard control then
+  stops working for non-admins), or document it in `docs/SECURITY.md` as open by
+  design.
+- **B14-8: a meter whose unit changes is read in the new unit.** A sensor task that
+  counts usage keeps its target and baseline in the unit it had when it was bound. The
+  fix needs a new stored field on the sensor binding (the unit at bind time), set on
+  every bind path. That field is a one-way door.
+- **X08-6: the panel loads every task in full on each refresh.** The fix needs a
+  summary mode on `get_tasks` and per-task updates in the panel.
+- **B04-9: import planning runs on the event loop.** Parsing moved to the executor
+  (B03-3). Planning still reads the live store on the loop. Moving it needs a store
+  snapshot.
+
+### Fixed in part
+
+- **X02-1: upload during a reload.** The upload checks that its coordinator is still
+  the live one before it moves the file, and an unloaded store refuses saves (X02-2).
+  A short window remains between the move and the save.
+- **B06-6: Unicode file names.** A document keeps its Unicode name. A part file has
+  no display-name field, so it still shows the ASCII name. The fix needs a new stored
+  field.
+- **B19-6: disabled glue integrations.** An ignored config entry no longer counts as
+  installed. A disabled entry still counts, so a disabled glue shows Connected.
+- **X08-2: one save per bulk delete.** The one-off purge saves once
+  (`store.delete_tasks`). Other bulk paths still save once per task. A delayed save
+  is not used, because it would bring back the overwrite on reload that X02-2 fixed.
+- **F10-2: snooze to an earlier date.** The snooze dialog refuses a date before the
+  due date. The `snooze_task` service `until` field still accepts one, because the
+  two-way to-do sync (#414) moves tasks earlier through it.
+- **B12-4: declarative companion passes.** The update event now lists the changed
+  fields. Each pass still saves once per change, and registry events are not filtered.
+- **B13-2: per-instance preset task names.** QNAP volumes now get one task name for
+  each volume. MOS `pool_usage` and UNAS `storage_usage` were not changed, because
+  the upstream entity keys were not checked.
+- **B02-5: owner path for a locked task field.** `docs/INTEGRATING.md` now says what
+  the code does. An owner still cannot change a locked field of a task. A service like
+  `update_managed_asset` for tasks would fix it.
+- **B09-5: rename of a part-owned task.** `update_task` refuses the rename (part b).
+  Part a, the locked-field contract, was left as it is.
+
+### Not checked
+
+- The 21 PLAUSIBLE findings in `RAW_FINDINGS.md` were not worked on. A verifier
+  could not confirm or refute them.
+
 ## Integration presets: gaps to close
 
 Declarative companions select entities by the key the integration gives them
