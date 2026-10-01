@@ -543,6 +543,10 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   the pins with `--pin`, records each reviewed candidate in
   `ci/preset_candidates.json`, and opens one draft PR. A Claude Code routine runs it
   once a week. Never edit a `verified` block by hand.
+- **The `open-work` skill reports what is actionable.** It reads the open issues, the
+  open PRs, the CHANGELOG and the to-do files, and sorts each item by who must act
+  next: the maintainer or an agent, the next stable release, a tester of a preview
+  build, or the reporter. It only reports. See `.claude/skills/open-work/SKILL.md`.
 - **An options flow merges; it never replaces.** Home Assistant stores what an options
   flow returns from `async_create_entry` as the *entire* `entry.options`, and the
   Configure dialog renders only `options.FLOW_OPTIONS` — so return
