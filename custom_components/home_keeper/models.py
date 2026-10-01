@@ -1206,10 +1206,10 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
                 merged.pop(key, None)
 
     # Preserve a usage meter's accumulated baseline across edits. The panel's edit
-    # payload rebuilds the ``sensor`` binding from form fields and never carries the
-    # watcher-stamped ``baseline``, so without this a plain rename or target tweak
-    # would drop it and the watcher would re-anchor to the current reading — silently
-    # resetting "12,000 of 15,000" to zero. Carry the old baseline forward only when
+    # payload rebuilds the ``sensor`` binding from form fields and sends ``baseline``
+    # only when the user changed the box, so without this a plain rename or target
+    # tweak would drop it and the watcher would re-anchor to the current reading —
+    # silently resetting "12,000 of 15,000" to zero. Carry the old baseline forward only when
     # the binding still points at the same entity in usage mode and the update didn't
     # set one explicitly; changing the entity (a genuinely new meter) re-baselines.
     #

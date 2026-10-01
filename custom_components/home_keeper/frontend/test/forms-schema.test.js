@@ -2870,3 +2870,140 @@ describe('task snooze length', () => {
     expect(duplicateTaskSeed({ id: 'a', name: 'T', recurrence_type: 'floating' }).snooze_hours).toBeNull();
   });
 });
+
+describe('task form payload: low findings', () => {
+  const field = (task, name) => taskSchema(task).find((f) => f.name === name);
+
+  it('F02-1: a new one-off never sends a hidden last-completed value', () => {
+    const task = {
+      name: 'Register the warranty',
+      recurrence_type: 'one-off',
+      due: '2026-10-07 09:00:00',
+      last_completed: '2026-09-23 09:00:00',
+    };
+    expect(names(taskSchema(task))).not.toContain('last_completed');
+    expect(buildTaskPayload(task)).not.toHaveProperty('last_completed');
+    // The types that show the field still send it.
+    const floating = { ...task, recurrence_type: 'floating', interval: 1, unit: 'weeks' };
+    expect(buildTaskPayload(floating).last_completed).toMatch(/^2026-09-23T/);
+  });
+
+  const usage = {
+    id: 't1',
+    name: 'Clean the plug',
+    recurrence_type: 'sensor',
+    sensor: { entity_id: 'sensor.plug_1_energy', mode: 'usage', target: 50, baseline: 12.3 },
+  };
+  const edit = (patch) => {
+    const t = { ...usage, ...patch };
+    return { ...t, ...taskFormData(t), ...patch };
+  };
+
+  it('F02-3: an edit omits the stored baseline, so a new entity re-baselines', () => {
+    const swapped = edit({ sensor_entity_id: 'sensor.plug_2_energy' });
+    expect(swapped.sensor_baseline).toBe(12.3);
+    expect(buildTaskPayload(swapped).sensor).toEqual({
+      entity_id: 'sensor.plug_2_energy',
+      mode: 'usage',
+      target: 50,
+    });
+    // An unchanged box is omitted too, so a completion that re-stamped the baseline
+    // while the form was open is not reverted.
+    expect(buildTaskPayload(edit({}))).not.toHaveProperty('sensor.baseline');
+  });
+
+  it('F02-3: a baseline the user changed, or a new task, still sends it', () => {
+    expect(buildTaskPayload(edit({ sensor_baseline: 0 })).sensor.baseline).toBe(0);
+    expect(buildTaskPayload(edit({ sensor_baseline: 99.5 })).sensor.baseline).toBe(99.5);
+    const created = { ...usage, id: undefined, sensor_baseline: 12.3 };
+    expect(buildTaskPayload(created).sensor.baseline).toBe(12.3);
+  });
+
+  it('F02-4: a copy of a seasonal task keeps its season', () => {
+    const windows = [
+      { start: '04-01', end: '10-31' },
+      { start: '12-01', end: '12-24' },
+    ];
+    const task = {
+      id: 't2',
+      name: 'Mow lawn',
+      recurrence_type: 'floating',
+      interval: 1,
+      unit: 'weeks',
+      active_season: windows,
+    };
+    const seed = duplicateTaskSeed(task);
+    expect(seed.active_season).toEqual(windows);
+    expect(seed.active_season[0]).not.toBe(windows[0]);
+    expect(buildTaskPayload(seed).active_season).toEqual(windows);
+    // A task with no season gives a copy with no season.
+    const plain = duplicateTaskSeed({ ...task, active_season: null });
+    expect(plain.active_season).toEqual([]);
+    expect(buildTaskPayload(plain).active_season).toBeNull();
+  });
+
+  const many = (n) =>
+    Array.from({ length: n }, (_, i) => ({
+      start: `${String(i + 1).padStart(2, '0')}-01`,
+      end: `${String(i + 1).padStart(2, '0')}-10`,
+    }));
+  const vent = {
+    id: 't3',
+    name: 'Vent',
+    recurrence_type: 'floating',
+    interval: 1,
+    unit: 'days',
+    active_season: many(MAX_SEASON_WINDOWS + 2),
+  };
+
+  it('F02-5: a save that does not touch the season keeps windows past the cap', () => {
+    const state = { ...vent, ...taskFormData(vent), name: 'Vent the room' };
+    expect(state.season_count).toBe(MAX_SEASON_WINDOWS);
+    expect(buildTaskPayload(state)).not.toHaveProperty('active_season');
+  });
+
+  it('F02-5: an edit to a window, or a list at the cap, still sends the list', () => {
+    const changed = { ...vent, ...taskFormData(vent), season_1_end_day: 20 };
+    const sent = buildTaskPayload(changed).active_season;
+    expect(sent).toHaveLength(MAX_SEASON_WINDOWS);
+    expect(sent[0]).toEqual({ start: '01-01', end: '01-20' });
+    const lastChanged = { ...vent, ...taskFormData(vent), season_6_end_day: 20 };
+    expect(buildTaskPayload(lastChanged).active_season[5]).toEqual({
+      start: '06-01',
+      end: '06-20',
+    });
+    const atCap = { ...vent, active_season: many(MAX_SEASON_WINDOWS) };
+    expect(buildTaskPayload({ ...atCap, ...taskFormData(atCap) }).active_season).toEqual(
+      many(MAX_SEASON_WINDOWS),
+    );
+  });
+
+  it('F02-7: threshold value and usage target accept a decimal', () => {
+    const threshold = { recurrence_type: 'sensor', sensor_mode: 'threshold' };
+    expect(field(threshold, 'sensor_value').selector).toEqual({
+      number: { mode: 'box', step: 'any' },
+    });
+    const target = field({ recurrence_type: 'sensor', sensor_mode: 'usage' }, 'sensor_target');
+    expect(target.selector.number.step).toBe('any');
+    expect(target.selector.number.min).toBe(0);
+  });
+
+  it('F02-8: a new fixed task defaults its first occurrence, and a blank one sends now', () => {
+    const before = Date.now();
+    expect(taskFormData({ recurrence_type: 'fixed' }).anchor).not.toBe('');
+    expect(taskFormData({ id: 't', recurrence_type: 'fixed' }).anchor).toBe('');
+    const payload = buildTaskPayload({
+      name: 'Bins out',
+      recurrence_type: 'fixed',
+      interval: 1,
+      freq: 'WEEKLY',
+      anchor: '',
+    });
+    expect(Date.parse(payload.anchor)).toBeGreaterThanOrEqual(before - 1000);
+    expect(Date.parse(payload.anchor)).toBeLessThanOrEqual(Date.now() + 1000);
+    // A filled box is sent as it is.
+    expect(
+      buildTaskPayload({ recurrence_type: 'fixed', anchor: '2026-03-02 18:00:00' }).anchor,
+    ).toMatch(/^2026-03-02T/);
+  });
+});

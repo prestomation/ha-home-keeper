@@ -663,12 +663,20 @@ export function taskSchemaSections(
                   { value: '!=', label: '≠' },
                 ]),
               } as FormField,
-              { name: 'sensor_value', required: true, selector: { number: { mode: 'box' } } },
+              // Step 'any', as in the declarative dialog: a threshold such as 25.5 is
+              // valid, and step 1 flags it as invalid (F02-7).
+              {
+                name: 'sensor_value',
+                required: true,
+                selector: { number: { mode: 'box', step: 'any' } },
+              },
               { name: 'sensor_for', selector: selNumber(0) },
               { name: 'sensor_clear_on_recover', selector: selBool() } as FormField,
             ]
           : [
-              { name: 'sensor_target', required: true, selector: selNumber(0) } as FormField,
+              // Step 'any' gives a decimal target (2.5 m3) and a keypad with a
+              // decimal key on iPhone (F02-7).
+              { name: 'sensor_target', required: true, selector: selNumber(0, 'any') } as FormField,
               { name: 'sensor_unit', selector: selText() } as FormField,
               // Where the meter counts from. Left blank, Home Keeper anchors at the
               // sensor's reading when you save — the original behaviour, and still the
@@ -938,7 +946,9 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     interval: task.interval ?? 1,
     unit: task.unit ?? 'months',
     freq: task.freq ?? 'DAILY',
-    anchor: isoToHaDateTime(task.anchor) ?? '',
+    // A fixed task needs a first occurrence. A new task defaults it to now, as a new
+    // one-off defaults its due date, so Create does not fail on a blank box (F02-8).
+    anchor: isoToHaDateTime(task.anchor) ?? (task.id ? '' : isoToHaDateTime(new Date().toISOString())),
     // A new one-off defaults its due date to now; an existing one shows its stored due.
     due: isoToHaDateTime(task.due) ?? (task.id ? '' : isoToHaDateTime(new Date().toISOString())),
     last_completed: isoToHaDateTime(task.last_completed) ?? '',
@@ -1111,6 +1121,10 @@ export function duplicateTaskSeed(task: Task): Partial<Task> {
     completion_required_fields: [...(task.completion_required_fields ?? [])],
     consumable_link: consumableLinkToken(task),
     snooze_hours: taskSnoozeHours(task),
+    // The season is part of the rule. Without it, a copy of a seasonal task is due
+    // all year (F02-4). Copy each window, so the copy shares no object with the
+    // source task.
+    active_season: seasonWindows(task).map((w) => ({ ...w })),
   };
   if (sensor) seed.sensor = sensor;
   return seed as Partial<Task>;
@@ -1190,8 +1204,18 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       // by `merge_update`. Note the deliberate absence of the `|| 0` fallback used
       // for `target` above — 0 is a *valid* baseline (a brand-new hour meter) and
       // that idiom would turn a cleared box into a real anchor at zero.
+      //
+      // On edit, the box is seeded with the stored baseline. Sent back unchanged, it
+      // reads as an explicit choice, so `merge_update` cannot re-baseline when the
+      // entity changes, and it reverts a completion that re-stamped the baseline
+      // while the form was open. So send it only when the user changed it (F02-3).
       const rawBaseline = formBaseline(task);
-      if (rawBaseline != null && rawBaseline !== '' && Number.isFinite(Number(rawBaseline)))
+      if (
+        rawBaseline != null &&
+        rawBaseline !== '' &&
+        Number.isFinite(Number(rawBaseline)) &&
+        !(task.id && Number(rawBaseline) === task.sensor?.baseline)
+      )
         sensor.baseline = Number(rawBaseline);
       // The backstop applies only when its switch is on; a blank or zero interval
       // still drops it, so a half-filled form can't save a meaningless "every 0".
@@ -1262,7 +1286,9 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       payload.due = haDateTimeToIso(task.due) || new Date().toISOString();
     } else {
       payload.freq = task.freq || 'DAILY';
-      payload.anchor = haDateTimeToIso(task.anchor) ?? task.anchor;
+      // The backend requires an anchor. A blank box falls back to now, as a blank
+      // one-off due date does above (F02-8).
+      payload.anchor = haDateTimeToIso(task.anchor) ?? (task.anchor || new Date().toISOString());
     }
     payload.completion_detail = task.completion_detail || 'none';
     // Every window the form is showing, assembled from its flat fields — the whole
@@ -1271,7 +1297,7 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
     if (seasonEnabled(task) && task.recurrence_type !== 'one-off') {
       const mmdd = (month: number, day: number): string =>
         `${String(month).padStart(2, '0')}-${String(Math.min(day, daysInMonth(month))).padStart(2, '0')}`;
-      payload.active_season = Array.from({ length: seasonCount(task) }, (_, i) => {
+      const windows = Array.from({ length: seasonCount(task) }, (_, i) => {
         const w = seasonWindowData(task, i + 1);
         const sm = Number(w[`season_${i + 1}_start_month`]);
         const em = Number(w[`season_${i + 1}_end_month`]);
@@ -1280,6 +1306,14 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
           end: mmdd(em, Number(w[`season_${i + 1}_end_day`])),
         };
       });
+      // A service call or an import can store more windows than the form edits. If
+      // the form shows the first windows unchanged, omit the list: `merge_update`
+      // then keeps the stored list, and the windows after the cap stay (F02-5).
+      const stored = seasonWindows(task);
+      const keepStored =
+        stored.length > MAX_SEASON_WINDOWS &&
+        windows.every((w, i) => w.start === stored[i].start && w.end === stored[i].end);
+      if (!keepStored) payload.active_season = windows;
     } else {
       payload.active_season = null;
     }
@@ -1321,7 +1355,10 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   if (Array.isArray(requiredFields) && requiredFields.length) {
     payload.completion_required_fields = [...requiredFields];
   }
-  if (!task.id) {
+  // Only when the form shows the field: the schema hides it for a one-off. A value
+  // typed before the type changed to one-off stays in the edit state, and sent, it
+  // creates the one-off already completed (F02-1). A locked field is deleted below.
+  if (!task.id && task.recurrence_type !== 'one-off') {
     const lastCompleted = haDateTimeToIso(task.last_completed as string | undefined);
     if (lastCompleted) payload.last_completed = lastCompleted;
   }
