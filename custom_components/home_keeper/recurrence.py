@@ -755,9 +755,7 @@ def snooze_from(task: dict, now: datetime) -> datetime:
     or overdue, it counts from *now*, so the task is not due again at once.
     """
     due = _parse(task.get("next_due"))
-    if due is not None and due > now:
-        return due
-    return now
+    return now if due is None else max(due, now)
 
 
 def defer(task: dict, until: datetime, *, now: datetime) -> dict:

@@ -206,8 +206,8 @@ export function snoozeStateFor(task: Task, now: Date = new Date()): SnoozeState 
  * notification.
  */
 export function snoozeFrom(task: Task | null | undefined, now: Date = new Date()): Date {
-  const due = task?.next_due ? new Date(task.next_due) : null;
-  return due && due.getTime() > now.getTime() ? due : now;
+  const due = task?.next_due ? new Date(task.next_due).getTime() : NaN;
+  return Number.isNaN(due) ? now : new Date(Math.max(due, now.getTime()));
 }
 
 /** The typed custom date, or `null` when there is none or it will not parse. */

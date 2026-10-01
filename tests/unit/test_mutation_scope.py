@@ -4,19 +4,37 @@ A filter of ``<module>.x_<name>*`` also matched every function whose name starts
 with ``<name>``, so a change in ``recurrence._parse`` scored the mutants of the
 untouched ``_parse_mmdd`` as well. The filter must end in mutmut's own
 ``__mutmut_*`` suffix.
+
+The tests parse a small module in a temporary root, not the real source: under
+mutmut the real source is the rewritten, mutated copy.
 """
 
 from __future__ import annotations
 
-import ast
 import importlib.util
 from fnmatch import fnmatch
 from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parents[2]
-_SCRIPT = _ROOT / "ci" / "mutation_scope.py"
-_RECURRENCE = "custom_components/home_keeper/recurrence.py"
-_MOD = "custom_components.home_keeper.recurrence"
+_SCRIPT = Path(__file__).resolve().parents[2] / "ci" / "mutation_scope.py"
+_PATH = "custom_components/home_keeper/fake.py"
+_MOD = "custom_components.home_keeper.fake"
+
+_SOURCE = (
+    "def _parse_mmdd(value):\n"  # 1
+    "    return value\n"  # 2
+    "\n"  # 3
+    "\n"  # 4
+    "def _parse(value):\n"  # 5
+    "    return value\n"  # 6
+    "\n"  # 7
+    "\n"  # 8
+    "class Store:\n"  # 9
+    "    def save(self):\n"  # 10
+    "        return 1\n"  # 11
+    "\n"  # 12
+    "    def save_all(self):\n"  # 13
+    "        return 2\n"  # 14
+)
 
 
 def _load():
@@ -30,19 +48,18 @@ def _load():
 scope = _load()
 
 
-def _line_of(path: str, name: str) -> int:
-    tree = ast.parse((_ROOT / path).read_text("utf-8"))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and (
-            node.name == name
-        ):
-            return node.body[-1].lineno
-    raise AssertionError(f"{name} not in {path}")
+def _filters(tmp_path, monkeypatch, line: int) -> list[str]:
+    pkg = tmp_path / "custom_components" / "home_keeper"
+    pkg.mkdir(parents=True)
+    (pkg / "fake.py").write_text(_SOURCE)
+    monkeypatch.setattr(scope, "ROOT", tmp_path)
+    return scope.python_filters({_PATH: [(line, line)]})
 
 
-def test_x06_7_a_change_in_parse_does_not_match_parse_mmdd() -> None:
-    line = _line_of(_RECURRENCE, "_parse")
-    filters = scope.python_filters({_RECURRENCE: [(line, line)]})
+def test_x06_7_a_change_in_parse_does_not_match_parse_mmdd(
+    tmp_path, monkeypatch
+) -> None:
+    filters = _filters(tmp_path, monkeypatch, 6)
     assert filters == [f"{_MOD}.x__parse__mutmut_*"]
     assert fnmatch(f"{_MOD}.x__parse__mutmut_1", filters[0])
     assert fnmatch(f"{_MOD}.x__parse__mutmut_12", filters[0])
@@ -50,26 +67,9 @@ def test_x06_7_a_change_in_parse_does_not_match_parse_mmdd() -> None:
 
 
 def test_x06_7_a_method_filter_ends_in_the_mutmut_suffix(tmp_path, monkeypatch) -> None:
-    source = (
-        "class Store:\n"
-        "    def save(self):\n"
-        "        return 1\n"
-        "\n"
-        "    def save_all(self):\n"
-        "        return 2\n"
-    )
-    pkg = tmp_path / "custom_components" / "home_keeper"
-    pkg.mkdir(parents=True)
-    (pkg / "fake.py").write_text(source)
-    monkeypatch.setattr(scope, "ROOT", tmp_path)
-    filters = scope.python_filters({"custom_components/home_keeper/fake.py": [(3, 3)]})
+    filters = _filters(tmp_path, monkeypatch, 11)
     sep = scope.CLASS_NAME_SEPARATOR
-    expected = f"custom_components.home_keeper.fake.x{sep}Store{sep}save__mutmut_*"
+    expected = f"{_MOD}.x{sep}Store{sep}save__mutmut_*"
     assert filters == [expected]
-    assert fnmatch(
-        f"custom_components.home_keeper.fake.x{sep}Store{sep}save__mutmut_3", expected
-    )
-    assert not fnmatch(
-        f"custom_components.home_keeper.fake.x{sep}Store{sep}save_all__mutmut_3",
-        expected,
-    )
+    assert fnmatch(f"{_MOD}.x{sep}Store{sep}save__mutmut_3", expected)
+    assert not fnmatch(f"{_MOD}.x{sep}Store{sep}save_all__mutmut_3", expected)
