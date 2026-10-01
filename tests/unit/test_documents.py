@@ -273,3 +273,43 @@ def test_b06_6_content_disposition_adds_the_missing_extension():
     assert d.content_disposition("w.pdf", "Scan.PDF").endswith("''Scan.PDF")
     # A stored name with no extension adds none.
     assert d.content_disposition("w", "Scan").endswith("''Scan")
+
+
+def test_b06_9_manuals_resolves_paths_only_off_the_event_loop():
+    """``Path.resolve`` reads the file system, so no coroutine may call it.
+
+    ``_document_path`` and ``resolve_under_root`` resolve the path. In
+    ``manuals.py`` they must run only in a plain function (an executor job), never
+    directly in an ``async def`` body.
+    """
+    import ast
+
+    source = (
+        Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "home_keeper"
+        / "manuals.py"
+    ).read_text(encoding="utf-8")
+    blocking = {"_document_path", "resolve_under_root"}
+    offenders: list[str] = []
+
+    def visit(node: ast.AST, in_async: bool, scope: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.AsyncFunctionDef):
+                visit(child, True, child.name)
+            elif isinstance(child, (ast.FunctionDef, ast.Lambda)):
+                visit(child, False, getattr(child, "name", "lambda"))
+            else:
+                if isinstance(child, ast.Call):
+                    func = child.func
+                    name = (
+                        func.attr
+                        if isinstance(func, ast.Attribute)
+                        else (func.id if isinstance(func, ast.Name) else "")
+                    )
+                    if name in blocking and in_async:
+                        offenders.append(f"{scope}:{child.lineno}")
+                visit(child, in_async, scope)
+
+    visit(ast.parse(source), False, "<module>")
+    assert offenders == []

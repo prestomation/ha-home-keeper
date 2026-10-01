@@ -103,6 +103,11 @@ def _root(hass: HomeAssistant) -> Path:
 def _document_path(
     hass: HomeAssistant, asset_id: str, document_id: str, filename: str
 ) -> Path:
+    """Return the guarded path of a stored blob. Blocking: it resolves the path.
+
+    ``documents.resolve_under_root`` calls ``Path.resolve``, which reads the file
+    system, so call this only from an executor job, never on the event loop (B06-9).
+    """
     return documents.document_path(_root(hass), asset_id, document_id, filename)
 
 
@@ -172,8 +177,11 @@ async def async_save_document(
     hass: HomeAssistant, asset_id: str, document_id: str, filename: str, data: bytes
 ) -> None:
     """Persist an uploaded document's bytes to disk (in-memory callers only)."""
-    path = _document_path(hass, asset_id, document_id, filename)
-    await hass.async_add_executor_job(_write, path, data)
+
+    def _job() -> None:
+        _write(_document_path(hass, asset_id, document_id, filename), data)
+
+    await hass.async_add_executor_job(_job)
 
 
 async def async_store_document(
@@ -184,17 +192,25 @@ async def async_store_document(
     uploaded: UploadedFile,
 ) -> None:
     """Move a streamed upload into place as this document's blob."""
-    path = _document_path(hass, asset_id, document_id, filename)
-    await hass.async_add_executor_job(_move, uploaded.path, path)
+
+    def _job() -> None:
+        _move(uploaded.path, _document_path(hass, asset_id, document_id, filename))
+
+    await hass.async_add_executor_job(_job)
 
 
 async def async_rename_document(
     hass: HomeAssistant, asset_id: str, from_id: str, to_id: str, filename: str
 ) -> None:
     """Re-key a stored blob (the store regenerated a colliding document id)."""
-    src = _document_path(hass, asset_id, from_id, filename)
-    dst = _document_path(hass, asset_id, to_id, filename)
-    await hass.async_add_executor_job(_move, src, dst)
+
+    def _job() -> None:
+        _move(
+            _document_path(hass, asset_id, from_id, filename),
+            _document_path(hass, asset_id, to_id, filename),
+        )
+
+    await hass.async_add_executor_job(_job)
 
 
 async def async_discard_upload(hass: HomeAssistant, uploaded: UploadedFile) -> None:
@@ -222,14 +238,20 @@ async def async_delete_document(
     hass: HomeAssistant, asset_id: str, document_id: str, filename: str
 ) -> None:
     """Delete a single uploaded document's bytes (no-op if already gone)."""
-    path = _document_path(hass, asset_id, document_id, filename)
-    await hass.async_add_executor_job(_unlink, path)
+
+    def _job() -> None:
+        _unlink(_document_path(hass, asset_id, document_id, filename))
+
+    await hass.async_add_executor_job(_job)
 
 
 async def async_delete_asset_documents(hass: HomeAssistant, asset_id: str) -> None:
     """Remove an asset's entire on-disk document directory."""
-    path = documents.resolve_under_root(_root(hass), asset_id)
-    await hass.async_add_executor_job(_rmtree, path)
+
+    def _job() -> None:
+        _rmtree(documents.resolve_under_root(_root(hass), asset_id))
+
+    await hass.async_add_executor_job(_job)
 
 
 async def async_delete_all_documents(hass: HomeAssistant) -> None:
@@ -535,11 +557,18 @@ async def _serve_signed_file(
     """
     if filename is None:
         return web.Response(status=HTTPStatus.NOT_FOUND)
-    try:
-        path = _document_path(hass, asset_id, document_id, filename)
-    except AssetValidationError:
-        return web.Response(status=HTTPStatus.NOT_FOUND)
-    if not await hass.async_add_executor_job(path.is_file):
+
+    def _existing_path() -> Path | None:
+        # The path checks read the file system, so they run here and not on the
+        # event loop (B06-9).
+        try:
+            path = _document_path(hass, asset_id, document_id, filename)
+        except AssetValidationError:
+            return None
+        return path if path.is_file() else None
+
+    path = await hass.async_add_executor_job(_existing_path)
+    if path is None:
         return web.Response(status=HTTPStatus.NOT_FOUND)
     # Stream straight from disk (aiohttp handles range requests, content-type from
     # the file extension, etc.) rather than buffering up to MAX_DOCUMENT_BYTES.
