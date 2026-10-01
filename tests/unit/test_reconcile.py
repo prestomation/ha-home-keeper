@@ -560,6 +560,48 @@ def test_a_completed_buy_task_keeps_its_name():
     assert _only(tasks2)["name"] == "Buy Filter"
 
 
+def test_b09_6_an_open_buy_task_follows_the_appliance_device_and_area():
+    asset = _asset(
+        device_id="devOld",
+        area_id="areaOld",
+        parts=[_consumable(stock=0, reorder_at=1)],
+    )
+    tasks, _ = _buy_reconcile({"a1": asset})
+    before = _only(tasks)
+    asset["device_id"] = "devNew"
+    asset["area_id"] = "areaNew"
+    tasks2, changed = _buy_reconcile({"a1": asset}, tasks)
+    assert changed is True
+    after = _only(tasks2)
+    assert (after["device_id"], after["area_id"]) == ("devNew", "areaNew")
+    # The same reminder, with its name and source as they were.
+    assert after["id"] == before["id"]
+    assert after["name"] == "Buy Filter"
+    assert after["source"] == before["source"]
+
+
+def test_b09_6_an_open_buy_task_follows_a_device_change_alone():
+    asset = _asset(device_id="devOld", parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    asset["device_id"] = None
+    tasks2, changed = _buy_reconcile({"a1": asset}, tasks)
+    assert changed is True
+    assert _only(tasks2)["device_id"] is None
+    assert _only(tasks2)["area_id"] is None
+
+
+def test_b09_6_a_completed_buy_task_stays_on_its_device():
+    asset = _asset(device_id="devOld", parts=[_consumable(stock=0, reorder_at=1)])
+    tasks, _ = _buy_reconcile({"a1": asset})
+    task = _only(tasks)
+    task["last_completed"] = NOW.isoformat()
+    task["next_due"] = None
+    asset["device_id"] = "devNew"
+    tasks2, changed = _buy_reconcile({"a1": asset}, {task["id"]: task})
+    assert changed is False
+    assert _only(tasks2)["device_id"] == "devOld"
+
+
 def test_an_unchanged_buy_task_name_is_not_rewritten():
     # A generated name that already matches is not "drift": the pass reports no
     # change, so the store does not save for nothing.

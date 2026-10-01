@@ -932,11 +932,12 @@ def reconcile_buy_tasks(
     out, or was deleted — which also ends the episode and re-arms the next one.
 
     Pure: the input maps are not mutated, and the name is localized by the caller
-    (``store.reconcile_buy_tasks`` resolves ``hass.config.language``). The only update
-    is the name of an **open** reminder: it follows a part rename and a change of
+    (``store.reconcile_buy_tasks`` resolves ``hass.config.language``). Only an
+    **open** reminder is updated. Its name follows a part rename and a change of
     language, the same drift the wear-part reconciler corrects, but only while it is
     still a generated name (:func:`is_generated_buy_name`). A name someone typed is
-    kept, and a completed reminder is a record, so it is left as it was.
+    kept. Its device and area follow the appliance. A completed reminder is a record,
+    so it is left as it was.
     """
     result = dict(tasks)
 
@@ -970,17 +971,24 @@ def reconcile_buy_tasks(
         if key in existing_by_key:
             tid = existing_by_key[key]
             current = result[tid]
+            if recurrence.one_off_completed(current):
+                continue
+            updates: dict[str, Any] = {}
             stored = str(current.get("name") or "")
-            if (
-                stored != name
-                and not recurrence.one_off_completed(current)
-                and _name_is_ours(current, stored)
-            ):
-                source = current["source"]
-                buy = {**source[TASK_SOURCE_BUY], BUY_GENERATED_NAME: name}
-                renamed = models.merge_update(current, {"name": name}, now=now)
-                renamed["source"] = {**source, TASK_SOURCE_BUY: buy}
-                result[tid] = renamed
+            if stored != name and _name_is_ours(current, stored):
+                updates["name"] = name
+            # An open reminder follows its appliance to a new device or area, the
+            # same as a wear item task (B09-6).
+            for field in ("device_id", "area_id"):
+                if current.get(field) != asset.get(field):
+                    updates[field] = asset.get(field)
+            if updates:
+                updated = models.merge_update(current, updates, now=now)
+                if "name" in updates:
+                    source = current["source"]
+                    buy = {**source[TASK_SOURCE_BUY], BUY_GENERATED_NAME: name}
+                    updated["source"] = {**source, TASK_SOURCE_BUY: buy}
+                result[tid] = updated
                 changed = True
             continue
         task = models.build_task(
