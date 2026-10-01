@@ -223,12 +223,12 @@ class ProblemSensorSync:
         binary sensor can change what the sync does, so every other device event is
         ignored.
         """
-        if not self._enabled or event.data.get("action") != "update":
+        data: dict[str, Any] = dict(event.data)
+        if not self._enabled or data.get("action") != "update":
             return
-        changes = event.data.get("changes") or {}
-        if not ({"area_id", "labels"} & set(changes)):
+        if not ({"area_id", "labels"} & set(data.get("changes") or {})):
             return
-        if not self._device_has_problem_sensor(event.data["device_id"]):
+        if not self._device_has_problem_sensor(data["device_id"]):
             return
         self._resubscribe_state()
         self._hass.async_create_task(self._async_reconcile())

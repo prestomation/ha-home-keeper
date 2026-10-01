@@ -730,7 +730,7 @@ def _integration_presets() -> tuple[
     built: list[PresetDefinition] = []
     texts: dict[str, dict[str, dict[str, Any]]] = {}
     for entry in INTEGRATIONS:
-        groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+        groups: dict[tuple[str, str, str, str], list[dict[str, Any]]] = {}
         for duty in entry["duties"]:
             platform = duty.get("platform", "sensor")
             # A duty that pins the device class goes in its own group, so its
