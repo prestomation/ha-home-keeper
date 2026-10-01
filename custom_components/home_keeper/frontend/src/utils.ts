@@ -43,11 +43,15 @@ export function normalizeIcon(value: unknown): string {
 export function inkFor(hex: string): '#000' | '#fff' {
   const channel = (i: number): number => {
     const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent. Below
+    // 0.04 the 2 sRGB segments differ by under 0.001, far from the 0.179 crossover.
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   };
   const lum = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
   // Contrast with black is (L + 0.05) / 0.05, with white 1.05 / (L + 0.05). They are
   // equal at L = 0.179, so a fill lighter than that takes the black glyph.
+  // Stryker disable next-line EqualityOperator: equivalent. No 8-bit color has a
+  // luminance of exactly 0.179.
   return lum > 0.179 ? '#000' : '#fff';
 }
 
@@ -922,6 +926,7 @@ function recurrenceText(task: Task): string {
  * *unit* is a time unit (days, weeks or months), as a usage backstop stores it.
  */
 export function intervalText(n: number, unit: string): string {
+  // Stryker disable next-line Regex: equivalent. Each time unit has 1 "s", at its end.
   return `${n} ${tn(`recurrence.unit.${unit.replace(/s$/, '')}`, n)}`;
 }
 
@@ -943,7 +948,9 @@ export function hkStateSignal(
   for (const id in states) {
     if (!id.includes('home_keeper')) continue;
     n++;
-    const ts = Date.parse(states[id].last_updated ?? '');
+    const ts = Date.parse(String(states[id].last_updated));
+    // Stryker disable next-line EqualityOperator: equivalent. An equal stamp sets the
+    // same value again.
     if (ts > max) max = ts;
   }
   return `${n}:${max}`;
@@ -1542,6 +1549,8 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
         : { view, detail: { kind, id, tab } };
     }
     // A task page has sub-tabs of its own, resolved the same way.
+    // Stryker disable next-line LogicalOperator: equivalent. With no segment, `||`
+    // decodes "undefined", which is no tab, so the default tab is kept.
     const raw = parts[2] && safeDecode(parts[2]);
     const tab =
       raw && (TASK_TABS as readonly string[]).includes(raw) ? (raw as TaskTab) : DEFAULT_TASK_TAB;

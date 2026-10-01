@@ -2917,6 +2917,25 @@ describe('task form payload: low findings', () => {
     expect(buildTaskPayload(edit({ sensor_baseline: 99.5 })).sensor.baseline).toBe(99.5);
     const created = { ...usage, id: undefined, sensor_baseline: 12.3 };
     expect(buildTaskPayload(created).sensor.baseline).toBe(12.3);
+    // A blank or cleared box sends no baseline, on create and on edit.
+    const bare = { ...usage, id: undefined, sensor: { ...usage.sensor, baseline: undefined } };
+    expect(buildTaskPayload({ ...bare, sensor_baseline: null }).sensor).not.toHaveProperty(
+      'baseline',
+    );
+    expect(buildTaskPayload({ ...bare, sensor_baseline: '' }).sensor).not.toHaveProperty(
+      'baseline',
+    );
+    // A task changed to sensor on edit has no stored binding yet.
+    const converted = {
+      id: 't9',
+      name: 'Converted',
+      recurrence_type: 'sensor',
+      sensor_entity_id: 'sensor.plug_1_energy',
+      sensor_mode: 'usage',
+      sensor_target: 5,
+      sensor_baseline: 3,
+    };
+    expect(buildTaskPayload(converted).sensor.baseline).toBe(3);
   });
 
   it('F02-4: a copy of a seasonal task keeps its season', () => {
@@ -2980,8 +2999,10 @@ describe('task form payload: low findings', () => {
 
   it('F02-7: threshold value and usage target accept a decimal', () => {
     const threshold = { recurrence_type: 'sensor', sensor_mode: 'threshold' };
-    expect(field(threshold, 'sensor_value').selector).toEqual({
-      number: { mode: 'box', step: 'any' },
+    expect(field(threshold, 'sensor_value')).toEqual({
+      name: 'sensor_value',
+      required: true,
+      selector: { number: { mode: 'box', step: 'any' } },
     });
     const target = field({ recurrence_type: 'sensor', sensor_mode: 'usage' }, 'sensor_target');
     expect(target.selector.number.step).toBe('any');

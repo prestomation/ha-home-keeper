@@ -2247,6 +2247,12 @@ describe('notifyRowChip', () => {
     }
   });
 
+  it('X11-6: accepts only a whole #rrggbb value as the fill', () => {
+    for (const bad of ['#e53935;x', 'x#e53935', '#e53935ff']) {
+      expect(notifyRowChip('mdi:pill', bad)).toContain('background:var(--secondary-background-color)');
+    }
+  });
+
   it('X11-6: draws the glyph in the ink that reads on the fill', () => {
     expect(notifyRowChip('mdi:pill', '#ffffff')).toContain('style="background:#ffffff;color:#000"');
     expect(notifyRowChip('mdi:pill', '#FFEB3B')).toContain('color:#000');
