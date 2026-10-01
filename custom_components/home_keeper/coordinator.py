@@ -27,7 +27,7 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from . import assets, companions, models, notifier, recurrence, transitions
+from . import assets, companions, notifier, recurrence, transitions
 from .const import (
     ASSET_KIND_VIRTUAL,
     DOMAIN,
@@ -379,19 +379,15 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if buy_source(task) is None
             and recurrence.one_off_expired(task, retention, now=now)
         ]
-        reload_needed = False
-        for task in expired:
-            tid = task["id"]
-            try:
-                await self.store.delete_task(tid)
-            except models.TaskValidationError as err:  # pragma: no cover - defensive
-                _LOGGER.debug("Skipping auto-delete of one-off %s: %s", tid, err)
-                continue
-            # store.delete_task only mutates the store; the entity registry is cleaned
-            # by reloading the config entry (as the service delete path does). Track
-            # whether any purged task owned per-task entities so we reload once.
-            if task_has_entities(task):
-                reload_needed = True
+        if not expired:
+            return
+        # One save for the whole purge, not one per task (X08-2). The store skips a
+        # task that it must not delete.
+        removed = await self.store.delete_tasks([task["id"] for task in expired])
+        # store.delete_tasks only mutates the store; the entity registry is cleaned
+        # by reloading the config entry (as the service delete path does). Reload
+        # once if any purged task owned per-task entities.
+        reload_needed = any(task_has_entities(task) for task in removed)
         if reload_needed:
             # Reload to remove the now-orphaned per-task entities. This runs inside
             # _async_update_data (the coordinator's own refresh), so awaiting the

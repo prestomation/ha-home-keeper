@@ -1238,6 +1238,31 @@ def test_x03_11_settle_with_nothing_left_to_arm_reports_no_change(store, monkeyp
     assert store._hass.bus.of("home_keeper_task_triggered") == []
 
 
+def test_x08_2_delete_tasks_saves_once_and_fires_each_event(store):
+    first = _task(store, name="One")
+    second = _task(store, name="Two")
+    asset = _asset(store)
+    buy = _task(
+        store,
+        name="Buy AAA",
+        source={"buy": {"asset_id": asset["id"], "part_id": asset["parts"][0]["id"]}},
+    )
+    saves = store._store.saves
+    removed = _run(store.delete_tasks([first["id"], "gone", buy["id"], second["id"]]))
+    assert [t["id"] for t in removed] == [first["id"], second["id"]]
+    assert store._store.saves == saves + 1
+    assert set(store._tasks) == {buy["id"]}
+    deleted = store._hass.bus.of("home_keeper_task_deleted")
+    assert [e["task_id"] for e in deleted] == [first["id"], second["id"]]
+
+
+def test_x08_2_delete_tasks_with_nothing_to_delete_does_not_save(store):
+    saves = store._store.saves
+    assert _run(store.delete_tasks(["gone"])) == []
+    assert store._store.saves == saves
+    assert store._hass.bus.of("home_keeper_task_deleted") == []
+
+
 def test_x02_2_a_closed_store_refuses_to_save(store):
     task = _task(store)
     _run(store.async_persist())

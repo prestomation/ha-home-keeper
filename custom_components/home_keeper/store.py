@@ -939,6 +939,36 @@ class HomeKeeperStore:
                 EVENT_TASK_DELETED, events.task_event_data(removed)
             )
 
+    async def delete_tasks(self, task_ids: Collection[str]) -> list[dict[str, Any]]:
+        """Delete several tasks with one save (X08-2).
+
+        The bulk twin of :meth:`delete_task` for the one-off purge. Each save writes
+        the whole document, so one save per task made a large purge write the file
+        once for each task. A task that :meth:`delete_task` would refuse, or that is
+        gone, is skipped, and the others still go. Each deleted task fires its own
+        ``task_deleted`` event after the save. Returns the deleted tasks.
+        """
+        removed: list[dict[str, Any]] = []
+        for task_id in task_ids:
+            task = self._tasks.get(task_id)
+            if task is None:
+                continue
+            try:
+                self._check_deletable(task, force=False)
+            except models.TaskValidationError as err:
+                _LOGGER.debug("Skipping delete of task %s: %s", task_id, err)
+                continue
+            self._archive_task_history(task)
+            del self._tasks[task_id]
+            removed.append(task)
+        if removed:
+            await self._save()
+            for task in removed:
+                self._hass.bus.async_fire(
+                    EVENT_TASK_DELETED, events.task_event_data(task)
+                )
+        return removed
+
     async def delete_orphaned_tasks(self) -> list[dict[str, Any]]:
         """Delete every managed task whose owning integration is gone, in one save.
 
