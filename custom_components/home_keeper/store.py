@@ -1973,11 +1973,14 @@ class HomeKeeperStore:
         changed (a task was created or removed) so the caller can decide between a
         full entry reload and a plain coordinator refresh.
         """
+        # One clock reading for the recorded clear and for its event, so the event's
+        # ``completed_at`` is the ``ts`` of the history entry (B18-9).
+        now = dt_util.now()
         new_tasks, ops, changed = _reconcile_problem_tasks(
             eligible,
             self._tasks,
             config_entry_id=config_entry_id,
-            now=dt_util.now(),
+            now=now,
             notes_by_entity=self._problem_notes,
             lang=self._hass.config.language,
         )
@@ -2009,9 +2012,7 @@ class HomeKeeperStore:
             elif kind == "cleared":
                 self._hass.bus.async_fire(
                     EVENT_TASK_COMPLETED,
-                    events.completion_event_data(
-                        task, dt_util.now(), ORIGIN_PROBLEM_SENSOR_SYNC
-                    ),
+                    events.completion_event_data(task, now, ORIGIN_PROBLEM_SENSOR_SYNC),
                 )
         return entity_set_changed
 

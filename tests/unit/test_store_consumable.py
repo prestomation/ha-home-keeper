@@ -1177,3 +1177,26 @@ def test_b01_5_the_undo_of_a_restock_fires_the_low_event(store):
     _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
     assert part["stock"] == 1
     assert len(store._hass.bus.of("home_keeper_part_low_stock")) == 1
+
+
+def test_b18_9_a_problem_clear_event_carries_the_recorded_ts(store, monkeypatch):
+    # A clock that moves on each read, like the real one across the save.
+    ticks = iter(NOW + timedelta(seconds=n) for n in range(100))
+    monkeypatch.setattr(store_mod.dt_util, "now", lambda: next(ticks))
+    meta = {"name": "Filter", "device_id": None, "area_id": None}
+    entity = "binary_sensor.purifier_filter"
+    _run(
+        store.reconcile_problem_sensor_tasks(
+            {entity: {**meta, "is_problem": True}}, config_entry_id="entry1"
+        )
+    )
+    _run(
+        store.reconcile_problem_sensor_tasks(
+            {entity: {**meta, "is_problem": False}}, config_entry_id="entry1"
+        )
+    )
+    task = next(iter(store._tasks.values()))
+    completed = store._hass.bus.of("home_keeper_task_completed")
+    assert len(completed) == 1
+    assert completed[0]["completed_at"] == task["last_completed"]
+    assert completed[0]["completed_at"] == task["completions"][-1]["ts"]
