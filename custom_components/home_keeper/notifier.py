@@ -142,15 +142,39 @@ def _verb_allowed(coord: HomeKeeperCoordinator, verb: str) -> bool:
     return True
 
 
+# The notify targets whose last send failed. A target that fails logs 1 warning, and
+# then only debug lines until a send to it works again (B16-9).
+_FAILED_TARGETS: set[str] = set()
+
+
 async def _send_payload(
     hass: HomeAssistant, targets: list[str], payload: dict[str, Any]
-) -> None:
-    """Best-effort fan-out of *payload* to each notify target (failures logged)."""
+) -> int:
+    """Send *payload* to each notify target, and return how many accepted it.
+
+    A failure does not stop the other targets. A removed or renamed ``mobile_app``
+    service raises at once, also with ``blocking=False``, so that failure is a
+    warning: else every send to the phone fails with no line in the log (B16-9).
+    """
+    delivered = 0
     for target in targets:
         try:
             await hass.services.async_call("notify", target, payload, blocking=False)
         except Exception as err:  # a bad/renamed target must not break the send loop
-            _LOGGER.debug("Home Keeper notify target %r failed: %s", target, err)
+            if target in _FAILED_TARGETS:
+                _LOGGER.debug("Home Keeper notify target %r failed: %s", target, err)
+            else:
+                _FAILED_TARGETS.add(target)
+                _LOGGER.warning(
+                    "Home Keeper could not send to notify.%s: %s. Check the 'Send "
+                    "to' devices in Settings → Notifications.",
+                    target,
+                    err,
+                )
+            continue
+        _FAILED_TARGETS.discard(target)
+        delivered += 1
+    return delivered
 
 
 async def _build_payload(
@@ -276,7 +300,9 @@ async def _send(
         allow_snooze=bool(opts[OPTION_ALLOW_SNOOZE]),
         allow_skip=bool(opts[OPTION_ALLOW_SKIP]),
     )
-    await _send_payload(hass, notification["targets"], payload)
+    if not await _send_payload(hass, notification["targets"], payload):
+        # No target accepted the card, so no task was sent (B16-9).
+        return len(queue), None
     # The payload itself, not only a summary of it: the ``data`` block is where the
     # channel and the urgency live, and it is the only place a report of "the channel
     # did nothing on my phone" can be settled. Home Keeper builds that block, the

@@ -298,3 +298,65 @@ def test_a_saved_icon_and_color_reach_the_notify_payload():
     assert data["color"] == "#43a047"  # Android: the accent. iOS: the circle.
     # Never sent: Android reads it ahead of `color` and would take white instead.
     assert "notification_icon_color" not in data
+
+
+class _MissingService(Exception):
+    pass
+
+
+def _hass_with_missing(*missing: str) -> FakeHass:
+    """A hass whose notify services in *missing* raise, as a renamed phone does."""
+    hass = FakeHass()
+    record = hass.services.async_call
+
+    async def _call(domain, service, data, blocking=False):
+        if service in missing:
+            raise _MissingService(f"Service notify.{service} not found")
+        await record(domain, service, data, blocking)
+
+    hass.services.async_call = _call
+    return hass
+
+
+def test_b16_9_a_missing_target_warns_once_and_reports_no_task(caplog):
+    notifier._FAILED_TARGETS.clear()
+    coord = FakeCoord({"t1": overdue_task("t1", days=3)}, _options())
+    hass = _hass_with_missing("mobile_app_phone")
+
+    response, error = _run(hass, coord, {"notification": "n1"})
+
+    assert error is None
+    assert response == {"matched": 1, "sent": None}
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warnings) == 1
+    assert "notify.mobile_app_phone" in warnings[0].getMessage()
+
+    # A second failure of the same target does not warn again.
+    _run(hass, coord, {"notification": "n1"})
+    assert len([r for r in caplog.records if r.levelname == "WARNING"]) == 1
+
+
+def test_b16_9_a_target_that_works_again_warns_again_on_its_next_failure(caplog):
+    notifier._FAILED_TARGETS.clear()
+    coord = FakeCoord({"t1": overdue_task("t1", days=3)}, _options())
+    _run(_hass_with_missing("mobile_app_phone"), coord, {"notification": "n1"})
+    response, _ = _run(FakeHass(), coord, {"notification": "n1"})
+    assert response == {"matched": 1, "sent": "t1"}
+    assert "mobile_app_phone" not in notifier._FAILED_TARGETS
+    _run(_hass_with_missing("mobile_app_phone"), coord, {"notification": "n1"})
+    assert len([r for r in caplog.records if r.levelname == "WARNING"]) == 2
+
+
+def test_b16_9_one_working_target_is_enough_to_report_the_task(caplog):
+    notifier._FAILED_TARGETS.clear()
+    coord = FakeCoord(
+        {"t1": overdue_task("t1", days=3)},
+        _options(targets=["mobile_app_old", "mobile_app_phone"]),
+    )
+    hass = _hass_with_missing("mobile_app_old")
+
+    response, _ = _run(hass, coord, {"notification": "n1"})
+
+    assert response == {"matched": 1, "sent": "t1"}
+    assert [c[1] for c in hass.services.calls] == ["mobile_app_phone"]
+    assert "notify.mobile_app_old" in caplog.text
