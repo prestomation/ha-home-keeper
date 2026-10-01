@@ -12,7 +12,7 @@ from collections.abc import Callable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 try:
@@ -61,6 +61,20 @@ def _edge_state_store(hass: HomeAssistant) -> dict[str, transitions.StateMap]:
 def discard_edge_state(hass: HomeAssistant, entry_id: str) -> None:
     """Drop an entry's persisted edge state (called when the entry is removed)."""
     _edge_state_store(hass).pop(entry_id, None)
+
+
+def discard_edge_state_if_disabled(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Drop the edge state when an unload is for a disabled entry (B18-6).
+
+    The edge state is kept across a reload, so a reload does not lose a crossing.
+    A disabled entry can stay off for days. If it kept the edge state, the first
+    refresh after the user enables it again sends an event and a notification for
+    each crossing in that time. Home Assistant sets ``disabled_by`` before the
+    unload, so the unload can tell the 2 cases apart. With no edge state, the setup
+    sets a silent baseline, as at a restart.
+    """
+    if entry.disabled_by is not None:
+        discard_edge_state(hass, entry.entry_id)
 
 
 def task_has_entities(task: dict[str, Any] | None) -> bool:
@@ -455,8 +469,15 @@ def find_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
     the document views — starts by finding it here. Returning None rather than
     raising is deliberate: an entry is momentarily unloaded during every reload, and
     each caller has its own way of saying so.
+
+    Only a ``LOADED`` entry counts (X13-2). Home Assistant keeps ``runtime_data`` on
+    an entry whose setup failed after the coordinator was assigned, and that
+    coordinator is shut down. A caller that used it wrote to a store that no entity
+    reads, and the panel did not show that Home Keeper is not loaded.
     """
     for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.state is not ConfigEntryState.LOADED:
+            continue
         coord = getattr(entry, "runtime_data", None)
         if isinstance(coord, HomeKeeperCoordinator):
             return coord

@@ -82,6 +82,7 @@ from .coordinator import (
     HomeKeeperCoordinator,
     async_delete_orphaned_tasks,
     discard_edge_state,
+    discard_edge_state_if_disabled,
     find_coordinator,
     task_has_entities,
 )
@@ -2060,6 +2061,9 @@ async def _delete_asset(
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        # A re-enabled entry baselines in silence, as after a restart (B18-6).
+        discard_edge_state_if_disabled(hass, entry)
     # The services are not removed here (B02-1). ``async_setup`` registers them once
     # for the Home Assistant run, as Home Assistant's ``action-setup`` rule asks, and
     # a handler answers ``integration_not_loaded`` while no entry is loaded. Most
