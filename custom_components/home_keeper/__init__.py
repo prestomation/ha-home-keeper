@@ -984,6 +984,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Setup is complete: the refreshes above have baselined current overdue/due-soon
     # state silently, so start firing those events only for transitions from here on.
     coordinator.enable_transition_events()
+    # The clock for time-based work, also with no entity and with polling off.
+    entry.async_on_unload(coordinator.async_start_clock())
     # One evaluation pass now that everything is wired: arms any usage task whose meter
     # is already past target (e.g. it advanced while HA was down) and fires the genuine
     # overdue/due-soon events for it.

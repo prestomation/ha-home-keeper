@@ -292,6 +292,10 @@ def _install_helpers() -> None:
     event_mod = _mod("homeassistant.helpers.event")
     if not hasattr(event_mod, "async_track_state_change_event"):
         event_mod.async_track_state_change_event = lambda hass, ids, cb: lambda: None
+    if not hasattr(event_mod, "async_track_time_interval"):
+        event_mod.async_track_time_interval = lambda hass, action, interval: (
+            lambda: None
+        )
     helpers.event = event_mod
 
     storage = _mod("homeassistant.helpers.storage")

@@ -21,6 +21,7 @@ except ImportError:  # pragma: no cover - older HA fallback
     from homeassistant.helpers.entity import DeviceInfo  # type: ignore[no-redef]
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
@@ -130,7 +131,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             hass,
             _LOGGER,
             name="Home Keeper",
-            update_interval=SCAN_INTERVAL,
+            # No interval of the base class (B18-5). Home Assistant schedules that
+            # one only while an entity listens and while the entry allows polling.
+            # ``async_start_clock`` runs the refresh for time-based work instead.
+            update_interval=None,
             # Pass the entry explicitly — HA deprecated inferring it from a ContextVar
             # (removal 2025.11). The base stores it as ``self.config_entry``; ``entry``
             # is a read-only alias so existing call sites don't churn.
@@ -176,6 +180,19 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         entry = self.config_entry
         assert entry is not None  # always set: we pass config_entry= in __init__
         return entry
+
+    def async_start_clock(self) -> Callable[[], None]:
+        """Refresh every ``SCAN_INTERVAL``, and return the callback that stops it.
+
+        Overdue and due-soon events, the automatic notifications, the one-off purge
+        and the time backstop of a counted wear item come from this clock. The
+        caller passes the callback to ``entry.async_on_unload`` (B18-5).
+        """
+
+        async def _tick(_now: Any) -> None:
+            await self.async_request_refresh()
+
+        return async_track_time_interval(self.hass, _tick, SCAN_INTERVAL)
 
     def enable_transition_events(self) -> None:
         """Start firing overdue/due-soon events (called once setup is complete).

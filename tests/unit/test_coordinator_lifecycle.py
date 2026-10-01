@@ -231,3 +231,51 @@ def test_x08_5_the_part_entities_listen_for_the_signal():
         "async_dispatcher_connect(self.hass, SIGNAL_PART_STOCK_CHANGED, "
         "self.async_write_ha_state)" in ast.unparse(part_entity)
     )
+
+
+# ── B18-5: the clock ─────────────────────────────────────────────────────────
+def test_b18_5_the_clock_refreshes_every_scan_interval(monkeypatch):
+    coord = _coord()
+    coord.hass = object()
+    tracked: list = []
+    refreshes: list = []
+
+    def _track(hass, action, interval):
+        tracked.append((hass, action, interval))
+        return "unsubscribe"
+
+    async def _refresh():
+        refreshes.append(True)
+
+    monkeypatch.setattr(coordinator, "async_track_time_interval", _track)
+    coord.async_request_refresh = _refresh
+
+    assert coord.async_start_clock() == "unsubscribe"
+    [(hass, action, interval)] = tracked
+    assert hass is coord.hass
+    assert interval == coordinator.SCAN_INTERVAL
+    asyncio.run(action(None))
+    assert refreshes == [True]
+
+
+def _source_of(module: str, name: str) -> str:
+    tree = ast.parse((_COMPONENT / module).read_text())
+    return ast.unparse(
+        next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == name
+        )
+    )
+
+
+def test_b18_5_the_coordinator_has_no_interval_of_its_own():
+    # The base class interval stops with no listener or with polling off.
+    assert "update_interval=None" in _source_of("coordinator.py", "__init__")
+
+
+def test_b18_5_setup_starts_the_clock_for_the_entry():
+    assert "entry.async_on_unload(coordinator.async_start_clock())" in _source_of(
+        "__init__.py", "async_setup_entry"
+    )
