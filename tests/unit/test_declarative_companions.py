@@ -2101,6 +2101,69 @@ def test_unchanged_preset_task_names_follow_the_language(monkeypatch):
     assert localized["task_names"] == {"filter_time_left": "Swap the filter"}
 
 
+def _demo_texts():
+    return {
+        "name_template": {"en": "{{ task_name }}", "de": "{{ task_name }}"},
+        "notes_template": {"en": "", "de": ""},
+        "task_names": {
+            "en": {"filter_time_left": "Replace filter", "brush": "Replace brush"},
+            "de": {"filter_time_left": "Filter ersetzen", "brush": "Bürste ersetzen"},
+        },
+    }
+
+
+def _demo_spec(task_names):
+    return {
+        "preset_id": "demo_keys",
+        "task_template": {"name_template": "{{ task_name }}", "task_names": task_names},
+    }
+
+
+def test_b13_3_task_names_follow_the_language_one_entry_at_a_time(monkeypatch):
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", _demo_texts())
+    # Saved before the catalog added "brush", with one entry the user changed.
+    spec = _demo_spec({"filter_time_left": "Replace filter", "old": "My own name"})
+    localized = presets.localized_task_template(spec, "de")
+    assert localized["task_names"] == {
+        "filter_time_left": "Filter ersetzen",
+        "old": "My own name",
+    }
+    # And back again, from the German text.
+    spec = _demo_spec({"filter_time_left": "Filter ersetzen", "brush": "Mine"})
+    localized = presets.localized_task_template(spec, "en")
+    assert localized["task_names"] == {
+        "filter_time_left": "Replace filter",
+        "brush": "Mine",
+    }
+
+
+def test_b13_3_a_key_the_catalog_dropped_follows_its_duty_name(monkeypatch):
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", _demo_texts())
+    duty = presets.DUTY_NAMES["replace_filter"]
+    spec = _demo_spec({"gone_key": duty["fr"]})
+    localized = presets.localized_task_template(spec, "de")
+    assert localized["task_names"] == {"gone_key": duty["de"]}
+
+
+def test_b13_3_the_result_is_a_new_table(monkeypatch):
+    texts = _demo_texts()
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", texts)
+    stored = dict(texts["task_names"]["en"])
+    localized = presets.localized_task_template(_demo_spec(stored), "de")
+    assert localized["task_names"] == texts["task_names"]["de"]
+    assert localized["task_names"] is not texts["task_names"]["de"]
+    localized["task_names"]["brush"] = "changed"
+    assert texts["task_names"]["de"]["brush"] == "Bürste ersetzen"
+
+
+def test_b13_3_a_shipped_preset_default_spec_does_not_share_its_table():
+    preset = next(p for p in presets.CATALOG_PRESETS if p["id"] == "qnap_reading_high")
+    spec = presets.localized_default_spec(preset, "de", "Q")
+    table = presets.PRESET_TASK_TEXT["qnap_reading_high"]["task_names"]["de"]
+    assert spec["task_template"]["task_names"] == table
+    assert spec["task_template"]["task_names"] is not table
+
+
 def test_a_preset_without_task_names_leaves_the_table_alone():
     spec = {
         "preset_id": "firmware_update_available",

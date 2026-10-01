@@ -465,10 +465,9 @@ _LEGACY_TASK_TEXT: dict[str, dict[str, dict[str, Any]]] = {
         },
     },
 }
-# ``task_names`` is a table (entity key -> task name) rather than a string, and it is
-# localized the same way: a table still equal to one of the preset's own tables, in
-# any language, is replaced by the table for the current language.
-_TEMPLATE_FIELDS = ("name_template", "notes_template", "task_names")
+# ``task_names`` is a table (entity key -> task name) rather than a string. It is
+# localized one entry at a time (see :func:`_localized_task_names`).
+_TEMPLATE_FIELDS = ("name_template", "notes_template")
 _DEFAULT_LANG = "en"
 
 
@@ -503,7 +502,34 @@ def localized_task_template(spec: dict[str, Any], lang: str | None) -> dict[str,
             if variants and template.get(field) in variants.values():
                 template[field] = _pick(variants, lang)
                 break
+    stored = template.get("task_names")
+    tables = texts.get("task_names")
+    if isinstance(stored, dict) and tables:
+        template["task_names"] = _localized_task_names(stored, tables, lang)
     return template
+
+
+def _localized_task_names(
+    stored: dict[str, str], tables: dict[str, dict[str, str]], lang: str | None
+) -> dict[str, str]:
+    """*stored* with each unchanged preset task name put into *lang*.
+
+    Each entry is done on its own (B13-3). An entry that is the preset's name for its
+    key in some language takes the name for *lang*. Else an entry that is the name of
+    a duty in some language takes that duty's name for *lang*, so an entry keeps
+    following the language after a release adds or moves a key. Else the entry is
+    the user's text and stays as written. The result is a new table: the preset's
+    own tables are shared, and a caller can change what it gets.
+    """
+    result: dict[str, str] = {}
+    for key, name in stored.items():
+        by_lang = {code: table[key] for code, table in tables.items() if key in table}
+        if _DEFAULT_LANG in by_lang and name in by_lang.values():
+            result[key] = _pick(by_lang, lang)
+            continue
+        duty = next((n for n in DUTY_NAMES.values() if name in n.values()), None)
+        result[key] = _pick(duty, lang) if duty else name
+    return result
 
 
 def localized_default_spec(
