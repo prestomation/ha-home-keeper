@@ -630,6 +630,26 @@ def _overdue_phrase(
     return _tn(lang, "due_in", days, days=days)
 
 
+def snooze_hours_for(
+    task: dict[str, Any] | None, notification: dict[str, Any] | None
+) -> int:
+    """How many hours a notification's Snooze moves *task*.
+
+    The task's own ``snooze_hours`` wins when it has one: a task that wants a 1-hour
+    snooze wants it on every surface, not only in the panel. Otherwise the
+    notification's ``snooze_hours`` applies, and :data:`DEFAULT_SNOOZE_HOURS` when the
+    notification is gone too (a tap on a card whose notification was deleted since).
+    A stored value that is not a whole number of hours of 1 or more is ignored rather
+    than trusted, the same way :func:`normalize_notification` treats its own.
+    """
+    own = (task or {}).get("snooze_hours")
+    if isinstance(own, int) and not isinstance(own, bool) and own >= 1:
+        return own
+    if notification:
+        return int(notification["snooze_hours"])
+    return DEFAULT_SNOOZE_HOURS
+
+
 def _open_uri(task: dict[str, Any]) -> str:
     return f"/home-keeper/tasks/{task['id']}"
 
@@ -646,7 +666,7 @@ def _action_button(
     if verb == ACTION_COMPLETE:
         return {"action": action_id, "title": _t(lang, "action_complete")}
     if verb == ACTION_SNOOZE:
-        title = _t(lang, "action_snooze", hours=notification["snooze_hours"])
+        title = _t(lang, "action_snooze", hours=snooze_hours_for(task, notification))
         return {"action": action_id, "title": title}
     if verb == ACTION_SKIP:
         return {"action": action_id, "title": _t(lang, "action_skip")}

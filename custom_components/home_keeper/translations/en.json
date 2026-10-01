@@ -107,6 +107,10 @@
           "name": "Require tag scan",
           "description": "Only let the linked tag complete this task. Every other way of marking it done is refused. Needs a tag."
         },
+        "snooze_hours": {
+          "name": "Snooze length",
+          "description": "Hours that Snooze moves this task. The snooze dialog starts on this length, and the Snooze button on a notification uses it. Leave empty to use the usual lengths."
+        },
         "source": {
           "name": "Source",
           "description": "Opaque provenance owned by the integration that created the task. Home Keeper stores and echoes it verbatim and never inspects it. See docs/INTEGRATING.md."
@@ -200,6 +204,10 @@
         "require_tag_scan": {
           "name": "Require tag scan",
           "description": "Only let the linked tag complete this task. Needs a tag."
+        },
+        "snooze_hours": {
+          "name": "Snooze length",
+          "description": "Hours that Snooze moves this task. Send an empty value to use the usual lengths again."
         },
         "source": {
           "name": "Source",

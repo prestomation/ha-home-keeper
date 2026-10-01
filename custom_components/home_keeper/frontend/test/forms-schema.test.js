@@ -7,6 +7,8 @@ import {
   profileSchema,
   buildTaskPayload,
   duplicateTaskSeed,
+  snoozeHoursFromForm,
+  snoozeHoursOptions,
   formRecurrenceSummary,
   hexToRgb,
   mergePartForm,
@@ -148,7 +150,7 @@ describe('taskSchemaSections is exactly taskSchema, grouped', () => {
       'require_tag_scan',
       'labels',
     ]);
-    expect(byKey.completion).toEqual(['completion_detail']);
+    expect(byKey.completion).toEqual(['completion_detail', 'snooze_hours']);
   });
 
   it('keeps a triggered task to the two sections it can actually edit', () => {
@@ -258,6 +260,7 @@ describe('taskSchema by recurrence type', () => {
       'require_tag_scan',
       'labels',
       'completion_detail',
+      'snooze_hours',
     ]);
   });
 
@@ -277,6 +280,7 @@ describe('taskSchema by recurrence type', () => {
       'require_tag_scan',
       'labels',
       'completion_detail',
+      'snooze_hours',
     ]);
   });
 
@@ -294,6 +298,7 @@ describe('taskSchema by recurrence type', () => {
       'require_tag_scan',
       'labels',
       'completion_detail',
+      'snooze_hours',
     ]);
   });
 
@@ -2684,7 +2689,14 @@ describe('a locked sensor binding', () => {
     const got = names(
       taskSchema(sensorTask(['name', 'recurrence_type', 'device_id', 'area_id', 'sensor'])),
     );
-    expect(got).toEqual(['notes', 'tag_id', 'require_tag_scan', 'labels', 'completion_detail']);
+    expect(got).toEqual([
+      'notes',
+      'tag_id',
+      'require_tag_scan',
+      'labels',
+      'completion_detail',
+      'snooze_hours',
+    ]);
   });
 });
 
@@ -2796,5 +2808,65 @@ describe('companionOptions for Home Keeper sources', () => {
       'Leak sensors (declarative companion)',
       'Problem sensors',
     ]);
+  });
+});
+
+describe('task snooze length', () => {
+  beforeEach(() => setLanguage('en'));
+
+  it('offers the usual length, then each fixed preset valued in hours', () => {
+    expect(snoozeHoursOptions()).toEqual([
+      { value: '', label: 'Usual length' },
+      { value: '1', label: '1 hour' },
+      { value: '4', label: '4 hours' },
+      { value: '24', label: '1 day' },
+      { value: '168', label: '1 week' },
+      { value: '720', label: '1 month' },
+    ]);
+  });
+
+  it('adds a choice for a stored length no preset has, so a save keeps it', () => {
+    const options = snoozeHoursOptions(3);
+    expect(options).toHaveLength(7);
+    expect(options[6]).toEqual({ value: '3', label: '3 hours' });
+    expect(snoozeHoursOptions('1')).toHaveLength(6);
+    expect(snoozeHoursOptions(24)).toHaveLength(6);
+  });
+
+  it('reads a form value as whole hours or null', () => {
+    expect(snoozeHoursFromForm('4')).toBe(4);
+    expect(snoozeHoursFromForm(' 720 ')).toBe(720);
+    expect(snoozeHoursFromForm(24)).toBe(24);
+    for (const v of ['', '0', '-3', '1.5', 'soon', 0, 1.5, null, undefined]) {
+      expect(snoozeHoursFromForm(v)).toBeNull();
+    }
+  });
+
+  it('seeds the select from the stored length', () => {
+    expect(taskFormData({ name: 'T', recurrence_type: 'floating', snooze_hours: 1 }).snooze_hours).toBe('1');
+    expect(taskFormData({ name: 'T', recurrence_type: 'floating' }).snooze_hours).toBe('');
+  });
+
+  it('sends the chosen length, and null to clear it', () => {
+    const base = { name: 'T', recurrence_type: 'floating' };
+    expect(buildTaskPayload({ ...base, snooze_hours: '4' }).snooze_hours).toBe(4);
+    expect(buildTaskPayload({ ...base, snooze_hours: 720 }).snooze_hours).toBe(720);
+    expect(buildTaskPayload({ ...base, snooze_hours: '' }).snooze_hours).toBeNull();
+    expect(buildTaskPayload(base).snooze_hours).toBeNull();
+    // A triggered task shows no field, and a save sends its stored length back.
+    expect(
+      buildTaskPayload({ name: 'T', recurrence_type: 'triggered', snooze_hours: 3 }).snooze_hours,
+    ).toBe(3);
+  });
+
+  it('is left out of the form when the managing integration locks it', () => {
+    const locked = { name: 'T', recurrence_type: 'floating', managed_by: { locked_fields: ['snooze_hours'] } };
+    expect(names(taskSchema(locked))).not.toContain('snooze_hours');
+  });
+
+  it('carries the length into a duplicate', () => {
+    const seed = duplicateTaskSeed({ id: 'a', name: 'T', recurrence_type: 'floating', snooze_hours: 1 });
+    expect(seed.snooze_hours).toBe(1);
+    expect(duplicateTaskSeed({ id: 'a', name: 'T', recurrence_type: 'floating' }).snooze_hours).toBeNull();
   });
 });

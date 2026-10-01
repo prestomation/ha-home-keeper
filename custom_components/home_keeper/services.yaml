@@ -175,6 +175,19 @@ add_task:
         Needs a tag.
       selector:
         boolean:
+    snooze_hours:
+      name: Snooze length
+      description: >-
+        Hours that Snooze moves this task. The snooze dialog starts on this length,
+        and the Snooze button on a notification uses it. Leave empty to use the usual
+        lengths.
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 8760
+          unit_of_measurement: h
+          mode: box
     active_season:
       name: Active season
       description: >-
@@ -363,6 +376,18 @@ update_task:
         Only let the linked tag complete this task. Needs a tag.
       selector:
         boolean:
+    snooze_hours:
+      name: Snooze length
+      description: >-
+        Hours that Snooze moves this task. Send an empty value to use the usual
+        lengths again.
+      example: 1
+      selector:
+        number:
+          min: 1
+          max: 8760
+          unit_of_measurement: h
+          mode: box
     active_season:
       name: Active season
       description: >-

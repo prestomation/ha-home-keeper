@@ -14,6 +14,7 @@ import {
   deferVerbs,
   emptySkipState,
   emptySnoozeState,
+  snoozeStateFor,
   type DeferVerbs,
 } from './defer';
 import { renderSkipDialog, renderSnoozeDialog, type DeferDialogHost } from './defer-dialogs';
@@ -22,7 +23,7 @@ import type { PanelHost } from './panel-host';
 import { MDI_DELETE, MDI_EDIT, MDI_MOVE_DATE } from './panel-icons';
 import { setIcon } from './panel-history';
 import type { Task } from './types';
-import { DEFAULT_SNOOZE_PRESET, toast, type BtnWeight } from './utils';
+import { toast, type BtnWeight } from './utils';
 
 /**
  * Which deferral verbs *task* can actually take, given the global switches.
@@ -44,7 +45,7 @@ export function deferMenu(
 }
 
 export function openSnooze(p: PanelHost, task: Task): void {
-  p._snooze = { open: true, task, preset: DEFAULT_SNOOZE_PRESET };
+  p._snooze = snoozeStateFor(task);
   p._render();
 }
 

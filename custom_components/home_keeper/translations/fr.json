@@ -107,6 +107,10 @@
           "name": "Exiger le scan de l'étiquette",
           "description": "Seule l'étiquette liée peut terminer cette tâche. Toute autre façon de la marquer comme faite est refusée. Nécessite une étiquette."
         },
+        "snooze_hours": {
+          "name": "Durée du report",
+          "description": "Heures dont Reporter décale cette tâche. La boîte Reporter s'ouvre sur cette durée, et le bouton Reporter d'une notification l'utilise. Laissez vide pour les durées habituelles."
+        },
         "source": {
           "name": "Source",
           "description": "Provenance opaque appartenant à l'intégration qui a créé la tâche. Home Keeper la stocke et la renvoie telle quelle et ne l'inspecte jamais. Voir docs/INTEGRATING.md."
@@ -200,6 +204,10 @@
         "require_tag_scan": {
           "name": "Exiger le scan de l'étiquette",
           "description": "Seule l'étiquette liée peut terminer cette tâche. Nécessite une étiquette."
+        },
+        "snooze_hours": {
+          "name": "Durée du report",
+          "description": "Heures dont Reporter décale cette tâche. Envoyez une valeur vide pour revenir aux durées habituelles."
         },
         "source": {
           "name": "Source",

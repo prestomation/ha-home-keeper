@@ -2149,3 +2149,78 @@ def test_b08_1_same_schedule_value_compares_text_that_does_not_parse():
     assert not m._same_schedule_value("anchor", "x", None)
     assert m._same_schedule_value("due", "2026-01-01T00:00:00Z", "2026-01-01T00:00Z")
     assert m._season_key(None) == []
+
+
+# ── snooze_hours ──────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, None),
+        ("", None),
+        (1, 1),
+        (720, 720),
+        (4.0, 4),
+        ("6", 6),
+        (" 12 ", 12),
+    ],
+)
+def test_normalize_snooze_hours(value, expected):
+    assert m.normalize_snooze_hours(value) == expected
+
+
+@pytest.mark.parametrize("value", [1.5, "1.5", "soon", True, False, [1], {}])
+def test_normalize_snooze_hours_rejects_a_value_that_is_not_whole_hours(value):
+    with raises_exactly(
+        m.TaskValidationError, "snooze_hours must be a whole number of hours"
+    ):
+        m.normalize_snooze_hours(value)
+
+
+@pytest.mark.parametrize("value", [0, -1, "0", "-3", 0.0])
+def test_normalize_snooze_hours_rejects_less_than_one_hour(value):
+    with raises_exactly(m.TaskValidationError, "snooze_hours must be at least 1"):
+        m.normalize_snooze_hours(value)
+
+
+def test_build_task_stores_snooze_hours():
+    task = m.build_task({"name": "Take medicine", "snooze_hours": "1"}, now=NOW)
+    assert task["snooze_hours"] == 1
+
+
+def test_build_task_without_snooze_hours_stores_none():
+    task = m.build_task({"name": "Mop"}, now=NOW)
+    assert "snooze_hours" in task
+    assert task["snooze_hours"] is None
+
+
+def test_build_task_rejects_a_bad_snooze_hours():
+    with raises_exactly(m.TaskValidationError, "snooze_hours must be at least 1"):
+        m.build_task({"name": "Mop", "snooze_hours": 0}, now=NOW)
+
+
+def test_merge_update_sets_and_clears_snooze_hours():
+    task = m.build_task({"name": "Take medicine"}, now=NOW)
+    set_ = m.merge_update(task, {"snooze_hours": 4}, now=NOW)
+    assert set_["snooze_hours"] == 4
+    cleared = m.merge_update(set_, {"snooze_hours": None}, now=NOW)
+    assert cleared["snooze_hours"] is None
+
+
+def test_merge_update_keeps_snooze_hours_when_not_sent():
+    # A plain rename must not clear the snooze length.
+    task = m.build_task({"name": "Take medicine", "snooze_hours": 1}, now=NOW)
+    renamed = m.merge_update(task, {"name": "Take pills"}, now=NOW)
+    assert renamed["snooze_hours"] == 1
+    # A task stored before the field existed stays without it.
+    old = {k: v for k, v in task.items() if k != "snooze_hours"}
+    assert "snooze_hours" not in m.merge_update(old, {"name": "X"}, now=NOW)
+
+
+def test_merge_update_rejects_a_bad_snooze_hours():
+    task = m.build_task({"name": "Take medicine"}, now=NOW)
+    with raises_exactly(
+        m.TaskValidationError, "snooze_hours must be a whole number of hours"
+    ):
+        m.merge_update(task, {"snooze_hours": "often"}, now=NOW)

@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b17]
+
+### Added
+
+- **[Per-task snooze length](https://prestomation.github.io/ha-home-keeper/docs/guide/snooze-and-skip#snooze-length-for-each-task).**
+  Set how long Snooze moves each task, such as 1 hour for a medicine reminder. The
+  snooze dialog and the Snooze button on a notification use it. (Fixes #367)
+
 ## [0.28.0b16]
 
 ### Fixed

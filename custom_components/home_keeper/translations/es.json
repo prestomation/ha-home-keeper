@@ -107,6 +107,10 @@
           "name": "Exigir escaneo de la etiqueta",
           "description": "Solo la etiqueta vinculada puede completar esta tarea. Se rechaza cualquier otra forma de marcarla como hecha. Requiere una etiqueta."
         },
+        "snooze_hours": {
+          "name": "Duración de Posponer",
+          "description": "Horas que Posponer mueve esta tarea. El diálogo Posponer empieza con esta duración y el botón Posponer de una notificación la usa. Déjalo vacío para usar las duraciones habituales."
+        },
         "source": {
           "name": "Fuente",
           "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Home Keeper la almacena y la devuelve tal cual y nunca la inspecciona. Consulta docs/INTEGRATING.md."
@@ -200,6 +204,10 @@
         "require_tag_scan": {
           "name": "Exigir escaneo de la etiqueta",
           "description": "Solo la etiqueta vinculada puede completar esta tarea. Requiere una etiqueta."
+        },
+        "snooze_hours": {
+          "name": "Duración de Posponer",
+          "description": "Horas que Posponer mueve esta tarea. Envía un valor vacío para volver a las duraciones habituales."
         },
         "source": {
           "name": "Fuente",

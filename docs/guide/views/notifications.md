@@ -6,7 +6,9 @@ for completing a task from the phone lock screen and for sending each user the
 tasks from their own profile. The buttons act on the task in Home Keeper:
 
 - **Mark done** completes the task and advances the recurrence.
-- **Snooze** defers the due date by the configured snooze duration.
+- **Snooze** defers the due date by the configured snooze duration. A task with
+  its own [snooze length](../tasks/snooze-and-skip.md#snooze-length-for-each-task)
+  uses that length.
 - **Skip** moves the task to its next occurrence.
 - **Open** opens the task in Home Keeper.
 

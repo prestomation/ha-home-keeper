@@ -11,6 +11,9 @@ import {
   normalizeIcon,
   recurrenceSummary,
   round1,
+  SNOOZE_PRESETS,
+  snoozePresetHours,
+  taskSnoozeHours,
   zonedParts,
   zonedMidnight,
   zonedTimeToMs,
@@ -414,6 +417,40 @@ function seasonWindowFields(task: Partial<Task>, i: number): FormField[] {
 }
 
 /**
+ * The choices for a task's own snooze length.
+ *
+ * The first choice is empty: no length of its own, so the dialog opens on its usual
+ * preset and a notification uses its own length. Then one choice per fixed preset,
+ * valued in hours. A length that no preset has (set through the service) gets a
+ * choice of its own, so the form shows it and a save does not drop it.
+ */
+export function snoozeHoursOptions(current?: unknown): { value: string; label: string }[] {
+  const options = [{ value: '', label: t('opt.snooze_hours.default') }];
+  for (const p of SNOOZE_PRESETS) {
+    const hours = snoozePresetHours(p.id);
+    if (hours != null) options.push({ value: String(hours), label: t('defer.preset.' + p.id) });
+  }
+  const own = snoozeHoursFromForm(current);
+  if (own != null && !options.some((o) => o.value === String(own))) {
+    options.push({ value: String(own), label: tn('opt.snooze_hours.hours', own, { n: own }) });
+  }
+  return options;
+}
+
+/**
+ * The snooze length a form value stands for: whole hours of 1 or more, or `null`.
+ *
+ * The select holds a string, and a task loaded from the backend holds a number, so
+ * this takes both.
+ */
+export function snoozeHoursFromForm(value: unknown): number | null {
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    return taskSnoozeHours({ snooze_hours: Number(value.trim()) });
+  }
+  return taskSnoozeHours({ snooze_hours: value });
+}
+
+/**
  * The task form's fields, grouped into sections.
  *
  * {@link taskSchema} is the flattened form of exactly this, and a unit test asserts
@@ -756,6 +793,14 @@ export function taskSchemaSections(
           } as FormField,
         ]
       : []),
+    ...(!locked.has('snooze_hours')
+      ? [
+          {
+            name: 'snooze_hours',
+            selector: selSelect(snoozeHoursOptions(task.snooze_hours)),
+          } as FormField,
+        ]
+      : []),
   ];
 
   // One section per active-season window, each holding the same two rows. A window
@@ -912,6 +957,8 @@ export function taskFormData(task: Partial<Task>): Record<string, unknown> {
     // than pre-selecting a blank option.
     tag_id: task.tag_id ?? undefined,
     require_tag_scan: task.require_tag_scan ?? false,
+    // The select holds strings; '' is "no length of its own".
+    snooze_hours: String(snoozeHoursFromForm(task.snooze_hours) ?? ''),
     season_on: seasonEnabled(task),
     // How many windows the form shows. Every window's four values are flattened
     // alongside it (`season_1_start_month`, …) and assembled back in buildTaskPayload.
@@ -1040,6 +1087,7 @@ export function duplicateTaskSeed(task: Task): Partial<Task> {
     // must not do. The form renders no control for it, so it rides along untouched.
     completion_required_fields: [...(task.completion_required_fields ?? [])],
     consumable_link: consumableLinkToken(task),
+    snooze_hours: taskSnoozeHours(task),
   };
   if (sensor) seed.sensor = sensor;
   return seed as Partial<Task>;
@@ -1224,6 +1272,10 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
   // could never be completed at all, from any surface.
   payload.tag_id = task.tag_id || null;
   payload.require_tag_scan = task.tag_id ? !!task.require_tag_scan : false;
+  // The snooze length applies to every task kind and always round-trips, so an
+  // empty choice sends null and clears it. A task kind whose form has no such field
+  // (a triggered task) sends back the stored value, so a save does not clear it.
+  payload.snooze_hours = snoozeHoursFromForm(task.snooze_hours);
   // Labels apply to every task kind (including triggered) and always round-trip,
   // so an empty array correctly clears a task's labels on update.
   payload.labels = Array.isArray(task.labels) ? task.labels : [];

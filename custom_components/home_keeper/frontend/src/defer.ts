@@ -9,7 +9,7 @@
  * mutation surface; that half is covered by the e2e specs.
  */
 
-import { haDateTimeToIso, skipSnoozeFlags } from './forms';
+import { haDateTimeToIso, isoToHaDateTime, skipSnoozeFlags } from './forms';
 import { t } from './i18n';
 import type { Task } from './types';
 import type { BtnWeight, SnoozePresetId } from './utils';
@@ -20,6 +20,8 @@ import {
   formatDateTime,
   isOverdue,
   resolveSnoozePreset,
+  snoozePresetForHours,
+  taskSnoozeHours,
 } from './utils';
 
 /** Which deferral verbs a task may be offered right now. */
@@ -178,6 +180,23 @@ export const emptySnoozeState = (): SnoozeState => ({
 });
 
 export const emptySkipState = (): SkipState => ({ open: false, task: null, data: {} });
+
+/**
+ * The snooze dialog's opening state for *task*.
+ *
+ * A task with its own snooze length opens on the preset of that length. A length no
+ * preset has (a service can set any number of hours) opens on `custom`, with the
+ * date that length gives from *now* already filled in. A task with no length of its
+ * own opens on the usual preset.
+ */
+export function snoozeStateFor(task: Task, now: Date = new Date()): SnoozeState {
+  const hours = taskSnoozeHours(task);
+  if (hours == null) return { open: true, task, preset: DEFAULT_SNOOZE_PRESET };
+  const preset = snoozePresetForHours(hours);
+  if (preset) return { open: true, task, preset };
+  const at = new Date(now.getTime() + hours * 3_600_000);
+  return { open: true, task, preset: 'custom', customAt: isoToHaDateTime(at.toISOString()) };
+}
 
 /** The instant the current snooze selection resolves to, or `null` if unusable. */
 export function snoozeTarget(s: SnoozeState, now: Date = new Date()): Date | null {

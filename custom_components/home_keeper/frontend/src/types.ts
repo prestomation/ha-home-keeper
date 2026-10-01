@@ -170,6 +170,9 @@ export interface Task {
   // When true (and a tag is bound), the task can *only* be completed by scanning
   // that tag — the UI's Done action is blocked and explains why.
   require_tag_scan?: boolean;
+  // How long Snooze moves this task, in whole hours. The snooze dialog opens on it
+  // and a notification's Snooze button uses it. Null/absent = the usual lengths.
+  snooze_hours?: number | null;
   active_season?: Array<{ start: string; end: string }> | { start: string; end: string } | null;
   // Which metadata fields a `required` task makes mandatory. The panel gates a
   // required completion by reading this list (not a hard-coded field), so a future

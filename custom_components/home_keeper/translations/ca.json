@@ -107,6 +107,10 @@
           "name": "Exigeix escanejar l'etiqueta",
           "description": "Només permet completar aquesta tasca amb l'etiqueta vinculada. Es rebutja qualsevol altra manera de marcar-la com a feta. Cal una etiqueta."
         },
+        "snooze_hours": {
+          "name": "Durada de Posposa",
+          "description": "Hores que Posposa mou aquesta tasca. El diàleg de Posposa comença amb aquesta durada, i el botó Posposa d'una notificació la fa servir. Deixa-ho buit per fer servir les durades habituals."
+        },
         "source": {
           "name": "Origen",
           "description": "Procedència opaca propietat de la integració que ha creat la tasca. Home Keeper l'emmagatzema i la retorna literalment i mai la inspecciona. Vegeu docs/INTEGRATING.md."
@@ -200,6 +204,10 @@
         "require_tag_scan": {
           "name": "Exigeix escanejar l'etiqueta",
           "description": "Només permet completar aquesta tasca amb l'etiqueta vinculada. Cal una etiqueta."
+        },
+        "snooze_hours": {
+          "name": "Durada de Posposa",
+          "description": "Hores que Posposa mou aquesta tasca. Envia un valor buit per tornar a les durades habituals."
         },
         "source": {
           "name": "Origen",
