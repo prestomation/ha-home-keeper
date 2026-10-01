@@ -27,6 +27,7 @@ import { t } from './i18n';
 import type { PanelHost } from './panel-host';
 import {
   PANEL_BUCKETS,
+  TASK_FILTERS,
   type AssetFilter,
   type AssetView,
   type GroupBy,
@@ -316,7 +317,7 @@ function filterCounts(p: PanelHost, now = Date.now()): Record<TaskFilter, number
       )
     : p._tasks;
   for (const task of tasks) {
-    for (const scope of ['all', 'overdue', 'soon', 'shopping', 'counted'] as TaskFilter[]) {
+    for (const scope of TASK_FILTERS) {
       if (scopeMatches(task, scope, now)) counts[scope]++;
     }
   }

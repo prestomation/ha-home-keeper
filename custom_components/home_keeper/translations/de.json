@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Quelle",
-          "description": "Undurchsichtige Herkunftsangabe, die der Integration gehört, die die Aufgabe erstellt hat. Siehe docs/INTEGRATING.md."
+          "description": "Undurchsichtige Herkunftsangabe, die der Integration gehört, die die Aufgabe erstellt hat. Jeder Namensraum ersetzt den gespeicherten Namensraum mit demselben Namen. Ein Namensraum mit dem Wert null wird entfernt. Siehe docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detailgrad der Erledigung",
@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Stunden",
-          "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard 24). Wird ignoriert, wenn Bis gesetzt ist."
+          "description": "Um wie viele Stunden die Aufgabe verschoben wird (Standard 24). Setzen Sie Stunden und Bis nicht im selben Aufruf."
         },
         "until": {
           "name": "Bis",
-          "description": "Verschiebt die Aufgabe auf genau dieses Datum und diese Uhrzeit statt um eine Stundenzahl. Wird es gesetzt, bleibt Stunden ungenutzt."
+          "description": "Verschiebt die Aufgabe auf genau dieses Datum und diese Uhrzeit statt um eine Stundenzahl. Setzen Sie Stunden und Bis nicht im selben Aufruf."
         },
         "origin": {
           "name": "Ursprung",
@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part} Ersatzteile"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Aufgaben"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Anstehende Aufgaben"
+      }
     }
   },
   "device_automation": {
@@ -1106,6 +1116,15 @@
     },
     "unknown_document": {
       "message": "Unbekanntes Dokument: {document_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Nur eine Aufgabe mit einer Verbrauchssensor-Bindung hat einen Zähler."
+    },
+    "meter_has_no_reading": {
+      "message": "Der gebundene Sensor hat gerade keinen numerischen Wert. Geben Sie im Aufruf einen Startwert an."
+    },
+    "archived_completion_not_found": {
+      "message": "Das Gerät hat keine archivierte Erledigung von {task_id} um {ts}."
     },
     "unknown_part_file": {
       "message": "Unbekanntes Teil oder keine angehängte Datei."

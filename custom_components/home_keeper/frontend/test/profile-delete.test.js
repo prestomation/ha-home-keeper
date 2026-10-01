@@ -207,3 +207,29 @@ describe('Settings → Profiles — deleting a profile', () => {
     expect(panel._options.profiles[0].name).toBe('Renamed');
   });
 });
+
+describe('F03-2: a failed Add puts the list back', () => {
+  it('drops the blank profile, so no later save carries it', async () => {
+    const { hass, saves } = makeHass({ profiles: [CHORES], failSetOptions: 'not_loaded' });
+    const panel = await mountSettings(hass);
+    panel.shadowRoot.querySelector('#hk-profile-add').click();
+    await waitFor(() => saves.length === 1);
+    expect(saves[0].profiles).toHaveLength(2);
+    await waitFor(() => panel._options.profiles.length === 1);
+    expect(panel._options.profiles).toEqual([CHORES]);
+  });
+
+  it('drops the blank notification too', async () => {
+    const { hass, saves } = makeHass({
+      profiles: [CHORES],
+      notifications: [WALK],
+      failSetOptions: 'not_loaded',
+    });
+    const panel = await mountSettings(hass);
+    panel.shadowRoot.querySelector('#hk-notify-add').click();
+    await waitFor(() => saves.length === 1);
+    expect(saves[0].notifications).toHaveLength(2);
+    await waitFor(() => panel._options.notifications.length === 1);
+    expect(panel._options.notifications).toEqual([WALK]);
+  });
+});

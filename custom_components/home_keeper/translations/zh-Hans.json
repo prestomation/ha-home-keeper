@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "来源",
-          "description": "由创建该任务的集成拥有的不透明来源信息。参见 docs/INTEGRATING.md。"
+          "description": "由创建该任务的集成拥有的不透明来源信息。每个命名空间会替换已存储的同名命名空间。值为 null 的命名空间会被删除。参见 docs/INTEGRATING.md。"
         },
         "completion_detail": {
           "name": "完成详情",
@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "小时",
-          "description": "将任务推迟多少小时（默认 24）。设置了“截止时间”时忽略此项。"
+          "description": "将任务推迟多少小时（默认 24）。不要在同一次调用中同时设置“小时”和“截止时间”。"
         },
         "until": {
           "name": "截止时间",
-          "description": "将任务推迟到这个确切的日期和时间，而不是若干小时。设置该项后，“小时”字段不会被使用。"
+          "description": "将任务推迟到这个确切的日期和时间，而不是若干小时。不要在同一次调用中同时设置“小时”和“截止时间”。"
         },
         "origin": {
           "name": "发起方",
@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part}备件"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "任务"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "即将到来的任务"
+      }
     }
   },
   "device_automation": {
@@ -1106,6 +1116,15 @@
     },
     "unknown_document": {
       "message": "未知文档：{document_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "只有绑定了用量传感器的任务才有计量。"
+    },
+    "meter_has_no_reading": {
+      "message": "绑定的传感器当前没有数值读数。请在调用中提供基准值。"
+    },
+    "archived_completion_not_found": {
+      "message": "该电器没有 {task_id} 在 {ts} 的归档完成记录。"
     },
     "unknown_part_file": {
       "message": "未知零件或没有附加文件。"

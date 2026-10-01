@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import re
 import time
+import unicodedata
 import uuid
 from collections.abc import Iterable
 from pathlib import Path, PurePath
+from urllib.parse import quote
 
 from .assets import AssetValidationError
 from .const import MAX_DOCUMENT_BYTES
@@ -28,6 +30,8 @@ TYPE_EXTENSIONS = {
 }
 
 _MAX_FILENAME_LEN = 120
+# The same limit as a document name in ``assets``.
+_MAX_DISPLAY_NAME_LEN = 200
 
 # How many leading bytes ``sniff_content_type`` needs. The longest signature check
 # reads ``data[8:12]`` (WebP), so 16 is comfortably enough — uploads are streamed to
@@ -62,6 +66,40 @@ def safe_filename(name: str, content_type: str) -> str:
     stem = PurePath(base).stem or "document"
     stem = stem[:_MAX_FILENAME_LEN]
     return f"{stem}{TYPE_EXTENSIONS[content_type]}"
+
+
+def display_filename(name: str) -> str:
+    """Return the name of an uploaded file as a user reads it (B06-6).
+
+    :func:`safe_filename` keeps only ASCII for the key on disk, so a name such as
+    ``Инструкция.pdf`` becomes ``__________.pdf``. This keeps the real name for the
+    display: the path is removed, the text is NFC-normalized, control characters
+    are removed, and the length is capped. An empty result gives ``""``.
+    """
+    base = PurePath(str(name).replace("\\", "/")).name
+    text = unicodedata.normalize("NFC", base)
+    text = "".join(ch for ch in text if unicodedata.category(ch)[0] != "C")
+    return text.strip()[:_MAX_DISPLAY_NAME_LEN].strip()
+
+
+def content_disposition(filename: str, display_name: str = "") -> str:
+    """Return the ``Content-Disposition`` value to serve a stored file with.
+
+    *filename* is the ASCII key on disk. When *display_name* is set, an RFC 6266
+    ``filename*`` gives the browser the real name in UTF-8 (B06-6). The display
+    name gets the extension of *filename* when it does not have it, so the saved
+    file still opens.
+    """
+    value = f'inline; filename="{filename}"'
+    display = display_filename(display_name)
+    if not display:
+        return value
+    suffix = PurePath(filename).suffix
+    if suffix and not display.lower().endswith(suffix.lower()):
+        display = f"{display}{suffix}"
+    # Equivalent mutants: the default ``safe`` is "/", and display_filename keeps
+    # only the last path part, so the name never holds a "/".
+    return f"{value}; filename*=UTF-8''{quote(display, safe='')}"  # pragma: no mutate
 
 
 def validate_upload_stream(filename: str, header: bytes, size: int) -> tuple[str, str]:

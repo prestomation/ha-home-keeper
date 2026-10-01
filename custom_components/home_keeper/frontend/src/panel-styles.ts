@@ -682,7 +682,7 @@ export const STYLES = `
      glyph so every color the picker offers stays legible on the card. */
   .hk-notify-chip {
     display: grid; place-items: center;
-    width: 26px; height: 26px; border-radius: 6px; color: #fff;
+    width: 26px; height: 26px; border-radius: 6px;
   }
   .hk-notify-chip ha-icon { --mdc-icon-size: 17px; display: block; }
   .hk-item-name { flex: 1; font-weight: 500; }
@@ -1192,8 +1192,11 @@ export const STYLES = `
     cursor: pointer;
     background: var(--secondary-background-color);
     z-index: 1;
+    /* A <button>, so drop the browser's own box. */
+    border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
   }
   .hk-chevron:hover { background: var(--divider-color); }
+  .hk-chevron:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
   .hk-chevron::after {
     content: '';
     display: inline-block;
@@ -1774,6 +1777,12 @@ export const STYLES = `
 
   @media (max-width: 700px) {
     ha-tab-group { display: none; }
+    /* The tree toggle keeps its 24px look, but a transparent ring takes the tap
+       target to --hk-tap (X11-4). */
+    .hk-chevron::before {
+      content: ''; position: absolute;
+      inset: calc((24px - var(--hk-tap)) / 2);
+    }
     /* Four figures do not fit across a 390px card. Left to wrap on their own widths
        they come out 3 and 1, which reads as one figure left over; a half-width floor
        makes it 2 and 2, so the strip stays a block rather than a ragged line. */
@@ -1821,6 +1830,12 @@ export const STYLES = `
       font-size: 16px;
     }
     .hk-add-btn { --ha-button-height: var(--hk-tap); }
+    /* The stock stepper and the note editor get the same 2 phone rules (X11-7): a
+       thumb-size +/- target, and 16px text so that focus does not zoom the
+       companion app. The pill grows to hold the larger buttons. */
+    .hk-stock { height: var(--hk-tap); }
+    .hk-stock ha-icon-button { --mdc-icon-button-size: var(--hk-tap); }
+    .hk-stock-input, .hk-note-input { font-size: 16px; }
     /* Restore only the width the joined-segment rule zeroes out. Matching that rule's
        first-child specificity here would also tie with the .active rule and, as the
        later rule, repaint the active chip's background white under white text. */

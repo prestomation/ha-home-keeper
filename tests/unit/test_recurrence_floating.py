@@ -332,3 +332,29 @@ def test_b07_4_a_season_start_is_local_midnight():
     assert again == la(2026, 12, 1)
     assert again.date().isoformat() == "2026-12-01"
     assert r.in_season(again, season)
+
+
+# --- latest_completion (B15-7) -----------------------------------------------
+
+
+def test_b15_7_latest_completion_compares_instants_not_text() -> None:
+    # As text, the UTC entry sorts after the -07:00 one. As instants it is earlier:
+    # 03:00 UTC is before 21:00-07:00 (04:00 UTC).
+    backdated = {"ts": "2026-03-02T03:00:00+00:00", "note": "backdated"}
+    latest = {"ts": "2026-03-01T21:00:00-07:00", "note": "latest"}
+    assert r.latest_completion([backdated, latest]) is latest
+    assert r.latest_completion([latest, backdated]) is latest
+
+
+def test_b15_7_latest_completion_skips_a_missing_or_bad_ts() -> None:
+    good = {"ts": "2026-03-01T10:00:00+00:00"}
+    assert r.latest_completion([{}, {"ts": None}, {"ts": "not a date"}, good]) is good
+    assert r.latest_completion([good, {"ts": "zzz"}]) is good
+    assert r.latest_completion([{"ts": "bad"}]) is None
+    assert r.latest_completion([]) is None
+
+
+def test_b15_7_latest_completion_keeps_the_first_of_a_tie() -> None:
+    first = {"ts": "2026-03-01T10:00:00+00:00", "n": 1}
+    second = {"ts": "2026-03-01T11:00:00+01:00", "n": 2}
+    assert r.latest_completion([first, second]) is first

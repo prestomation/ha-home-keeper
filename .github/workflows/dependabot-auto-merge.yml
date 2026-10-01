@@ -4,9 +4,17 @@ name: Dependabot auto-merge
 # once EVERY check on the PR is green, for any bump including majors — we trust CI to
 # catch breakage.
 #
-# `gh pr checks --watch --fail-fast` polls until all checks on the PR finish (exiting
-# as soon as the first one fails) and exits non-zero on any failure, so the merge
-# step below only runs when everything is actually green.
+# `ci/wait_for_checks.py` polls `gh pr checks --json` until all checks on the PR
+# finish, and exits non-zero on any failure, so the merge step below only runs when
+# everything is actually green. It leaves out two workflows (X06-1):
+#   * this one: its own job is a check on the PR, so it stays pending until the job
+#     ends. `gh pr checks --watch` waited on it until the timeout cancelled the run,
+#     and no Dependabot PR ever merged.
+#   * Discord Notify: a Dependabot run gets no secrets, so it fails on every
+#     Dependabot PR.
+# The merge carries --match-head-commit, so a push after the checks ran cannot merge
+# without its own checks.
+#
 # This does NOT rely on GitHub's branch-protection "required status checks" list —
 # unlike the previous `gh pr merge --auto`, which only waits for whichever checks are
 # marked required there. That list had drifted out of sync with test.yml's actual
@@ -26,12 +34,17 @@ jobs:
   dependabot:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
-    timeout-minutes: 20
+    timeout-minutes: 50
     steps:
+      - uses: actions/checkout@v7
       - name: Wait for all checks, then merge
         run: |
-          gh pr checks "$PR_URL" --watch --fail-fast --interval 15
-          gh pr merge --squash "$PR_URL"
+          python3 ci/wait_for_checks.py "$PR_URL" \
+            --ignore-workflow "Dependabot auto-merge" \
+            --ignore-workflow "Discord Notify" \
+            --interval 15 --timeout 2700
+          gh pr merge --squash --match-head-commit "$HEAD_SHA" "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

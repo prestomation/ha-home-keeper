@@ -32,7 +32,7 @@ import { t } from './i18n';
 import type { MarkdownPreview } from './markdown';
 import type { PanelHost } from './panel-host';
 import type { Completion, Hass, Task } from './types';
-import { guardWrite, setBtnWeight, taskRecordsReading } from './utils';
+import { guardWrite, setBtnWeight, taskRecordsReading, toast } from './utils';
 
 // ── completion dialog lifecycle ─────────────────────────────────────────────
 
@@ -93,11 +93,18 @@ async function submitMoveCompletion(p: PanelHost, button?: Element | null): Prom
         // Same dialog, two logs: `kind` says which list the entry being re-dated is in.
         if (m.kind === 'skip') await api.moveSkip(hass, task.id, m.ts, newTs);
         else await api.moveCompletion(hass, task.id, m.ts, newTs);
-        closeMoveCompletion(p);
+        // Close only this dialog: the user can have opened another one while the
+        // request ran (F10-3).
+        if (p._moveCompletion === m) closeMoveCompletion(p);
         await p._refresh();
       } catch (err) {
-        m.error = String((err as { message?: string })?.message || err);
-        p._render();
+        const message = String((err as { message?: string })?.message || err);
+        if (p._moveCompletion === m) {
+          m.error = message;
+          p._render();
+        } else {
+          toast(p, message);
+        }
       }
     },
     button,
@@ -134,11 +141,18 @@ async function submitCompletion(p: PanelHost, button?: Element | null): Promise<
         } else {
           await api.completeTask(hass, task.id, c.data, c.data.completedAt);
         }
-        closeCompletionDialog(p);
+        // Close only this dialog: the user can have opened another one while the
+        // request ran (F10-3).
+        if (p._completion === c) closeCompletionDialog(p);
         await p._refresh();
       } catch (err) {
-        c.error = String((err as { message?: string })?.message || err);
-        p._render();
+        const message = String((err as { message?: string })?.message || err);
+        if (p._completion === c) {
+          c.error = message;
+          p._render();
+        } else {
+          toast(p, message);
+        }
       }
     },
     button,

@@ -395,8 +395,12 @@ def plan_sync(
 
         if entity_id != target:
             # The target moved (or the mirror was switched off): clear the item
-            # from the list it is on. Pass two puts it on the new list.
+            # from the list it is on. The next pass puts it on the new list, after
+            # the remove lands. An add in this pass shares the key with the remove,
+            # so a failed remove and its add overwrite each other's bookkeeping
+            # (B11-4).
             plan.remove.append(RemoveOp(key, entity_id, identity))
+            settled.add(key)
             continue
         if want is None:
             # The reminder went away without anyone buying anything.
@@ -422,12 +426,19 @@ def plan_sync(
         )
         rename = name if not user_named and live != name else None
         current = str(item.get("description") or "")
-        # A note on a line that has no description from Home Keeper was typed by
-        # someone (an adopted line, or a note added to a line with no amount).
-        # Never write the amount over it or clear it. The flag is not kept: when
-        # the note goes, the next pass writes the amount.
-        user_described = bool(current) and not entry.get("description")
-        if description is not None and (current == description or user_described):
+        recorded = str(entry.get("description") or "")
+        # A note that is neither what Home Keeper last wrote nor what it writes now
+        # was typed by someone: on an adopted line, on a line with no amount, or
+        # over the amount (B11-3). This is the rule for a title, above. Never write
+        # the amount over the note or clear it. The flag is not kept: when the note
+        # goes, the next pass writes the amount. A list that shows our write late
+        # reads as a note until it shows the write.
+        user_described = bool(current) and not any(
+            _same_text(current, ours) for ours in (recorded, wanted) if ours
+        )
+        if description is not None and (
+            _same_text(current, description) or user_described
+        ):
             description = None
         if rename is not None or description is not None:
             plan.update.append(
@@ -449,8 +460,10 @@ def plan_sync(
         written: str | None = None
         if description is not None:
             written = description
-        elif current and current in (wanted, str(entry.get("description") or "")):
-            written = current
+        elif wanted and _same_text(current, wanted):
+            written = wanted
+        elif recorded and _same_text(current, recorded):
+            written = recorded
         if CAP_DESCRIPTION in caps and written:
             new_entry["description"] = written
         plan.tracked[key] = new_entry
@@ -495,6 +508,15 @@ def plan_sync(
             added["description"] = description
         plan.tracked[key] = added
     return plan
+
+
+def _same_text(live: str, ours: str) -> bool:
+    """Whether the *live* text on a list is the text Home Keeper wrote as *ours*.
+
+    Case and white space do not count, because a list can change them when it
+    stores a line ("500 ml" can come back as "500ML").
+    """
+    return "".join(live.split()).casefold() == "".join(ours.split()).casefold()
 
 
 def lists_to_read(tracked: dict[str, dict[str, Any]], *, target: str) -> list[str]:

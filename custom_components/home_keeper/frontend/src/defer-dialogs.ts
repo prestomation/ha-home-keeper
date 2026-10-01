@@ -50,6 +50,11 @@ export class DeferMenus {
     });
   }
 
+  /** Whether a menu is open now. A background re-render would close it. */
+  get isOpen(): boolean {
+    return this._open !== null;
+  }
+
   /** Close whatever is open. Hosts call this before replacing their markup. */
   close(): void {
     if (this._onKey) {
@@ -106,8 +111,23 @@ export class DeferMenus {
     this.close();
     menu.hidden = false;
     caret.setAttribute('aria-expanded', 'true');
+    // The menu pattern (X11-5): focus goes to the first item on open, the arrow
+    // keys, Home and End move it, and Escape puts it back on the caret. Without
+    // this, focus stayed on the caret, and Escape from an item hid the focused
+    // node, so focus fell to the page body.
+    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    items[0]?.focus();
     this._onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') this.close();
+      if (e.key === 'Escape') {
+        this.close();
+        caret.focus();
+        return;
+      }
+      const at = items.findIndex((item) => e.composedPath().includes(item));
+      const next = menuKeyTarget(e.key, at, items.length);
+      if (next == null) return;
+      e.preventDefault();
+      items[next].focus();
     };
     this._onClick = (e: Event) => {
       // A click inside a shadow root retargets to the host at document level, so
@@ -118,6 +138,27 @@ export class DeferMenus {
     document.addEventListener('keydown', this._onKey);
     document.addEventListener('click', this._onClick);
     this._open = { caret, menu };
+  }
+}
+
+/**
+ * The index of the menu item that *key* moves focus to, from the item at *at*
+ * (-1 when focus is not on an item), in a menu of *count* items. `null` when the
+ * key does not move focus. The arrow keys wrap around.
+ */
+export function menuKeyTarget(key: string, at: number, count: number): number | null {
+  if (!count) return null;
+  switch (key) {
+    case 'ArrowDown':
+      return at < 0 ? 0 : (at + 1) % count;
+    case 'ArrowUp':
+      return at < 0 ? count - 1 : (at - 1 + count) % count;
+    case 'Home':
+      return 0;
+    case 'End':
+      return count - 1;
+    default:
+      return null;
   }
 }
 
@@ -141,6 +182,40 @@ export interface DeferDialogHost {
   rerender(): void;
   /** Reload tasks after a successful write. */
   refresh(): Promise<void>;
+  /** Show a short message. For an error of a dialog that is no longer open. */
+  notify?(message: string): void;
+}
+
+/**
+ * *close* made safe for a request that ends late (F10-3). A dialog closes its own
+ * state only: after the user dismissed it, the host can show a different dialog of
+ * the same kind, and a late reply must not close that one. Dismissal sets
+ * `open = false` on the state object, so a later call does nothing.
+ */
+function closeOnce(s: { open: boolean }, close: () => void): () => void {
+  return () => {
+    if (!s.open) return;
+    s.open = false;
+    close();
+  };
+}
+
+/**
+ * Show the error of a failed write: in the dialog when it is still open, else as a
+ * message from the host, because the dialog state is gone from the screen (F10-3).
+ */
+function reportError(
+  host: DeferDialogHost,
+  s: { open: boolean; error?: string },
+  err: unknown,
+): void {
+  const message = String((err as { message?: string })?.message || err);
+  if (s.open) {
+    s.error = message;
+    host.rerender();
+  } else {
+    host.notify?.(message);
+  }
 }
 
 function footerButtons(
@@ -180,9 +255,8 @@ export function renderSnoozeDialog(
   close: () => void,
 ): void {
   if (!s.task) return;
-  const { dialog, body, footer, mount } = makeDialog(t('defer.snoozeTitle'), () => {
-    if (s.open) close();
-  });
+  close = closeOnce(s, close);
+  const { dialog, body, footer, mount } = makeDialog(t('defer.snoozeTitle'), close);
 
   const options = SNOOZE_PRESETS.map((p) => ({ value: p.id, label: t('defer.preset.' + p.id) }));
   const schema: FormField[] = [
@@ -241,8 +315,7 @@ export async function submitSnooze(
         close();
         await host.refresh();
       } catch (err) {
-        s.error = String((err as { message?: string })?.message || err);
-        host.rerender();
+        reportError(host, s, err);
       }
     },
     button,
@@ -264,12 +337,11 @@ export function renderSkipDialog(
   close: () => void,
 ): void {
   if (!s.task) return;
+  close = closeOnce(s, close);
   const editing = s.ts != null;
   const { dialog, body, footer, mount } = makeDialog(
     editing ? t('defer.skipEditTitle') : t('defer.skipTitle'),
-    () => {
-      if (s.open) close();
-    },
+    close,
   );
 
   if (!editing) {
@@ -337,8 +409,7 @@ export async function submitSkip(
         close();
         await host.refresh();
       } catch (err) {
-        s.error = String((err as { message?: string })?.message || err);
-        host.rerender();
+        reportError(host, s, err);
       }
     },
     button,

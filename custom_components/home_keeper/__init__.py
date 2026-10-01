@@ -8,8 +8,7 @@ panel; usage (viewing/completing tasks) is surfaced through native HA entities
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator
-from contextlib import contextmanager
+import math
 from datetime import timedelta
 from typing import Any
 
@@ -47,13 +46,14 @@ from . import (
     options,
     panel,
     profiles,
+    recurrence,
     sensor_tasks,
     shopping,
     tag_listener,
     transfer,
     websocket_api,
 )
-from .assets import AssetValidationError, card_projection
+from .assets import card_projection, has_archived_completion
 from .const import (
     COMPLETION_ENTRY_FIELDS,
     DOMAIN,
@@ -82,15 +82,17 @@ from .coordinator import (
     HomeKeeperCoordinator,
     async_delete_orphaned_tasks,
     discard_edge_state,
+    discard_edge_state_if_disabled,
     find_coordinator,
     task_has_entities,
 )
 from .declarative_companion_sync import DeclarativeCompanionSync
-from .models import TaskValidationError
 from .problem_sync import ProblemSensorSync
 from .resolve import (
     AmbiguousName,
     NotFound,
+    looks_like_id,
+    resolve_archived_task_id,
     resolve_asset_id,
     resolve_document_id,
     resolve_part_id,
@@ -100,6 +102,11 @@ from .sensor_watcher import (
     SensorTaskWatcher,
     async_discard_new_tasks,
     read_sensor_value,
+)
+from .service_errors import (
+    declarative_companion_errors,
+    service_error,
+    store_errors,
 )
 from .shopping_sync import ShoppingListSync
 from .store import HomeKeeperStore
@@ -578,7 +585,14 @@ ADJUST_PART_STOCK_SCHEMA = vol.Schema(
     {
         vol.Required("asset_id"): cv.string,
         vol.Required("part_id"): cv.string,
-        vol.Required("delta"): vol.Coerce(float),
+        # Open bounds at the infinities refuse NaN and both infinities, which
+        # Coerce(float) accepts from the text "nan" and "inf" (B05-5).
+        vol.Required("delta"): vol.All(
+            vol.Coerce(float),
+            vol.Range(
+                min=-math.inf, max=math.inf, min_included=False, max_included=False
+            ),
+        ),
     }
 )
 # Detach a part's attached file (upload is HTTP-only — see manuals.py — since a
@@ -822,6 +836,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     ``integration_not_loaded`` error when no entry is loaded.
     """
     _register_services(hass)
+    # Listen for actionable-notification taps (mobile_app_notification_action) so a
+    # Mark done / Snooze / Skip button routes back into the store and advances a walk.
+    # Listen for tag scans (tag_scanned) so scanning the NFC/RFID tag stuck on the
+    # thing completes the tasks bound to it — and unlocks the ones that accept no
+    # other way of being completed. Both listen for the Home Assistant run, so an
+    # event during an entry reload waits for the new coordinator (X02-5).
+    notifier.async_setup_notifications(hass)
+    tag_listener.async_setup_tag_listener(hass)
     return True
 
 
@@ -839,6 +861,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     store = HomeKeeperStore(hass)
     await store.load()
+
+    # Warn once for each setup about a stored notify target that the allowlist drops.
+    # A read of the options runs on each refresh and does not warn (B16-11).
+    notifications.normalize_notifications(entry.options.get(OPTION_NOTIFICATIONS))
 
     # Repair device references Home Assistant invalidated when it split devices in
     # 2026.8 (#183). Before the coordinator reads the store, so everything downstream
@@ -967,18 +993,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await todo_list_sync.async_initial_sync()
 
     entry.async_on_unload(async_at_started(hass, _todo_lists_when_started))
-    # Listen for actionable-notification taps (mobile_app_notification_action) so a
-    # Mark done / Snooze / Skip button routes back into the store and advances a walk.
-    entry.async_on_unload(notifier.async_setup_notifications(hass, entry, coordinator))
-    # Listen for tag scans (tag_scanned) so scanning the NFC/RFID tag stuck on the
-    # thing completes the tasks bound to it — and unlocks the ones that accept no
-    # other way of being completed.
-    entry.async_on_unload(
-        tag_listener.async_setup_tag_listener(hass, entry, coordinator)
-    )
     # Setup is complete: the refreshes above have baselined current overdue/due-soon
     # state silently, so start firing those events only for transitions from here on.
     coordinator.enable_transition_events()
+    # The clock for time-based work, also with no entity and with polling off.
+    entry.async_on_unload(coordinator.async_start_clock())
     # One evaluation pass now that everything is wired: arms any usage task whose meter
     # is already past target (e.g. it advanced while HA was down) and fires the genuine
     # overdue/due-soon events for it.
@@ -1159,58 +1178,25 @@ def _register_services(hass: HomeAssistant) -> None:
                 translation_placeholders={"area_id": str(data.get("area_id"))},
             )
 
-    @contextmanager
-    def _store_errors(
-        *,
-        task_id: str | None = None,
-        asset_id: str | None = None,
-        part_id: str | None = None,
-    ) -> Iterator[None]:
-        """Translate a store call's exceptions into localized service errors.
+    # The store exceptions become localized service errors (see service_errors).
+    _store_errors = store_errors
 
-        The store speaks in ``KeyError`` (nothing by that id) and its two
-        validation errors; a service caller must see a ``ServiceValidationError``
-        carrying a translation key instead. Every handler below wanted the same
-        three-line answer, so it lives here once.
+    def _require_asset(coord: HomeKeeperCoordinator, asset_id: str) -> dict:
+        """The appliance *asset_id*, or the localized ``asset_not_found`` error."""
+        if (asset := coord.store.get_asset(asset_id)) is None:
+            raise service_error("asset_not_found", asset_id=asset_id)
+        return asset
 
-        The ids passed name what a ``KeyError`` was looking for, innermost first:
-        ``asset_id`` with ``part_id`` reports ``unknown_part``, ``asset_id`` alone
-        ``asset_not_found``, ``task_id`` ``task_not_found``. Pass none and a
-        ``KeyError`` propagates — the handler either can't raise one or answers it
-        itself.
+    def _require_known(kind: str, objects: Any, key: str) -> None:
+        """Reject a delete for a name that matches no record (B02-7).
+
+        ``_ref`` gives back a name that matches no record. A delete of an unknown
+        id succeeds, because ``docs/INTEGRATING.md`` tells an integration to delete
+        every id it stored, and the user can have deleted some of them already. A
+        key that is not in the form of an id is a name, so a typo gets an error.
         """
-        try:
-            yield
-        except KeyError:
-            placeholders: dict[str, str]
-            if asset_id is not None and part_id is not None:
-                key = "unknown_part"
-                placeholders = {"asset_id": asset_id, "part_id": part_id}
-            elif asset_id is not None:
-                key = "asset_not_found"
-                placeholders = {"asset_id": asset_id}
-            elif task_id is not None:
-                key = "task_not_found"
-                placeholders = {"task_id": task_id}
-            else:
-                raise
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key=key,
-                translation_placeholders=placeholders,
-            ) from None
-        except TaskValidationError as err:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="invalid_task",
-                translation_placeholders={"error": str(err)},
-            ) from err
-        except AssetValidationError as err:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="invalid_asset",
-                translation_placeholders={"error": str(err)},
-            ) from err
+        if key not in objects and not looks_like_id(key):
+            raise service_error(f"{kind}_not_found", **{f"{kind}_id": key})
 
     async def handle_add_task(call: ServiceCall) -> dict[str, Any]:
         coord = _coordinator()
@@ -1247,6 +1233,7 @@ def _register_services(hass: HomeAssistant) -> None:
     async def handle_delete_task(call: ServiceCall) -> None:
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
+        _require_known("task", coord.store.get_tasks(), task_id)
         existing = coord.store.get_task(task_id)
         with _store_errors():
             await coord.store.delete_task(task_id, force=call.data.get("force", False))
@@ -1324,11 +1311,15 @@ def _register_services(hass: HomeAssistant) -> None:
         await _verify_admin(call)
         coord = _coordinator()
         asset_id = _asset_ref(coord, call.data["asset_id"])
-        task_id = _task_ref(coord, call.data["task_id"])
+        asset = _require_asset(coord, asset_id)
+        # The task of an archived completion is deleted, so its name resolves
+        # against the appliance's own history, not the live tasks (B21-3).
+        task_id = _ref("task", resolve_archived_task_id, asset, call.data["task_id"])
+        ts = call.data["ts"]
+        if not has_archived_completion(asset, task_id, ts):
+            raise service_error("archived_completion_not_found", task_id=task_id, ts=ts)
         with _store_errors(asset_id=asset_id):
-            await coord.store.delete_archived_completion(
-                asset_id, task_id, call.data["ts"]
-            )
+            await coord.store.delete_archived_completion(asset_id, task_id, ts)
         await coord.async_request_refresh()
 
     async def handle_trigger_task(call: ServiceCall) -> None:
@@ -1352,28 +1343,17 @@ def _register_services(hass: HomeAssistant) -> None:
             )
         cfg = sensor_tasks.sensor_config(task)
         if cfg is None or cfg.get("mode") != SENSOR_MODE_USAGE:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="invalid_task",
-                translation_placeholders={
-                    "error": "set_task_meter is only valid for a usage sensor task"
-                },
-            )
+            raise service_error("meter_requires_usage_task")
         baseline = call.data.get("baseline")
         if baseline is None:
             baseline = read_sensor_value(hass, cfg)
             if baseline is None:
-                raise ServiceValidationError(
-                    translation_domain=DOMAIN,
-                    translation_key="invalid_task",
-                    translation_placeholders={
-                        "error": (
-                            "the bound sensor has no numeric reading right now; "
-                            "pass an explicit baseline"
-                        )
-                    },
-                )
-        await coord.store.set_sensor_baseline(task_id, float(baseline), silent=False)
+                raise service_error("meter_has_no_reading")
+        # The store rejects NaN and infinity (B02-8).
+        with _store_errors(task_id=task_id):
+            await coord.store.set_sensor_baseline(
+                task_id, float(baseline), silent=False
+            )
         await coord.async_request_refresh()
 
     async def handle_set_task_consumable(call: ServiceCall) -> None:
@@ -1405,7 +1385,12 @@ def _register_services(hass: HomeAssistant) -> None:
         # fill ``hours`` in even when the caller passed ``until``, and vol.Exclusive
         # would then reject its own default.
         if (until := call.data.get("until")) is None:
-            until = dt_util.now() + timedelta(hours=call.data.get("hours", 24))
+            # The hours count from the due date when that is later than now, so a
+            # snooze never moves a task earlier (F10-2).
+            now = dt_util.now()
+            task = coord.store.get_task(task_id)
+            base = recurrence.snooze_from(task, now) if task else now
+            until = base + timedelta(hours=call.data.get("hours", 24))
         elif until.tzinfo is None:
             # ``cv.datetime`` parses an offset-less string naively; qualify it with
             # HA's zone so ``next_due`` is never stored naive (see apply_completion).
@@ -1528,6 +1513,7 @@ def _register_services(hass: HomeAssistant) -> None:
         await _verify_admin(call)
         coord = _coordinator()
         asset_id = _asset_ref(coord, call.data["asset_id"])
+        _require_known("asset", coord.store.get_assets(), asset_id)
         with _store_errors(asset_id=asset_id):
             await _delete_asset(
                 hass, coord, asset_id, force=call.data.get("force", False)
@@ -1574,13 +1560,11 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         asset_id = _asset_ref(coord, call.data["asset_id"])
         part_id = _part_ref(coord, asset_id, call.data["part_id"])
+        # The coordinator settles the buy tasks and the stock entities.
         with _store_errors(asset_id=asset_id, part_id=part_id):
-            report = await coord.store.adjust_part_stock(
+            report = await coord.async_adjust_part_stock(
                 asset_id, part_id, call.data["delta"]
             )
-        # A crossing may create/remove an auto-buy task; settle it (reload if a buy
-        # task's device entities changed, else refresh).
-        await coord.async_settle_buy_tasks()
         # The new count and the delta really applied: the count stops at zero, so a
         # caller that undoes its change later needs ``applied_delta``, not its own.
         return report
@@ -1600,14 +1584,7 @@ def _register_services(hass: HomeAssistant) -> None:
         document = dict(call.data["document"])
         # Files are uploaded through the HTTP view; the service only adds links.
         if document.get("kind", "link") != "link":
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="invalid_asset",
-                translation_placeholders={
-                    "error": "only link documents can be added via this service; "
-                    "upload files from the panel"
-                },
-            )
+            raise service_error("link_documents_only")
         document["kind"] = "link"
         with _store_errors(asset_id=asset_id):
             await coord.store.add_asset_document(asset_id, document)
@@ -1618,16 +1595,20 @@ def _register_services(hass: HomeAssistant) -> None:
         await _verify_admin(call)
         coord = _coordinator()
         asset_id = _asset_ref(coord, call.data["asset_id"])
+        _require_asset(coord, asset_id)
         document_id = _document_ref(coord, asset_id, call.data["document_id"])
-        with _store_errors(asset_id=asset_id):
+        # The appliance exists, so a KeyError is for the document (B02-6).
+        with _store_errors(document_id=document_id):
             await coord.store.remove_asset_document(asset_id, document_id)
 
     async def handle_update_asset_document(call: ServiceCall) -> None:
         await _verify_admin(call)
         coord = _coordinator()
         asset_id = _asset_ref(coord, call.data["asset_id"])
+        _require_asset(coord, asset_id)
         document_id = _document_ref(coord, asset_id, call.data["document_id"])
-        with _store_errors(asset_id=asset_id):
+        # The appliance exists, so a KeyError is for the document (B02-6).
+        with _store_errors(document_id=document_id):
             await coord.store.update_asset_document(
                 asset_id,
                 document_id,
@@ -1928,7 +1909,8 @@ def _register_services(hass: HomeAssistant) -> None:
         """
         await _verify_admin(call)
         coord = _coordinator()
-        spec = await coord.store.async_add_declarative_companion(dict(call.data))
+        with declarative_companion_errors():
+            spec = await coord.store.async_add_declarative_companion(dict(call.data))
         await declarative_companion_sync.async_settle(coord)
         return {"companion": spec}
 
@@ -1939,7 +1921,8 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         data = dict(call.data)
         spec_id = data.pop("id")
-        spec = await coord.store.async_update_declarative_companion(spec_id, data)
+        with declarative_companion_errors(spec_id=spec_id):
+            spec = await coord.store.async_update_declarative_companion(spec_id, data)
         await declarative_companion_sync.async_settle(coord)
         return {"companion": spec}
 
@@ -2060,6 +2043,15 @@ async def _delete_asset(
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        # A re-enabled entry baselines in silence, as after a restart (B18-6).
+        discard_edge_state_if_disabled(hass, entry)
+        # A pass that started before the unload still holds this store. After a
+        # reload its save would write the old snapshot over the new store's file, so
+        # the store refuses every later save (X02-2).
+        coordinator = getattr(entry, "runtime_data", None)
+        if coordinator is not None:
+            coordinator.store.close()
     # The services are not removed here (B02-1). ``async_setup`` registers them once
     # for the Home Assistant run, as Home Assistant's ``action-setup`` rule asks, and
     # a handler answers ``integration_not_loaded`` while no entry is loaded. Most

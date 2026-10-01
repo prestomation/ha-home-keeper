@@ -156,10 +156,18 @@ def test_b03_2_deleting_a_companion_reloads_when_the_entity_set_changed(
 # ── a spec change answers after its reload ───────────────────────────────────
 def _settles_after(func: ast.AsyncFunctionDef, store_call: str) -> bool:
     """Whether *func* awaits ``async_settle`` after it awaits *store_call*."""
+    # Source order, because ``ast.walk`` gives an await in a ``with`` block after
+    # the awaits that follow the block.
     calls = [
         ast.unparse(node.value.func)
-        for node in ast.walk(func)
-        if isinstance(node, ast.Await) and isinstance(node.value, ast.Call)
+        for node in sorted(
+            (
+                node
+                for node in ast.walk(func)
+                if isinstance(node, ast.Await) and isinstance(node.value, ast.Call)
+            ),
+            key=lambda node: (node.lineno, node.col_offset),
+        )
     ]
     store = [i for i, name in enumerate(calls) if name.endswith(store_call)]
     settle = [i for i, name in enumerate(calls) if name.endswith(".async_settle")]

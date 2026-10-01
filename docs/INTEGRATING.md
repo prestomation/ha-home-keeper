@@ -270,6 +270,8 @@ events with no `origin` because moving is a user edit from the panel).
 Keep the two sides from drifting:
 
 - **Your config is removed** → call `home_keeper.delete_task` for the task ids you stored.
+  A call for an id that is already deleted succeeds. A name that matches no task gets the
+  `task_not_found` error.
 - **Home Keeper is absent** → the `has_service` guards make every call a no-op; your
   integration keeps working, and tasks you couldn't create simply don't sync.
 - **The user deletes a task directly in Home Keeper** → `home_keeper_task_deleted`
@@ -365,13 +367,15 @@ config entry is removed (see §5). Orphan cleanup is the safety net for when it 
 
 - `managed_by` is a **UI contract**. Other integrations or automations can still call
   `complete_task` or `update_task` on non-locked fields.
-- Set `managed_by` once at creation via `add_task`. The `update_task` service ignores it.
+- Set `managed_by` once at creation via `add_task`. The `update_task` service has no
+  `managed_by` field, so a call that sends one fails validation.
 - An appliance takes the same block through `add_asset`. There, `update_asset` accepts
   the single value `managed_by: null`, which gives the appliance back to the user
   (see [§8](#8-managing-an-appliance)).
-- Because locked fields are stripped from the `update_task` payload, your reconciler can
-  safely call `update_task` to change a locked field (e.g. rename when the pet's name
-  changes) without risk of the user having overwritten it first.
+- Home Keeper removes the locked fields from every `update_task` payload, and that
+  includes a call from your own integration. A locked field keeps the value it had at
+  creation. Lock only the fields your integration never changes. To change a locked
+  field, delete the task and add it again.
 
 ### `managed_by` in the completion event
 
@@ -882,7 +886,10 @@ that has no link.
 
 Deleting a completion (`home_keeper.delete_completion`) gives back the stock that
 completion took. Home Keeper records the amount on the completion as `stock_drawn`. The
-count stops at zero, so the recorded amount can be less than `quantity`.
+count stops at zero, so the recorded amount can be less than `quantity`. The delete
+also puts back the part's `last_replaced` date. If another replacement remains, the
+date of the latest one is used. Otherwise the date from before the completion comes
+back.
 
 ### Drawing stock down without a task
 
@@ -917,6 +924,11 @@ the reserved names (`part`, `buy`, `declarative_companion`), your integration ow
 own, and neither side rewrites the whole map. `set_task_consumable` merges `part` in
 beside your namespace, and unlinking pops `part` and leaves the rest. Hold your own
 writers to the same rule.
+
+`update_task` applies this rule to a task's `source`. Each namespace in the call
+replaces the stored namespace of the same name, and the other namespaces stay. A
+namespace with the value `null` is removed. A call that names a reserved namespace
+fails with `invalid_task`. An appliance's `source` is create-only.
 
 ### Handing the appliance back when you are removed
 

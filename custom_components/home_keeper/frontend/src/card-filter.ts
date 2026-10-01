@@ -94,6 +94,52 @@ export interface HomeKeeperCardConfig {
   hide_when_empty?: boolean;
 }
 
+const CARD_FILTERS: readonly CardFilter[] = [
+  'all',
+  'overdue',
+  'soon',
+  'today',
+  'no_due',
+  'shopping',
+  'counted',
+];
+const CARD_SORTS: readonly CardSort[] = ['due', 'name', 'recent', 'area'];
+const CARD_GROUPS: readonly CardGroupBy[] = ['none', 'status', 'area', 'device'];
+const CARD_LIST_KEYS = ['areas', 'devices', 'labels', 'recurrence_types'] as const;
+
+/**
+ * Check a card config and return a copy with each list option as a list (F05-8).
+ *
+ * In YAML, `areas: kitchen` gives a string, and `new Set('kitchen')` is a set of its
+ * letters, so no task matched and the card was empty with no error. A string becomes
+ * a list of one. Any other value that is not a list, and an unknown filter, sort or
+ * group_by value, is an error, so Home Assistant shows it as a config error.
+ */
+export function normalizeCardConfig(config: HomeKeeperCardConfig): HomeKeeperCardConfig {
+  const out: Record<string, unknown> = { ...config };
+  for (const key of CARD_LIST_KEYS) {
+    const value = out[key];
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'string') out[key] = [value];
+    else if (!Array.isArray(value)) throw new Error(`Home Keeper card: ${key} must be a list`);
+  }
+  const enums: [string, readonly string[]][] = [
+    ['filter', CARD_FILTERS],
+    ['sort', CARD_SORTS],
+    ['group_by', CARD_GROUPS],
+  ];
+  for (const [key, allowed] of enums) {
+    const value = out[key];
+    if (value === undefined || value === null) continue;
+    if (!allowed.includes(value as string)) {
+      throw new Error(
+        `Home Keeper card: ${key} must be one of ${allowed.join(', ')}, not ${String(value)}`,
+      );
+    }
+  }
+  return out as unknown as HomeKeeperCardConfig;
+}
+
 /**
  * Whether *task* is one of Home Keeper's auto-created "Buy {part}" reminders.
  *
@@ -498,16 +544,19 @@ function matchesFilter(task: Task, filter: CardFilter, now: number): boolean {
       // therefore due now — but `filter: shopping` is how a card asks for those, and a
       // card set to `overdue` with `group_by: status` otherwise drew a Shopping section
       // under an Overdue filter. Matches the panel's own Overdue pill: the two describe
-      // one idea and must not disagree about which tasks it holds.
-      return dated && due <= now && !isBuyTask(task);
+      // one idea and must not disagree about which tasks it holds. A switched-off
+      // task is not late work either, also when `show_disabled` lets it into the
+      // card (F05-7): the panel pill leaves it out too.
+      return task.enabled !== false && dated && due <= now && !isBuyTask(task);
     case 'soon':
       // No Today bucket here, the same as the panel's Due soon pill (PANEL_BUCKETS).
       // With the card default a task due later today is 'today', so a Due soon card
       // dropped it on its due day (F05-1).
       return statusBucket(task, now, { today: false }) === 'soon';
     case 'today':
-      // Everything actionable today: overdue plus anything due before midnight.
-      return dated && due <= endOfToday(now);
+      // Everything actionable today: overdue plus anything due before midnight. A
+      // switched-off task is not actionable (F05-7).
+      return task.enabled !== false && dated && due <= endOfToday(now);
     case 'no_due':
       return !dated;
     case 'shopping':

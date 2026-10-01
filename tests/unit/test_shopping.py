@@ -392,6 +392,8 @@ def test_a_reminder_that_went_away_unbought_takes_its_item_with_it():
 
 
 def test_switching_the_target_list_moves_the_item():
+    # B11-4: the remove comes first. The add waits for the next pass, so the remove
+    # and the add never share the key's bookkeeping.
     plan = sh.plan_sync(
         now=NOW,
         tracked=_tracked(entity_id=OTHER),
@@ -400,6 +402,16 @@ def test_switching_the_target_list_moves_the_item():
         target=TARGET,
     )
     assert plan.remove == [sh.RemoveOp(KEY, OTHER, "i1")]
+    assert plan.add == []
+    assert plan.tracked == {}
+    # The next pass, after the remove landed, adds the line to the new list.
+    plan = sh.plan_sync(
+        now=NOW,
+        tracked={},
+        desired=sh.buy_tasks_by_part({"t1": _buy_task()}),
+        items_by_entity={OTHER: [], TARGET: []},
+        target=TARGET,
+    )
     assert plan.add == [sh.AddOp(KEY, TARGET, "Buy Anode rod")]
     assert plan.tracked == {
         KEY: {
@@ -873,10 +885,8 @@ def test_each_part_is_planned_independently_in_one_pass():
         },
         target=TARGET,
     )
-    assert plan.add == [
-        sh.AddOp("a:moved", TARGET, "Buy oil"),
-        sh.AddOp("a:new", TARGET, "Buy anode"),
-    ]
+    # The moved line goes on the new list in the next pass (B11-4).
+    assert plan.add == [sh.AddOp("a:new", TARGET, "Buy anode")]
     assert plan.remove == [
         sh.RemoveOp("a:gone", TARGET, "g"),
         sh.RemoveOp("a:moved", OTHER, "m"),
@@ -889,12 +899,6 @@ def test_each_part_is_planned_independently_in_one_pass():
     assert plan.tracked == {
         "a:keep": {"entity_id": TARGET, "summary": "Buy filter", "uid": "k"},
         "a:name": {"entity_id": TARGET, "summary": "Seife kaufen", "uid": "n"},
-        "a:moved": {
-            "entity_id": TARGET,
-            "summary": "Buy oil",
-            "uid": None,
-            "added_at": ADDED,
-        },
         "a:new": {
             "entity_id": TARGET,
             "summary": "Buy anode",
@@ -1298,3 +1302,59 @@ def test_a_note_home_keeper_wrote_is_still_updated_to_a_new_amount():
     plan = _plan_caps(tracked=tracked, desired=_desired(amount="1 l"), items=[item])
     assert plan.update == [sh.UpdateOp(KEY, TARGET, "i1", description="1 l")]
     assert "user_described" not in plan.tracked[KEY]
+
+
+# ── B11-3: a note typed over the amount is the shopper's ──────────────────────
+
+
+def test_b11_3_a_note_typed_over_the_amount_is_kept():
+    item = {**_item(), "description": "500 ml, the blue Lenor bottle"}
+    tracked = {KEY: {**_tracked()[KEY], "description": "500 ml"}}
+    plan = _plan_caps(tracked=tracked, desired=_desired(), items=[item])
+    assert plan.update == []
+    assert plan.tracked[KEY]["user_described"] is True
+    # The shopper's note is not recorded as ours, so a later pass keeps it too.
+    assert "description" not in plan.tracked[KEY]
+    again = _plan_caps(tracked=plan.tracked, desired=_desired(), items=[item])
+    assert again.update == []
+    assert (
+        sh.needs_pass(
+            tracked=plan.tracked, desired=_desired(), target=TARGET, capabilities=_DESC
+        )
+        is False
+    )
+
+
+def test_b11_3_a_list_that_changes_case_or_spaces_is_not_a_shopper_note():
+    item = {**_item(), "description": " 500ML "}
+    tracked = {KEY: {**_tracked()[KEY], "description": "500 ml"}}
+    plan = _plan_caps(tracked=tracked, desired=_desired(), items=[item])
+    assert plan.update == []
+    assert "user_described" not in plan.tracked[KEY]
+    assert plan.tracked[KEY]["description"] == "500 ml"
+    # A new amount is still written over it.
+    plan = _plan_caps(tracked=tracked, desired=_desired(amount="1 l"), items=[item])
+    assert plan.update == [sh.UpdateOp(KEY, TARGET, "i1", description="1 l")]
+
+
+def test_b11_3_a_list_that_shows_the_new_amount_late_catches_up():
+    # Home Keeper wrote "1 l" last pass. The list still shows "500 ml", so the pass
+    # holds the line as a note. When the list shows "1 l", the note flag goes.
+    item = {**_item(), "description": "500 ml"}
+    tracked = {KEY: {**_tracked()[KEY], "description": "1 l"}}
+    plan = _plan_caps(tracked=tracked, desired=_desired(amount="1 l"), items=[item])
+    assert plan.update == []
+    caught_up = {**_item(), "description": "1 l"}
+    plan = _plan_caps(
+        tracked=plan.tracked, desired=_desired(amount="1 l"), items=[caught_up]
+    )
+    assert plan.update == []
+    assert "user_described" not in plan.tracked[KEY]
+    assert plan.tracked[KEY]["description"] == "1 l"
+
+
+def test_b11_3_same_text_ignores_case_and_white_space_only():
+    assert sh._same_text("500 ML", "500 ml") is True
+    assert sh._same_text(" 500\tml ", "500ml") is True
+    assert sh._same_text("500 ml", "50 ml") is False
+    assert sh._same_text("", "") is True

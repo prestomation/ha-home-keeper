@@ -7,12 +7,14 @@ mutations occur; every mutation also triggers an immediate refresh.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from collections.abc import Callable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 try:
@@ -20,16 +22,17 @@ try:
 except ImportError:  # pragma: no cover - older HA fallback
     from homeassistant.helpers.entity import DeviceInfo  # type: ignore[no-redef]
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from . import companions, models, notifier, recurrence, transitions
+from . import assets, companions, notifier, recurrence, transitions
 from .const import (
     ASSET_KIND_VIRTUAL,
     DOMAIN,
-    EVENT_TASK_DUE_SOON,
-    EVENT_TASK_OVERDUE,
     OPTION_ONE_OFF_RETENTION_DAYS,
+    SIGNAL_PART_STOCK_CHANGED,
 )
 from .device_compat import resolve_device
 from .options import current_options, take_retention_grace
@@ -61,6 +64,30 @@ def _edge_state_store(hass: HomeAssistant) -> dict[str, transitions.StateMap]:
 def discard_edge_state(hass: HomeAssistant, entry_id: str) -> None:
     """Drop an entry's persisted edge state (called when the entry is removed)."""
     _edge_state_store(hass).pop(entry_id, None)
+
+
+def discard_edge_state_if_disabled(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Drop the edge state when an unload is for a disabled entry (B18-6).
+
+    The edge state is kept across a reload, so a reload does not lose a crossing.
+    A disabled entry can stay off for days. If it kept the edge state, the first
+    refresh after the user enables it again sends an event and a notification for
+    each crossing in that time. Home Assistant sets ``disabled_by`` before the
+    unload, so the unload can tell the 2 cases apart. With no edge state, the setup
+    sets a silent baseline, as at a restart.
+    """
+    if entry.disabled_by is not None:
+        discard_edge_state(hass, entry.entry_id)
+
+
+def part_entity_kinds(asset: dict[str, Any] | None, part_id: str) -> tuple[bool, bool]:
+    """Which stock entities a part has: a spares ``number``, a low-stock sensor.
+
+    The platforms make these entities only at setup, so a change of this pair
+    needs an entry reload (B15-5).
+    """
+    part = assets.find_part(asset or {}, part_id) or {}
+    return assets.part_tracks_stock(part), assets.part_has_reorder(part)
 
 
 def task_has_entities(task: dict[str, Any] | None) -> bool:
@@ -104,7 +131,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             hass,
             _LOGGER,
             name="Home Keeper",
-            update_interval=SCAN_INTERVAL,
+            # No interval of the base class (B18-5). Home Assistant schedules that
+            # one only while an entity listens and while the entry allows polling.
+            # ``async_start_clock`` runs the refresh for time-based work instead.
+            update_interval=None,
             # Pass the entry explicitly — HA deprecated inferring it from a ContextVar
             # (removal 2025.11). The base stores it as ``self.config_entry``; ``entry``
             # is a read-only alias so existing call sites don't churn.
@@ -151,6 +181,19 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         assert entry is not None  # always set: we pass config_entry= in __init__
         return entry
 
+    def async_start_clock(self) -> Callable[[], None]:
+        """Refresh every ``SCAN_INTERVAL``, and return the callback that stops it.
+
+        Overdue and due-soon events, the automatic notifications, the one-off purge
+        and the time backstop of a counted wear item come from this clock. The
+        caller passes the callback to ``entry.async_on_unload`` (B18-5).
+        """
+
+        async def _tick(_now: Any) -> None:
+            await self.async_request_refresh()
+
+        return async_track_time_interval(self.hass, _tick, SCAN_INTERVAL)
+
     def enable_transition_events(self) -> None:
         """Start firing overdue/due-soon events (called once setup is complete).
 
@@ -164,7 +207,24 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """Save the edge state to the process-lifetime store so it survives a reload."""
         _edge_state_store(self.hass)[self.entry.entry_id] = self._edge_state
 
-    async def async_settle_buy_tasks(self) -> None:
+    async def async_adjust_part_stock(
+        self, asset_id: str, part_id: str, delta: float
+    ) -> dict[str, Any]:
+        """Change a part's stock, then settle the buy tasks and the stock entities.
+
+        Shared by the ``adjust_part_stock`` service and its websocket twin. A change
+        on a part that has no stock starts the count (``assets.adjust_part_stock``),
+        and the part then needs a spares number and maybe a low-stock sensor. The
+        platforms make those only at setup, so the settle reloads the entry for
+        them (B15-5). Raises ``KeyError`` for an unknown appliance or part.
+        """
+        before = part_entity_kinds(self.store.get_asset(asset_id), part_id)
+        report = await self.store.adjust_part_stock(asset_id, part_id, delta)
+        after = part_entity_kinds(self.store.get_asset(asset_id), part_id)
+        await self.async_settle_buy_tasks(reload=before != after)
+        return report
+
+    async def async_settle_buy_tasks(self, *, reload: bool = False) -> None:
         """Reconcile part-derived tasks after a stock/completion change, then settle.
 
         Covers both halves: the auto-buy lifecycle below, and the counted wear items
@@ -186,6 +246,9 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         whatever the reconcile created or retired. Neither pass reads a to-do list
         unless something actually drifted, so a settle that changes nothing is
         free.
+
+        *reload* asks for the entry reload even when no buy task changed, for a
+        caller that changed the entity set itself (B15-5).
         """
         if self.shopping_sync is not None:
             await self.shopping_sync.async_sync()
@@ -199,7 +262,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         entity_set_changed = await self.store.reconcile_buy_tasks()
         if self.shopping_sync is not None:
             await self.shopping_sync.async_sync()
-        if entity_set_changed:
+        if entity_set_changed or reload:
             if not self._buy_reload_scheduled:
                 self._buy_reload_scheduled = True
                 self.hass.async_create_task(self._async_reload_for_buy_tasks())
@@ -207,8 +270,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             # The part entities (spares number, low-stock sensor) read the store, not
             # the refreshed data, so they can show the new count now. The refresh
             # below is debounced, and a count that waits up to 10 seconds behind the
-            # tap that changed it reads as a tap that did nothing.
-            self.async_update_listeners()
+            # tap that changed it reads as a tap that did nothing. Only the part
+            # entities listen to this signal. ``async_update_listeners`` wrote every
+            # entity, and the refresh then wrote each one again (X08-5).
+            async_dispatcher_send(self.hass, SIGNAL_PART_STOCK_CHANGED)
             await self.async_request_refresh()
 
     async def _async_reload_for_buy_tasks(self) -> None:
@@ -236,6 +301,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._edge_state, tasks, now=dt_util.now()
         )
         if self._events_enabled:
+            prev_state = self._edge_state
             self._edge_state = next_state
             self._persist_edge_state()
             for event_name, payload in fired:
@@ -243,16 +309,9 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             # Automatic notification source: send each notification whose auto
             # trigger matches a transition that fired this cycle, for a task in its
             # profile (once per notification, deduped). The task id goes with the
-            # kind so the notifier can check the profile (B16-1).
-            kinds = {
-                EVENT_TASK_OVERDUE: "overdue",
-                EVENT_TASK_DUE_SOON: "due_soon",
-            }
-            crossed = [
-                (kinds[name], str(payload["task_id"]))
-                for name, payload in fired
-                if name in kinds and payload.get("task_id")
-            ]
+            # kind so the notifier can check the profile (B16-1). A due-soon event
+            # that a snooze or a completion caused sends no push (B16-6).
+            crossed = transitions.auto_crossings(prev_state, fired)
             if crossed:
                 await notifier.async_send_auto(self.hass, self, crossed)
         elif not self._had_prior_edge_state:
@@ -312,19 +371,15 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if buy_source(task) is None
             and recurrence.one_off_expired(task, retention, now=now)
         ]
-        reload_needed = False
-        for task in expired:
-            tid = task["id"]
-            try:
-                await self.store.delete_task(tid)
-            except models.TaskValidationError as err:  # pragma: no cover - defensive
-                _LOGGER.debug("Skipping auto-delete of one-off %s: %s", tid, err)
-                continue
-            # store.delete_task only mutates the store; the entity registry is cleaned
-            # by reloading the config entry (as the service delete path does). Track
-            # whether any purged task owned per-task entities so we reload once.
-            if task_has_entities(task):
-                reload_needed = True
+        if not expired:
+            return
+        # One save for the whole purge, not one per task (X08-2). The store skips a
+        # task that it must not delete.
+        removed = await self.store.delete_tasks([task["id"] for task in expired])
+        # store.delete_tasks only mutates the store; the entity registry is cleaned
+        # by reloading the config entry (as the service delete path does). Reload
+        # once if any purged task owned per-task entities.
+        reload_needed = any(task_has_entities(task) for task in removed)
         if reload_needed:
             # Reload to remove the now-orphaned per-task entities. This runs inside
             # _async_update_data (the coordinator's own refresh), so awaiting the
@@ -447,6 +502,37 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         )
 
 
+# How long a bus event waits for the coordinator while the entry sets up.
+_WAIT_FOR_COORDINATOR_S = 30.0
+_WAIT_STEP_S = 0.5
+
+
+async def async_wait_for_coordinator(
+    hass: HomeAssistant,
+    *,
+    timeout: float = _WAIT_FOR_COORDINATOR_S,
+    step: float = _WAIT_STEP_S,
+) -> HomeKeeperCoordinator | None:
+    """The loaded coordinator, after a wait while the entry sets up (X02-5).
+
+    A notification tap or a tag scan is an event that Home Assistant does not
+    send again. If it arrives during an entry reload, the listener waits here for
+    the new coordinator, for at most *timeout* seconds. With no enabled Home
+    Keeper entry, there is no coordinator to wait for, so this returns ``None``
+    at once.
+    """
+    deadline = time.monotonic() + timeout
+    while (coord := find_coordinator(hass)) is None:
+        enabled = any(
+            entry.disabled_by is None
+            for entry in hass.config_entries.async_entries(DOMAIN)
+        )
+        if not enabled or time.monotonic() >= deadline:
+            return None
+        await asyncio.sleep(step)
+    return coord
+
+
 def find_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
     """The loaded Home Keeper coordinator, or None while no entry is loaded.
 
@@ -455,8 +541,15 @@ def find_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:
     the document views — starts by finding it here. Returning None rather than
     raising is deliberate: an entry is momentarily unloaded during every reload, and
     each caller has its own way of saying so.
+
+    Only a ``LOADED`` entry counts (X13-2). Home Assistant keeps ``runtime_data`` on
+    an entry whose setup failed after the coordinator was assigned, and that
+    coordinator is shut down. A caller that used it wrote to a store that no entity
+    reads, and the panel did not show that Home Keeper is not loaded.
     """
     for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.state is not ConfigEntryState.LOADED:
+            continue
         coord = getattr(entry, "runtime_data", None)
         if isinstance(coord, HomeKeeperCoordinator):
             return coord

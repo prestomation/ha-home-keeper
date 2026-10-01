@@ -170,9 +170,42 @@ describe('deferSplit', () => {
 describe('snoozeTarget', () => {
   const from = new Date('2026-03-10T09:00:00Z');
 
+  // An overdue task: the length counts from the given instant.
+  const overdue = task({ next_due: '2026-03-01T09:00:00Z' });
+
   it('resolves a preset relative to the given instant', () => {
-    const until = snoozeTarget({ open: true, task: task(), preset: '1d' }, from);
+    const until = snoozeTarget({ open: true, task: overdue, preset: '1d' }, from);
     expect(until?.toISOString()).toBe('2026-03-11T09:00:00.000Z');
+  });
+
+  // F10-2: presets counted from now moved a task that is not yet due earlier.
+  it('F10-2: resolves a preset from a due date later than now', () => {
+    const later = task({ next_due: '2026-04-09T09:00:00Z' });
+    const until = snoozeTarget({ open: true, task: later, preset: '1d' }, from);
+    expect(until?.toISOString()).toBe('2026-04-10T09:00:00.000Z');
+  });
+
+  it('F10-2: resolves a preset from now for a task with no due date', () => {
+    const until = snoozeTarget({ open: true, task: null, preset: '1d' }, from);
+    expect(until?.toISOString()).toBe('2026-03-11T09:00:00.000Z');
+  });
+
+  it('F10-2: refuses a custom date that is not later than the due date', () => {
+    const later = task({ next_due: '2026-04-09T09:00:00Z' });
+    const s = (customAt) => ({ open: true, task: later, preset: 'custom', customAt });
+    expect(snoozeTarget(s(isoToHaDateTime('2026-04-01T09:00:00Z')), from)).toBeNull();
+    expect(snoozeTarget(s(isoToHaDateTime('2026-04-09T09:00:00Z')), from)).toBeNull();
+    expect(snoozeTarget(s(isoToHaDateTime('2026-04-09T09:01:00Z')), from)?.toISOString()).toBe(
+      '2026-04-09T09:01:00.000Z',
+    );
+  });
+
+  it('F10-2: refuses a custom date in the past for an overdue task', () => {
+    const s = (customAt) => ({ open: true, task: overdue, preset: 'custom', customAt });
+    expect(snoozeTarget(s(isoToHaDateTime('2026-03-05T09:00:00Z')), from)).toBeNull();
+    expect(snoozeTarget(s(isoToHaDateTime('2026-03-10T09:01:00Z')), from)?.toISOString()).toBe(
+      '2026-03-10T09:01:00.000Z',
+    );
   });
 
   it('returns null for a custom snooze with no date typed yet', () => {
@@ -186,7 +219,7 @@ describe('snoozeTarget', () => {
   });
 
   it('uses the typed date when the custom preset has one', () => {
-    const s = { open: true, task: task(), preset: 'custom', customAt: '2026-04-01 08:30:00' };
+    const s = { open: true, task: overdue, preset: 'custom', customAt: '2026-04-01 08:30:00' };
     const until = snoozeTarget(s, from);
     expect(until).not.toBeNull();
     expect(until.getFullYear()).toBe(2026);
@@ -265,6 +298,34 @@ describe('snoozeHintText', () => {
     expect(snoozeHintText(s, 'en')).toBe(t('defer.snoozePickDate'));
   });
 
+  it('F10-2: says why a custom date before the due date does not work', () => {
+    const s = {
+      open: true,
+      task: task(),
+      preset: 'custom',
+      customAt: isoToHaDateTime('2026-09-20T09:00:00Z'),
+    };
+    const text = snoozeHintText(s, 'en', NOW);
+    expect(text).toMatch(/^Pick a date and time after .+\.$/);
+    expect(text).toContain('2026');
+    expect(text).not.toBe(t('defer.snoozePickDate'));
+  });
+
+  it('F10-2: says "pick a date" for a preset with no date, whatever was typed before', () => {
+    const s = {
+      open: true,
+      task: task(),
+      preset: 'no-such-preset',
+      customAt: isoToHaDateTime('2026-09-20T09:00:00Z'),
+    };
+    expect(snoozeHintText(s, 'en', NOW)).toBe(t('defer.snoozePickDate'));
+  });
+
+  it('F10-2: states the date a preset gives from a later due date', () => {
+    const s = { open: true, task: task(), preset: '1d' };
+    expect(snoozeHintText(s, 'en', NOW)).toMatch(/^Due date moves to .*Oct.*1.*2026/);
+  });
+
   it('states the resolved date once there is one', () => {
     const s = { open: true, task: task(), preset: '1d' };
     const text = snoozeHintText(s, 'en');
@@ -339,7 +400,7 @@ describe('snoozeStateFor', () => {
   });
 
   it('opens on custom, filled in, for a length no preset has', () => {
-    const tk = task({ snooze_hours: 3 });
+    const tk = task({ snooze_hours: 3, next_due: '2026-09-01T09:00:00Z' });
     const s = snoozeStateFor(tk, NOW);
     expect(s).toEqual({
       open: true,
@@ -349,5 +410,12 @@ describe('snoozeStateFor', () => {
     });
     // The date field resolves to exactly the task length from now.
     expect(snoozeTarget(s, NOW)).toEqual(new Date('2026-09-15T15:00:00Z'));
+  });
+
+  it('F10-2: fills in the length from a due date later than now', () => {
+    const tk = task({ snooze_hours: 3 });
+    const s = snoozeStateFor(tk, NOW);
+    expect(s.customAt).toBe(isoToHaDateTime('2026-09-30T16:00:00Z'));
+    expect(snoozeTarget(s, NOW)).toEqual(new Date('2026-09-30T16:00:00Z'));
   });
 });

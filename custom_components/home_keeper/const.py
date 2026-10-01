@@ -8,7 +8,7 @@ PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.28.0b17"
+PANEL_VERSION = "0.28.0b18"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"
@@ -678,6 +678,9 @@ COMPANION_KEY_PROBLEM_SENSORS = f"{DOMAIN}:problem_sensors"
 # toggled; the reconciler subscribes to re-materialize managed tasks without
 # needing a config-entry reload.
 SIGNAL_DECLARATIVE_SPECS_CHANGED = f"{DOMAIN}_declarative_specs_changed"
+# Dispatcher signal: the stock of a part changed. The part entities (spares number,
+# low-stock sensor) write their state at once, before the debounced refresh.
+SIGNAL_PART_STOCK_CHANGED = f"{DOMAIN}_part_stock_changed"
 # Bus events fired on spec-level mutations. Managed tasks still emit the standard
 # ``home_keeper_task_*`` events; automations filter to declarative tasks via
 # ``managed_by.integration == "home_keeper"`` +

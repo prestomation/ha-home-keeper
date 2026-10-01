@@ -110,6 +110,9 @@ class TodoSyncDriver(ABC):
         self._running = False
         self._pending = False
         self._stopped = False
+        # Set by the first pass after Home Assistant has started. A pass before then
+        # reads lists that other integrations have not set up yet (B10-8).
+        self._started = False
         # Reasons already logged at warning level, so a permanently misconfigured
         # target says its piece once instead of on every event that pokes a pass.
         self._warned: set[str] = set()
@@ -122,6 +125,7 @@ class TodoSyncDriver(ABC):
         write to belong to other integrations, which may not have set up yet, and
         a target that reads as missing would have us do nothing.
         """
+        self._started = True
         await self.async_sync(force=True)
 
     @callback

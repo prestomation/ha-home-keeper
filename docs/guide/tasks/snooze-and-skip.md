@@ -8,12 +8,15 @@ today moves the due date to today, also without changing the recurrence.
 
 Open a task and select **Snooze**, **Skip** or **Due today** next to **Done**.
 
-- **Snooze** takes a duration. Select 1 of 5 durations, or set a date. The dialog
+- **Snooze** takes a duration. Select 1 of 5 durations, or set a date. A duration
+  starts at the due date, or at the current time when the task is already due. A
+  date must be after that time. The dialog
   shows the new due date before it is applied. The recurrence does not change, so
   a task snoozed from the 29th to the 6th is due again on the 29th of the next
   month.
-- **Skip** advances the schedule by 1 occurrence. A floating task starts a new
-  interval from the current date. A fixed task moves to its next scheduled date.
+- **Skip** advances the schedule by 1 occurrence. With a skip, a floating task
+  starts a new interval from the current date, and a fixed task moves to its next
+  scheduled date.
   For a task measured in miles or hours, the next interval starts from the current
   reading of the meter.
 - **Due today** moves the due date to today, for a task a user wants to do now

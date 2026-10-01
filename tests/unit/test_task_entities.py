@@ -179,8 +179,8 @@ def test_blank_task_name_gives_an_empty_prefix(name: str | None) -> None:
 
 
 def test_entity_set_key_of_no_task() -> None:
-    assert te.entity_set_key(None) == (None, False, None, None, False)
-    assert te.entity_set_key({}) == (None, False, None, None, False)
+    assert te.entity_set_key(None) == (None, False, None, None, False, False)
+    assert te.entity_set_key({}) == (None, False, None, None, False, False)
 
 
 def test_entity_set_key_fields() -> None:
@@ -190,8 +190,16 @@ def test_entity_set_key_fields() -> None:
         "Check on Dishwasher Leak Sensor",
         "Leak",
         True,
+        False,
     )
-    assert te.entity_set_key({"id": "x", "name": "N"}) == (None, True, "N", None, False)
+    assert te.entity_set_key({"id": "x", "name": "N"}) == (
+        None,
+        True,
+        "N",
+        None,
+        False,
+        False,
+    )
     assert te.entity_set_key({"id": "x", "enabled": False})[1] is False
 
 
@@ -205,6 +213,28 @@ def test_entity_set_key_changes_on_completion_blocked() -> None:
     assert te.entity_set_key(_companion_task(blocked=True)) != te.entity_set_key(
         _companion_task(blocked=False)
     )
+
+
+def test_b15_2_entity_set_key_changes_on_require_tag_scan() -> None:
+    plain = _task("Refill salt")
+    scan = {**plain, "require_tag_scan": True}
+    assert te.entity_set_key(scan)[5] is True
+    assert te.entity_set_key(plain) != te.entity_set_key(scan)
+
+
+@pytest.mark.parametrize(
+    ("over", "expected"),
+    [
+        ({}, True),
+        ({"require_tag_scan": False}, True),
+        ({"require_tag_scan": True}, False),
+        ({"managed_by": {"completion_blocked": True}}, False),
+        ({"managed_by": {"completion_blocked": False}}, True),
+        ({"source": {"problem_sensor": {"entity_id": "binary_sensor.x"}}}, False),
+    ],
+)
+def test_b15_2_has_mark_done_button(over: dict[str, Any], expected: bool) -> None:
+    assert te.has_mark_done_button({**_task("Refill salt"), **over}) is expected
 
 
 def test_entity_set_key_ignores_other_fields() -> None:

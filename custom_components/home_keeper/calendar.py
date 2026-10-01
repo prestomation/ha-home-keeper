@@ -20,6 +20,7 @@ from homeassistant.util import dt as dt_util
 from . import recurrence
 from .const import DOMAIN, REC_FIXED, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
+from .service_device import service_device_info
 
 # Default duration shown for each task occurrence on the calendar.
 EVENT_DURATION = timedelta(hours=1)
@@ -74,14 +75,17 @@ class HomeKeeperCalendarEntity(
 ):
     """Calendar of upcoming maintenance/chore occurrences."""
 
-    # Explicit name anchors entity_id -> calendar.home_keeper_upcoming_tasks.
-    _attr_has_entity_name = False
-    _attr_name = "Home Keeper Upcoming tasks"
+    # The entity is on the "Home Keeper" service device, so the translated name
+    # composes to "Home Keeper Upcoming tasks" and the entity_id is
+    # calendar.home_keeper_upcoming_tasks (X13-4).
+    _attr_has_entity_name = True
+    _attr_translation_key = "upcoming_tasks"
     _attr_icon = "mdi:calendar-clock"
 
     def __init__(self, coordinator: HomeKeeperCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{DOMAIN}_calendar"
+        self._attr_device_info = service_device_info()
 
     @property
     def event(self) -> CalendarEvent | None:
@@ -123,27 +127,27 @@ class HomeKeeperCalendarEntity(
             if anchor is None:
                 return None
             season = task.get("active_season")
+            if season:
+                # The first grid occurrence inside the season. ``_clamp_season`` uses
+                # the same walk, so the calendar and ``next_due`` agree (B07-9). A
+                # grid that can never land in one (every 12 months from January,
+                # with a March season) exhausts the bound and leaves the task off
+                # the calendar rather than inventing an out-of-season date for it —
+                # it is still in the panel and on the to-do list, which is where an
+                # impossible pairing gets noticed and corrected.
+                return recurrence.next_in_season_occurrence(
+                    anchor,
+                    task["freq"],
+                    int(task["interval"]),
+                    season,
+                    after=now - EVENT_DURATION,
+                )
             occ = recurrence.next_fixed_occurrence(
                 anchor,
                 task["freq"],
                 int(task["interval"]),
                 after=now - EVENT_DURATION,
             )
-            if season:
-                # Walk the grid forward to the first occurrence inside the season.
-                # A grid that can never land in one (every 12 months from January,
-                # with a March season) exhausts the bound and leaves the task off
-                # the calendar rather than inventing an out-of-season date for it —
-                # it is still in the panel and on the to-do list, which is where an
-                # impossible pairing gets noticed and corrected.
-                for _ in range(recurrence.MAX_EXPAND_ITERATIONS):
-                    if recurrence.in_season(occ, season):
-                        break
-                    occ = recurrence.next_fixed_occurrence(
-                        anchor, task["freq"], int(task["interval"]), after=occ
-                    )
-                else:
-                    return None
             return occ
         due_iso = task.get("next_due")
         due = dt_util.parse_datetime(due_iso) if due_iso else None
@@ -171,6 +175,9 @@ class HomeKeeperCalendarEntity(
                 if anchor is None:
                     continue
                 season = task.get("active_season")
+                # The expansion starts 1 event length early, to get an occurrence
+                # that is in progress at the window start. An occurrence that ends
+                # exactly at the window start is not in the window (B11-7).
                 starts = [
                     occ
                     for occ in recurrence.expand_fixed_occurrences(
@@ -180,7 +187,8 @@ class HomeKeeperCalendarEntity(
                         start_date - EVENT_DURATION,
                         end_date,
                     )
-                    if not season or recurrence.in_season(occ, season)
+                    if occ + EVENT_DURATION > start_date
+                    and (not season or recurrence.in_season(occ, season))
                 ]
                 due = _due(task)
                 if due is not None:

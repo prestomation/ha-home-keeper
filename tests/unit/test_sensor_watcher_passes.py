@@ -573,3 +573,94 @@ def test_x10_1_a_rename_rewrites_the_binding_and_keeps_the_edge(_no_trackers):
     assert store.triggered == []
     assert watcher._edge["t"]["condition"][0] == "sensor.tesla_battery"
     assert _no_trackers[-1] == ["sensor.tesla_battery"]
+
+
+# ── X02-4: an unload during a pass leaves no timer and no listener ───────────
+def test_x02_4_a_pass_that_resumes_after_unload_books_no_hold_timer(
+    monkeypatch, _no_trackers
+):
+    booked: list[str] = []
+    monkeypatch.setattr(
+        sensor_watcher,
+        "async_track_point_in_time",
+        lambda hass, action, when: booked.append(action.args[0]) or (lambda: None),
+    )
+    tasks = {
+        # Completes first, and the pass suspends in the save.
+        "plug": _task(
+            "plug",
+            {
+                "entity_id": "sensor.plug",
+                "mode": "availability",
+                "clear_on_recover": True,
+            },
+            armed=True,
+        ),
+        # Crosses after the save, so the pass books its hold timer.
+        "humid": _task(
+            "humid",
+            {
+                "entity_id": "sensor.humidity",
+                "mode": "threshold",
+                "comparison": ">",
+                "value": 90,
+                "for_seconds": 300,
+            },
+        ),
+    }
+    states = {"sensor.plug": _state("unavailable"), "sensor.humidity": _state("50")}
+    unloads: list = []
+    watcher, hass, store = _watcher(tasks, states)
+    watcher._entry.async_on_unload = unloads.append
+
+    async def go():
+        await watcher.async_baseline()
+        watcher.async_start_listeners()
+        subscribed = len(_no_trackers)
+        states["sensor.plug"] = _state("on")
+        states["sensor.humidity"] = _state("95")
+        pass_ = hass.async_create_task(watcher.async_evaluate(refresh=False))
+        assert store.completed == ["plug"]  # suspended in the save
+        for unload in unloads:
+            unload()
+        # A task added before the reload changes the bound entity set.
+        tasks["new"] = _task(
+            "new", {"entity_id": "binary_sensor.new", "mode": "state", "state": "on"}
+        )
+        await pass_
+        await watcher.async_evaluate(refresh=False)
+        await hass.settle()
+        return subscribed
+
+    subscribed = _run(go)
+    assert booked == []
+    assert watcher._hold_timers == {}
+    assert len(_no_trackers) == subscribed
+    assert watcher._tracked == ()
+
+
+def test_x02_4_a_live_pass_still_books_the_hold_timer(monkeypatch):
+    booked: list[str] = []
+    monkeypatch.setattr(
+        sensor_watcher,
+        "async_track_point_in_time",
+        lambda hass, action, when: booked.append(action.args[0]) or (lambda: None),
+    )
+    sensor = {
+        "entity_id": "sensor.humidity",
+        "mode": "threshold",
+        "comparison": ">",
+        "value": 90,
+        "for_seconds": 300,
+    }
+    states = {"sensor.humidity": _state("50")}
+    watcher, _hass, _store = _watcher({"humid": _task("humid", sensor)}, states)
+
+    async def go():
+        await watcher.async_baseline()
+        states["sensor.humidity"] = _state("95")
+        await watcher.async_evaluate(refresh=False)
+
+    _run(go)
+    assert booked == ["humid"]
+    assert set(watcher._hold_timers) == {"humid"}

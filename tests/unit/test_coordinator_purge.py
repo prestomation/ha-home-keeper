@@ -139,10 +139,17 @@ class _FakeStore(FakeTaskSnapshotStore):
     def __init__(self, tasks: dict) -> None:
         super().__init__(tasks)
         self.deleted: list[str] = []
+        # One entry per call: the purge deletes with one call, so one save (X08-2).
+        self.calls: list[list[str]] = []
 
-    async def delete_task(self, tid: str) -> None:
-        self.deleted.append(tid)
-        self._tasks.pop(tid, None)
+    async def delete_tasks(self, tids: list[str]) -> list[dict]:
+        self.calls.append(list(tids))
+        removed = []
+        for tid in tids:
+            if tid in self._tasks:
+                self.deleted.append(tid)
+                removed.append(self._tasks.pop(tid))
+        return removed
 
 
 def _make_coord(tasks: dict, *, retention: int = 30):
@@ -211,12 +218,39 @@ def test_purge_reloads_once_for_mixed_batch():
     assert len(coord.hass.created) == 1
 
 
+def test_x08_2_the_purge_deletes_every_expired_task_in_one_call():
+    tasks = {
+        "a": _one_off("a", days_ago=60, device_id=None),
+        "b": _one_off("b", days_ago=60, device_id=None),
+        "fresh": _one_off("fresh", days_ago=5, device_id=None),
+    }
+    coord = _make_coord(tasks)
+    asyncio.run(coord._purge_expired_one_offs())
+    assert [sorted(call) for call in coord.store.calls] == [["a", "b"]]
+    assert coord.hass.created == []
+
+
+def test_x08_2_a_task_the_store_keeps_does_not_ask_for_a_reload():
+    tasks = {"t1": _one_off("t1", days_ago=60, device_id="dev-1")}
+    coord = _make_coord(tasks)
+
+    async def _keep_all(tids):
+        coord.store.calls.append(list(tids))
+        return []
+
+    coord.store.delete_tasks = _keep_all
+    asyncio.run(coord._purge_expired_one_offs())
+    assert coord.store.calls == [["t1"]]
+    assert coord.hass.created == []
+
+
 def test_purge_noop_when_nothing_expired():
     """Retention not yet elapsed → nothing deleted, no reload."""
     tasks = {"t1": _one_off("t1", days_ago=5, device_id="dev-1")}
     coord = _make_coord(tasks)
     asyncio.run(coord._purge_expired_one_offs())
     assert coord.store.deleted == []
+    assert coord.store.calls == []
     assert coord.hass.created == []
 
 
@@ -320,13 +354,19 @@ def _settle_coord(entity_set_changed: bool):
     return coord, calls
 
 
-def test_a_stock_change_shows_at_once_before_the_debounced_refresh():
+def test_a_stock_change_shows_at_once_before_the_debounced_refresh(monkeypatch):
     # The spares number reads the store, so it can show the new count now. The
     # refresh is debounced, and waiting for it left a card's badge a count behind for
-    # up to 10 seconds after the tap that changed it.
+    # up to 10 seconds after the tap that changed it. Only the part entities get the
+    # early write, by the signal (X08-5).
     coord, calls = _settle_coord(entity_set_changed=False)
+    monkeypatch.setattr(
+        coordinator,
+        "async_dispatcher_send",
+        lambda hass, signal: calls.append(signal),
+    )
     asyncio.run(coord.async_settle_buy_tasks())
-    assert calls == ["listeners", "refresh"]
+    assert calls == [coordinator.SIGNAL_PART_STOCK_CHANGED, "refresh"]
 
 
 def test_a_buy_task_change_reloads_instead():

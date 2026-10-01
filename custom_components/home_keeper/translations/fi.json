@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Lähde",
-          "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Katso docs/INTEGRATING.md."
+          "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Jokainen nimiavaruus korvaa tallennetun samannimisen nimiavaruuden. Nimiavaruus, jonka arvo on null, poistetaan. Katso docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Suorituksen tiedot",
@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Tunnit",
-          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24). Ohitetaan, kun Mihin asti on asetettu."
+          "description": "Kuinka monta tuntia tehtävää lykätään (oletus 24). Älä aseta Tunnit- ja Mihin asti -kenttää samassa kutsussa."
         },
         "until": {
           "name": "Mihin asti",
-          "description": "Lykkää tehtävän tarkalleen tähän päivämäärään ja kellonaikaan tuntimäärän sijaan. Kun tämä on asetettu, Tunnit-kenttää ei käytetä."
+          "description": "Lykkää tehtävän tarkalleen tähän päivämäärään ja kellonaikaan tuntimäärän sijaan. Älä aseta Tunnit- ja Mihin asti -kenttää samassa kutsussa."
         },
         "origin": {
           "name": "Alkuperä",
@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part} – varaosat"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tehtävät"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Tulevat tehtävät"
+      }
     }
   },
   "device_automation": {
@@ -1106,6 +1116,15 @@
     },
     "unknown_document": {
       "message": "Tuntematon asiakirja: {document_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Vain käyttöanturiin sidotulla tehtävällä on mittari."
+    },
+    "meter_has_no_reading": {
+      "message": "Sidotulla anturilla ei ole nyt numeerista lukemaa. Anna lähtöarvo kutsussa."
+    },
+    "archived_completion_not_found": {
+      "message": "Laitteella ei ole arkistoitua suoritusta tehtävälle {task_id} ajalla {ts}."
     },
     "unknown_part_file": {
       "message": "Tuntematon varaosa tai ei liitettyä tiedostoa."

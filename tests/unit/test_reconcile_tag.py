@@ -440,6 +440,36 @@ def test_a_manual_link_and_a_plain_task_keep_their_own_tag():
     assert rc.is_part_owned_tag_update({"id": "t"}, {"tag_id": "x"}) is False
 
 
+# ── B09-5: update_task may not rename a task the part names ─────────────────
+def test_b09_5_renaming_a_derived_task_is_refused():
+    task = _tagged_task()
+    assert rc.is_part_owned_name_update(task, {"name": "Swap the anode"}) is True
+
+
+def test_b09_5_renaming_a_use_task_is_refused():
+    task = _by_role(_reconcile({"a1": _asset(parts=[_counted_part()])})[0])["use"]
+    assert rc.is_part_owned_name_update(task, {"name": "Wear it"}) is True
+
+
+def test_b09_5_sending_the_current_name_back_is_not_a_change():
+    task = _tagged_task()
+    name = task["name"]
+    assert rc.is_part_owned_name_update(task, {"name": name}) is False
+    assert rc.is_part_owned_name_update(task, {"name": f"  {name} "}) is False
+    assert rc.is_part_owned_name_update(task, {"notes": "x"}) is False
+
+
+def test_b09_5_a_manual_link_and_a_plain_task_keep_their_own_name():
+    manual = {
+        "id": "t-manual",
+        "name": "Mine",
+        "source": {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}},
+    }
+    assert rc.is_part_owned_name_update(manual, {"name": "New"}) is False
+    plain = {"id": "t", "name": "a"}
+    assert rc.is_part_owned_name_update(plain, {"name": "b"}) is False
+
+
 def test_a_skipped_task_does_not_stop_the_stray_sweep():
     """An untagged task and a task whose part is gone come first; the stray tag after
     them is still named. An asset with no ``parts`` key is skipped, not crashed."""

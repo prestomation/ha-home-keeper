@@ -179,6 +179,10 @@ def _normalize_cost(value: Any) -> float | None:
         cost = float(value)
     except (TypeError, ValueError) as err:
         raise AssetValidationError("cost must be a number") from err
+    # NaN and the infinities pass float() and every bound check below. They would
+    # make the appliance report totals NaN (B05-7).
+    if not math.isfinite(cost):
+        raise AssetValidationError("cost must be a number")
     if cost < 0:
         raise AssetValidationError("cost must not be negative")
     return cost
@@ -225,7 +229,10 @@ def _normalize_metadata_entry(raw: Any) -> dict:
     mtype = raw.get("type", "text")
     if mtype not in METADATA_TYPES:
         raise AssetValidationError(f"invalid metadata type: {mtype!r}")
-    label = str(raw.get("label", "")).strip()
+    # A key that is present with null must read as empty, not as the text "None",
+    # and a YAML boolean must be refused, not stored as "True" (B05-8).
+    raw_label = _reject_boolean(raw.get("label"), "metadata label")
+    label = "" if raw_label is None else str(raw_label).strip()
     if not label:
         raise AssetValidationError("metadata label must not be empty")
     entry: dict[str, Any] = {
@@ -239,7 +246,8 @@ def _normalize_metadata_entry(raw: Any) -> dict:
     elif mtype == "link":
         entry["value"] = _normalize_http_url(raw.get("value"), label)
     else:
-        entry["value"] = str(raw.get("value", "")).strip()
+        value = _reject_boolean(raw.get("value"), "metadata value")
+        entry["value"] = "" if value is None else str(value).strip()
     return entry
 
 
@@ -307,7 +315,8 @@ def _normalize_document_entry(raw: Any) -> dict:
         else:
             try:
                 entry["size"] = max(0, int(size))
-            except (TypeError, ValueError) as err:
+            # int() of an infinite float raises OverflowError (B05-6).
+            except (TypeError, ValueError, OverflowError) as err:
                 raise AssetValidationError("document size must be an integer") from err
         entry["filename"] = filename
         entry["content_type"] = content_type
@@ -333,7 +342,26 @@ def _merge_documents(existing: list[dict], incoming: list[dict]) -> list[dict]:
     """
     files = [d for d in existing if d.get("kind") == "file"]
     links = [d for d in incoming if d.get("kind") == "link"]
+    # A link that reuses the id of a stored file gets a new id, as in
+    # append_document. Otherwise a removal of the link removes the file and its
+    # blob (B05-4).
+    file_ids = {d.get("id") for d in files}
+    for link in links:
+        if link.get("id") in file_ids:
+            link["id"] = str(uuid.uuid4())
     return [*files, *links]
+
+
+def _require_link_url(entry: dict) -> None:
+    """Refuse a link document with no URL.
+
+    A link with an empty URL opens nothing, and the panel and the card hide it. Only
+    the paths that write one document check this (F08-5). The list normalizer does
+    not: it runs on every appliance save, so a link stored empty before this check
+    would make each later save of that appliance fail.
+    """
+    if entry["kind"] == "link" and not entry["url"]:
+        raise AssetValidationError("a link document needs a url")
 
 
 def append_document(asset: dict, raw: Any, *, created: str) -> dict:
@@ -351,6 +379,7 @@ def append_document(asset: dict, raw: Any, *, created: str) -> dict:
             f"an appliance can have at most {_MAX_DOCUMENTS} documents"
         )
     entry = _normalize_document_entry({**raw, "created": created})
+    _require_link_url(entry)
     if entry["id"] in {d.get("id") for d in documents}:
         entry["id"] = str(uuid.uuid4())
     documents.append(entry)
@@ -393,6 +422,7 @@ def update_document(asset: dict, document_id: str, changes: Any) -> dict | None:
         if document.get("kind") == "link" and "url" in changes:
             merged["url"] = changes["url"]
         updated = _normalize_document_entry(merged)
+        _require_link_url(updated)
         documents[index] = updated
         asset["documents"] = documents
         return updated
@@ -414,7 +444,8 @@ def _normalize_interval(value: Any) -> int | None:
         return None
     try:
         interval = int(value)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise AssetValidationError("replace_interval must be an integer") from err
     if interval < 1:
         raise AssetValidationError("replace_interval must be >= 1")
@@ -570,7 +601,8 @@ def _normalize_carried_uses(value: Any) -> int:
         # gives. ``int`` alone truncates toward zero, which turned -0.5 into an
         # acceptable 0 while -1 was refused — the same wrong file, answered 2 ways.
         carried = math.floor(raw) if isinstance(raw, float) else int(raw)
-    except (TypeError, ValueError) as err:
+    # floor() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise AssetValidationError("carried_uses must be an integer") from err
     if carried < 0:
         raise AssetValidationError("carried_uses must be >= 0")
@@ -597,7 +629,8 @@ def _normalize_replace_also_every(value: Any) -> dict[str, Any] | None:
         raw_interval = 1
     try:
         interval = int(raw_interval)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise AssetValidationError(
             "replace_also_every.interval must be an integer"
         ) from err
@@ -1387,8 +1420,13 @@ def adjust_part_stock(part: dict, delta: float) -> str:
     decrease that crosses a threshold, ``"restocked"`` when a restock lifts it above
     the reorder point, else ``"none"``.
     """
+    change = float(delta)
+    # max() and min() return their first argument for NaN, so a NaN delta set the
+    # stock to 0, and an infinite one raised OverflowError (B05-5).
+    if not math.isfinite(change):
+        raise AssetValidationError("delta must be a number")
     old = _round_stock(part.get("stock") or 0)
-    new = _round_stock(min(float(MAX_INTERVAL), max(0.0, old + float(delta))))
+    new = _round_stock(min(float(MAX_INTERVAL), max(0.0, old + change)))
     part["stock"] = new
     return stock_transition(old, new, part.get("reorder_at"))
 
@@ -1894,6 +1932,19 @@ def append_task_history(asset: dict, entry: dict) -> bool:
         return False
     history.append(entry)
     return True
+
+
+def has_archived_completion(asset: dict, task_id: str, ts: str) -> bool:
+    """Whether *asset*'s history has an archived completion of *task_id* at *ts*.
+
+    The ``delete_archived_completion`` service checks this first, so a call that
+    names no stored completion gets an error (B21-3).
+    """
+    return any(
+        entry.get("task_id") == task_id
+        and any(c.get("ts") == ts for c in entry.get("completions", []))
+        for entry in asset.get("task_history") or []
+    )
 
 
 def remove_archived_completion(asset: dict, task_id: str, ts: str) -> bool:

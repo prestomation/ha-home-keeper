@@ -12,6 +12,7 @@ from __future__ import annotations
 import calendar as _calendar
 import math
 import uuid
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
@@ -223,7 +224,8 @@ def _normalize_also_every(data: Any) -> dict[str, Any]:
         raw_interval = 1
     try:
         interval = int(raw_interval)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise TaskValidationError(
             "sensor.also_every.interval must be a valid integer"
         ) from err
@@ -239,6 +241,10 @@ def _normalize_also_every(data: Any) -> dict[str, Any]:
     return {"interval": interval, "unit": unit}
 
 
+MAX_FOR_SECONDS = 365 * 24 * 3600
+"""The longest ``for_seconds`` hold a sensor binding can ask for: 1 year."""
+
+
 def _normalize_for_seconds(data: dict[str, Any]) -> int:
     """Validate the optional ``for_seconds`` hold shared by edge-driven modes.
 
@@ -249,10 +255,17 @@ def _normalize_for_seconds(data: dict[str, Any]) -> int:
     raw_for = data.get("for_seconds") or 0
     try:
         for_seconds = int(raw_for)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise TaskValidationError("sensor.for_seconds must be an integer") from err
     if for_seconds < 0:
         raise TaskValidationError("sensor.for_seconds must be >= 0")
+    # A bound keeps the value inside a 64-bit integer, which the store file can hold,
+    # and inside the range of a timedelta (B04-8).
+    if for_seconds > MAX_FOR_SECONDS:
+        raise TaskValidationError(
+            f"sensor.for_seconds must be at most {MAX_FOR_SECONDS} (1 year)"
+        )
     return for_seconds
 
 
@@ -274,6 +287,7 @@ def normalize_sensor(
     *,
     allow_missing_entity: bool = False,
     allow_missing_template: bool = False,
+    allow_missing_value: bool = False,
 ) -> dict[str, Any]:
     """Validate and normalize a sensor-based task's ``sensor`` binding.
 
@@ -332,6 +346,12 @@ def normalize_sensor(
     per row, so the preview still says what it cannot decide. Nothing that **saves** a
     binding passes this: ``add_task``, ``update_task`` and the add/update companion
     commands all leave it at ``False``.
+
+    ``allow_missing_value`` opts out of the gates for an empty ``target`` (usage),
+    ``value`` (threshold) and ``state`` (state), for the same preview alone (F06-3).
+    The companion dialog leaves the box empty after a switch to one of these modes,
+    and the match list does not depend on the box. An empty field is left out of
+    the result. A field that is set is still checked.
     """
     if not isinstance(data, dict):
         raise TaskValidationError("a sensor task requires a sensor configuration")
@@ -362,11 +382,13 @@ def normalize_sensor(
                 )
         target_raw = data.get("target")
         if target_raw is None or target_raw == "":
-            raise TaskValidationError("sensor.target must be a number")
-        target = _finite_float(target_raw, "sensor.target")
-        if target <= 0:
-            raise TaskValidationError("sensor.target must be > 0")
-        result["target"] = target
+            if not allow_missing_value:
+                raise TaskValidationError("sensor.target must be a number")
+        else:
+            target = _finite_float(target_raw, "sensor.target")
+            if target <= 0:
+                raise TaskValidationError("sensor.target must be > 0")
+            result["target"] = target
         baseline_raw = data.get("baseline")
         if baseline_raw is not None and baseline_raw != "":
             result["baseline"] = _finite_float(baseline_raw, "sensor.baseline")
@@ -390,11 +412,12 @@ def normalize_sensor(
         if comparison not in SENSOR_COMPARISONS:
             raise TaskValidationError(f"invalid sensor comparison: {comparison!r}")
         value_raw = data.get("value")
-        if value_raw is None or value_raw == "":
-            raise TaskValidationError("sensor.value must be a number")
-        value = _finite_float(value_raw, "sensor.value")
         result["comparison"] = comparison
-        result["value"] = value
+        if value_raw is None or value_raw == "":
+            if not allow_missing_value:
+                raise TaskValidationError("sensor.value must be a number")
+        else:
+            result["value"] = _finite_float(value_raw, "sensor.value")
         if for_seconds := _normalize_for_seconds(data):
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):
@@ -409,13 +432,14 @@ def normalize_sensor(
         # as ``"True"``, which no entity reports (B08-2). YAML also reads yes and no
         # as booleans, so a mapping to ``on`` and ``off`` would guess.
         state = str(_reject_boolean(data.get("state"), "sensor.state") or "").strip()
-        if not state:
+        if not state and not allow_missing_value:
             raise TaskValidationError("sensor.state is required")
         if len(state) > MAX_SENSOR_STATE_LEN:
             raise TaskValidationError(
                 f"sensor.state must be <= {MAX_SENSOR_STATE_LEN} characters"
             )
-        result["state"] = state
+        if state:
+            result["state"] = state
         if for_seconds := _normalize_for_seconds(data):
             result["for_seconds"] = for_seconds
         if data.get("clear_on_recover"):
@@ -797,7 +821,8 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         raw_interval = 1
     try:
         interval = int(raw_interval)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise TaskValidationError("interval must be a valid integer") from err
     if interval < 1:
         raise TaskValidationError("interval must be >= 1")
@@ -857,6 +882,35 @@ def validate_source(source: Any) -> None:
     """
     if source is not None and not isinstance(source, dict):
         raise TaskValidationError("source must be a mapping")
+
+
+def merge_source(
+    existing: Any, update: Any, *, reserved: Iterable[str]
+) -> dict[str, Any] | None:
+    """The ``source`` of a task after an ``update_task`` call (B02-4).
+
+    Each namespace in *update* replaces the stored one, and a namespace set to
+    ``None`` is removed. The other stored namespaces stay, so an integration
+    changes only its own (see "Every writer merges into ``source``" in
+    ``docs/INTEGRATING.md``). A *reserved* namespace belongs to a Home Keeper
+    reconciler, so a call that names one is rejected, as ``add_task`` does.
+    """
+    validate_source(update)
+    if not update:
+        return existing if isinstance(existing, dict) else None
+    blocked = sorted(set(update) & set(reserved))
+    if blocked:
+        raise TaskValidationError(
+            f"source keys {blocked} are reserved for Home Keeper's own task "
+            "reconcilers and cannot be set via update_task"
+        )
+    merged = dict(existing) if isinstance(existing, dict) else {}
+    for namespace, payload in update.items():
+        if payload is None:
+            merged.pop(namespace, None)
+        else:
+            merged[namespace] = payload
+    return merged or None
 
 
 def validate_managed_by(managed_by: Any) -> None:
@@ -1079,6 +1133,11 @@ def _season_key(season: Any) -> list[tuple[tuple[int, int], tuple[int, int]]]:
     ]
 
 
+# Fields that only some recurrence types use. A type change removes the ones that
+# the new type does not use (see merge_update).
+_TYPE_SCHEDULE_KEYS = ("interval", "unit", "freq", "anchor", "due", "sensor")
+
+
 def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     """Return *existing* updated with *updates*, recomputing next_due if needed.
 
@@ -1097,6 +1156,10 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
             updates = {k: v for k, v in updates.items() if k not in locked}
 
     merged = dict(existing)
+    old_type = existing.get("recurrence_type")
+    type_changed = (
+        "recurrence_type" in updates and updates["recurrence_type"] != old_type
+    )
     # Build a candidate field set from existing + updates, then normalize so the
     # same validation applies to edits as to creation.
     candidate = {
@@ -1122,6 +1185,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         ),
         "active_season": updates.get("active_season", existing.get("active_season")),
     }
+    if type_changed:
+        # A type change reads the due date and the sensor binding only from the
+        # update. A value stored for an earlier type is stale: an old due date made
+        # a task converted back to one-off overdue at once (B08-7).
+        candidate["due"] = updates.get("due")
+        candidate["sensor"] = updates.get("sensor")
     # Converting a task to one-off without supplying a due date defaults to now (due
     # today), mirroring build_task — so the conversion can't fail for a missing due
     # (the panel always sends one, but a service caller may not).
@@ -1129,21 +1198,36 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         candidate["due"] = now.isoformat()
     fields = normalize_fields(candidate, tz=now.tzinfo)
     merged.update(fields)
+    if type_changed:
+        # Remove the schedule fields that the new type does not use, so the task
+        # has the shape that build_task gives it (B08-7).
+        for key in _TYPE_SCHEDULE_KEYS:
+            if key not in fields:
+                merged.pop(key, None)
 
     # Preserve a usage meter's accumulated baseline across edits. The panel's edit
-    # payload rebuilds the ``sensor`` binding from form fields and never carries the
-    # watcher-stamped ``baseline``, so without this a plain rename or target tweak
-    # would drop it and the watcher would re-anchor to the current reading — silently
-    # resetting "12,000 of 15,000" to zero. Carry the old baseline forward only when
-    # the binding still points at the same entity in usage mode and the update didn't
-    # set one explicitly; changing the entity (a genuinely new meter) re-baselines.
+    # payload rebuilds the ``sensor`` binding from form fields and sends ``baseline``
+    # only when the user changed the box, so without this a plain rename or target
+    # tweak would drop it and the watcher would re-anchor to the current reading —
+    # silently resetting "12,000 of 15,000" to zero. Carry the old baseline forward
+    # only when the binding still points at the same entity in usage mode and the
+    # update didn't set one explicitly; changing the entity (a genuinely new meter)
+    # re-baselines.
+    #
+    # The old binding must be a usage binding of a sensor task that reads the same
+    # quantity: the same entity and the same attribute. A different attribute is a
+    # different meter, and a sensor block kept from before a type change is stale
+    # (B08-5).
     new_sensor = merged.get("sensor")
     old_sensor = existing.get("sensor")
     if (
         isinstance(new_sensor, dict)
         and new_sensor.get("mode") == SENSOR_MODE_USAGE
+        and old_type == REC_SENSOR
         and isinstance(old_sensor, dict)
+        and old_sensor.get("mode") == SENSOR_MODE_USAGE
         and old_sensor.get("entity_id") == new_sensor.get("entity_id")
+        and old_sensor.get("attribute") == new_sensor.get("attribute")
         and "baseline" not in new_sensor
         and old_sensor.get("baseline") is not None
     ):
@@ -1206,7 +1290,6 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "active_season",
     }
     new_type = merged.get("recurrence_type")
-    old_type = existing.get("recurrence_type")
     # Recompute only when a recurrence field's *value* actually changed — not merely
     # because the key is present in the payload. The panel's edit form always sends
     # recurrence_type/due (and interval/unit for scheduled tasks), so keying off

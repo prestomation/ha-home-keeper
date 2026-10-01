@@ -83,17 +83,19 @@ async def async_import_document(
                 dry_run=dry_run
             )
     registry = dr.async_get(hass)
+    area_ids = {area.name: area.id for area in ar.async_get(hass).async_list_areas()}
+    # A stated device_id is only kept when the device really is on this install. Ask
+    # the registry for each id rather than iterate ``devices``, which yields ids
+    # before Home Assistant 2026.9 and omits child devices from 2026.9 on (B04-1).
+    device_ids = device_compat.RegistryDeviceIds(registry)
+    match = data.get("match", "auto")
     plan = transfer.plan_import(
         document,
         tasks=coord.store.get_tasks(),
         assets=coord.store.get_assets(),
-        area_ids={area.name: area.id for area in ar.async_get(hass).async_list_areas()},
-        # A stated device_id is only kept when the device really is on this
-        # install. Ask the registry for each id rather than iterate ``devices``,
-        # which yields ids before Home Assistant 2026.9 and omits child devices from
-        # 2026.9 on (B04-1).
-        device_ids=device_compat.RegistryDeviceIds(registry),
-        match=data.get("match", "auto"),
+        area_ids=area_ids,
+        device_ids=device_ids,
+        match=match,
         now=dt_util.now(),
     )
     if dry_run or not plan.ok:
@@ -110,6 +112,22 @@ async def async_import_document(
         # Provisions a device for every virtual appliance and writes its id back onto
         # the asset — the only moment those ids come into existence.
         await devices.async_reconcile_assets(hass, coord.entry, coord.store)
+        # The 2 steps above wait for saves, and a task can change in that time. Plan
+        # the tasks again against the store as it is now, so that the write below
+        # loses no change (X03-6). Nothing between this and the write waits.
+        replanned = transfer.replan_tasks(
+            document,
+            plan,
+            tasks=coord.store.get_tasks(),
+            assets=coord.store.get_assets(),
+            area_ids=area_ids,
+            device_ids=device_ids,
+            match=match,
+            now=dt_util.now(),
+        )
+        # A new error (a name that a new task made ambiguous) keeps the first plan.
+        if replanned.ok:
+            plan = replanned
 
     planned_tasks = plan.for_section("tasks")
     unattached: list[transfer.Problem] = []

@@ -53,6 +53,7 @@ import {
   LS_GROUP,
   LS_PROFILE,
   LS_TREE_COLLAPSED,
+  TASK_FILTERS,
   type AssetEditState,
   type AssetFilter,
   type AssetView,
@@ -106,8 +107,17 @@ import {
   RELOAD_RETRIES,
   RELOAD_RETRY_MS,
   setTimeZone,
+  hkStateSignal,
 } from './utils';
 
+
+/**
+ * How long after the panel's own load a change of the entity fingerprint counts as
+ * the echo of that load's action, not as a change on another surface (X12-7). The
+ * coordinator refresh that bumps the entities follows the backend write by well
+ * under a second.
+ */
+const LIVE_REFRESH_QUIET_MS = 2000;
 
 /**
  * The Home Keeper panel is built entirely from Home Assistant's own web
@@ -126,7 +136,23 @@ import {
 export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   _hass?: Hass;
   public panel?: PanelInfo;
-  public narrow = false;
+  private _narrow = false;
+  /**
+   * Home Assistant sets `narrow` when the window crosses its sidebar threshold. The
+   * menu button shows only when it is narrow, so pass a change to the mounted button
+   * at once: a rotate into portrait must show it without a full render (F01-7).
+   */
+  set narrow(value: boolean) {
+    this._narrow = value;
+    const mb = this.shadowRoot?.querySelector('ha-menu-button') as
+      | (HTMLElement & { narrow?: boolean })
+      | null
+      | undefined;
+    if (mb) mb.narrow = value;
+  }
+  get narrow(): boolean {
+    return this._narrow;
+  }
   _tasks: Task[] = [];
   _assets: Asset[] = [];
   _completion: CompletionDialogState = {
@@ -307,6 +333,42 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // Keep selectors/pickers current without a disruptive full re-render.
     for (const el of this._liveHassEls) el.hass = hass;
     if (first && !this._loaded) void this._refresh();
+    else this._liveRefresh(hass);
+  }
+
+  // The Home Keeper entity fingerprint the panel last loaded against, and when its
+  // last load ended. See `_liveRefresh`.
+  private _signal = '';
+  private _reloadedAt = 0;
+
+  /**
+   * Load the data again when a task changed on another surface (X12-7).
+   *
+   * Before this, the panel loaded only on open and after its own actions. A task
+   * completed from the card, the to-do list or a tag scan stayed due here, and a
+   * second Done recorded a second completion. The trigger is the fingerprint the card
+   * uses (`hkStateSignal`), so it also covers a restart and a reconnect.
+   *
+   * It waits while the user is busy: a form, a dialog or a deferral menu is open, or
+   * a load runs. The fingerprint stays unconsumed then, so a later `hass` push tries
+   * again. A change within `LIVE_REFRESH_QUIET_MS` of the panel's own load is the echo
+   * of that load's own action, so it is consumed without a second load.
+   */
+  private _liveRefresh(hass: Hass): void {
+    if (!this._loaded || !this.isConnected) return;
+    const sig = hkStateSignal(hass.states);
+    if (sig === this._signal) return;
+    if (
+      this._refreshing ||
+      this._editingOpen() ||
+      this._confirmDelete.open ||
+      this._deferMenus.isOpen
+    ) {
+      return;
+    }
+    this._signal = sig;
+    if (Date.now() - this._reloadedAt < LIVE_REFRESH_QUIET_MS) return;
+    void this._refresh();
   }
   get hass(): Hass | undefined {
     return this._hass;
@@ -355,6 +417,9 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (sectionOnly && this._patchSettingsSection()) return;
     // Leaving a list/detail closes any open form (forms are ephemeral overlays)...
     this._edit = { open: false, task: null };
+    // An upload belongs to the draft it started in. Closing the draft cancels it, so
+    // its result cannot land in a different draft (X12-8).
+    this._abortUpload();
     this._assetEdit = { open: false, asset: null };
     this._noteEdit = null;
     // ...unless this navigation was initiated to open a form (edit from a detail
@@ -375,9 +440,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   /** Open the preset suggestion dialog when the page and the state allow it. */
   private _offerPresets(): void {
     if (!this._loaded || this._loadError) return;
-    if (this._editingOpen() || this._declDialog.open || this._snooze.open || this._skip.open) {
-      return;
-    }
+    if (this._editingOpen()) return;
     if (this._confirmDelete.open) return;
     maybeOpenPresetDialog(this);
   }
@@ -516,9 +579,25 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    * back through `set route` so there is exactly one path into a state change.
    * Drill-in steps push (Back-able); lateral moves (tab switch) replace.
    */
-  // Set to true the first time _navigate pushes a history entry, so _closeDetail
-  // knows whether history.back() has a panel URL to return to.
-  private _hasHistory = false;
+  /**
+   * How many panel entries the panel itself pushed below the current history entry.
+   *
+   * `_navigate` writes it into `history.state` (`hkDepth`): a push adds 1, a replace
+   * keeps it. `_closeDetail` uses `history.back()` only when it is above 0, so Back on
+   * a deep-linked entry never leaves the panel, also after a drill-in and a pop back
+   * to that entry (F01-3). Read with care: Home Assistant's dialog manager can write
+   * its own state onto the entry, and then the value is 0 and Back navigates.
+   */
+  private _hkDepth(): number {
+    const depth = (history.state as { hkDepth?: unknown } | null)?.hkDepth;
+    return typeof depth === 'number' && depth > 0 ? depth : 0;
+  }
+
+  /** The URL of the entry below the current one, if the panel pushed the current one. */
+  private _hkBelow(): string | undefined {
+    const below = (history.state as { hkBelow?: unknown } | null)?.hkBelow;
+    return this._hkDepth() > 0 && typeof below === 'string' ? below : undefined;
+  }
 
   /** The full panel URL for a location, for a link a reader can open in a new tab. */
   _hrefFor(loc: PanelLocation): string {
@@ -527,8 +606,10 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   _navigate(loc: PanelLocation, replace = false): void {
     const url = this._routePrefix + buildPath(loc);
-    history[replace ? 'replaceState' : 'pushState'](null, '', url);
-    if (!replace) this._hasHistory = true;
+    const state = replace
+      ? { hkDepth: this._hkDepth(), hkBelow: this._hkBelow() }
+      : { hkDepth: this._hkDepth() + 1, hkBelow: location.pathname };
+    history[replace ? 'replaceState' : 'pushState'](state, '', url);
     this.dispatchEvent(
       new CustomEvent('location-changed', {
         detail: { replace },
@@ -567,6 +648,16 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // detached subtree after unmount.
     this._disposeAllPreviews();
     this._armResign(false);
+    // An upload in flight would write its result into a detached panel, and its
+    // progress timer would render it (F01-6, X12-8).
+    this._abortUpload();
+  }
+
+  /** Cancel the upload in flight, if any, and its progress-bar timer. */
+  _abortUpload(): void {
+    this._uploadAbort?.abort();
+    if (this._uploadShowTimer) clearTimeout(this._uploadShowTimer);
+    this._uploadShowTimer = undefined;
   }
 
   /**
@@ -591,8 +682,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       if (g === 'none' || g === 'status' || g === 'area' || g === 'device' || g === 'integration')
         this._groupBy = g;
       const f = localStorage.getItem(LS_FILTER);
-      if (f === 'all' || f === 'overdue' || f === 'soon' || f === 'shopping')
-        this._filter = f;
+      if ((TASK_FILTERS as readonly string[]).includes(f ?? '')) this._filter = f as TaskFilter;
       const af = localStorage.getItem(LS_ASSET_FILTER);
       if (af === 'active' || af === 'archived') this._assetFilter = af;
       const av = localStorage.getItem(LS_ASSET_VIEW);
@@ -730,16 +820,18 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    *
    * Same two cases as `_closeDetail`: pop the pushed index entry when there is one,
    * and otherwise (a deep link straight to `/settings/notifications`) navigate to the
-   * index outright, since there is nothing behind us to pop.
+   * index outright, since there is nothing behind us to pop. The entry below must be
+   * the index: a section reached by a replace can sit on top of a different page.
    */
   _closeSettingsSection(): void {
-    if (this._hasHistory) history.back();
+    const index = this._hrefFor({ view: 'settings', detail: null });
+    if (this._hkBelow() === index) history.back();
     else this._navigate({ view: 'settings', detail: null }, true);
   }
 
   _closeDetail(): void {
-    if (this._hasHistory) {
-      // A pushState has occurred in this session: history.back() correctly pops
+    if (this._hkDepth() > 0) {
+      // The panel pushed the current entry: history.back() correctly pops
       // to whatever was before the current detail — even when the detail was
       // opened cross-view (e.g. a task opened from inside an appliance detail).
       history.back();
@@ -895,6 +987,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         this._render();
       } finally {
         this._refreshing = null;
+        this._signal = hkStateSignal(this._hass?.states);
+        this._reloadedAt = Date.now();
       }
     })();
     return this._refreshing;
@@ -1330,6 +1424,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // ── asset form lifecycle ────────────────────────────────────────────────────
   _openCreateAsset(): void {
     this._rememberDrawerOpener();
+    this._abortUpload();
     this._assetEdit = { open: true, asset: { kind: 'virtual', parts: [] } };
     this._render();
   }
@@ -1365,6 +1460,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         }
       : { open: true, asset: seeded };
     if (this._view === 'appliances' && this._editsThisPage('asset', asset.id)) {
+      this._abortUpload();
       this._assetEdit = state;
       this._render();
     } else {
@@ -1373,6 +1469,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     }
   }
   _closeAssetForm(): void {
+    this._abortUpload();
     this._assetEdit = { open: false, asset: null };
     this._render();
   }
@@ -1634,7 +1731,12 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         this._noteEdit ||
         this._completion.open ||
         this._moveCompletion.open ||
-        this._presetDialog.open,
+        this._presetDialog.open ||
+        // The skip note and the declarative dialog have text fields too. A render
+        // while one is open drops focus to `<body>` mid-word (F10-4).
+        this._snooze.open ||
+        this._skip.open ||
+        this._declDialog.open,
     );
   }
 
@@ -1665,7 +1767,11 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
 
   // ── rendering ───────────────────────────────────────────────────────────────
   _render(): void {
-    if (!this.shadowRoot) return;
+    // A detached panel does not render. An async path that ends after unmount (a
+    // refresh, an upload, `_init`) would otherwise rebuild the detached tree and bind
+    // again the listeners and the re-sign timer that unmount took off (F01-6).
+    // `connectedCallback` renders again when the panel is attached again.
+    if (!this.shadowRoot || !this.isConnected) return;
     // Whatever had focus is about to be destroyed; note it so `_restoreFocus` can put
     // the keyboard back on the same control in the rebuilt tree.
     const focused = this._focusKey();
@@ -2157,7 +2263,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // of whatever was on the previous one.
     await this._signedFiles.ensure(hass, refs);
     this._applySignedHrefs();
-    this._armResign(refs.length > 0);
+    // A sign in flight at unmount must not arm the timer again (F01-6).
+    this._armResign(this.isConnected && refs.length > 0);
   }
 
   /**

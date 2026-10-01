@@ -206,6 +206,18 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await expect(labelCard).toBeHidden();
   await page.screenshot({ path: `${OUT}/card-hide-empty.png`, fullPage: true });
 
+  // 5c. A card whose profile was deleted shows a warning, not an empty list, and
+  // hide_when_empty does not hide it (F05-4).
+  await labelCard.evaluate((el: ConfigurableCard) =>
+    el.setConfig({
+      type: 'custom:home-keeper-card',
+      profile: 'deleted-profile',
+      hide_when_empty: true,
+    }),
+  );
+  await expect(labelCard.locator('ha-alert[alert-type="warning"]')).toBeVisible();
+  await shotCard(page, labelCard, `${OUT}/card-profile-missing.png`);
+
   // 6. Truncated list ("+N more" — previously an untranslated template literal).
   // Close the add form from step 4, then reconfigure the default card to a small
   // max_items so the seeded task set (well over a dozen) overflows.
@@ -274,4 +286,15 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   // The form is taller than a phone screen, so shoot the form element itself: the
   // element shot scrolls and stitches, and it ends at Create and Cancel.
   await mobileForm.screenshot({ path: `${OUT}/card-mobile-add-form.png` });
+
+  // The deleted-profile warning on a phone (F05-4).
+  await mobileForm.locator('ha-button', { hasText: 'Cancel' }).click();
+  await mobileCard.evaluate((el: { setConfig: (c: Record<string, unknown>) => void }) =>
+    el.setConfig({ type: 'custom:home-keeper-card', profile: 'deleted-profile' }),
+  );
+  await expect(mobileCard.locator('ha-alert[alert-type="warning"]')).toBeVisible();
+  await mobileCard
+    .locator('ha-card')
+    .first()
+    .screenshot({ path: `${OUT}/card-mobile-profile-missing.png` });
 });

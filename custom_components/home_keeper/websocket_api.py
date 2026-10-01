@@ -8,6 +8,7 @@ reloads the entry on add/delete so per-task entities appear/disappear).
 from __future__ import annotations
 
 import functools
+import math
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -891,7 +892,14 @@ async def ws_restore_asset(
         vol.Required("asset_id"): str,
         vol.Required("part_id"): str,
         # Fractional, like stock itself — 0.33 of a bottle is a real adjustment.
-        vol.Required("delta"): vol.Coerce(float),
+        # Open bounds at the infinities refuse NaN and both infinities, which
+        # Coerce(float) accepts from the text "nan" and "inf" (B05-5).
+        vol.Required("delta"): vol.All(
+            vol.Coerce(float),
+            vol.Range(
+                min=-math.inf, max=math.inf, min_included=False, max_included=False
+            ),
+        ),
     }
 )
 @websocket_api.require_admin
@@ -904,7 +912,8 @@ async def ws_adjust_part_stock(
     coord: HomeKeeperCoordinator,
 ) -> None:
     try:
-        report = await coord.store.adjust_part_stock(
+        # The coordinator settles the buy tasks and the stock entities.
+        report = await coord.async_adjust_part_stock(
             msg["asset_id"], msg["part_id"], msg["delta"]
         )
     except KeyError:
@@ -919,9 +928,6 @@ async def ws_adjust_part_stock(
             part_id=msg["part_id"],
         )
         return
-    # A crossing may create/remove an auto-buy task; settle it (reload if a buy task's
-    # device entities changed, else refresh).
-    await coord.async_settle_buy_tasks()
     # The asset for the panel, which redraws the appliance, and the same stock report
     # the service returns, for any other client.
     connection.send_result(
@@ -1549,8 +1555,9 @@ async def ws_preview_declarative_companion(
     try:
         # Normalize the draft so bad input fails the same way an add would — except
         # for the one field a draft is expected to be part-way through.
+        # A draft also has a blank name and an empty trigger value (F06-3).
         spec = dc.normalize_declarative_companion(
-            msg["companion"], allow_missing_template=True
+            msg["companion"], allow_missing_template=True, draft=True
         )
     except TaskValidationError as err:
         _err(

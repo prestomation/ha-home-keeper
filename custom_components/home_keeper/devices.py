@@ -29,7 +29,6 @@ from .const import (
     ASSET_KIND_VIRTUAL,
     DOMAIN,
     PANEL_URL_PATH,
-    SERVICE_DEVICE_IDENTIFIER,
 )
 
 # Every device-registry *read* goes through device_compat, never straight at the
@@ -65,29 +64,6 @@ def _asset_configuration_url(asset_id: str) -> str:
     bounces to the default dashboard.
     """
     return f"homeassistant://{PANEL_URL_PATH}/appliances/{asset_id}"
-
-
-def service_device_info() -> dr.DeviceInfo:
-    """The integration-level device the aggregate task-count sensors live on.
-
-    Those sensors count across tasks, so they belong to no one task and no appliance.
-    A ``SERVICE`` device gives them a home under **Settings, Devices and services,
-    Home Keeper** without pretending to be hardware.
-
-    Home Assistant creates the device from an entity's ``device_info`` when the
-    platform adds it, so nothing here calls ``async_get_or_create``: Home Assistant
-    owns the config-entry link and removes the device with the integration, and the
-    device can never exist with no entities on it. ``async_prune_orphaned_devices``
-    relies on that second property, since this device is not an asset device and is
-    therefore *not* skipped by the prune.
-    """
-    return dr.DeviceInfo(
-        identifiers={(DOMAIN, SERVICE_DEVICE_IDENTIFIER)},
-        name="Home Keeper",
-        manufacturer="Home Keeper",
-        entry_type=dr.DeviceEntryType.SERVICE,
-        configuration_url=f"homeassistant://{PANEL_URL_PATH}",
-    )
 
 
 def area_exists(hass: HomeAssistant, area_id: str | None) -> bool:
@@ -166,19 +142,29 @@ async def async_reconcile_assets(
 
     # Provision parents before children so a subdevice's via_device parent already
     # has a resolved device id when we link it.
+    recovered: dict[str, str] = {}
     for asset in sorted(store.list_assets(), key=lambda a: _ancestor_depth(store, a)):
         if asset.get("kind") == ASSET_KIND_VIRTUAL:
             # _reconcile_virtual persists its own device_id write-back.
             await _reconcile_virtual(hass, entry, store, registry, asset)
             wanted_identifiers.add(asset_model.asset_device_identifier(asset["id"]))
-        elif _reconcile_existing(registry, asset):
+            continue
+        old_device_id = asset.get("device_id")
+        if _reconcile_existing(registry, asset):
             dirty = True
+            if old_device_id and asset.get("device_id") != old_device_id:
+                recovered[old_device_id] = asset["device_id"]
 
     # In-place edits to existing-device assets (recovered device_id, refreshed
     # identifiers/connections snapshot) must be flushed to disk or they're lost on
     # restart and snapshot recovery can never work.
     if dirty:
         await store.async_persist()
+    # The tasks on a recovered device move with the appliance (B17-5). The heal at
+    # the next setup finds no snapshot that names the old id after this pass, so it
+    # cannot move them later.
+    if recovered:
+        await store.async_repoint_device_ids(recovered)
 
     # Prune asset devices we own that no longer correspond to an asset. Guard
     # against ever removing a per-task self-owned device — those key on the bare
@@ -439,6 +425,32 @@ async def async_prune_orphaned_devices(hass: HomeAssistant, entry: ConfigEntry) 
             remove_config_entry(dev_reg, device, entry.entry_id)
 
 
+# hass.data key: the appliance area that the last reconcile of this Home Assistant
+# run saw, keyed by appliance id. It is kept across an entry reload.
+_AREA_SEEN = f"{DOMAIN}_asset_area_seen"
+
+
+def _area_to_push(
+    hass: HomeAssistant, asset_id: str, area_id: str | None, device_area: str | None
+) -> bool:
+    """Whether the reconcile writes the appliance area to its device (B17-9).
+
+    A user can set the area of the device on the device page of Home Assistant.
+    That area stays until the area of the appliance changes in Home Keeper. In
+    the first reconcile of a run, Home Keeper has no record of the last area, so
+    it fills only a device that has no area.
+    """
+    seen: dict[str, str | None] = hass.data.setdefault(_AREA_SEEN, {})
+    first = asset_id not in seen
+    changed = not first and seen[asset_id] != area_id
+    seen[asset_id] = area_id
+    if area_id == device_area:
+        return False
+    if first:
+        return device_area is None
+    return changed
+
+
 async def _reconcile_virtual(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -448,14 +460,19 @@ async def _reconcile_virtual(
 ) -> None:
     identifier = asset_model.asset_device_identifier(asset["id"])
 
-    # Resolve the native via_device parent (only our own virtual subdevices).
+    # Resolve the native via_device parent (only our own virtual subdevices). A
+    # stored parent of another kind gives no link (B17-8): no device has its
+    # identifier, and its device belongs to another integration.
     parent_asset_id = asset.get("parent_asset_id") or None
+    parent = store.get_asset(parent_asset_id) if parent_asset_id else None
+    if parent is None or parent.get("kind") != ASSET_KIND_VIRTUAL:
+        parent_asset_id = None
+        parent = None
     via_device = (
         asset_model.asset_device_identifier(parent_asset_id)
         if parent_asset_id
         else None
     )
-    parent = store.get_asset(parent_asset_id) if parent_asset_id else None
     parent_device_id = parent.get("device_id") if parent else None
 
     configuration_url = _asset_configuration_url(asset["id"])
@@ -491,7 +508,7 @@ async def _reconcile_virtual(
     area_id = asset.get("area_id") or None
     if area_id and not area_exists(hass, area_id):
         area_id = None
-    if area_id != device.area_id:
+    if _area_to_push(hass, asset["id"], area_id, device.area_id):
         updates["area_id"] = area_id
     if device.configuration_url != configuration_url:
         updates["configuration_url"] = configuration_url

@@ -831,6 +831,83 @@ def test_b01_4_a_problem_sensor_sync_that_deletes_a_task_archives_it(store):
     assert _archived_ids(asset) == [task["id"]]
 
 
+# ── reconciler updates fire task_updated with real fields (B18-4, B12-4) ─────
+
+_PROBLEM = "binary_sensor.sump_problem"
+
+
+def _problem(device_id=None, area_id=None, name="Sump problem"):
+    meta = {"name": name, "device_id": device_id, "area_id": area_id}
+    return {_PROBLEM: {**meta, "is_problem": True}}
+
+
+def _updated(store):
+    return store._hass.bus.of(store_mod.EVENT_TASK_UPDATED)
+
+
+def test_b18_4_a_rehomed_problem_mirror_fires_updated_and_reloads(store):
+    assert _run(store.reconcile_problem_sensor_tasks(_problem(), config_entry_id="e"))
+    assert _updated(store) == []
+    # The sensor moves to a device: the mirror gets device-page entities.
+    moved = _problem(device_id="dev1")
+    assert _run(store.reconcile_problem_sensor_tasks(moved, config_entry_id="e"))
+    assert [e["changed_fields"] for e in _updated(store)] == [["device_id"]]
+    assert _updated(store)[0]["device_id"] == "dev1"
+
+
+def test_b18_4_an_area_move_fires_updated_without_a_reload(store):
+    _run(store.reconcile_problem_sensor_tasks(_problem(), config_entry_id="e"))
+    moved = _problem(area_id="cellar")
+    assert not _run(store.reconcile_problem_sensor_tasks(moved, config_entry_id="e"))
+    assert [e["changed_fields"] for e in _updated(store)] == [["area_id"]]
+
+
+def test_b18_4_a_rename_on_a_device_reloads(store):
+    _run(store.reconcile_problem_sensor_tasks(_problem("dev1"), config_entry_id="e"))
+    renamed = _problem("dev1", name="Sump pump problem")
+    assert _run(store.reconcile_problem_sensor_tasks(renamed, config_entry_id="e"))
+    assert [e["changed_fields"] for e in _updated(store)] == [["name"]]
+
+
+def _companion(store, area_id):
+    dc = sys.modules["hk.declarative_companions"]
+    spec = dc.normalize_declarative_companion(
+        {
+            "id": "spec1",
+            "name": "Leak",
+            "selection": {"target_integration": "demo"},
+            "trigger": {"mode": "state", "state": "on"},
+            "task_template": {"name_template": "Check {{ friendly_name }}"},
+        }
+    )
+    entity = {
+        "entity_registry_id": "reg1",
+        "entity_id": "binary_sensor.leak",
+        "device_id": None,
+        "area_id": area_id,
+    }
+    key = ("spec1", "reg1")
+    match = {
+        "entity_registry_id": "reg1",
+        "entity": entity,
+        "sensor": {"entity_id": "binary_sensor.leak", "mode": "state", "state": "on"},
+    }
+    return _run(
+        store.reconcile_declarative_companion_tasks(
+            spec, {key: match}, {key: ("Check leak", "")}, config_entry_id="e"
+        )
+    )
+
+
+def test_b12_4_a_companion_update_names_the_fields_it_changed(store, monkeypatch):
+    monkeypatch.setattr(store_mod, "async_dispatcher_send", lambda *args: None)
+    _companion(store, area_id=None)
+    assert _updated(store) == []
+    reloaded, _created = _companion(store, area_id="kitchen")
+    assert reloaded is False
+    assert [e["changed_fields"] for e in _updated(store)] == [["area_id"]]
+
+
 # ── an appliance edit (B05-1, B06-3, B09-3, B15-3) ───────────────────────────
 
 
@@ -1021,3 +1098,268 @@ def test_b09_3_an_import_keeps_the_schedule_of_a_task_it_writes(store):
 
     assert store._tasks[task["id"]] is imported
     assert imported["last_completed"] is None
+
+
+# ── low findings: undo of a replacement and of a restock ─────────────────────
+
+
+def _wear_part_with_date(store, last_replaced="2026-05-01"):
+    asset = _asset(
+        store,
+        parts=[{**_WEAR, "stock": 4, "reorder_at": 1, "last_replaced": last_replaced}],
+    )
+    _run(store.reconcile_part_tasks())
+    task = next(iter(store._tasks.values()))
+    return asset["parts"][0], task
+
+
+def test_b01_3_undoing_the_only_replacement_restores_last_replaced(store):
+    part, task = _wear_part_with_date(store)
+    _run(store.complete_task(task["id"]))
+    assert part["last_replaced"] == "2026-06-13"
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["last_replaced"] == "2026-05-01"
+
+
+def test_b01_3_undoing_the_latest_replacement_falls_back_to_the_one_before(store):
+    part, task = _wear_part_with_date(store)
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    _run(store.complete_task(task["id"]))
+    assert part["last_replaced"] == "2026-06-13"
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["last_replaced"] == "2026-06-01"
+
+
+def test_b01_3_undoing_an_older_replacement_keeps_last_replaced(store):
+    part, task = _wear_part_with_date(store)
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    first = _completed_ts(store, task["id"])
+    _run(store.complete_task(task["id"]))
+    _run(store.delete_completion(task["id"], first))
+    assert part["last_replaced"] == "2026-06-13"
+
+
+def test_b01_3_a_manual_date_after_the_completion_is_kept_on_undo(store):
+    part, task = _wear_part_with_date(store)
+    _run(store.complete_task(task["id"]))
+    # The user then corrects the date on the part by hand.
+    part["last_replaced"] = "2026-06-10"
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["last_replaced"] == "2026-06-10"
+
+
+def test_b01_3_moving_a_replacement_moves_last_replaced(store):
+    part, task = _wear_part_with_date(store)
+    _run(store.complete_task(task["id"]))
+    old = _completed_ts(store, task["id"])
+    new = datetime(2026, 6, 2, 9, tzinfo=TZ).isoformat()
+    _run(store.move_completion(task["id"], old, new))
+    assert part["last_replaced"] == "2026-06-02"
+
+
+def test_b01_3_moving_an_older_replacement_keeps_last_replaced(store):
+    part, task = _wear_part_with_date(store)
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    first = _completed_ts(store, task["id"])
+    _run(store.complete_task(task["id"]))
+    _run(
+        store.move_completion(
+            task["id"], first, datetime(2026, 5, 20, 9, tzinfo=TZ).isoformat()
+        )
+    )
+    assert part["last_replaced"] == "2026-06-13"
+
+
+def test_b05_3_a_future_completion_stamps_today_not_the_future(store):
+    part, task = _wear_part_with_date(store)
+    _run(
+        store.complete_task(
+            task["id"], completed_at=datetime(2026, 6, 14, 8, tzinfo=TZ)
+        )
+    )
+    assert part["last_replaced"] == "2026-06-13"
+    # The appliance stays editable.
+    asset = next(iter(store._assets.values()))
+    assets_model.merge_update(asset, {"notes": "ok"}, now=NOW)
+    assets_model.merge_update(asset, {"parts": asset["parts"]}, now=NOW)
+    # The undo still finds the date that the completion stamped.
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["last_replaced"] == "2026-05-01"
+
+
+def _buy_task(store, asset, part):
+    return _task(
+        store,
+        name="Buy filter",
+        source={"buy": {"asset_id": asset["id"], "part_id": part["id"]}},
+    )
+
+
+def test_b01_5_undoing_a_buy_completion_takes_back_its_restock(store):
+    asset = _asset(
+        store,
+        parts=[{"name": "Filter", "stock": 1, "reorder_at": 3, "restock_quantity": 1}],
+    )
+    part = asset["parts"][0]
+    task = _buy_task(store, asset, part)
+    _run(store.complete_task(task["id"]))
+    assert part["stock"] == 2
+    entry = store._tasks[task["id"]]["completions"][-1]
+    assert entry["stock_added"] == {
+        "asset_id": asset["id"],
+        "part_id": part["id"],
+        "quantity": 1,
+    }
+    _run(store.delete_completion(task["id"], entry["ts"]))
+    assert part["stock"] == 1
+
+
+def test_b01_5_undo_takes_back_only_what_the_capped_restock_added(store):
+    asset = _asset(
+        store,
+        parts=[
+            {
+                "name": "Rinse aid",
+                "stock": 9998,
+                "reorder_at": 1,
+                "restock_quantity": 5,
+            }
+        ],
+    )
+    part = asset["parts"][0]
+    task = _buy_task(store, asset, part)
+    _run(store.complete_task(task["id"]))
+    assert part["stock"] == 10000
+    entry = store._tasks[task["id"]]["completions"][-1]
+    assert entry["stock_added"]["quantity"] == 2
+    _run(store.delete_completion(task["id"], entry["ts"]))
+    assert part["stock"] == 9998
+
+
+def test_b01_5_the_undo_of_a_restock_fires_the_low_event(store):
+    asset = _asset(
+        store,
+        parts=[{"name": "Filter", "stock": 1, "reorder_at": 1, "restock_quantity": 1}],
+    )
+    part = asset["parts"][0]
+    task = _buy_task(store, asset, part)
+    _run(store.complete_task(task["id"]))
+    assert part["stock"] == 2
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["stock"] == 1
+    assert len(store._hass.bus.of("home_keeper_part_low_stock")) == 1
+
+
+def test_b18_9_a_problem_clear_event_carries_the_recorded_ts(store, monkeypatch):
+    # A clock that moves on each read, like the real one across the save.
+    ticks = iter(NOW + timedelta(seconds=n) for n in range(100))
+    monkeypatch.setattr(store_mod.dt_util, "now", lambda: next(ticks))
+    meta = {"name": "Filter", "device_id": None, "area_id": None}
+    entity = "binary_sensor.purifier_filter"
+    _run(
+        store.reconcile_problem_sensor_tasks(
+            {entity: {**meta, "is_problem": True}}, config_entry_id="entry1"
+        )
+    )
+    _run(
+        store.reconcile_problem_sensor_tasks(
+            {entity: {**meta, "is_problem": False}}, config_entry_id="entry1"
+        )
+    )
+    task = next(iter(store._tasks.values()))
+    completed = store._hass.bus.of("home_keeper_task_completed")
+    assert len(completed) == 1
+    assert completed[0]["completed_at"] == task["last_completed"]
+    assert completed[0]["completed_at"] == task["completions"][-1]["ts"]
+
+
+def _triggered(store, *, armed):
+    task = _task(store, recurrence_type="triggered")
+    task["next_due"] = NOW.isoformat() if armed else None
+    return task
+
+
+def test_x03_11_settle_skips_a_task_deleted_or_armed_since_the_decision(
+    store, monkeypatch
+):
+    dormant = _triggered(store, armed=False)
+    already = _triggered(store, armed=True)
+    monkeypatch.setattr(
+        store_mod,
+        "_settle_use_tasks",
+        lambda assets, tasks, now: (
+            ["deleted-meanwhile", already["id"], dormant["id"]],
+            False,
+        ),
+    )
+    assert _run(store.settle_use_tasks()) is True
+    triggered = store._hass.bus.of("home_keeper_task_triggered")
+    assert [e["task_id"] for e in triggered] == [dormant["id"]]
+    assert store._tasks[dormant["id"]]["next_due"] == NOW.isoformat()
+
+
+def test_x03_11_settle_with_nothing_left_to_arm_reports_no_change(store, monkeypatch):
+    already = _triggered(store, armed=True)
+    monkeypatch.setattr(
+        store_mod,
+        "_settle_use_tasks",
+        lambda assets, tasks, now: (["deleted-meanwhile", already["id"]], False),
+    )
+    assert _run(store.settle_use_tasks()) is False
+    assert store._hass.bus.of("home_keeper_task_triggered") == []
+
+
+def test_x08_2_delete_tasks_saves_once_and_fires_each_event(store):
+    first = _task(store, name="One")
+    second = _task(store, name="Two")
+    asset = _asset(store)
+    buy = _task(
+        store,
+        name="Buy AAA",
+        source={"buy": {"asset_id": asset["id"], "part_id": asset["parts"][0]["id"]}},
+    )
+    saves = store._store.saves
+    removed = _run(store.delete_tasks([first["id"], "gone", buy["id"], second["id"]]))
+    assert [t["id"] for t in removed] == [first["id"], second["id"]]
+    assert store._store.saves == saves + 1
+    assert set(store._tasks) == {buy["id"]}
+    deleted = store._hass.bus.of("home_keeper_task_deleted")
+    assert [e["task_id"] for e in deleted] == [first["id"], second["id"]]
+
+
+def test_x08_2_delete_tasks_with_nothing_to_delete_does_not_save(store):
+    saves = store._store.saves
+    assert _run(store.delete_tasks(["gone"])) == []
+    assert store._store.saves == saves
+    assert store._hass.bus.of("home_keeper_task_deleted") == []
+
+
+def test_x02_2_a_closed_store_refuses_to_save(store):
+    task = _task(store)
+    _run(store.async_persist())
+    saved = store._store.saves
+    store.close()
+    with raises_exactly(
+        store_mod.StoreClosedError,
+        "Home Keeper store is closed: a write started before an unload",
+    ):
+        _run(store.complete_task(task["id"]))
+    assert store._store.saves == saved
+
+
+def test_x02_2_the_unload_closes_the_store():
+    import ast
+
+    source = (_COMPONENT_DIR / "__init__.py").read_text(encoding="utf-8")
+    unload = next(
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "async_unload_entry"
+    )
+    assert "coordinator.store.close()" in ast.unparse(unload)

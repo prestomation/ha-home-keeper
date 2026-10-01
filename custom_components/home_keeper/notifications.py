@@ -28,6 +28,9 @@ from typing import Any
 from babel import Locale
 from babel.core import UnknownLocaleError
 
+from .backend_i18n import language_chain
+from .const import ORIGIN_NOTIFICATION_ACTION
+from .tags import completion_allowed
 from .transitions import DUE_SOON_WINDOW
 
 _LOGGER = logging.getLogger(__name__)
@@ -284,7 +287,7 @@ def normalize_color(value: Any) -> str:
     return color if _HEX_COLOR.match(color) else ""
 
 
-def normalize_notification(raw: Any) -> dict[str, Any]:
+def normalize_notification(raw: Any, *, warn: bool = True) -> dict[str, Any]:
     """Coerce one raw notification to its stored, fully-defaulted shape.
 
     A notification references a profile (``profile_id``) and carries delivery: an id
@@ -294,6 +297,10 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
     ``channel`` (the Android notification channel, threading reminders on iOS) and
     ``urgency`` (clamped to :data:`URGENCIES`) — and how it looks: ``icon`` and
     ``color``, each clamped to ``""`` when unusable.
+
+    *warn* logs a warning for each target the allowlist drops. A read of the stored
+    options sets it to ``False``, because a read runs on each refresh and the same
+    warning then fills the log (B16-11).
     """
     raw = raw if isinstance(raw, dict) else {}
     actions: list[str] = []
@@ -310,7 +317,7 @@ def normalize_notification(raw: Any) -> dict[str, Any]:
     style = raw.get("style")
     urgency = raw.get("urgency")
     targets, rejected = split_targets(raw.get("targets"))
-    if rejected:
+    if rejected and warn:
         _LOGGER.warning(
             "Home Keeper dropped notify target(s) %s: only %s* and %s are supported",
             ", ".join(rejected),
@@ -349,11 +356,14 @@ def sends_when_empty(when_empty: Any) -> bool:
     return when_empty == WHEN_EMPTY_ALL_CLEAR
 
 
-def normalize_notifications(raw: Any) -> list[dict[str, Any]]:
-    """Coerce the stored notification list, dropping non-dict entries."""
+def normalize_notifications(raw: Any, *, warn: bool = True) -> list[dict[str, Any]]:
+    """Coerce the stored notification list, dropping non-dict entries.
+
+    *warn* is passed to :func:`normalize_notification`.
+    """
     if not isinstance(raw, (list, tuple)):
         return []
-    return [normalize_notification(n) for n in raw if isinstance(n, dict)]
+    return [normalize_notification(n, warn=warn) for n in raw if isinstance(n, dict)]
 
 
 def resolve_notification(
@@ -369,6 +379,70 @@ def resolve_notification(
         if notification.get("name") == key:
             return notification
     return None
+
+
+# ── route ids: a send to targets that no saved notification holds ────────────────
+#
+# A ``home_keeper.notify`` call can send with a ``target:`` override, or with no saved
+# notification at all. The id of that send goes into the tag and into each button
+# action. A random id made a new tag on each call, so the cards stacked on the phone,
+# and a tap found no notification to go on with (B16-7). The saved id with the
+# override made a tap go on at the saved targets, not at the phone that was sent to
+# (B16-8). A route id holds the base and the targets, so it is the same for each call
+# to the same targets, and a tap can make the notification again from it.
+
+#: The base of a route id for a send with no saved notification.
+ADHOC_ID = "adhoc"
+_ROUTE_SEP = "@"
+_ADHOC_PROFILE_SEP = "."
+_TARGET_SEP = ","
+
+
+def route_id(base: str, targets: list[str]) -> str:
+    """The notification id for a send of *base* to *targets*."""
+    return f"{base}{_ROUTE_SEP}{_TARGET_SEP.join(targets)}"
+
+
+def adhoc_base(profile_id: str | None) -> str:
+    """The route base for a send with no saved notification, over *profile_id*."""
+    if profile_id:
+        return f"{ADHOC_ID}{_ADHOC_PROFILE_SEP}{profile_id}"
+    return ADHOC_ID
+
+
+def resolve_tap_notification(
+    saved: list[dict[str, Any]], notification_id: str
+) -> dict[str, Any] | None:
+    """The notification a button tap with *notification_id* goes on with.
+
+    A saved notification with that id comes first. Else a route id gives the saved
+    notification of its base with the targets of the route, or, for an ad hoc base, a
+    new notification over the profile in the base. A route with a target that the
+    allowlist does not accept gives ``None``, so a tap cannot send to a new service.
+    """
+    found = resolve_notification(saved, notification_id)
+    if found is not None:
+        return found
+    base, sep, joined = notification_id.rpartition(_ROUTE_SEP)
+    if not sep:
+        return None
+    targets, rejected = split_targets(joined.split(_TARGET_SEP))
+    if rejected or not targets:
+        return None
+    if base == ADHOC_ID or base.startswith(ADHOC_ID + _ADHOC_PROFILE_SEP):
+        profile_id = base[len(ADHOC_ID) + len(_ADHOC_PROFILE_SEP) :]
+        return normalize_notification(
+            {
+                "id": notification_id,
+                "name": "ad-hoc",
+                "profile_id": profile_id or None,
+                "targets": targets,
+            }
+        )
+    found = resolve_notification(saved, base)
+    if found is None:
+        return None
+    return {**found, "id": notification_id, "targets": targets}
 
 
 # ── per-task button sets ────────────────────────────────────────────────────────
@@ -419,14 +493,28 @@ def actions_for(
     setting's help text says so.
     """
     blocked = is_completion_blocked(task)
+    # A task with ``require_tag_scan`` refuses *Mark done* from a notification, but
+    # accepts *Skip* and *Snooze* (B16-4).
+    # Equivalent mutant: ``None`` is refused the same way as this origin.
+    allowed = completion_allowed(task, ORIGIN_NOTIFICATION_ACTION)  # pragma: no mutate
+    scan_only = not allowed
     kept = [
         verb
         for verb in actions
         if (allow_snooze or verb != ACTION_SNOOZE)
         and (allow_skip or verb != ACTION_SKIP)
         and (not blocked or verb in (ACTION_SNOOZE, ACTION_OPEN))
+        and (not scan_only or verb != ACTION_COMPLETE)
     ]
-    if blocked and ACTION_SNOOZE not in kept:
+    # If *Mark done* was the only verb that moves a walk on, Snooze takes its place,
+    # for the same reason as for a blocked task below.
+    stuck_scan = (
+        scan_only
+        and ACTION_COMPLETE in actions
+        and ACTION_SNOOZE not in kept
+        and ACTION_SKIP not in kept
+    )
+    if (blocked or stuck_scan) and ACTION_SNOOZE not in kept:
         # Deliberately overriding both the user's button set and the allow_snooze
         # switch — the one place this function adds rather than subtracts. `open` is a
         # client-side URI that never calls back, so a set of only `open` (or an empty
@@ -485,23 +573,36 @@ def _interpolate(template: str, params: dict[str, Any]) -> str:
 
 
 def _t(lang: str, key: str, **params: Any) -> str:
-    """Translate a plain (non-plural) string, falling back to English then the key."""
-    template = _notification_strings(lang).get(key) or _notification_strings(
-        _DEFAULT_LANG
-    ).get(key, key)
+    """Translate a plain (non-plural) string, falling back to the key.
+
+    The tables are tried in the order of :func:`backend_i18n.language_chain`: the
+    exact tag, the base language, then English (B16-10).
+    """
+    template = next(
+        (
+            t
+            for name in language_chain(lang)
+            if (t := _notification_strings(name).get(key))
+        ),
+        key,
+    )
     return _interpolate(template, params)
 
 
 def _tn(lang: str, key: str, n: int, **params: Any) -> str:
-    """Translate a pluralizable string, selecting the CLDR category for *n*."""
+    """Translate a pluralizable string, selecting the CLDR category for *n*.
+
+    Each table of the language chain is tried for the category, then for ``other``.
+    """
     category = _babel_locale(lang).plural_form(n)
-    strings = _notification_strings(lang)
-    en_strings = _notification_strings(_DEFAULT_LANG)
-    template = (
-        strings.get(f"{key}.{category}")
-        or strings.get(f"{key}.other")
-        or en_strings.get(f"{key}.{category}")
-        or en_strings.get(f"{key}.other", key)
+    template = next(
+        (
+            t
+            for name in language_chain(lang)
+            for form in (category, "other")
+            if (t := _notification_strings(name).get(f"{key}.{form}"))
+        ),
+        key,
     )
     return _interpolate(template, params)
 

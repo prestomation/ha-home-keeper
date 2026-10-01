@@ -215,3 +215,74 @@ def test_a_non_string_name_never_matches():
     with pytest.raises(r.NotFound):
         r.resolve_task_id(store, "Real task")
     assert r.resolve_task_id(store, "real") == "b2"
+
+
+# ── B21-3: an archived task resolves against the appliance's history ────────
+_HISTORY_ASSET = {
+    "task_history": [
+        {"task_id": "old-1", "task_name": "Replace filter (Furnace)"},
+        {"task_id": "old-2", "task_name": "Clean coil"},
+        {"task_id": "old-3", "task_name": "Clean coil"},
+        {"task_name": "No id"},
+        "junk",
+    ]
+}
+
+
+def test_b21_3_an_archived_task_resolves_by_its_id():
+    assert r.resolve_archived_task_id(_HISTORY_ASSET, "old-2") == "old-2"
+
+
+def test_b21_3_an_archived_task_resolves_by_its_snapshot_name():
+    assert (
+        r.resolve_archived_task_id(_HISTORY_ASSET, "replace filter (furnace)")
+        == "old-1"
+    )
+
+
+def test_b21_3_two_archived_tasks_with_one_name_are_ambiguous():
+    with pytest.raises(r.AmbiguousName) as err:
+        r.resolve_archived_task_id(_HISTORY_ASSET, "Clean coil")
+    assert err.value.ids == ["old-2", "old-3"]
+
+
+@pytest.mark.parametrize(
+    "asset",
+    [_HISTORY_ASSET, {}, {"task_history": None}, {"task_history": "x"}, None],
+)
+def test_b21_3_an_unknown_archived_task_is_not_found(asset):
+    with pytest.raises(r.NotFound):
+        r.resolve_archived_task_id(asset, "No id")
+
+
+def test_b21_3_a_tuple_history_resolves():
+    asset = {"task_history": ({"task_id": "old-9", "task_name": "Oil"},)}
+    assert r.resolve_archived_task_id(asset, "Oil") == "old-9"
+
+
+# ── B02-7: a key in the form of an id ───────────────────────────────────────
+@pytest.mark.parametrize(
+    "key",
+    [
+        "3f2c8a1e-5b6d-4c7e-8f90-a1b2c3d4e5f6",
+        "3F2C8A1E-5B6D-4C7E-8F90-A1B2C3D4E5F6",
+    ],
+)
+def test_b02_7_a_uuid_looks_like_an_id(key):
+    assert r.looks_like_id(key) is True
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "Clean gutter",
+        "",
+        "3f2c8a1e5b6d4c7e8f90a1b2c3d4e5f6",
+        "{3f2c8a1e-5b6d-4c7e-8f90-a1b2c3d4e5f6}",
+        "urn:uuid:3f2c8a1e-5b6d-4c7e-8f90-a1b2c3d4e5f6",
+        None,
+        42,
+    ],
+)
+def test_b02_7_a_name_does_not_look_like_an_id(key):
+    assert r.looks_like_id(key) is False

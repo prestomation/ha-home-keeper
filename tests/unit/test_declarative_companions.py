@@ -2101,6 +2101,69 @@ def test_unchanged_preset_task_names_follow_the_language(monkeypatch):
     assert localized["task_names"] == {"filter_time_left": "Swap the filter"}
 
 
+def _demo_texts():
+    return {
+        "name_template": {"en": "{{ task_name }}", "de": "{{ task_name }}"},
+        "notes_template": {"en": "", "de": ""},
+        "task_names": {
+            "en": {"filter_time_left": "Replace filter", "brush": "Replace brush"},
+            "de": {"filter_time_left": "Filter ersetzen", "brush": "Bürste ersetzen"},
+        },
+    }
+
+
+def _demo_spec(task_names):
+    return {
+        "preset_id": "demo_keys",
+        "task_template": {"name_template": "{{ task_name }}", "task_names": task_names},
+    }
+
+
+def test_b13_3_task_names_follow_the_language_one_entry_at_a_time(monkeypatch):
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", _demo_texts())
+    # Saved before the catalog added "brush", with one entry the user changed.
+    spec = _demo_spec({"filter_time_left": "Replace filter", "old": "My own name"})
+    localized = presets.localized_task_template(spec, "de")
+    assert localized["task_names"] == {
+        "filter_time_left": "Filter ersetzen",
+        "old": "My own name",
+    }
+    # And back again, from the German text.
+    spec = _demo_spec({"filter_time_left": "Filter ersetzen", "brush": "Mine"})
+    localized = presets.localized_task_template(spec, "en")
+    assert localized["task_names"] == {
+        "filter_time_left": "Replace filter",
+        "brush": "Mine",
+    }
+
+
+def test_b13_3_a_key_the_catalog_dropped_follows_its_duty_name(monkeypatch):
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", _demo_texts())
+    duty = presets.DUTY_NAMES["replace_filter"]
+    spec = _demo_spec({"gone_key": duty["fr"]})
+    localized = presets.localized_task_template(spec, "de")
+    assert localized["task_names"] == {"gone_key": duty["de"]}
+
+
+def test_b13_3_the_result_is_a_new_table(monkeypatch):
+    texts = _demo_texts()
+    monkeypatch.setitem(presets.PRESET_TASK_TEXT, "demo_keys", texts)
+    stored = dict(texts["task_names"]["en"])
+    localized = presets.localized_task_template(_demo_spec(stored), "de")
+    assert localized["task_names"] == texts["task_names"]["de"]
+    assert localized["task_names"] is not texts["task_names"]["de"]
+    localized["task_names"]["brush"] = "changed"
+    assert texts["task_names"]["de"]["brush"] == "Bürste ersetzen"
+
+
+def test_b13_3_a_shipped_preset_default_spec_does_not_share_its_table():
+    preset = next(p for p in presets.CATALOG_PRESETS if p["id"] == "qnap_reading_high")
+    spec = presets.localized_default_spec(preset, "de", "Q")
+    table = presets.PRESET_TASK_TEXT["qnap_reading_high"]["task_names"]["de"]
+    assert spec["task_template"]["task_names"] == table
+    assert spec["task_template"]["task_names"] is not table
+
+
 def test_a_preset_without_task_names_leaves_the_table_alone():
     spec = {
         "preset_id": "firmware_update_available",
@@ -2201,14 +2264,109 @@ def test_every_integration_preset_ships_its_task_names_in_every_language():
             assert set(table) == set(english), (preset["id"], lang)
 
 
+def _per_instance_keys() -> set[str]:
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    return {
+        (entry["domain"], key)
+        for entry in catalog
+        for duty in entry["duties"]
+        if duty.get("per_instance")
+        for key in duty["keys"]
+    }
+
+
 def test_a_preset_names_the_entity_when_two_keys_share_a_task_name():
+    per_instance = _per_instance_keys()
     for preset in _INTEGRATION_PRESETS:
         template = preset["default_spec"]["task_template"]
         names = list(template["task_names"].values())
-        expected = (
-            "{{ friendly_name }}" if len(set(names)) < len(names) else "device_name"
+        domain = preset["requires_integration"]
+        by_entity = len(set(names)) < len(names) or any(
+            (domain, key) in per_instance for key in template["task_names"]
         )
+        expected = "{{ friendly_name }}" if by_entity else "device_name"
         assert expected in template["name_template"], preset["id"]
+
+
+def test_b13_2_a_per_instance_key_names_the_entity():
+    by_id = {p["id"]: p for p in _INTEGRATION_PRESETS}
+    qnap = by_id["qnap_reading_high"]["default_spec"]["task_template"]
+    assert qnap["name_template"] == presets._NAME_BY_ENTITY
+    assert ("qnap", "volume_percentage_used") in _per_instance_keys()
+    # Synology makes one device for each volume, so the device name is enough.
+    synology = by_id["synology_dsm_reading_high"]["default_spec"]["task_template"]
+    assert synology["name_template"] == presets._NAME_BY_DEVICE
+    assert presets.PRESET_TASK_TEXT["qnap_reading_high"]["name_template"]["de"] == (
+        presets._NAME_BY_ENTITY
+    )
+
+
+def test_b13_1_the_lg_thinq_alert_selects_only_the_enum_sensor():
+    by_id = {p["id"]: p for p in _INTEGRATION_PRESETS}
+    selection = by_id["lg_thinq_alert_replace"]["default_spec"]["selection"]
+    assert selection["device_class"] == "enum"
+    assert selection["translation_keys"] == ["fresh_air_filter"]
+    # The other LG ThinQ presets select every device class, as before.
+    others = [
+        p
+        for p in _INTEGRATION_PRESETS
+        if p["requires_integration"] == "lg_thinq"
+        and p["id"] != "lg_thinq_alert_replace"
+    ]
+    assert others
+    assert all("device_class" not in p["default_spec"]["selection"] for p in others)
+    # The spec still normalizes, with the class kept.
+    spec = dc.normalize_declarative_companion(
+        by_id["lg_thinq_alert_replace"]["default_spec"]
+    )
+    assert spec["selection"]["device_class"] == "enum"
+
+
+def test_b13_1_the_alert_matches_the_enum_entity_and_not_the_percentage_one():
+    by_id = {p["id"]: p for p in _INTEGRATION_PRESETS}
+    spec = dc.normalize_declarative_companion(
+        by_id["lg_thinq_alert_replace"]["default_spec"]
+    )
+    snapshot = _snapshot(
+        _entity(
+            "sensor.fridge_fresh_air_filter",
+            platform="lg_thinq",
+            translation_key="fresh_air_filter",
+            original_device_class="enum",
+        ),
+        _entity(
+            "sensor.fridge_fresh_air_filter_2",
+            platform="lg_thinq",
+            translation_key="fresh_air_filter",
+        ),
+    )
+    matched = dc.expand_spec(spec, snapshot)
+    assert [m["entity"]["entity_id"] for m in matched.values()] == [
+        "sensor.fridge_fresh_air_filter"
+    ]
+
+
+def test_b13_1_a_device_class_duty_gets_its_own_group(monkeypatch):
+    entry = {
+        "domain": "demo",
+        "brand": "Demo",
+        "icon": "mdi:x",
+        "duties": [
+            {"duty": "replace_filter", "shape": "alert", "keys": ["a"], "state": "on"},
+            {
+                "duty": "replace_filter",
+                "shape": "alert",
+                "keys": ["b"],
+                "state": "on",
+                "device_class": "enum",
+            },
+        ],
+    }
+    monkeypatch.setattr(presets, "INTEGRATIONS", [entry])
+    built, _texts = presets._integration_presets()
+    selections = [p["default_spec"]["selection"] for p in built]
+    assert [s["translation_keys"] for s in selections] == [["a"], ["b"]]
+    assert [s.get("device_class") for s in selections] == [None, "enum"]
 
 
 def test_the_english_preset_name_matches_the_backend_string():
@@ -2787,3 +2945,57 @@ def test_every_preset_description_resolves_in_every_language(lang):
         if limit is not None:
             said = presets.format_limit(limit, lang, backend_i18n.resolve_string)
             assert said in text, (lang, preset["id"], text)
+
+
+# ── F06-3: the preview reads a draft ─────────────────────────────────────────
+def test_f06_3_a_draft_accepts_a_blank_name():
+    spec = dc.normalize_declarative_companion(_spec(name=""), draft=True)
+    assert spec["name"] == ""
+
+
+def test_f06_3_a_draft_accepts_an_empty_trigger_value():
+    draft = _spec(trigger={"mode": "threshold", "comparison": ">", "value": ""})
+    spec = dc.normalize_declarative_companion(draft, draft=True)
+    assert spec["trigger"] == {"mode": "threshold", "comparison": ">"}
+
+
+def test_f06_3_a_draft_still_caps_the_name():
+    with raises_exactly(TaskValidationError, "name must be <= 100 characters"):
+        dc.normalize_declarative_companion(_spec(name="x" * 101), draft=True)
+
+
+@pytest.mark.parametrize(
+    ("over", "message"),
+    [
+        ({"name": ""}, "name is required"),
+        (
+            {"trigger": {"mode": "usage", "target": ""}},
+            "sensor.target must be a number",
+        ),
+    ],
+)
+def test_f06_3_a_save_still_needs_the_name_and_value(over, message):
+    with raises_exactly(TaskValidationError, message):
+        dc.normalize_declarative_companion(_spec(**over))
+
+
+def test_f06_3_the_preview_reads_the_spec_as_a_draft():
+    import ast
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[2]
+        / "custom_components"
+        / "home_keeper"
+        / "websocket_api.py"
+    ).read_text()
+    preview = next(
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.AsyncFunctionDef)
+        and node.name == "ws_preview_declarative_companion"
+    )
+    assert (
+        "dc.normalize_declarative_companion(msg['companion'], "
+        "allow_missing_template=True, draft=True)"
+    ) in ast.unparse(preview)

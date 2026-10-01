@@ -47,7 +47,7 @@ the next true reading starts the clock again (:func:`_evaluate_indeterminate`).
 from __future__ import annotations
 
 import math
-from datetime import datetime, timedelta, tzinfo
+from datetime import UTC, datetime, timedelta, tzinfo
 from typing import Any
 
 from . import recurrence
@@ -122,9 +122,12 @@ def parse_reading(raw: Any) -> float | None:
     if raw is None:
         return None
     try:
-        return float(raw)
+        value = float(raw)
     except (TypeError, ValueError):
         return None
+    # A NaN or an infinity is not a reading (B14-9). It compares as false or true to
+    # every limit, so it is indeterminate, the same as ``unavailable``.
+    return value if math.isfinite(value) else None
 
 
 def compare(reading: float, comparison: str, value: float) -> bool:
@@ -469,8 +472,15 @@ def hold_due_at(
     cfg = sensor_config(task)
     if cfg is None or crossed_at is None or task.get("next_due") is not None:
         return None
-    due = crossed_at + timedelta(seconds=int(cfg.get("for_seconds") or 0))
+    # Add in UTC (X04-8). Python adds to a datetime in its own zone as wall-clock
+    # time, so a hold across a DST change gets 1 hour shorter or longer.
+    due = _utc(crossed_at) + timedelta(seconds=int(cfg.get("for_seconds") or 0))
     return due if due > now else None
+
+
+def _utc(moment: datetime) -> datetime:
+    """*moment* in UTC, so that subtraction and addition count real seconds."""
+    return moment.astimezone(UTC)
 
 
 def _evaluate_indeterminate(
@@ -585,7 +595,7 @@ def _evaluate_edge(
         # condition is still true arms the task again on the next pass.
         new_crossed_at = None
     elif new_crossed_at is not None:
-        held = (now - new_crossed_at).total_seconds()
+        held = (_utc(now) - _utc(new_crossed_at)).total_seconds()
         if held >= for_seconds:
             action = ACTION_ARM
             new_crossed_at = None  # consume this crossing so we don't re-arm on it

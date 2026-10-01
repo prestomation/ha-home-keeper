@@ -497,6 +497,73 @@ def test_update_document_file_renames_but_keeps_blob_fields():
     assert "url" not in updated
 
 
+def test_f08_5_link_document_needs_a_url():
+    asset = a.build_asset({"name": "Furnace"}, now=NOW)
+    for url in ("", None):
+        with raises_exactly(a.AssetValidationError, "a link document needs a url"):
+            a.append_document(
+                asset, {"kind": "link", "name": "M", "url": url}, created=""
+            )
+    assert asset["documents"] == []
+    entry = a.append_document(
+        asset, {"kind": "link", "name": "M", "url": "https://ex.com/m"}, created=""
+    )
+    with raises_exactly(a.AssetValidationError, "a link document needs a url"):
+        a.update_document(asset, entry["id"], {"name": "M", "url": ""})
+    # The failed edit leaves the stored link as it was.
+    assert asset["documents"][0]["url"] == "https://ex.com/m"
+    # A rename without a url, and a file, still pass.
+    assert (
+        a.update_document(asset, entry["id"], {"name": "N"})["url"]
+        == "https://ex.com/m"
+    )
+    doc = a.append_document(
+        asset,
+        {"kind": "file", "filename": "m.pdf", "content_type": "application/pdf"},
+        created="",
+    )
+    assert doc["kind"] == "file"
+    assert a.update_document(asset, doc["id"], {"name": "Manual"})["name"] == "Manual"
+    # The list normalizer keeps a link stored empty before this check, so an
+    # unrelated save of that appliance still works.
+    kept = a.build_asset(
+        {"name": "Old", "documents": [{"kind": "link", "name": "x", "url": ""}]},
+        now=NOW,
+    )
+    assert kept["documents"][0]["url"] == ""
+
+
+def test_f08_5_single_document_writes_keep_the_list_whole():
+    # An asset with no documents list yet takes the first one in a new list.
+    asset = {"name": "Furnace"}
+    first = a.append_document(
+        asset, {"id": "d1", "kind": "link", "url": "https://ex.com/1"}, created=""
+    )
+    assert asset == {"name": "Furnace", "documents": [first]}
+    assert first["id"] == "d1"
+    # A colliding id is replaced with a fresh uuid; a new id is kept.
+    second = a.append_document(
+        asset, {"id": "d1", "kind": "link", "url": "https://ex.com/2"}, created=""
+    )
+    assert second["id"] not in ("d1", "None")
+    assert len(second["id"]) == 36
+    third = a.append_document(
+        asset, {"id": "d3", "kind": "link", "url": "https://ex.com/3"}, created=""
+    )
+    assert third["id"] == "d3"
+    assert [d["id"] for d in asset["documents"]] == ["d1", second["id"], "d3"]
+    # An edit writes back the same list and adds no key.
+    a.update_document(asset, "d3", {"name": "Three"})
+    assert set(asset) == {"name", "documents"}
+    assert asset["documents"][2]["name"] == "Three"
+    # The cap names its limit.
+    full = {"documents": [{"id": str(i)} for i in range(50)]}
+    with raises_exactly(
+        a.AssetValidationError, "an appliance can have at most 50 documents"
+    ):
+        a.append_document(full, {"kind": "link", "url": "https://ex.com/x"}, created="")
+
+
 def test_update_document_rejects_bad_url_and_missing_id():
     asset = a.build_asset({"name": "Furnace"}, now=NOW)
     entry = a.append_document(
@@ -2371,3 +2438,31 @@ def test_stock_report_after_a_clamped_adjustment():
         "unit": "roll",
         "status": "out",
     }
+
+
+# ── B21-3: has_archived_completion ──────────────────────────────────────────
+_ARCHIVED = {
+    "task_history": [
+        {"task_id": "old-1", "completions": [{"ts": "2026-01-01T00:00:00+00:00"}]},
+        {"task_id": "old-2", "completions": [{"ts": "2026-02-01T00:00:00+00:00"}]},
+        {"task_id": "old-3"},
+    ]
+}
+
+
+def test_b21_3_has_archived_completion_finds_the_pair():
+    assert a.has_archived_completion(_ARCHIVED, "old-2", "2026-02-01T00:00:00+00:00")
+
+
+@pytest.mark.parametrize(
+    ("asset", "task_id", "ts"),
+    [
+        (_ARCHIVED, "old-1", "2026-02-01T00:00:00+00:00"),
+        (_ARCHIVED, "old-9", "2026-01-01T00:00:00+00:00"),
+        (_ARCHIVED, "old-3", "2026-01-01T00:00:00+00:00"),
+        ({}, "old-1", "2026-01-01T00:00:00+00:00"),
+        ({"task_history": None}, "old-1", "2026-01-01T00:00:00+00:00"),
+    ],
+)
+def test_b21_3_has_archived_completion_rejects_another_pair(asset, task_id, ts):
+    assert a.has_archived_completion(asset, task_id, ts) is False

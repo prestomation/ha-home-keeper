@@ -81,6 +81,16 @@ def test_b07_5_snooze_then_complete_moves_past_the_snoozed_occurrence(ha):
         _delete(ha, task_id)
 
 
+def test_f10_2_snooze_hours_count_from_a_later_due_date(ha):
+    """F10-2: snooze_task with hours never moves a task that is not yet due earlier."""
+    task_id, anchor = _weekly_fixed(ha, "Schedule snooze hours probe")
+    try:
+        call_service(ha, "home_keeper", "snooze_task", {"task_id": task_id, "hours": 4})
+        assert _instant(_task(ha, task_id)["next_due"]) == anchor + timedelta(hours=4)
+    finally:
+        _delete(ha, task_id)
+
+
 def test_b07_5_due_today_then_complete_moves_past_the_moved_occurrence(ha):
     task_id, anchor = _weekly_fixed(ha, "Schedule due today probe")
     try:

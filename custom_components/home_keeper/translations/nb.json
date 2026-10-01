@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Kilde",
-          "description": "Ugjennomsiktig opphav eid av integrasjonen som opprettet oppgaven. Se docs/INTEGRATING.md."
+          "description": "Ugjennomsiktig opphav eid av integrasjonen som opprettet oppgaven. Hvert navnerom erstatter det lagrede navnerommet med samme navn. Et navnerom med verdien null fjernes. Se docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Fullføringsdetaljer",
@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Timer",
-          "description": "Hvor mange timer oppgaven skal utsettes (standard 24). Ignoreres når Til er angitt."
+          "description": "Hvor mange timer oppgaven skal utsettes (standard 24). Ikke angi både Timer og Til i samme kall."
         },
         "until": {
           "name": "Til",
-          "description": "Utsetter oppgaven til nøyaktig denne datoen og dette klokkeslettet i stedet for et antall timer. Angir du den, brukes ikke feltet Timer."
+          "description": "Utsetter oppgaven til nøyaktig denne datoen og dette klokkeslettet i stedet for et antall timer. Ikke angi både Timer og Til i samme kall."
         },
         "origin": {
           "name": "Opprinnelse",
@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part} reservedeler"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Oppgaver"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Kommende oppgaver"
+      }
     }
   },
   "device_automation": {
@@ -1106,6 +1116,15 @@
     },
     "unknown_document": {
       "message": "Ukjent dokument: {document_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Bare en oppgave med en forbrukssensor har en måler."
+    },
+    "meter_has_no_reading": {
+      "message": "Den tilknyttede sensoren har ingen numerisk verdi nå. Oppgi en startverdi i kallet."
+    },
+    "archived_completion_not_found": {
+      "message": "Apparatet har ingen arkivert utførelse av {task_id} kl. {ts}."
     },
     "unknown_part_file": {
       "message": "Ukjent reservedel eller ingen vedlagt fil."

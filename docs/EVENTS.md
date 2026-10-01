@@ -185,6 +185,9 @@ threshold auto-creates a one-off *"Buy {part}"* task (a `home_keeper_task_create
 and restocking removes it (`home_keeper_task_deleted`). No new event type is involved,
 just the ordinary task lifecycle. Completing that buy task restocks the part by its
 `restock_quantity`, which fires `home_keeper_part_restocked` like any other restock.
+Deleting that completion takes the restock back. The return fires
+`home_keeper_part_low_stock` or `home_keeper_part_out_of_stock` when the count crosses
+the threshold again.
 
 ### Asset (appliance) lifecycle
 

@@ -90,6 +90,7 @@ without due dates would be told to update the same item forever.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -134,9 +135,26 @@ __all__ = [
 ]
 
 
-# Separator joining a profile id to a task id in a bookkeeping key. Profile ids are
-# uuid hex and task ids are opaque, so the first ``:`` is unambiguous.
+# Separator joining a profile id to a task id in a bookkeeping key. Either half can
+# hold a ``:`` of its own: an imported task id can be a ``urn:uuid:`` form, and a
+# profile id from a set_options call is kept as sent. See split_sync_key.
 _KEY_SEP = ":"
+
+
+def split_sync_key(key: str, profile_ids: Iterable[str]) -> tuple[str, str]:
+    """Split a bookkeeping key into ``(profile_id, task_id)``.
+
+    The key starts with the id of a profile that still exists, if one matches.
+    The longest such id wins. A profile id with a ``:`` then splits correctly, and
+    the key no longer reads as the key of a deleted profile on each pass (B19-2).
+    A key that no profile matches splits at its first ``:``.
+    """
+    matches = [pid for pid in profile_ids if key.startswith(f"{pid}{_KEY_SEP}")]
+    if matches:
+        profile_id = max(matches, key=len)
+        return profile_id, key[len(profile_id) + len(_KEY_SEP) :]
+    profile_id, _, task_id = key.partition(_KEY_SEP)
+    return profile_id, task_id
 
 
 def sync_key(profile_id: str, task_id: str) -> str:
@@ -418,7 +436,7 @@ def plan_sync(
 
     for key in sorted(tracked):
         entry = tracked[key]
-        profile_id, _, task_id = key.partition(_KEY_SEP)
+        profile_id, task_id = split_sync_key(key, by_id)
         entity_id = str(entry.get("entity_id") or "")
         summary = str(entry.get("summary") or "")
         profile = by_id.get(profile_id)
@@ -694,7 +712,7 @@ def needs_pass(
     """
     by_id = {str(profile["id"]): profile for profile in synced}
     for key, entry in tracked.items():
-        profile_id, _, task_id = key.partition(_KEY_SEP)
+        profile_id, task_id = split_sync_key(key, by_id)
         profile = by_id.get(profile_id)
         if profile is None or not _target(profile):
             return True

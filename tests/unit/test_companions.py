@@ -95,3 +95,16 @@ def test_dismiss_does_not_hide_a_connected_pairing():
         {}, installed_domains={UPSTREAM, GLUE}, dismissed={GLUE}
     )
     assert _by_domain(rows)[GLUE]["status"] == cat.STATUS_CONNECTED
+
+
+def test_b19_4_a_removed_registered_glue_gives_back_the_suggestion():
+    # The registry keeps a stale registration after the glue is removed. The
+    # upstream must still get its suggestion row.
+    registered = {GLUE: {"domain": GLUE, "name": "Battery Notes"}}
+    rows = cat.build_companion_list(registered, installed_domains={UPSTREAM})
+    assert [(r["domain"], r["status"]) for r in rows] == [(GLUE, cat.STATUS_SUGGESTED)]
+
+
+def test_b19_4_a_removed_registered_glue_with_no_upstream_has_no_row():
+    registered = {GLUE: {"domain": GLUE, "name": "Battery Notes"}}
+    assert cat.build_companion_list(registered, installed_domains=set()) == []

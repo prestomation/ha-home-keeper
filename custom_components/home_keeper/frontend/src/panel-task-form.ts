@@ -37,7 +37,14 @@ import type { PanelHost } from './panel-host';
 import { MDI_CLOSE, SENSOR_DOCS_URL } from './panel-icons';
 import { isDisplayableDocument, documentLabel } from './documents';
 import type { Asset, Task } from './types';
-import { assetsForTask, escapeHTML, formatQuantity, safeHref, setBtnWeight } from './utils';
+import {
+  assetTitle,
+  assetsForTask,
+  escapeHTML,
+  formatQuantity,
+  safeHref,
+  setBtnWeight,
+} from './utils';
 
 /**
  * One active-season window: a numbered heading, Remove when there is more than one
@@ -229,11 +236,14 @@ export function consumableLinkLabel(p: PanelHost, task: Task): string {
     view: 'appliances',
     detail: { kind: 'asset', id: asset.id, tab: 'parts', part: linked.id },
   });
+  // The title the appliance shows everywhere else. An appliance on an existing device
+  // can have no name, and the link then had no text to tap (F07-11).
+  const title = assetTitle(asset, p._hass?.devices);
   const owner = linked.id
     ? `<a class="hk-part-link" href="${escapeHTML(href)}" data-asset-id="${escapeHTML(
         asset.id,
-      )}" data-part-id="${escapeHTML(linked.id)}">${escapeHTML(asset.name)}</a>`
-    : escapeHTML(asset.name);
+      )}" data-part-id="${escapeHTML(linked.id)}">${escapeHTML(title)}</a>`
+    : escapeHTML(title);
   return `${owner} · ${name}${stock}`;
 }
 

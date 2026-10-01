@@ -93,6 +93,7 @@ class FakeStore:
         if self.raise_on_update is not None:
             raise self.raise_on_update
         self.updated.append((task_id, updates))
+        self._tasks[task_id] = {**self._tasks[task_id], **updates}
         return self._tasks[task_id]
 
 
@@ -109,9 +110,18 @@ def _entity(*tasks: dict):
 
         return _call
 
+    def _reload(entry_id: str):
+        calls.append(f"reload {entry_id}")
+
+    hass = types.SimpleNamespace(
+        config_entries=types.SimpleNamespace(async_reload=_reload),
+        async_create_task=lambda job: calls.append(f"task: {job}"),
+    )
     entity.coordinator = types.SimpleNamespace(
         data=by_id,
         store=store,
+        hass=hass,
+        entry=types.SimpleNamespace(entry_id="entry1"),
         async_settle_buy_tasks=_record("settle"),
         async_request_refresh=_record("refresh"),
     )
@@ -434,3 +444,119 @@ def test_unknown_uid_on_the_rename_path_is_ignored() -> None:
     )
     assert store.updated == []
     assert calls == []
+
+
+# --- low-severity review fixes ------------------------------------------------
+
+
+def test_x07_3_a_rename_saved_with_the_check_off_is_kept() -> None:
+    """HA sends rename, notes and status in one update_item call."""
+    task = _task("float", "floating", next_due=DUE.isoformat(), notes="old")
+    entity, store, calls = _entity(task)
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(
+                uid="float",
+                summary="New name",
+                description="new",
+                status=TodoItemStatus.COMPLETED,
+            )
+        )
+    )
+    assert store.completed == ["float"]
+    assert store.updated == [("float", {"name": "New name", "notes": "new"})]
+    # The completion comes first, then the edit.
+    assert calls == ["settle", "refresh"]
+
+
+def test_x07_3_a_rejected_completion_does_not_apply_the_rename() -> None:
+    task = _task("synced", "triggered", next_due=DUE.isoformat())
+    entity, store, _calls = _entity(task)
+    store.raise_on_complete = todo.TaskValidationError("clear the problem first")
+    with pytest.raises(HomeAssistantError):
+        asyncio.run(
+            entity.async_update_todo_item(
+                TodoItem(
+                    uid="synced", summary="Renamed", status=TodoItemStatus.COMPLETED
+                )
+            )
+        )
+    assert store.updated == []
+
+
+def test_x07_3_a_rename_of_a_finished_one_off_is_kept_without_a_completion() -> None:
+    task = _task("done", "one-off", last_completed="2026-06-16T10:00:00-04:00")
+    entity, store, calls = _entity(task)
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(uid="done", summary="Renamed", status=TodoItemStatus.COMPLETED)
+        )
+    )
+    assert store.completed == []
+    assert store.updated == [("done", {"name": "Renamed"})]
+    assert calls == ["refresh"]
+
+
+def test_x07_3_a_completion_that_deletes_the_task_writes_no_edit() -> None:
+    """A completed buy reminder is gone after the completion."""
+    task = _task("buy", "floating", next_due=DUE.isoformat())
+    entity, store, _calls = _entity(task)
+
+    async def complete_and_delete(task_id: str):
+        store.completed.append(task_id)
+        del store._tasks[task_id]
+
+    store.complete_task = complete_and_delete
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(uid="buy", summary="Renamed", status=TodoItemStatus.COMPLETED)
+        )
+    )
+    assert store.completed == ["buy"]
+    assert store.updated == []
+
+
+def test_x13_4_the_entity_has_a_translated_name_on_the_service_device() -> None:
+    """The name comes from strings.json, and the device supplies "Home Keeper"."""
+    import json
+
+    entity = todo.HomeKeeperTodoListEntity(types.SimpleNamespace(data={}))
+    assert entity._attr_has_entity_name is True
+    assert entity._attr_translation_key == "tasks"
+    assert entity._attr_device_info["name"] == "Home Keeper"
+    assert entity._attr_device_info["identifiers"] == {("home_keeper", "service")}
+    component = Path(__file__).resolve().parent.parent.parent / "custom_components"
+    strings = json.loads((component / "home_keeper" / "strings.json").read_text())
+    platform = "todo"
+    assert strings["entity"][platform]["tasks"]["name"] == "Tasks"
+
+
+def test_b15_6_renaming_a_device_task_reloads_the_entry() -> None:
+    """A rename must make the device-page entities again with the new name."""
+    task = _task("dev", "floating", next_due=DUE.isoformat(), device_id="d1")
+    entity, store, calls = _entity(task)
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(uid="dev", summary="New name", status=TodoItemStatus.NEEDS_ACTION)
+        )
+    )
+    assert store.updated == [("dev", {"name": "New name"})]
+    # The reload is a separate task, and no refresh runs before it.
+    assert calls == ["reload entry1", "task: None"]
+
+
+def test_b15_6_notes_edit_on_a_device_task_only_refreshes() -> None:
+    task = _task("dev", "floating", next_due=DUE.isoformat(), device_id="d1")
+    entity, store, calls = _entity(task)
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(
+                uid="dev",
+                summary=task["name"],
+                description="new notes",
+                status=TodoItemStatus.NEEDS_ACTION,
+            )
+        )
+    )
+    assert store.updated == [("dev", {"notes": "new notes"})]
+    assert calls == ["refresh"]

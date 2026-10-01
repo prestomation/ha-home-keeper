@@ -2238,6 +2238,15 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/53-panel-mobile-appliances.png` });
 
+  // 5d. The tree view on a phone. The expand control is a real button with a
+  // tap-size ring here (X11-4).
+  await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="tree"]').click();
+  await expect(panel.locator('.hk-tree-child').first()).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/5d-panel-mobile-appliances-tree.png` });
+  await panel.locator('.hk-seg[data-seg="assetView"] .hk-seg-btn[data-seg-val="flat"]').click();
+  await expect(panel.locator('.hk-tree-child')).toHaveCount(0);
+
   // 57d. And on the appliance list, where the row above it holds two segments
   // rather than one.
   await panel.locator('.hk-search-input').fill('water');
@@ -2316,6 +2325,10 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-index-row').first()).toBeVisible();
   await panel.locator('.hk-index-row[data-section="notifications"]').click();
   await expect(panel.locator('#hk-notifications')).toBeVisible();
+  // 52c. The notification list on a phone, with each badge glyph in the ink that
+  // reads on its colour (X11-6).
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/52c-panel-mobile-notification-icons.png` });
   await panel.locator('#hk-notifications .hk-item-header').first().click();
   const scopeLine = panel.locator('#hk-notifications .hk-notify-scope').first();
   const triggerGroup = panel.locator('#hk-notifications .hk-indent').first();

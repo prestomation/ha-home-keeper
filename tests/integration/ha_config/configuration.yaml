@@ -18,6 +18,15 @@ frontend:
 # default_config, which would otherwise bring it in).
 tag:
 
+# A stand-in for a phone. The container has no companion app, so this notify group
+# with no members gives the tests a real ``notify.mobile_app_test`` service. A send to
+# it is accepted and goes nowhere. A target that does not exist is now reported as
+# not sent (B16-9), so the notification tests need one that exists.
+notify:
+  - platform: group
+    name: mobile_app_test
+    services: []
+
 # Enable the recorder. A real HA install always has it (via default_config); this
 # minimal test config omits default_config, so without this the HA frontend's
 # `recorder/info` probe at load is rejected as an unknown command and surfaces as an

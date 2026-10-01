@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import csv
 import io
+import math
 from datetime import date
 from typing import Any
 
@@ -26,11 +27,16 @@ from .backend_i18n import resolve_string
 
 
 def _num(value: Any) -> float:
-    """Best-effort float, treating unset / unparseable values as 0."""
+    """Best-effort float, treating unset / unparseable values as 0.
+
+    NaN and the infinities also read as 0, so one bad stored value cannot make the
+    totals NaN (B06-7).
+    """
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError):
         return 0.0
+    return number if math.isfinite(number) else 0.0
 
 
 def _spares_value(part: dict[str, Any]) -> float:

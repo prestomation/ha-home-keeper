@@ -339,6 +339,10 @@ class SensorTaskWatcher:
         self._coordinator = coordinator
         self._unsub_state: CALLBACK_TYPE | None = None
         self._tracked: tuple[str, ...] = ()
+        # Set when the config entry unloads (X02-4). A pass that is still in an
+        # await then books no hold timer and adds no state listener, because
+        # nothing removes them after the unload.
+        self._stopped = False
         # In-memory threshold edge state, keyed by task id:
         #   {"condition_met": bool | None, "crossed_at": datetime | None,
         #    "condition": tuple}
@@ -499,6 +503,7 @@ class SensorTaskWatcher:
     @callback
     def async_start_listeners(self) -> None:
         """Begin reacting to bound-entity state changes (torn down on unload)."""
+        self._entry.async_on_unload(self._stop)
         self._entry.async_on_unload(self._unsubscribe_state)
         self._entry.async_on_unload(self._cancel_hold_timers)
         self._entry.async_on_unload(
@@ -509,10 +514,17 @@ class SensorTaskWatcher:
         self._resubscribe_state()
 
     @callback
+    def _stop(self) -> None:
+        """Mark the watcher as stopped, so that no later call adds a listener."""
+        self._stopped = True
+
+    @callback
     def _unsubscribe_state(self) -> None:
         if self._unsub_state is not None:
             self._unsub_state()
             self._unsub_state = None
+        # The next subscribe compares against this, so it must say "none".
+        self._tracked = ()
 
     @callback
     def _cancel_hold_timers(self) -> None:
@@ -543,7 +555,7 @@ class SensorTaskWatcher:
         armed, recovered or lost its hold simply has it cancelled.
         """
         self._cancel_hold_timer(tid)
-        if due_at is None:
+        if due_at is None or self._stopped:
             return
         self._hold_timers[tid] = async_track_point_in_time(
             self._hass, partial(self._handle_hold_due, tid), due_at
@@ -563,6 +575,8 @@ class SensorTaskWatcher:
     @callback
     def _resubscribe_state(self) -> None:
         """(Re)point the state listener at the currently bound entity set."""
+        if self._stopped:
+            return
         tracked = self._bound_entities()
         if tracked == self._tracked:
             return
@@ -638,7 +652,11 @@ class SensorTaskWatcher:
         is added to the pending work and returns at once, and the running pass does
         one more pass for it. That pass always requests a refresh, because the
         caller did not wait for it.
+
+        A watcher whose config entry unloaded does no pass (X02-4).
         """
+        if self._stopped:
+            return
         if entity_ids is None:
             self._pending_all = True
         else:
@@ -648,7 +666,7 @@ class SensorTaskWatcher:
             return
         self._running = True
         try:
-            while self._pending_all or self._pending_entities:
+            while (self._pending_all or self._pending_entities) and not self._stopped:
                 only = None if self._pending_all else frozenset(self._pending_entities)
                 refresh_now = self._pending_refresh
                 self._pending_all = False

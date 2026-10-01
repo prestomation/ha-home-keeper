@@ -144,9 +144,9 @@ def reconcile_problem_tasks(
 
     * ``new_tasks`` — a fresh task map (non-synced tasks carried through untouched).
     * ``ops`` — ordered ``(kind, task)`` events the store must fire: ``"created"``,
-      ``"deleted"``, ``"armed"`` (sensor went to problem) and ``"cleared"`` (sensor
-      resolved). Metadata-only edits (name/device/area drift) produce no op but do
-      set ``changed``.
+      ``"deleted"``, ``"updated"`` (the name, device, area or ``managed_by`` follows
+      the sensor), ``"armed"`` (sensor went to problem) and ``"cleared"`` (sensor
+      resolved). An ``"updated"`` op comes before the arm or clear of the same task.
     * ``changed`` — whether ``new_tasks`` differs from ``tasks`` (persist if true).
     """
     result = dict(tasks)
@@ -186,18 +186,20 @@ def reconcile_problem_tasks(
 
         task = result[existing_tid]
         # Re-derive owned metadata that follows the sensor (rename, re-home to a new
-        # device/area). Silent churn — not announced as a user-facing update.
+        # device/area). It is an update like any other: the store fires
+        # ``task_updated`` and reloads when the device-page entities change (B18-4).
         managed_by = build_managed_by(entity_id, config_entry_id, lang=lang)
-        for field, value in (
+        owned = (
             ("name", meta["name"]),
             ("device_id", meta.get("device_id")),
             ("area_id", meta.get("area_id")),
-        ):
-            if task.get(field) != value:
-                task[field] = value
-                changed = True
-        if task.get("managed_by") != managed_by:
-            task["managed_by"] = managed_by
+            ("managed_by", managed_by),
+        )
+        drift = [(field, value) for field, value in owned if task.get(field) != value]
+        for field, value in drift:
+            task[field] = value
+        if drift:
+            ops.append(("updated", task))
             changed = True
 
         armed = task.get("next_due") is not None

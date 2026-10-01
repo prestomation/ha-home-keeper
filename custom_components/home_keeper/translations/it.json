@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Origine",
-          "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Vedi docs/INTEGRATING.md."
+          "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Ogni spazio dei nomi sostituisce quello salvato con lo stesso nome. Uno spazio dei nomi con il valore null viene rimosso. Vedi docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Dettaglio del completamento",
@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Ore",
-          "description": "Di quante ore rinviare l'attività (24 come predefinito). Ignorato se è impostato Fino a."
+          "description": "Di quante ore rinviare l'attività (24 come predefinito). Non impostare Ore e Fino a nella stessa chiamata."
         },
         "until": {
           "name": "Fino a",
-          "description": "Rinvia l'attività a questa data e ora esatte anziché di un numero di ore. Se lo imposti, il campo Ore non viene usato."
+          "description": "Rinvia l'attività a questa data e ora esatte anziché di un numero di ore. Non impostare Ore e Fino a nella stessa chiamata."
         },
         "origin": {
           "name": "Origine",
@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part}: ricambi"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Attività"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Attività in arrivo"
+      }
     }
   },
   "device_automation": {
@@ -1106,6 +1116,15 @@
     },
     "unknown_document": {
       "message": "Documento sconosciuto: {document_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Solo un'attività collegata a un sensore di utilizzo ha un contatore."
+    },
+    "meter_has_no_reading": {
+      "message": "Il sensore collegato non ha ora una lettura numerica. Indica un valore iniziale nella chiamata."
+    },
+    "archived_completion_not_found": {
+      "message": "L'elettrodomestico non ha un completamento archiviato di {task_id} alle {ts}."
     },
     "unknown_part_file": {
       "message": "Ricambio sconosciuto o nessun file allegato."

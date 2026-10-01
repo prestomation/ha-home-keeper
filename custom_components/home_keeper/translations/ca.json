@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Origen",
-          "description": "Procedència opaca propietat de la integració que ha creat la tasca. Vegeu docs/INTEGRATING.md."
+          "description": "Procedència opaca propietat de la integració que ha creat la tasca. Cada espai de noms substitueix l'espai de noms desat amb el mateix nom. Un espai de noms amb el valor null s'elimina. Vegeu docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detall de la realització",
@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Hores",
-          "description": "Quantes hores s'ha d'ajornar la tasca (per defecte 24). S'ignora si s'indica Fins a."
+          "description": "Quantes hores s'ha d'ajornar la tasca (per defecte 24). No indiqueu Hores i Fins a en la mateixa crida."
         },
         "until": {
           "name": "Fins a",
-          "description": "Ajorna la tasca fins a aquesta data i hora exactes en lloc d'un nombre d'hores. Si l'indiqueu, el camp Hores no s'utilitza."
+          "description": "Ajorna la tasca fins a aquesta data i hora exactes en lloc d'un nombre d'hores. No indiqueu Hores i Fins a en la mateixa crida."
         },
         "origin": {
           "name": "Origen",
@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part}: recanvis"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tasques"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Tasques pròximes"
+      }
     }
   },
   "device_automation": {
@@ -1106,6 +1116,15 @@
     },
     "unknown_document": {
       "message": "Document desconegut: {document_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Només una tasca vinculada a un sensor d'ús té un comptador."
+    },
+    "meter_has_no_reading": {
+      "message": "El sensor vinculat no té cap lectura numèrica ara. Indiqueu un valor inicial a la crida."
+    },
+    "archived_completion_not_found": {
+      "message": "L'electrodomèstic no té cap compleció arxivada de {task_id} a {ts}."
     },
     "unknown_part_file": {
       "message": "Peça desconeguda o sense fitxer adjunt."

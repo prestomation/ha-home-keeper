@@ -8,6 +8,7 @@ firing (integration tests); ``problem_sync.py`` provides the HA-aware enumeratio
 from datetime import datetime, timedelta, timezone
 
 import hk_problem_tasks as pt
+import pytest
 
 TZ = timezone(timedelta(hours=-4))
 NOW = datetime(2026, 6, 19, 9, tzinfo=TZ)
@@ -139,7 +140,7 @@ def test_carries_through_unrelated_tasks():
 
 
 # ── metadata follows the sensor ───────────────────────────────────────────────
-def test_updates_name_device_area_without_an_op():
+def test_b18_4_updates_name_device_area_with_an_updated_op():
     tasks, _, _ = _reconcile(
         _eligible(is_problem=True, name="Old name", device_id="dev1")
     )
@@ -153,7 +154,42 @@ def test_updates_name_device_area_without_an_op():
     assert task["device_id"] == "dev2"
     assert task["area_id"] == "kitchen"
     assert changed is True
-    assert ops == []  # metadata churn isn't announced as an arm/clear
+    # One update, and no arm or clear: the sensor is still in problem.
+    assert ops == [("updated", task)]
+
+
+def test_b18_4_no_drift_gives_no_op_and_no_change():
+    tasks, _, _ = _reconcile(_eligible(is_problem=True))
+    _tasks2, ops, changed = _reconcile(_eligible(is_problem=True), tasks)
+    assert ops == []
+    assert changed is False
+
+
+def test_b18_4_an_update_comes_before_the_clear_of_the_same_task():
+    tasks, _, _ = _reconcile(_eligible(is_problem=True, name="Old"))
+    _tasks2, ops, _ = _reconcile(_eligible(is_problem=False, name="New"), tasks)
+    assert [kind for kind, _task in ops] == ["updated", "cleared"]
+
+
+@pytest.mark.parametrize(
+    "over", [{"name": "N2"}, {"device_id": "dev9"}, {"area_id": "garage"}]
+)
+def test_b18_4_each_owned_field_alone_gives_an_update(over):
+    tasks, _, _ = _reconcile(_eligible(is_problem=True))
+    _tasks2, ops, changed = _reconcile(_eligible(is_problem=True, **over), tasks)
+    assert [kind for kind, _task in ops] == ["updated"]
+    assert changed is True
+
+
+def test_b18_4_a_new_language_alone_updates_managed_by():
+    tasks, _, _ = _reconcile(_eligible(is_problem=True))
+    prompt = _only(tasks)["managed_by"]["completion_prompt"]
+    _tasks2, ops, changed = pt.reconcile_problem_tasks(
+        _eligible(is_problem=True), tasks, config_entry_id=ENTRY, now=NOW, lang="de"
+    )
+    assert [kind for kind, _task in ops] == ["updated"]
+    assert ops[0][1]["managed_by"]["completion_prompt"] != prompt
+    assert changed is True
 
 
 # ── source helpers ────────────────────────────────────────────────────────────
@@ -240,7 +276,8 @@ def test_b18_2_a_rename_keeps_the_mirror_its_labels_history_and_note():
     assert kept["id"] == task["id"]
     assert kept["labels"] == ["sump"]
     assert kept["completions"] == [{"ts": NOW.isoformat()}]
-    assert [kind for kind, _ in ops] == []
+    # The new sensor gives the mirror a new prompt: an update, not a create.
+    assert [kind for kind, _ in ops] == ["updated"]
     assert NEW in kept["managed_by"]["completion_prompt"]
 
 

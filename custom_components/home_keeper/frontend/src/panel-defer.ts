@@ -136,6 +136,7 @@ function dialogHost(p: PanelHost): DeferDialogHost {
     makeForm: (schema, data, onChange) => p._makeForm(schema, data, onChange),
     rerender: () => p._render(),
     refresh: () => p._refresh(),
+    notify: (message) => toast(p, message),
   };
 }
 

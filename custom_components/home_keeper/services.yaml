@@ -408,8 +408,9 @@ update_task:
     source:
       name: Source
       description: >-
-        Opaque provenance owned by the integration that created the task. See
-        docs/INTEGRATING.md.
+        Opaque provenance owned by the integration that created the task. Each
+        namespace replaces the stored namespace of the same name. A namespace with the
+        value null is removed. See docs/INTEGRATING.md.
       selector:
         object:
     completion_detail:
@@ -720,7 +721,9 @@ snooze_task:
         text:
     hours:
       name: Hours
-      description: How many hours to defer the task (defaults to 24). Ignored when Until is set.
+      description: >-
+        How many hours to defer the task (defaults to 24). Do not set Hours and Until
+        in the same call.
       selector:
         number:
           min: 1
@@ -731,8 +734,8 @@ snooze_task:
     until:
       name: Until
       description: >-
-        Defer the task to this exact date and time instead of a number of hours. If
-        this field is set, Home Keeper does not use Hours.
+        Defer the task to this exact date and time instead of a number of hours. Do not
+        set Hours and Until in the same call.
       selector:
         datetime:
     origin:

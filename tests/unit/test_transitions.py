@@ -129,3 +129,74 @@ def test_deleted_task_drops_out_of_state():
     assert "t1" in state
     fired, state2 = t.detect_transitions(state, {}, now=NOW)
     assert fired == [] and state2 == {}
+
+
+# ── auto_crossings (B16-6) ─────────────────────────────────────────────────────
+
+
+def test_b16_6_a_snooze_of_an_overdue_task_sends_no_due_soon_push():
+    overdue = _task(next_due=NOW - timedelta(days=1))
+    _, state = t.detect_transitions({}, {"t1": overdue}, now=NOW)
+    snoozed = _task(next_due=NOW + timedelta(hours=24))
+    fired, _ = t.detect_transitions(state, {"t1": snoozed}, now=NOW)
+    # The event still fires, but it sends no automatic notification.
+    assert _names(fired) == [EVENT_TASK_DUE_SOON]
+    assert t.auto_crossings(state, fired) == []
+
+
+def test_b16_6_completing_a_due_soon_task_sends_no_due_soon_push():
+    due_soon = _task(next_due=NOW + timedelta(days=1))
+    _, state = t.detect_transitions({}, {"t1": due_soon}, now=NOW)
+    assert state["t1"]["overdue_fired"] is False
+    completed = _task(next_due=NOW + timedelta(days=2))
+    fired, _ = t.detect_transitions(state, {"t1": completed}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_DUE_SOON]
+    assert t.auto_crossings(state, fired) == []
+
+
+def test_b16_6_a_time_crossing_still_sends():
+    later = _task(next_due=NOW + timedelta(days=5))
+    _, state = t.detect_transitions({}, {"t1": later}, now=NOW)
+    fired, _ = t.detect_transitions(state, {"t1": later}, now=NOW + timedelta(days=3))
+    assert t.auto_crossings(state, fired) == [("due_soon", "t1")]
+    # A new task has no prior state, so it sends too.
+    new = _task(next_due=NOW + timedelta(days=1))
+    fired, _ = t.detect_transitions({}, {"t1": new}, now=NOW)
+    assert t.auto_crossings({}, fired) == [("due_soon", "t1")]
+
+
+def test_b16_6_overdue_after_a_snooze_still_sends():
+    overdue = _task(next_due=NOW - timedelta(days=1))
+    _, state = t.detect_transitions({}, {"t1": overdue}, now=NOW)
+    moved = _task(next_due=NOW - timedelta(hours=1))
+    fired, _ = t.detect_transitions(state, {"t1": moved}, now=NOW)
+    assert _names(fired) == [EVENT_TASK_OVERDUE]
+    assert t.auto_crossings(state, fired) == [("overdue", "t1")]
+
+
+def test_b16_6_auto_crossings_skips_other_events_and_a_missing_task_id():
+    fired = [
+        ("home_keeper_task_completed", {"task_id": "t1"}),
+        (EVENT_TASK_OVERDUE, {}),
+        (EVENT_TASK_OVERDUE, {"task_id": ""}),
+        (EVENT_TASK_OVERDUE, {"task_id": "t2"}),
+    ]
+    assert t.auto_crossings({}, fired) == [("overdue", "t2")]
+    assert (
+        t.auto_crossings(
+            {"t2": {"due_soon_fired": True}}, [(EVENT_TASK_DUE_SOON, {"task_id": "t2"})]
+        )
+        == []
+    )
+    assert t.auto_crossings(
+        {"t2": {"due_soon_fired": False, "overdue_fired": False}},
+        [(EVENT_TASK_DUE_SOON, {"task_id": "t2"})],
+    ) == [("due_soon", "t2")]
+    # A held-back due_soon does not stop the events after it.
+    held_back_then_overdue = [
+        (EVENT_TASK_DUE_SOON, {"task_id": "t2"}),
+        (EVENT_TASK_OVERDUE, {"task_id": "t3"}),
+    ]
+    assert t.auto_crossings(
+        {"t2": {"overdue_fired": True}}, held_back_then_overdue
+    ) == [("overdue", "t3")]

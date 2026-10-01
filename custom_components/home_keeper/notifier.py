@@ -142,15 +142,39 @@ def _verb_allowed(coord: HomeKeeperCoordinator, verb: str) -> bool:
     return True
 
 
+# The notify targets whose last send failed. A target that fails logs 1 warning, and
+# then only debug lines until a send to it works again (B16-9).
+_FAILED_TARGETS: set[str] = set()
+
+
 async def _send_payload(
     hass: HomeAssistant, targets: list[str], payload: dict[str, Any]
-) -> None:
-    """Best-effort fan-out of *payload* to each notify target (failures logged)."""
+) -> int:
+    """Send *payload* to each notify target, and return how many accepted it.
+
+    A failure does not stop the other targets. A removed or renamed ``mobile_app``
+    service raises at once, also with ``blocking=False``, so that failure is a
+    warning: else every send to the phone fails with no line in the log (B16-9).
+    """
+    delivered = 0
     for target in targets:
         try:
             await hass.services.async_call("notify", target, payload, blocking=False)
         except Exception as err:  # a bad/renamed target must not break the send loop
-            _LOGGER.debug("Home Keeper notify target %r failed: %s", target, err)
+            if target in _FAILED_TARGETS:
+                _LOGGER.debug("Home Keeper notify target %r failed: %s", target, err)
+            else:
+                _FAILED_TARGETS.add(target)
+                _LOGGER.warning(
+                    "Home Keeper could not send to notify.%s: %s. Check the 'Send "
+                    "to' devices in Settings → Notifications.",
+                    target,
+                    err,
+                )
+            continue
+        _FAILED_TARGETS.discard(target)
+        delivered += 1
+    return delivered
 
 
 async def _build_payload(
@@ -276,7 +300,9 @@ async def _send(
         allow_snooze=bool(opts[OPTION_ALLOW_SNOOZE]),
         allow_skip=bool(opts[OPTION_ALLOW_SKIP]),
     )
-    await _send_payload(hass, notification["targets"], payload)
+    if not await _send_payload(hass, notification["targets"], payload):
+        # No target accepted the card, so no task was sent (B16-9).
+        return len(queue), None
     # The payload itself, not only a summary of it: the ``data`` block is where the
     # channel and the urgency live, and it is the only place a report of "the channel
     # did nothing on my phone" can be settled. Home Keeper builds that block, the
@@ -465,6 +491,16 @@ async def async_run_notify(
         # profile (or a saved notification with no 'Send to') would match tasks but push
         # nowhere, which reads as "the service did nothing". Fail loudly instead.
         return {}, {"key": "notify_no_targets", "placeholders": {}}
+    # A send to targets that no saved notification holds gets a route id. The tag is
+    # then the same on each call, so a new card replaces the old one, and a tap can
+    # go on with the walk at those targets (B16-7, B16-8).
+    if base_notif is None:
+        base_id = notifications.adhoc_base(base_profile["id"] if base_profile else None)
+        notification["id"] = notifications.route_id(base_id, notification["targets"])
+    elif notification["targets"] != base_notif["targets"]:
+        notification["id"] = notifications.route_id(
+            base_notif["id"], notification["targets"]
+        )
 
     matched, sent = await _send(
         hass,
@@ -477,15 +513,34 @@ async def async_run_notify(
     return {"matched": matched, "sent": sent}, None
 
 
-def async_setup_notifications(
-    hass: HomeAssistant, entry: ConfigEntry, coord: HomeKeeperCoordinator
-) -> CALLBACK_TYPE:
-    """Subscribe to mobile-app action events; returns the unsubscribe callback."""
+async def _async_live_coordinator(hass: HomeAssistant) -> Any:
+    """The loaded coordinator, after a wait during a reload (lazy: no import cycle)."""
+    from .coordinator import async_wait_for_coordinator
+
+    return await async_wait_for_coordinator(hass)
+
+
+def async_setup_notifications(hass: HomeAssistant) -> CALLBACK_TYPE:
+    """Subscribe to mobile-app action events; returns the unsubscribe callback.
+
+    ``async_setup`` calls this once for the Home Assistant run (X02-5). A listener
+    of the config entry stopped at each unload, and a tap during the reload that
+    followed reached no handler. Each tap now finds the loaded coordinator, and
+    waits for it while the entry sets up.
+    """
 
     async def _handle(
-        verb: str, task_id: str, notification_id: str, due_token: str | None
+        coord: HomeKeeperCoordinator,
+        verb: str,
+        task_id: str,
+        notification_id: str,
+        due_token: str | None,
     ) -> None:
-        notification = notifications.resolve_notification(
+        entry = coord.entry
+        # A route id (a send with a target override, or with no saved
+        # notification) gives the notification back with the targets it was sent
+        # to, so the walk goes on at that device (B16-7, B16-8).
+        notification = notifications.resolve_tap_notification(
             _notifications(entry), notification_id
         )
         now = dt_util.now()
@@ -562,9 +617,11 @@ def async_setup_notifications(
                 hours = notifications.snooze_hours_for(
                     coord.store.get_task(task_id), notification
                 )
+                # Count from the due date when that is later than now, the same as
+                # the service and the panel (F10-2).
                 await coord.store.snooze_task(
                     task_id,
-                    now + timedelta(hours=hours),
+                    recurrence.snooze_from(task, now) + timedelta(hours=hours),
                     origin=ORIGIN_NOTIFICATION_ACTION,
                 )
             else:  # ACTION_SKIP
@@ -592,33 +649,39 @@ def async_setup_notifications(
         # the card in place; an empty queue closes with an "all caught up" note. (Only
         # for a saved walk notification.) The task just acted on is kept out: under a
         # ``due_soon`` or ``all`` status it can still be due, and to send it again
-        # with new buttons lets a second tap act on it again (B16-5).
+        # with new buttons lets a second tap act on it again (B16-5). If the profile
+        # of the notification is gone, the send does nothing. It does not send the
+        # "all caught up" note, because the queue is not known (B16-12).
         if notification is not None and (
             notification["style"] == notifications.STYLE_WALK
         ):
-            matched, _ = await async_send_for_notification(
+            await async_send_for_notification(
                 hass,
                 coord,
                 notification,
                 reason="walk-advance",
+                when_empty=notifications.WHEN_EMPTY_ALL_CLEAR,
                 exclude_task_id=task_id,
             )
-            if matched == 0:
-                all_clear = await hass.async_add_executor_job(
-                    functools.partial(
-                        notifications.build_all_clear,
-                        notification,
-                        lang=hass.config.language,
-                    )
-                )
-                await _send_payload(hass, notification["targets"], all_clear)
 
     @callback
     def _on_action(event: Event) -> None:
         decoded = notifications.decode_action(event.data.get("action"))
         if decoded is None:
             return
-        verb, task_id, notification_id, due_token = decoded
-        hass.async_create_task(_handle(verb, task_id, notification_id, due_token))
+        hass.async_create_task(_route(*decoded))
+
+    async def _route(
+        verb: str, task_id: str, notification_id: str, due_token: str | None
+    ) -> None:
+        coord = await _async_live_coordinator(hass)
+        if coord is None:
+            _LOGGER.debug(
+                "Home Keeper notification action %s on %s ignored: not loaded",
+                verb,
+                task_id,
+            )
+            return
+        await _handle(coord, verb, task_id, notification_id, due_token)
 
     return hass.bus.async_listen(EVENT_MOBILE_APP_ACTION, _on_action)

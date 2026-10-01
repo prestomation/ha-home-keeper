@@ -32,6 +32,7 @@ from . import (
 )
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
+    ASSET_KIND_VIRTUAL,
     COMPLETION_ENTRY_FIELDS,
     EVENT_ASSET_ARCHIVED,
     EVENT_ASSET_CREATED,
@@ -82,6 +83,7 @@ from .problem_tasks import rename_problem_entity as _rename_problem_entity
 from .reconcile import adopt_part_tags as _adopt_part_tags
 from .reconcile import buy_source as _buy_source
 from .reconcile import is_manual_part_link as _is_manual_part_link
+from .reconcile import is_part_owned_name_update as _is_part_owned_name_update
 from .reconcile import is_part_owned_tag_update as _is_part_owned_tag_update
 from .reconcile import is_use_task as _is_use_task
 from .reconcile import part_source as _part_source
@@ -100,6 +102,31 @@ _STOCK_EVENT = {
 }
 
 _LOGGER = logging.getLogger(__name__)
+
+# Completion entry key: the part's ``last_replaced`` before this completion stamped
+# it. Store bookkeeping like ``stock_drawn``, not metadata (B01-3).
+LAST_REPLACED_BEFORE: Final = "last_replaced_before"
+
+
+def _local_date(when: Any) -> str:
+    """Return the local calendar date of *when* as ``YYYY-MM-DD``.
+
+    *when* is a datetime or an ISO timestamp. ``as_local`` first (#250): a bare
+    ``.date()`` takes the calendar date in the offset the caller supplied.
+    """
+    if isinstance(when, str):
+        parsed = dt_util.parse_datetime(when)
+        when = parsed if parsed is not None else when
+    if hasattr(when, "date"):
+        return str(dt_util.as_local(when).date().isoformat())
+    return str(when)[:10]
+
+
+def _completion_entry(task: dict[str, Any], when: Any) -> dict[str, Any] | None:
+    """Return the completion entry of *task* recorded at *when*, if any."""
+    ts = when.isoformat() if hasattr(when, "isoformat") else str(when)
+    return next((c for c in task.get("completions", []) if c.get("ts") == ts), None)
+
 
 # Source namespaces Home Keeper writes itself. They name no contributor device, so
 # the split-duplicate merge never groups tasks by them (B17-1).
@@ -128,6 +155,17 @@ def _task_owns_entities(task: dict[str, Any]) -> bool:
     creating/removing a reconciler-owned task needs a full entry reload.
     """
     return bool(task.get("device_id")) and bool(task.get("enabled", True))
+
+
+def _reload_for_update(before: dict[str, Any], after: dict[str, Any]) -> bool:
+    """Whether a reconciler update from *before* to *after* needs an entry reload.
+
+    Only a task that owns per-task entities before or after the update can need
+    one, and only when its :func:`task_entities.entity_set_key` moved: a new name,
+    device or button changes what is on the device page.
+    """
+    owns = _task_owns_entities(before) or _task_owns_entities(after)
+    return owns and entity_set_key(before) != entity_set_key(after)
 
 
 def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
@@ -224,11 +262,22 @@ def _changed_fields(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     return sorted(k for k in keys if before.get(k) != after.get(k))
 
 
+class StoreClosedError(RuntimeError):
+    """A write reached a store that an unload closed (X02-2).
+
+    A reload builds a new store that loads the file again. A pass that started
+    before the unload still holds the old store, and its save would write the old
+    snapshot over the new one. The closed store refuses the save instead.
+    """
+
+
 class HomeKeeperStore:
     """Wrapper around HA's Store helper holding the task dictionary."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         self._hass = hass
+        # Set by close() when the config entry unloads. See StoreClosedError.
+        self._closed = False
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self._tasks: dict[str, dict[str, Any]] = {}
         self._assets: dict[str, dict[str, Any]] = {}
@@ -345,7 +394,15 @@ class HomeKeeperStore:
         if changed:
             await self._save()
 
+    def close(self) -> None:
+        """Refuse every later save. The config entry unload calls this (X02-2)."""
+        self._closed = True
+
     async def _save(self) -> None:
+        if self._closed:
+            raise StoreClosedError(
+                "Home Keeper store is closed: a write started before an unload"
+            )
         await self._store.async_save(
             {
                 "tasks": self._tasks,
@@ -501,7 +558,25 @@ class HomeKeeperStore:
                 "part sets its NFC/RFID tag. Set the tag on the part in the "
                 "appliance editor."
             )
+        if _is_part_owned_name_update(existing, updates):
+            raise models.TaskValidationError(
+                "This task is auto-generated from an appliance part, and the part "
+                "sets its name. Change the part in the appliance editor."
+            )
+        # ``merge_update`` does not read ``source``, so it is merged here (B02-4). A
+        # locked ``source`` stays as it is, like any other locked field.
+        source_update = updates.get("source")
+        managed_by = existing.get("managed_by")
+        if isinstance(managed_by, dict) and "source" in (
+            managed_by.get("locked_fields") or []
+        ):
+            source_update = None
+        source = models.merge_source(
+            existing.get("source"), source_update, reserved=_RESERVED_SOURCE_NAMESPACES
+        )
         merged = models.merge_update(existing, updates, now=dt_util.now())
+        if source_update:
+            merged["source"] = source
         if "sensor" in updates:
             self._check_template_syntax(merged)
         self._tasks[task_id] = merged
@@ -793,9 +868,15 @@ class HomeKeeperStore:
         _reject_completion_blocked(existing, origin)
         now = dt_util.now()
         records_reading = models.task_records_reading(existing)
-        clean_metadata = models.normalize_completion_metadata(
-            metadata, allow_reading=records_reading
-        )
+        # A skip entry keeps only the skip fields (B03-5). ``cost`` and ``photo`` are
+        # completion fields, and ``update_skip`` cannot clear them from a skip.
+        clean_metadata = {
+            key: value
+            for key, value in models.normalize_completion_metadata(
+                metadata, allow_reading=records_reading
+            ).items()
+            if key in SKIP_ENTRY_FIELDS
+        }
         # Same resolution order as ``complete_task``: the caller's number wins (a skip
         # logged for an earlier moment carries the reading the user typed for it),
         # otherwise read the bound entity now. The same figure anchors the meter below,
@@ -840,10 +921,14 @@ class HomeKeeperStore:
         hand *is* a user action ("I serviced this last month, start counting from
         there"), so it fires ``home_keeper_task_updated`` like any other edit.
         A no-op for a non-sensor task or an unchanged value.
+
+        Rejects NaN and infinity with ``TaskValidationError`` (B02-8), as
+        ``models`` does for every other stored number.
         """
         task = self._tasks.get(task_id)
         if task is None:
             raise KeyError(task_id)
+        baseline = models._finite_float(baseline, "sensor.baseline")
         cfg = task.get("sensor")
         if not isinstance(cfg, dict):
             return task
@@ -870,6 +955,36 @@ class HomeKeeperStore:
             self._hass.bus.async_fire(
                 EVENT_TASK_DELETED, events.task_event_data(removed)
             )
+
+    async def delete_tasks(self, task_ids: Collection[str]) -> list[dict[str, Any]]:
+        """Delete several tasks with one save (X08-2).
+
+        The bulk twin of :meth:`delete_task` for the one-off purge. Each save writes
+        the whole document, so one save per task made a large purge write the file
+        once for each task. A task that :meth:`delete_task` would refuse, or that is
+        gone, is skipped, and the others still go. Each deleted task fires its own
+        ``task_deleted`` event after the save. Returns the deleted tasks.
+        """
+        removed: list[dict[str, Any]] = []
+        for task_id in task_ids:
+            task = self._tasks.get(task_id)
+            if task is None:
+                continue
+            try:
+                self._check_deletable(task, force=False)
+            except models.TaskValidationError as err:
+                _LOGGER.debug("Skipping delete of task %s: %s", task_id, err)
+                continue
+            self._archive_task_history(task)
+            del self._tasks[task_id]
+            removed.append(task)
+        if removed:
+            await self._save()
+            for task in removed:
+                self._hass.bus.async_fire(
+                    EVENT_TASK_DELETED, events.task_event_data(task)
+                )
+        return removed
 
     async def delete_orphaned_tasks(self) -> list[dict[str, Any]]:
         """Delete every managed task whose owning integration is gone, in one save.
@@ -1017,7 +1132,11 @@ class HomeKeeperStore:
         prospective_parent = updates.get(
             "parent_asset_id", existing.get("parent_asset_id")
         )
-        self._validate_parent(asset_id, prospective_parent)
+        self._validate_parent(
+            asset_id,
+            prospective_parent,
+            check_kind=prospective_parent != existing.get("parent_asset_id"),
+        )
         now = dt_util.now()
         merged = assets.merge_update(existing, updates, now=now)
         self._assets[asset_id] = merged
@@ -1307,14 +1426,30 @@ class HomeKeeperStore:
             )
 
     def _validate_parent(
-        self, asset_id: str | None, parent_asset_id: str | None
+        self,
+        asset_id: str | None,
+        parent_asset_id: str | None,
+        *,
+        check_kind: bool = True,
     ) -> None:
-        """Reject a parent link to a missing asset or one that forms a cycle."""
+        """Reject a parent link to a missing asset or one that forms a cycle.
+
+        With *check_kind*, also reject a parent that is not a virtual appliance
+        (B17-8). Only a virtual appliance has a Home Keeper device to nest under.
+        ``update_asset`` sets it only when the call changes the parent, so an edit
+        of an appliance with an older stored link still works.
+        """
         if not parent_asset_id:
             return
         if parent_asset_id not in self._assets:
             raise assets.AssetValidationError(
                 "parent_asset_id is not a known appliance"
+            )
+        if check_kind and self._assets[parent_asset_id].get("kind") != (
+            ASSET_KIND_VIRTUAL
+        ):
+            raise assets.AssetValidationError(
+                "parent_asset_id must name a virtual appliance"
             )
         if asset_id and assets.would_create_cycle(
             self._assets, asset_id, parent_asset_id
@@ -1865,12 +2000,19 @@ class HomeKeeperStore:
         )
         if trimmed:
             await self._save()
+        armed = False
         for task_id in to_arm:
+            # The decision above was made before an await. A task that was deleted
+            # or armed since then is skipped: trigger_task raises KeyError for the
+            # first, and arms the second a second time (X03-11).
+            task = self._tasks.get(task_id)
+            if task is None or task.get("next_due") is not None:
+                continue
             # Through trigger_task rather than by assignment: it is the chokepoint that
-            # fires the triggered event, and it saves. A task armed between the pure
-            # decision above and this loop is skipped by its own dormancy check.
+            # fires the triggered event, and it saves.
             await self.trigger_task(task_id)
-        return trimmed or bool(to_arm)
+            armed = True
+        return trimmed or armed
 
     async def async_rename_problem_sensor(
         self, old_entity_id: str, new_entity_id: str
@@ -1902,13 +2044,19 @@ class HomeKeeperStore:
         :func:`problem_tasks.reconcile_problem_tasks`, persists, and fires the
         matching lifecycle events. Returns ``True`` when the per-task **entity set**
         changed (a task was created or removed) so the caller can decide between a
-        full entry reload and a plain coordinator refresh.
+        full entry reload and a plain coordinator refresh. A mirror that moves to
+        another device, or gets a new name, changes its entity set too (B18-4).
         """
+        # One clock reading for the recorded clear and for its event, so the event's
+        # ``completed_at`` is the ``ts`` of the history entry (B18-9).
+        now = dt_util.now()
+        # Taken before the pass, because it changes a matched task in place.
+        before = {tid: dict(task) for tid, task in self._tasks.items()}
         new_tasks, ops, changed = _reconcile_problem_tasks(
             eligible,
             self._tasks,
             config_entry_id=config_entry_id,
-            now=dt_util.now(),
+            now=now,
             notes_by_entity=self._problem_notes,
             lang=self._hass.config.language,
         )
@@ -1933,6 +2081,16 @@ class HomeKeeperStore:
                     EVENT_TASK_DELETED, events.task_event_data(task)
                 )
                 entity_set_changed = True
+            elif kind == "updated":
+                old = before.get(task["id"], {})
+                self._hass.bus.async_fire(
+                    EVENT_TASK_UPDATED,
+                    events.task_event_data(
+                        task, extra={"changed_fields": _changed_fields(old, task)}
+                    ),
+                )
+                if _reload_for_update(old, task):
+                    entity_set_changed = True
             elif kind == "armed":
                 self._hass.bus.async_fire(
                     EVENT_TASK_TRIGGERED, events.task_event_data(task)
@@ -1940,9 +2098,7 @@ class HomeKeeperStore:
             elif kind == "cleared":
                 self._hass.bus.async_fire(
                     EVENT_TASK_COMPLETED,
-                    events.completion_event_data(
-                        task, dt_util.now(), ORIGIN_PROBLEM_SENSOR_SYNC
-                    ),
+                    events.completion_event_data(task, now, ORIGIN_PROBLEM_SENSOR_SYNC),
                 )
         return entity_set_changed
 
@@ -2128,12 +2284,14 @@ class HomeKeeperStore:
         task made a moment ago must arm on a condition that is already true.
         """
         # Taken before the pass, because the reconcile rewrites a matched task in
-        # place: reading the old key off ``self._tasks`` afterwards sees the new one.
-        # Only a task that owns per-task entities can need a reload.
-        keys_before = {
-            tid: entity_set_key(t)
+        # place: reading the old fields off ``self._tasks`` afterwards sees the new
+        # ones. Each field is replaced, not changed in place, so a shallow copy of
+        # the tasks of this spec is enough.
+        before = {
+            tid: dict(t)
             for tid, t in self._tasks.items()
-            if _task_owns_entities(t)
+            if (key := declarative_companions.task_key(t)) is not None
+            and key[0] == spec["id"]
         }
         new_tasks, ops, changed = declarative_companions.reconcile_declarative_tasks(
             spec,
@@ -2192,20 +2350,22 @@ class HomeKeeperStore:
                     EVENT_TASK_UPDATED,
                     events.task_event_data(task, extra={"changed_fields": ["enabled"]}),
                 )
-                if task["id"] in keys_before:
+                if _task_owns_entities(before.get(task["id"], {})):
                     entity_set_changed = True
             elif kind == "updated":
+                # The fields the pass really changed (B12-4). An automation that
+                # filters on ``changed_fields`` reads the same list as for an edit.
+                old = before.get(task["id"], {})
                 self._hass.bus.async_fire(
                     EVENT_TASK_UPDATED,
-                    events.task_event_data(task, extra={"changed_fields": []}),
+                    events.task_event_data(
+                        task, extra={"changed_fields": _changed_fields(old, task)}
+                    ),
                 )
                 # A new rendered name, a companion rename or a new ``clear_on_recover``
                 # changes the names or the button on the device page, which only an
                 # entry reload makes again.
-                old_key = keys_before.get(task["id"])
-                if (old_key is not None or _task_owns_entities(task)) and (
-                    old_key != entity_set_key(task)
-                ):
+                if _reload_for_update(old, task):
                     entity_set_changed = True
         return entity_set_changed, created_ids
 
@@ -2293,7 +2453,7 @@ class HomeKeeperStore:
         if _part_source(updated):
             self._stamp_part_replacement(updated, when)
         elif _buy_source(updated):
-            self._stamp_buy_restock(updated)
+            self._stamp_buy_restock(updated, when)
         await self._save()
         _LOGGER.debug(
             "Completed task %s; next due %s", task_id, updated.get("next_due")
@@ -2450,6 +2610,7 @@ class HomeKeeperStore:
         # A completion of a linked task took stock. Its undo gives that stock back, so
         # a mistaken tick does not leave the count one short.
         self._return_stock_drawn(removed_entry)
+        self._restamp_last_replaced(updated, removed_entry)
         await self._save()
         self._hass.bus.async_fire(
             EVENT_TASK_UNCOMPLETED,
@@ -2482,12 +2643,21 @@ class HomeKeeperStore:
         # A synced problem task's history is owned by the sync, not the user.
         _reject_synced_problem(existing, None)
         now = dt_util.now()
+        # A copy, because the move can change the entry in place.
+        moved_entry = dict(
+            next(
+                (e for e in existing.get("completions", []) if e.get("ts") == old_ts),
+                {},
+            )
+        )
         try:
             updated = recurrence.move_completion(
                 dict(existing), old_ts, new_ts, now=now
             )
         except ValueError as err:
             raise models.TaskValidationError(str(err)) from err
+        if moved_entry:
+            self._restamp_last_replaced(updated, moved_entry)
         self._tasks[task_id] = updated
         await self._save()
         # Mirror recurrence.move_completion's own naive-timestamp qualification so
@@ -2590,6 +2760,8 @@ class HomeKeeperStore:
         schedule the user may since have moved on from. Deleting the skip that
         anchored a **usage** meter *does* restore the baseline it replaced, recorded
         on it as ``meter_start`` — otherwise the progress the user had stays lost.
+        Deleting the last skip of a one-off with no completion makes it due again
+        at its ``due`` date (see ``recurrence.remove_skip``).
 
         Fires ``home_keeper_task_skip_removed``. A ``ts`` that isn't in the log is a
         no-op: no save, and no event announcing the undo of a skip never taken.
@@ -2739,14 +2911,19 @@ class HomeKeeperStore:
         # a date-only string that ``reconcile`` re-anchors the part's recurrence to, so
         # a one-day shift here shifts the whole wear cycle. The ``hasattr`` guard keeps
         # the true branch a datetime: a plain ``date`` has no ``.date()`` method.
-        when_date = (
-            dt_util.as_local(when).date().isoformat()
-            if hasattr(when, "date")
-            else str(when)[:10]
-        )
+        when_date = _local_date(when)
+        # A future completion must not stamp a future date. The appliance refuses a
+        # future ``last_replaced``, so the part could not be saved until that day
+        # (B05-3).
+        when_date = min(when_date, dt_util.as_local(dt_util.now()).date().isoformat())
         part_id = src.get("part_id")
         part = assets.find_part(asset, part_id) if part_id is not None else None
         if part is not None:
+            entry = _completion_entry(task, when)
+            if entry is not None:
+                # The date this completion replaces. An undo puts it back when no
+                # other replacement remains (B01-3).
+                entry[LAST_REPLACED_BEFORE] = part.get("last_replaced")
             part["last_replaced"] = when_date
             # Completing a wear-part replacement consumes the link's amount when it
             # states one, and the part's per-use amount otherwise (one whole spare
@@ -2781,10 +2958,7 @@ class HomeKeeperStore:
         drawn = assets.stock_delta(before, part.get("stock"))
         if drawn >= 0:
             return
-        ts = when.isoformat() if hasattr(when, "isoformat") else str(when)
-        entry = next(
-            (c for c in task.get("completions", []) if c.get("ts") == ts), None
-        )
+        entry = _completion_entry(task, when)
         if entry is not None:
             entry["stock_drawn"] = {
                 "asset_id": asset.get("id"),
@@ -2798,19 +2972,54 @@ class HomeKeeperStore:
         Does nothing when the appliance, the part or its count has gone since, because
         there is no count left to correct.
         """
-        drawn = entry.get("stock_drawn")
-        if not isinstance(drawn, dict):
-            return
-        asset = self._assets.get(str(drawn.get("asset_id")))
-        if asset is None:
-            return
-        part = assets.find_part(asset, str(drawn.get("part_id")))
-        if part is None or not assets.part_tracks_stock(part):
-            return
-        transition = assets.adjust_part_stock(part, float(drawn.get("quantity") or 0))
-        self._emit_stock_event(transition, asset, part)
+        # ``stock_drawn`` gives back a draw. ``stock_added`` takes back the restock
+        # that a completed buy reminder added (B01-5).
+        for key, sign in (("stock_drawn", 1.0), ("stock_added", -1.0)):
+            moved = entry.get(key)
+            if not isinstance(moved, dict):
+                continue
+            asset = self._assets.get(str(moved.get("asset_id")))
+            if asset is None:
+                continue
+            part = assets.find_part(asset, str(moved.get("part_id")))
+            if part is None or not assets.part_tracks_stock(part):
+                continue
+            quantity = sign * float(moved.get("quantity") or 0)
+            transition = assets.adjust_part_stock(part, quantity)
+            self._emit_stock_event(transition, asset, part)
 
-    def _stamp_buy_restock(self, task: dict[str, Any]) -> None:
+    def _restamp_last_replaced(
+        self, task: dict[str, Any], entry: dict[str, Any]
+    ) -> None:
+        """Correct ``last_replaced`` after *entry* was deleted or moved (B01-3).
+
+        Only when the part still shows the date that *entry* stamped. The new date
+        comes from the latest replacement left in *task*. If no replacement is left,
+        the date that *entry* replaced comes back.
+        """
+        src = _part_source(task)
+        if not src or _is_use_task(task) or LAST_REPLACED_BEFORE not in entry:
+            return
+        asset = self._assets.get(src["asset_id"])
+        part_id = src.get("part_id")
+        if asset is None or part_id is None:
+            return
+        part = assets.find_part(asset, part_id)
+        if part is None:
+            return
+        today = dt_util.as_local(dt_util.now()).date().isoformat()
+        if part.get("last_replaced") != min(_local_date(entry.get("ts")), today):
+            return
+        remaining = [
+            _local_date(c.get("ts"))
+            for c in task.get("completions") or []
+            if c.get("ts")
+        ]
+        part["last_replaced"] = (
+            min(max(remaining), today) if remaining else entry.get(LAST_REPLACED_BEFORE)
+        )
+
+    def _stamp_buy_restock(self, task: dict[str, Any], when: Any = None) -> None:
         """On completing an auto-created buy task, restock its part.
 
         Adds the part's ``restock_quantity`` (default 1, and decimal like every other
@@ -2830,7 +3039,18 @@ class HomeKeeperStore:
         part = assets.find_part(asset, part_id) if part_id is not None else None
         if part is not None:
             qty = assets.part_restock_quantity(part)
+            before = part.get("stock")
             self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
+            # Record the amount the count really moved, so an undo of this
+            # completion takes back the same amount (B01-5).
+            added = assets.stock_delta(before, part.get("stock"))
+            entry = _completion_entry(task, when) if when is not None else None
+            if entry is not None and added > 0:
+                entry["stock_added"] = {
+                    "asset_id": asset.get("id"),
+                    "part_id": part.get("id"),
+                    "quantity": added,
+                }
 
     def _emit_stock_event(
         self, transition: str, asset: dict[str, Any], part: dict[str, Any]

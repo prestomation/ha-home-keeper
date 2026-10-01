@@ -123,7 +123,13 @@ def _tap(hass: _Hass, *actions: str) -> None:
 def _setup(tasks, options):
     hass = _Hass()
     coord = _Coord(tasks, options)
-    notifier.async_setup_notifications(hass, coord.entry, coord)
+
+    async def _live(_hass):
+        return coord
+
+    # The listener finds the coordinator for each tap (X02-5).
+    notifier._async_live_coordinator = _live
+    notifier.async_setup_notifications(hass)
     return hass, coord
 
 
@@ -189,6 +195,29 @@ def test_b16_2_a_legacy_snooze_or_skip_on_a_due_soon_task_still_acts():
     _tap(hass, "home_keeper::skip::t1::n1")
 
     assert coord.store.calls == [("snooze", "t1"), ("skip", "t1")]
+
+
+def test_f10_2_a_snooze_tap_counts_from_a_later_due_date():
+    """F10-2: Snooze on a task due tomorrow moves it a day after that, not earlier."""
+    due = NOW + timedelta(days=1)
+    task = {**overdue_task("t1", days=0), "next_due": due.isoformat()}
+    hass, coord = _setup({"t1": task}, _options(status="due_soon"))
+
+    _tap(hass, _action("snooze", task))
+
+    assert coord.store.calls == [("snooze", "t1")]
+    assert task["next_due"] == (due + timedelta(hours=24)).isoformat()
+
+
+def test_f10_2_a_snooze_tap_on_an_overdue_task_counts_from_now():
+    """F10-2: an overdue task is snoozed from now, so it is not due again at once."""
+    task = overdue_task("t1", days=3)
+    hass, coord = _setup({"t1": task}, _options())
+
+    _tap(hass, _action("snooze", task))
+
+    assert coord.store.calls == [("snooze", "t1")]
+    assert task["next_due"] == (NOW + timedelta(hours=24)).isoformat()
 
 
 def test_b16_2_a_legacy_complete_on_a_due_soon_task_is_still_refused():
@@ -291,6 +320,56 @@ def test_b16_5_a_due_soon_walk_does_not_resend_the_completed_task():
     assert "actions" not in payload["data"]
     notification = coord.entry.options["notifications"][0]
     assert payload["title"] == notifications.build_all_clear(notification)["title"]
+
+
+def _routed_action(verb: str, task: dict[str, Any], notification_id: str) -> str:
+    return notifications.encode_action(
+        verb, task["id"], notification_id, notifications.due_token(task)
+    )
+
+
+def test_b16_8_a_walk_sent_with_a_target_override_goes_on_at_that_target():
+    first = overdue_task("t1", days=2)
+    second = overdue_task("t2", days=1)
+    hass, coord = _setup({"t1": first, "t2": second}, _options())
+
+    _tap(hass, _routed_action("complete", first, "n1@mobile_app_kid"))
+
+    assert coord.store.calls == [("complete", "t1")]
+    assert [c[1] for c in hass.services.calls] == ["mobile_app_kid"]
+    payload = hass.services.calls[0][2]
+    assert payload["data"]["tag"] == "home_keeper_n1@mobile_app_kid"
+    head = notifications.decode_action(payload["data"]["actions"][0]["action"])
+    assert head[1:3] == ("t2", "n1@mobile_app_kid")
+
+
+def test_b16_7_an_adhoc_walk_goes_on_after_a_tap():
+    first = overdue_task("t1", days=2)
+    second = overdue_task("t2", days=1)
+    hass, coord = _setup({"t1": first, "t2": second}, _options())
+
+    _tap(hass, _routed_action("skip", first, "adhoc.p1@mobile_app_kid"))
+
+    assert coord.store.calls == [("skip", "t1")]
+    assert [c[1] for c in hass.services.calls] == ["mobile_app_kid"]
+    head = notifications.decode_action(
+        hass.services.calls[0][2]["data"]["actions"][0]["action"]
+    )
+    assert head[1:3] == ("t2", "adhoc.p1@mobile_app_kid")
+
+
+def test_b16_12_no_all_clear_when_the_profile_is_gone():
+    """B16-12: a walk whose profile was deleted sends nothing after a tap.
+
+    The queue is not known, so an "All caught up" card would be false.
+    """
+    task = overdue_task("t1", days=1)
+    hass, coord = _setup({"t1": task}, _options(profile_id="p_gone"))
+
+    _tap(hass, _action("complete", task))
+
+    assert coord.store.calls == [("complete", "t1")]
+    assert hass.services.calls == []
 
 
 def test_b16_5_a_due_soon_walk_moves_to_the_next_task_after_a_snooze():

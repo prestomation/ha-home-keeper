@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { setLanguage } from '../src/i18n.ts';
+import { endOfZonedDay } from '../src/utils.ts';
 import {
   DAY_MS,
   SOON_DAYS,
@@ -9,6 +10,7 @@ import {
   filterTasks,
   groupTasks,
   matchesQuery,
+  normalizeCardConfig,
   normalizeSearch,
   profileMatches,
   sortTasks,
@@ -269,6 +271,25 @@ describe('filterTasks', () => {
     expect(filterTasks(list, { type: '', show_disabled: true }, {}, NOW).find((t) => t.id === 'd')).toBeTruthy();
   });
 
+  // F05-7: with show_disabled, a switched-off task with an old due date passed the
+  // Overdue and Today filters. The panel's Overdue pill leaves it out.
+  it('F05-7: overdue and today leave out a disabled task, also with show_disabled', () => {
+    const off = task({ id: 'off', enabled: false, next_due: new Date(NOW - 5 * DAY).toISOString() });
+    const on = task({ id: 'on', enabled: true, next_due: new Date(NOW - DAY).toISOString() });
+    const list = [off, on, today];
+    const ids = (filter) =>
+      filterTasks(list, { type: '', filter, show_disabled: true }, {}, NOW).map((t) => t.id);
+    expect(ids('overdue')).toEqual(['on']);
+    expect(ids('today')).toEqual(['on', 't']);
+    expect(ids('all')).toEqual(['off', 'on', 't']);
+  });
+
+  it('F05-7: today keeps a task due at the last instant of the day', () => {
+    const last = task({ id: 'last', next_due: new Date(endOfZonedDay(NOW)).toISOString() });
+    const ids = filterTasks([last], { type: '', filter: 'today' }, {}, NOW).map((t) => t.id);
+    expect(ids).toEqual(['last']);
+  });
+
   it('hides managed tasks when hide_managed is set', () => {
     const managed = task({ id: 'g', managed_by: { integration: 'x', display_name: 'X' }, next_due: new Date(NOW + DAY).toISOString() });
     const list = [...all, managed];
@@ -369,6 +390,58 @@ describe('filterTasks', () => {
       ).map((t) => t.id);
       expect(ids).toEqual(['both']);
     });
+  });
+});
+
+// F05-8: a YAML scalar for a list option became a set of its letters, so the card
+// showed no tasks and no config error.
+describe('normalizeCardConfig (F05-8)', () => {
+  it('F05-8: makes a string list option a list of one', () => {
+    const cfg = normalizeCardConfig({
+      type: 'x',
+      areas: 'kitchen',
+      devices: 'dev1',
+      labels: 'dog',
+      recurrence_types: 'fixed',
+    });
+    expect(cfg).toEqual({
+      type: 'x',
+      areas: ['kitchen'],
+      devices: ['dev1'],
+      labels: ['dog'],
+      recurrence_types: ['fixed'],
+    });
+    const kitchen = task({ id: 'k', area_id: 'kitchen' });
+    expect(filterTasks([kitchen], { type: '', areas: cfg.areas }, {}, NOW)).toEqual([kitchen]);
+  });
+
+  it('F05-8: keeps lists, absent and null values as they are, and does not change the input', () => {
+    const input = { type: 'x', areas: ['a', 'b'], labels: null, filter: 'today', sort: 'name', group_by: 'area' };
+    const cfg = normalizeCardConfig(input);
+    expect(cfg).toEqual(input);
+    expect(cfg).not.toBe(input);
+    expect(normalizeCardConfig({ type: 'x', filter: null })).toEqual({ type: 'x', filter: null });
+  });
+
+  it.each([['areas'], ['devices'], ['labels'], ['recurrence_types']])(
+    'F05-8: refuses a %s value that is not a list or a string',
+    (key) => {
+      expect(() => normalizeCardConfig({ type: 'x', [key]: 5 })).toThrow(
+        `Home Keeper card: ${key} must be a list`,
+      );
+      expect(() => normalizeCardConfig({ type: 'x', [key]: { a: 1 } })).toThrow(key);
+    },
+  );
+
+  it.each([
+    ['filter', ['all', 'overdue', 'soon', 'today', 'no_due', 'shopping', 'counted']],
+    ['sort', ['due', 'name', 'recent', 'area']],
+    ['group_by', ['none', 'status', 'area', 'device']],
+  ])('F05-8: accepts each known %s value and refuses an unknown one', (key, values) => {
+    for (const v of values) expect(normalizeCardConfig({ type: 'x', [key]: v })[key]).toBe(v);
+    expect(() => normalizeCardConfig({ type: 'x', [key]: 'bogus' })).toThrow(
+      `Home Keeper card: ${key} must be one of ${values.join(', ')}, not bogus`,
+    );
   });
 });
 

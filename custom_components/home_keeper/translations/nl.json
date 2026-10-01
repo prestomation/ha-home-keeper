@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Bron",
-          "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Zie docs/INTEGRATING.md."
+          "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Elke naamruimte vervangt de opgeslagen naamruimte met dezelfde naam. Een naamruimte met de waarde null wordt verwijderd. Zie docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Voltooiingsdetail",
@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Uren",
-          "description": "Hoeveel uur de taak wordt uitgesteld (standaard 24). Genegeerd als Tot is ingevuld."
+          "description": "Hoeveel uur de taak wordt uitgesteld (standaard 24). Vul Uren en Tot niet in dezelfde aanroep in."
         },
         "until": {
           "name": "Tot",
-          "description": "Stelt de taak uit tot precies deze datum en tijd in plaats van een aantal uren. Vul je dit in, dan wordt het veld Uren niet gebruikt."
+          "description": "Stelt de taak uit tot precies deze datum en tijd in plaats van een aantal uren. Vul Uren en Tot niet in dezelfde aanroep in."
         },
         "origin": {
           "name": "Oorsprong",
@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part} reserveonderdelen"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Taken"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Komende taken"
+      }
     }
   },
   "device_automation": {
@@ -1106,6 +1116,15 @@
     },
     "unknown_document": {
       "message": "Onbekend document: {document_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Alleen een taak met een gebruikssensor heeft een meter."
+    },
+    "meter_has_no_reading": {
+      "message": "De gekoppelde sensor heeft nu geen numerieke waarde. Geef een beginwaarde op in de aanroep."
+    },
+    "archived_completion_not_found": {
+      "message": "Het apparaat heeft geen gearchiveerde voltooiing van {task_id} op {ts}."
     },
     "unknown_part_file": {
       "message": "Onbekend onderdeel of geen bijgevoegd bestand."

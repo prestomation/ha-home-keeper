@@ -1703,12 +1703,21 @@ def test_an_appliance_reports_an_unresolvable_area_the_same_way():
     assert plan.problems[0].index == 0
 
 
-def test_a_stated_area_id_is_taken_on_trust_with_no_warning():
-    # An `area_id` is an id, not a name: it is not looked up, so there is nothing to
-    # report. This keeps a same-install re-import silent.
-    plan = _plan(_doc(tasks=[{"name": "T", "area_id": "area_base"}]), area_ids={})
+def test_a_stated_area_id_on_this_install_is_kept_with_no_warning():
+    # This keeps a same-install re-import silent.
+    plan = _plan(
+        _doc(tasks=[{"name": "T", "area_id": "area_base"}]),
+        area_ids={"Basement": "area_base"},
+    )
     assert plan.ok
     assert plan.problems == ()
+    assert plan.records[0].payload["area_id"] == "area_base"
+
+
+def test_without_an_area_registry_a_stated_area_id_is_kept():
+    plan = _plan(_doc(tasks=[{"name": "T", "area_id": "area_base"}]))
+    assert plan.problems == ()
+    assert plan.records[0].payload["area_id"] == "area_base"
 
 
 # ── The envelope, and what a syntax error says ───────────────────────────────
@@ -2479,3 +2488,230 @@ def test_b04_4_a_stored_task_with_no_skips_key_takes_an_update():
         "2026-03-01",
         "2026-06-01",
     ]
+
+
+# ── Low-severity review fixes (B04-5 … B04-11) ───────────────────────────────
+
+FIXED_ID = "6f2c4f0e-6d1a-4c0b-9a51-6e1f0f6c5a11"
+
+
+def test_b04_10_a_list_or_mapping_in_a_key_field_is_a_problem_not_a_crash():
+    plan = _plan(
+        _doc(
+            tasks=[
+                {"name": "A", "id": [1]},
+                {"name": "B", "device_id": [1]},
+                {"name": "C", "external_id": {"x": 1}},
+                {"name": "D"},
+            ],
+            appliances=[{"name": "Fridge", "id": {"x": 1}}],
+        ),
+        device_ids={"dev1"},
+    )
+    paths = sorted(p.path for p in plan.problems if p.severity == "error")
+    assert paths == [
+        "appliances[0].id",
+        "tasks[0].id",
+        "tasks[1].device_id",
+        "tasks[2].external_id",
+    ]
+    assert all("must be text" in m for m in _errors(plan))
+    # The good record is still planned, at its own index.
+    assert [(r.index, r.name) for r in plan.records] == [(3, "D")]
+
+
+def test_b04_10_an_ambiguous_parent_or_appliance_is_a_problem_not_a_crash():
+    stored = {a["id"]: a for a in (_asset(name="Smoke"), _asset(name="Smoke"))}
+    for asset in stored.values():
+        asset["device_id"] = f"dev-{asset['id']}"
+    plan = _plan(
+        _doc(
+            appliances=[{"name": "Child", "parent_asset_id": "Smoke"}],
+            tasks=[{"name": "T", "appliance": "Smoke"}],
+        ),
+        assets=stored,
+    )
+    assert not plan.ok
+    paths = sorted(p.path for p in plan.problems)
+    assert paths == ["appliances[0].parent_asset_id", "tasks[0].appliance"]
+
+
+def test_b04_5_two_records_that_state_one_id_are_refused():
+    record = {"id": FIXED_ID, "name": "Filter", "external_id": "filter"}
+    plan = _plan(_doc(tasks=[dict(record), dict(record), {"name": "Other"}]))
+    assert not plan.ok
+    problems = [p for p in plan.problems if p.severity == "error"]
+    assert [p.path for p in problems] == ["tasks[0].id", "tasks[1].id"]
+    assert f'"{FIXED_ID}" is the id of 2 records' in problems[0].message
+    assert "(tasks[0], tasks[1])" in problems[0].message
+
+
+def test_b04_5_distinct_ids_are_not_refused():
+    other = "0d7a1c52-0f0e-4f3a-8a4e-0b6a8d1c2e33"
+    plan = _plan(
+        _doc(tasks=[{"id": FIXED_ID, "name": "A"}, {"id": other, "name": "B"}])
+    )
+    assert plan.ok
+    assert sorted(r.record_id for r in plan.records) == sorted([FIXED_ID, other])
+
+
+def test_b04_6_an_area_id_from_another_install_falls_back_to_the_area_name():
+    plan = _plan(
+        _doc(
+            tasks=[{"name": "T", "area_id": "living_room", "area": "Lounge"}],
+            appliances=[{"name": "TV", "area_id": "living_room", "area": "Lounge"}],
+        ),
+        area_ids={"Lounge": "lounge"},
+    )
+    assert plan.problems == ()
+    assert [r.payload["area_id"] for r in plan.records] == ["lounge", "lounge"]
+
+
+def test_b04_6_an_unknown_area_id_with_no_name_is_kept_with_a_warning():
+    plan = _plan(
+        _doc(tasks=[{"name": "T", "area_id": "living_room"}]),
+        area_ids={"Lounge": "lounge"},
+    )
+    assert plan.ok
+    assert [p.path for p in plan.problems] == ["tasks[0].area_id"]
+    assert 'no area with the id "living_room" exists here' in _warnings(plan)[0]
+    assert plan.records[0].payload["area_id"] == "living_room"
+
+
+def test_b04_7_an_existing_appliance_on_a_device_not_here_is_named():
+    doc = _doc(
+        appliances=[{"name": "Washer", "kind": "existing", "device_id": "dev-old"}]
+    )
+    plan = _plan(doc, device_ids={"dev-new"})
+    assert plan.ok
+    assert [p.path for p in plan.problems] == ["appliances[0].device_id"]
+    assert 'no device "dev-old" exists here' in _warnings(plan)[0]
+    # The same appliance on its own install, and with no registry to check: silent.
+    assert _plan(doc, device_ids={"dev-old"}).problems == ()
+    assert _plan(doc).problems == ()
+
+
+def test_b04_7_an_update_of_an_existing_appliance_is_checked_too():
+    stored = _asset(name="Washer", kind="existing", device_id="dev-old")
+    plan = _plan(
+        _doc(appliances=[{"id": stored["id"], "name": "Washer"}]),
+        assets={stored["id"]: stored},
+        device_ids={"dev-new"},
+    )
+    assert plan.records[0].action == "update"
+    assert [p.path for p in plan.problems] == ["appliances[0].device_id"]
+
+
+def test_b04_7_a_virtual_appliance_is_not_checked():
+    plan = _plan(
+        _doc(appliances=[{"name": "Fridge", "device_id": "dev-old"}]),
+        device_ids=set(),
+    )
+    assert plan.problems == ()
+
+
+def test_b04_8_tags_for_types_json_does_not_have_are_refused():
+    for tag in ("!!binary aGVsbG8=", "!!set {a, b}", "!!timestamp 2026-01-01"):
+        text = f"home_keeper:\n  format: 1\ntasks:\n- name: T\n  notes: {tag}\n"
+        plan = _plan(text)
+        assert not plan.ok, tag
+        assert plan.problems[0].path.startswith("line "), tag
+    for tag in ("!!omap [a: 1]", "!!pairs [a: 1]"):
+        text = f"home_keeper:\n  format: 1\ntasks:\n- name: T\n  source: {tag}\n"
+        assert not _plan(text).ok, tag
+    # Tags for JSON types still load.
+    text = (
+        "home_keeper:\n  format: 1\ntasks:\n- name: !!str T\n"
+        "  interval: !!int 3\n  unit: days\n"
+    )
+    plan = _plan(text)
+    assert plan.ok
+    assert plan.records[0].payload["interval"] == 3
+
+
+def test_b04_11_archived_true_archives_a_matched_appliance():
+    stored = _asset(name="Old fridge")
+    plan = _plan(
+        _doc(appliances=[{"id": stored["id"], "name": "Old fridge", "archived": True}]),
+        assets={stored["id"]: stored},
+    )
+    assert plan.records[0].action == "update"
+    assert plan.records[0].payload["archived_at"] == NOW.isoformat()
+
+
+def test_b04_11_archived_false_restores_and_a_missing_key_keeps_the_value():
+    stored = _asset(name="Old fridge")
+    stored["archived_at"] = "2026-01-01T00:00:00+00:00"
+    doc = _doc(
+        appliances=[{"id": stored["id"], "name": "Old fridge", "archived": False}]
+    )
+    plan = _plan(doc, assets={stored["id"]: dict(stored)})
+    assert plan.records[0].payload["archived_at"] is None
+    plan = _plan(
+        _doc(appliances=[{"id": stored["id"], "name": "Old fridge"}]),
+        assets={stored["id"]: dict(stored)},
+    )
+    assert plan.records[0].payload["archived_at"] == "2026-01-01T00:00:00+00:00"
+    # archived: true on an archived appliance keeps the first time.
+    plan = _plan(
+        _doc(appliances=[{"id": stored["id"], "name": "Old fridge", "archived": True}]),
+        assets={stored["id"]: dict(stored)},
+    )
+    assert plan.records[0].payload["archived_at"] == "2026-01-01T00:00:00+00:00"
+
+
+# ── X03-6: replan_tasks ──────────────────────────────────────────────────────
+
+
+def test_x03_6_replan_merges_into_the_task_as_it_is_now():
+    stored = _task()
+    document = _doc(
+        appliances=[{"name": "Furnace"}],
+        tasks=[
+            {"id": stored["id"], "name": "Furnace filter", "notes": "MERV 13"},
+            {"name": "New", "id": "not-a-uuid", "appliance": "Furnace"},
+        ],
+    )
+    plan = _plan(document, tasks={stored["id"]: stored})
+    assert plan.ok
+    live = dict(stored)
+    live["enabled"] = False
+    replanned = tr.replan_tasks(
+        document, plan, tasks={stored["id"]: live}, assets={}, now=NOW
+    )
+    assert replanned.ok
+    by_name = {r.name: r for r in replanned.records}
+    assert by_name["Furnace filter"].payload["enabled"] is False
+    assert by_name["Furnace filter"].payload["notes"] == "MERV 13"
+    # The appliance record is the first plan's own, and the new task keeps its id
+    # and its reference to that appliance.
+    assert by_name["Furnace"] is plan.for_section("appliances")[0]
+    first_new = next(r for r in plan.records if r.name == "New")
+    assert by_name["New"].record_id == first_new.record_id
+    assert by_name["New"].payload["id"] == first_new.record_id
+    appliance_id = plan.for_section("appliances")[0].record_id
+    assert tr.planned_asset_id(by_name["New"].payload["device_id"]) == appliance_id
+
+
+def test_x03_6_replan_keeps_the_first_problems_of_other_sections():
+    document = _doc(
+        appliances=[{"name": "A", "bogus": 1}],
+        tasks=[{"name": "T", "bogus": 2}],
+    )
+    plan = _plan(document)
+    replanned = tr.replan_tasks(document, plan, tasks={}, assets={}, now=NOW)
+    assert sorted(p.path for p in replanned.problems) == [
+        "appliances[0].bogus",
+        "tasks[0].bogus",
+    ]
+    assert replanned.completions == plan.completions
+
+
+def test_x03_6_replan_reports_a_task_that_is_now_a_create():
+    stored = _task()
+    document = _doc(tasks=[{"name": "Furnace filter"}])
+    plan = _plan(document, tasks={stored["id"]: stored})
+    assert plan.records[0].action == "update"
+    replanned = tr.replan_tasks(document, plan, tasks={}, assets={}, now=NOW)
+    assert replanned.records[0].action == "create"
+    assert replanned.records[0].record_id != stored["id"]

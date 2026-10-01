@@ -31,9 +31,11 @@ Synchronization works in both directions:
   and records the completion in the task's history. A recurring task is rescheduled
   and a new item is added when the task next becomes due. The completed item
   remains on the list.
-- If a task is completed in Home Keeper, the item is marked complete on the list.
+- If a task is completed in Home Keeper and still matches the profile, the item is
+  marked complete on the list.
 - If a task no longer matches the profile or is rescheduled or disabled, Home
-  Keeper removes its open item from the list.
+  Keeper removes its open item from the list. A completion that reschedules a
+  task out of the profile also removes the item.
 - If 2 profiles sync the same task and the task is marked complete on both lists,
   Home Keeper completes the task one time.
 - A due date that is changed on the list moves the task to that date. This works as

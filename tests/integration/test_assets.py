@@ -1108,3 +1108,53 @@ def test_a_consumable_link_carries_its_own_quantity(ha):
     call_service(ha, "home_keeper", "complete_task", {"task_id": task_id})
     fresh = next(a for a in _assets(ha) if a["id"] == asset["id"])
     assert fresh["parts"][0]["stock"] == 2, "the completion takes the link's quantity"
+
+
+def test_b15_5_a_stock_change_that_starts_the_count_adds_the_stock_entities(ha):
+    # A part with no stock has no spares number and no low-stock sensor. A stock
+    # change starts the count, and the entry reload then adds both entities.
+    import time
+
+    name = "B15-5 untracked part"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_asset",
+        {
+            "name": name,
+            "parts": [{"name": "Belt", "type": "consumable", "reorder_at": 1}],
+        },
+    )
+    asset = next(a for a in _assets(ha) if a["name"] == name)
+    part = asset["parts"][0]
+    assert part.get("stock") is None
+
+    def _stock_entities():
+        return _find_state(
+            ha,
+            lambda s: (
+                s["entity_id"].split(".")[0] in ("number", "binary_sensor")
+                and s["attributes"].get("part_id") == part["id"]
+            ),
+        )
+
+    try:
+        assert _stock_entities() == []
+        call_service(
+            ha,
+            "home_keeper",
+            "adjust_part_stock",
+            {"asset_id": asset["id"], "part_id": part["id"], "delta": 2},
+        )
+        found = []
+        for _ in range(20):
+            found = _stock_entities()
+            if len(found) == 2:
+                break
+            time.sleep(1)
+        domains = sorted(s["entity_id"].split(".")[0] for s in found)
+        assert domains == ["binary_sensor", "number"]
+        number = next(s for s in found if s["entity_id"].startswith("number."))
+        assert float(number["state"]) == 2
+    finally:
+        call_service(ha, "home_keeper", "delete_asset", {"asset_id": asset["id"]})

@@ -12,7 +12,10 @@ then drives both surfaces — REST service calls and the websocket API — with 
 tokens, asserting the admin succeeds where the non-admin is refused.
 """
 
+import importlib.util
+import sys
 import uuid
+from pathlib import Path
 
 import pytest
 import requests
@@ -188,6 +191,71 @@ def test_asset_mutation_services_refuse_a_non_admin(non_admin, service, data):
     # gets 401 rather than a 400 that would reveal whether the asset exists.
     r = _call(non_admin, service, data)
     assert r.status_code == 401, f"{service} answered a non-admin: {r.status_code}"
+
+
+# X07-4: one call per ``admin_only`` service in ``api_surface.py``, each with data
+# that passes the service schema, so a refusal can only come from the gate. The
+# unit check reads the handler source; this one proves the gate runs.
+_ADMIN_ONLY_CALLS: dict[str, dict] = {
+    "delete_orphaned_tasks": {},
+    "delete_archived_completion": {
+        "asset_id": "x",
+        "task_id": "x",
+        "ts": "2026-01-01T00:00:00+00:00",
+    },
+    "add_asset": {"name": "Should not exist"},
+    "update_asset": {"asset_id": "x", "name": "Renamed"},
+    "update_managed_asset": {"asset_id": "x", "name": "Renamed"},
+    "delete_asset": {"asset_id": "x"},
+    "archive_asset": {"asset_id": "x"},
+    "restore_asset": {"asset_id": "x"},
+    "adjust_part_stock": {"asset_id": "x", "part_id": "x", "delta": 1},
+    "remove_part_file": {"asset_id": "x", "part_id": "x"},
+    "add_asset_document": {
+        "asset_id": "x",
+        "document": {"name": "n", "url": "https://e.com"},
+    },
+    "remove_asset_document": {"asset_id": "x", "document_id": "x"},
+    "update_asset_document": {
+        "asset_id": "x",
+        "document_id": "x",
+        "changes": {"name": "n"},
+    },
+    "export_appliance_report": {},
+    "export_data": {},
+    "import_data": {"document": {"home_keeper": {"format": 1}}, "dry_run": True},
+    "set_options": {"sync_problem_sensors": True},
+    "add_declarative_companion": {"name": "Should not exist"},
+    "update_declarative_companion": {"id": "x"},
+    "delete_declarative_companion": {"id": "x"},
+}
+
+
+def _admin_only_specs():
+    """The admin-only ServiceSpecs, read the way test_api_surface.py reads them."""
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location(
+        "generate_api_docs", root / "ci" / "generate_api_docs.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return [s for s in module.load_surface().SERVICES if s.admin_only]
+
+
+_ADMIN_ONLY = _admin_only_specs()
+
+
+def test_x07_4_every_admin_only_service_has_a_refusal_call():
+    assert {s.name for s in _ADMIN_ONLY} == set(_ADMIN_ONLY_CALLS)
+
+
+@pytest.mark.parametrize("spec", _ADMIN_ONLY, ids=lambda s: s.name)
+def test_x07_4_every_admin_only_service_refuses_a_non_admin(non_admin, spec):
+    data = _ADMIN_ONLY_CALLS[spec.name]
+    r = _call(non_admin, spec.name, data, return_response=spec.response != "none")
+    assert r.status_code == 401, f"{spec.name} answered a non-admin: {r.status_code}"
 
 
 def test_non_admin_can_still_complete_a_task(ha, non_admin):

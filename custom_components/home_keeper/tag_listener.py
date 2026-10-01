@@ -20,19 +20,25 @@ from . import models, tags
 from .const import EVENT_HA_TAG_SCANNED, ORIGIN_TAG_SCAN
 
 if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
-
     from .coordinator import HomeKeeperCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def async_setup_tag_listener(
-    hass: HomeAssistant, entry: ConfigEntry, coord: HomeKeeperCoordinator
-) -> CALLBACK_TYPE:
-    """Subscribe to ``tag_scanned``; returns the unsubscribe callback."""
+def async_setup_tag_listener(hass: HomeAssistant) -> CALLBACK_TYPE:
+    """Subscribe to ``tag_scanned``; returns the unsubscribe callback.
 
-    async def _complete(matched: list[dict[str, Any]]) -> None:
+    ``async_setup`` calls this once for the Home Assistant run (X02-5). A listener
+    of the config entry stopped at each unload, and a scan during the reload that
+    followed was lost. That matters most for a ``require_tag_scan`` task, which
+    has no other way to be completed. Each scan now finds the loaded coordinator,
+    and waits for it while the entry sets up.
+    """
+    from .coordinator import async_wait_for_coordinator, find_coordinator
+
+    async def _complete(
+        coord: HomeKeeperCoordinator, matched: list[dict[str, Any]]
+    ) -> None:
         completed = False
         for task in matched:
             try:
@@ -54,16 +60,27 @@ def async_setup_tag_listener(
             # plain refresh).
             await coord.async_settle_buy_tasks()
 
+    def _match(coord: HomeKeeperCoordinator, tag_id: str) -> list[dict[str, Any]]:
+        # Tags are shared with the rest of Home Assistant, so most scans are for
+        # somebody else's automation — an unbound tag is a silent no-op.
+        return tags.tasks_for_tag(coord.store.list_tasks(), tag_id)
+
+    async def _after_setup(tag_id: str) -> None:
+        coord = await async_wait_for_coordinator(hass)
+        if coord is not None and (matched := _match(coord, tag_id)):
+            await _complete(coord, matched)
+
     @callback
     def _on_tag_scanned(event: Event) -> None:
         tag_id = event.data.get("tag_id")
         if not tag_id or not isinstance(tag_id, str):
             return
-        matched = tags.tasks_for_tag(coord.store.list_tasks(), tag_id)
-        if not matched:
-            # Tags are shared with the rest of Home Assistant, so most scans are for
-            # somebody else's automation — an unbound tag is a silent no-op.
+        coord = find_coordinator(hass)
+        if coord is None:
+            # The entry reloads: wait for it, so the scan is not lost.
+            hass.async_create_task(_after_setup(tag_id))
             return
-        hass.async_create_task(_complete(matched))
+        if matched := _match(coord, tag_id):
+            hass.async_create_task(_complete(coord, matched))
 
     return hass.bus.async_listen(EVENT_HA_TAG_SCANNED, _on_tag_scanned)

@@ -1,4 +1,4 @@
-import { getLanguage, t, tn } from './i18n';
+import { getLanguage, t, tlist, tn } from './i18n';
 import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
@@ -36,13 +36,38 @@ export function normalizeIcon(value: unknown): string {
 }
 
 /**
+ * The glyph color for a fill of *hex* (`#rrggbb`): black or white, whichever has the
+ * higher WCAG contrast against it. The picker is a free color wheel, so a fixed white
+ * glyph is invisible on a white or yellow fill (X11-6).
+ */
+export function inkFor(hex: string): '#000' | '#fff' {
+  const channel = (i: number): number => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent. Below
+    // 0.04 the 2 sRGB segments differ by under 0.001, far from the 0.179 crossover.
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  // Contrast with black is (L + 0.05) / 0.05, with white 1.05 / (L + 0.05). They are
+  // equal at L = 0.179, so a fill lighter than that takes the black glyph.
+  // Stryker disable next-line EqualityOperator: equivalent. No 8-bit color has a
+  // luminance of exactly 0.179.
+  return lum > 0.179 ? '#000' : '#fff';
+}
+
+/**
  * The Settings row badge for a notification: the accent as the fill, the glyph in
- * white. Returns `''` without an icon, so a row that has none stays as it was.
+ * black or white, whichever reads on that fill. Returns `''` without an icon, so a
+ * row that has none stays as it was.
  *
  * Filled rather than a bare tinted glyph because the fill is the only treatment that
  * survives every color the picker offers — a pale glyph on the panel's white card is
- * invisible, while white on a pale fill is not. It is also what an iPhone draws, so the
- * chip and the phone agree.
+ * invisible, while a dark glyph on a pale fill is not. It is also what an iPhone
+ * draws, so the chip and the phone agree.
+ *
+ * With no color, the badge takes the theme's own surface and text colors, which
+ * contrast in a light and in a dark theme. A white glyph on the secondary text color
+ * was about 2.8:1 in Home Assistant's dark theme (X11-6).
  */
 export function notifyRowChip(icon: unknown, color: unknown): string {
   const name = normalizeIcon(icon);
@@ -52,9 +77,11 @@ export function notifyRowChip(icon: unknown, color: unknown): string {
     .toLowerCase();
   // The color reaches a `style` attribute, so accept only the one shape the backend
   // stores rather than escaping an arbitrary string into CSS.
-  const fill = /^#[0-9a-f]{6}$/.test(hex) ? hex : 'var(--secondary-text-color)';
+  const style = /^#[0-9a-f]{6}$/.test(hex)
+    ? `background:${hex};color:${inkFor(hex)}`
+    : 'background:var(--secondary-background-color);color:var(--primary-text-color)';
   return (
-    `<span class="hk-notify-chip" style="background:${fill}">` +
+    `<span class="hk-notify-chip" style="${style}">` +
     `<ha-icon icon="${escapeHTML(name)}"></ha-icon></span>`
   );
 }
@@ -756,9 +783,15 @@ export function formatDateTime(value: string | Date | null | undefined, lang?: s
   });
 }
 
-/** "today" / "yesterday" / "N days ago" for a past date, counted in whole days. */
+/**
+ * "today" / "yesterday" / "N days ago" for a past date, counted in calendar days.
+ *
+ * Count calendar days in Home Assistant's zone, as `dueLabel` does, not rolling 24h
+ * windows. The history row shows this text beside the date, so the 2 must agree: a
+ * completion at 23:30 yesterday reads "yesterday" at 08:00 today (F04-2).
+ */
 export function relativeDay(d: Date, now: Date = new Date()): string {
-  const days = Math.round((now.getTime() - d.getTime()) / 86_400_000);
+  const days = zonedDayNumber(now.getTime()) - zonedDayNumber(d.getTime());
   if (days <= 0) return t('due.today');
   if (days === 1) return t('due.yesterday');
   return tn('due.days_ago', days);
@@ -844,7 +877,7 @@ function recurrenceText(task: Task): string {
     const target = s.unit ? `${s.target ?? ''} ${s.unit}` : (s.target ?? '');
     const summary = t('recurrence.sensorUsage', { target });
     if (!s.also_every) return summary;
-    const every = `${s.also_every.interval} ${t(`opt.unit.${s.also_every.unit}`)}`;
+    const every = intervalText(s.also_every.interval, s.also_every.unit);
     return s.combinator === 'all'
       ? t('recurrence.sensorUsageAll', { summary, every })
       : t('recurrence.sensorUsageAny', { summary, every });
@@ -869,18 +902,58 @@ function recurrenceText(task: Task): string {
     const windows = Array.isArray(task.active_season)
       ? task.active_season
       : [task.active_season];
-    const range = windows
-      .map((w) => {
-        const s = t(`opt.month.${parseInt(w.start, 10)}`);
-        const sDay = parseInt(w.start.split('-')[1], 10);
-        const e = t(`opt.month.${parseInt(w.end, 10)}`);
-        const eDay = parseInt(w.end.split('-')[1], 10);
-        return `${s} ${sDay}–${e} ${eDay}`;
-      })
-      .join(' & ');
+    // Each language orders and inflects "month day" in its own way ("15. April",
+    // "15 kwietnia"), so `Intl` formats each boundary and `tlist` joins the windows
+    // (F04-4). The year 2000 is a leap year, so "02-29" is a real date.
+    const fmt = new Intl.DateTimeFormat(getLanguage(), {
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+    });
+    const boundary = (md: string): string => {
+      const [m, d] = md.split('-').map((x) => parseInt(x, 10));
+      return fmt.format(new Date(Date.UTC(2000, m - 1, d)));
+    };
+    const range = tlist(windows.map((w) => `${boundary(w.start)}–${boundary(w.end)}`));
     summary = t('recurrence.season', { summary, range });
   }
   return summary;
+}
+
+/**
+ * "1 month", "5 months": a time interval with the plural-aware unit, as the main
+ * summary uses. The plural-only `opt.unit.*` label gave "every 1 months" (F04-5).
+ * *unit* is a time unit (days, weeks or months), as a usage backstop stores it.
+ */
+export function intervalText(n: number, unit: string): string {
+  // Stryker disable next-line Regex: equivalent. Each time unit has 1 "s", at its end.
+  return `${n} ${tn(`recurrence.unit.${unit.replace(/s$/, '')}`, n)}`;
+}
+
+/**
+ * Cheap fingerprint of the Home Keeper entities, which drives live updates.
+ *
+ * The integration's 2 singleton `CoordinatorEntity`s, `todo.home_keeper_tasks` and
+ * `calendar.home_keeper_upcoming_tasks`, write their state again (and bump
+ * `last_updated`) on each coordinator refresh, which follows each task change from
+ * any surface. The count and the newest stamp of every entity with `home_keeper` in
+ * its id therefore change when the task set does. The card and the panel both use it.
+ */
+export function hkStateSignal(
+  states: Record<string, { last_updated?: string }> | undefined,
+): string {
+  if (!states) return '';
+  let n = 0;
+  let max = 0;
+  for (const id in states) {
+    if (!id.includes('home_keeper')) continue;
+    n++;
+    const ts = Date.parse(String(states[id].last_updated));
+    // Stryker disable next-line EqualityOperator: equivalent. An equal stamp sets the
+    // same value again.
+    if (ts > max) max = ts;
+  }
+  return `${n}:${max}`;
 }
 
 /** True when the task's next due date is at or before now. */
@@ -1244,6 +1317,19 @@ export function deviceName(
 }
 
 /**
+ * The title an appliance shows: its name, else its device's name, else the generic
+ * fallback. An appliance on an existing device can have no name of its own, so every
+ * surface that shows or sorts by the title must use this, not `asset.name`
+ * (F07-6, F07-11).
+ */
+export function assetTitle(
+  asset: { name?: string; device_id?: string | null },
+  devices: Record<string, { name?: string; name_by_user?: string | null }> | undefined,
+): string {
+  return asset.name || deviceName(devices, asset.device_id) || t('appliance.fallbackName');
+}
+
+/**
  * The device id to group *task* under, or `undefined` for the "No device" bucket.
  *
  * The test is whether the device can be **named**, not whether it is in the registry:
@@ -1393,6 +1479,19 @@ export interface PanelLocation {
 }
 
 /**
+ * Decode one path segment. A malformed escape, such as `%E0` or `50%off`, gives the
+ * raw segment, because `decodeURIComponent` throws on it and the route setter must
+ * not throw (F04-3).
+ */
+function safeDecode(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/**
  * Parse the panel's route path (the part after the `/home-keeper` prefix that HA
  * hands the panel) into a {@link PanelLocation}. Unknown/empty paths fall back to
  * the tasks list. The asset detail lives under the `appliances` segment but keeps
@@ -1424,7 +1523,7 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
     // Short-circuit rather than falling back to '': an empty-string default is
     // indistinguishable from any other non-section string here, so it would only
     // add a mutant no test could ever kill.
-    const raw = parts[1] && decodeURIComponent(parts[1]);
+    const raw = parts[1] && safeDecode(parts[1]);
     return raw && (SETTINGS_SECTIONS as readonly string[]).includes(raw)
       ? { view, detail: null, section: raw as SettingsSection }
       : { view, detail: null };
@@ -1436,24 +1535,26 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
       // Short-circuit rather than defaulting to '', for the same reason the settings
       // branch does: an empty-string default is indistinguishable from any other
       // non-tab string, so it only adds a mutant no test could ever kill.
-      const raw = parts[2] && decodeURIComponent(parts[2]);
+      const raw = parts[2] && safeDecode(parts[2]);
       const tab =
         raw && (ASSET_TABS as readonly string[]).includes(raw)
           ? (raw as AssetTab)
           : DEFAULT_ASSET_TAB;
-      const id = decodeURIComponent(parts[1]);
+      const id = safeDecode(parts[1]);
       // A part segment counts only under an explicit parts tab, the one tab that
       // lists parts. A bogus tab falls back to parts, but its segment is no part.
-      const part = raw === 'parts' && parts[3] ? decodeURIComponent(parts[3]) : '';
+      const part = raw === 'parts' && parts[3] ? safeDecode(parts[3]) : '';
       return part
         ? { view, detail: { kind, id, tab, part } }
         : { view, detail: { kind, id, tab } };
     }
     // A task page has sub-tabs of its own, resolved the same way.
-    const raw = parts[2] && decodeURIComponent(parts[2]);
+    // Stryker disable next-line LogicalOperator: equivalent. With no segment, `||`
+    // decodes "undefined", which is no tab, so the default tab is kept.
+    const raw = parts[2] && safeDecode(parts[2]);
     const tab =
       raw && (TASK_TABS as readonly string[]).includes(raw) ? (raw as TaskTab) : DEFAULT_TASK_TAB;
-    return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
+    return { view, detail: { kind, id: safeDecode(parts[1]), tab } };
   }
   return { view, detail: null };
 }

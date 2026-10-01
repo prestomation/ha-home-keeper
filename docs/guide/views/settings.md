@@ -57,8 +57,8 @@ companion made has an **Edit companion** button on its detail page. The button o
 the declarative companion that made the task.
 
 Each task that a declarative companion makes is a sensor-based task, so it has no due date until
-its condition is true. A task with no due date shows as **Monitored** and stays off
-the to-do list and the calendar. When the condition becomes true, Home Keeper sets
+its condition is true. A task with no due date shows as **Monitored**, and neither
+the to-do list nor the calendar shows it. When the condition becomes true, Home Keeper sets
 the due date to that moment, so the task is due now and then overdue. The age of an
 overdue task shows how long the condition has been true. In the **Firmware update
 available** preset, a device with an update pending shows an overdue task, and a

@@ -54,6 +54,11 @@ def _load_runner() -> types.ModuleType:
     saved = {name: sys.modules.get(name) for name in ("hk.devices", "hk.coordinator")}
     sys.modules["hk.devices"] = fake_devices
     sys.modules["hk.coordinator"] = fake_coordinator
+    # ``from . import devices`` reads the attribute on the package first. Another
+    # suite that loaded the real ``hk.devices`` leaves it there, so set it too.
+    package = sys.modules["hk"]
+    saved_attr = getattr(package, "devices", None)
+    package.devices = fake_devices
     try:
         spec = importlib.util.spec_from_file_location(
             "hk.transfer_runner", str(_COMPONENT_DIR / "transfer_runner.py")
@@ -67,6 +72,10 @@ def _load_runner() -> types.ModuleType:
                 sys.modules.pop(name, None)
             else:
                 sys.modules[name] = previous
+        if saved_attr is None:
+            del package.devices
+        else:
+            package.devices = saved_attr
     module.dt_util = types.SimpleNamespace(now=lambda: NOW)
     module.ar = types.SimpleNamespace(
         async_get=lambda hass: types.SimpleNamespace(async_list_areas=lambda: [])
@@ -227,3 +236,83 @@ def test_b03_3_the_export_writes_its_yaml_off_the_event_loop(monkeypatch):
     assert handed == result["document"]
     assert handed is not result["document"]
     assert tr.parse_document(result["yaml"]) == result["document"]
+
+
+# ── X03-6: a task that changes during provisioning keeps the change ──────────
+
+
+class _WritingStore(_Store):
+    """A store that applies an import, as ``store.async_import_records`` does."""
+
+    def __init__(self, tasks=None, assets=None) -> None:
+        super().__init__(tasks, assets)
+        self.task_writes: list[tuple[str, dict, bool]] = []
+
+    def get_asset(self, asset_id):
+        return self._assets.get(asset_id)
+
+    async def async_import_records(self, *, assets_to_write, tasks_to_write):
+        for asset_id, record, _is_new in assets_to_write:
+            self._assets[asset_id] = record
+        for task_id, record, is_new in tasks_to_write:
+            self._tasks[task_id] = record
+            self.task_writes.append((task_id, record, is_new))
+        await asyncio.sleep(0)
+
+    async def reconcile_part_tasks(self):
+        return False
+
+    async def reconcile_buy_tasks(self):
+        return False
+
+
+class _ReloadingHass(_Hass):
+    def __init__(self) -> None:
+        async def _reload(entry_id):
+            return True
+
+        self.config_entries = types.SimpleNamespace(async_reload=_reload)
+
+
+def test_x03_6_a_completion_during_provisioning_is_not_overwritten(monkeypatch):
+    stored = tr.models.build_task({"name": "Furnace filter"}, now=NOW)
+    gone = tr.models.build_task({"name": "Old task"}, now=NOW)
+    store = _WritingStore(tasks={stored["id"]: stored, gone["id"]: gone})
+    done_at = NOW + timedelta(minutes=1)
+
+    async def provision(hass, entry, store_):
+        # A completion and a delete land while the device is provisioned.
+        task = dict(store_.get_tasks()[stored["id"]])
+        tr.recurrence.apply_completion(task, done_at, now=done_at)
+        store_.get_tasks()[stored["id"]] = task
+        del store_.get_tasks()[gone["id"]]
+
+    monkeypatch.setattr(runner.devices, "async_reconcile_assets", provision)
+    runner.dr = types.SimpleNamespace(async_get=lambda hass: _OldRegistry())
+    document = {
+        "home_keeper": {"format": 1},
+        "appliances": [{"name": "Furnace"}],
+        "tasks": [
+            {"id": stored["id"], "name": "Furnace filter", "notes": "MERV 13"},
+            {"name": "New task", "id": "not-a-uuid"},
+        ],
+    }
+    report = asyncio.run(
+        runner.async_import_document(
+            _ReloadingHass(), _coord(store), {"document": document}
+        )
+    )
+
+    assert report["ok"] is True
+    written = store.get_tasks()[stored["id"]]
+    assert written["notes"] == "MERV 13"
+    assert written["last_completed"] == done_at.isoformat()
+    assert len(written["completions"]) == 1
+    # The deleted task is not in the document, so it stays deleted.
+    assert gone["id"] not in store.get_tasks()
+    # The report names the ids that were written.
+    reported = {r["name"]: r["id"] for r in report["records"]}
+    assert {tid for tid, _r, _n in store.task_writes} == {
+        reported["Furnace filter"],
+        reported["New task"],
+    }

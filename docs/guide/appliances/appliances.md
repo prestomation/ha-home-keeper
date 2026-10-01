@@ -387,8 +387,8 @@ To confirm that the proxy is the cause, upload through the direct LAN URL
 #### Relationships: subdevices & related devices
 
 An appliance can be a **subdevice of** another appliance through the Home Assistant
-`via_device` hierarchy. It is then nested under its parent on the device page. An
-appliance can also list **related devices** from any integration. These are shown
+`via_device` hierarchy. It is then nested under its parent on the device page. The
+parent must be an appliance with a virtual device. An appliance can also list **related devices** from any integration. These are shown
 with the appliance.
 
 > **Example.** Add the *Garage water heater* as a new appliance with its warranty

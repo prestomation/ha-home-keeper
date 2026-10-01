@@ -47,6 +47,17 @@ _BACKEND_STRINGS_DIR = _COMPONENT_DIR / "backend_strings"
 _TOKEN_RE = re.compile(r"\{(\w+)\}")
 
 
+def language_chain(lang: str | None) -> tuple[str, ...]:
+    """The string tables to try for *lang*, in order.
+
+    First the exact tag, then its base language, then English. ``es-419`` tries
+    ``es-419``, ``es`` and ``en``. The panel uses the same order (``i18n.ts``), so a
+    regional language gets the same text in the panel and in the backend (B16-10).
+    """
+    lang = lang or _DEFAULT_LANG
+    return tuple(dict.fromkeys((lang, lang.split("-")[0], _DEFAULT_LANG)))
+
+
 def _interpolate(template: str, params: dict[str, Any]) -> str:
     return _TOKEN_RE.sub(
         lambda m: str(params[m.group(1)]) if m.group(1) in params else m.group(0),
@@ -75,8 +86,14 @@ def _exceptions(lang: str) -> dict[str, str]:
 
 
 def resolve_exception(lang: str, key: str, **params: Any) -> str:
-    """Resolve ``exceptions.<key>.message`` for *lang*, English-then-key fallback."""
-    template = _exceptions(lang).get(key) or _exceptions(_DEFAULT_LANG).get(key, key)
+    """Resolve ``exceptions.<key>.message`` for *lang* (see :func:`language_chain`).
+
+    The key itself is the last fallback.
+    """
+    template = next(
+        (t for name in language_chain(lang) if (t := _exceptions(name).get(key))),
+        key,
+    )
     return _interpolate(template, params)
 
 
@@ -94,9 +111,13 @@ def _backend_strings(lang: str) -> dict[str, str]:
 
 
 def resolve_string(lang: str, key: str, **params: Any) -> str:
-    """Resolve a ``backend_strings/<lang>.json`` key, English-then-key fallback."""
-    template = _backend_strings(lang).get(key) or _backend_strings(_DEFAULT_LANG).get(
-        key, key
+    """Resolve a ``backend_strings/<lang>.json`` key (see :func:`language_chain`).
+
+    The key itself is the last fallback.
+    """
+    template = next(
+        (t for name in language_chain(lang) if (t := _backend_strings(name).get(key))),
+        key,
     )
     return _interpolate(template, params)
 
@@ -119,12 +140,13 @@ def preload(lang: str) -> None:
 
     So the loop-bound callers never do the reading: ``async_setup_entry`` runs this
     once in the executor before anything can ask for a string, and every later
-    ``resolve_*`` is a cache hit. English is always included — it is the fallback
-    both resolvers reach for when a key is missing from the caller's language, so
-    warming only that language would leave the second read on the loop.
+    ``resolve_*`` is a cache hit. Every table of :func:`language_chain` is read,
+    English included — it is the fallback both resolvers reach for when a key is
+    missing from the caller's language, so warming only that language would leave
+    the second read on the loop.
 
     Idempotent: a second call (an entry reload, a second entry) hits the caches.
     """
-    for wanted in dict.fromkeys((lang, _DEFAULT_LANG)):
+    for wanted in language_chain(lang):
         _exceptions(wanted)
         _backend_strings(wanted)

@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Källa",
-          "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Se docs/INTEGRATING.md."
+          "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Varje namnrymd ersätter den sparade namnrymden med samma namn. En namnrymd med värdet null tas bort. Se docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detaljnivå för slutförande",
@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Timmar",
-          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24). Ignoreras när Till är angivet."
+          "description": "Hur många timmar uppgiften ska skjutas upp (standard 24). Ange inte både Timmar och Till i samma anrop."
         },
         "until": {
           "name": "Till",
-          "description": "Skjuter upp uppgiften till exakt detta datum och klockslag i stället för ett antal timmar. Anger du den används inte fältet Timmar."
+          "description": "Skjuter upp uppgiften till exakt detta datum och klockslag i stället för ett antal timmar. Ange inte både Timmar och Till i samma anrop."
         },
         "origin": {
           "name": "Ursprung",
@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part} reservdelar"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Uppgifter"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Kommande uppgifter"
+      }
     }
   },
   "device_automation": {
@@ -1106,6 +1116,15 @@
     },
     "unknown_document": {
       "message": "Okänt dokument: {document_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Bara en uppgift med en förbrukningssensor har en mätare."
+    },
+    "meter_has_no_reading": {
+      "message": "Den kopplade sensorn har inget numeriskt värde just nu. Ange ett startvärde i anropet."
+    },
+    "archived_completion_not_found": {
+      "message": "Apparaten har ingen arkiverad utförning av {task_id} kl. {ts}."
     },
     "unknown_part_file": {
       "message": "Okänd del eller ingen bifogad fil."

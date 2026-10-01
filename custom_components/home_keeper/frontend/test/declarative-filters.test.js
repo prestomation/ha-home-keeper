@@ -222,6 +222,24 @@ describe('applyKeyRows', () => {
   it('gives empty results for no rows', () => {
     expect(applyKeyRows([])).toEqual({ translation_keys: [], task_names: {} });
   });
+
+  // F06-4: a spec made through the service can have names and no key list. The
+  // editor shows no rows for those names, and its first change deleted them.
+  it('F06-4: keeps the stored names when the rows give no key', () => {
+    const stored = { main_brush_time_left: 'Replace main brush', filter_time_left: 'Replace filter' };
+    const out = applyKeyRows([{ key: ' ', name: 'Draft' }], stored);
+    expect(out).toEqual({ translation_keys: [], task_names: stored });
+    expect(out.task_names).not.toBe(stored);
+    expect(applyKeyRows([], stored)).toEqual({ translation_keys: [], task_names: stored });
+  });
+
+  it('F06-4: takes the names from the rows when they give a key list', () => {
+    const stored = { a: 'Stored A', b: 'Stored B' };
+    expect(applyKeyRows([{ key: 'a', name: 'Row A' }], stored)).toEqual({
+      translation_keys: ['a'],
+      task_names: { a: 'Row A' },
+    });
+  });
 });
 
 const KEYS = [
@@ -266,5 +284,25 @@ describe('toggleKeyRow', () => {
         'a',
       ),
     ).toEqual([{ key: 'b', name: 'B' }]);
+  });
+
+  // F06-5: the key list marks a typed key with a space as picked, so a click must
+  // take that row out, not add a second one.
+  it('F06-5: takes out a row whose key has spaces around it', () => {
+    expect(
+      toggleKeyRow(
+        [
+          { key: 'filter_life ', name: '' },
+          { key: 'b', name: 'B' },
+        ],
+        'filter_life',
+      ),
+    ).toEqual([{ key: 'b', name: 'B' }]);
+  });
+
+  it('F06-4: gives an added key its stored task name', () => {
+    const stored = { a: 'Replace A' };
+    expect(toggleKeyRow([], 'a', stored)).toEqual([{ key: 'a', name: 'Replace A' }]);
+    expect(toggleKeyRow([], 'b', stored)).toEqual([{ key: 'b', name: '' }]);
   });
 });

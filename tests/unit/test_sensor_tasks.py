@@ -6,7 +6,7 @@ mode that lets a binary sensor drive a task. The HA-aware reading enumeration an
 state subscription (sensor_watcher) are exercised by the integration suite.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 import hk_sensor_tasks as s
 
@@ -1425,3 +1425,61 @@ def test_b07_4_the_watcher_arms_the_backstop_on_the_ha_wall_clock():
     task["last_completed"] = datetime(2026, 2, 20, 23, 30, tzinfo=la).isoformat()
     now = datetime(2026, 3, 21, 0, 0, tzinfo=la)
     assert s.evaluate_usage(task, reading=661, now=now)["action"] == "arm"
+
+
+# ── low-severity review fixes ────────────────────────────────────────────────
+def test_b14_9_parse_reading_treats_nan_and_infinity_as_no_reading():
+    # A NaN compares false to every limit and an infinity arms every meter, so a
+    # non-finite value is indeterminate, the same as ``unavailable``.
+    for raw in ("nan", "NaN", "inf", "-inf", "Infinity", float("nan"), float("inf")):
+        assert s.parse_reading(raw) is None, raw
+    # Finite values at the edge still parse.
+    assert s.parse_reading("-0.5") == -0.5
+    assert s.parse_reading("1e308") == 1e308
+
+
+def _new_york():
+    from zoneinfo import ZoneInfo
+
+    return ZoneInfo("America/New_York")
+
+
+def test_x04_8_hold_counts_real_seconds_across_spring_dst():
+    # 01:50 EST, then 03:05 EDT is 15 real minutes, not 75. A 1-hour hold must not
+    # arm yet.
+    ny = _new_york()
+    cross = datetime(2027, 3, 14, 1, 50, tzinfo=ny)
+    now = datetime(2027, 3, 14, 3, 5, tzinfo=ny)
+    task = _threshold(">", 90, for_seconds=3600)
+    out = s.evaluate_threshold(
+        task, reading=95, condition_met_prev=True, crossed_at=cross, now=now
+    )
+    assert out["action"] is None
+    assert out["crossed_at"] == cross
+    # The hold ends 1 real hour after the crossing.
+    assert out["hold_due_at"] == datetime(2027, 3, 14, 7, 50, tzinfo=UTC)
+    # 1 real hour after the crossing, it arms.
+    out = s.evaluate_threshold(
+        task,
+        reading=95,
+        condition_met_prev=True,
+        crossed_at=cross,
+        now=datetime(2027, 3, 14, 3, 50, tzinfo=ny),
+    )
+    assert out["action"] == "arm"
+
+
+def test_x04_8_hold_counts_real_seconds_across_autumn_dst():
+    # 01:50 EDT plus 30 real minutes is 01:20 EST. A 10-minute hold is done.
+    ny = _new_york()
+    cross = datetime(2026, 11, 1, 1, 50, tzinfo=ny)  # fold=0: EDT
+    now = datetime(2026, 11, 1, 1, 20, fold=1, tzinfo=ny)  # EST
+    task = _threshold(">", 90, for_seconds=600)
+    out = s.evaluate_threshold(
+        task, reading=95, condition_met_prev=True, crossed_at=cross, now=now
+    )
+    assert out["action"] == "arm"
+    # The hold is due 10 real minutes after the crossing.
+    assert s.hold_due_at(task, crossed_at=cross, now=cross) == datetime(
+        2026, 11, 1, 6, 0, tzinfo=UTC
+    )

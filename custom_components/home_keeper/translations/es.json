@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Fuente",
-          "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Consulta docs/INTEGRATING.md."
+          "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Cada espacio de nombres sustituye al espacio de nombres guardado con el mismo nombre. Un espacio de nombres con el valor null se elimina. Consulta docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detalle de finalización",
@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Horas",
-          "description": "Cuántas horas posponer la tarea (24 por defecto). Se ignora si se indica Hasta."
+          "description": "Cuántas horas posponer la tarea (24 por defecto). No indiques Horas y Hasta en la misma llamada."
         },
         "until": {
           "name": "Hasta",
-          "description": "Pospone la tarea hasta esta fecha y hora exactas en lugar de un número de horas. Si lo indicas, el campo Horas no se usa."
+          "description": "Pospone la tarea hasta esta fecha y hora exactas en lugar de un número de horas. No indiques Horas y Hasta en la misma llamada."
         },
         "origin": {
           "name": "Origen",
@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part}: repuestos"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tareas"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Próximas tareas"
+      }
     }
   },
   "device_automation": {
@@ -1106,6 +1116,15 @@
     },
     "unknown_document": {
       "message": "Documento desconocido: {document_id}"
+    },
+    "meter_requires_usage_task": {
+      "message": "Solo una tarea vinculada a un sensor de uso tiene un contador."
+    },
+    "meter_has_no_reading": {
+      "message": "El sensor vinculado no tiene una lectura numérica ahora. Indique un valor inicial en la llamada."
+    },
+    "archived_completion_not_found": {
+      "message": "El electrodoméstico no tiene ninguna realización archivada de {task_id} en {ts}."
     },
     "unknown_part_file": {
       "message": "Pieza desconocida o sin archivo adjunto."
