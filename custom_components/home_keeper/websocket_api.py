@@ -904,7 +904,8 @@ async def ws_adjust_part_stock(
     coord: HomeKeeperCoordinator,
 ) -> None:
     try:
-        report = await coord.store.adjust_part_stock(
+        # The coordinator settles the buy tasks and the stock entities.
+        report = await coord.async_adjust_part_stock(
             msg["asset_id"], msg["part_id"], msg["delta"]
         )
     except KeyError:
@@ -919,9 +920,6 @@ async def ws_adjust_part_stock(
             part_id=msg["part_id"],
         )
         return
-    # A crossing may create/remove an auto-buy task; settle it (reload if a buy task's
-    # device entities changed, else refresh).
-    await coord.async_settle_buy_tasks()
     # The asset for the panel, which redraws the appliance, and the same stock report
     # the service returns, for any other client.
     connection.send_result(

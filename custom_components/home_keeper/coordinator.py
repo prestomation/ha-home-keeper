@@ -20,16 +20,18 @@ try:
 except ImportError:  # pragma: no cover - older HA fallback
     from homeassistant.helpers.entity import DeviceInfo  # type: ignore[no-redef]
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from . import companions, models, notifier, recurrence, transitions
+from . import assets, companions, models, notifier, recurrence, transitions
 from .const import (
     ASSET_KIND_VIRTUAL,
     DOMAIN,
     EVENT_TASK_DUE_SOON,
     EVENT_TASK_OVERDUE,
     OPTION_ONE_OFF_RETENTION_DAYS,
+    SIGNAL_PART_STOCK_CHANGED,
 )
 from .device_compat import resolve_device
 from .options import current_options, take_retention_grace
@@ -75,6 +77,16 @@ def discard_edge_state_if_disabled(hass: HomeAssistant, entry: ConfigEntry) -> N
     """
     if entry.disabled_by is not None:
         discard_edge_state(hass, entry.entry_id)
+
+
+def part_entity_kinds(asset: dict[str, Any] | None, part_id: str) -> tuple[bool, bool]:
+    """Which stock entities a part has: a spares ``number``, a low-stock sensor.
+
+    The platforms make these entities only at setup, so a change of this pair
+    needs an entry reload (B15-5).
+    """
+    part = assets.find_part(asset or {}, part_id) or {}
+    return assets.part_tracks_stock(part), assets.part_has_reorder(part)
 
 
 def task_has_entities(task: dict[str, Any] | None) -> bool:
@@ -178,7 +190,24 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """Save the edge state to the process-lifetime store so it survives a reload."""
         _edge_state_store(self.hass)[self.entry.entry_id] = self._edge_state
 
-    async def async_settle_buy_tasks(self) -> None:
+    async def async_adjust_part_stock(
+        self, asset_id: str, part_id: str, delta: float
+    ) -> dict[str, Any]:
+        """Change a part's stock, then settle the buy tasks and the stock entities.
+
+        Shared by the ``adjust_part_stock`` service and its websocket twin. A change
+        on a part that has no stock starts the count (``assets.adjust_part_stock``),
+        and the part then needs a spares number and maybe a low-stock sensor. The
+        platforms make those only at setup, so the settle reloads the entry for
+        them (B15-5). Raises ``KeyError`` for an unknown appliance or part.
+        """
+        before = part_entity_kinds(self.store.get_asset(asset_id), part_id)
+        report = await self.store.adjust_part_stock(asset_id, part_id, delta)
+        after = part_entity_kinds(self.store.get_asset(asset_id), part_id)
+        await self.async_settle_buy_tasks(reload=before != after)
+        return report
+
+    async def async_settle_buy_tasks(self, *, reload: bool = False) -> None:
         """Reconcile part-derived tasks after a stock/completion change, then settle.
 
         Covers both halves: the auto-buy lifecycle below, and the counted wear items
@@ -200,6 +229,9 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         whatever the reconcile created or retired. Neither pass reads a to-do list
         unless something actually drifted, so a settle that changes nothing is
         free.
+
+        *reload* asks for the entry reload even when no buy task changed, for a
+        caller that changed the entity set itself (B15-5).
         """
         if self.shopping_sync is not None:
             await self.shopping_sync.async_sync()
@@ -213,7 +245,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         entity_set_changed = await self.store.reconcile_buy_tasks()
         if self.shopping_sync is not None:
             await self.shopping_sync.async_sync()
-        if entity_set_changed:
+        if entity_set_changed or reload:
             if not self._buy_reload_scheduled:
                 self._buy_reload_scheduled = True
                 self.hass.async_create_task(self._async_reload_for_buy_tasks())
@@ -221,8 +253,10 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             # The part entities (spares number, low-stock sensor) read the store, not
             # the refreshed data, so they can show the new count now. The refresh
             # below is debounced, and a count that waits up to 10 seconds behind the
-            # tap that changed it reads as a tap that did nothing.
-            self.async_update_listeners()
+            # tap that changed it reads as a tap that did nothing. Only the part
+            # entities listen to this signal. ``async_update_listeners`` wrote every
+            # entity, and the refresh then wrote each one again (X08-5).
+            async_dispatcher_send(self.hass, SIGNAL_PART_STOCK_CHANGED)
             await self.async_request_refresh()
 
     async def _async_reload_for_buy_tasks(self) -> None:

@@ -3,6 +3,10 @@
 * X13-2: ``find_coordinator`` returns only the coordinator of a ``LOADED`` entry.
 * B18-6: an unload for a disabled entry drops its edge state, so the entry that is
   enabled again sets a silent baseline.
+* B15-5: a stock change that starts the count of a part reloads the entry, so the
+  part gets its stock entities.
+* X08-5: the settle writes only the part entities before the refresh, not every
+  entity twice.
 
 ``coordinator.py`` loads the way ``test_coordinator_purge.py`` loads it.
 """
@@ -10,9 +14,11 @@
 from __future__ import annotations
 
 import ast
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from test_coordinator_purge import coordinator
 
 _COMPONENT = Path(__file__).resolve().parents[2] / "custom_components" / "home_keeper"
@@ -109,3 +115,119 @@ def test_b18_6_the_unload_drops_the_edge_state_of_a_disabled_entry():
         and ast.unparse(node.func) == "discard_edge_state_if_disabled"
     ]
     assert calls == ["discard_edge_state_if_disabled(hass, entry)"]
+
+
+# ── B15-5 and X08-5: the stock settle ────────────────────────────────────────
+class _StockStore:
+    def __init__(self, part: dict) -> None:
+        self.asset = {"id": "a1", "parts": [part]}
+        self.buy_changed = False
+
+    def get_asset(self, asset_id):
+        return self.asset if asset_id == "a1" else None
+
+    async def adjust_part_stock(self, asset_id, part_id, delta):
+        part = self.asset["parts"][0]
+        part["stock"] = (part.get("stock") or 0) + delta
+        return {"stock": part["stock"], "applied_delta": delta}
+
+    async def settle_use_tasks(self):
+        return None
+
+    async def reconcile_buy_tasks(self):
+        return self.buy_changed
+
+
+class _SettleHass:
+    def __init__(self) -> None:
+        self.created: list = []
+
+    def async_create_task(self, coro):
+        self.created.append(coro)
+        coro.close()
+
+
+def _stock_coord(part: dict, monkeypatch):
+    coord = _coord()
+    coord.store = _StockStore(part)
+    coord.hass = _SettleHass()
+    coord.shopping_sync = None
+    coord._buy_reload_scheduled = False
+    log: list = []
+
+    def _update_listeners():
+        log.append("update_listeners")
+
+    async def _refresh():
+        log.append("refresh")
+
+    coord.async_update_listeners = _update_listeners
+    coord.async_request_refresh = _refresh
+    monkeypatch.setattr(
+        coordinator,
+        "async_dispatcher_send",
+        lambda hass, signal, *args: log.append(("signal", signal)),
+        raising=False,
+    )
+    return coord, log
+
+
+@pytest.mark.parametrize(
+    ("part", "expected"),
+    [
+        ({"id": "p1"}, (False, False)),
+        ({"id": "p1", "stock": 0}, (True, False)),
+        ({"id": "p1", "stock": 2, "reorder_at": 1}, (True, True)),
+        ({"id": "p1", "reorder_at": 1}, (False, False)),
+    ],
+)
+def test_b15_5_part_entity_kinds(part, expected):
+    assert coordinator.part_entity_kinds({"parts": [part]}, "p1") == expected
+
+
+def test_b15_5_part_entity_kinds_of_a_missing_part():
+    assert coordinator.part_entity_kinds(None, "p1") == (False, False)
+    assert coordinator.part_entity_kinds({"parts": []}, "p1") == (False, False)
+
+
+def test_b15_5_a_part_that_starts_its_count_reloads_the_entry(monkeypatch):
+    coord, log = _stock_coord({"id": "p1", "reorder_at": 1}, monkeypatch)
+    report = asyncio.run(coord.async_adjust_part_stock("a1", "p1", 2))
+    assert report == {"stock": 2, "applied_delta": 2}
+    assert len(coord.hass.created) == 1
+    assert log == []
+
+
+def test_b15_5_a_tracked_part_only_refreshes(monkeypatch):
+    coord, log = _stock_coord({"id": "p1", "stock": 3, "reorder_at": 1}, monkeypatch)
+    asyncio.run(coord.async_adjust_part_stock("a1", "p1", -1))
+    assert coord.hass.created == []
+    assert log == [("signal", coordinator.SIGNAL_PART_STOCK_CHANGED), "refresh"]
+
+
+def test_x08_5_the_settle_writes_only_the_part_entities_early(monkeypatch):
+    coord, log = _stock_coord({"id": "p1", "stock": 3}, monkeypatch)
+    asyncio.run(coord.async_settle_buy_tasks())
+    assert "update_listeners" not in log
+    assert log == [("signal", coordinator.SIGNAL_PART_STOCK_CHANGED), "refresh"]
+
+
+def test_x08_5_a_buy_task_change_reloads_without_a_signal(monkeypatch):
+    coord, log = _stock_coord({"id": "p1", "stock": 3}, monkeypatch)
+    coord.store.buy_changed = True
+    asyncio.run(coord.async_settle_buy_tasks())
+    assert len(coord.hass.created) == 1
+    assert log == []
+
+
+def test_x08_5_the_part_entities_listen_for_the_signal():
+    tree = ast.parse((_COMPONENT / "entity.py").read_text())
+    part_entity = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef) and node.name == "HomeKeeperPartEntity"
+    )
+    assert (
+        "async_dispatcher_connect(self.hass, SIGNAL_PART_STOCK_CHANGED, "
+        "self.async_write_ha_state)" in ast.unparse(part_entity)
+    )

@@ -1541,13 +1541,11 @@ def _register_services(hass: HomeAssistant) -> None:
         coord = _coordinator()
         asset_id = _asset_ref(coord, call.data["asset_id"])
         part_id = _part_ref(coord, asset_id, call.data["part_id"])
+        # The coordinator settles the buy tasks and the stock entities.
         with _store_errors(asset_id=asset_id, part_id=part_id):
-            report = await coord.store.adjust_part_stock(
+            report = await coord.async_adjust_part_stock(
                 asset_id, part_id, call.data["delta"]
             )
-        # A crossing may create/remove an auto-buy task; settle it (reload if a buy
-        # task's device entities changed, else refresh).
-        await coord.async_settle_buy_tasks()
         # The new count and the delta really applied: the count stops at zero, so a
         # caller that undoes its change later needs ``applied_delta``, not its own.
         return report

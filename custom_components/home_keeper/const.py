@@ -678,6 +678,9 @@ COMPANION_KEY_PROBLEM_SENSORS = f"{DOMAIN}:problem_sensors"
 # toggled; the reconciler subscribes to re-materialize managed tasks without
 # needing a config-entry reload.
 SIGNAL_DECLARATIVE_SPECS_CHANGED = f"{DOMAIN}_declarative_specs_changed"
+# Dispatcher signal: the stock of a part changed. The part entities (spares number,
+# low-stock sensor) write their state at once, before the debounced refresh.
+SIGNAL_PART_STOCK_CHANGED = f"{DOMAIN}_part_stock_changed"
 # Bus events fired on spec-level mutations. Managed tasks still emit the standard
 # ``home_keeper_task_*`` events; automations filter to declarative tasks via
 # ``managed_by.integration == "home_keeper"`` +

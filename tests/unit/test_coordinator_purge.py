@@ -320,13 +320,19 @@ def _settle_coord(entity_set_changed: bool):
     return coord, calls
 
 
-def test_a_stock_change_shows_at_once_before_the_debounced_refresh():
+def test_a_stock_change_shows_at_once_before_the_debounced_refresh(monkeypatch):
     # The spares number reads the store, so it can show the new count now. The
     # refresh is debounced, and waiting for it left a card's badge a count behind for
-    # up to 10 seconds after the tap that changed it.
+    # up to 10 seconds after the tap that changed it. Only the part entities get the
+    # early write, by the signal (X08-5).
     coord, calls = _settle_coord(entity_set_changed=False)
+    monkeypatch.setattr(
+        coordinator,
+        "async_dispatcher_send",
+        lambda hass, signal: calls.append(signal),
+    )
     asyncio.run(coord.async_settle_buy_tasks())
-    assert calls == ["listeners", "refresh"]
+    assert calls == [coordinator.SIGNAL_PART_STOCK_CHANGED, "refresh"]
 
 
 def test_a_buy_task_change_reloads_instead():
