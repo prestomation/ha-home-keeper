@@ -3,8 +3,9 @@
 Enumerates the eligible ``device_class: problem`` binary sensors (honouring the
 options-flow exclusions and skipping Home Keeper's *own* entities so our per-task
 overdue sensors can't feed back into the sync), drives the store reconciler, and
-keeps the mirror live by listening for sensor state changes and entity-registry
-updates. The pure create/arm/clear/orphan diff lives in ``problem_tasks.py``.
+keeps the mirror live by listening for sensor state changes and for entity-registry
+and device-registry updates. The pure create/arm/clear/orphan diff lives in
+``problem_tasks.py``.
 """
 
 from __future__ import annotations
@@ -79,6 +80,13 @@ class ProblemSensorSync:
         self._entry.async_on_unload(
             self._hass.bus.async_listen(
                 er.EVENT_ENTITY_REGISTRY_UPDATED, self._handle_registry_update
+            )
+        )
+        # A sensor takes its area and labels from its device, so a device change
+        # can make a sensor excluded or move its mirror to another area (B18-10).
+        self._entry.async_on_unload(
+            self._hass.bus.async_listen(
+                dr.EVENT_DEVICE_REGISTRY_UPDATED, self._handle_device_update
             )
         )
         self._resubscribe_state()
@@ -204,6 +212,36 @@ class ProblemSensorSync:
             )
             return
         self._hass.async_create_task(self._async_reconcile())
+
+    @callback
+    def _handle_device_update(
+        self, event: Event[dr.EventDeviceRegistryUpdatedData]
+    ) -> None:
+        """Reconcile when the area or the labels of a problem sensor's device change.
+
+        Only an update of ``area_id`` or ``labels`` on a device that holds a problem
+        binary sensor can change what the sync does, so every other device event is
+        ignored.
+        """
+        if not self._enabled or event.data.get("action") != "update":
+            return
+        changes = event.data.get("changes") or {}
+        if not ({"area_id", "labels"} & set(changes)):
+            return
+        if not self._device_has_problem_sensor(event.data["device_id"]):
+            return
+        self._resubscribe_state()
+        self._hass.async_create_task(self._async_reconcile())
+
+    def _device_has_problem_sensor(self, device_id: str) -> bool:
+        """Whether *device_id* holds a binary sensor of the ``problem`` class."""
+        ent_reg = er.async_get(self._hass)
+        return any(
+            entry.domain == _BINARY_SENSOR_DOMAIN
+            and (entry.device_class or entry.original_device_class)
+            == BinarySensorDeviceClass.PROBLEM
+            for entry in er.async_entries_for_device(ent_reg, device_id)
+        )
 
     async def _async_rename_then_reconcile(
         self, old_entity_id: str, new_entity_id: str
