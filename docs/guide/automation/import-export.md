@@ -74,12 +74,12 @@ A record also takes these fields:
 | Field | Applies to | What it does |
 | --- | --- | --- |
 | `external_id` | both | Your own name for the record. See below. |
-| `area` | both | An area name. A stated `area_id` wins. |
+| `area` | both | An area name. A stated `area_id` wins, if that area is on this Home Assistant. |
 | `appliance` | tasks | Which appliance the task belongs to, by `external_id`, name, or id. A stated `device_id` wins, if that device is on this Home Assistant. |
 | `history` | tasks | Past completions. Each entry needs `completed_at`, and can add `note`, `cost`, `who`, `photo`. A usage or threshold task can also add `reading`. |
 | `skips` | tasks | Past skips. Each entry needs `skipped_at`. |
 | `parent_asset_id` | appliances | The appliance this one sits under, by `external_id`, name, or id. List a parent before its children. An appliance cannot sit under itself, through one link or a chain of them. |
-| `archived` | appliances | `true` for an archived appliance. |
+| `archived` | appliances | `true` for an archived appliance. On an update, `false` restores an archived appliance. |
 
 A `reading` on any other task is an error. Preview names any entry field it does not
 read, then ignores it.
@@ -105,6 +105,8 @@ steps, and stops at the first that matches:
    yourself, because it makes a second run update the same records instead of making
    a copy of everything. An `external_id` names one record, so 2 records in one file
    cannot share one. If they do, you get an error that names both.
+   An `id` also names one record. If you copy a record to make a second one, remove
+   the `id` from the copy.
 3. **`name`**, an exact match first, then one that ignores case and spaces.
 
 Home Keeper creates a record that matches no stored record. When a name matches 2

@@ -241,6 +241,10 @@ def _normalize_also_every(data: Any) -> dict[str, Any]:
     return {"interval": interval, "unit": unit}
 
 
+MAX_FOR_SECONDS = 365 * 24 * 3600
+"""The longest ``for_seconds`` hold a sensor binding can ask for: 1 year."""
+
+
 def _normalize_for_seconds(data: dict[str, Any]) -> int:
     """Validate the optional ``for_seconds`` hold shared by edge-driven modes.
 
@@ -256,6 +260,12 @@ def _normalize_for_seconds(data: dict[str, Any]) -> int:
         raise TaskValidationError("sensor.for_seconds must be an integer") from err
     if for_seconds < 0:
         raise TaskValidationError("sensor.for_seconds must be >= 0")
+    # A bound keeps the value inside a 64-bit integer, which the store file can hold,
+    # and inside the range of a timedelta (B04-8).
+    if for_seconds > MAX_FOR_SECONDS:
+        raise TaskValidationError(
+            f"sensor.for_seconds must be at most {MAX_FOR_SECONDS} (1 year)"
+        )
     return for_seconds
 
 

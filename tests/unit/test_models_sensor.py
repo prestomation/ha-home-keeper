@@ -1286,3 +1286,37 @@ def test_f06_3_allow_missing_value_keeps_a_set_value(binding, key, value):
         binding, allow_missing_entity=True, allow_missing_value=True
     )
     assert cfg[key] == value
+
+
+def test_b04_8_for_seconds_has_an_upper_bound():
+    year = 365 * 24 * 3600
+    assert year == m.MAX_FOR_SECONDS
+    ok = m.normalize_sensor(
+        {
+            "entity_id": "sensor.x",
+            "mode": "threshold",
+            "comparison": ">",
+            "value": 1,
+            "for_seconds": year,
+        }
+    )
+    assert ok["for_seconds"] == year
+    with pytest.raises(m.TaskValidationError, match="at most 31536000"):
+        m.normalize_sensor(
+            {
+                "entity_id": "sensor.x",
+                "mode": "threshold",
+                "comparison": ">",
+                "value": 1,
+                "for_seconds": 99999999999999999999999,
+            }
+        )
+    with pytest.raises(m.TaskValidationError, match="at most"):
+        m.normalize_sensor(
+            {
+                "entity_id": "sensor.x",
+                "mode": "state",
+                "state": "on",
+                "for_seconds": year + 1,
+            }
+        )
