@@ -1047,6 +1047,20 @@ def test_unknown_language_falls_back_to_english():
     assert payload["data"]["actions"][0]["title"] == "Mark done"
 
 
+def test_b16_10_a_regional_language_uses_its_base_language():
+    assert n._t("es-419", "action_complete") == n._t("es", "action_complete")
+    assert n._t("es-419", "action_complete") != n._t("en", "action_complete")
+    assert n._t("de-CH", "action_complete") == n._t("de", "action_complete")
+    # An exact table still comes first.
+    assert n._t("pt-BR", "action_complete") != n._t("en", "action_complete")
+    # Plurals go through the base language too.
+    assert n._tn("es-419", "digest_title", 1, count=1) == "1 tarea pendiente"
+    assert n._tn("pl-PL", "digest_title", 5, count=5) == "5 zadań do zrobienia"
+    # A key in no table comes back as the key.
+    assert n._t("es-419", "no_such_key") == "no_such_key"
+    assert n._tn("es-419", "no_such_key", 2, count=2) == "no_such_key"
+
+
 def test_plural_category_boundaries_match_cldr():
     # Polish: one / few (2-4) / many (5+, 11-14, ...) — a real 3-way plural split,
     # distinct from the English one/other binary.

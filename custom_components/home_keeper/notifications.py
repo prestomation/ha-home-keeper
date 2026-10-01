@@ -28,6 +28,7 @@ from typing import Any
 from babel import Locale
 from babel.core import UnknownLocaleError
 
+from .backend_i18n import language_chain
 from .const import ORIGIN_NOTIFICATION_ACTION
 from .tags import completion_allowed
 from .transitions import DUE_SOON_WINDOW
@@ -570,23 +571,36 @@ def _interpolate(template: str, params: dict[str, Any]) -> str:
 
 
 def _t(lang: str, key: str, **params: Any) -> str:
-    """Translate a plain (non-plural) string, falling back to English then the key."""
-    template = _notification_strings(lang).get(key) or _notification_strings(
-        _DEFAULT_LANG
-    ).get(key, key)
+    """Translate a plain (non-plural) string, falling back to the key.
+
+    The tables are tried in the order of :func:`backend_i18n.language_chain`: the
+    exact tag, the base language, then English (B16-10).
+    """
+    template = next(
+        (
+            t
+            for name in language_chain(lang)
+            if (t := _notification_strings(name).get(key))
+        ),
+        key,
+    )
     return _interpolate(template, params)
 
 
 def _tn(lang: str, key: str, n: int, **params: Any) -> str:
-    """Translate a pluralizable string, selecting the CLDR category for *n*."""
+    """Translate a pluralizable string, selecting the CLDR category for *n*.
+
+    Each table of the language chain is tried for the category, then for ``other``.
+    """
     category = _babel_locale(lang).plural_form(n)
-    strings = _notification_strings(lang)
-    en_strings = _notification_strings(_DEFAULT_LANG)
-    template = (
-        strings.get(f"{key}.{category}")
-        or strings.get(f"{key}.other")
-        or en_strings.get(f"{key}.{category}")
-        or en_strings.get(f"{key}.other", key)
+    template = next(
+        (
+            t
+            for name in language_chain(lang)
+            for form in (category, "other")
+            if (t := _notification_strings(name).get(f"{key}.{form}"))
+        ),
+        key,
     )
     return _interpolate(template, params)
 
