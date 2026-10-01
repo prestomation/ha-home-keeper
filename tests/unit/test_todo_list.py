@@ -159,8 +159,33 @@ def _plan(
 
 def test_sync_key_names_one_task_on_one_profiles_list():
     assert tm.sync_key("m1", "t1") == "m1:t1"
-    # The first colon splits it, so a task id may hold one of its own.
-    assert tm.sync_key("m1", "t:1").partition(":")[2] == "t:1"
+    # A known profile id splits it, so a profile id may hold a colon (B19-2)...
+    key = tm.sync_key("kids:chores", "t1")
+    assert tm.split_sync_key(key, ["kids:chores"]) == ("kids:chores", "t1")
+    # ...and the longest known id wins.
+    assert tm.split_sync_key(key, ["kids", "kids:chores"]) == ("kids:chores", "t1")
+    assert tm.split_sync_key(key, ["kids:chores", "kids"]) == ("kids:chores", "t1")
+    # A task id may hold one too.
+    assert tm.split_sync_key("m1:t:1", ["m1"]) == ("m1", "t:1")
+    # A key no profile matches splits at its first colon.
+    assert tm.split_sync_key("m1:t:1", []) == ("m1", "t:1")
+    assert tm.split_sync_key("m1:t:1", ["m"]) == ("m1", "t:1")
+    assert tm.split_sync_key("m1", []) == ("m1", "")
+
+
+def test_b19_2_a_profile_id_with_a_colon_settles():
+    pid = "kids:chores"
+    key = tm.sync_key(pid, T1)
+    synced = [_synced_profile(mid=pid)]
+    tracked = {key: _entry(uid="i1")}
+    desired = _desired([_want()], profile_id=pid)
+    plan = _plan(
+        synced=synced, tracked=tracked, desired=desired, items=[_item(uid="i1")]
+    )
+    assert plan.add == []
+    assert plan.remove == []
+    assert plan.tracked == tracked
+    assert tm.needs_pass(tracked=tracked, desired=desired, synced=synced) is False
 
 
 # ── completed_since ───────────────────────────────────────────────────────────
