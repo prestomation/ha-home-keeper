@@ -558,7 +558,9 @@ _PERCENT_FLOOR = 10
 # Every integration preset shares these two templates. ``{{ task_name }}`` is the duty,
 # and the device says which appliance. When one preset has 2 keys with the same task
 # name (the colour cartridges of a printer), the device alone cannot tell the tasks
-# apart, so those presets name the entity instead.
+# apart, so those presets name the entity instead. A duty with ``per_instance`` names
+# the entity too: its integration makes one entity per key and per instance on one
+# device (a volume of a NAS), so the device cannot tell those tasks apart (B13-2).
 _NAME_BY_DEVICE = "{{ task_name }}: {{ device_name or friendly_name }}"
 _NAME_BY_ENTITY = "{{ task_name }}: {{ friendly_name }}"
 _NOTES = (
@@ -705,9 +707,16 @@ def _integration_presets() -> tuple[
         groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
         for duty in entry["duties"]:
             platform = duty.get("platform", "sensor")
-            group = (duty["shape"], platform, duty.get("state", ""))
+            # A duty that pins the device class goes in its own group, so its
+            # preset selects only that class (B13-1).
+            group = (
+                duty["shape"],
+                platform,
+                duty.get("state", ""),
+                duty.get("device_class", ""),
+            )
             groups.setdefault(group, []).append(duty)
-        for (shape, platform, state), duties in groups.items():
+        for (shape, platform, state, device_class), duties in groups.items():
             preset_id = "_".join(
                 part
                 for part in (
@@ -719,9 +728,10 @@ def _integration_presets() -> tuple[
                 if part
             )
             names = [DUTY_NAMES[d["duty"]]["en"] for d in duties for _ in d["keys"]]
-            name_template = (
-                _NAME_BY_ENTITY if len(set(names)) < len(names) else _NAME_BY_DEVICE
+            by_entity = len(set(names)) < len(names) or any(
+                d.get("per_instance") for d in duties
             )
+            name_template = _NAME_BY_ENTITY if by_entity else _NAME_BY_DEVICE
             keys = [key for d in duties for key in d["keys"]]
             task_names = {
                 lang: {
@@ -746,6 +756,7 @@ def _integration_presets() -> tuple[
                     "selection": {
                         "target_integration": entry["domain"],
                         "domain": platform,
+                        **({"device_class": device_class} if device_class else {}),
                         "translation_keys": keys,
                         "area_ids": [],
                         "label_ids": [],

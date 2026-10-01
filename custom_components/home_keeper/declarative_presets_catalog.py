@@ -29,6 +29,13 @@ A duty has:
 * state: the alert state, for alert.
 * counted: True when a wear_high counter counts events (washes, cycles), not time.
   The limit is then a plain number, and the preset text does not call it hours.
+* device_class: the device class the entities must have. Use it when the
+  integration gives the same key to 2 entities of different kinds, as LG ThinQ
+  does with an enum sensor and a percentage sensor. The duty then has a preset
+  of its own.
+* per_instance: True when the integration makes one entity for each key and each
+  instance on one device, such as one entity for each volume of a NAS. The task
+  name then holds the entity name, because the device name is the same on each.
 
 Each entry's ``verified`` says when its keys were last checked. The preset-upkeep
 skill (.claude/skills/preset-upkeep) runs the check each week, fixes or adds presets,
@@ -1128,6 +1135,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
                 "shape": "reading_high",
                 "keys": ["volume_percentage_used"],
                 "limit": 85,
+                # One entity for each volume, all on the NAS device.
+                "per_instance": True,
             },
         ],
     },
@@ -1547,6 +1556,8 @@ INTEGRATIONS: list[dict[str, Any]] = [
                 "shape": "alert",
                 "keys": ["fresh_air_filter"],
                 "state": "replace",
+                # The percentage of fresh air filter life left has the same key.
+                "device_class": "enum",
             },
         ],
     },

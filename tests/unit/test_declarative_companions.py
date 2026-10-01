@@ -2201,14 +2201,109 @@ def test_every_integration_preset_ships_its_task_names_in_every_language():
             assert set(table) == set(english), (preset["id"], lang)
 
 
+def _per_instance_keys() -> set[str]:
+    catalog = __import__("hk_declarative_presets_catalog").INTEGRATIONS
+    return {
+        (entry["domain"], key)
+        for entry in catalog
+        for duty in entry["duties"]
+        if duty.get("per_instance")
+        for key in duty["keys"]
+    }
+
+
 def test_a_preset_names_the_entity_when_two_keys_share_a_task_name():
+    per_instance = _per_instance_keys()
     for preset in _INTEGRATION_PRESETS:
         template = preset["default_spec"]["task_template"]
         names = list(template["task_names"].values())
-        expected = (
-            "{{ friendly_name }}" if len(set(names)) < len(names) else "device_name"
+        domain = preset["requires_integration"]
+        by_entity = len(set(names)) < len(names) or any(
+            (domain, key) in per_instance for key in template["task_names"]
         )
+        expected = "{{ friendly_name }}" if by_entity else "device_name"
         assert expected in template["name_template"], preset["id"]
+
+
+def test_b13_2_a_per_instance_key_names_the_entity():
+    by_id = {p["id"]: p for p in _INTEGRATION_PRESETS}
+    qnap = by_id["qnap_reading_high"]["default_spec"]["task_template"]
+    assert qnap["name_template"] == presets._NAME_BY_ENTITY
+    assert ("qnap", "volume_percentage_used") in _per_instance_keys()
+    # Synology makes one device for each volume, so the device name is enough.
+    synology = by_id["synology_dsm_reading_high"]["default_spec"]["task_template"]
+    assert synology["name_template"] == presets._NAME_BY_DEVICE
+    assert presets.PRESET_TASK_TEXT["qnap_reading_high"]["name_template"]["de"] == (
+        presets._NAME_BY_ENTITY
+    )
+
+
+def test_b13_1_the_lg_thinq_alert_selects_only_the_enum_sensor():
+    by_id = {p["id"]: p for p in _INTEGRATION_PRESETS}
+    selection = by_id["lg_thinq_alert_replace"]["default_spec"]["selection"]
+    assert selection["device_class"] == "enum"
+    assert selection["translation_keys"] == ["fresh_air_filter"]
+    # The other LG ThinQ presets select every device class, as before.
+    others = [
+        p
+        for p in _INTEGRATION_PRESETS
+        if p["requires_integration"] == "lg_thinq"
+        and p["id"] != "lg_thinq_alert_replace"
+    ]
+    assert others
+    assert all("device_class" not in p["default_spec"]["selection"] for p in others)
+    # The spec still normalizes, with the class kept.
+    spec = dc.normalize_declarative_companion(
+        by_id["lg_thinq_alert_replace"]["default_spec"]
+    )
+    assert spec["selection"]["device_class"] == "enum"
+
+
+def test_b13_1_the_alert_matches_the_enum_entity_and_not_the_percentage_one():
+    by_id = {p["id"]: p for p in _INTEGRATION_PRESETS}
+    spec = dc.normalize_declarative_companion(
+        by_id["lg_thinq_alert_replace"]["default_spec"]
+    )
+    snapshot = _snapshot(
+        _entity(
+            "sensor.fridge_fresh_air_filter",
+            platform="lg_thinq",
+            translation_key="fresh_air_filter",
+            original_device_class="enum",
+        ),
+        _entity(
+            "sensor.fridge_fresh_air_filter_2",
+            platform="lg_thinq",
+            translation_key="fresh_air_filter",
+        ),
+    )
+    matched = dc.expand_spec(spec, snapshot)
+    assert [m["entity"]["entity_id"] for m in matched.values()] == [
+        "sensor.fridge_fresh_air_filter"
+    ]
+
+
+def test_b13_1_a_device_class_duty_gets_its_own_group(monkeypatch):
+    entry = {
+        "domain": "demo",
+        "brand": "Demo",
+        "icon": "mdi:x",
+        "duties": [
+            {"duty": "replace_filter", "shape": "alert", "keys": ["a"], "state": "on"},
+            {
+                "duty": "replace_filter",
+                "shape": "alert",
+                "keys": ["b"],
+                "state": "on",
+                "device_class": "enum",
+            },
+        ],
+    }
+    monkeypatch.setattr(presets, "INTEGRATIONS", [entry])
+    built, _texts = presets._integration_presets()
+    selections = [p["default_spec"]["selection"] for p in built]
+    assert [s["translation_keys"] for s in selections] == [["a"], ["b"]]
+    assert [s.get("device_class") for s in selections] == [None, "enum"]
 
 
 def test_the_english_preset_name_matches_the_backend_string():
