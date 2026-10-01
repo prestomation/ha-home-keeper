@@ -27,6 +27,8 @@ A duty has:
   percent_low, hours for life_low and wear_high, and the entity's own unit
   for reading_low and reading_high.
 * state: the alert state, for alert.
+* counted: True when a wear_high counter counts events (washes, cycles), not time.
+  The limit is then a plain number, and the preset text does not call it hours.
 
 Each entry's ``verified`` says when its keys were last checked. The preset-upkeep
 skill (.claude/skills/preset-upkeep) runs the check each week, fixes or adds presets,
@@ -2097,6 +2099,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
                 "shape": "wear_high",
                 "keys": ["times_after_clean"],
                 "limit": 30,
+                "counted": True,
             },
         ],
     },

@@ -1167,7 +1167,8 @@ def test_the_stopped_reporting_preset_keeps_its_task_open_when_the_device_drops(
         "trigger"
     ]
     probe = "sensor.hk_probe_last_seen"
-    quiet_since = (datetime.now(UTC) - timedelta(days=2)).isoformat()
+    # Well past the preset's 48 hours, so the task opens on the first reading.
+    quiet_since = (datetime.now(UTC) - timedelta(days=3)).isoformat()
     ha.post(
         f"{HA_URL}/api/states/{probe}", json={"state": quiet_since}
     ).raise_for_status()

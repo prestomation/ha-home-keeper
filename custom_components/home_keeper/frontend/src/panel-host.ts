@@ -36,9 +36,11 @@ import type {
   GroupBy,
   MoveCompletionDialogState,
   NoteTarget,
+  PresetDialogState,
   TaskFilter,
   TransferState,
 } from './panel-types';
+import type { PresetNudgeState } from './preset-nudge';
 import type {
   Asset,
   Companion,
@@ -126,9 +128,15 @@ export interface PanelHost extends HTMLElement {
   /** Declarative companions stored on the config entry, listed under
    *  Settings → Companions. */
   _declarativeCompanions: DeclarativeCompanion[];
-  /** The bundled presets the "Add from preset" picker offers. Fetched on the first
-   *  open and kept; null until then. */
+  /** The bundled presets, with how many entities each matches now. Loaded with the
+   *  rest (the Tasks tab suggests the ones that match); null until the first load. */
   _declarativePresets: DeclarativeCompanionPreset[] | null;
+  /** Which preset suggestions this user has seen and hidden; null until it loads. */
+  _presetNudge: PresetNudgeState | null;
+  /** The one-time "Presets you can use" dialog. */
+  _presetDialog: PresetDialogState;
+  /** The last queued write of `_presetNudge`, so the writes land in order. */
+  _presetNudgeSaving: Promise<void>;
   /** Delete a task outright (already confirmed). */
   /** Switch a task back on. The panel offers no way to switch one off — that is a
    *  service call — so this is the way back from one aimed at the wrong task. */

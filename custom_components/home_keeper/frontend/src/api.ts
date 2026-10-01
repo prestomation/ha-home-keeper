@@ -18,6 +18,7 @@ import type {
   Profile,
   Task,
 } from './types';
+import { parseNudgeState, type PresetNudgeState } from './preset-nudge';
 
 /** Thin wrappers around the Home Keeper websocket commands. */
 
@@ -163,6 +164,25 @@ export async function setIntroDismissed(hass: Hass): Promise<void> {
     type: 'frontend/set_user_data',
     key: INTRO_DISMISSED_KEY,
     value: true,
+  });
+}
+
+const PRESET_NUDGE_KEY = 'home_keeper_preset_nudge';
+
+/** Which preset suggestions this user has seen and hidden — per-user, like the intro. */
+export async function getPresetNudge(hass: Hass): Promise<PresetNudgeState> {
+  const res = await hass.callWS<{ value: unknown }>({
+    type: 'frontend/get_user_data',
+    key: PRESET_NUDGE_KEY,
+  });
+  return parseNudgeState(res?.value);
+}
+
+export async function setPresetNudge(hass: Hass, state: PresetNudgeState): Promise<void> {
+  await hass.callWS({
+    type: 'frontend/set_user_data',
+    key: PRESET_NUDGE_KEY,
+    value: state,
   });
 }
 

@@ -266,6 +266,19 @@
   them in `afterEach` (`createTask`/`deleteTask` in `helpers.ts`), and give fixtures
   **stable** names — a `Date.now()` suffix makes each leak look like a new record
   instead of the same spec failing to clean up, which is how eight of them reached git.
+- **Assert an `ha-select` pick by its effect, and retry the pick.** `ha-select` holds
+  every option as a child, so `toContainText` on the select passes whether or not the
+  pick took. Check what the pick changes instead (a summary, a field that appears), and
+  wrap the open, the click and that check in one `expect(...).toPass()`: a click in a
+  drawer that is still re-rendering can land on an element the render replaces.
+  `pickUntil` in `tests/e2e/walkthrough.capture.ts` does this; the tour flaked on
+  #396 without it.
+- **The preset suggestions start marked as seen.** The Tasks tab opens a dialog by
+  itself when a shipped preset matches, and the container's update entity matches
+  one. `tests/e2e/global-setup.ts` writes `PRESET_NUDGE_SEEN` to the user-data key
+  `home_keeper_preset_nudge`, so no spec meets a modal it did not expect. A spec,
+  capture or tour step that shows the suggestions clears the key first and writes
+  `PRESET_NUDGE_SEEN` back in `afterEach` or a `finally` (`tests/e2e/user-data.ts`).
 - **Seeded fixture ids are real `uuid4`s, and specs reach them through
   `tests/e2e/fixture-ids.ts`.** Readable ids (`task_fridge_filter`) were easier to
   grep for, but they were a quarter the length of anything a real install holds —
@@ -444,7 +457,7 @@ the branch touched.
   `[tool.mutmut]` (pyproject.toml) and `mutate` in `stryker.conf.json`. It holds
   only what the fast tiers cover — the pure core, and the focused frontend modules
   (`utils`, `forms`, `card-filter`, `documents`, `markdown`, `i18n`, `limits`,
-  `defer`, `shopping-preview`, `declarative-filters`, `preset-picker`).
+  `defer`, `shopping-preview`, `declarative-filters`, `preset-picker`, `preset-nudge`, `preset-summary`).
   Out: everything importing Home Assistant (Docker-tier only), `const.py` /
   `companions_catalog.py` (data), `backend_i18n.py` (no unit entry point),
   `testing.py`, and `panel.ts` + its `panel-*.ts` region modules / `card.ts` / `api.ts` (indirectly covered only).

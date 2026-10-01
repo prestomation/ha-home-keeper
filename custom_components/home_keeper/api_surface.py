@@ -834,6 +834,8 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     WebsocketSpec("home_keeper/preview_declarative_companion", admin_only=True),
     # Read-only helpers for the panel's Add dialog: the bundled presets, and the
     # integrations that have a config entry. Neither reads caller-supplied input.
+    # The preset list carries a match count per preset for the Tasks-tab
+    # suggestions; a count names no entity, so it stays open like the list.
     WebsocketSpec("home_keeper/list_declarative_presets"),
     WebsocketSpec("home_keeper/installed_integrations"),
     # The entity keys of one integration, for the dialog's key list. It names every

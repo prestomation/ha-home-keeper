@@ -716,10 +716,22 @@ export interface DeclarativeCompanionPreset {
   // `general` for the presets that work across integrations, `integration` for the
   // presets made for one integration's devices. Older backends send neither.
   group?: 'general' | 'integration';
-  // How many entities an integration preset would match now; `null` for a general
-  // preset. Older backends omit it, and the picker then sorts by installed integration.
+  // How many entities the preset would match now. The picker sorts the integration
+  // presets by it, and the Tasks tab suggests any preset that matches at least one.
+  // Older backends omit it (or send `null` for a general preset); neither suggests.
   matches?: number | null;
+  // The one limit an integration preset's trigger compares with, or `null`. The
+  // preview draws each reading against it. Older backends omit it.
+  limit?: PresetLimit | null;
   default_spec: Omit<DeclarativeCompanion, 'id' | 'created' | 'updated'>;
+}
+
+/** The limit of an integration preset: a percentage, a time in hours, or a number in
+ *  the entity's own unit. `above` says a task opens when the reading rises past it. */
+export interface PresetLimit {
+  kind: 'percent' | 'hours' | 'number';
+  value: number;
+  above: boolean;
 }
 
 /**
@@ -743,6 +755,9 @@ export interface DeclarativeCompanionPreviewMatch {
   trigger_now: boolean | null;
   /** The Jinja error, when the template did not render. `null` otherwise. */
   trigger_error: string | null;
+  /** The entity's state now, and its unit. Older backends omit both. */
+  state?: string | null;
+  unit?: string | null;
 }
 
 export interface DeclarativeCompanionPreviewResult {

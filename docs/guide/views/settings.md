@@ -75,14 +75,23 @@ shorter entity ID for an older entity, rename it in Home Assistant.
 The *Add from preset* picker offers 3 general presets, and the integration presets
 that [Integration presets](#integration-presets) describes.
 
-- **Device Pulse** targets the per-device ping sensors from
+- **Device Pulse** watches the ping status of each device in
   [studiobts/home-assistant-device-pulse](https://github.com/studiobts/home-assistant-device-pulse).
-  The Device Pulse integration must be installed.
+  It opens a task when a device is offline for 1 hour. Home Keeper completes the
+  task when the device replies again. The Device Pulse integration must be installed.
 - **Firmware update available** matches every `update.*` entity that reports `on`.
   This covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab.
-- **Device stopped reporting** matches every `sensor.*_last_seen` entity. It opens a
-  task for each device that has not reported for 24 hours. This finds the Zigbee or
-  Z-Wave devices that dropped off the mesh. It needs no other integration.
+- **Device stopped reporting** matches every `sensor.*_last_seen` timestamp sensor. It
+  opens a task for each device that has not reported for 48 hours. This finds the
+  Zigbee or Z-Wave devices that dropped off the mesh. It needs no other integration.
+
+A declarative companion keeps the settings it was saved with. A Device Pulse companion
+from before version 0.28.0b14 watches the total count of failed pings. That count never
+goes down, so Home Keeper never completes its tasks. Delete that companion and add the
+preset again.
+
+When a preset matches entities in your home, the Tasks tab suggests it. See
+[Presets for your home](../start/panel.md#presets-for-your-home).
 
 A preset writes the task name and notes in the Home Assistant language. A later change
 of the language changes the tasks to the new language. When a declarative companion has
@@ -122,7 +131,7 @@ preview, select it in the excluded entities list.
 
 ![The two-card preset picker modal (Device Pulse disabled because the upstream integration isn't installed)](../../images/21c-panel-declarative-preset-picker.png)
 
-![The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right](../../images/21d-panel-declarative-add-dialog.png)
+![The Add dialog seeded from the Firmware update available preset, with the preset box at the top and the live preview at the bottom](../../images/21d-panel-declarative-add-dialog.png)
 
 ![The page of a task a declarative companion made, with Edit and Edit companion buttons and no Done button while the task is monitored](../../images/21e-panel-declarative-task-detail.png)
 
@@ -169,6 +178,30 @@ name. The key of the entity is also available as `{{ translation_key }}`.
 
 ![The entity keys on a phone, with each key above its task name](../../images/21u-panel-mobile-declarative-entity-keys.png)
 
+##### What a preset does
+
+When you add a declarative companion from a preset, a box at the top of the dialog
+says what the preset does. It also names the tasks that the preset makes. An
+integration preset also gives its limit. A time limit shows in days when it is 2 days
+or more. The limit of a reading such as a water pressure is in the unit of the sensor.
+
+The box names each section that you change. The text in the box always describes the
+preset and not your changes. Click **Reset to preset** to put those sections back.
+Your name, description and exclusions do not change.
+
+Each row in the preview shows what the entity reads now. When a preset opens a task
+above a limit, a bar shows how near the reading is to that limit.
+
+![The preset box at the top of the Add dialog, with what the Tuya Local preset does and its task](../../images/78-panel-preset-summary.png)
+
+![The preset box after a change to the trigger, with the Changed chip and Reset to preset](../../images/78b-panel-preset-summary-changed.png)
+
+![The preview row with the reading of the entity now](../../images/78a-panel-preset-reading.png)
+
+![The preset box on a phone, after a change to the trigger](../../images/78c-panel-mobile-preset-summary.png)
+
+![The preview row on a phone, with the reading of the entity now](../../images/78d-panel-mobile-preset-reading.png)
+
 ##### Integration presets
 
 Many devices report the wear of their parts, such as the hours left on the filter of a
@@ -194,8 +227,8 @@ Each integration can have up to 6 presets, one for each type of reading:
   pressure of a boiler, passes its service level.
 - **Service alerts**: the device reports that it needs service.
 
-Each task closes when the reading recovers. Reset the part on the device, or refill
-the salt, and the task completes.
+Home Keeper completes each task when the reading recovers. To complete it, reset the
+part on the device or refill the salt.
 
 ![The preset picker with a search for filter, showing the integration presets and the tasks each one makes](../../images/21v-panel-declarative-preset-search.png)
 

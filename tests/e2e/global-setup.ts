@@ -10,12 +10,17 @@
  *    **clean up** their own fixtures over REST — see `helpers.ts`. Without a
  *    teardown path every run left its tasks in the seeded store, and eight of
  *    those leaked records reached git.
+ * 5. Mark every shipped preset as seen and hidden for the test user. The preset
+ *    suggestion dialog opens by itself on the Tasks tab, and a modal that no spec
+ *    expects would block the clicks of every spec after it. A spec or capture that
+ *    shows the suggestions calls `suggestOnly` and `markAllPresetsSeen` after.
  *
  * The API flow mirrors tests/integration/conftest.py.
  */
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'fs';
 import { dirname, resolve } from 'path';
+import { markAllPresetsSeen } from './user-data';
 
 const HA_URL = process.env.HA_URL || 'http://localhost:8123';
 const CLIENT_ID = `${HA_URL}/`;
@@ -133,6 +138,7 @@ export default async function globalSetup(): Promise<void> {
   await waitForHA();
   const token = await ensureOnboarded();
   await waitForTasks(token);
+  await markAllPresetsSeen(token);
 
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_EXEC || undefined,
