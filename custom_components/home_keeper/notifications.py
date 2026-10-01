@@ -28,6 +28,8 @@ from typing import Any
 from babel import Locale
 from babel.core import UnknownLocaleError
 
+from .const import ORIGIN_NOTIFICATION_ACTION
+from .tags import completion_allowed
 from .transitions import DUE_SOON_WINDOW
 
 _LOGGER = logging.getLogger(__name__)
@@ -419,14 +421,26 @@ def actions_for(
     setting's help text says so.
     """
     blocked = is_completion_blocked(task)
+    # A task with ``require_tag_scan`` refuses *Mark done* from a notification, but
+    # accepts *Skip* and *Snooze* (B16-4).
+    scan_only = not completion_allowed(task, ORIGIN_NOTIFICATION_ACTION)
     kept = [
         verb
         for verb in actions
         if (allow_snooze or verb != ACTION_SNOOZE)
         and (allow_skip or verb != ACTION_SKIP)
         and (not blocked or verb in (ACTION_SNOOZE, ACTION_OPEN))
+        and (not scan_only or verb != ACTION_COMPLETE)
     ]
-    if blocked and ACTION_SNOOZE not in kept:
+    # If *Mark done* was the only verb that moves a walk on, Snooze takes its place,
+    # for the same reason as for a blocked task below.
+    stuck_scan = (
+        scan_only
+        and ACTION_COMPLETE in actions
+        and ACTION_SNOOZE not in kept
+        and ACTION_SKIP not in kept
+    )
+    if (blocked or stuck_scan) and ACTION_SNOOZE not in kept:
         # Deliberately overriding both the user's button set and the allow_snooze
         # switch — the one place this function adds rather than subtracts. `open` is a
         # client-side URI that never calls back, so a set of only `open` (or an empty

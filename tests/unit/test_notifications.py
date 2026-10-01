@@ -390,6 +390,30 @@ def test_a_blocked_task_keeps_snooze_even_when_the_switch_is_off():
     assert n.actions_for(BLOCKED, [], allow_snooze=False) == ["snooze"]
 
 
+SCAN_ONLY = {"id": "t", "tag_id": "tag1", "require_tag_scan": True}
+
+
+def test_b16_4_a_scan_only_task_drops_only_mark_done():
+    # The store refuses Mark done from a notification, but accepts Skip and Snooze.
+    assert n.actions_for(SCAN_ONLY, ALL_VERBS) == ["snooze", "skip", "open"]
+    assert n.actions_for(SCAN_ONLY, ["complete", "skip"]) == ["skip"]
+    assert n.actions_for(SCAN_ONLY, ["open"]) == ["open"]
+    assert n.actions_for({**SCAN_ONLY, "require_tag_scan": False}, ALL_VERBS) == (
+        ALL_VERBS
+    )
+
+
+def test_b16_4_a_scan_only_task_gets_snooze_when_mark_done_was_the_only_verb():
+    assert n.actions_for(SCAN_ONLY, ["complete", "open"]) == ["snooze", "open"]
+    assert n.actions_for(SCAN_ONLY, ["complete"]) == ["snooze"]
+    assert n.actions_for(SCAN_ONLY, ALL_VERBS, allow_snooze=False) == ["skip", "open"]
+    assert n.actions_for(
+        SCAN_ONLY, ALL_VERBS, allow_snooze=False, allow_skip=False
+    ) == ["snooze", "open"]
+    # An ordinary task with the same set keeps it as configured.
+    assert n.actions_for({"id": "t"}, ["open"]) == ["open"]
+
+
 def test_the_switches_default_on_so_an_unaware_caller_is_unaffected():
     # Both verbs predate the switches; a caller that does not pass them (every test
     # that builds one payload) must see exactly the historical behaviour.
