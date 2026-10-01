@@ -361,13 +361,15 @@ def _config_entry(synced=None):
     )
 
 
-def _build(hass, store, *, synced=None):
-    """A driver over the fakes, plus the coordinator it will settle through."""
+def _build(hass, store, *, synced=None, started=True):
+    """A driver over the fakes, plus the coordinator it will settle through.
+
+    *started* stands for the initial pass after Home Assistant has started.
+    """
     coordinator = _FakeCoordinator(store)
-    return (
-        todo_list_sync.TodoListSync(hass, _config_entry(synced), coordinator),
-        coordinator,
-    )
+    sync = todo_list_sync.TodoListSync(hass, _config_entry(synced), coordinator)
+    sync._started = started
+    return sync, coordinator
 
 
 def _sync(hass, store, *, synced=None, force=True):
@@ -935,6 +937,46 @@ def test_a_list_edit_forces_a_pass_while_a_task_event_does_not():
     sync._handle_state_change(None)
     sync._handle_task_event(None)
     assert forced == [True, False]
+
+
+def test_b10_8_no_pass_runs_before_home_assistant_has_started():
+    # A list of another integration has no state until Home Assistant starts, so
+    # a pass then logs a false "does not exist" warning and latches it.
+    hass = _FakeHass({LIST: []})
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    sync, _ = _build(hass, store, started=False)
+    sync.async_schedule_sweep()
+    sync._handle_task_event(None)
+    assert hass.tasks == []
+    # The initial pass opens the gate.
+    asyncio.run(sync.async_initial_sync())
+    assert sync._started is True
+    sync.async_schedule_sweep()
+    sync._handle_task_event(None)
+    assert len(hass.tasks) == 2
+
+
+def test_x08_3_a_task_event_runs_no_pass_when_no_sync_has_work():
+    hass = _FakeHass({LIST: []})
+    idle, _ = _build(hass, _FakeStore(tasks={T1: _task()}), synced=[])
+    idle._handle_task_event(None)
+    assert hass.tasks == []
+
+    # A configured sync, or an item left on a list, still gets its pass.
+    configured, _ = _build(hass, _FakeStore(), synced=[_synced_profile()])
+    configured._handle_task_event(None)
+    assert len(hass.tasks) == 1
+    leftover, _ = _build(hass, _FakeStore(items=_tracked()), synced=[])
+    leftover._handle_task_event(None)
+    assert len(hass.tasks) == 2
+
+
+def test_x08_3_a_task_event_after_unload_runs_no_pass():
+    hass = _FakeHass({LIST: []})
+    sync, _ = _build(hass, _FakeStore(items=_tracked()))
+    sync._async_stop()
+    sync._handle_task_event(None)
+    assert hass.tasks == []
 
 
 # ── the store's bookkeeping trio ──────────────────────────────────────────────

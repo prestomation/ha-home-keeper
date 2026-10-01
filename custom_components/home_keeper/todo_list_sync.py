@@ -123,7 +123,22 @@ class TodoListSync(TodoSyncDriver):
         # Unforced: ``needs_pass`` gates the read, so a completion on a task no
         # sync wants costs nothing. Our own inbound completions echo back through
         # here as well, and settle for free.
+        if not self._has_work():
+            return
         self._hass.async_create_task(self.async_sync())
+
+    def _has_work(self) -> bool:
+        """Whether a pass can do work now.
+
+        Before Home Assistant has started, the initial pass is still to come, and
+        a list of another integration can read as missing (B10-8). With no sync
+        configured and no item tracked, a pass has nothing to do, so a burst of
+        task events costs no pass each (X08-3).
+        """
+        if self._stopped or not self._started:
+            return False
+        configured = profiles.synced_profiles(self._configured_syncs())
+        return bool(configured or self._coordinator.store.get_todo_list_items())
 
     @callback
     def async_schedule_sweep(self) -> None:
@@ -146,10 +161,7 @@ class TodoListSync(TodoSyncDriver):
         below is deliberately about having *nothing tracked at all*, which a held
         entry is not.
         """
-        if self._stopped:
-            return
-        configured = profiles.synced_profiles(self._configured_syncs())
-        if not configured and not self._coordinator.store.get_todo_list_items():
+        if not self._has_work():
             return
         self._hass.async_create_task(self.async_sync(force=True))
 
