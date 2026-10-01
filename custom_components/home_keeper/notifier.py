@@ -608,26 +608,20 @@ def async_setup_notifications(hass: HomeAssistant) -> CALLBACK_TYPE:
         # the card in place; an empty queue closes with an "all caught up" note. (Only
         # for a saved walk notification.) The task just acted on is kept out: under a
         # ``due_soon`` or ``all`` status it can still be due, and to send it again
-        # with new buttons lets a second tap act on it again (B16-5).
+        # with new buttons lets a second tap act on it again (B16-5). If the profile
+        # of the notification is gone, the send does nothing. It does not send the
+        # "all caught up" note, because the queue is not known (B16-12).
         if notification is not None and (
             notification["style"] == notifications.STYLE_WALK
         ):
-            matched, _ = await async_send_for_notification(
+            await async_send_for_notification(
                 hass,
                 coord,
                 notification,
                 reason="walk-advance",
+                when_empty=notifications.WHEN_EMPTY_ALL_CLEAR,
                 exclude_task_id=task_id,
             )
-            if matched == 0:
-                all_clear = await hass.async_add_executor_job(
-                    functools.partial(
-                        notifications.build_all_clear,
-                        notification,
-                        lang=hass.config.language,
-                    )
-                )
-                await _send_payload(hass, notification["targets"], all_clear)
 
     @callback
     def _on_action(event: Event) -> None:
