@@ -316,6 +316,31 @@ async def async_heal_split_device_ids(
     for device_id in sorted(options.device_ids_in_options(dict(entry.options))):
         _record(device_id)
 
+    # Healing the ids stops contributors duplicating from here on, but a duplicate
+    # already created while the ids were broken is still sitting there, and the user
+    # can't remove it — contributed tasks are deletion-protected. Merging needs to know
+    # which live devices came from the same original, or the two copies look unrelated:
+    # they point at different halves of the same split.
+    canonical: dict[str, str] = {}
+    for device in all_devices(registry):
+        # Explicit loop rather than a comprehension: composite_device_id is
+        # `str | None`, and a truthiness guard inside a comprehension doesn't narrow
+        # the value expression for the type checker.
+        composite_id = getattr(device, "composite_device_id", None)
+        if composite_id:
+            canonical[device.id] = composite_id
+    # A dead id the heal resolved belongs to the same original as its successor. This
+    # also covers a composite Home Assistant already garbage-collected, which only an
+    # asset snapshot could resolve.
+    for dead_id, live_id in mapping.items():
+        canonical.setdefault(dead_id, canonical.get(live_id, live_id))
+    # Merge before the repoint (#417). The merge only joins copies that name 2
+    # different halves, and the repoint moves the old copy onto the same half as the
+    # new one. Run after it, the merge sees one half and keeps both copies.
+    merged = await store.async_merge_split_duplicates(canonical)
+    if merged:
+        _LOGGER.info("Merged %s duplicate contributed task(s) after the split", merged)
+
     if mapping:
         changed_tasks = await store.async_repoint_device_ids(mapping)
         changed_assets = await store.async_repoint_asset_device_ids(mapping)
@@ -330,23 +355,6 @@ async def async_heal_split_device_ids(
             changed_assets,
             len(mapping),
         )
-
-    # Healing the ids stops contributors duplicating from here on, but a duplicate
-    # already created while the ids were broken is still sitting there, and the user
-    # can't remove it — contributed tasks are deletion-protected. Merging needs to know
-    # which live devices came from the same original, or the two copies look unrelated:
-    # they point at different halves of the same split.
-    canonical: dict[str, str] = {}
-    for device in all_devices(registry):
-        # Explicit loop rather than a comprehension: composite_device_id is
-        # `str | None`, and a truthiness guard inside a comprehension doesn't narrow
-        # the value expression for the type checker.
-        composite_id = getattr(device, "composite_device_id", None)
-        if composite_id:
-            canonical[device.id] = composite_id
-    merged = await store.async_merge_split_duplicates(canonical)
-    if merged:
-        _LOGGER.info("Merged %s duplicate contributed task(s) after the split", merged)
 
 
 async def async_detach_legacy_merged_devices(

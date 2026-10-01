@@ -73,7 +73,7 @@ def load_component() -> Any:
         sys.path.insert(0, str(ROOT))
     try:
         # Home Assistant must be imported FIRST, before anything pulls in voluptuous.
-        # Since 2026.3 its package ``__init__`` calls ``install_as_voluptuous()`` to put
+        # Since 2026.9 its package ``__init__`` calls ``install_as_voluptuous()`` to put
         # probatio in voluptuous's place, and it warns when something imported
         # voluptuous already: references then resolve to two different ``Schema``
         # classes, and ``voluptuous_openapi``'s ``schema in TYPES_MAP`` raises

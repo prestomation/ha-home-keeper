@@ -737,7 +737,9 @@ the Home Assistant unit lane then test an older API than CI does.
 - `test.yml` — vitest, pytest unit, HACS validation, hassfest.
 - `mutation.yml` — mutation testing (mutmut + Stryker) on the code a PR changed;
   fails below an 80% mutation score. `skip-mutation` label bypasses it.
-- `integration.yml` — Docker-based integration tests.
+- `integration.yml` — Docker-based integration tests, and the upgrade suite
+  (`tests/upgrade`, 2026.7 to `stable`) in a parallel job. Before #417 only the
+  nightly ran the upgrade suite, so #403 changed the split repair without it.
 - `e2e.yml` — Docker + Playwright; uploads the Playwright report on failure.
 - `ha-beta.yml` — **nightly early warning**, gates nothing. Runs integration, e2e and
   the upgrade suite against `HA_TAG=beta`, plus mypy against a pre-release HA, and
@@ -766,7 +768,13 @@ the Home Assistant unit lane then test an older API than CI does.
   `tests/upgrade/` boots a frozen pre-split HA, seeds, then boots the current one
   against the same config dir so HA runs its own migration in between. Stage its
   fixtures with `bash ci/fetch-glues.sh` first. The pre-split pin is frozen on
-  purpose — bumping it changes what the test means.
+  purpose — bumping it changes what the test means. Every PR runs it against
+  `stable` (`integration.yml`), and the nightly against `beta`.
+- **mypy reads `voluptuous` as probatio.** Home Assistant 2026.9 and later alias
+  `voluptuous` to probatio at runtime, and 2026.10 types its schema arguments with
+  probatio classes. `typings/voluptuous/*.pyi` (on `mypy_path`) makes mypy agree, as
+  Home Assistant core's own `stubs/voluptuous` does (#417). Runtime imports are not
+  changed. Delete the stubs when the code imports probatio directly.
 - **Any job that `pip install`s Home Assistant must run on a Python at or above HA's
   own floor, and must verify what pip actually resolved.** When the runner's Python
   is too old, pip does not fail — it quietly backtracks to the last HA release that
