@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Timer",
-          "description": "Hvor mange timer opgaven skal udsættes (standard 24). Ignoreres, når Indtil er angivet."
+          "description": "Hvor mange timer opgaven skal udsættes (standard 24). Angiv ikke både Timer og Indtil i samme kald."
         },
         "until": {
           "name": "Indtil",
-          "description": "Udsæt opgaven til præcis denne dato og dette klokkeslæt i stedet for et antal timer. Angiver du den, bruges feltet Timer ikke."
+          "description": "Udsæt opgaven til præcis denne dato og dette klokkeslæt i stedet for et antal timer. Angiv ikke både Timer og Indtil i samme kald."
         },
         "origin": {
           "name": "Oprindelse",

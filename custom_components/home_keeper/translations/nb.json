@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Timer",
-          "description": "Hvor mange timer oppgaven skal utsettes (standard 24). Ignoreres når Til er angitt."
+          "description": "Hvor mange timer oppgaven skal utsettes (standard 24). Ikke angi både Timer og Til i samme kall."
         },
         "until": {
           "name": "Til",
-          "description": "Utsetter oppgaven til nøyaktig denne datoen og dette klokkeslettet i stedet for et antall timer. Angir du den, brukes ikke feltet Timer."
+          "description": "Utsetter oppgaven til nøyaktig denne datoen og dette klokkeslettet i stedet for et antall timer. Ikke angi både Timer og Til i samme kall."
         },
         "origin": {
           "name": "Opprinnelse",

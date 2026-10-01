@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Horas",
-          "description": "Cuántas horas posponer la tarea (24 por defecto). Se ignora si se indica Hasta."
+          "description": "Cuántas horas posponer la tarea (24 por defecto). No indiques Horas y Hasta en la misma llamada."
         },
         "until": {
           "name": "Hasta",
-          "description": "Pospone la tarea hasta esta fecha y hora exactas en lugar de un número de horas. Si lo indicas, el campo Horas no se usa."
+          "description": "Pospone la tarea hasta esta fecha y hora exactas en lugar de un número de horas. No indiques Horas y Hasta en la misma llamada."
         },
         "origin": {
           "name": "Origen",

@@ -355,11 +355,11 @@
         },
         "hours": {
           "name": "Godziny",
-          "description": "O ile godzin odłożyć zadanie (domyślnie 24). Ignorowane, gdy ustawiono Do kiedy."
+          "description": "O ile godzin odłożyć zadanie (domyślnie 24). Nie ustawiaj pól Godziny i Do kiedy w tym samym wywołaniu."
         },
         "until": {
           "name": "Do kiedy",
-          "description": "Odkłada zadanie dokładnie na tę datę i godzinę zamiast o liczbę godzin. Po jego ustawieniu pole Godziny nie jest używane."
+          "description": "Odkłada zadanie dokładnie na tę datę i godzinę zamiast o liczbę godzin. Nie ustawiaj pól Godziny i Do kiedy w tym samym wywołaniu."
         },
         "origin": {
           "name": "Inicjator",
