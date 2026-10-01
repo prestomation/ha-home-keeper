@@ -364,6 +364,7 @@
   "defer.skipLead": "Plán zůstává beze změny. Vynechá se jen tento výskyt.",
   "defer.snoozeResolves": "Termín se posouvá na {date}.",
   "defer.snoozePickDate": "Vyberte datum a čas.",
+  "defer.snoozeTooEarly": "Vyberte datum a čas po {date}.",
   "defer.preset.1h": "1 hodina",
   "defer.preset.4h": "4 hodiny",
   "defer.preset.1d": "1 den",

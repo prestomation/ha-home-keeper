@@ -344,6 +344,7 @@
   "defer.skipLead": "Het schema blijft zoals het is. Alleen deze keer wordt overgeslagen.",
   "defer.snoozeResolves": "De vervaldatum verschuift naar {date}.",
   "defer.snoozePickDate": "Kies een datum en tijd.",
+  "defer.snoozeTooEarly": "Kies een datum en tijd na {date}.",
   "defer.preset.1h": "1 uur",
   "defer.preset.4h": "4 uur",
   "defer.preset.1d": "1 dag",

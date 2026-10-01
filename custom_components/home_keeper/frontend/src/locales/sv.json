@@ -344,6 +344,7 @@
   "defer.skipLead": "Schemat står kvar. Bara det här tillfället hoppas över.",
   "defer.snoozeResolves": "Förfallodatumet flyttas till {date}.",
   "defer.snoozePickDate": "Välj ett datum och en tid.",
+  "defer.snoozeTooEarly": "Välj ett datum och en tid efter {date}.",
   "defer.preset.1h": "1 timme",
   "defer.preset.4h": "4 timmar",
   "defer.preset.1d": "1 dag",

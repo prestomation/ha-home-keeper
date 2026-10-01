@@ -46,6 +46,7 @@ from . import (
     options,
     panel,
     profiles,
+    recurrence,
     sensor_tasks,
     shopping,
     tag_listener,
@@ -1384,7 +1385,11 @@ def _register_services(hass: HomeAssistant) -> None:
         # fill ``hours`` in even when the caller passed ``until``, and vol.Exclusive
         # would then reject its own default.
         if (until := call.data.get("until")) is None:
-            until = dt_util.now() + timedelta(hours=call.data.get("hours", 24))
+            # The hours count from the due date when that is later than now, so a
+            # snooze never moves a task earlier (F10-2).
+            task = coord.store.get_task(task_id)
+            base = recurrence.snooze_from(task, dt_util.now()) if task else dt_util.now()
+            until = base + timedelta(hours=call.data.get("hours", 24))
         elif until.tzinfo is None:
             # ``cv.datetime`` parses an offset-less string naively; qualify it with
             # HA's zone so ``next_due`` is never stored naive (see apply_completion).

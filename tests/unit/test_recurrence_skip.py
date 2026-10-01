@@ -104,3 +104,29 @@ def test_skip_unknown_recurrence_type_raises():
 
     with pytest.raises(ValueError, match="unknown recurrence_type"):
         r.skip_occurrence({"recurrence_type": "bogus"}, now=dt(2026, 6, 13))
+
+
+# ── F10-2: a snooze length counts from the later of now and the due date ──────────
+
+
+def test_f10_2_snooze_from_a_future_due_date():
+    """F10-2: a task due in 30 days is snoozed from its due date, not from now."""
+    now = dt(2026, 6, 1, 12)
+    due = dt(2026, 7, 1, 9)
+    assert r.snooze_from({"next_due": due.isoformat()}, now) == due
+
+
+def test_f10_2_snooze_from_now_for_a_due_or_overdue_task():
+    """F10-2: a task due now or overdue is snoozed from now."""
+    now = dt(2026, 6, 1, 12)
+    assert r.snooze_from({"next_due": dt(2026, 5, 1).isoformat()}, now) == now
+    assert r.snooze_from({"next_due": now.isoformat()}, now) == now
+    assert r.snooze_from({"next_due": None}, now) == now
+    assert r.snooze_from({}, now) == now
+
+
+def test_f10_2_snooze_from_one_second_after_now():
+    """F10-2: a due date only just after now is still the later of the two."""
+    now = dt(2026, 6, 1, 12)
+    due = now + timedelta(seconds=1)
+    assert r.snooze_from({"next_due": due.isoformat()}, now) == due

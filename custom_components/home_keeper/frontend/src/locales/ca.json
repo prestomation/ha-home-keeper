@@ -354,6 +354,7 @@
   "defer.skipLead": "La planificació es manté. Només es deixa passar aquesta ocurrència.",
   "defer.snoozeResolves": "La data de venciment passa al {date}.",
   "defer.snoozePickDate": "Trieu una data i una hora.",
+  "defer.snoozeTooEarly": "Trieu una data i una hora posteriors a {date}.",
   "defer.preset.1h": "1 hora",
   "defer.preset.4h": "4 hores",
   "defer.preset.1d": "1 dia",

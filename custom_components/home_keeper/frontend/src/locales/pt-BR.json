@@ -354,6 +354,7 @@
   "defer.skipLead": "A programação fica como está. Só esta ocorrência é deixada passar.",
   "defer.snoozeResolves": "O vencimento passa para {date}.",
   "defer.snoozePickDate": "Escolha uma data e hora.",
+  "defer.snoozeTooEarly": "Escolha uma data e hora depois de {date}.",
   "defer.preset.1h": "1 hora",
   "defer.preset.4h": "4 horas",
   "defer.preset.1d": "1 dia",

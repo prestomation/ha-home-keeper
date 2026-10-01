@@ -8,7 +8,9 @@ today moves the due date to today, also without changing the recurrence.
 
 Open a task and select **Snooze**, **Skip** or **Due today** next to **Done**.
 
-- **Snooze** takes a duration. Select 1 of 5 durations, or set a date. The dialog
+- **Snooze** takes a duration. Select 1 of 5 durations, or set a date. A duration
+  starts at the due date, or at the current time when the task is already due. A
+  date must be after that time. The dialog
   shows the new due date before it is applied. The recurrence does not change, so
   a task snoozed from the 29th to the 6th is due again on the 29th of the next
   month.

@@ -354,6 +354,7 @@
   "defer.skipLead": "La planification reste telle quelle. Seule cette occurrence est laissée passer.",
   "defer.snoozeResolves": "L'échéance passe au {date}.",
   "defer.snoozePickDate": "Choisissez une date et une heure.",
+  "defer.snoozeTooEarly": "Choisissez une date et une heure après {date}.",
   "defer.preset.1h": "1 heure",
   "defer.preset.4h": "4 heures",
   "defer.preset.1d": "1 jour",

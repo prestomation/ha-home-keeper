@@ -364,6 +364,7 @@
   "defer.skipLead": "Расписание остаётся прежним. Пропускается только это повторение.",
   "defer.snoozeResolves": "Срок переносится на {date}.",
   "defer.snoozePickDate": "Выберите дату и время.",
+  "defer.snoozeTooEarly": "Выберите дату и время после {date}.",
   "defer.preset.1h": "1 час",
   "defer.preset.4h": "4 часа",
   "defer.preset.1d": "1 день",

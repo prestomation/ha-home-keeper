@@ -746,6 +746,20 @@ def skip_occurrence(task: dict, *, now: datetime, metadata: dict | None = None) 
     return task
 
 
+def snooze_from(task: dict, now: datetime) -> datetime:
+    """Return the instant that a snooze length counts from: *now* or the due date.
+
+    Snooze moves the due date later. A length counted from *now* moved a task that
+    is due in 30 days to 7 days from now, which is earlier (F10-2). So the length
+    counts from the due date when that is later than *now*. For a task that is due
+    or overdue, it counts from *now*, so the task is not due again at once.
+    """
+    due = _parse(task.get("next_due"))
+    if due is not None and due > now:
+        return due
+    return now
+
+
 def defer(task: dict, until: datetime, *, now: datetime) -> dict:
     """Return *task* with ``next_due`` moved to *until* by a snooze or a due-today.
 

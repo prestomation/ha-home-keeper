@@ -617,9 +617,11 @@ def async_setup_notifications(hass: HomeAssistant) -> CALLBACK_TYPE:
                 hours = notifications.snooze_hours_for(
                     coord.store.get_task(task_id), notification
                 )
+                # Count from the due date when that is later than now, the same as
+                # the service and the panel (F10-2).
                 await coord.store.snooze_task(
                     task_id,
-                    now + timedelta(hours=hours),
+                    recurrence.snooze_from(task, now) + timedelta(hours=hours),
                     origin=ORIGIN_NOTIFICATION_ACTION,
                 )
             else:  # ACTION_SKIP

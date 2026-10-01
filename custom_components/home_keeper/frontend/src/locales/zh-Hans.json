@@ -344,6 +344,7 @@
   "defer.skipLead": "计划安排保持不变，只是略过这一次。",
   "defer.snoozeResolves": "到期日改为 {date}。",
   "defer.snoozePickDate": "请选择日期和时间。",
+  "defer.snoozeTooEarly": "请选择晚于 {date} 的日期和时间。",
   "defer.preset.1h": "1 小时",
   "defer.preset.4h": "4 小时",
   "defer.preset.1d": "1 天",

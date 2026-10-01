@@ -197,6 +197,28 @@ def test_b16_2_a_legacy_snooze_or_skip_on_a_due_soon_task_still_acts():
     assert coord.store.calls == [("snooze", "t1"), ("skip", "t1")]
 
 
+def test_f10_2_a_snooze_tap_counts_from_a_later_due_date():
+    """F10-2: Snooze on a task due tomorrow moves it a day after that, not earlier."""
+    due = NOW + timedelta(days=1)
+    task = {**overdue_task("t1", days=0), "next_due": due.isoformat()}
+    hass, coord = _setup({"t1": task}, _options(status="due_soon"))
+
+    _tap(hass, _action("snooze", task))
+
+    assert coord.store.calls == [("snooze", "t1")]
+    assert task["next_due"] == (due + timedelta(hours=24)).isoformat()
+
+
+def test_f10_2_a_snooze_tap_on_an_overdue_task_counts_from_now():
+    """F10-2: an overdue task is snoozed from now, so it is not due again at once."""
+    task = overdue_task("t1", days=3)
+    hass, coord = _setup({"t1": task}, _options())
+
+    _tap(hass, _action("snooze", task))
+
+    assert task["next_due"] == (NOW + timedelta(hours=24)).isoformat()
+
+
 def test_b16_2_a_legacy_complete_on_a_due_soon_task_is_still_refused():
     """B16-2: Mark done keeps its own rule — a tokenless tap needs an overdue task."""
     task = {

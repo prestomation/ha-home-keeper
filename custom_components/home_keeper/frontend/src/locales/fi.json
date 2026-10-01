@@ -344,6 +344,7 @@
   "defer.skipLead": "Aikataulu pysyy ennallaan. Vain tämä kerta ohitetaan.",
   "defer.snoozeResolves": "Eräpäivä siirtyy: {date}.",
   "defer.snoozePickDate": "Valitse päivämäärä ja kellonaika.",
+  "defer.snoozeTooEarly": "Valitse päivämäärä ja kellonaika, joka on jälkeen {date}.",
   "defer.preset.1h": "1 tunti",
   "defer.preset.4h": "4 tuntia",
   "defer.preset.1d": "1 päivä",

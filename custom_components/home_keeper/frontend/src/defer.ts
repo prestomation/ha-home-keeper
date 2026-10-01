@@ -194,13 +194,24 @@ export function snoozeStateFor(task: Task, now: Date = new Date()): SnoozeState 
   if (hours == null) return { open: true, task, preset: DEFAULT_SNOOZE_PRESET };
   const preset = snoozePresetForHours(hours);
   if (preset) return { open: true, task, preset };
-  const at = new Date(now.getTime() + hours * 3_600_000);
+  const at = new Date(snoozeFrom(task, now).getTime() + hours * 3_600_000);
   return { open: true, task, preset: 'custom', customAt: isoToHaDateTime(at.toISOString()) };
 }
 
-/** The instant the current snooze selection resolves to, or `null` if unusable. */
-export function snoozeTarget(s: SnoozeState, now: Date = new Date()): Date | null {
-  if (s.preset !== 'custom') return resolveSnoozePreset(s.preset, now);
+/**
+ * The instant a snooze length counts from: *now*, or the due date when that is
+ * later (F10-2). Snooze moves the due date later, and a length counted from *now*
+ * moved a task due in 30 days to 7 days from now. The backend's
+ * `recurrence.snooze_from` gives the same instant for the service and a
+ * notification.
+ */
+export function snoozeFrom(task: Task | null | undefined, now: Date = new Date()): Date {
+  const due = task?.next_due ? new Date(task.next_due) : null;
+  return due && due.getTime() > now.getTime() ? due : now;
+}
+
+/** The typed custom date, or `null` when there is none or it will not parse. */
+function customDate(s: SnoozeState): Date | null {
   if (!s.customAt) return null;
   const iso = haDateTimeToIso(s.customAt);
   if (!iso) return null;
@@ -208,9 +219,29 @@ export function snoozeTarget(s: SnoozeState, now: Date = new Date()): Date | nul
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+/**
+ * The instant the current snooze selection resolves to, or `null` if unusable. A
+ * custom date that is not later than `snoozeFrom` is unusable: it would move the
+ * task earlier, or make it due at once (F10-2).
+ */
+export function snoozeTarget(s: SnoozeState, now: Date = new Date()): Date | null {
+  const from = snoozeFrom(s.task, now);
+  if (s.preset !== 'custom') return resolveSnoozePreset(s.preset, from);
+  const at = customDate(s);
+  return at && at.getTime() > from.getTime() ? at : null;
+}
+
 /** The line stating where the current choice lands, or a prompt if unset. */
-export function snoozeHintText(s: SnoozeState, lang?: string): string {
-  const until = snoozeTarget(s);
-  if (!until) return t('defer.snoozePickDate');
-  return t('defer.snoozeResolves', { date: formatDateTime(until.toISOString(), lang) });
+export function snoozeHintText(s: SnoozeState, lang?: string, now: Date = new Date()): string {
+  const until = snoozeTarget(s, now);
+  if (until) {
+    return t('defer.snoozeResolves', { date: formatDateTime(until.toISOString(), lang) });
+  }
+  // A typed date that is too early gets its own line, so the user knows why the
+  // Snooze button does nothing (F10-2).
+  if (s.preset === 'custom' && customDate(s)) {
+    const from = snoozeFrom(s.task, now);
+    return t('defer.snoozeTooEarly', { date: formatDateTime(from.toISOString(), lang) });
+  }
+  return t('defer.snoozePickDate');
 }

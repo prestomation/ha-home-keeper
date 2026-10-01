@@ -364,6 +364,7 @@
   "defer.skipLead": "Harmonogram zostaje bez zmian. Pomijane jest tylko to wystąpienie.",
   "defer.snoozeResolves": "Termin przesuwa się na {date}.",
   "defer.snoozePickDate": "Wybierz datę i godzinę.",
+  "defer.snoozeTooEarly": "Wybierz datę i godzinę po {date}.",
   "defer.preset.1h": "1 godzina",
   "defer.preset.4h": "4 godziny",
   "defer.preset.1d": "1 dzień",

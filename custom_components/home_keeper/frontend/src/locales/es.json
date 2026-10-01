@@ -354,6 +354,7 @@
   "defer.skipLead": "La planificación se mantiene. Solo se deja pasar esta repetición.",
   "defer.snoozeResolves": "La fecha de vencimiento pasa al {date}.",
   "defer.snoozePickDate": "Elige una fecha y una hora.",
+  "defer.snoozeTooEarly": "Elige una fecha y una hora posteriores a {date}.",
   "defer.preset.1h": "1 hora",
   "defer.preset.4h": "4 horas",
   "defer.preset.1d": "1 día",

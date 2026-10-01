@@ -344,6 +344,7 @@
   "defer.skipLead": "Only this occurrence is skipped, and the schedule does not change.",
   "defer.snoozeResolves": "Due date moves to {date}.",
   "defer.snoozePickDate": "Pick a date and time.",
+  "defer.snoozeTooEarly": "Pick a date and time after {date}.",
   "defer.preset.1h": "1 hour",
   "defer.preset.4h": "4 hours",
   "defer.preset.1d": "1 day",

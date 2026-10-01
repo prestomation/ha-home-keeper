@@ -344,6 +344,7 @@
   "defer.skipLead": "Planen bliver, som den er. Kun denne forekomst springes over.",
   "defer.snoozeResolves": "Forfaldsdatoen flytter til {date}.",
   "defer.snoozePickDate": "Vælg en dato og et klokkeslæt.",
+  "defer.snoozeTooEarly": "Vælg en dato og et klokkeslæt efter {date}.",
   "defer.preset.1h": "1 time",
   "defer.preset.4h": "4 timer",
   "defer.preset.1d": "1 dag",
