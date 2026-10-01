@@ -160,8 +160,13 @@ export interface HistoryGroup {
 }
 /** How the list view buckets rows; `status`/`device`/`integration` apply to tasks only. */
 export type GroupBy = 'none' | 'status' | 'area' | 'device' | 'integration';
+/**
+ * Every task-list quick filter. The type and the localStorage restore both read this
+ * list, so a new filter cannot be saved and then dropped on reload (F01-8).
+ */
+export const TASK_FILTERS = ['all', 'overdue', 'soon', 'shopping', 'counted'] as const;
 /** Task-list quick filter. */
-export type TaskFilter = 'all' | 'overdue' | 'soon' | 'shopping' | 'counted';
+export type TaskFilter = (typeof TASK_FILTERS)[number];
 /** Appliance-list quick filter. */
 export type AssetFilter = 'active' | 'archived';
 export type AssetView = 'flat' | 'tree';
