@@ -192,3 +192,11 @@ def test_b16_6_auto_crossings_skips_other_events_and_a_missing_task_id():
         {"t2": {"due_soon_fired": False, "overdue_fired": False}},
         [(EVENT_TASK_DUE_SOON, {"task_id": "t2"})],
     ) == [("due_soon", "t2")]
+    # A held-back due_soon does not stop the events after it.
+    held_back_then_overdue = [
+        (EVENT_TASK_DUE_SOON, {"task_id": "t2"}),
+        (EVENT_TASK_OVERDUE, {"task_id": "t3"}),
+    ]
+    assert t.auto_crossings(
+        {"t2": {"overdue_fired": True}}, held_back_then_overdue
+    ) == [("overdue", "t3")]

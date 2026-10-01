@@ -495,7 +495,9 @@ def actions_for(
     blocked = is_completion_blocked(task)
     # A task with ``require_tag_scan`` refuses *Mark done* from a notification, but
     # accepts *Skip* and *Snooze* (B16-4).
-    scan_only = not completion_allowed(task, ORIGIN_NOTIFICATION_ACTION)
+    # Equivalent mutant: ``None`` is refused the same way as this origin.
+    allowed = completion_allowed(task, ORIGIN_NOTIFICATION_ACTION)  # pragma: no mutate
+    scan_only = not allowed
     kept = [
         verb
         for verb in actions

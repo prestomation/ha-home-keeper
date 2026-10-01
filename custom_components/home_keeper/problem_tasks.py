@@ -189,17 +189,16 @@ def reconcile_problem_tasks(
         # device/area). It is an update like any other: the store fires
         # ``task_updated`` and reloads when the device-page entities change (B18-4).
         managed_by = build_managed_by(entity_id, config_entry_id, lang=lang)
-        updated = False
-        for field, value in (
+        owned = (
             ("name", meta["name"]),
             ("device_id", meta.get("device_id")),
             ("area_id", meta.get("area_id")),
             ("managed_by", managed_by),
-        ):
-            if task.get(field) != value:
-                task[field] = value
-                updated = True
-        if updated:
+        )
+        drift = [(field, value) for field, value in owned if task.get(field) != value]
+        for field, value in drift:
+            task[field] = value
+        if drift:
             ops.append(("updated", task))
             changed = True
 

@@ -1058,6 +1058,13 @@ def test_b16_10_a_regional_language_uses_its_base_language():
     assert n._tn("pl-PL", "digest_title", 5, count=5) == "5 zadań do zrobienia"
     # A key in no table comes back as the key.
     assert n._t("es-419", "no_such_key") == "no_such_key"
+
+
+def test_b16_10_a_missing_plural_category_falls_to_other(monkeypatch):
+    tables = {"es": {"k.other": "{count} cosas"}, "en": {"k.one": "{count} thing"}}
+    monkeypatch.setattr(n, "_notification_strings", lambda lang: tables.get(lang, {}))
+    # "es" has no "one" form, so its "other" form comes before English.
+    assert n._tn("es-419", "k", 1, count=1) == "1 cosas"
     assert n._tn("es-419", "no_such_key", 2, count=2) == "no_such_key"
 
 

@@ -432,9 +432,12 @@ def latest_completion(completions: Iterable[dict]) -> dict | None:
     latest: dict | None = None
     latest_at: datetime | None = None
     for entry in completions:
+        ts = entry.get("ts")
+        if not isinstance(ts, str):
+            continue
         try:
-            when = datetime.fromisoformat(entry.get("ts") or "")
-        except (TypeError, ValueError):
+            when = datetime.fromisoformat(ts)
+        except ValueError:
             continue
         if latest_at is None or when > latest_at:
             latest, latest_at = entry, when
