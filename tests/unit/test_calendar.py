@@ -502,3 +502,18 @@ def test_b11_5_armed_sensor_and_triggered_tasks_stay_off_the_calendar(monkeypatc
 
     assert entity.event is None
     assert entity._collect_events(_dt(2026, 6, 15), _dt(2026, 6, 16)) == []
+
+
+def test_x13_4_the_entity_has_a_translated_name_on_the_service_device() -> None:
+    """The name comes from strings.json, and the device supplies "Home Keeper"."""
+    import json
+
+    entity = cal.HomeKeeperCalendarEntity(types.SimpleNamespace(data={}))
+    assert entity._attr_has_entity_name is True
+    assert entity._attr_translation_key == "upcoming_tasks"
+    assert entity._attr_device_info["name"] == "Home Keeper"
+    assert entity._attr_device_info["identifiers"] == {("home_keeper", "service")}
+    component = Path(__file__).resolve().parent.parent.parent / "custom_components"
+    strings = json.loads((component / "home_keeper" / "strings.json").read_text())
+    platform = "calendar"
+    assert strings["entity"][platform]["upcoming_tasks"]["name"] == "Upcoming tasks"

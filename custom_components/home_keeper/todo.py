@@ -28,6 +28,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, REC_ONE_OFF, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
+from .devices import service_device_info
 from .models import TaskValidationError
 from .recurrence import one_off_completed
 
@@ -47,16 +48,18 @@ class HomeKeeperTodoListEntity(
 ):
     """A single to-do list backed by the Home Keeper task store."""
 
-    # No device for this hub entity, so anchor the entity_id explicitly via the
-    # name -> todo.home_keeper_tasks (has_entity_name would yield todo.tasks).
-    _attr_has_entity_name = False
-    _attr_name = "Home Keeper Tasks"
+    # The entity is on the "Home Keeper" service device, so the translated name
+    # composes to "Home Keeper Tasks" and the entity_id is todo.home_keeper_tasks
+    # (X13-4).
+    _attr_has_entity_name = True
+    _attr_translation_key = "tasks"
     _attr_icon = "mdi:home-clock"
     _attr_supported_features = TodoListEntityFeature.UPDATE_TODO_ITEM
 
     def __init__(self, coordinator: HomeKeeperCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{DOMAIN}_tasks"
+        self._attr_device_info = service_device_info()
 
     @property
     def todo_items(self) -> list[TodoItem]:

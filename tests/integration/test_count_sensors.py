@@ -92,6 +92,25 @@ def test_service_device_survives_the_device_passes(ha):
     assert device, "the service device should survive a setup with the device passes"
 
 
+def test_x13_4_todo_and_calendar_have_translated_names_on_the_service_device(ha):
+    """The to-do list and the calendar compose their name from the service device.
+
+    Both use ``has_entity_name`` and a translation key now. The entity ids and the
+    English names must stay the same as when the names were literal strings.
+    """
+    device = _poll(lambda: find_device(ha, "home_keeper", "service"))
+    assert device, "the Home Keeper service device should be registered"
+    by_entity = {e["entity_id"]: e for e in entities_for_device(ha, device["id"])}
+    for entity_id, name in (
+        ("todo.home_keeper_tasks", "Home Keeper Tasks"),
+        ("calendar.home_keeper_upcoming_tasks", "Home Keeper Upcoming tasks"),
+    ):
+        assert entity_id in by_entity, f"{entity_id} should be on the service device"
+        state = _poll(lambda eid=entity_id: get_state(ha, eid))
+        assert state, f"{entity_id} should exist"
+        assert state["attributes"].get("friendly_name") == name, state
+
+
 def test_profile_sensor_lifecycle(ha):
     """A profile's sensor appears, keeps its entity id on rename, and is pruned."""
     call_service(ha, "home_keeper", "set_options", {"profiles": [_PROFILE]})

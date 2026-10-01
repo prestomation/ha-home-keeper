@@ -20,6 +20,7 @@ from homeassistant.util import dt as dt_util
 from . import recurrence
 from .const import DOMAIN, REC_FIXED, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
+from .devices import service_device_info
 
 # Default duration shown for each task occurrence on the calendar.
 EVENT_DURATION = timedelta(hours=1)
@@ -74,14 +75,17 @@ class HomeKeeperCalendarEntity(
 ):
     """Calendar of upcoming maintenance/chore occurrences."""
 
-    # Explicit name anchors entity_id -> calendar.home_keeper_upcoming_tasks.
-    _attr_has_entity_name = False
-    _attr_name = "Home Keeper Upcoming tasks"
+    # The entity is on the "Home Keeper" service device, so the translated name
+    # composes to "Home Keeper Upcoming tasks" and the entity_id is
+    # calendar.home_keeper_upcoming_tasks (X13-4).
+    _attr_has_entity_name = True
+    _attr_translation_key = "upcoming_tasks"
     _attr_icon = "mdi:calendar-clock"
 
     def __init__(self, coordinator: HomeKeeperCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{DOMAIN}_calendar"
+        self._attr_device_info = service_device_info()
 
     @property
     def event(self) -> CalendarEvent | None:

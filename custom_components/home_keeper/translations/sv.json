@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part} reservdelar"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Uppgifter"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Kommande uppgifter"
+      }
     }
   },
   "device_automation": {

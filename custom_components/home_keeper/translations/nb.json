@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part} reservedeler"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Oppgaver"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Kommende oppgaver"
+      }
     }
   },
   "device_automation": {

@@ -641,12 +641,12 @@ DEVICE_TRIGGERS: tuple[DeviceTriggerSpec, ...] = (
 
 # ── Entity platforms ─────────────────────────────────────────────────────────
 #
-# ``todo`` and ``calendar`` are singletons named with ``_attr_name`` and
-# ``has_entity_name = False``, so they have no ``strings.json`` entity section.
+# ``todo`` and ``calendar`` are singletons on the service device. Each has a
+# translated name in the ``strings.json`` entity section.
 
 ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
-    EntityPlatformSpec("todo"),
-    EntityPlatformSpec("calendar"),
+    EntityPlatformSpec("todo", ("tasks",)),
+    EntityPlatformSpec("calendar", ("upcoming_tasks",)),
     EntityPlatformSpec("button", ("mark_done",)),
     EntityPlatformSpec(
         "sensor",

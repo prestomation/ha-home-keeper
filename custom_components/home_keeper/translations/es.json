@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part}: repuestos"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tareas"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Próximas tareas"
+      }
     }
   },
   "device_automation": {

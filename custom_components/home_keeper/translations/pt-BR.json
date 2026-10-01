@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part}: peças sobressalentes"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Tarefas"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Próximas tarefas"
+      }
     }
   },
   "device_automation": {

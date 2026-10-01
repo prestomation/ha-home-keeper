@@ -53,7 +53,7 @@ rules:
   entity-unique-id: done
   has-entity-name:
     status: done
-    comment: Per-task and per-asset entities set _attr_has_entity_name.
+    comment: Every entity sets _attr_has_entity_name, including the to-do list and the calendar.
   runtime-data:
     status: done
     comment: entry.runtime_data holds the coordinator.

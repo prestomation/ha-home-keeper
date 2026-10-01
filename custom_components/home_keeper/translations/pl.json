@@ -1042,6 +1042,16 @@
       "part_spares": {
         "name": "{part} – zapas"
       }
+    },
+    "todo": {
+      "tasks": {
+        "name": "Zadania"
+      }
+    },
+    "calendar": {
+      "upcoming_tasks": {
+        "name": "Nadchodzące zadania"
+      }
     }
   },
   "device_automation": {

@@ -54,6 +54,11 @@ def _load_runner() -> types.ModuleType:
     saved = {name: sys.modules.get(name) for name in ("hk.devices", "hk.coordinator")}
     sys.modules["hk.devices"] = fake_devices
     sys.modules["hk.coordinator"] = fake_coordinator
+    # ``from . import devices`` reads the attribute on the package first. Another
+    # suite that loaded the real ``hk.devices`` leaves it there, so set it too.
+    package = sys.modules["hk"]
+    saved_attr = getattr(package, "devices", None)
+    package.devices = fake_devices
     try:
         spec = importlib.util.spec_from_file_location(
             "hk.transfer_runner", str(_COMPONENT_DIR / "transfer_runner.py")
@@ -67,6 +72,10 @@ def _load_runner() -> types.ModuleType:
                 sys.modules.pop(name, None)
             else:
                 sys.modules[name] = previous
+        if saved_attr is None:
+            del package.devices
+        else:
+            package.devices = saved_attr
     module.dt_util = types.SimpleNamespace(now=lambda: NOW)
     module.ar = types.SimpleNamespace(
         async_get=lambda hass: types.SimpleNamespace(async_list_areas=lambda: [])
