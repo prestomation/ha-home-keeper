@@ -42,6 +42,25 @@ from typing import Any
 INTEGRATIONS: list[dict[str, Any]] = [
     # ── air ───────────────────────────────────────────────────────────────────────────
     {
+        "domain": "actron_air",
+        "brand": "Actron Air",
+        "icon": "mdi:air-filter",
+        "source": "https://raw.githubusercontent.com/home-assistant/core/dev/homeassistant/components/actron_air/strings.json",
+        "verified": {
+            "ref": "75c314edf0013bff046106015ab6cfb0b8c6b452",
+            "date": "2026-10-01",
+        },
+        "duties": [
+            {
+                "duty": "filter_cleaning",
+                "shape": "alert",
+                "platform": "binary_sensor",
+                "keys": ["clean_filter"],
+                "state": "on",
+            },
+        ],
+    },
+    {
         "domain": "dantherm",
         "brand": "Dantherm ventilation",
         "icon": "mdi:air-filter",
@@ -359,7 +378,7 @@ INTEGRATIONS: list[dict[str, Any]] = [
         "icon": "mdi:air-filter",
         "source": "https://raw.githubusercontent.com/mbillow/localthings/main/custom_components/localthings/translations/en.json",
         "verified": {
-            "ref": "bda68e216dc6910a4d1783a70666aaa30220a4f5",
+            "ref": "feb964fbbce3e7e156e96d24349d3a7e9494093d",
             "date": "2026-10-01",
         },
         "duties": [

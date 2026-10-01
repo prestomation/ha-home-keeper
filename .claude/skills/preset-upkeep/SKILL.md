@@ -46,8 +46,11 @@ For each record in the report with `missing` keys or a `fetch_error`:
   (`https://raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>`), and the
   integration's entity code when the file does not say enough.
 - A renamed key: change it in the catalog. Keep the task name.
-- A removed key: remove it. When a duty loses all its keys, remove the duty. When the
-  entry loses all its duties, remove the entry, and say why in the PR.
+- A removed key: remove it. When a duty loses all its keys, remove the duty.
+- Never remove a preset id that is in `tests/unit/shipped_preset_ids.txt`. A saved
+  companion keeps its id, and `test_shipped_preset_ids_never_change` fails when one
+  goes away. When an entry or a shape loses all its keys, keep it as it is and ask the
+  maintainer in the PR.
 - `branch ... not found`: the default branch changed. Find it with
   `git ls-remote --symref https://github.com/<owner>/<repo> HEAD` and fix `source`.
 - A file that moved: fix `source` to the new path.
@@ -84,6 +87,11 @@ first, then core in the order listed.
   (`custom_components/<domain>/translations/en.json`) on its default branch.
 - When it has a clear duty, add a catalog entry: `domain`, `brand`, `icon`, `source`
   (raw URL on the branch), `duties`. Put it in the section of its kind of device.
+- For each preset that you add (a new entry, or a new shape in an entry), add its id
+  to `tests/unit/shipped_preset_ids.txt` in sorted order. The id is
+  `<domain>_<shape>`, and `<domain>_alert_<platform>_<state>` for an alert. Add a new
+  entry's brand to the table in `docs/guide/views/settings.md`
+  ("Integration presets").
 - Record every candidate you reviewed, added or not, so the next run skips it:
 
   ```bash

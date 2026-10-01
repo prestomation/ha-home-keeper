@@ -1,6 +1,7 @@
 # Every preset id that Home Keeper ships. A saved companion stores its preset_id,
 # so an id in this list must never change or go away.
 # test_shipped_preset_ids_never_change checks it. Add each new id here.
+actron_air_alert_binary_sensor_on
 aquacell_life_low
 aquacell_percent_low
 brother_percent_low
