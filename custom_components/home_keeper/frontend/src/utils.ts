@@ -1,4 +1,4 @@
-import { getLanguage, t, tn } from './i18n';
+import { getLanguage, t, tlist, tn } from './i18n';
 import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
@@ -756,9 +756,15 @@ export function formatDateTime(value: string | Date | null | undefined, lang?: s
   });
 }
 
-/** "today" / "yesterday" / "N days ago" for a past date, counted in whole days. */
+/**
+ * "today" / "yesterday" / "N days ago" for a past date, counted in calendar days.
+ *
+ * Count calendar days in Home Assistant's zone, as `dueLabel` does, not rolling 24h
+ * windows. The history row shows this text beside the date, so the 2 must agree: a
+ * completion at 23:30 yesterday reads "yesterday" at 08:00 today (F04-2).
+ */
 export function relativeDay(d: Date, now: Date = new Date()): string {
-  const days = Math.round((now.getTime() - d.getTime()) / 86_400_000);
+  const days = zonedDayNumber(now.getTime()) - zonedDayNumber(d.getTime());
   if (days <= 0) return t('due.today');
   if (days === 1) return t('due.yesterday');
   return tn('due.days_ago', days);
@@ -844,7 +850,11 @@ function recurrenceText(task: Task): string {
     const target = s.unit ? `${s.target ?? ''} ${s.unit}` : (s.target ?? '');
     const summary = t('recurrence.sensorUsage', { target });
     if (!s.also_every) return summary;
-    const every = `${s.also_every.interval} ${t(`opt.unit.${s.also_every.unit}`)}`;
+    // The plural-aware unit, as in the main summary: "every 1 month", not "every 1
+    // months" (F04-5). The backstop unit is always days, weeks or months.
+    const n = s.also_every.interval;
+    const base = s.also_every.unit.replace(/s$/, '');
+    const every = `${n} ${tn(`recurrence.unit.${base}`, n)}`;
     return s.combinator === 'all'
       ? t('recurrence.sensorUsageAll', { summary, every })
       : t('recurrence.sensorUsageAny', { summary, every });
@@ -869,15 +879,19 @@ function recurrenceText(task: Task): string {
     const windows = Array.isArray(task.active_season)
       ? task.active_season
       : [task.active_season];
-    const range = windows
-      .map((w) => {
-        const s = t(`opt.month.${parseInt(w.start, 10)}`);
-        const sDay = parseInt(w.start.split('-')[1], 10);
-        const e = t(`opt.month.${parseInt(w.end, 10)}`);
-        const eDay = parseInt(w.end.split('-')[1], 10);
-        return `${s} ${sDay}–${e} ${eDay}`;
-      })
-      .join(' & ');
+    // Each language orders and inflects "month day" in its own way ("15. April",
+    // "15 kwietnia"), so `Intl` formats each boundary and `tlist` joins the windows
+    // (F04-4). The year 2000 is a leap year, so "02-29" is a real date.
+    const fmt = new Intl.DateTimeFormat(getLanguage(), {
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+    });
+    const boundary = (md: string): string => {
+      const [m, d] = md.split('-').map((x) => parseInt(x, 10));
+      return fmt.format(new Date(Date.UTC(2000, m - 1, d)));
+    };
+    const range = tlist(windows.map((w) => `${boundary(w.start)}–${boundary(w.end)}`));
     summary = t('recurrence.season', { summary, range });
   }
   return summary;
@@ -1393,6 +1407,19 @@ export interface PanelLocation {
 }
 
 /**
+ * Decode one path segment. A malformed escape, such as `%E0` or `50%off`, gives the
+ * raw segment, because `decodeURIComponent` throws on it and the route setter must
+ * not throw (F04-3).
+ */
+function safeDecode(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/**
  * Parse the panel's route path (the part after the `/home-keeper` prefix that HA
  * hands the panel) into a {@link PanelLocation}. Unknown/empty paths fall back to
  * the tasks list. The asset detail lives under the `appliances` segment but keeps
@@ -1424,7 +1451,7 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
     // Short-circuit rather than falling back to '': an empty-string default is
     // indistinguishable from any other non-section string here, so it would only
     // add a mutant no test could ever kill.
-    const raw = parts[1] && decodeURIComponent(parts[1]);
+    const raw = parts[1] && safeDecode(parts[1]);
     return raw && (SETTINGS_SECTIONS as readonly string[]).includes(raw)
       ? { view, detail: null, section: raw as SettingsSection }
       : { view, detail: null };
@@ -1436,24 +1463,24 @@ export function parseRoute(path: string | undefined | null): PanelLocation {
       // Short-circuit rather than defaulting to '', for the same reason the settings
       // branch does: an empty-string default is indistinguishable from any other
       // non-tab string, so it only adds a mutant no test could ever kill.
-      const raw = parts[2] && decodeURIComponent(parts[2]);
+      const raw = parts[2] && safeDecode(parts[2]);
       const tab =
         raw && (ASSET_TABS as readonly string[]).includes(raw)
           ? (raw as AssetTab)
           : DEFAULT_ASSET_TAB;
-      const id = decodeURIComponent(parts[1]);
+      const id = safeDecode(parts[1]);
       // A part segment counts only under an explicit parts tab, the one tab that
       // lists parts. A bogus tab falls back to parts, but its segment is no part.
-      const part = raw === 'parts' && parts[3] ? decodeURIComponent(parts[3]) : '';
+      const part = raw === 'parts' && parts[3] ? safeDecode(parts[3]) : '';
       return part
         ? { view, detail: { kind, id, tab, part } }
         : { view, detail: { kind, id, tab } };
     }
     // A task page has sub-tabs of its own, resolved the same way.
-    const raw = parts[2] && decodeURIComponent(parts[2]);
+    const raw = parts[2] && safeDecode(parts[2]);
     const tab =
       raw && (TASK_TABS as readonly string[]).includes(raw) ? (raw as TaskTab) : DEFAULT_TASK_TAB;
-    return { view, detail: { kind, id: decodeURIComponent(parts[1]), tab } };
+    return { view, detail: { kind, id: safeDecode(parts[1]), tab } };
   }
   return { view, detail: null };
 }

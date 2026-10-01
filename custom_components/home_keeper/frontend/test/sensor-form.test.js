@@ -385,7 +385,7 @@ describe('usage tasks with a time backstop', () => {
         combinator: 'all',
       },
     });
-    expect(summary).toContain('and every 1 months');
+    expect(summary).toContain('and every 1 month');
   });
 
   it('extends the live hint with the backstop clause', () => {
@@ -421,7 +421,7 @@ describe('formRecurrenceSummary — the rule shown above the submit button', () 
     // promises and what the card later says are the same sentence, not two
     // formatters that agree today and drift tomorrow.
     expect(formRecurrenceSummary(form)).toBe(recurrenceSummary(buildTaskPayload(form)));
-    expect(formRecurrenceSummary(form)).toBe('Every 100 h of use, or every 1 months');
+    expect(formRecurrenceSummary(form)).toBe('Every 100 h of use, or every 1 month');
   });
 
   it('says "and" for the both-must-be-met combinator', () => {

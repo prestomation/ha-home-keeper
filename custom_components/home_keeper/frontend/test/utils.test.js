@@ -1,5 +1,5 @@
 import { readFileSync } from 'fs';
-import { afterEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import {
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
@@ -52,6 +52,7 @@ import {
   safeFileHref,
   safeHref,
   setBtnWeight,
+  setTimeZone,
   snapStock,
   showsUsageIntervals,
   sortedCompletions,
@@ -264,7 +265,41 @@ describe('recurrenceSummary', () => {
       }),
     ).toBe('Every month after completion');
   });
-  it('shows multi-window season with ampersand', () => {
+  it('F04-4: formats each season boundary in the panel language', () => {
+    const task = {
+      recurrence_type: 'floating', interval: 1, unit: 'months',
+      active_season: [
+        { start: '04-15', end: '10-31' },
+        { start: '02-29', end: '03-01' },
+      ],
+    };
+    setLanguage('de');
+    try {
+      expect(recurrenceSummary(task)).toContain('15. April–31. Oktober');
+      expect(recurrenceSummary(task)).toContain(' und 29. Februar–1. März');
+    } finally {
+      setLanguage('en');
+    }
+    expect(recurrenceSummary(task)).toBe(
+      'Every month after completion, April 15–October 31 and February 29–March 1',
+    );
+  });
+  it('F04-5: puts the usage backstop unit in the singular for an interval of 1', () => {
+    const usage = (interval) => ({
+      recurrence_type: 'sensor',
+      sensor: {
+        entity_id: 'sensor.runtime', mode: 'usage', target: 300, unit: 'h',
+        also_every: { interval, unit: 'months' },
+      },
+    });
+    expect(recurrenceSummary(usage(1))).toBe('Every 300 h of use, or every 1 month');
+    expect(recurrenceSummary(usage(5))).toBe('Every 300 h of use, or every 5 months');
+    const weeks = usage(1);
+    weeks.sensor.also_every.unit = 'weeks';
+    weeks.sensor.combinator = 'all';
+    expect(recurrenceSummary(weeks)).toBe('Every 300 h of use, and every 1 week');
+  });
+  it('shows multi-window season as a list', () => {
     expect(
       recurrenceSummary({
         recurrence_type: 'floating', interval: 1, unit: 'months',
@@ -273,7 +308,7 @@ describe('recurrenceSummary', () => {
           { start: '09-01', end: '10-31' },
         ],
       }),
-    ).toBe('Every month after completion, April 1–May 31 & September 1–October 31');
+    ).toBe('Every month after completion, April 1–May 31 and September 1–October 31');
   });
   it('defaults to daily when freq is missing for a fixed task', () => {
     expect(
@@ -1210,6 +1245,27 @@ describe('assetsForTask / assetForTask', () => {
 });
 
 describe('parseRoute', () => {
+  it('F04-3: keeps a malformed escape as the raw segment instead of throwing', () => {
+    expect(parseRoute('/tasks/%E0')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: '%E0', tab: 'schedule' },
+    });
+    expect(parseRoute('/appliances/50%off/parts/a%')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: '50%off', tab: 'parts', part: 'a%' },
+    });
+    expect(parseRoute('/appliances/x/%E0')).toEqual({
+      view: 'appliances',
+      detail: { kind: 'asset', id: 'x', tab: 'parts' },
+    });
+    expect(parseRoute('/tasks/x/%')).toEqual({
+      view: 'tasks',
+      detail: { kind: 'task', id: 'x', tab: 'schedule' },
+    });
+    expect(parseRoute('/settings/%E0')).toEqual({ view: 'settings', detail: null });
+    // A good escape still decodes.
+    expect(parseRoute('/tasks/a%20b').detail.id).toBe('a b');
+  });
   it('defaults empty/unknown paths to the tasks list', () => {
     for (const p of ['', '/', undefined, null, '/bogus']) {
       expect(parseRoute(p)).toEqual({ view: 'tasks', detail: null });
@@ -1863,6 +1919,10 @@ describe('navigateTo', () => {
 
 describe('relativeDay', () => {
   const now = new Date('2026-06-13T12:00:00Z');
+  // Calendar days depend on the zone. Name one, so the result does not depend on the
+  // zone the suite runs in.
+  beforeEach(() => setTimeZone('UTC'));
+  afterEach(() => setTimeZone(undefined));
 
   it('names the recent past in whole days', () => {
     expect(relativeDay(new Date('2026-06-13T09:00:00Z'), now)).toBe('today');
@@ -1878,10 +1938,21 @@ describe('relativeDay', () => {
     expect(relativeDay(new Date('2026-06-20T12:00:00Z'), now)).toBe('today');
   });
 
-  it('rounds to the nearest whole day at the half-day mark', () => {
-    // 1.4 days ago is still "yesterday"; 1.6 rounds up to two.
-    expect(relativeDay(new Date('2026-06-12T02:24:00Z'), now)).toBe('yesterday');
-    expect(relativeDay(new Date('2026-06-11T21:36:00Z'), now)).toBe('2 days ago');
+  it('F04-2: counts calendar days in the HA zone, not rolling 24h windows', () => {
+    setTimeZone('America/Los_Angeles');
+    try {
+      // 08:00 on Sep 30 in Los Angeles. A completion at 23:30 on Sep 29 is yesterday.
+      const morning = new Date('2026-09-30T15:00:00Z');
+      expect(relativeDay(new Date('2026-09-30T06:30:00Z'), morning)).toBe('yesterday');
+      // 20:00 on Sep 30. 07:00 on Sep 29 is yesterday, and 07:00 on Sep 28 is 2 days ago.
+      const evening = new Date('2026-10-01T03:00:00Z');
+      expect(relativeDay(new Date('2026-09-29T14:00:00Z'), evening)).toBe('yesterday');
+      expect(relativeDay(new Date('2026-09-28T14:00:00Z'), evening)).toBe('2 days ago');
+      // 00:30 on Sep 30 is today at 20:00 on Sep 30.
+      expect(relativeDay(new Date('2026-09-30T07:30:00Z'), evening)).toBe('today');
+    } finally {
+      setTimeZone(undefined);
+    }
   });
 
   it('defaults to the real clock when no now is given', () => {
