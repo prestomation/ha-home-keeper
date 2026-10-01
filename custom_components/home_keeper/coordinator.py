@@ -31,8 +31,6 @@ from . import assets, companions, notifier, recurrence, transitions
 from .const import (
     ASSET_KIND_VIRTUAL,
     DOMAIN,
-    EVENT_TASK_DUE_SOON,
-    EVENT_TASK_OVERDUE,
     OPTION_ONE_OFF_RETENTION_DAYS,
     SIGNAL_PART_STOCK_CHANGED,
 )
@@ -303,6 +301,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._edge_state, tasks, now=dt_util.now()
         )
         if self._events_enabled:
+            prev_state = self._edge_state
             self._edge_state = next_state
             self._persist_edge_state()
             for event_name, payload in fired:
@@ -310,16 +309,9 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             # Automatic notification source: send each notification whose auto
             # trigger matches a transition that fired this cycle, for a task in its
             # profile (once per notification, deduped). The task id goes with the
-            # kind so the notifier can check the profile (B16-1).
-            kinds = {
-                EVENT_TASK_OVERDUE: "overdue",
-                EVENT_TASK_DUE_SOON: "due_soon",
-            }
-            crossed = [
-                (kinds[name], str(payload["task_id"]))
-                for name, payload in fired
-                if name in kinds and payload.get("task_id")
-            ]
+            # kind so the notifier can check the profile (B16-1). A due-soon event
+            # that a snooze or a completion caused sends no push (B16-6).
+            crossed = transitions.auto_crossings(prev_state, fired)
             if crossed:
                 await notifier.async_send_auto(self.hass, self, crossed)
         elif not self._had_prior_edge_state:

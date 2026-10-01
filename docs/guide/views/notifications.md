@@ -123,6 +123,10 @@ when a task in the profile becomes overdue or due soon. Use a Home Assistant
 automation for more control over when notifications are sent. Send only when a
 person is at home, or send during a "Chore time" calendar event.
 
+If a snooze or a completion moves a task to a new due date that is already due soon,
+**Send when due soon** does not send for that task. The task sends again when it
+becomes overdue.
+
 The `home_keeper.notify` service sends a notification from an automation. Set
 `notification:` to a saved notification or `profile:` to a saved Profile. Set
 `target:` to override the destinations. The button actions fire events that other
