@@ -125,3 +125,62 @@ class TestCheck:
         head = "## [0.16.0]\n\nfirst entry\nsneaked-in entry\n"
         message = check(base, head, tag_exists=lambda v: True, section=_section)
         assert message is not None
+
+
+class TestVersionsAtHead:
+    """X06-3: a new top section with no manifest.json bump never shipped."""
+
+    @staticmethod
+    def tag_exists(version: str) -> bool:
+        return version == "0.28.0b2"
+
+    def test_x06_3_a_new_section_without_a_manifest_bump_fails(self):
+        head = "## [0.28.0b3]\n\nnew\n\n## [0.28.0b2]\n\nold\n"
+        message = _mod.check_versions(head, "0.28.0b2", "0.28.0b2", self.tag_exists)
+        assert message is not None
+        assert "'## [0.28.0b3]'" in message
+        assert "manifest.json is at 0.28.0b2" in message
+
+    def test_x06_3_a_new_section_with_the_bump_passes(self):
+        head = "## [0.28.0b3]\n\nnew\n\n## [0.28.0b2]\n\nold\n"
+        assert (
+            _mod.check_versions(head, "0.28.0b3", "0.28.0b3", self.tag_exists) is None
+        )
+
+    def test_x06_3_a_released_top_section_passes(self):
+        head = "## [0.28.0b2]\n\nold\n"
+        assert (
+            _mod.check_versions(head, "0.28.0b1", "0.28.0b1", self.tag_exists) is None
+        )
+
+    def test_x06_3_a_heading_that_is_not_a_version_is_not_checked(self):
+        for top in ("Unreleased", "0.28", "v0.28.0", "0.28.0b"):
+            head = f"## [{top}]\n\nnew\n"
+            assert (
+                _mod.check_versions(head, "0.28.0b2", "0.28.0b2", self.tag_exists)
+                is None
+            )
+        assert (
+            _mod.check_versions("no heading", "1.0.0", "1.0.0", self.tag_exists) is None
+        )
+
+    def test_x06_3_stable_and_rc_versions_are_checked(self):
+        for top in ("0.29.0", "0.29.0rc1", "0.29.0a2"):
+            head = f"## [{top}]\n\nnew\n"
+            assert _mod.check_versions(head, "0.28.0b2", "0.28.0b2", self.tag_exists)
+
+    def test_x06_3_manifest_and_panel_version_must_match(self):
+        head = "## [0.28.0b3]\n\nnew\n"
+        message = _mod.check_versions(head, "0.28.0b3", "0.28.0b2", self.tag_exists)
+        assert message is not None
+        assert "PANEL_VERSION is at 0.28.0b2" in message
+
+    def test_x06_3_reads_the_versions_from_the_files(self):
+        manifest = '{"domain": "x", "version": "0.28.0b3"}'
+        assert _mod.manifest_version(manifest) == "0.28.0b3"
+        assert _mod.manifest_version('{"domain": "x"}') is None
+        assert _mod.manifest_version(None) is None
+        const = 'DOMAIN = "home_keeper"\nPANEL_VERSION = "0.28.0b3"\n'
+        assert _mod.panel_version(const) == "0.28.0b3"
+        assert _mod.panel_version('X_PANEL_VERSION = "1"\n') is None
+        assert _mod.panel_version(None) is None

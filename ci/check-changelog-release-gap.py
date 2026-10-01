@@ -26,12 +26,22 @@ The check compares ``CHANGELOG.md``'s *top* section between the PR's merge-base 
   feature into it").
 * Version unchanged, section content changed, and that version *is* already a
   published tag -> fail. The new content will never ship as written.
+
+A second check reads ``manifest.json`` and ``const.py`` at ``HEAD`` (X06-3). A PR
+that opens a new top section but leaves ``manifest.json`` at the released version
+passed the first check, and ``release.yml`` stops at "tag already exists" before it
+compares the CHANGELOG, so the section never shipped. So:
+
+* ``manifest.json`` and ``PANEL_VERSION`` differ -> fail.
+* The top section names a version that is not ``manifest.json``'s and is not a
+  published tag -> fail. Nothing will release it.
 """
 
 from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import re
 import subprocess
 import sys
@@ -41,6 +51,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 _TOP_VERSION = re.compile(r"^## \[([^\]]+)\]", re.MULTILINE)
+_RELEASE_VERSION = re.compile(r"^\d+\.\d+\.\d+((a|b|rc)\d+)?$")
+_PANEL_VERSION = re.compile(r'^PANEL_VERSION\s*=\s*"([^"]+)"', re.MULTILINE)
 
 
 def _load_release_issues():
@@ -91,6 +103,48 @@ def check(
         "next beta and open a new '## [X.Y.ZbN]' CHANGELOG section for it -- see "
         "AGENTS.md, 'Always cut a beta release for a new feature.'"
     )
+
+
+def check_versions(
+    head_changelog: str,
+    manifest_version: str | None,
+    panel_version: str | None,
+    tag_exists: Callable[[str], bool],
+) -> str | None:
+    """Return a failure message when the versions at HEAD cannot release the top.
+
+    A top heading that is not a version (``## [Unreleased]``) is not checked.
+    """
+    if manifest_version != panel_version:
+        return (
+            f"manifest.json is at {manifest_version} but const.py PANEL_VERSION is "
+            f"at {panel_version}. Bump both in the same PR."
+        )
+    top = top_version(head_changelog)
+    if top is None or not _RELEASE_VERSION.match(top) or top == manifest_version:
+        return None
+    if tag_exists(top):
+        return None
+    return (
+        f"CHANGELOG.md's top section is '## [{top}]', but manifest.json is at "
+        f"{manifest_version} and v{top} is not a published release. release.yml "
+        "releases manifest.json's version only, so this section will never ship. "
+        f"Bump manifest.json + const.py (PANEL_VERSION) to {top}."
+    )
+
+
+def manifest_version(manifest: str | None) -> str | None:
+    """The ``version`` in a ``manifest.json`` text, or None."""
+    if manifest is None:
+        return None
+    value = json.loads(manifest).get("version")
+    return str(value) if value is not None else None
+
+
+def panel_version(const: str | None) -> str | None:
+    """The ``PANEL_VERSION`` string in a ``const.py`` text, or None."""
+    match = _PANEL_VERSION.search(const or "")
+    return match.group(1) if match else None
 
 
 def _git(*args: str) -> str:
@@ -148,14 +202,23 @@ def main() -> int:
         # No CHANGELOG.md on one side -- nothing for this guard to compare.
         return 0
 
-    message = check(
-        base_changelog, head_changelog, _tag_exists, _load_release_issues().section
-    )
-    if message is None:
-        return 0
-
-    print(f"::error::{message}", file=sys.stderr)
-    return 1
+    messages = [
+        check(
+            base_changelog, head_changelog, _tag_exists, _load_release_issues().section
+        ),
+        check_versions(
+            head_changelog,
+            manifest_version(
+                _file_at("HEAD", "custom_components/home_keeper/manifest.json")
+            ),
+            panel_version(_file_at("HEAD", "custom_components/home_keeper/const.py")),
+            _tag_exists,
+        ),
+    ]
+    failed = [m for m in messages if m is not None]
+    for message in failed:
+        print(f"::error::{message}", file=sys.stderr)
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

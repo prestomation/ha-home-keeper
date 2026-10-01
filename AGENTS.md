@@ -727,7 +727,9 @@ the Home Assistant unit lane then test an older API than CI does.
   prose linting, and `changelog-release-gap` — fails a PR that edits the top
   `## [X.Y.ZbN]` CHANGELOG section without a version bump once that version is
   already a published release tag (the gap that let #236 merge without ever
-  shipping as a beta; see "Always cut a beta release for a new feature" above).
+  shipping as a beta; see "Always cut a beta release for a new feature" above). It
+  also fails when the top section names an unreleased version that `manifest.json`
+  does not carry, or when `manifest.json` and `PANEL_VERSION` differ.
 - `test.yml` — vitest, pytest unit, HACS validation, hassfest.
 - `mutation.yml` — mutation testing (mutmut + Stryker) on the code a PR changed;
   fails below an 80% mutation score. `skip-mutation` label bypasses it.
