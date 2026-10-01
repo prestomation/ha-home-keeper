@@ -2658,3 +2658,60 @@ def test_b04_11_archived_false_restores_and_a_missing_key_keeps_the_value():
         assets={stored["id"]: dict(stored)},
     )
     assert plan.records[0].payload["archived_at"] == "2026-01-01T00:00:00+00:00"
+
+
+# ── X03-6: replan_tasks ──────────────────────────────────────────────────────
+
+
+def test_x03_6_replan_merges_into_the_task_as_it_is_now():
+    stored = _task()
+    document = _doc(
+        appliances=[{"name": "Furnace"}],
+        tasks=[
+            {"id": stored["id"], "name": "Furnace filter", "notes": "MERV 13"},
+            {"name": "New", "id": "not-a-uuid", "appliance": "Furnace"},
+        ],
+    )
+    plan = _plan(document, tasks={stored["id"]: stored})
+    assert plan.ok
+    live = dict(stored)
+    live["enabled"] = False
+    replanned = tr.replan_tasks(
+        document, plan, tasks={stored["id"]: live}, assets={}, now=NOW
+    )
+    assert replanned.ok
+    by_name = {r.name: r for r in replanned.records}
+    assert by_name["Furnace filter"].payload["enabled"] is False
+    assert by_name["Furnace filter"].payload["notes"] == "MERV 13"
+    # The appliance record is the first plan's own, and the new task keeps its id
+    # and its reference to that appliance.
+    assert by_name["Furnace"] is plan.for_section("appliances")[0]
+    first_new = next(r for r in plan.records if r.name == "New")
+    assert by_name["New"].record_id == first_new.record_id
+    assert by_name["New"].payload["id"] == first_new.record_id
+    appliance_id = plan.for_section("appliances")[0].record_id
+    assert tr.planned_asset_id(by_name["New"].payload["device_id"]) == appliance_id
+
+
+def test_x03_6_replan_keeps_the_first_problems_of_other_sections():
+    document = _doc(
+        appliances=[{"name": "A", "bogus": 1}],
+        tasks=[{"name": "T", "bogus": 2}],
+    )
+    plan = _plan(document)
+    replanned = tr.replan_tasks(document, plan, tasks={}, assets={}, now=NOW)
+    assert sorted(p.path for p in replanned.problems) == [
+        "appliances[0].bogus",
+        "tasks[0].bogus",
+    ]
+    assert replanned.completions == plan.completions
+
+
+def test_x03_6_replan_reports_a_task_that_is_now_a_create():
+    stored = _task()
+    document = _doc(tasks=[{"name": "Furnace filter"}])
+    plan = _plan(document, tasks={stored["id"]: stored})
+    assert plan.records[0].action == "update"
+    replanned = tr.replan_tasks(document, plan, tasks={}, assets={}, now=NOW)
+    assert replanned.records[0].action == "create"
+    assert replanned.records[0].record_id != stored["id"]

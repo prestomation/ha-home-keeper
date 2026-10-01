@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Container
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import lru_cache
 from typing import Any
@@ -273,6 +273,12 @@ class ImportPlan:
     problems: tuple[Problem, ...] = ()
     completions: int = 0
     skips: int = 0
+    asset_refs: dict[str, str] = field(default_factory=dict, compare=False, repr=False)
+    """The appliance references of the document, for :func:`replan_tasks`."""
+    shared_refs: dict[str, set[str]] = field(
+        default_factory=dict, compare=False, repr=False
+    )
+    """The references that several appliances answer to, for :func:`replan_tasks`."""
 
     @property
     def ok(self) -> bool:
@@ -1150,9 +1156,7 @@ def plan_import(
     # (child devices included) rather than build a set of every device (B04-1).
     known_devices = device_ids
     asset_matcher = _Matcher(dict(assets))
-    task_matcher = _Matcher(dict(tasks))
     planned: list[PlannedRecord] = []
-    completions = skips = 0
 
     # Appliances first, and their planned ids are what a task's ``appliance``
     # reference resolves against — so a document can describe an appliance and the
@@ -1212,6 +1216,47 @@ def plan_import(
         planned = [r for r in planned if r.record_id not in looped]
         asset_refs = {k: v for k, v in asset_refs.items() if v not in looped}
 
+    planned_tasks, completions, skips = _plan_task_section(
+        document,
+        tasks=tasks,
+        areas=areas,
+        check_area_ids=check_area_ids,
+        known_devices=known_devices,
+        asset_refs=asset_refs,
+        shared_refs=shared_refs,
+        stored_assets=assets,
+        match=match,
+        now=now,
+        problems=problems,
+    )
+    return ImportPlan(
+        records=(*planned, *planned_tasks),
+        problems=tuple(problems),
+        completions=completions,
+        skips=skips,
+        asset_refs=asset_refs,
+        shared_refs=shared_refs,
+    )
+
+
+def _plan_task_section(
+    document: dict[str, Any],
+    *,
+    tasks: dict[str, dict[str, Any]],
+    areas: dict[str, str],
+    check_area_ids: bool,
+    known_devices: Container[str] | None,
+    asset_refs: dict[str, str],
+    shared_refs: dict[str, set[str]],
+    stored_assets: dict[str, dict[str, Any]],
+    match: str,
+    now: datetime,
+    problems: list[Problem],
+) -> tuple[list[PlannedRecord], int, int]:
+    """Plan the ``tasks`` section: ``(records, completions, skips)``."""
+    matcher = _Matcher(dict(tasks))
+    planned: list[PlannedRecord] = []
+    completions = skips = 0
     doc_tasks = _keyed_records(_section(document, "tasks", problems), "tasks", problems)
     for index, record in enumerate(doc_tasks):
         if record is None:
@@ -1219,14 +1264,14 @@ def plan_import(
         entry, counted = _plan_task(
             record,
             index=index,
-            matcher=task_matcher,
+            matcher=matcher,
             stored=tasks,
             areas=areas,
             check_area_ids=check_area_ids,
             known_devices=known_devices,
             asset_refs=asset_refs,
             shared_refs=shared_refs,
-            stored_assets=assets,
+            stored_assets=stored_assets,
             match=match,
             now=now,
             problems=problems,
@@ -1239,19 +1284,73 @@ def plan_import(
 
     if clashed := _colliding_external_ids(planned, "tasks", doc_tasks, problems):
         planned = [r for r in planned if r.record_id not in clashed]
+    return planned, completions, skips
 
+
+def replan_tasks(
+    document: dict[str, Any],
+    plan: ImportPlan,
+    *,
+    tasks: dict[str, dict[str, Any]],
+    assets: dict[str, dict[str, Any]],
+    area_ids: dict[str, str] | None = None,
+    device_ids: Container[str] | None = None,
+    match: str = "auto",
+    now: datetime,
+) -> ImportPlan:
+    """*plan* with its ``tasks`` section planned again against the store as it is now.
+
+    The applier writes the appliances and provisions their devices before it writes
+    the tasks, and each of those steps waits for a save. A task that changed in that
+    time (a completion, a snooze, a sensor that armed it) was written back as it was
+    when the plan was made, and a task deleted in that time came back (X03-6). The
+    applier calls this just before it writes the tasks, so each task merges into the
+    stored task as it is at that moment.
+
+    The appliance references resolve as they did in *plan*, so a task still attaches
+    to an appliance the same document created. A task created again keeps the id that
+    *plan* gave it, so the report matches what was written.
+    """
+    problems: list[Problem] = []
+    planned_tasks, completions, skips = _plan_task_section(
+        document,
+        tasks=tasks,
+        areas=area_ids or {},
+        check_area_ids=area_ids is not None,
+        known_devices=device_ids,
+        asset_refs=plan.asset_refs,
+        shared_refs=plan.shared_refs,
+        stored_assets=assets,
+        match=match,
+        now=now,
+        problems=problems,
+    )
+    first = {r.index: r for r in plan.for_section("tasks")}
+    kept: list[PlannedRecord] = []
+    for record in planned_tasks:
+        before = first.get(record.index)
+        if (
+            record.action == "create"
+            and before is not None
+            and before.action == "create"
+        ):
+            payload = {**record.payload, "id": before.record_id}
+            record = replace(record, record_id=before.record_id, payload=payload)
+        kept.append(record)
     return ImportPlan(
-        records=tuple(planned),
-        problems=tuple(problems),
+        records=(*plan.for_section("appliances"), *kept),
+        problems=(*(p for p in plan.problems if p.section != "tasks"), *problems),
         completions=completions,
         skips=skips,
+        asset_refs=plan.asset_refs,
+        shared_refs=plan.shared_refs,
     )
 
 
 def _colliding_external_ids(
     planned: list[PlannedRecord],
     section: str,
-    raw: list[dict[str, Any]],
+    raw: list[dict[str, Any] | None],
     problems: list[Problem],
 ) -> set[str]:
     """Record ids to drop because two records in one document claim one key.
@@ -1295,7 +1394,7 @@ def _colliding_external_ids(
         # A stated uuid is what `_claim_id` keeps, so it is also what a re-run matches
         # on. Anything else (absent, or not a uuid) is replaced by a fresh id the
         # document does not carry, leaving `external_id` as the only way back.
-        if all(_is_uuid(raw[r.index].get("id")) for r in group):
+        if all(_is_uuid((raw[r.index] or {}).get("id")) for r in group):
             continue
         where = ", ".join(f"{section}[{r.index}]" for r in group)
         for record in group:
