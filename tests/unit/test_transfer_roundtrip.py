@@ -239,3 +239,29 @@ def test_deletion_blocked_twins_agree():
                 ) == tr.assets_model.deletion_blocked(
                     record, orphaned=orphaned, force=force
                 ), (record, orphaned, force)
+
+
+def test_x03_9_an_integration_source_survives_the_round_trip():
+    # An integration finds its task by its own namespace in `source`. A restore
+    # that lost it made the integration add a second task.
+    task = _built({})
+    task["source"] = {"pawsistant": {"pet": "7"}}
+    plan = _roundtrip([task], [])
+    assert plan.ok, [p.as_dict() for p in plan.problems]
+    (record,) = plan.records
+    assert record.payload["source"] == {"pawsistant": {"pet": "7"}}
+
+
+def test_x03_9_a_manual_consumable_link_leaves_only_the_integration_source():
+    task = _built({})
+    task["source"] = {
+        "part": {"asset_id": "a1", "part_id": "p1", "manual": True},
+        "pawsistant": {"pet": "7"},
+    }
+    document = tr.build_document([task], [], area_names=AREA_NAMES, now=NOW)
+    assert document["tasks"][0]["source"] == {"pawsistant": {"pet": "7"}}
+    assert document["home_keeper"]["skipped"] == {"consumable_links": 1}
+    # A link alone leaves no source in the file.
+    task["source"] = {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}}
+    document = tr.build_document([task], [], area_names=AREA_NAMES, now=NOW)
+    assert "source" not in document["tasks"][0]

@@ -80,8 +80,9 @@ EXCLUDED_TASK_KEYS: tuple[tuple[str, str], ...] = (
     ("skips", "re-shaped as `skips`, keyed like the completion entries"),
     (
         "source",
-        "reconciler-owned provenance; a task carrying one is not exported, except "
-        "a consumable link the user made, which is dropped and counted in `skipped`",
+        "only its reserved namespaces: a task carrying one of those is not "
+        "exported, except a consumable link the user made, which is dropped and "
+        "counted in `skipped`. The namespaces of an integration travel.",
     ),
     ("managed_by", "an owning integration's block; such a task is not exported"),
 )
@@ -381,6 +382,8 @@ def _task_out(
     """One stored task as a document record."""
     out = _strip(task, EXCLUDED_TASK_KEYS)
     out["id"] = task["id"]
+    if foreign := _foreign_source(task):
+        out["source"] = foreign
     if external_id := task.get("external_id"):
         out["external_id"] = external_id
     if area_id := task.get("area_id"):
@@ -404,6 +407,22 @@ def _task_out(
             for e in skips
         ]
     return out
+
+
+def _foreign_source(task: dict[str, Any]) -> dict[str, Any]:
+    """The namespaces of ``source`` that Home Keeper does not reserve (X03-9).
+
+    An integration finds its own tasks by its namespace in ``source``. Import accepts
+    these namespaces, so they travel, and a restore keeps the link. A reserved
+    namespace on an exported task is a consumable link the user made, and it does not
+    travel (see :func:`count_consumable_links`).
+    """
+    source = task.get("source")
+    if not isinstance(source, dict):
+        return {}
+    return {
+        key: value for key, value in source.items() if key not in _RECONCILER_SOURCES
+    }
 
 
 def _appliance_ref(owner: dict[str, Any], shared_names: frozenset[str]) -> str:
@@ -440,8 +459,9 @@ def count_consumable_links(tasks: list[dict[str, Any]]) -> int:
     """How many consumable links the document leaves behind (B09-4).
 
     A task the user linked to a consumable by hand travels, but its link does not:
-    ``source`` is not a field import accepts. Counted in the envelope, like an uploaded
-    file, so somebody restoring onto a new install knows to link them again.
+    import refuses the reserved ``part`` namespace of ``source``. Counted in the
+    envelope, like an uploaded file, so somebody restoring onto a new install knows to
+    link them again.
     """
     return sum(
         1
