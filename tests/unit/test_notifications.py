@@ -320,6 +320,79 @@ def test_resolve_notification_by_id_then_name():
     assert n.resolve_notification(notifs, None) is None
 
 
+# ── route ids (B16-7, B16-8) ────────────────────────────────────────────────
+
+
+def test_b16_7_route_id_and_adhoc_base():
+    assert n.route_id("n1", ["mobile_app_a", "mobile_app_b"]) == (
+        "n1@mobile_app_a,mobile_app_b"
+    )
+    assert n.adhoc_base(None) == "adhoc"
+    assert n.adhoc_base("") == "adhoc"
+    assert n.adhoc_base("p1") == "adhoc.p1"
+
+
+def _saved():
+    return [
+        n.normalize_notification(
+            {
+                "id": "n1",
+                "name": "Walk",
+                "profile_id": "p1",
+                "targets": ["mobile_app_dad"],
+                "snooze_hours": 5,
+            }
+        )
+    ]
+
+
+def test_b16_8_a_route_of_a_saved_notification_keeps_its_settings():
+    saved = _saved()
+    found = n.resolve_tap_notification(saved, "n1@mobile_app_kid")
+    assert found == {
+        **saved[0],
+        "id": "n1@mobile_app_kid",
+        "targets": ["mobile_app_kid"],
+    }
+    # The saved notification itself is not changed.
+    assert saved[0]["id"] == "n1"
+    assert saved[0]["targets"] == ["mobile_app_dad"]
+
+
+def test_b16_7_a_route_of_an_adhoc_send_is_made_again():
+    found = n.resolve_tap_notification([], "adhoc.p9@mobile_app_kid,mobile_app_mom")
+    assert found is not None
+    assert found["id"] == "adhoc.p9@mobile_app_kid,mobile_app_mom"
+    assert found["name"] == "ad-hoc"
+    assert found["profile_id"] == "p9"
+    assert found["targets"] == ["mobile_app_kid", "mobile_app_mom"]
+    assert found["style"] == n.STYLE_WALK
+    bare = n.resolve_tap_notification([], "adhoc@mobile_app_kid")
+    assert bare is not None
+    assert bare["profile_id"] is None
+    assert bare["targets"] == ["mobile_app_kid"]
+
+
+def test_b16_7_a_saved_id_comes_before_a_route():
+    saved = [n.normalize_notification({"id": "x@mobile_app_a", "name": "Odd"})]
+    assert n.resolve_tap_notification(saved, "x@mobile_app_a") is saved[0]
+    assert n.resolve_tap_notification(_saved(), "n1")["id"] == "n1"
+    # The targets follow the last "@", so a saved id with an "@" still routes.
+    routed = n.resolve_tap_notification(saved, "x@mobile_app_a@mobile_app_b")
+    assert routed["name"] == "Odd"
+    assert routed["targets"] == ["mobile_app_b"]
+
+
+def test_b16_7_a_bad_route_resolves_to_nothing():
+    saved = _saved()
+    assert n.resolve_tap_notification(saved, "gone") is None
+    assert n.resolve_tap_notification(saved, "gone@mobile_app_kid") is None
+    assert n.resolve_tap_notification(saved, "n1@") is None
+    assert n.resolve_tap_notification(saved, "n1@telegram_x") is None
+    assert n.resolve_tap_notification(saved, "n1@mobile_app_a,smtp") is None
+    assert n.resolve_tap_notification(saved, "adhocx@mobile_app_a") is None
+
+
 # ── per-task button sets ────────────────────────────────────────────────────
 
 BLOCKED = {"id": "t", "managed_by": {"completion_blocked": True}}

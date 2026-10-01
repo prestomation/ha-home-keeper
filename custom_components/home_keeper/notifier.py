@@ -491,6 +491,16 @@ async def async_run_notify(
         # profile (or a saved notification with no 'Send to') would match tasks but push
         # nowhere, which reads as "the service did nothing". Fail loudly instead.
         return {}, {"key": "notify_no_targets", "placeholders": {}}
+    # A send to targets that no saved notification holds gets a route id. The tag is
+    # then the same on each call, so a new card replaces the old one, and a tap can
+    # go on with the walk at those targets (B16-7, B16-8).
+    if base_notif is None:
+        base_id = notifications.adhoc_base(base_profile["id"] if base_profile else None)
+        notification["id"] = notifications.route_id(base_id, notification["targets"])
+    elif notification["targets"] != base_notif["targets"]:
+        notification["id"] = notifications.route_id(
+            base_notif["id"], notification["targets"]
+        )
 
     matched, sent = await _send(
         hass,
@@ -527,7 +537,10 @@ def async_setup_notifications(hass: HomeAssistant) -> CALLBACK_TYPE:
         due_token: str | None,
     ) -> None:
         entry = coord.entry
-        notification = notifications.resolve_notification(
+        # A route id (a send with a target override, or with no saved
+        # notification) gives the notification back with the targets it was sent
+        # to, so the walk goes on at that device (B16-7, B16-8).
+        notification = notifications.resolve_tap_notification(
             _notifications(entry), notification_id
         )
         now = dt_util.now()

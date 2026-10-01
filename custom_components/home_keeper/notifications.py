@@ -380,6 +380,70 @@ def resolve_notification(
     return None
 
 
+# ── route ids: a send to targets that no saved notification holds ────────────────
+#
+# A ``home_keeper.notify`` call can send with a ``target:`` override, or with no saved
+# notification at all. The id of that send goes into the tag and into each button
+# action. A random id made a new tag on each call, so the cards stacked on the phone,
+# and a tap found no notification to go on with (B16-7). The saved id with the
+# override made a tap go on at the saved targets, not at the phone that was sent to
+# (B16-8). A route id holds the base and the targets, so it is the same for each call
+# to the same targets, and a tap can make the notification again from it.
+
+#: The base of a route id for a send with no saved notification.
+ADHOC_ID = "adhoc"
+_ROUTE_SEP = "@"
+_ADHOC_PROFILE_SEP = "."
+_TARGET_SEP = ","
+
+
+def route_id(base: str, targets: list[str]) -> str:
+    """The notification id for a send of *base* to *targets*."""
+    return f"{base}{_ROUTE_SEP}{_TARGET_SEP.join(targets)}"
+
+
+def adhoc_base(profile_id: str | None) -> str:
+    """The route base for a send with no saved notification, over *profile_id*."""
+    if profile_id:
+        return f"{ADHOC_ID}{_ADHOC_PROFILE_SEP}{profile_id}"
+    return ADHOC_ID
+
+
+def resolve_tap_notification(
+    saved: list[dict[str, Any]], notification_id: str
+) -> dict[str, Any] | None:
+    """The notification a button tap with *notification_id* goes on with.
+
+    A saved notification with that id comes first. Else a route id gives the saved
+    notification of its base with the targets of the route, or, for an ad hoc base, a
+    new notification over the profile in the base. A route with a target that the
+    allowlist does not accept gives ``None``, so a tap cannot send to a new service.
+    """
+    found = resolve_notification(saved, notification_id)
+    if found is not None:
+        return found
+    base, sep, joined = notification_id.rpartition(_ROUTE_SEP)
+    if not sep:
+        return None
+    targets, rejected = split_targets(joined.split(_TARGET_SEP))
+    if rejected or not targets:
+        return None
+    if base == ADHOC_ID or base.startswith(ADHOC_ID + _ADHOC_PROFILE_SEP):
+        profile_id = base[len(ADHOC_ID) + len(_ADHOC_PROFILE_SEP) :]
+        return normalize_notification(
+            {
+                "id": notification_id,
+                "name": "ad-hoc",
+                "profile_id": profile_id or None,
+                "targets": targets,
+            }
+        )
+    found = resolve_notification(saved, base)
+    if found is None:
+        return None
+    return {**found, "id": notification_id, "targets": targets}
+
+
 # ── per-task button sets ────────────────────────────────────────────────────────
 
 

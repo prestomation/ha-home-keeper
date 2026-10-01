@@ -300,6 +300,45 @@ def test_a_saved_icon_and_color_reach_the_notify_payload():
     assert "notification_icon_color" not in data
 
 
+def _sent_ids(hass) -> list[tuple[str, str, str]]:
+    """``(service, tag, notification id in the first action)`` of each send."""
+    out = []
+    for _domain, service, payload in hass.services.calls:
+        action = payload["data"]["actions"][0]["action"]
+        notification_id = notifications.decode_action(action)[2]
+        out.append((service, payload["data"]["tag"], notification_id))
+    return out
+
+
+def test_b16_7_an_adhoc_send_has_the_same_id_on_each_call():
+    hass = FakeHass()
+    coord = FakeCoord({"t1": overdue_task("t1", days=3)}, _options())
+    call = {"profile": PROFILE_ID, "target": ["mobile_app_kid"]}
+
+    _run(hass, coord, call)
+    _run(hass, coord, call)
+
+    expected = ("mobile_app_kid", "home_keeper_adhoc.p1@mobile_app_kid")
+    assert [s[:2] for s in _sent_ids(hass)] == [expected, expected]
+    assert {s[2] for s in _sent_ids(hass)} == {"adhoc.p1@mobile_app_kid"}
+
+
+def test_b16_7_a_target_only_send_has_a_route_id():
+    hass = FakeHass()
+    coord = FakeCoord({"t1": overdue_task("t1", days=3)}, _options())
+    _run(hass, coord, {"target": ["mobile_app_kid"]})
+    assert _sent_ids(hass)[0][2] == "adhoc@mobile_app_kid"
+
+
+def test_b16_8_a_target_override_routes_the_saved_notification():
+    hass = FakeHass()
+    coord = FakeCoord({"t1": overdue_task("t1", days=3)}, _options())
+    _run(hass, coord, {"notification": "n1", "target": ["mobile_app_kid"]})
+    _run(hass, coord, {"notification": "n1", "target": ["mobile_app_phone"]})
+    _run(hass, coord, {"notification": "n1"})
+    assert [s[2] for s in _sent_ids(hass)] == ["n1@mobile_app_kid", "n1", "n1"]
+
+
 class _MissingService(Exception):
     pass
 

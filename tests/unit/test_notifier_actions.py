@@ -299,6 +299,42 @@ def test_b16_5_a_due_soon_walk_does_not_resend_the_completed_task():
     assert payload["title"] == notifications.build_all_clear(notification)["title"]
 
 
+def _routed_action(verb: str, task: dict[str, Any], notification_id: str) -> str:
+    return notifications.encode_action(
+        verb, task["id"], notification_id, notifications.due_token(task)
+    )
+
+
+def test_b16_8_a_walk_sent_with_a_target_override_goes_on_at_that_target():
+    first = overdue_task("t1", days=2)
+    second = overdue_task("t2", days=1)
+    hass, coord = _setup({"t1": first, "t2": second}, _options())
+
+    _tap(hass, _routed_action("complete", first, "n1@mobile_app_kid"))
+
+    assert coord.store.calls == [("complete", "t1")]
+    assert [c[1] for c in hass.services.calls] == ["mobile_app_kid"]
+    payload = hass.services.calls[0][2]
+    assert payload["data"]["tag"] == "home_keeper_n1@mobile_app_kid"
+    head = notifications.decode_action(payload["data"]["actions"][0]["action"])
+    assert head[1:3] == ("t2", "n1@mobile_app_kid")
+
+
+def test_b16_7_an_adhoc_walk_goes_on_after_a_tap():
+    first = overdue_task("t1", days=2)
+    second = overdue_task("t2", days=1)
+    hass, coord = _setup({"t1": first, "t2": second}, _options())
+
+    _tap(hass, _routed_action("skip", first, "adhoc.p1@mobile_app_kid"))
+
+    assert coord.store.calls == [("skip", "t1")]
+    assert [c[1] for c in hass.services.calls] == ["mobile_app_kid"]
+    head = notifications.decode_action(
+        hass.services.calls[0][2]["data"]["actions"][0]["action"]
+    )
+    assert head[1:3] == ("t2", "adhoc.p1@mobile_app_kid")
+
+
 def test_b16_12_no_all_clear_when_the_profile_is_gone():
     """B16-12: a walk whose profile was deleted sends nothing after a tap.
 
