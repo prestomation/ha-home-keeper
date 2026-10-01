@@ -109,8 +109,17 @@ export function keyRows(
  * The key list and the name table that *rows* stand for. Keys and names are trimmed.
  * A row with no key is a row still being filled in and gives nothing. A repeated key
  * keeps its first row. A blank name is left out, which means "use the entity name".
+ *
+ * With no key in the rows, the selection has no key filter, and the backend applies
+ * a stored name to each matched entity with that key. Then the result keeps *stored*,
+ * the name table the editor opened with (F06-4). A spec made through the service can
+ * have names and no keys, and the editor shows no row for them. When the rows give a
+ * key list, a name for a key outside it can never apply, so it is left out.
  */
-export function applyKeyRows(rows: readonly KeyRow[]): {
+export function applyKeyRows(
+  rows: readonly KeyRow[],
+  stored?: Readonly<Record<string, string>>,
+): {
   translation_keys: string[];
   task_names: Record<string, string>;
 } {
@@ -123,6 +132,7 @@ export function applyKeyRows(rows: readonly KeyRow[]): {
     const name = row.name.trim();
     if (name) task_names[key] = name;
   }
+  if (!translation_keys.length) return { translation_keys, task_names: { ...stored } };
   return { translation_keys, task_names };
 }
 
@@ -146,9 +156,18 @@ export function keyOptions(
     .map((k) => ({ ...k, picked: picked.includes(k.key) }));
 }
 
-/** *rows* with *key* added at the end with no task name, or taken out if it is there. */
-export function toggleKeyRow(rows: readonly KeyRow[], key: string): KeyRow[] {
-  return rows.some((r) => r.key === key)
-    ? rows.filter((r) => r.key !== key)
-    : [...rows, { key, name: '' }];
+/**
+ * *rows* with *key* added at the end, or taken out if it is there. A row key is
+ * compared after a trim, the same as the key list marks it (F06-5). An added row
+ * gets its task name from *stored*, the name table the editor opened with, so a
+ * picked key keeps a name it already had (F06-4).
+ */
+export function toggleKeyRow(
+  rows: readonly KeyRow[],
+  key: string,
+  stored?: Readonly<Record<string, string>>,
+): KeyRow[] {
+  return rows.some((r) => r.key.trim() === key)
+    ? rows.filter((r) => r.key.trim() !== key)
+    : [...rows, { key, name: stored?.[key] ?? '' }];
 }

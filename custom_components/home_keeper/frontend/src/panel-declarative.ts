@@ -788,11 +788,14 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
       keysHost,
     ),
   );
+  // The name table as the editor opened it. A spec made through the service can
+  // name keys that are not in its key list, and the rows do not show those (F06-4).
+  const storedNames = { ...draft.task_template.task_names };
   refreshKeys = renderKeyEditor(
     keysHost,
     keyRows(sel.translation_keys, draft.task_template.task_names),
     (rows) => {
-      const applied = applyKeyRows(rows);
+      const applied = applyKeyRows(rows, storedNames);
       sel.translation_keys = applied.translation_keys;
       draft.task_template.task_names = applied.task_names;
       updateSummary();
@@ -804,6 +807,7 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
         p._hass && sel.target_integration
           ? api.listEntityKeys(p._hass, sel.target_integration, sel.domain)
           : null,
+      names: storedNames,
     },
   );
 
@@ -994,6 +998,8 @@ function renderDeclarativeForm(p: PanelHost, host: HTMLElement, draft: Declarati
 interface KeySource {
   integration: () => string | undefined;
   load: () => Promise<EntityKeyList | null>;
+  /** The stored name table, so a key picked from the list keeps its name. */
+  names?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -1120,7 +1126,7 @@ function renderKeyEditor(
             tn('declarative.companions.keys_entities', opt.count),
           )}</span>`;
       b.addEventListener('click', () => {
-        rows = toggleKeyRow(rows, opt.key);
+        rows = toggleKeyRow(rows, opt.key, source.names);
         onChange(rows);
         draw();
         drawOptions();
