@@ -505,7 +505,7 @@ EVENTS: tuple[EventSpec, ...] = (
         "fired",
         "task",
         "a task enters the three-day due-soon window, at most once per due date",
-        extra=(Field("due_in_hours", "int"),),
+        extra=(Field("due_in_hours", "float"),),
     ),
     EventSpec(
         const.EVENT_PART_LOW_STOCK,

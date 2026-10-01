@@ -594,6 +594,37 @@ def test_transition_extras_match_the_model() -> None:
         }
 
 
+def test_b18_7_transition_extras_have_the_modelled_type() -> None:
+    """The type the reference publishes is the type the payload carries."""
+    now = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
+    tasks = {
+        "overdue": {
+            "id": "overdue",
+            "name": "Overdue",
+            "enabled": True,
+            "next_due": (now - timedelta(days=2)).isoformat(),
+        },
+        "soon": {
+            "id": "soon",
+            "name": "Soon",
+            "enabled": True,
+            "next_due": (now + timedelta(hours=23, minutes=54)).isoformat(),
+        },
+    }
+    fired, _ = transitions.detect_transitions({}, tasks, now=now)
+    python_types = {"int": int, "float": float}
+    checked = 0
+    for name, payload in fired:
+        spec = next(s for s in api_surface.EVENTS if s.name == name)
+        for field in spec.extra:
+            value = payload[field.name]
+            assert type(value) is python_types[field.type], (name, field, value)
+            checked += 1
+    assert checked == 2
+    soon = next(p for n, p in fired if n == const.EVENT_TASK_DUE_SOON)
+    assert soon["due_in_hours"] == 23.9
+
+
 # ── Device triggers ──────────────────────────────────────────────────────────
 
 
