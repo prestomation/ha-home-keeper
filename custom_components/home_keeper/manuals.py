@@ -20,6 +20,7 @@ checks live in ``documents.py`` so they stay unit-testable without an HA runtime
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import shutil
@@ -149,6 +150,16 @@ def _unlink(path: Path) -> None:
     path.unlink(missing_ok=True)
 
 
+async def _async_unlink(hass: HomeAssistant, path: Path) -> None:
+    """Delete *path* in the executor, also if the caller is cancelled again.
+
+    A client abort cancels the upload handler (B06-4). The cleanup then runs in an
+    ``except`` or ``finally`` block, and a second cancel must not skip the unlink,
+    so the executor job is shielded.
+    """
+    await asyncio.shield(hass.async_add_executor_job(_unlink, path))
+
+
 def _rmtree(path: Path) -> None:
     shutil.rmtree(path, ignore_errors=True)
 
@@ -188,7 +199,7 @@ async def async_rename_document(
 
 async def async_discard_upload(hass: HomeAssistant, uploaded: UploadedFile) -> None:
     """Drop a temp upload. A no-op once it has been moved into place."""
-    await hass.async_add_executor_job(_unlink, uploaded.path)
+    await _async_unlink(hass, uploaded.path)
 
 
 async def async_cleanup_temp_uploads(hass: HomeAssistant) -> None:
@@ -450,7 +461,9 @@ async def _parse_upload(
         if uploaded is not None:
             await async_discard_upload(hass, uploaded)
         return too_large
-    except Exception:
+    except BaseException:
+        # Also for ``CancelledError``, which is not an ``Exception``: a client that
+        # aborts the upload cancels this handler (B06-4).
         if uploaded is not None:
             await async_discard_upload(hass, uploaded)
         raise
@@ -493,8 +506,9 @@ async def _stream_to_temp(
                 buffer.clear()
         if buffer:
             await hass.async_add_executor_job(_append, tmp, bytes(buffer))
-    except Exception:
-        await hass.async_add_executor_job(_unlink, tmp)
+    except BaseException:
+        # Also for ``CancelledError`` (B06-4), see ``_parse_upload``.
+        await _async_unlink(hass, tmp)
         raise
     return UploadedFile(path=tmp, size=size, header=header)
 
@@ -560,6 +574,34 @@ async def _begin_upload(
     return coord, asset, lang
 
 
+def _replaced_response(
+    hass: HomeAssistant, view: HomeAssistantView, coord: Any, lang: str
+) -> web.Response | None:
+    """The error to return if the entry reloaded while the body streamed (X02-1).
+
+    A reload makes a new coordinator and a new store. A write to the old store
+    goes to a copy that no part of Home Keeper reads, and the next save of the new
+    store removes it. So an upload that spans a reload stops here, before the blob
+    moves into place, with the same error as an upload to an unloaded entry.
+    """
+    if _coordinator(hass) is coord:
+        return None
+    message = resolve_exception(lang, "integration_not_loaded")
+    return view.json_message(message, HTTPStatus.NOT_FOUND)
+
+
+async def _async_drop_gone_asset_dir(
+    hass: HomeAssistant, coord: Any, asset_id: str
+) -> None:
+    """Remove the directory of an appliance that was deleted during an upload.
+
+    The move into place makes the directory again (``_move``), and no later delete
+    of that appliance runs (B06-10).
+    """
+    if coord.store.get_asset(asset_id) is None:
+        await async_delete_asset_documents(hass, asset_id)
+
+
 class HomeKeeperDocumentView(HomeAssistantView):
     """Upload (POST) and serve (GET) uploaded asset documents.
 
@@ -609,6 +651,8 @@ class HomeKeeperDocumentView(HomeAssistantView):
             except AssetValidationError as err:
                 message = resolve_exception(lang, "invalid_asset", error=str(err))
                 return self.json_message(message, HTTPStatus.BAD_REQUEST)
+            if replaced := _replaced_response(hass, self, coord, lang):
+                return replaced
 
             # Put the blob in place BEFORE persisting metadata (which fires
             # ``home_keeper_asset_updated``). Otherwise a reader — or an automation
@@ -648,6 +692,7 @@ class HomeKeeperDocumentView(HomeAssistantView):
             except (KeyError, AssetValidationError) as err:
                 # Metadata was rejected — don't leave an orphaned blob behind.
                 await async_delete_document(hass, asset_id, document_id, safe_name)
+                await _async_drop_gone_asset_dir(hass, coord, asset_id)
                 message = resolve_exception(lang, "invalid_asset", error=str(err))
                 return self.json_message(message, HTTPStatus.BAD_REQUEST)
 
@@ -733,6 +778,8 @@ class HomeKeeperPartFileView(HomeAssistantView):
             except AssetValidationError as err:
                 message = resolve_exception(lang, "invalid_asset", error=str(err))
                 return self.json_message(message, HTTPStatus.BAD_REQUEST)
+            if replaced := _replaced_response(hass, self, coord, lang):
+                return replaced
 
             # A re-upload replaces the existing file (only one slot per part) —
             # remember the old filename so its blob can be cleaned up once the new
@@ -763,7 +810,15 @@ class HomeKeeperPartFileView(HomeAssistantView):
                         "size": uploaded.size,
                     },
                 )
-            except (KeyError, AssetValidationError) as err:
+            except KeyError as err:
+                # The appliance or the part was deleted during the upload, so no
+                # record names the new blob. Delete it, also for a same-name
+                # re-upload: the move already replaced the old file (B06-10).
+                await async_delete_part_file(hass, asset_id, part_id, safe_name)
+                await _async_drop_gone_asset_dir(hass, coord, asset_id)
+                message = resolve_exception(lang, "invalid_asset", error=str(err))
+                return self.json_message(message, HTTPStatus.BAD_REQUEST)
+            except AssetValidationError as err:
                 # Metadata was rejected — don't leave an orphaned blob behind, unless
                 # it shares the old file's exact path (a same-name re-upload), in
                 # which case deleting it would destroy the still-valid previous file.
