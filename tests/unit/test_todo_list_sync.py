@@ -662,6 +662,67 @@ def test_a_task_deleted_mid_pass_drops_its_entry_without_a_word(caplog):
     assert caplog.records == []  # nothing to tell anyone about
 
 
+def test_398_a_date_moved_on_the_list_snoozes_the_task_to_it():
+    hass = _FakeHass({LIST: [_item(due="2026-06-20")]})
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    # A profile that lists every scheduled task, so the moved task stays on it.
+    sync, coordinator = _build(
+        hass, store, synced=[_synced_profile(filt={"status": "all"})]
+    )
+    again = _once(sync)
+    # Same time of day, on the date they picked.
+    until = datetime(2026, 6, 20, 9, 0, tzinfo=NOW.tzinfo)
+    assert store.snoozed == [(T1, until, ORIGIN)]
+    assert hass.services.calls == []  # their date is not written over
+    assert store.get_todo_list_items() == _tracked(_entry(due="2026-06-20"))
+    assert coordinator.refreshes == 1
+    assert coordinator.settles == 0
+    assert again is False
+    # The task now says what the list says, so the next pass has nothing to do.
+    _once(sync)
+    assert hass.services.calls == []
+    assert store.snoozed == [(T1, until, ORIGIN)]
+
+
+def test_398_a_task_moved_out_of_its_profile_leaves_the_list_until_due():
+    # The default profile lists overdue tasks only. A task moved into the future
+    # is not overdue now, so its item comes off, the same as after a snooze.
+    hass = _FakeHass({LIST: [_item(due="2026-06-20")]})
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    sync, _ = _build(hass, store)
+    _once(sync)
+    _once(sync)
+    assert hass.services.calls == [("remove_item", {"entity_id": LIST, "item": ["i1"]})]
+
+
+def test_398_a_task_that_will_not_move_says_so_and_gets_its_date_back(caplog):
+    hass = _FakeHass({LIST: [_item(due="2026-06-20")]})
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    store.snooze_error = TaskValidationError("dormant")
+    sync, coordinator = _build(hass, store)
+    with caplog.at_level("WARNING"):
+        _once(sync)
+    assert store.snoozed == []
+    assert coordinator.refreshes == 0
+    assert caplog.text.count("could not move task") == 1
+    # The next pass writes the task's own date back, and does not try again.
+    with caplog.at_level("WARNING"):
+        _once(sync)
+    assert _services(hass, "update_item") == [
+        {"entity_id": LIST, "item": "i1", "due_date": DUE}
+    ]
+    assert caplog.text.count("could not move task") == 1
+
+
+def test_398_a_task_deleted_mid_pass_is_not_moved():
+    hass = _FakeHass({LIST: [_item(due="2026-06-20")]})
+    store = _FakeStore(tasks={T1: _task()}, items=_tracked())
+    sync, _ = _build(hass, store)
+    plan = tm.TodoListPlan(reschedule=[tm.RescheduleOp(KEY, "gone", "2026-06-20")])
+    assert asyncio.run(sync._reschedule_tasks(plan, now=NOW)) is False
+    assert store.snoozed == []
+
+
 # ── guards ────────────────────────────────────────────────────────────────────
 
 
