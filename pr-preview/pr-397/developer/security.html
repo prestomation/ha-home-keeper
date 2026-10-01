@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Security model | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-397/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-397/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-397/developer/security"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Security model | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper has one rule: only an admin can manage the home. Any signed-in user"><meta data-rh="true" property="og:description" content="Home Keeper has one rule: only an admin can manage the home. Any signed-in user"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-397/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-397/developer/security"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-397/developer/security" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-397/developer/security" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Security","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-397/developer/security"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-397/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-397/assets/js/runtime~main.15abf22f.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-397/assets/js/runtime~main.232a4750.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-397/assets/js/main.391e8b15.js" defer="defer"></script>
 </head>
 <body>
@@ -19,9 +19,9 @@ see due tasks and complete them.</p>
 <p>A Home Assistant instance usually has 1 or 2 admins and a few users, such as
 a partner, older children, a housemate, or a guest account on a wall tablet.</p>
 <p>Home Assistant reserves Settings and Developer tools for admins. Home
-Assistant also restricts its own <code>config/*</code> commands, such as the device
-registry, the entity registry, and config entries, to admins. Home Keeper
-follows the same rule.</p>
+Assistant also restricts the changes that its own <code>config/*</code> commands make,
+such as changes to the device registry, the entity registry, and config
+entries, to admins. Home Keeper follows the same rule.</p>
 <p>The risks are small. A guest account must not:</p>
 <ul>
 <li class="">delete appliance records</li>
@@ -66,11 +66,22 @@ panel uses, and the matching <code>home_keeper.*</code> service.</p>
 
 
 
-<table><thead><tr><th>Operation</th><th>Services</th></tr></thead><tbody><tr><td>Create, edit, delete, archive and restore appliances</td><td><code>add_asset</code>, <code>update_asset</code>, <code>delete_asset</code>, <code>archive_asset</code>, <code>restore_asset</code></td></tr><tr><td>Appliance documents and part files</td><td><code>add_asset_document</code>, <code>update_asset_document</code>, <code>remove_asset_document</code>, <code>remove_part_file</code></td></tr><tr><td>Spare-part stock adjustments</td><td><code>adjust_part_stock</code></td></tr><tr><td>Settings, profiles and notification delivery</td><td><code>set_options</code></td></tr><tr><td>The appliance report (costs, serials, value totals)</td><td><code>export_appliance_report</code></td></tr><tr><td>Data export and import (every task, note, serial and cost)</td><td><code>export_data</code>, <code>import_data</code></td></tr></tbody></table>
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Operation</th><th>Services</th></tr></thead><tbody><tr><td>Create, edit, delete, archive and restore appliances</td><td><code>add_asset</code>, <code>update_asset</code>, <code>delete_asset</code>, <code>archive_asset</code>, <code>restore_asset</code></td></tr><tr><td>Appliance documents and part files</td><td><code>add_asset_document</code>, <code>update_asset_document</code>, <code>remove_asset_document</code>, <code>remove_part_file</code>, and a file upload (<code>POST</code>) to <code>/api/home_keeper/document/…</code> or <code>/api/home_keeper/part_document/…</code></td></tr><tr><td>Delete an archived completion from an appliance&#x27;s history</td><td><code>delete_archived_completion</code></td></tr><tr><td>Delete every orphaned task (a task whose managing integration is not loaded)</td><td><code>delete_orphaned_tasks</code></td></tr><tr><td>Spare-part stock adjustments</td><td><code>adjust_part_stock</code></td></tr><tr><td>Settings, profiles and notification delivery</td><td><code>set_options</code></td></tr><tr><td>The appliance report (costs, serials, value totals)</td><td><code>export_appliance_report</code></td></tr><tr><td>Data export and import (every task, note, serial and cost)</td><td><code>export_data</code>, <code>import_data</code></td></tr></tbody></table>
 <p>Home Keeper creates a Home Assistant device for each appliance, and removes
-the device when it deletes the appliance. Home Assistant reserves the
-device registry for admins, so appliance changes are admin-only for this
+the device when it deletes the appliance. Home Assistant reserves device
+registry changes for admins, so appliance changes are admin-only for this
 reason too.</p>
+<p>Any signed-in user can read the device registry, which shows the name, make,
+model and area of each appliance. For this reason, Home Keeper keeps the serial
+number only in the appliance record and does not copy it to the device.</p>
 <p>A websocket command and its service twin share one authenticated
 connection. If Home Keeper gates only the websocket command, <code>call_service</code>
 bypasses the gate. When you add a new admin operation, gate both the
@@ -89,6 +100,10 @@ same way Home Assistant does.</p>
 appliance&#x27;s documents, its link-type custom fields, and each part&#x27;s name,
 product URL, stock count, reorder point and stock unit. Stock is not private: the
 spares <code>number</code> entity of each part shows the count to every user.</p>
+<p>For a counted wear item, the narrowed view also has the replacement target, the
+name of the uses, and the count that came in with an import. The card uses these
+fields to show the progress, such as &quot;17 of 25 wears&quot;. The user who records the
+uses can then see the count.</p>
 <p>The narrowed view withholds purchase costs, part costs, part vendors, part numbers,
 serial numbers, warranty dates, and free-text custom fields. The narrowed view is an allowlist. A new appliance field stays private until a
 developer adds it to the allowlist.</p>
