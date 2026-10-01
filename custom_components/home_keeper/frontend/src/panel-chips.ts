@@ -32,6 +32,22 @@ import {
 } from './utils';
 
 /**
+ * Run *fn* on a click, and on Enter or Space. A `role="button"` span gets no click
+ * from the keyboard, so a greyed button wired by click only does nothing for a
+ * keyboard user (F07-7).
+ */
+export function onActivate(el: HTMLElement, fn: () => void): void {
+  el.addEventListener('click', fn);
+  el.addEventListener('keydown', (e) => {
+    const key = (e as KeyboardEvent).key;
+    if (key === 'Enter' || key === ' ') {
+      e.preventDefault();
+      fn();
+    }
+  });
+}
+
+/**
  * Whether a managed task's owning integration is no longer loaded. A task is
  * orphaned when its `config_entry_id` is set but absent from the loaded-entry
  * set (uninstalled, disabled, or failing to set up). Without a recorded

@@ -8,6 +8,7 @@ import {
   formatDate,
   formatQuantity,
   getTimeZone,
+  intervalText,
   normalizeIcon,
   recurrenceSummary,
   round1,
@@ -1565,7 +1566,7 @@ export function sensorHintText(
   const alsoEvery = Number(sd.sensor_also_every ?? task.sensor?.also_every?.interval) || 0;
   if (!backstopEnabled(task) || alsoEvery <= 0) return base;
   const alsoUnit = String(sd.sensor_also_unit ?? task.sensor?.also_every?.unit ?? 'months');
-  const every = `${alsoEvery} ${t(`opt.unit.${alsoUnit}`)}`;
+  const every = intervalText(alsoEvery, alsoUnit);
   const combinator = String(sd.sensor_combinator ?? task.sensor?.combinator ?? 'any');
   return `${base} ${
     combinator === 'all'

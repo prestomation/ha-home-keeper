@@ -850,11 +850,7 @@ function recurrenceText(task: Task): string {
     const target = s.unit ? `${s.target ?? ''} ${s.unit}` : (s.target ?? '');
     const summary = t('recurrence.sensorUsage', { target });
     if (!s.also_every) return summary;
-    // The plural-aware unit, as in the main summary: "every 1 month", not "every 1
-    // months" (F04-5). The backstop unit is always days, weeks or months.
-    const n = s.also_every.interval;
-    const base = s.also_every.unit.replace(/s$/, '');
-    const every = `${n} ${tn(`recurrence.unit.${base}`, n)}`;
+    const every = intervalText(s.also_every.interval, s.also_every.unit);
     return s.combinator === 'all'
       ? t('recurrence.sensorUsageAll', { summary, every })
       : t('recurrence.sensorUsageAny', { summary, every });
@@ -895,6 +891,15 @@ function recurrenceText(task: Task): string {
     summary = t('recurrence.season', { summary, range });
   }
   return summary;
+}
+
+/**
+ * "1 month", "5 months": a time interval with the plural-aware unit, as the main
+ * summary uses. The plural-only `opt.unit.*` label gave "every 1 months" (F04-5).
+ * *unit* is a time unit (days, weeks or months), as a usage backstop stores it.
+ */
+export function intervalText(n: number, unit: string): string {
+  return `${n} ${tn(`recurrence.unit.${unit.replace(/s$/, '')}`, n)}`;
 }
 
 /** True when the task's next due date is at or before now. */
@@ -1255,6 +1260,19 @@ export function deviceName(
   const dev = devices?.[deviceId];
   if (!dev) return '';
   return dev.name_by_user || dev.name || '';
+}
+
+/**
+ * The title an appliance shows: its name, else its device's name, else the generic
+ * fallback. An appliance on an existing device can have no name of its own, so every
+ * surface that shows or sorts by the title must use this, not `asset.name`
+ * (F07-6, F07-11).
+ */
+export function assetTitle(
+  asset: { name?: string; device_id?: string | null },
+  devices: Record<string, { name?: string; name_by_user?: string | null }> | undefined,
+): string {
+  return asset.name || deviceName(devices, asset.device_id) || t('appliance.fallbackName');
 }
 
 /**

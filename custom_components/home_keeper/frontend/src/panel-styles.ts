@@ -1192,8 +1192,11 @@ export const STYLES = `
     cursor: pointer;
     background: var(--secondary-background-color);
     z-index: 1;
+    /* A <button>, so drop the browser's own box. */
+    border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
   }
   .hk-chevron:hover { background: var(--divider-color); }
+  .hk-chevron:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
   .hk-chevron::after {
     content: '';
     display: inline-block;
@@ -1774,6 +1777,12 @@ export const STYLES = `
 
   @media (max-width: 700px) {
     ha-tab-group { display: none; }
+    /* The tree toggle keeps its 24px look, but a transparent ring takes the tap
+       target to --hk-tap (X11-4). */
+    .hk-chevron::before {
+      content: ''; position: absolute;
+      inset: calc((24px - var(--hk-tap)) / 2);
+    }
     /* Four figures do not fit across a 390px card. Left to wrap on their own widths
        they come out 3 and 1, which reads as one figure left over; a half-width floor
        makes it 2 and 2, so the strip stays a block rather than a ragged line. */

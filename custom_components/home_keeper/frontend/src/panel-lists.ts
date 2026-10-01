@@ -20,6 +20,7 @@ import {
   deviceChip,
   isManagedOrphan,
   managedChip,
+  onActivate,
   tagChip,
   taskChipsList,
   virtualDeviceChip,
@@ -45,7 +46,7 @@ import {
   assetSummary,
   btnAttrs,
   buildAssetTree,
-  deviceName,
+  assetTitle,
   escapeHTML,
   formatDate,
   isBuyTask,
@@ -196,7 +197,12 @@ export function assetsList(p: PanelHost): string {
       : '';
     return `<ha-alert alert-type="info">${escapeHTML(t(emptyKey))}${showAll}</ha-alert>`;
   }
-  const cmp = (a: Asset, b: Asset) => (a.name || '').localeCompare(b.name || '');
+  // Sort on the title the row shows. An appliance on an existing device can have no
+  // name of its own and shows its device's name, so sorting on `name` put every such
+  // appliance first (F07-6).
+  const devices = p._hass?.devices;
+  const cmp = (a: Asset, b: Asset) =>
+    assetTitle(a, devices).localeCompare(assetTitle(b, devices));
   if (p._assetView === 'tree') {
     const tree = buildAssetTree(filtered, cmp);
     const renderEntries = (entries: AssetTreeEntry<Asset>[]): string => {
@@ -209,7 +215,9 @@ export function assetsList(p: PanelHost): string {
           const hasChildren = i + 1 < entries.length && entries[i + 1].depth > depth;
           if (hasChildren) {
             const [childrenHtml, nextI] = sub(i + 1, depth);
-            const isOpen = !p._treeCollapsed.has(entry.item.id);
+            // A search opens every group, as it opens the grouped sections: a match
+            // under a collapsed parent must not stay hidden (F07-10).
+            const isOpen = !!p._query || !p._treeCollapsed.has(entry.item.id);
             html += `<div class="hk-tree-group${isOpen ? ' hk-tree-open' : ''}">
                 ${assetCard(p, entry.item, depth, false, entry.item.id)}
                 <div class="hk-tree-children">${childrenHtml}</div>
@@ -363,8 +371,7 @@ function assetCard(p: PanelHost, x: Asset, depth = 0, isLast = false, toggleId =
       : x.device_id
         ? deviceChip(p, x.device_id)
         : '';
-  const title =
-    x.name || deviceName(p._hass?.devices, x.device_id) || t('appliance.fallbackName');
+  const title = assetTitle(x, p._hass?.devices);
   // Split the way a task row splits. What the appliance *is* — its device, where it
   // hangs, whether it is retired — reads beside the name; what it *holds* reads in the
   // status rail, the same column a task's due pill lands in. One grammar for both
@@ -392,8 +399,15 @@ function assetCard(p: PanelHost, x: Asset, depth = 0, isLast = false, toggleId =
   ].join('');
   const depthClass = depth > 0 ? ' hk-tree-child' : '';
   const depthStyle = depth > 0 ? ` style="--hk-tree-depth: ${depth}"` : '';
+  // A real button, so a keyboard and a screen reader can reach it and read its state
+  // (X11-4). Its open state is the group's, which `renderEntries` sets above.
+  const treeOpen = !!p._query || !p._treeCollapsed.has(x.id);
   const chevron = toggleId
-    ? `<span class="hk-chevron" data-tree-toggle="${escapeHTML(toggleId)}"></span>`
+    ? `<button type="button" class="hk-chevron" data-tree-toggle="${escapeHTML(
+        toggleId,
+      )}" aria-expanded="${treeOpen}" aria-label="${escapeHTML(
+        t(treeOpen ? 'tree.collapse' : 'tree.expand', { name: title }),
+      )}"></button>`
     : '';
   // In the master pane the list doubles as a picker, so the appliance on screen
   // beside it is marked.
@@ -476,7 +490,12 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
     ch.addEventListener('click', (e) => {
       e.stopPropagation();
       const group = ch.closest('.hk-tree-group');
-      if (group) group.classList.toggle('hk-tree-open');
+      if (group) {
+        const open = group.classList.toggle('hk-tree-open');
+        ch.setAttribute('aria-expanded', String(open));
+        const name = ch.closest('.hk-card')?.querySelector('.hk-name')?.textContent ?? '';
+        ch.setAttribute('aria-label', t(open ? 'tree.collapse' : 'tree.expand', { name }));
+      }
       const id = ch.dataset.treeToggle;
       if (id) {
         if (p._treeCollapsed.has(id)) p._treeCollapsed.delete(id);
@@ -511,7 +530,7 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
   // A completion-blocked Done (card row or detail) explains why on click rather
   // than completing — its source clears it.
   root.querySelectorAll<HTMLElement>('.done-blocked-wrap').forEach((b) =>
-    b.addEventListener('click', () => {
+    onActivate(b, () => {
       const task = p._tasks.find((x) => x.id === b.dataset.id);
       if (task) p._notifyBlocked(task);
     }),
