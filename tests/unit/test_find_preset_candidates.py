@@ -88,3 +88,13 @@ def test_core_strings_are_read_from_a_sparse_clone(tmp_path):
     bad.mkdir()
     (bad / "strings.json").write_text("{not json")
     assert find.read_core(tmp_path) == {"purifier": STRINGS["purifier"]}
+
+
+def test_hacs_names_compare_in_any_case():
+    found = find.hacs_candidates(
+        [],
+        ["Acme/Known", "ACME/Skipped", "acme/new"],
+        {"acme/KNOWN"},
+        {"hacs:Acme/skipped": {"keys": [], "reason": "z"}},
+    )
+    assert found == ["acme/new"]

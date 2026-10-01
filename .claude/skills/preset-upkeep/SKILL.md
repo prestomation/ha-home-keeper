@@ -51,6 +51,12 @@ For each record in the report with `missing` keys or a `fetch_error`:
 - `branch ... not found`: the default branch changed. Find it with
   `git ls-remote --symref https://github.com/<owner>/<repo> HEAD` and fix `source`.
 - A file that moved: fix `source` to the new path.
+- `cannot reach the repository`: a network error, not a change upstream. Run the
+  check again for that domain (`python ci/check_preset_keys.py <domain>`). When it
+  still fails, leave the entry and list it in the PR.
+- `pin_error` (no diff, the pinned commit is gone, for example after a force push):
+  the head was still checked. Read the upstream history of the file by hand for new
+  keys, then pin the entry as usual.
 
 ## 3. New keys in integrations we cover
 

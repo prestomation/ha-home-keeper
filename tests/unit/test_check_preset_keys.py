@@ -146,6 +146,10 @@ def test_a_record_says_what_it_cannot_read():
     entry = _entry(verified={"ref": "old", "date": "2026-01-01"})
     assert (
         "branch main not found"
+        in check.check_entry(entry, _fake_fetch({}), "")["fetch_error"]
+    )
+    assert (
+        "ls-remote failed"
         in check.check_entry(entry, _fake_fetch({}), None)["fetch_error"]
     )
     assert (
@@ -153,7 +157,13 @@ def test_a_record_says_what_it_cannot_read():
         in check.check_entry(entry, _fake_fetch({}), "head")["fetch_error"]
     )
     head_only = _fake_fetch({SOURCE.replace("/main/", "/head/"): NEW})
-    assert "commit old" in check.check_entry(entry, head_only, "head")["fetch_error"]
+    # A pinned commit that is gone gives no diff, but the head is still checked, so
+    # the entry is not a break and can be pinned again.
+    gone = check.check_entry(entry, head_only, "head")
+    assert gone["fetch_error"] is None
+    assert "commit old" in gone["pin_error"]
+    assert gone["missing"] == ["sensor.brush_time_left"]
+    assert gone["added"] == {}
     bad = {**entry, "source": "https://example.com/en.json"}
     assert (
         "not a raw GitHub URL"
@@ -244,3 +254,11 @@ def test_a_duty_word_matches_the_start_of_a_part_of_the_key():
     assert not check.has_duty_word("sprinkler_mode")
     assert not check.has_duty_word("door_front_left")
     assert not check.has_duty_word("battery")
+
+
+def test_pinning_a_new_entry_twice_leaves_one_block():
+    once = check.pin_text(CATALOG_TEXT, "first", "abc", "2026-10-01")
+    twice = check.pin_text(once, "first", "def", "2026-10-02")
+    assert twice.count('"verified"') == 2  # first and second, one each
+    assert '"ref": "abc"' not in twice
+    assert '"ref": "def"' in twice and '"ref": "old"' in twice

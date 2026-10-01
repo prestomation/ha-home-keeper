@@ -97,7 +97,8 @@ def core_candidates(
             continue
         keys = check.entity_keys(strings[domain])
         hints = check.duty_hints({p: sorted(k) for p, k in sorted(keys.items())})
-        seen = set(reviewed.get(f"core:{domain}", {}).get("keys", []))
+        # Domains are lowercase in core, and --mark stores ids in lowercase.
+        seen = set(reviewed.get(f"core:{domain}".lower(), {}).get("keys", []))
         new = [h for h in hints if h not in seen]
         if new:
             found[domain] = new
@@ -107,14 +108,20 @@ def core_candidates(
 def hacs_candidates(
     old: list[str], new: list[str], catalog_repos: set[str], reviewed: dict[str, Any]
 ) -> list[str]:
-    """The repositories added to the HACS list from *old* to *new* to look at."""
+    """The repositories added to the HACS list from *old* to *new* to look at.
+
+    GitHub names are not case-sensitive, so every comparison is in lowercase. The
+    result keeps the case of the HACS list.
+    """
     before = {r.lower() for r in old}
+    known = {r.lower() for r in catalog_repos}
+    done = {ident.lower() for ident in reviewed}
     return [
         repo
         for repo in new
         if repo.lower() not in before
-        and repo.lower() not in catalog_repos
-        and f"hacs:{repo.lower()}" not in reviewed
+        and repo.lower() not in known
+        and f"hacs:{repo.lower()}" not in done
     ]
 
 

@@ -200,11 +200,15 @@ def check_entry(
         "removed": {},
         "hints": [],
         "fetch_error": None,
+        "pin_error": None,
     }
     if source is None:
         record["fetch_error"] = "source is not a raw GitHub URL"
         return record
     if head_ref is None:
+        record["fetch_error"] = "cannot reach the repository: git ls-remote failed"
+        return record
+    if not head_ref:
         record["fetch_error"] = (
             f"branch {source['branch']} not found: the default branch may have changed"
         )
@@ -217,7 +221,9 @@ def check_entry(
     if pinned and pinned != head_ref:
         old = fetch(raw_url(source, pinned))
         if old is None:
-            record["fetch_error"] = (
+            # The pinned commit is gone (a force push) or the file was not there
+            # then. The head is still checked, so the entry can be pinned again.
+            record["pin_error"] = (
                 f"cannot read the source at the pinned commit {pinned}"
             )
             return record
@@ -271,7 +277,11 @@ def _fetch(url: str) -> dict[str, Any] | None:
 
 
 def _ls_remote(owner: str, repo: str, branch: str) -> str | None:
-    """The commit at the head of *branch*, from ``git ls-remote``."""
+    """The commit at the head of *branch*, from ``git ls-remote``.
+
+    ``""`` when the repository answers and has no such branch, ``None`` when it
+    cannot be reached, so a renamed branch and a network error are told apart.
+    """
     try:
         out = subprocess.run(
             [
@@ -289,7 +299,7 @@ def _ls_remote(owner: str, repo: str, branch: str) -> str | None:
         print(f"  LS-REMOTE FAILED: {owner}/{repo} {branch} ({err})")
         return None
     first = out.split()
-    return first[0] if first else None
+    return first[0] if first else ""
 
 
 def head_refs(
@@ -348,6 +358,8 @@ def _print(records: list[dict[str, Any]]) -> int:
             print(f"  {count} new keys since the pinned commit")
         if not record["pinned_ref"]:
             print("  no pinned commit")
+        if record["pin_error"]:
+            print(f"  no diff: {record['pin_error']}")
     print(f"\n{len(records)} integrations checked, {problems} with a problem.")
     return problems
 
