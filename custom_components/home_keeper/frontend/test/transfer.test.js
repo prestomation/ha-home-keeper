@@ -377,3 +377,53 @@ describe('Settings — Import and export', () => {
     expect(saved[0].contents).toContain('# yaml-language-server: $schema=');
   });
 });
+
+describe('F03-4: the import file picker', () => {
+  /** Pick *file* on the card's hidden file input. */
+  async function pick(panel, file) {
+    const picker = panel.shadowRoot.querySelector('#hk-transfer input[type="file"]')
+      ?? panel.shadowRoot.querySelector('input[type="file"]');
+    expect(picker, 'the card should hold a file picker').toBeTruthy();
+    Object.defineProperty(picker, 'files', { value: [file], configurable: true });
+    picker.dispatchEvent(new Event('change'));
+    await new Promise((r) => setTimeout(r, 0));
+  }
+
+  it('refuses a file over the limit before it reads it', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    let read = 0;
+    const big = {
+      name: 'big.yaml',
+      size: 4 * 1024 * 1024 + 1,
+      text: () => {
+        read++;
+        return Promise.resolve('x');
+      },
+    };
+    await pick(panel, big);
+    expect(read).toBe(0);
+    expect(panel._transfer.text).toBe('');
+    expect(panel._transfer.error).toContain("over the panel's 4 MB limit");
+    expect(panel._transfer.error).toContain('up to 8 MB');
+    // A file at the limit is read.
+    await pick(panel, { ...big, size: 4 * 1024 * 1024 });
+    expect(read).toBe(1);
+    expect(panel._transfer.text).toBe('x');
+    expect(panel._transfer.error).toBe('');
+  });
+
+  it('says so when the read fails', async () => {
+    const { hass } = makeHass();
+    const panel = await mount(hass);
+    await pick(panel, {
+      name: 'gone.yaml',
+      size: 10,
+      text: () => Promise.reject(new Error('The file is gone')),
+    });
+    expect(panel._transfer.error).toBe('The panel cannot read the file: The file is gone');
+    expect(panel.shadowRoot.querySelector('#hk-transfer').textContent).toContain(
+      'The panel cannot read the file',
+    );
+  });
+});

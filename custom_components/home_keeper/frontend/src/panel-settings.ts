@@ -47,6 +47,7 @@ import {
   type HaFormElement,
 } from './forms';
 import { t, tlist, tn } from './i18n';
+import { MAX_IMPORT_BYTES, MAX_IMPORT_WS_BYTES } from './limits';
 import { declarativeSection, wireDeclarativeSection } from './panel-declarative';
 import { openBlockedDialog, openConfirmDialog } from './panel-dialogs';
 import { indentGroup } from './panel-indent';
@@ -1400,8 +1401,11 @@ function addProfile(p: PanelHost): Promise<void> {
     // carry the defaults the backend normalizer would fill in.
     sync: { entity_id: '', two_way: true, vanish_as_completed: true },
   };
+  // A failed add puts the list back. Kept, the blank row is off screen but rides on
+  // every later save of the list, and a second Add sends 2 blanks (F03-2).
   return persistOptionList(p, 'profiles', [...(p._options?.profiles ?? []), blank], true, {
     expandLast: true,
+    rollbackOnFailure: true,
   });
 }
 
@@ -1777,6 +1781,14 @@ async function testNotification(
 ): Promise<void> {
   const hass = p._hass;
   if (!hass) return;
+  // A notification with no device has no place to send to, and the service refuses
+  // it. Its error comes back through `call_service` in English, with advice about a
+  // service field the panel does not show. Say it here in the panel language, and
+  // send nothing (X09-2).
+  if (!current().targets?.length) {
+    toast(p, t('notify.test_no_target', { field: t('notify.targets') }));
+    return;
+  }
   // Test saves the row itself, so the armed autosave of the row has no work left.
   // Left armed, it fired during the reload that this save starts, and reported Not
   // saved for a value that was saved (X12-2).
@@ -1812,7 +1824,8 @@ function addNotification(p: PanelHost): Promise<void> {
     'notifications',
     [...(p._options?.notifications ?? []), blank],
     true,
-    { expandLast: true },
+    // Rolled back on failure, as a profile add is (F03-2).
+    { expandLast: true, rollbackOnFailure: true },
   );
 }
 
@@ -2129,13 +2142,33 @@ function wireTransfer(p: PanelHost, root: HTMLElement): void {
     const file = picker.files?.[0];
     picker.value = '';
     if (!file) return;
-    void file.text().then((contents) => {
-      p._transfer.text = contents;
-      p._transfer.filename = file.name;
-      p._transfer.report = null;
-      p._transfer.error = '';
+    p._transfer.report = null;
+    // Check the size before the read. A file over the limit can never be sent, and
+    // reading a large one into the text box can stop the tab (F03-4).
+    if (file.size > MAX_IMPORT_WS_BYTES) {
+      p._transfer.error = t('transfer.tooLarge', {
+        mb: MAX_IMPORT_WS_BYTES / (1024 * 1024),
+        max: MAX_IMPORT_BYTES / (1024 * 1024),
+      });
       p._render();
-    });
+      return;
+    }
+    file.text().then(
+      (contents) => {
+        p._transfer.text = contents;
+        p._transfer.filename = file.name;
+        p._transfer.error = '';
+        p._render();
+      },
+      // A read can fail (the file moved, or the browser refused it). Say so, rather
+      // than leave the card as it was with no message (F03-4).
+      (err: unknown) => {
+        p._transfer.error = t('transfer.readFailed', {
+          error: String((err as { message?: string })?.message || err),
+        });
+        p._render();
+      },
+    );
   });
   root.appendChild(picker);
   root.querySelector('#transfer-pick')?.addEventListener('click', () => picker.click());
