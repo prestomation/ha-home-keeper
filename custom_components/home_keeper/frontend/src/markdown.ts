@@ -114,8 +114,12 @@ export function wireMarkdown(root: ParentNode | null | undefined): void {
  * or a thematic break. Deliberately conservative — plain prose renders identically to
  * what the user already typed, so previewing it is just noise in the form.
  */
+// A line-start pattern uses `[ \t]`, not `\s`, so it cannot run across line ends. The
+// link scan stops at a line end and has a length limit. Without these limits, a note
+// of many blank lines or many unclosed `[` made each test() quadratic, and update()
+// runs it on every keystroke.
 const MARKDOWN_HINT =
-  /(\*\*?[^*\s][^*]*\*)|(__?[^_\s][^_]*_)|(`)|(^\s{0,3}#{1,6}\s)|(^\s*([-*+]|\d+\.)\s)|(^\s*>\s?)|(\[[^\]]*\]\([^)]*\))|(^\s*\|.*\|)|(^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$)/m;
+  /(\*\*?[^*\s][^*]*\*)|(__?[^_\s][^_]*_)|(`)|(^[ \t]{0,3}#{1,6}\s)|(^[ \t]*([-*+]|\d+\.)\s)|(^[ \t]*>)|(\[[^\]\n]{0,300}\]\([^)\n]{0,1000}\))|(^[ \t]*\|.*\|)|(^[ \t]{0,3}(-{3,}|\*{3,}|_{3,})[ \t]*$)/m;
 
 /** True when *text* contains Markdown worth previewing (see `MARKDOWN_HINT`). */
 export function looksLikeMarkdown(text: unknown): boolean {
