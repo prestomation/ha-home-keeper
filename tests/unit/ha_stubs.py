@@ -1,6 +1,6 @@
 """One Home Assistant stub tree for the unit suites that load HA-coupled modules.
 
-Seven suites here (``test_calendar``, ``test_coordinator_purge``,
+Eight suites here (``test_button``, ``test_calendar``, ``test_coordinator_purge``,
 ``test_device_heal``, ``test_notifier_blocking``, ``test_shopping_sync``,
 ``test_todo``, ``test_todo_list_sync``) load a **real** module out of
 ``custom_components/home_keeper`` under the synthetic ``hk`` package (see
@@ -17,9 +17,9 @@ The contract every caller depends on:
   overwritten.
 * **Idempotent, and load-order-free.** Because it only fills gaps, it does not
   matter which suite gets here first, or how many times it is called.
-* **A superset.** It registers the union of what all seven suites import, so a
+* **A superset.** It registers the union of what all eight suites import, so a
   suite may find symbols present that it does not itself need. That is
-  deliberate: one tree with everything in it beats seven that disagree.
+  deliberate: one tree with everything in it beats eight that disagree.
 * **It does not pin the clock.** ``homeassistant.util.dt.now`` *raises*, because
   a shared "now" that silently answers the wrong instant is worse than one that
   says it was never set up. Every suite that needs a fixed clock pins
@@ -89,7 +89,7 @@ def install_ha_stubs() -> None:
 
 
 def _install_components(ha: types.ModuleType) -> None:
-    """``homeassistant.components.{calendar,todo}`` — the two entity platforms."""
+    """``homeassistant.components.{calendar,todo,button}`` — the entity platforms."""
     components = _mod("homeassistant.components")
     ha.components = components
 
@@ -161,6 +161,15 @@ def _install_components(ha: types.ModuleType) -> None:
 
         comp_todo.TodoListEntityFeature = TodoListEntityFeature
     components.todo = comp_todo
+
+    comp_button = _mod("homeassistant.components.button")
+    if not hasattr(comp_button, "ButtonEntity"):
+
+        class ButtonEntity:
+            pass
+
+        comp_button.ButtonEntity = ButtonEntity
+    components.button = comp_button
 
 
 def _install_config_entries() -> None:

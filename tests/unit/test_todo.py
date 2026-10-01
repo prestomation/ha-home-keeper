@@ -93,6 +93,7 @@ class FakeStore:
         if self.raise_on_update is not None:
             raise self.raise_on_update
         self.updated.append((task_id, updates))
+        self._tasks[task_id] = {**self._tasks[task_id], **updates}
         return self._tasks[task_id]
 
 
@@ -109,9 +110,18 @@ def _entity(*tasks: dict):
 
         return _call
 
+    def _reload(entry_id: str):
+        calls.append(f"reload {entry_id}")
+
+    hass = types.SimpleNamespace(
+        config_entries=types.SimpleNamespace(async_reload=_reload),
+        async_create_task=lambda job: calls.append(f"task: {job}"),
+    )
     entity.coordinator = types.SimpleNamespace(
         data=by_id,
         store=store,
+        hass=hass,
+        entry=types.SimpleNamespace(entry_id="entry1"),
         async_settle_buy_tasks=_record("settle"),
         async_request_refresh=_record("refresh"),
     )
@@ -519,3 +529,34 @@ def test_x13_4_the_entity_has_a_translated_name_on_the_service_device() -> None:
     strings = json.loads((component / "home_keeper" / "strings.json").read_text())
     platform = "todo"
     assert strings["entity"][platform]["tasks"]["name"] == "Tasks"
+
+
+def test_b15_6_renaming_a_device_task_reloads_the_entry() -> None:
+    """A rename must make the device-page entities again with the new name."""
+    task = _task("dev", "floating", next_due=DUE.isoformat(), device_id="d1")
+    entity, store, calls = _entity(task)
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(uid="dev", summary="New name", status=TodoItemStatus.NEEDS_ACTION)
+        )
+    )
+    assert store.updated == [("dev", {"name": "New name"})]
+    # The reload is a separate task, and no refresh runs before it.
+    assert calls == ["reload entry1", "task: None"]
+
+
+def test_b15_6_notes_edit_on_a_device_task_only_refreshes() -> None:
+    task = _task("dev", "floating", next_due=DUE.isoformat(), device_id="d1")
+    entity, store, calls = _entity(task)
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(
+                uid="dev",
+                summary=task["name"],
+                description="new notes",
+                status=TodoItemStatus.NEEDS_ACTION,
+            )
+        )
+    )
+    assert store.updated == [("dev", {"notes": "new notes"})]
+    assert calls == ["refresh"]
