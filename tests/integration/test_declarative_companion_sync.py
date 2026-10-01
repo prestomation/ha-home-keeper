@@ -681,7 +681,8 @@ def test_the_preset_list_counts_the_entities_each_integration_preset_matches(ha)
 
     The Tuya Local stub has one sensor with the ``filter_life`` key, so its preset
     matches 1 entity. The container has no device for the other integration presets,
-    so each of those counts 0, and a general preset carries no count at all.
+    so each of those counts 0. A general preset carries its count too, for the Tasks
+    tab's suggestions (see the test below); the picker does not sort by it.
     """
     token = ha.headers["Authorization"].split(" ", 1)[1]
     reply = ws_send(token, {"type": "home_keeper/list_declarative_presets"})
@@ -693,7 +694,7 @@ def test_the_preset_list_counts_the_entities_each_integration_preset_matches(ha)
     counted = {p["id"]: p["matches"] for p in integration}
     assert counted.pop("tuya_local_percent_low") == 1
     assert set(counted.values()) == {0}
-    assert general and all(p["matches"] is None for p in general)
+    assert general and all(isinstance(p["matches"], int) for p in general)
 
 
 def test_only_these_devices_selects_the_entities_of_one_device(ha, specs):
@@ -1079,3 +1080,25 @@ def test_b03_2_deleting_a_device_backed_companion_removes_its_entities(ha, specs
             return
         time.sleep(2)
     raise AssertionError(f"entities of the deleted task are still there: {left}")
+
+
+def test_the_preset_list_counts_the_entities_each_preset_matches(ha):
+    """``list_declarative_presets`` counts each preset's matches from the registry.
+
+    The Tasks tab suggests a preset only when it matches something, so the count has
+    to come from Home Assistant's real entity registry, for the general presets as
+    well as the integration ones. The container has one update entity, no Device
+    Pulse and no ``_last_seen`` sensor.
+    """
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(token, {"type": "home_keeper/list_declarative_presets"})
+    assert reply.get("success"), reply
+    general = ("device_pulse", "firmware_update_available", "device_stopped_reporting")
+    counts = {
+        p["id"]: p["matches"] for p in reply["result"]["presets"] if p["id"] in general
+    }
+    assert counts == {
+        "device_pulse": 0,
+        "firmware_update_available": 1,
+        "device_stopped_reporting": 0,
+    }

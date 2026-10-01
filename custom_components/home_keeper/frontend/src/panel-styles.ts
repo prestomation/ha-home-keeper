@@ -411,6 +411,45 @@ export const STYLES = `
   .hk-intro-body { color: var(--secondary-text-color); font-size: 0.9rem; margin: 8px 0; }
   .hk-intro ul { margin: 8px 0 12px; padding-inline-start: 20px; }
   .hk-intro li { color: var(--secondary-text-color); font-size: 0.9rem; margin: 4px 0; line-height: 1.4; }
+  /* Preset suggestions above the task list: the same card as the intro, with one
+     tile per preset. Two tiles side by side where they fit, one per row on a phone. */
+  .hk-preset-nudge {
+    border: 1px solid var(--divider-color);
+    border-radius: 12px; padding: 12px 12px 8px 16px; margin-bottom: 16px;
+    background: var(--card-background-color);
+  }
+  .hk-preset-nudge-head { display: flex; align-items: center; gap: 8px; }
+  .hk-preset-nudge-head .hk-form-title { flex: 1; margin-bottom: 0; }
+  .hk-preset-nudge-body { color: var(--secondary-text-color); font-size: 0.9rem; margin: 4px 0 10px; }
+  .hk-preset-nudge-list {
+    list-style: none; margin: 0; padding: 0; display: grid; gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  }
+  .hk-preset-nudge-row {
+    display: flex; align-items: center; gap: 12px; min-width: 0;
+    padding: 8px 8px 8px 12px; border: 1px solid var(--divider-color); border-radius: 10px;
+  }
+  .hk-preset-nudge-icon {
+    flex: none; width: 36px; height: 36px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--hk-accent-soft); color: var(--hk-accent-ink);
+  }
+  .hk-preset-nudge-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .hk-preset-nudge-name { font-weight: 500; }
+  .hk-preset-nudge-count { color: var(--secondary-text-color); font-size: 0.85rem; }
+  .hk-preset-nudge-setup { flex: none; }
+  .hk-preset-nudge-actions {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin-top: 6px;
+    margin-inline-start: -8px;
+  }
+  .hk-preset-nudge-all {
+    display: inline-flex; align-items: center; min-height: var(--hk-tap); padding: 0 8px;
+    color: var(--secondary-text-color); font-size: 0.9rem; font-weight: 500;
+    text-decoration: none;
+  }
+  .hk-preset-nudge-all:hover, .hk-preset-nudge-all:focus-visible {
+    color: var(--primary-color); text-decoration: underline;
+  }
   /* Collapsible advanced sections in the appliance editor (native <details>). */
   details.hk-collapsible { margin: 0; }
   details.hk-collapsible > summary {
@@ -2036,6 +2075,27 @@ export const STYLES = `
   }
   .hk-decl-preset-empty { color: var(--secondary-text-color); padding: 8px 0; }
   .hk-decl-preset-all { align-self: flex-start; }
+  /* The one-time preset suggestion dialog. A row is a <label> around a native
+     checkbox, so a tap anywhere on the row toggles it. No min-width, for the
+     reason given at .hk-decl-dialog-body below. */
+  .hk-preset-dialog-body { margin: 0 0 12px; color: var(--secondary-text-color); }
+  .hk-preset-dialog-list { display: grid; gap: 8px; }
+  .hk-preset-pick {
+    display: flex; align-items: center; gap: 12px; padding: 12px; min-height: 44px;
+    border: 1px solid var(--divider-color); border-radius: 12px; cursor: pointer;
+    box-sizing: border-box;
+  }
+  .hk-preset-pick:has(input:checked) {
+    border-color: var(--hk-accent-line); background: var(--hk-accent-soft);
+  }
+  .hk-preset-pick input {
+    flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--primary-color);
+  }
+  .hk-preset-pick ha-icon { flex: none; color: var(--hk-accent-ink); }
+  .hk-preset-pick-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .hk-preset-pick-name { font-weight: 500; }
+  .hk-preset-pick-desc { color: var(--secondary-text-color); font-size: 0.9rem; }
+  .hk-preset-pick-count { color: var(--hk-accent-ink); font-size: 0.85rem; font-weight: 500; }
   /* No min-width: an ha-dialog is a fixed width (580px at its default "medium"),
      so a body wider than that dialog's content box does not widen the dialog — it
      overruns it. A 560px floor put every row 28px past the right padding edge, and
@@ -2162,6 +2222,52 @@ export const STYLES = `
   .hk-decl-keyopt-key { font-family: var(--code-font-family, monospace); font-size: 0.84rem; overflow-wrap: anywhere; }
   .hk-decl-keyopt-ex { font-size: 0.8rem; color: var(--secondary-text-color); overflow-wrap: anywhere; }
   .hk-decl-keyopt-count { font-size: 0.75rem; color: var(--secondary-text-color); white-space: nowrap; }
+  /* The preset summary at the top of the companion form. */
+  .hk-preset-summary {
+    display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; margin-bottom: 8px;
+    border: 1px solid var(--hk-accent-line); border-radius: 12px; background: var(--hk-accent-soft);
+  }
+  .hk-preset-summary-head { display: flex; align-items: center; gap: 10px; }
+  .hk-preset-summary-icon {
+    flex: none; width: 36px; height: 36px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--hk-surface); color: var(--hk-accent-ink);
+  }
+  .hk-preset-summary-title { display: flex; flex-direction: column; min-width: 0; }
+  .hk-preset-summary-kicker {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--hk-accent-ink);
+  }
+  .hk-preset-summary-name { font-weight: 500; overflow-wrap: anywhere; }
+  .hk-preset-summary-desc { margin: 0; line-height: 1.45; }
+  .hk-preset-summary-tasks { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .hk-preset-summary-label { font-size: 0.8rem; color: var(--secondary-text-color); margin-right: 4px; }
+  .hk-preset-summary-tasks .hk-decl-preset-task { background: var(--hk-surface); }
+  .hk-preset-summary-changed {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+    border-top: 1px solid var(--hk-accent-line); padding-top: 8px;
+  }
+  .hk-preset-summary-changed[hidden] { display: none; }
+  .hk-preset-summary-chip {
+    font-size: 0.8rem; font-weight: 500; padding: 2px 10px; border-radius: 999px;
+    background: var(--hk-warn-soft); color: var(--hk-warn-ink);
+    border: 1px solid color-mix(in srgb, var(--hk-warn) 45%, transparent);
+  }
+  .hk-preset-summary-reset {
+    margin-left: auto; min-height: var(--hk-tap, 44px); padding: 0 8px; border: 0; border-radius: 8px;
+    background: none; color: var(--hk-accent-ink); font: inherit; font-weight: 500; cursor: pointer;
+  }
+  .hk-preset-summary-reset:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+  .hk-preset-summary-note { flex-basis: 100%; font-size: 0.8rem; color: var(--secondary-text-color); }
+  .hk-decl-reading {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px;
+    font-size: 0.8rem; color: var(--secondary-text-color);
+  }
+  .hk-decl-reading-bar {
+    flex: 0 0 80px; height: 6px; border-radius: 3px; overflow: hidden;
+    background: var(--hk-line);
+  }
+  .hk-decl-reading-bar > span { display: block; height: 100%; background: var(--hk-accent); }
   .hk-decl-preview-key {
     display: inline-block; margin-top: 2px; font-family: var(--code-font-family, monospace); font-size: 0.72rem;
     padding: 0 6px; border-radius: 8px; background: var(--card-background-color);

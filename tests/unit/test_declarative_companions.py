@@ -1233,10 +1233,30 @@ def test_preset_by_id_lookup():
     assert presets.preset_by_id("nonexistent") is None
 
 
-def test_device_pulse_preset_uses_threshold_mode():
-    """Device Pulse rides on the existing threshold mode, not availability."""
-    preset = presets.preset_by_id("device_pulse")
-    assert preset["default_spec"]["trigger"]["mode"] == "threshold"
+def test_device_pulse_preset_watches_the_ping_status():
+    """Device Pulse watches the per-device connectivity sensor, off for an hour.
+
+    Not the failed-ping counter: ``*_total_failed_pings`` counts every failed ping
+    until someone resets it by hand, so a task on it never closed.
+    """
+    spec = presets.preset_by_id("device_pulse")["default_spec"]
+    assert spec["selection"]["target_integration"] == "device_pulse"
+    assert spec["selection"]["domain"] == "binary_sensor"
+    assert spec["selection"]["device_class"] == "connectivity"
+    assert "entity_regex" not in spec["selection"]
+    assert spec["trigger"] == {
+        "mode": "state",
+        "state": "off",
+        "for_seconds": 3600,
+        "clear_on_recover": True,
+    }
+
+
+def test_stopped_reporting_preset_reads_timestamp_sensors_two_days_stale():
+    spec = presets.preset_by_id("device_stopped_reporting")["default_spec"]
+    assert spec["selection"]["device_class"] == "timestamp"
+    assert spec["selection"]["entity_regex"] == r".*_last_seen$"
+    assert "timedelta(hours=48)" in spec["trigger"]["template"]
 
 
 def test_firmware_has_no_integration_gate():
@@ -1738,6 +1758,27 @@ def test_an_edited_template_is_rendered_as_written():
     assert template["name_template"] == "Flash {{ friendly_name }}"
     # The other field was not edited, so it still follows the language.
     assert template["notes_template"].startswith("Neueste Version")
+
+
+def test_old_device_pulse_notes_still_follow_the_language():
+    """A companion saved from the failed-ping preset keeps its own notes text.
+
+    That text is no longer the preset's, but it is still Home Keeper's text, so it
+    still follows the household language rather than freezing in the one it was
+    saved in.
+    """
+    spec = _preset_spec(
+        "device_pulse",
+        notes_template="Device Pulse reports {{ state }} failed pings "
+        "for {{ friendly_name }}.",
+    )
+    template = presets.localized_task_template(spec, "de")
+    assert template["notes_template"] == (
+        "Device Pulse meldet {{ state }} fehlgeschlagene Pings für {{ friendly_name }}."
+    )
+    # The current text still wins over the old one.
+    current = presets.localized_task_template(_preset_spec("device_pulse"), "de")
+    assert current["notes_template"].startswith("Device Pulse hat seit einer Stunde")
 
 
 def test_a_companion_without_a_preset_is_rendered_as_written():
@@ -2523,3 +2564,226 @@ def test_b12_1_a_paused_orphan_does_not_stop_the_orphan_pass():
         ("deleted", gone_key),
     ]
     assert [dc.task_key(t) for t in new_tasks.values()] == [off_key]
+
+
+# --- The general presets on the shared counter --------------------------------
+#
+# The Tasks-tab suggestions count every preset with ``count_matches``, the general
+# ones too, so these pin what the three general presets match now.
+
+
+def _general_counts(snapshot):
+    general = {
+        p["id"]: p["default_spec"]["selection"]
+        for p in presets.CATALOG_PRESETS
+        if "name_args" not in p
+    }
+    return dc.count_matches(general, snapshot)
+
+
+def test_general_presets_count_what_they_select():
+    snapshot = _snapshot(
+        _entity("update.router", platform="unifi", domain="update"),
+        _entity("update.hacs", platform="hacs", domain="update"),
+        _entity("update.off", platform="hacs", domain="update", disabled=True),
+        _entity("sensor.plug_last_seen", platform="mqtt", device_class="timestamp"),
+        # A last-seen sensor that is not a timestamp (a phone, a text state).
+        _entity("sensor.phone_last_seen", platform="mobile_app"),
+        # Device Pulse: the ping status counts; its counters and its summary do not.
+        _entity(
+            "binary_sensor.nas_ping",
+            domain="binary_sensor",
+            device_class="connectivity",
+        ),
+        _entity("sensor.nas_total_failed_pings"),
+        _entity(
+            "binary_sensor.all_devices_online",
+            domain="binary_sensor",
+            device_class="problem",
+        ),
+        # A connectivity sensor of another integration is not a Device Pulse one.
+        _entity(
+            "binary_sensor.other_ping",
+            platform="ping",
+            domain="binary_sensor",
+            device_class="connectivity",
+        ),
+    )
+    assert _general_counts(snapshot) == {
+        "device_pulse": 1,
+        "firmware_update_available": 2,
+        "device_stopped_reporting": 1,
+    }
+
+
+def test_general_presets_count_zero_without_their_entities():
+    snapshot = _snapshot(
+        _entity(
+            "binary_sensor.other_ping",
+            platform="ping",
+            domain="binary_sensor",
+            device_class="connectivity",
+        )
+    )
+    assert _general_counts(snapshot) == {
+        "device_pulse": 0,
+        "firmware_update_available": 0,
+        "device_stopped_reporting": 0,
+    }
+
+
+# --- Preset limits in the description -----------------------------------------
+
+
+def _fake_resolve(lang, key, **params):
+    """A resolver that shows what it was asked, so a test reads the call itself."""
+    return f"{lang}:{key}:" + ",".join(f"{k}={params[k]}" for k in sorted(params))
+
+
+def test_preset_limits_follow_the_trigger_shape():
+    by_id = {p["id"]: p for p in presets.CATALOG_PRESETS}
+    assert by_id["zha_wear_high"]["limit"] == {
+        "kind": "hours",
+        "value": 4320,
+        "above": True,
+    }
+    assert by_id["dreo_percent_low"]["limit"] == {
+        "kind": "percent",
+        "value": 10,
+        "above": False,
+    }
+    assert by_id["dantherm_life_low"]["limit"] == {
+        "kind": "hours",
+        "value": 168,
+        "above": False,
+    }
+    assert by_id["synology_dsm_reading_high"]["limit"] == {
+        "kind": "number",
+        "value": 85,
+        "above": True,
+    }
+    assert by_id["ondilo_ico_reading_low"]["limit"] == {
+        "kind": "number",
+        "value": 2700,
+        "above": False,
+    }
+    # The Roborock tub counter counts washes, so its limit is not hours.
+    assert by_id["roborock_wear_high"]["limit"]["kind"] == "number"
+
+
+def test_a_preset_with_no_one_limit_has_none():
+    by_id = {p["id"]: p for p in presets.CATALOG_PRESETS}
+    # Its keys have different limits, so no one number describes it.
+    assert "limit" not in by_id["tplink_life_low"]
+    assert "limit" not in by_id["connectlife_wear_high"]
+    # An alert compares with a state, not a number.
+    alerts = [p for p in _INTEGRATION_PRESETS if ".alert." in p["description_key"]]
+    assert alerts
+    assert all("limit" not in p for p in alerts)
+    # The general presets have their own text.
+    assert all("limit" not in p for p in presets.CATALOG_PRESETS[:3])
+
+
+@pytest.mark.parametrize(
+    ("limit", "expected"),
+    [
+        ({"kind": "percent", "value": 10, "above": False}, "10%"),
+        ({"kind": "number", "value": 2700, "above": False}, "2700"),
+        ({"kind": "number", "value": 1.5, "above": False}, "1.5"),
+        (
+            {"kind": "hours", "value": 24, "above": False},
+            "en:declarative_preset.unit.hours:n=24",
+        ),
+        (
+            {"kind": "hours", "value": 36, "above": False},
+            "en:declarative_preset.unit.hours:n=36",
+        ),
+        (
+            {"kind": "hours", "value": 48, "above": False},
+            "en:declarative_preset.unit.days:n=2",
+        ),
+        (
+            {"kind": "hours", "value": 4320, "above": True},
+            "en:declarative_preset.unit.days:n=180",
+        ),
+        (
+            {"kind": "hours", "value": 4380, "above": True},
+            "en:declarative_preset.unit.hours:n=4380",
+        ),
+    ],
+)
+def test_format_limit(limit, expected):
+    assert presets.format_limit(limit, "en", _fake_resolve) == expected
+
+
+def test_format_limit_says_days_only_from_two():
+    # 24 hours is 1 day, and "1 days" is wrong in every language, so it stays hours.
+    one_day = {"kind": "hours", "value": 24, "above": False}
+    assert presets.format_limit(one_day, "en", backend_i18n.resolve_string) == (
+        "24 hours"
+    )
+    week = {"kind": "hours", "value": 168, "above": False}
+    assert presets.format_limit(week, "de", backend_i18n.resolve_string) == "7 Tage"
+
+
+def test_the_zha_preset_says_its_limit():
+    zha = presets.preset_by_id("zha_wear_high")
+    assert zha is not None
+    text = presets.preset_description(zha, "en", backend_i18n.resolve_string)
+    assert text == (
+        "Opens a task when a wear counter of a Zigbee (ZHA) device passes its "
+        "service limit. Home Keeper completes the task when you reset the counter on "
+        "the device. "
+        "Limit: above 180 days."
+    )
+    assert presets.preset_description(zha, "de", backend_i18n.resolve_string).endswith(
+        "Grenze: über 180 Tage."
+    )
+
+
+def test_each_shape_adds_its_own_limit_sentence():
+    def call(preset_id):
+        preset = presets.preset_by_id(preset_id)
+        assert preset is not None
+        return presets.preset_description(preset, "en", _fake_resolve)
+
+    assert call("dreo_percent_low").startswith(
+        "en:declarative_preset.limit.below:description=en:"
+        "declarative_preset.shape.percent_low.description:integration=Dreo,limit=10%"
+    )
+    assert call("dantherm_life_low").startswith("en:declarative_preset.limit.life:")
+    assert call("zha_wear_high").startswith("en:declarative_preset.limit.above:")
+    assert call("ondilo_ico_reading_low").startswith(
+        "en:declarative_preset.limit.below:"
+    )
+    assert call("synology_dsm_reading_high").startswith(
+        "en:declarative_preset.limit.above:"
+    )
+    # No limit: the shape's own description, as it was.
+    assert call("tplink_life_low") == (
+        "en:declarative_preset.shape.life_low.description:"
+        "integration=TP-Link Tapo vacuum"
+    )
+    assert call("device_pulse") == "en:declarative_preset.device_pulse.description:"
+
+
+def test_a_limit_on_a_shape_with_no_limit_sentence_is_not_said():
+    preset = dict(presets.CATALOG_PRESETS[3])
+    preset["description_key"] = "declarative_preset.shape.alert.description"
+    preset["limit"] = {"kind": "number", "value": 5, "above": True}
+    assert presets.preset_description(preset, "en", _fake_resolve) == (
+        "en:declarative_preset.shape.alert.description:"
+        f"integration={preset['name_args']['integration']}"
+    )
+
+
+@pytest.mark.parametrize("lang", _LANGS)
+def test_every_preset_description_resolves_in_every_language(lang):
+    for preset in presets.CATALOG_PRESETS:
+        text = presets.preset_description(preset, lang, backend_i18n.resolve_string)
+        assert "{" not in text, (lang, preset["id"], text)
+        assert "declarative_preset." not in text, (lang, preset["id"], text)
+        limit = preset.get("limit")
+        if limit is not None:
+            said = presets.format_limit(limit, lang, backend_i18n.resolve_string)
+            assert said in text, (lang, preset["id"], text)

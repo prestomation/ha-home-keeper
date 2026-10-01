@@ -1,6 +1,7 @@
 /**
  * The two lists the panel opens on — tasks and appliances — and the cards they are
- * made of: the first-run intro banner, the orphaned-integration banner and its
+ * made of: the first-run intro banner, the preset suggestions card
+ * (`panel-preset-nudge.ts`), the orphaned-integration banner and its
  * cleanup, the flat/tree appliance layout, and the one wiring pass that makes a row's
  * quick actions live.
  *
@@ -34,6 +35,7 @@ import {
 import { deferMenu } from './panel-defer';
 import { openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
+import { presetNudgeCard, wirePresetNudge } from './panel-preset-nudge';
 import { TASK_CARD_INLINE_CHIPS } from './panel-styles';
 import { LS_TREE_COLLAPSED } from './panel-types';
 import type { Asset, Task } from './types';
@@ -81,7 +83,7 @@ function introCard(p: PanelHost): string {
 }
 
 export function tasksList(p: PanelHost): string {
-  const intro = introCard(p);
+  const intro = introCard(p) + presetNudgeCard(p);
   if (!p._tasks.length) {
     const addTask = `<b>${escapeHTML(t('btn.addTask'))}</b>`;
     return `${intro}<ha-alert alert-type="info">${t('tasks.empty', { addTask })}</ha-alert>`;
@@ -493,6 +495,7 @@ export function wireLists(p: PanelHost, root: ParentNode): void {
     );
     // One caret per row, each resolving its own task.
     p._wireDeferMenus(root);
+    wirePresetNudge(p, root);
     root.querySelectorAll<HTMLElement>('.hk-intro-dismiss').forEach((b) =>
       b.addEventListener('click', () => {
         p._introDismissed = true;

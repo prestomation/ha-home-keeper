@@ -138,6 +138,10 @@ class DeclarativeCompanionSync:
         # point would write the store the reload replaced, and the setup that follows
         # reconciles every spec again anyway.
         self._stopped = False
+        # How many entities each shipped preset matches, kept until a registry event
+        # clears it. The panel reads it on every refresh, and a registry projection
+        # per refresh is waste when the registry has not changed.
+        self._preset_counts: dict[str, int] | None = None
         # The last render error logged per (entity id, template source), so a broken
         # name or notes template is reported once instead of on every pass and every
         # preview keystroke. See ``_render_one``. The source is part of the key: name
@@ -500,6 +504,7 @@ class DeclarativeCompanionSync:
     @callback
     def _trigger_reconcile(self) -> None:
         """Ask the debouncer for a pass (shared by every registry-event wrapper)."""
+        self._preset_counts = None
         self._hass.async_create_task(self._reconcile_debouncer.async_call())
 
     @callback
@@ -656,6 +661,10 @@ class DeclarativeCompanionSync:
                     "area_name": variables["area_name"],
                     "trigger_now": trigger_now,
                     "trigger_error": trigger_error,
+                    # The reading now, so a user sees how far each entity is from
+                    # its limit before saving.
+                    "state": variables["state"],
+                    "unit": variables["attributes"].get("unit_of_measurement"),
                 }
             )
         return {
@@ -664,6 +673,23 @@ class DeclarativeCompanionSync:
             "warnings": warnings,
             "over_cap": False,
         }
+
+    def preset_match_counts(self) -> dict[str, int]:
+        """How many entities each shipped preset matches now, by preset id.
+
+        Every preset, general and integration alike: the picker sorts by it, and the
+        Tasks tab suggests the presets that match. One registry projection serves them
+        all, and the result is kept until an entity, device or area registry event
+        clears it, because the panel asks on every refresh.
+        """
+        if self._preset_counts is None:
+            self._preset_counts = self.match_counts(
+                {
+                    preset["id"]: preset["default_spec"]["selection"]
+                    for preset in declarative_presets.CATALOG_PRESETS
+                }
+            )
+        return dict(self._preset_counts)
 
     def installed_integrations(self) -> list[str]:
         """Distinct ``platform`` values in the entity registry, excluding Home Keeper.

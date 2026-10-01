@@ -1447,6 +1447,13 @@ async def ws_list_declarative_presets(
     Description strings live in ``backend_strings/<lang>.json`` (the same catalog
     channel Battery Notes uses); resolve them per this HA's configured language
     so the panel doesn't need to know which locale to render.
+
+    Each preset also carries ``matches``: how many entities its default selection
+    matches now, or ``None`` while the reconciler is not set up. The picker puts the
+    integration presets that match first, and the Tasks tab suggests every preset
+    that matches. The command stays open to every user: it reads no caller input and
+    returns counts only, never an entity name, and any user can already read every
+    state.
     """
     from .backend_i18n import resolve_string  # local import: no HA dep in presets
 
@@ -1457,18 +1464,9 @@ async def ws_list_declarative_presets(
     lang = hass.config.language
     # The picker puts an integration preset first only when some entity would match
     # it: an installed integration can have none of the entities a preset selects.
+    # The counts are kept between calls until the registry changes.
     sync = coord.declarative_sync
-    counts = (
-        sync.match_counts(
-            {
-                preset["id"]: preset["default_spec"]["selection"]
-                for preset in declarative_presets.CATALOG_PRESETS
-                if "name_args" in preset
-            }
-        )
-        if sync is not None
-        else {}
-    )
+    counts: dict[str, int] = sync.preset_match_counts() if sync is not None else {}
     presets_out = []
     for preset in declarative_presets.CATALOG_PRESETS:
         # An integration preset fills the integration's name into a string that
@@ -1479,15 +1477,22 @@ async def ws_list_declarative_presets(
             {
                 "id": preset["id"],
                 "name": name,
-                "description": resolve_string(lang, preset["description_key"], **args),
+                # An integration preset's text also says its limit, so a user can
+                # tell what the preset does before they add it.
+                "description": declarative_presets.preset_description(
+                    preset, lang, resolve_string
+                ),
                 "icon": preset["icon"],
                 "requires_integration": preset["requires_integration"],
                 # The picker lists the presets made for one integration apart from the
                 # general ones, and hides those for an integration that is not there.
                 "group": "integration" if "name_args" in preset else "general",
-                # The entities an integration preset would match now; null for a
-                # general preset, which the picker does not sort by it.
+                # The entities the preset would match now. The picker sorts only the
+                # integration presets by it; the Tasks tab suggests any that match.
                 "matches": counts.get(preset["id"]),
+                # The one limit the trigger compares with, or ``None``. The preview
+                # draws each reading against it.
+                "limit": preset.get("limit"),
                 # Seeded in the household's language, so a new companion is saved
                 # with task text a user can read.
                 "default_spec": declarative_presets.localized_default_spec(

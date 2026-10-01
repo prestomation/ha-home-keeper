@@ -172,7 +172,7 @@ Use these names and no others for these things.
 | card | dashboard card, Lovelace card, task card | |
 | profile | household member, person | |
 | notification | alert, reminder, push | |
-| complete (a task) | tick off, mark done, finish, check off | |
+| complete (a task) | tick off, mark done, finish, check off, close | "Home Keeper completes the task" when a sensor recovers, not "the task closes". |
 | snooze (a task) | postpone, defer, push back | |
 | skip (a task) | dismiss, cancel | |
 | due today (a task) | pull forward, bring forward, advance, move up | Moves the due date to today. Records no completion. "Forward" reads as *later* for a date, so it is not a name for this. |
