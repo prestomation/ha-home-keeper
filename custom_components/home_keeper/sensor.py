@@ -38,10 +38,10 @@ from .const import (
     SENSOR_MODE_USAGE,
 )
 from .coordinator import HomeKeeperCoordinator
-from .devices import service_device_info
 from .entity import HomeKeeperTaskEntity, prune_registry_entries
 from .options import current_options
 from .sensor_watcher import read_sensor_value
+from .service_device import service_device_info
 
 # Default icon for a tracked-date sensor when the asset has no custom icon.
 _DATE_ICON = "mdi:calendar-clock"

@@ -261,6 +261,11 @@ def _install_helpers() -> None:
             pass
 
         device_registry.DeviceInfo = DeviceInfo
+    if not hasattr(device_registry, "DeviceEntryType"):
+        # The service device of the to-do, calendar and count sensors uses it.
+        device_registry.DeviceEntryType = enum.StrEnum(
+            "DeviceEntryType", {"SERVICE": "service"}
+        )
     # A callable rather than a placeholder class: this is the one registry getter
     # a suite might reach through without replacing it first, and answering
     # ``None`` is the honest "there is no registry here".

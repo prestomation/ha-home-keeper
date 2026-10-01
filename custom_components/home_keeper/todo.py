@@ -28,9 +28,9 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, REC_ONE_OFF, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
-from .devices import service_device_info
 from .models import TaskValidationError
 from .recurrence import one_off_completed
+from .service_device import service_device_info
 from .task_entities import entity_set_key
 
 

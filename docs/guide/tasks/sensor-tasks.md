@@ -49,9 +49,9 @@ condition. A task opens when the entity already meets the new condition.
 If you rename the entity ID of the bound entity, Home Keeper changes the task to
 the new entity ID.
 
-An armed sensor task is on the to-do list. It sets the device's overdue sensor and
-fires the `home_keeper_task_overdue` event. The calendar does not show a sensor
-task, armed or not.
+When a sensor task is armed, it is on the to-do list, and it sets the device's
+overdue sensor and fires the `home_keeper_task_overdue` event. The calendar never
+shows a sensor task.
 
 Before it is armed, a usage task shows the remaining usage in the task list, such as
 "in 7000 miles". A task in any mode other than usage is listed as **Monitored**. Home

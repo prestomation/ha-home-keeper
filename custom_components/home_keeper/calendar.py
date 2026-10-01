@@ -20,7 +20,7 @@ from homeassistant.util import dt as dt_util
 from . import recurrence
 from .const import DOMAIN, REC_FIXED, REC_SENSOR, REC_TRIGGERED
 from .coordinator import HomeKeeperCoordinator
-from .devices import service_device_info
+from .service_device import service_device_info
 
 # Default duration shown for each task occurrence on the calendar.
 EVENT_DURATION = timedelta(hours=1)
