@@ -97,7 +97,9 @@ def content_disposition(filename: str, display_name: str = "") -> str:
     suffix = PurePath(filename).suffix
     if suffix and not display.lower().endswith(suffix.lower()):
         display = f"{display}{suffix}"
-    return f"{value}; filename*=UTF-8''{quote(display, safe='')}"
+    # Equivalent mutants: the default ``safe`` is "/", and display_filename keeps
+    # only the last path part, so the name never holds a "/".
+    return f"{value}; filename*=UTF-8''{quote(display, safe='')}"  # pragma: no mutate
 
 
 def validate_upload_stream(filename: str, header: bytes, size: int) -> tuple[str, str]:

@@ -4,6 +4,7 @@ Each test names the finding it pins. They cover non-finite numbers, null text
 values and document id collisions.
 """
 
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import hk_assets as a
@@ -28,6 +29,22 @@ def test_b05_7_cost_refuses_non_finite(bad):
 def test_b05_7_finite_cost_still_accepted():
     assert a.build_asset({"name": "Fridge", "cost": "12.5"}, now=NOW)["cost"] == 12.5
     assert a.build_asset({"name": "Fridge", "cost": 0}, now=NOW)["cost"] == 0.0
+    # An empty box is no cost, not an error.
+    assert a.build_asset({"name": "Fridge", "cost": ""}, now=NOW)["cost"] is None
+
+
+def test_b05_6_an_empty_replace_interval_is_unset():
+    asset = a.build_asset(
+        {"name": "Fridge", "parts": [{"name": "F", "replace_interval": ""}]}, now=NOW
+    )
+    assert asset["parts"][0]["replace_interval"] is None
+
+
+def test_b05_8_a_metadata_entry_must_be_an_object():
+    with raises_exactly(
+        a.AssetValidationError, "each metadata entry must be an object"
+    ):
+        a.build_asset({"name": "Fridge", "metadata": ["Warranty"]}, now=NOW)
 
 
 def test_b05_8_metadata_null_value_is_empty_not_none_text():
@@ -139,6 +156,8 @@ def test_b05_4_link_cannot_take_the_id_of_a_stored_file():
     link = merged["documents"][1]
     assert link["url"] == "https://ex.com/new"
     assert link["id"] != file_doc["id"]
+    # A real new uuid, not None or the text "None".
+    assert str(uuid.UUID(link["id"])) == link["id"]
     # A removal by the file id now removes the file, and only the file.
     removed = a.remove_document(merged, file_doc["id"])
     assert removed is not None
