@@ -64,7 +64,9 @@ source_paths = ["custom_components/home_keeper"]
 # reason: no PR touching mutable Python had run since that assertion landed. It is
 # listed as its directory because mutmut ``copy2``s a bare file without creating
 # its parent, and only ``copytree``s a directory into place.
-also_copy = ["ci", "CHANGELOG.md", "website/scripts"]
+# ``test_service_text.py`` reads ``docs/INTEGRATING.md`` to check what it says about
+# ``update_task`` (B02-5), so ``docs`` is listed too, as its directory.
+also_copy = ["ci", "CHANGELOG.md", "website/scripts", "docs"]
 # The mutable surface: the pure core, which the fast `tests/unit` tier covers
 # directly. Everything else in the integration imports Home Assistant and is
 # only exercised by the Docker tiers — far too slow to run once per mutant, and
