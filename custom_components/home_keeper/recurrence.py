@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import calendar as _calendar
 from collections.abc import Iterable
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from .const import (
     FREQ_DAILY,
@@ -176,10 +176,39 @@ def _clamp_season(next_due: datetime, task: dict) -> datetime:
         anchor = _parse(task["anchor"])
         assert anchor is not None
         after = season_start - timedelta(seconds=1)
-        return next_fixed_occurrence(
-            anchor, task["freq"], int(task["interval"]), after=after
-        )
+        freq, interval = task["freq"], int(task["interval"])
+        # The first grid occurrence after the season start can fall after the season
+        # end too, for a sparse grid and a short season. Walk on to the first one in
+        # season, the same walk as the calendar (B07-9). A grid that never meets the
+        # season keeps the first occurrence after the season start.
+        found = next_in_season_occurrence(anchor, freq, interval, season, after=after)
+        if found is not None:
+            return found
+        return next_fixed_occurrence(anchor, freq, interval, after=after)
     return season_start
+
+
+def next_in_season_occurrence(
+    anchor: datetime,
+    freq: str,
+    interval: int,
+    season: dict | list,
+    *,
+    after: datetime,
+) -> datetime | None:
+    """First fixed occurrence after *after* that is inside *season*, or None.
+
+    Bounded by ``MAX_EXPAND_ITERATIONS`` grid steps. ``None`` means that the grid
+    does not meet the season inside the bound, for example every 12 months from
+    January with a March season. ``_clamp_season`` and the calendar both use this
+    walk, so ``next_due`` and the calendar show the same date.
+    """
+    occ = next_fixed_occurrence(anchor, freq, interval, after=after)
+    for _ in range(MAX_EXPAND_ITERATIONS):
+        if in_season(occ, season):
+            return occ
+        occ = next_fixed_occurrence(anchor, freq, interval, after=occ)
+    return None
 
 
 def compute_floating_next_due(
@@ -451,6 +480,11 @@ def _record_entry(history: Iterable[dict], entry: dict) -> list[dict]:
     return entries
 
 
+# How far before a moment :func:`_is_occurrence` asks the grid. It must be more than
+# a daylight-saving shift and less than the smallest grid step (1 day).
+_OCCURRENCE_PROBE = timedelta(hours=3)
+
+
 def _is_occurrence(task: dict, anchor: datetime, moment: datetime) -> bool:
     """Whether *moment* is one of the schedule's own occurrences.
 
@@ -463,11 +497,19 @@ def _is_occurrence(task: dict, anchor: datetime, moment: datetime) -> bool:
     so a clamped ``next_due`` passes here, and a raw grid date that the season would
     reject is still a date the schedule owns.
     """
-    probe = moment - timedelta(microseconds=1)
-    return (
-        next_fixed_occurrence(anchor, task["freq"], int(task["interval"]), after=probe)
-        == moment
+    # The probe starts some hours before *moment*, not 1 microsecond before. The
+    # grid steps by wall clock, and an occurrence in the hour that a spring-forward
+    # skips has the wall clock 02:30 on the grid but reads back from storage as
+    # 03:30 EDT. A probe at 03:29 already passed it on the grid. Occurrences are at
+    # least 1 day apart, so the probe window finds only the occurrence at *moment*
+    # (B07-8).
+    probe = moment - _OCCURRENCE_PROBE
+    found = next_fixed_occurrence(
+        anchor, task["freq"], int(task["interval"]), after=probe
     )
+    # Compare instants, not wall clocks. With one tzinfo on both sides, ``==``
+    # compares the wall clock, and 02:30 and 03:30 EDT are one instant here.
+    return found.astimezone(UTC) == moment.astimezone(UTC)
 
 
 def _advance_fixed_schedule(task: dict, *, now: datetime) -> str:
@@ -935,8 +977,25 @@ def remove_skip(task: dict, ts: str) -> dict:
     guesswork about a schedule the user may have since moved on from. Restoring a
     usage meter's baseline *is* real state and is the store's job (it holds the
     ``meter_start`` the skip recorded). A no-op when *ts* is not present.
+
+    A one-off is the exception. Its due date is known, and a skip sends it dormant
+    with no completion. So when the last skip of a one-off that has no completion is
+    removed, the task is due again at its ``due`` date. Otherwise it stays dormant
+    and is never auto-deleted (B07-7).
     """
-    task["skips"] = [e for e in task.get("skips", []) if e.get("ts") != ts]
+    before = task.get("skips", [])
+    task["skips"] = [e for e in before if e.get("ts") != ts]
+    if (
+        len(task["skips"]) < len(before)
+        and not task["skips"]
+        and task.get("recurrence_type") == REC_ONE_OFF
+        and not task.get("next_due")
+        and not task.get("last_completed")
+        and task.get("due")
+    ):
+        due = _parse(task["due"])
+        if due is not None:
+            task["next_due"] = due.isoformat()
     return task
 
 

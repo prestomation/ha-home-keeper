@@ -2669,6 +2669,8 @@ class HomeKeeperStore:
         schedule the user may since have moved on from. Deleting the skip that
         anchored a **usage** meter *does* restore the baseline it replaced, recorded
         on it as ``meter_start`` — otherwise the progress the user had stays lost.
+        Deleting the last skip of a one-off with no completion makes it due again
+        at its ``due`` date (see ``recurrence.remove_skip``).
 
         Fires ``home_keeper_task_skip_removed``. A ``ts`` that isn't in the log is a
         no-op: no save, and no event announcing the undo of a skip never taken.
