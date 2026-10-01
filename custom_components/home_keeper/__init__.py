@@ -827,6 +827,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     ``integration_not_loaded`` error when no entry is loaded.
     """
     _register_services(hass)
+    # Listen for actionable-notification taps (mobile_app_notification_action) so a
+    # Mark done / Snooze / Skip button routes back into the store and advances a walk.
+    # Listen for tag scans (tag_scanned) so scanning the NFC/RFID tag stuck on the
+    # thing completes the tasks bound to it — and unlocks the ones that accept no
+    # other way of being completed. Both listen for the Home Assistant run, so an
+    # event during an entry reload waits for the new coordinator (X02-5).
+    notifier.async_setup_notifications(hass)
+    tag_listener.async_setup_tag_listener(hass)
     return True
 
 
@@ -972,15 +980,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await todo_list_sync.async_initial_sync()
 
     entry.async_on_unload(async_at_started(hass, _todo_lists_when_started))
-    # Listen for actionable-notification taps (mobile_app_notification_action) so a
-    # Mark done / Snooze / Skip button routes back into the store and advances a walk.
-    entry.async_on_unload(notifier.async_setup_notifications(hass, entry, coordinator))
-    # Listen for tag scans (tag_scanned) so scanning the NFC/RFID tag stuck on the
-    # thing completes the tasks bound to it — and unlocks the ones that accept no
-    # other way of being completed.
-    entry.async_on_unload(
-        tag_listener.async_setup_tag_listener(hass, entry, coordinator)
-    )
     # Setup is complete: the refreshes above have baselined current overdue/due-soon
     # state silently, so start firing those events only for transitions from here on.
     coordinator.enable_transition_events()

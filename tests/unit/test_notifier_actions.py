@@ -123,7 +123,13 @@ def _tap(hass: _Hass, *actions: str) -> None:
 def _setup(tasks, options):
     hass = _Hass()
     coord = _Coord(tasks, options)
-    notifier.async_setup_notifications(hass, coord.entry, coord)
+
+    async def _live(_hass):
+        return coord
+
+    # The listener finds the coordinator for each tap (X02-5).
+    notifier._async_live_coordinator = _live
+    notifier.async_setup_notifications(hass)
     return hass, coord
 
 

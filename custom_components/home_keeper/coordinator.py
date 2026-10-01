@@ -7,7 +7,9 @@ mutations occur; every mutation also triggers an immediate refresh.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from collections.abc import Callable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
@@ -510,6 +512,37 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             ),
             None,
         )
+
+
+# How long a bus event waits for the coordinator while the entry sets up.
+_WAIT_FOR_COORDINATOR_S = 30.0
+_WAIT_STEP_S = 0.5
+
+
+async def async_wait_for_coordinator(
+    hass: HomeAssistant,
+    *,
+    timeout: float = _WAIT_FOR_COORDINATOR_S,
+    step: float = _WAIT_STEP_S,
+) -> HomeKeeperCoordinator | None:
+    """The loaded coordinator, after a wait while the entry sets up (X02-5).
+
+    A notification tap or a tag scan is an event that Home Assistant does not
+    send again. If it arrives during an entry reload, the listener waits here for
+    the new coordinator, for at most *timeout* seconds. With no enabled Home
+    Keeper entry, there is no coordinator to wait for, so this returns ``None``
+    at once.
+    """
+    deadline = time.monotonic() + timeout
+    while (coord := find_coordinator(hass)) is None:
+        enabled = any(
+            entry.disabled_by is None
+            for entry in hass.config_entries.async_entries(DOMAIN)
+        )
+        if not enabled or time.monotonic() >= deadline:
+            return None
+        await asyncio.sleep(step)
+    return coord
 
 
 def find_coordinator(hass: HomeAssistant) -> HomeKeeperCoordinator | None:

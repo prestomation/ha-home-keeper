@@ -477,14 +477,30 @@ async def async_run_notify(
     return {"matched": matched, "sent": sent}, None
 
 
-def async_setup_notifications(
-    hass: HomeAssistant, entry: ConfigEntry, coord: HomeKeeperCoordinator
-) -> CALLBACK_TYPE:
-    """Subscribe to mobile-app action events; returns the unsubscribe callback."""
+async def _async_live_coordinator(hass: HomeAssistant) -> Any:
+    """The loaded coordinator, after a wait during a reload (lazy: no import cycle)."""
+    from .coordinator import async_wait_for_coordinator
+
+    return await async_wait_for_coordinator(hass)
+
+
+def async_setup_notifications(hass: HomeAssistant) -> CALLBACK_TYPE:
+    """Subscribe to mobile-app action events; returns the unsubscribe callback.
+
+    ``async_setup`` calls this once for the Home Assistant run (X02-5). A listener
+    of the config entry stopped at each unload, and a tap during the reload that
+    followed reached no handler. Each tap now finds the loaded coordinator, and
+    waits for it while the entry sets up.
+    """
 
     async def _handle(
-        verb: str, task_id: str, notification_id: str, due_token: str | None
+        coord: HomeKeeperCoordinator,
+        verb: str,
+        task_id: str,
+        notification_id: str,
+        due_token: str | None,
     ) -> None:
+        entry = coord.entry
         notification = notifications.resolve_notification(
             _notifications(entry), notification_id
         )
@@ -618,7 +634,19 @@ def async_setup_notifications(
         decoded = notifications.decode_action(event.data.get("action"))
         if decoded is None:
             return
-        verb, task_id, notification_id, due_token = decoded
-        hass.async_create_task(_handle(verb, task_id, notification_id, due_token))
+        hass.async_create_task(_route(*decoded))
+
+    async def _route(
+        verb: str, task_id: str, notification_id: str, due_token: str | None
+    ) -> None:
+        coord = await _async_live_coordinator(hass)
+        if coord is None:
+            _LOGGER.debug(
+                "Home Keeper notification action %s on %s ignored: not loaded",
+                verb,
+                task_id,
+            )
+            return
+        await _handle(coord, verb, task_id, notification_id, due_token)
 
     return hass.bus.async_listen(EVENT_MOBILE_APP_ACTION, _on_action)
