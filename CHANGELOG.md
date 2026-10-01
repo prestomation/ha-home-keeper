@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b16]
+
+### Fixed
+
+- **[Due dates from synced lists](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync#two-way-sync).**
+  A due date that you change on a two-way synced to-do list now moves the task to that date. Home Keeper no longer writes the old date back. (Fixes #398)
+
 ## [0.28.0b15]
 
 ### Added
