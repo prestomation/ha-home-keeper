@@ -188,6 +188,29 @@ def test_b19_2_a_profile_id_with_a_colon_settles():
     assert tm.needs_pass(tracked=tracked, desired=desired, synced=synced) is False
 
 
+def test_b10_6_a_key_splits_after_the_longest_known_profile_id():
+    key = tm.sync_key("kids:weekly", "t1")
+    assert tm.split_sync_key(key, ["kids:weekly"]) == ("kids:weekly", "t1")
+    assert tm.split_sync_key(key, ["kids", "kids:weekly"]) == ("kids:weekly", "t1")
+    assert tm.split_sync_key(key, ["kids:weekly", "kids"]) == ("kids:weekly", "t1")
+    # A known id must be followed by the separator, not only be a prefix.
+    assert tm.split_sync_key("kidsx:t1", ["kids"]) == ("kidsx", "t1")
+    # A key of a deleted profile splits at its first colon.
+    assert tm.split_sync_key(key, ["m1"]) == ("kids", "weekly:t1")
+    assert tm.split_sync_key("m1:t:1", ["m1"]) == ("m1", "t:1")
+
+
+def test_b10_6_a_colon_in_a_profile_id_gives_a_settled_pass():
+    profile = _synced_profile("kids:weekly")
+    key = tm.sync_key("kids:weekly", T1)
+    tracked = _tracked(key=key)
+    desired = _desired([_want()], profile_id="kids:weekly")
+    assert tm.needs_pass(tracked=tracked, desired=desired, synced=[profile]) is False
+    plan = _plan(synced=[profile], tracked=tracked, desired=desired, items=[_item()])
+    assert (plan.add, plan.update, plan.remove, plan.complete) == ([], [], [], [])
+    assert plan.tracked == tracked
+
+
 # ── completed_since ───────────────────────────────────────────────────────────
 
 
@@ -668,7 +691,9 @@ def test_completing_the_task_ticks_the_item_off_and_the_next_one_is_fresh():
     assert plan.tracked == {KEY: _added(due="2026-09-14", last_completed=DONE_ISO)}
 
 
-def test_completing_a_task_that_is_done_for_good_only_ticks_the_item_off():
+def test_b10_9_a_completion_that_leaves_the_profile_removes_the_item():
+    # The task no longer matches the profile after its completion (a one-off that
+    # is done, or an overdue task that is rescheduled), so the item is removed.
     plan = _plan(
         tracked=_tracked(),
         desired={M1: {}},
