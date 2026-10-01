@@ -2224,3 +2224,52 @@ def test_merge_update_rejects_a_bad_snooze_hours():
         m.TaskValidationError, "snooze_hours must be a whole number of hours"
     ):
         m.merge_update(task, {"snooze_hours": "often"}, now=NOW)
+
+
+# ── B02-4: merge_source ──────────────────────────────────────────────────────
+_RESERVED = ("part", "buy")
+
+
+def test_b02_4_merge_source_replaces_only_the_named_namespace():
+    existing = {"acme": {"v": 1}, "part": {"asset_id": "a1"}}
+    merged = m.merge_source(existing, {"acme": {"v": 2}}, reserved=_RESERVED)
+    assert merged == {"acme": {"v": 2}, "part": {"asset_id": "a1"}}
+    assert existing == {"acme": {"v": 1}, "part": {"asset_id": "a1"}}
+
+
+def test_b02_4_merge_source_adds_a_namespace_to_no_source():
+    assert m.merge_source(None, {"acme": {"v": 1}}, reserved=_RESERVED) == {
+        "acme": {"v": 1}
+    }
+
+
+def test_b02_4_merge_source_removes_a_namespace_set_to_none():
+    existing = {"acme": {"v": 1}, "other": {"x": 1}}
+    assert m.merge_source(existing, {"acme": None}, reserved=_RESERVED) == {
+        "other": {"x": 1}
+    }
+    assert (
+        m.merge_source({"acme": {"v": 1}}, {"acme": None}, reserved=_RESERVED) is None
+    )
+    assert m.merge_source(None, {"gone": None}, reserved=_RESERVED) is None
+
+
+@pytest.mark.parametrize("update", [None, {}])
+def test_b02_4_merge_source_with_no_update_keeps_the_source(update):
+    existing = {"acme": {"v": 1}}
+    assert m.merge_source(existing, update, reserved=_RESERVED) is existing
+    assert m.merge_source("junk", update, reserved=_RESERVED) is None
+
+
+def test_b02_4_merge_source_rejects_a_reserved_namespace():
+    with raises_exactly(
+        m.TaskValidationError,
+        "source keys ['buy', 'part'] are reserved for Home Keeper's own task "
+        "reconcilers and cannot be set via update_task",
+    ):
+        m.merge_source(None, {"part": {}, "buy": None, "acme": {}}, reserved=_RESERVED)
+
+
+def test_b02_4_merge_source_rejects_a_non_mapping():
+    with raises_exactly(m.TaskValidationError, "source must be a mapping"):
+        m.merge_source(None, "acme", reserved=_RESERVED)

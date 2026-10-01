@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Origem",
-          "description": "Procedência opaca de propriedade da integração que criou a tarefa. Consulte docs/INTEGRATING.md."
+          "description": "Procedência opaca de propriedade da integração que criou a tarefa. Cada namespace substitui o namespace armazenado com o mesmo nome. Um namespace com o valor null é removido. Consulte docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detalhe da conclusão",

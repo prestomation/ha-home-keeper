@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Kilde",
-          "description": "Uigennemsigtig oprindelse ejet af den integration, der oprettede opgaven. Se docs/INTEGRATING.md."
+          "description": "Uigennemsigtig oprindelse ejet af den integration, der oprettede opgaven. Hvert navnerum erstatter det gemte navnerum med samme navn. Et navnerum med værdien null fjernes. Se docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Fuldførelsesdetaljer",

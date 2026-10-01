@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Quelle",
-          "description": "Undurchsichtige Herkunftsangabe, die der Integration gehört, die die Aufgabe erstellt hat. Siehe docs/INTEGRATING.md."
+          "description": "Undurchsichtige Herkunftsangabe, die der Integration gehört, die die Aufgabe erstellt hat. Jeder Namensraum ersetzt den gespeicherten Namensraum mit demselben Namen. Ein Namensraum mit dem Wert null wird entfernt. Siehe docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detailgrad der Erledigung",

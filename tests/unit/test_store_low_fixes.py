@@ -132,3 +132,37 @@ def test_b17_8_an_older_stored_link_does_not_block_an_edit(store):  # noqa: F811
     store._assets[child["id"]]["parent_asset_id"] = parent["id"]
     updated = _run(store.update_asset(child["id"], {"name": "Renamed"}))
     assert updated["name"] == "Renamed"
+
+
+# ── B02-4 ────────────────────────────────────────────────────────────────────
+def test_b02_4_update_task_merges_the_source(store):  # noqa: F811
+    task = _task(store, source={"acme": {"v": 1}, "other": {"x": 1}})
+    updated = _run(store.update_task(task["id"], {"source": {"acme": {"v": 2}}}))
+    assert updated["source"] == {"acme": {"v": 2}, "other": {"x": 1}}
+    assert store._tasks[task["id"]]["source"] == updated["source"]
+    [event] = store._hass.bus.of(EVENT_TASK_UPDATED)
+    assert event["changed_fields"] == ["source"]
+
+
+def test_b02_4_update_task_rejects_a_reserved_namespace(store):  # noqa: F811
+    task = _task(store, source={"acme": {"v": 1}})
+    with pytest.raises(TaskValidationError):
+        _run(store.update_task(task["id"], {"source": {"part": {"asset_id": "a"}}}))
+    assert store._tasks[task["id"]]["source"] == {"acme": {"v": 1}}
+
+
+def test_b02_4_update_task_without_source_keeps_it(store):  # noqa: F811
+    task = _task(store, source={"acme": {"v": 1}})
+    updated = _run(store.update_task(task["id"], {"name": "Renamed"}))
+    assert updated["source"] == {"acme": {"v": 1}}
+
+
+def test_b02_4_a_locked_source_stays(store):  # noqa: F811
+    task = _task(store, source={"acme": {"v": 1}})
+    task["managed_by"] = {
+        "integration": "acme",
+        "display_name": "Acme",
+        "locked_fields": ["source"],
+    }
+    updated = _run(store.update_task(task["id"], {"source": {"acme": {"v": 2}}}))
+    assert updated["source"] == {"acme": {"v": 1}}

@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Källa",
-          "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Se docs/INTEGRATING.md."
+          "description": "Ogenomskinlig härkomst som ägs av integrationen som skapade uppgiften. Varje namnrymd ersätter den sparade namnrymden med samma namn. En namnrymd med värdet null tas bort. Se docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detaljnivå för slutförande",

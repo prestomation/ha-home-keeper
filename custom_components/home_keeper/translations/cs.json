@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Zdroj",
-          "description": "Neprůhledný údaj o původu vlastněný integrací, která úkol vytvořila. Viz docs/INTEGRATING.md."
+          "description": "Neprůhledný údaj o původu vlastněný integrací, která úkol vytvořila. Každý jmenný prostor nahradí uložený jmenný prostor se stejným názvem. Jmenný prostor s hodnotou null se odstraní. Viz docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Podrobnosti dokončení",

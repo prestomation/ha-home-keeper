@@ -502,7 +502,20 @@ class HomeKeeperStore:
                 "part sets its NFC/RFID tag. Set the tag on the part in the "
                 "appliance editor."
             )
+        # ``merge_update`` does not read ``source``, so it is merged here (B02-4). A
+        # locked ``source`` stays as it is, like any other locked field.
+        source_update = updates.get("source")
+        managed_by = existing.get("managed_by")
+        if isinstance(managed_by, dict) and "source" in (
+            managed_by.get("locked_fields") or []
+        ):
+            source_update = None
+        source = models.merge_source(
+            existing.get("source"), source_update, reserved=_RESERVED_SOURCE_NAMESPACES
+        )
         merged = models.merge_update(existing, updates, now=dt_util.now())
+        if source_update:
+            merged["source"] = source
         if "sensor" in updates:
             self._check_template_syntax(merged)
         self._tasks[task_id] = merged

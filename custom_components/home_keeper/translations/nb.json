@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Kilde",
-          "description": "Ugjennomsiktig opphav eid av integrasjonen som opprettet oppgaven. Se docs/INTEGRATING.md."
+          "description": "Ugjennomsiktig opphav eid av integrasjonen som opprettet oppgaven. Hvert navnerom erstatter det lagrede navnerommet med samme navn. Et navnerom med verdien null fjernes. Se docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Fullføringsdetaljer",

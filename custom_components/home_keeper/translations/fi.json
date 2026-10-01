@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Lähde",
-          "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Katso docs/INTEGRATING.md."
+          "description": "Läpinäkymätön alkuperä, jonka omistaa tehtävän luonut integraatio. Jokainen nimiavaruus korvaa tallennetun samannimisen nimiavaruuden. Nimiavaruus, jonka arvo on null, poistetaan. Katso docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Suorituksen tiedot",

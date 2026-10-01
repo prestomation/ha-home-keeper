@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Source",
-          "description": "Provenance opaque appartenant à l'intégration qui a créé la tâche. Voir docs/INTEGRATING.md."
+          "description": "Provenance opaque appartenant à l'intégration qui a créé la tâche. Chaque espace de noms remplace l'espace de noms enregistré du même nom. Un espace de noms avec la valeur null est supprimé. Voir docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Niveau de détail de l'achèvement",

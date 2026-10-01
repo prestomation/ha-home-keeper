@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Fuente",
-          "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Consulta docs/INTEGRATING.md."
+          "description": "Procedencia opaca que pertenece a la integración que creó la tarea. Cada espacio de nombres sustituye al espacio de nombres guardado con el mismo nombre. Un espacio de nombres con el valor null se elimina. Consulta docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detalle de finalización",

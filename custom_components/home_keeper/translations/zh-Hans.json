@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "来源",
-          "description": "由创建该任务的集成拥有的不透明来源信息。参见 docs/INTEGRATING.md。"
+          "description": "由创建该任务的集成拥有的不透明来源信息。每个命名空间会替换已存储的同名命名空间。值为 null 的命名空间会被删除。参见 docs/INTEGRATING.md。"
         },
         "completion_detail": {
           "name": "完成详情",

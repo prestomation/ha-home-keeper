@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Origen",
-          "description": "Procedència opaca propietat de la integració que ha creat la tasca. Vegeu docs/INTEGRATING.md."
+          "description": "Procedència opaca propietat de la integració que ha creat la tasca. Cada espai de noms substitueix l'espai de noms desat amb el mateix nom. Un espai de noms amb el valor null s'elimina. Vegeu docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Detall de la realització",

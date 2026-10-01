@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Bron",
-          "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Zie docs/INTEGRATING.md."
+          "description": "Ondoorzichtige herkomst die eigendom is van de integratie die de taak heeft aangemaakt. Elke naamruimte vervangt de opgeslagen naamruimte met dezelfde naam. Een naamruimte met de waarde null wordt verwijderd. Zie docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Voltooiingsdetail",

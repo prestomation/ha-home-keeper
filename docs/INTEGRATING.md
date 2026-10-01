@@ -367,13 +367,15 @@ config entry is removed (see §5). Orphan cleanup is the safety net for when it 
 
 - `managed_by` is a **UI contract**. Other integrations or automations can still call
   `complete_task` or `update_task` on non-locked fields.
-- Set `managed_by` once at creation via `add_task`. The `update_task` service ignores it.
+- Set `managed_by` once at creation via `add_task`. The `update_task` service has no
+  `managed_by` field, so a call that sends one fails validation.
 - An appliance takes the same block through `add_asset`. There, `update_asset` accepts
   the single value `managed_by: null`, which gives the appliance back to the user
   (see [§8](#8-managing-an-appliance)).
-- Because locked fields are stripped from the `update_task` payload, your reconciler can
-  safely call `update_task` to change a locked field (e.g. rename when the pet's name
-  changes) without risk of the user having overwritten it first.
+- Home Keeper removes the locked fields from every `update_task` payload, and that
+  includes a call from your own integration. A locked field keeps the value it had at
+  creation. Lock only the fields your integration never changes. To change a locked
+  field, delete the task and add it again.
 
 ### `managed_by` in the completion event
 
@@ -919,6 +921,11 @@ the reserved names (`part`, `buy`, `declarative_companion`), your integration ow
 own, and neither side rewrites the whole map. `set_task_consumable` merges `part` in
 beside your namespace, and unlinking pops `part` and leaves the rest. Hold your own
 writers to the same rule.
+
+`update_task` applies this rule to a task's `source`. Each namespace in the call
+replaces the stored namespace of the same name, and the other namespaces stay. A
+namespace with the value `null` is removed. A call that names a reserved namespace
+fails with `invalid_task`. An appliance's `source` is create-only.
 
 ### Handing the appliance back when you are removed
 

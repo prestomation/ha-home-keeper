@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Origine",
-          "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Vedi docs/INTEGRATING.md."
+          "description": "Provenienza opaca di proprietà dell'integrazione che ha creato l'attività. Ogni spazio dei nomi sostituisce quello salvato con lo stesso nome. Uno spazio dei nomi con il valore null viene rimosso. Vedi docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Dettaglio del completamento",

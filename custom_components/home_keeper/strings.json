@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Source",
-          "description": "Opaque provenance owned by the integration that created the task. See docs/INTEGRATING.md."
+          "description": "Opaque provenance owned by the integration that created the task. Each namespace replaces the stored namespace of the same name. A namespace with the value null is removed. See docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Completion detail",

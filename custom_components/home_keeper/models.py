@@ -12,6 +12,7 @@ from __future__ import annotations
 import calendar as _calendar
 import math
 import uuid
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
@@ -868,6 +869,35 @@ def validate_source(source: Any) -> None:
     """
     if source is not None and not isinstance(source, dict):
         raise TaskValidationError("source must be a mapping")
+
+
+def merge_source(
+    existing: Any, update: Any, *, reserved: Iterable[str]
+) -> dict[str, Any] | None:
+    """The ``source`` of a task after an ``update_task`` call (B02-4).
+
+    Each namespace in *update* replaces the stored one, and a namespace set to
+    ``None`` is removed. The other stored namespaces stay, so an integration
+    changes only its own (see "Every writer merges into ``source``" in
+    ``docs/INTEGRATING.md``). A *reserved* namespace belongs to a Home Keeper
+    reconciler, so a call that names one is rejected, as ``add_task`` does.
+    """
+    validate_source(update)
+    if not update:
+        return existing if isinstance(existing, dict) else None
+    blocked = sorted(set(update) & set(reserved))
+    if blocked:
+        raise TaskValidationError(
+            f"source keys {blocked} are reserved for Home Keeper's own task "
+            "reconcilers and cannot be set via update_task"
+        )
+    merged = dict(existing) if isinstance(existing, dict) else {}
+    for namespace, payload in update.items():
+        if payload is None:
+            merged.pop(namespace, None)
+        else:
+            merged[namespace] = payload
+    return merged or None
 
 
 def validate_managed_by(managed_by: Any) -> None:

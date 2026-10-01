@@ -211,7 +211,7 @@
         },
         "source": {
           "name": "Źródło",
-          "description": "Nieprzejrzyste dane o pochodzeniu należące do integracji, która utworzyła zadanie. Zobacz docs/INTEGRATING.md."
+          "description": "Nieprzejrzyste dane o pochodzeniu należące do integracji, która utworzyła zadanie. Każda przestrzeń nazw zastępuje zapisaną przestrzeń nazw o tej samej nazwie. Przestrzeń nazw z wartością null zostaje usunięta. Zobacz docs/INTEGRATING.md."
         },
         "completion_detail": {
           "name": "Szczegóły ukończenia",
