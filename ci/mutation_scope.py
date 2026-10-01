@@ -149,7 +149,12 @@ def _overlaps(span: tuple[int, int], ranges: list[tuple[int, int]]) -> bool:
 
 
 def python_filters(hunks: dict[str, list[tuple[int, int]]]) -> list[str]:
-    """Turn changed line ranges into mutmut mutant-name filters."""
+    """Turn changed line ranges into mutmut mutant-name filters.
+
+    Each filter ends in ``__mutmut_*``, the suffix of mutmut's mutant names. A bare
+    ``*`` after the name also matched every function whose name starts with it, so a
+    change in ``_parse`` scored the mutants of ``_parse_mmdd`` too (X06-7).
+    """
     filters: list[str] = []
     for path, ranges in sorted(hunks.items()):
         module = _module_name(path)
@@ -162,14 +167,16 @@ def python_filters(hunks: dict[str, list[tuple[int, int]]]) -> list[str]:
         for node in tree.body:
             if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 if _overlaps(_definition_span(node), ranges):
-                    filters.append(f"{module}.x_{node.name}*")
+                    filters.append(f"{module}.x_{node.name}__mutmut_*")
             elif isinstance(node, ast.ClassDef):
                 for child in node.body:
                     if not isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
                         continue
                     if _overlaps(_definition_span(child), ranges):
                         sep = CLASS_NAME_SEPARATOR
-                        filters.append(f"{module}.x{sep}{node.name}{sep}{child.name}*")
+                        filters.append(
+                            f"{module}.x{sep}{node.name}{sep}{child.name}__mutmut_*"
+                        )
     return filters
 
 
