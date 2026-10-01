@@ -1387,8 +1387,9 @@ def _register_services(hass: HomeAssistant) -> None:
         if (until := call.data.get("until")) is None:
             # The hours count from the due date when that is later than now, so a
             # snooze never moves a task earlier (F10-2).
+            now = dt_util.now()
             task = coord.store.get_task(task_id)
-            base = recurrence.snooze_from(task, dt_util.now()) if task else dt_util.now()
+            base = recurrence.snooze_from(task, now) if task else now
             until = base + timedelta(hours=call.data.get("hours", 24))
         elif until.tzinfo is None:
             # ``cv.datetime`` parses an offset-less string naively; qualify it with

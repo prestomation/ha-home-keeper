@@ -216,6 +216,7 @@ def test_f10_2_a_snooze_tap_on_an_overdue_task_counts_from_now():
 
     _tap(hass, _action("snooze", task))
 
+    assert coord.store.calls == [("snooze", "t1")]
     assert task["next_due"] == (NOW + timedelta(hours=24)).isoformat()
 
 
