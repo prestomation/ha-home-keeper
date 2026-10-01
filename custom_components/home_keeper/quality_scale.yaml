@@ -3,9 +3,9 @@
 #
 # Home Keeper is a local, deviceless "service" integration: a recurring-task /
 # home-maintenance manager backed by a single local JSON store. It makes no
-# network requests and has no external dependency, so the networking, discovery
-# and authentication rules are exempt; everything else is met. The manifest
-# declares `quality_scale: platinum`.
+# network requests, and its one requirement (Babel) is a local formatting library,
+# so the networking, discovery and authentication rules are exempt; everything
+# else is met. The manifest declares `quality_scale: platinum`.
 rules:
   # ── Bronze ────────────────────────────────────────────────────────────────
   action-setup:
@@ -35,7 +35,10 @@ rules:
       and tests/unit/test_options.py covers the merge and normalization rules.
   dependency-transparency:
     status: done
-    comment: No external requirements; depends only on HA core http + frontend.
+    comment: >-
+      The one requirement is Babel (BSD license, released on PyPI from a public
+      source repository) for locale-aware numbers. The other dependencies are HA
+      core http and frontend.
   docs-actions:
     status: done
     comment: Services documented in services.yaml, strings.json and README.
@@ -175,7 +178,10 @@ rules:
   # ── Platinum ──────────────────────────────────────────────────────────────
   async-dependency:
     status: exempt
-    comment: No external dependency; pure-async with a local store.
+    comment: >-
+      The one requirement, Babel, does no network I/O. Setup reads its locale data
+      in the executor (backend_i18n.preload and assets.decimal_mark), so the event
+      loop uses only cached values.
   inject-websession:
     status: exempt
     comment: Makes no HTTP requests; no web session to inject.
