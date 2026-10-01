@@ -50,6 +50,11 @@ export class DeferMenus {
     });
   }
 
+  /** Whether a menu is open now. A background re-render would close it. */
+  get isOpen(): boolean {
+    return this._open !== null;
+  }
+
   /** Close whatever is open. Hosts call this before replacing their markup. */
   close(): void {
     if (this._onKey) {

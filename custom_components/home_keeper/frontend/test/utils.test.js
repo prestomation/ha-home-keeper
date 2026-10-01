@@ -37,6 +37,7 @@ import {
   navigateTo,
   normalizeIcon,
   notifyRowChip,
+  hkStateSignal,
   inkFor,
   parseRoute,
   partStockButtonStep,
@@ -2301,5 +2302,32 @@ describe('decimalMark', () => {
   it('answers the same twice', () => {
     expect(decimalMark('fr')).toBe(',');
     expect(decimalMark('fr')).toBe(',');
+  });
+});
+
+describe('hkStateSignal (X12-7)', () => {
+  it('counts the Home Keeper entities and keeps the newest stamp', () => {
+    expect(hkStateSignal(undefined)).toBe('');
+    expect(hkStateSignal({})).toBe('0:0');
+    const states = {
+      'todo.home_keeper_tasks': { last_updated: '2026-10-01T10:00:00Z' },
+      'calendar.home_keeper_upcoming_tasks': { last_updated: '2026-10-01T09:00:00Z' },
+      'sensor.kitchen_temp': { last_updated: '2026-10-01T11:00:00Z' },
+    };
+    expect(hkStateSignal(states)).toBe(`2:${Date.parse('2026-10-01T10:00:00Z')}`);
+  });
+
+  it('changes when a stamp moves, an entity comes or goes, and not otherwise', () => {
+    const a = { 'todo.home_keeper_tasks': { last_updated: '2026-10-01T10:00:00Z' } };
+    const sig = hkStateSignal(a);
+    expect(hkStateSignal({ ...a, 'light.hall': { last_updated: '2030-01-01T00:00:00Z' } })).toBe(sig);
+    expect(
+      hkStateSignal({ 'todo.home_keeper_tasks': { last_updated: '2026-10-01T10:00:01Z' } }),
+    ).not.toBe(sig);
+    expect(
+      hkStateSignal({ ...a, 'sensor.home_keeper_x': { last_updated: '2026-01-01T00:00:00Z' } }),
+    ).toBe(`2:${Date.parse('2026-10-01T10:00:00Z')}`);
+    // A missing or bad stamp counts the entity but moves no stamp.
+    expect(hkStateSignal({ 'todo.home_keeper_tasks': {} })).toBe('1:0');
   });
 });

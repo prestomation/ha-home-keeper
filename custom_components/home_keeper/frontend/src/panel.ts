@@ -107,8 +107,17 @@ import {
   RELOAD_RETRIES,
   RELOAD_RETRY_MS,
   setTimeZone,
+  hkStateSignal,
 } from './utils';
 
+
+/**
+ * How long after the panel's own load a change of the entity fingerprint counts as
+ * the echo of that load's action, not as a change on another surface (X12-7). The
+ * coordinator refresh that bumps the entities follows the backend write by well
+ * under a second.
+ */
+const LIVE_REFRESH_QUIET_MS = 2000;
 
 /**
  * The Home Keeper panel is built entirely from Home Assistant's own web
@@ -324,6 +333,42 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // Keep selectors/pickers current without a disruptive full re-render.
     for (const el of this._liveHassEls) el.hass = hass;
     if (first && !this._loaded) void this._refresh();
+    else this._liveRefresh(hass);
+  }
+
+  // The Home Keeper entity fingerprint the panel last loaded against, and when its
+  // last load ended. See `_liveRefresh`.
+  private _signal = '';
+  private _reloadedAt = 0;
+
+  /**
+   * Load the data again when a task changed on another surface (X12-7).
+   *
+   * Before this, the panel loaded only on open and after its own actions. A task
+   * completed from the card, the to-do list or a tag scan stayed due here, and a
+   * second Done recorded a second completion. The trigger is the fingerprint the card
+   * uses (`hkStateSignal`), so it also covers a restart and a reconnect.
+   *
+   * It waits while the user is busy: a form, a dialog or a deferral menu is open, or
+   * a load runs. The fingerprint stays unconsumed then, so a later `hass` push tries
+   * again. A change within `LIVE_REFRESH_QUIET_MS` of the panel's own load is the echo
+   * of that load's own action, so it is consumed without a second load.
+   */
+  private _liveRefresh(hass: Hass): void {
+    if (!this._loaded || !this.isConnected) return;
+    const sig = hkStateSignal(hass.states);
+    if (sig === this._signal) return;
+    if (
+      this._refreshing ||
+      this._editingOpen() ||
+      this._confirmDelete.open ||
+      this._deferMenus.isOpen
+    ) {
+      return;
+    }
+    this._signal = sig;
+    if (Date.now() - this._reloadedAt < LIVE_REFRESH_QUIET_MS) return;
+    void this._refresh();
   }
   get hass(): Hass | undefined {
     return this._hass;
@@ -942,6 +987,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         this._render();
       } finally {
         this._refreshing = null;
+        this._signal = hkStateSignal(this._hass?.states);
+        this._reloadedAt = Date.now();
       }
     })();
     return this._refreshing;

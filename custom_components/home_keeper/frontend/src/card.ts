@@ -64,6 +64,7 @@ import {
   toast,
   guardWrite,
   setTimeZone,
+  hkStateSignal,
 } from './utils';
 
 // mdi:check-circle-outline — the trailing "mark done" action on each row.
@@ -510,27 +511,9 @@ export class HomeKeeperCard extends HTMLElement {
     }
   }
 
-  /**
-   * Cheap fingerprint that drives live updates. The integration's two singleton
-   * `CoordinatorEntity`s — `todo.home_keeper_tasks` and
-   * `calendar.home_keeper_upcoming_tasks` — re-write their state (bumping
-   * `last_updated`) on every coordinator refresh, which fires on any task
-   * mutation (complete/add/edit/delete/trigger). Watching every Home
-   * Keeper-named entity's count + newest stamp therefore changes whenever the
-   * task set does; completions also arrive instantly via the event subscription.
-   */
+  /** The live-update fingerprint, shared with the panel (see `hkStateSignal`). */
   private _stateSignal(hass: Hass): string {
-    const states = hass.states;
-    if (!states) return '';
-    let n = 0;
-    let max = 0;
-    for (const id in states) {
-      if (!id.includes('home_keeper')) continue;
-      n++;
-      const ts = Date.parse(states[id].last_updated);
-      if (ts > max) max = ts;
-    }
-    return `${n}:${max}`;
+    return hkStateSignal(hass.states);
   }
 
   /**

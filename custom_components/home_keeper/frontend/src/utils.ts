@@ -925,6 +925,30 @@ export function intervalText(n: number, unit: string): string {
   return `${n} ${tn(`recurrence.unit.${unit.replace(/s$/, '')}`, n)}`;
 }
 
+/**
+ * Cheap fingerprint of the Home Keeper entities, which drives live updates.
+ *
+ * The integration's 2 singleton `CoordinatorEntity`s, `todo.home_keeper_tasks` and
+ * `calendar.home_keeper_upcoming_tasks`, write their state again (and bump
+ * `last_updated`) on each coordinator refresh, which follows each task change from
+ * any surface. The count and the newest stamp of every entity with `home_keeper` in
+ * its id therefore change when the task set does. The card and the panel both use it.
+ */
+export function hkStateSignal(
+  states: Record<string, { last_updated?: string }> | undefined,
+): string {
+  if (!states) return '';
+  let n = 0;
+  let max = 0;
+  for (const id in states) {
+    if (!id.includes('home_keeper')) continue;
+    n++;
+    const ts = Date.parse(states[id].last_updated ?? '');
+    if (ts > max) max = ts;
+  }
+  return `${n}:${max}`;
+}
+
 /** True when the task's next due date is at or before now. */
 export function isOverdue(task: Task, now: Date = new Date()): boolean {
   if (!task.next_due) return false;
