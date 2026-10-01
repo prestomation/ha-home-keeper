@@ -533,6 +533,16 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   **API reference** and the Home Assistant UI read from one string.
   `ci/generate_api_docs.py` renders that page into the gitignored `website/developer/`
   on `npm run sync`; nothing is committed and nothing is hand-written.
+- **Preset upkeep is a weekly skill.** Each integration preset in
+  `declarative_presets_catalog.py` pins the upstream commit we last read
+  (`verified.ref`). `ci/check_preset_keys.py --report` lists the keys that are gone
+  and the keys added since that commit, and `ci/find_preset_candidates.py` lists the
+  core integrations and new HACS repositories with duty-like keys that no preset
+  covers. Both scripts only find; they decide nothing. The `preset-upkeep` skill
+  (`.claude/skills/preset-upkeep/SKILL.md`) reads both, fixes or adds presets, moves
+  the pins with `--pin`, records each reviewed candidate in
+  `ci/preset_candidates.json`, and opens one draft PR. A Claude Code routine runs it
+  once a week. Never edit a `verified` block by hand.
 - **An options flow merges; it never replaces.** Home Assistant stores what an options
   flow returns from `async_create_entry` as the *entire* `entry.options`, and the
   Configure dialog renders only `options.FLOW_OPTIONS` — so return

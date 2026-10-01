@@ -419,6 +419,19 @@
   its own context, its own `test()` and its own output basename. A phone tour is
   different *beats*, not the desktop script at 390px.
 
+## Preset upkeep
+
+- Each integration preset pins the upstream commit we last read (`verified.ref` in
+  `declarative_presets_catalog.py`). `python ci/check_preset_keys.py --report FILE`
+  lists missing keys and the keys added and removed since each pin;
+  `python ci/check_preset_keys.py --pin` moves the pins after a check.
+- `python ci/find_preset_candidates.py --core <sparse core clone>` lists the
+  integrations with duty-like keys that no preset covers. `--mark` records a reviewed
+  candidate in `ci/preset_candidates.json`, so a weekly run lists only what changed.
+- The scripts find; the `preset-upkeep` skill (`.claude/skills/preset-upkeep`)
+  decides, edits the catalog and opens one draft PR. Neither script is a PR gate:
+  a change in another project must not stop a merge here.
+
 ## Mutation testing (a PR gate)
 Coverage proves a line *ran*; mutation testing proves a test would have *failed*
 had that line been wrong. `mutation.yml` runs on every PR and scores only the code
