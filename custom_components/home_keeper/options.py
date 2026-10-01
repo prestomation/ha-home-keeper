@@ -377,10 +377,15 @@ def profile_removals_in_use(
       that sends no ``profiles`` key removes nothing and can never block
     - the references come from ***merged*'s** notifications, never *base*'s, so one
       save that deletes a profile together with its notifications is allowed
-    - only ids this save removes are candidates, so an options document that already
-      holds a dangling ``profile_id`` still reads and writes — that state is designed
-      (``notifier._notification_profile``), documented, and reachable from a backup
-    - ids are matched, names are only reported, so a rename is not a removal
+    - only a reference that resolved before this save is a candidate, so an options
+      document that already holds a dangling ``profile_id`` still reads and writes —
+      that state is designed (``notifier._notification_profile``), documented, and
+      reachable from a backup
+    - a reference resolves the way the notifier resolves it, with
+      ``profiles.resolve_profile``: by id, then by name. A notification that names
+      its profile is then blocked like one that holds the id, and for that
+      notification a rename is a removal (B19-3). For an id, a rename is not a
+      removal
 
     Both arguments are **normalized** documents — ``current_options`` and
     ``_normalize`` are the only two things that produce them, and both hold every
@@ -389,20 +394,22 @@ def profile_removals_in_use(
     key here is a bug in the caller, and a ``KeyError`` says so instead of quietly
     returning "nothing is in the way" and writing the save through.
     """
-    removed = {profile["id"]: profile["name"] for profile in base[OPTION_PROFILES]}
-    for profile in merged[OPTION_PROFILES]:
-        removed.pop(profile["id"], None)
+    before_profiles = base[OPTION_PROFILES]
+    after_profiles = merged[OPTION_PROFILES]
     blocked: list[tuple[str, str]] = []
     for notification in merged[OPTION_NOTIFICATIONS]:
         # ``profile_id`` is None for a notification that covers every due task. That
         # is a **valid** value, not malformed input, and it has to fall through: such
-        # a notification names no profile, so no profile removal can strand it. The
-        # lookup handles it because every key here is a string, so None never matches.
-        # Do not "harden" this into a string check — that would make a None read as a
-        # blocker. ``test_a_notification_with_no_profile_is_never_a_blocker`` pins it.
-        profile_name = removed.get(notification["profile_id"])
-        if profile_name is not None:
-            blocked.append((profile_name, notification["name"]))
+        # a notification names no profile, so no profile removal can strand it.
+        # ``resolve_profile`` answers None for it. Do not "harden" this into a string
+        # check — that would make a None read as a blocker.
+        # ``test_a_notification_with_no_profile_is_never_a_blocker`` pins it.
+        reference = notification["profile_id"]
+        before = profiles.resolve_profile(before_profiles, reference)
+        if before is None:
+            continue
+        if profiles.resolve_profile(after_profiles, reference) is None:
+            blocked.append((before["name"], notification["name"]))
     return blocked
 
 

@@ -437,7 +437,7 @@ def test_a_save_that_does_not_send_profiles_removes_nothing() -> None:
 
 
 def test_renaming_a_profile_is_not_a_removal() -> None:
-    """Ids are matched; names are only reported. A rename keeps the id."""
+    """A rename keeps the id, and an id reference still resolves."""
     base = _opts([_P1], [_N_ON_P1])
     merged = _opts([{**_P1, "name": "House chores"}], [_N_ON_P1])
     assert opts.profile_removals_in_use(base, merged) == []
@@ -533,6 +533,34 @@ def test_a_profile_sent_without_an_id_reads_as_a_removal() -> None:
     base = _opts([_P1], [_N_ON_P1])
     merged = _opts([{"name": "My chores", "filter": {"status": "overdue"}}], [_N_ON_P1])
     assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
+
+
+_N_BY_NAME = {"id": "n1", "name": "Walk", "profile_id": "My chores", "targets": []}
+
+
+def test_b19_3_removing_a_profile_a_notification_names_by_name_is_blocked() -> None:
+    """The notifier resolves a stored name too, so the guard must see that use."""
+    base = _opts([_P1, _P2], [_N_BY_NAME])
+    merged = _opts([_P2], [_N_BY_NAME])
+    assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
+
+
+def test_b19_3_renaming_a_profile_a_notification_names_by_name_is_blocked() -> None:
+    base = _opts([_P1], [_N_BY_NAME])
+    merged = _opts([{**_P1, "name": "House chores"}], [_N_BY_NAME])
+    assert opts.profile_removals_in_use(base, merged) == [("My chores", "Walk")]
+
+
+def test_b19_3_a_name_reference_that_still_resolves_is_not_blocked() -> None:
+    base = _opts([_P1, _P2], [_N_BY_NAME])
+    # Another profile is removed, and the named one keeps its name.
+    merged = _opts([_P1], [_N_BY_NAME])
+    assert opts.profile_removals_in_use(base, merged) == []
+    # Re-sent without its id: a new id, but the name still resolves.
+    resent = _opts(
+        [{"name": "My chores", "filter": {"status": "overdue"}}], [_N_BY_NAME]
+    )
+    assert opts.profile_removals_in_use(base, resent) == []
 
 
 def test_the_options_flow_cannot_remove_a_profile() -> None:
