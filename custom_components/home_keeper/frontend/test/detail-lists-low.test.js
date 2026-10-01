@@ -134,7 +134,7 @@ describe('F07-2: Delete on an auto-created buy reminder', () => {
     expect(q(panel, '.d-del')).toBeNull();
     const captions = qa(panel, '.hk-managed-info').map((e) => e.textContent);
     expect(captions).toContain(
-      'Restock the part, or turn off its auto-buy option, to remove this reminder.',
+      'To remove this reminder, restock the part or turn off its auto-buy option.',
     );
   });
 

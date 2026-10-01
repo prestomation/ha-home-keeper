@@ -364,7 +364,7 @@
   "managed.allLocked": "{name} sets every field on this task.",
   "managed.assetOwned": "{name} sets the name and the part list. You set the counts.",
   "managed.deleteBlocked": "Delete from {name} instead",
-  "managed.buyReminder": "Restock the part, or turn off its auto-buy option, to remove this reminder.",
+  "managed.buyReminder": "To remove this reminder, restock the part or turn off its auto-buy option.",
   "managed.deleteFromCompanion": "To remove this task, delete the declarative companion “{name}”.",
   "managed.fieldLocked": "Set by {name}",
   "managed.orphanBanner.one": "{n} task is managed by an integration that's no longer installed.",
