@@ -148,6 +148,8 @@ version bump.
 - Otherwise commit, push, and open a **draft** PR titled
   `Preset upkeep YYYY-MM-DD`. The body has these sections: Fixed, Added, Skipped keys,
   Candidates reviewed, Candidates left, and Pins moved (a count).
+- Open the PR against `main`, not against another branch. The CI workflows run only
+  for a PR to `main`, and a later change of the base does not start them.
 - Post `/q review` on the PR with a request that names the integrations you changed.
 - Reply with a short summary in ASD-STE100 English: what you fixed, what you added,
   and the PR link.
