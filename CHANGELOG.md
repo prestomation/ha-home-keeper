@@ -6,6 +6,13 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0b15]
+
+### Added
+
+- **[Actron Air preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  Home Keeper opens a task when an Actron Air system says that its filter needs a clean.
+
 ## [0.28.0b14]
 
 ### Added
