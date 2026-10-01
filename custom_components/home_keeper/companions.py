@@ -141,8 +141,16 @@ class CompanionRegistry:
         return stored
 
     def _installed_domains(self) -> set[str]:
-        """Domains that currently have at least one config entry."""
-        return {entry.domain for entry in self._hass.config_entries.async_entries()}
+        """Domains that currently have at least one config entry.
+
+        An ignored entry is a discovery the user turned down, not an installed
+        integration, so it does not count (B19-6). A disabled entry still counts:
+        the integration is installed, and Configure still opens it.
+        """
+        return {
+            entry.domain
+            for entry in self._hass.config_entries.async_entries(include_ignore=False)
+        }
 
     def _dismissed(self) -> set[str]:
         """Catalog glue domains the user dismissed (read from Home Keeper options)."""

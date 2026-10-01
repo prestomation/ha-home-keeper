@@ -76,6 +76,31 @@ def test_register_schema_accepts_reasonable_descriptor():
     assert out["capabilities"] == ["a", "b"]
 
 
+def test_b19_6_an_ignored_entry_is_not_an_installed_domain():
+    from types import SimpleNamespace
+
+    c = _companions()
+    entries = [
+        SimpleNamespace(domain="battery_notes", source="ignore", disabled_by=None),
+        SimpleNamespace(domain="light", source="user", disabled_by=None),
+        SimpleNamespace(
+            domain="home_keeper_battery_notes", source="user", disabled_by="user"
+        ),
+    ]
+
+    def async_entries(domain=None, include_ignore=True, include_disabled=True):
+        return [
+            e
+            for e in entries
+            if (include_ignore or e.source != "ignore")
+            and (include_disabled or e.disabled_by is None)
+        ]
+
+    hass = SimpleNamespace(config_entries=SimpleNamespace(async_entries=async_entries))
+    reg = c.CompanionRegistry(hass)
+    assert reg._installed_domains() == {"light", "home_keeper_battery_notes"}
+
+
 def test_registry_caps_new_domains_but_allows_updates():
     c = _companions()
     reg = c.CompanionRegistry(object())  # register() never touches hass

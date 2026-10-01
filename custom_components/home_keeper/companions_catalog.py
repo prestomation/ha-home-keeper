@@ -153,10 +153,12 @@ def build_companion_list(
         if domain in installed_domains:
             rows.append(_connected_from_registered(domain, registered[domain]))
 
-    # Catalog detection fills in the rest, skipping anything already registered.
+    # Catalog detection fills in the rest, skipping anything already registered and
+    # still installed. A glue that registered and was then removed has no row above,
+    # so its catalog entry must still give the upstream its suggestion (B19-4).
     for entry in CATALOG:
         glue = entry["glue_domain"]
-        if glue in registered:
+        if glue in registered and glue in installed_domains:
             continue
         if glue in installed_domains:
             rows.append(_connected_from_catalog(entry))
