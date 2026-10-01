@@ -346,6 +346,27 @@ function flatSensor(sd: Record<string, unknown>, key: string, stored: unknown): 
 }
 
 /**
+ * The starting reading of a usage binding, as the form uses it (B08-5).
+ *
+ * The edit form shows the stored baseline in its box. That number belongs to the
+ * entity and attribute that the stored binding reads. When the user points the
+ * binding at another entity or attribute, it is a different meter, so an unchanged
+ * stored number is not sent and the new meter starts from its live reading. A number
+ * the user typed is kept.
+ */
+function formBaseline(task: Partial<Task>): unknown {
+  const sd = task as Record<string, unknown>;
+  const raw = sd.sensor_baseline ?? task.sensor?.baseline;
+  const stored = task.sensor;
+  if (stored?.baseline == null || raw == null || raw === '') return raw;
+  const entityId = String(sd.sensor_entity_id ?? stored.entity_id ?? '');
+  const attribute = String(flatSensor(sd, 'sensor_attribute', stored.attribute) ?? '').trim();
+  const rebound =
+    entityId !== stored.entity_id || attribute !== String(stored.attribute ?? '').trim();
+  return rebound && Number(raw) === Number(stored.baseline) ? undefined : raw;
+}
+
+/**
  * Whether a state-mode binding points at a `binary_sensor`, from either representation.
  *
  * Binary sensors are the reason this mode exists and they only ever report `on`/`off`,
@@ -1167,7 +1188,7 @@ export function buildTaskPayload(task: Partial<Task>): Partial<Task> {
       // by `merge_update`. Note the deliberate absence of the `|| 0` fallback used
       // for `target` above — 0 is a *valid* baseline (a brand-new hour meter) and
       // that idiom would turn a cleared box into a real anchor at zero.
-      const rawBaseline = sd.sensor_baseline ?? task.sensor?.baseline;
+      const rawBaseline = formBaseline(task);
       if (rawBaseline != null && rawBaseline !== '' && Number.isFinite(Number(rawBaseline)))
         sensor.baseline = Number(rawBaseline);
       // The backstop applies only when its switch is on; a blank or zero interval
@@ -1377,8 +1398,7 @@ function usageHint(
   targetStr: string,
   unit: string,
 ): string {
-  const sd = task as Record<string, unknown>;
-  const rawBaseline = sd.sensor_baseline ?? task.sensor?.baseline;
+  const rawBaseline = formBaseline(task);
   const baseline = Number(rawBaseline);
   const hasBaseline =
     rawBaseline != null && rawBaseline !== '' && Number.isFinite(baseline);

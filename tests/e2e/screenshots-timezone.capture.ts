@@ -89,7 +89,7 @@ test('capture times in the Home Assistant zone', async ({ page }) => {
   await page.setViewportSize(PHONE);
 
   await openHistory(page);
-  await page.screenshot({ path: `${OUT}/75c-panel-mobile-timezone-task-history.png`, fullPage: true });
+  await page.screenshot({ path: `${OUT}/75c-panel-mobile-zone-completions.png`, fullPage: true });
 
   await openForm(page);
   await page.screenshot({ path: `${OUT}/74c-panel-mobile-timezone-task-form.png` });

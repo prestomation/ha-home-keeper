@@ -1123,6 +1123,11 @@ def _season_key(season: Any) -> list[tuple[tuple[int, int], tuple[int, int]]]:
     ]
 
 
+# Fields that only some recurrence types use. A type change removes the ones that
+# the new type does not use (see merge_update).
+_TYPE_SCHEDULE_KEYS = ("interval", "unit", "freq", "anchor", "due", "sensor")
+
+
 def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     """Return *existing* updated with *updates*, recomputing next_due if needed.
 
@@ -1141,6 +1146,10 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
             updates = {k: v for k, v in updates.items() if k not in locked}
 
     merged = dict(existing)
+    old_type = existing.get("recurrence_type")
+    type_changed = (
+        "recurrence_type" in updates and updates["recurrence_type"] != old_type
+    )
     # Build a candidate field set from existing + updates, then normalize so the
     # same validation applies to edits as to creation.
     candidate = {
@@ -1166,6 +1175,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         ),
         "active_season": updates.get("active_season", existing.get("active_season")),
     }
+    if type_changed:
+        # A type change reads the due date and the sensor binding only from the
+        # update. A value stored for an earlier type is stale: an old due date made
+        # a task converted back to one-off overdue at once (B08-7).
+        candidate["due"] = updates.get("due")
+        candidate["sensor"] = updates.get("sensor")
     # Converting a task to one-off without supplying a due date defaults to now (due
     # today), mirroring build_task — so the conversion can't fail for a missing due
     # (the panel always sends one, but a service caller may not).
@@ -1173,6 +1188,12 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         candidate["due"] = now.isoformat()
     fields = normalize_fields(candidate, tz=now.tzinfo)
     merged.update(fields)
+    if type_changed:
+        # Remove the schedule fields that the new type does not use, so the task
+        # has the shape that build_task gives it (B08-7).
+        for key in _TYPE_SCHEDULE_KEYS:
+            if key not in fields:
+                merged.pop(key, None)
 
     # Preserve a usage meter's accumulated baseline across edits. The panel's edit
     # payload rebuilds the ``sensor`` binding from form fields and never carries the
@@ -1181,13 +1202,21 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
     # resetting "12,000 of 15,000" to zero. Carry the old baseline forward only when
     # the binding still points at the same entity in usage mode and the update didn't
     # set one explicitly; changing the entity (a genuinely new meter) re-baselines.
+    #
+    # The old binding must be a usage binding of a sensor task that reads the same
+    # quantity: the same entity and the same attribute. A different attribute is a
+    # different meter, and a sensor block kept from before a type change is stale
+    # (B08-5).
     new_sensor = merged.get("sensor")
     old_sensor = existing.get("sensor")
     if (
         isinstance(new_sensor, dict)
         and new_sensor.get("mode") == SENSOR_MODE_USAGE
+        and old_type == REC_SENSOR
         and isinstance(old_sensor, dict)
+        and old_sensor.get("mode") == SENSOR_MODE_USAGE
         and old_sensor.get("entity_id") == new_sensor.get("entity_id")
+        and old_sensor.get("attribute") == new_sensor.get("attribute")
         and "baseline" not in new_sensor
         and old_sensor.get("baseline") is not None
     ):
@@ -1250,7 +1279,6 @@ def merge_update(existing: dict, updates: dict, *, now: datetime) -> dict:
         "active_season",
     }
     new_type = merged.get("recurrence_type")
-    old_type = existing.get("recurrence_type")
     # Recompute only when a recurrence field's *value* actually changed — not merely
     # because the key is present in the payload. The panel's edit form always sends
     # recurrence_type/due (and interval/unit for scheduled tasks), so keying off
