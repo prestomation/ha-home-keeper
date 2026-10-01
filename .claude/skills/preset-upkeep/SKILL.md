@@ -89,7 +89,10 @@ first, then core in the order listed.
   (raw URL on the branch), `duties`. Put it in the section of its kind of device.
 - For each preset that you add (a new entry, or a new shape in an entry), add its id
   to `tests/unit/shipped_preset_ids.txt` in sorted order. The id is
-  `<domain>_<shape>`, and `<domain>_alert_<platform>_<state>` for an alert. Add a new
+  `<domain>_<shape>_<platform>_<state>` (see `_integration_presets` in
+  `declarative_presets.py`). Leave out the platform when it is `sensor`, and the
+  state when the shape has none: `dreo_percent_low`, `electrolux_alert_Change`,
+  `roomba_alert_binary_sensor_on`. The unit test names a missing id. Add a new
   entry's brand to the table in `docs/guide/views/settings.md`
   ("Integration presets").
 - Record every candidate you reviewed, added or not, so the next run skips it:
