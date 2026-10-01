@@ -1,5 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { submitSkip, submitSnooze } from '../src/defer-dialogs.ts';
+import {
+  renderSkipDialog,
+  renderSnoozeDialog,
+  submitSkip,
+  submitSnooze,
+} from '../src/defer-dialogs.ts';
 import { guardWrite } from '../src/utils.ts';
 import { definePanelStubs, mountPanel, waitFor } from './panel-harness.js';
 
@@ -193,6 +198,35 @@ describe('X12-3 / X12-4: the panel', () => {
     expect(calls['home_keeper/complete_task']).toBe(1);
   });
 
+  it('F10-3: a completion that ends after a dismiss leaves the next dialog open', async () => {
+    const gate = deferred();
+    const a = { ...TASK, completion_detail: 'optional' };
+    const b = { ...TASK, id: 't2', name: 'Clean gutters', completion_detail: 'optional' };
+    const { hass } = gatedHass([a, b], gate);
+    const { panel } = await mountPanel('/tasks', hass);
+    await waitFor(() => panel.shadowRoot.querySelectorAll('#hk-list .done-btn').length === 2);
+    const doneFor = (id) =>
+      [...panel.shadowRoot.querySelectorAll('#hk-list .done-btn')].find(
+        (el) => el.closest('[data-id]')?.dataset.id === id,
+      ) ?? panel.shadowRoot.querySelectorAll('#hk-list .done-btn')[id === 't1' ? 0 : 1];
+    doneFor('t1').click();
+    const primary = await waitFor(() =>
+      panel.shadowRoot.querySelector('ha-dialog [slot="primaryAction"]'),
+    );
+    primary.click();
+    // The last secondary button is Cancel (the one before it is "skip details").
+    [...panel.shadowRoot.querySelectorAll('ha-dialog [slot="secondaryAction"]')].pop().click();
+    expect(panel._completion.open).toBe(false);
+    doneFor('t2').click();
+    await waitFor(() => panel._completion.open);
+    const second = panel._completion;
+    expect(second.task.id).toBe('t2');
+    gate.resolve();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(panel._completion).toBe(second);
+    expect(panel._completion.open).toBe(true);
+  });
+
   it('X12-4: a double press on Create in the task drawer adds one task', async () => {
     const gate = deferred();
     const { hass, calls } = gatedHass([], gate);
@@ -219,4 +253,84 @@ describe('X12-3 / X12-4: the panel', () => {
     await Promise.all([a, b]);
     expect(calls['home_keeper/add_asset']).toBe(1);
   });
+});
+
+describe('F10-3: a late reply closes only its own dialog', () => {
+  /** A host whose one dialog slot holds *state*, as the panel and the card do. */
+  function slotHost(gate) {
+    const notes = [];
+    const hass = { callWS: () => gate.promise.then(() => ({ task: { id: 't1' } })) };
+    const slot = { state: null, closes: 0 };
+    const host = {
+      hass: () => hass,
+      lang: () => 'en',
+      makeForm: () => document.createElement('div'),
+      rerender: () => {},
+      refresh: async () => {},
+      notify: (m) => notes.push(m),
+    };
+    const close = () => {
+      slot.closes++;
+      slot.state = { open: false };
+    };
+    return { host, slot, close, notes };
+  }
+
+  const buttons = (root) => ({
+    primary: root.querySelector('[slot="primaryAction"]'),
+    cancel: root.querySelector('[slot="secondaryAction"]'),
+  });
+
+  for (const [kind, render, state] of [
+    ['snooze', renderSnoozeDialog, () => ({ open: true, task: { id: 't1' }, preset: '1d' })],
+    ['skip', renderSkipDialog, () => ({ open: true, task: { id: 't1' }, data: {} })],
+  ]) {
+    it(`F10-3: a ${kind} that ends after a dismiss leaves the next dialog open`, async () => {
+      const gate = deferred();
+      const { host, slot, close } = slotHost(gate);
+      const a = state();
+      slot.state = a;
+      const root = document.createElement('div');
+      render(host, a, root, close);
+      buttons(root).primary.click();
+      buttons(root).cancel.click();
+      expect(slot.closes).toBe(1);
+      expect(a.open).toBe(false);
+      const b = state();
+      slot.state = b;
+      gate.resolve();
+      await new Promise((r) => setTimeout(r, 10));
+      expect(slot.closes).toBe(1);
+      expect(slot.state).toBe(b);
+    });
+
+    it(`F10-3: a failed ${kind} after a dismiss shows a message`, async () => {
+      const gate = deferred();
+      const { host, slot, close, notes } = slotHost(gate);
+      const a = state();
+      const root = document.createElement('div');
+      render(host, a, root, close);
+      buttons(root).primary.click();
+      buttons(root).cancel.click();
+      gate.reject(new Error('Task not found'));
+      await new Promise((r) => setTimeout(r, 10));
+      expect(notes).toEqual(['Task not found']);
+      expect(a.error).toBeUndefined();
+      expect(slot.closes).toBe(1);
+    });
+
+    it(`F10-3: a failed ${kind} in an open dialog shows the error in it`, async () => {
+      const gate = deferred();
+      const { host, close, notes } = slotHost(gate);
+      const a = state();
+      const root = document.createElement('div');
+      render(host, a, root, close);
+      buttons(root).primary.click();
+      gate.reject(new Error('Task not found'));
+      await new Promise((r) => setTimeout(r, 10));
+      expect(a.error).toBe('Task not found');
+      expect(a.open).toBe(true);
+      expect(notes).toEqual([]);
+    });
+  }
 });

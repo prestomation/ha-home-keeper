@@ -146,6 +146,40 @@ export interface DeferDialogHost {
   rerender(): void;
   /** Reload tasks after a successful write. */
   refresh(): Promise<void>;
+  /** Show a short message. For an error of a dialog that is no longer open. */
+  notify?(message: string): void;
+}
+
+/**
+ * *close* made safe for a request that ends late (F10-3). A dialog closes its own
+ * state only: after the user dismissed it, the host can show a different dialog of
+ * the same kind, and a late reply must not close that one. Dismissal sets
+ * `open = false` on the state object, so a later call does nothing.
+ */
+function closeOnce(s: { open: boolean }, close: () => void): () => void {
+  return () => {
+    if (!s.open) return;
+    s.open = false;
+    close();
+  };
+}
+
+/**
+ * Show the error of a failed write: in the dialog when it is still open, else as a
+ * message from the host, because the dialog state is gone from the screen (F10-3).
+ */
+function reportError(
+  host: DeferDialogHost,
+  s: { open: boolean; error?: string },
+  err: unknown,
+): void {
+  const message = String((err as { message?: string })?.message || err);
+  if (s.open) {
+    s.error = message;
+    host.rerender();
+  } else {
+    host.notify?.(message);
+  }
 }
 
 function footerButtons(
@@ -185,9 +219,8 @@ export function renderSnoozeDialog(
   close: () => void,
 ): void {
   if (!s.task) return;
-  const { dialog, body, footer, mount } = makeDialog(t('defer.snoozeTitle'), () => {
-    if (s.open) close();
-  });
+  close = closeOnce(s, close);
+  const { dialog, body, footer, mount } = makeDialog(t('defer.snoozeTitle'), close);
 
   const options = SNOOZE_PRESETS.map((p) => ({ value: p.id, label: t('defer.preset.' + p.id) }));
   const schema: FormField[] = [
@@ -246,8 +279,7 @@ export async function submitSnooze(
         close();
         await host.refresh();
       } catch (err) {
-        s.error = String((err as { message?: string })?.message || err);
-        host.rerender();
+        reportError(host, s, err);
       }
     },
     button,
@@ -269,12 +301,11 @@ export function renderSkipDialog(
   close: () => void,
 ): void {
   if (!s.task) return;
+  close = closeOnce(s, close);
   const editing = s.ts != null;
   const { dialog, body, footer, mount } = makeDialog(
     editing ? t('defer.skipEditTitle') : t('defer.skipTitle'),
-    () => {
-      if (s.open) close();
-    },
+    close,
   );
 
   if (!editing) {
@@ -342,8 +373,7 @@ export async function submitSkip(
         close();
         await host.refresh();
       } catch (err) {
-        s.error = String((err as { message?: string })?.message || err);
-        host.rerender();
+        reportError(host, s, err);
       }
     },
     button,

@@ -388,6 +388,7 @@ export class HomeKeeperCard extends HTMLElement {
       makeForm(this._hass, schema, data, onChange, (form) => this._liveHassEls.push(form)),
     rerender: () => this._render(),
     refresh: () => this._refresh(),
+    notify: (message) => toast(this, message),
   };
 
   private _config: HomeKeeperCardConfig = { type: '' };
