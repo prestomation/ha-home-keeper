@@ -886,7 +886,10 @@ that has no link.
 
 Deleting a completion (`home_keeper.delete_completion`) gives back the stock that
 completion took. Home Keeper records the amount on the completion as `stock_drawn`. The
-count stops at zero, so the recorded amount can be less than `quantity`.
+count stops at zero, so the recorded amount can be less than `quantity`. The delete
+also puts back the part's `last_replaced` date. If another replacement remains, the
+date of the latest one is used. Otherwise the date from before the completion comes
+back.
 
 ### Drawing stock down without a task
 

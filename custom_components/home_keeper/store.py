@@ -102,6 +102,31 @@ _STOCK_EVENT = {
 
 _LOGGER = logging.getLogger(__name__)
 
+# Completion entry key: the part's ``last_replaced`` before this completion stamped
+# it. Store bookkeeping like ``stock_drawn``, not metadata (B01-3).
+LAST_REPLACED_BEFORE: Final = "last_replaced_before"
+
+
+def _local_date(when: Any) -> str:
+    """Return the local calendar date of *when* as ``YYYY-MM-DD``.
+
+    *when* is a datetime or an ISO timestamp. ``as_local`` first (#250): a bare
+    ``.date()`` takes the calendar date in the offset the caller supplied.
+    """
+    if isinstance(when, str):
+        parsed = dt_util.parse_datetime(when)
+        when = parsed if parsed is not None else when
+    if hasattr(when, "date"):
+        return str(dt_util.as_local(when).date().isoformat())
+    return str(when)[:10]
+
+
+def _completion_entry(task: dict[str, Any], when: Any) -> dict[str, Any] | None:
+    """Return the completion entry of *task* recorded at *when*, if any."""
+    ts = when.isoformat() if hasattr(when, "isoformat") else str(when)
+    return next((c for c in task.get("completions", []) if c.get("ts") == ts), None)
+
+
 # Source namespaces Home Keeper writes itself. They name no contributor device, so
 # the split-duplicate merge never groups tasks by them (B17-1).
 _RESERVED_SOURCE_NAMESPACES = frozenset(
@@ -2337,7 +2362,7 @@ class HomeKeeperStore:
         if _part_source(updated):
             self._stamp_part_replacement(updated, when)
         elif _buy_source(updated):
-            self._stamp_buy_restock(updated)
+            self._stamp_buy_restock(updated, when)
         await self._save()
         _LOGGER.debug(
             "Completed task %s; next due %s", task_id, updated.get("next_due")
@@ -2494,6 +2519,7 @@ class HomeKeeperStore:
         # A completion of a linked task took stock. Its undo gives that stock back, so
         # a mistaken tick does not leave the count one short.
         self._return_stock_drawn(removed_entry)
+        self._restamp_last_replaced(updated, removed_entry)
         await self._save()
         self._hass.bus.async_fire(
             EVENT_TASK_UNCOMPLETED,
@@ -2526,12 +2552,21 @@ class HomeKeeperStore:
         # A synced problem task's history is owned by the sync, not the user.
         _reject_synced_problem(existing, None)
         now = dt_util.now()
+        # A copy, because the move can change the entry in place.
+        moved_entry = dict(
+            next(
+                (e for e in existing.get("completions", []) if e.get("ts") == old_ts),
+                {},
+            )
+        )
         try:
             updated = recurrence.move_completion(
                 dict(existing), old_ts, new_ts, now=now
             )
         except ValueError as err:
             raise models.TaskValidationError(str(err)) from err
+        if moved_entry:
+            self._restamp_last_replaced(updated, moved_entry)
         self._tasks[task_id] = updated
         await self._save()
         # Mirror recurrence.move_completion's own naive-timestamp qualification so
@@ -2783,14 +2818,19 @@ class HomeKeeperStore:
         # a date-only string that ``reconcile`` re-anchors the part's recurrence to, so
         # a one-day shift here shifts the whole wear cycle. The ``hasattr`` guard keeps
         # the true branch a datetime: a plain ``date`` has no ``.date()`` method.
-        when_date = (
-            dt_util.as_local(when).date().isoformat()
-            if hasattr(when, "date")
-            else str(when)[:10]
-        )
+        when_date = _local_date(when)
+        # A future completion must not stamp a future date. The appliance refuses a
+        # future ``last_replaced``, so the part could not be saved until that day
+        # (B05-3).
+        when_date = min(when_date, dt_util.as_local(dt_util.now()).date().isoformat())
         part_id = src.get("part_id")
         part = assets.find_part(asset, part_id) if part_id is not None else None
         if part is not None:
+            entry = _completion_entry(task, when)
+            if entry is not None:
+                # The date this completion replaces. An undo puts it back when no
+                # other replacement remains (B01-3).
+                entry[LAST_REPLACED_BEFORE] = part.get("last_replaced")
             part["last_replaced"] = when_date
             # Completing a wear-part replacement consumes the link's amount when it
             # states one, and the part's per-use amount otherwise (one whole spare
@@ -2825,10 +2865,7 @@ class HomeKeeperStore:
         drawn = assets.stock_delta(before, part.get("stock"))
         if drawn >= 0:
             return
-        ts = when.isoformat() if hasattr(when, "isoformat") else str(when)
-        entry = next(
-            (c for c in task.get("completions", []) if c.get("ts") == ts), None
-        )
+        entry = _completion_entry(task, when)
         if entry is not None:
             entry["stock_drawn"] = {
                 "asset_id": asset.get("id"),
@@ -2842,19 +2879,54 @@ class HomeKeeperStore:
         Does nothing when the appliance, the part or its count has gone since, because
         there is no count left to correct.
         """
-        drawn = entry.get("stock_drawn")
-        if not isinstance(drawn, dict):
-            return
-        asset = self._assets.get(str(drawn.get("asset_id")))
-        if asset is None:
-            return
-        part = assets.find_part(asset, str(drawn.get("part_id")))
-        if part is None or not assets.part_tracks_stock(part):
-            return
-        transition = assets.adjust_part_stock(part, float(drawn.get("quantity") or 0))
-        self._emit_stock_event(transition, asset, part)
+        # ``stock_drawn`` gives back a draw. ``stock_added`` takes back the restock
+        # that a completed buy reminder added (B01-5).
+        for key, sign in (("stock_drawn", 1.0), ("stock_added", -1.0)):
+            moved = entry.get(key)
+            if not isinstance(moved, dict):
+                continue
+            asset = self._assets.get(str(moved.get("asset_id")))
+            if asset is None:
+                continue
+            part = assets.find_part(asset, str(moved.get("part_id")))
+            if part is None or not assets.part_tracks_stock(part):
+                continue
+            quantity = sign * float(moved.get("quantity") or 0)
+            transition = assets.adjust_part_stock(part, quantity)
+            self._emit_stock_event(transition, asset, part)
 
-    def _stamp_buy_restock(self, task: dict[str, Any]) -> None:
+    def _restamp_last_replaced(
+        self, task: dict[str, Any], entry: dict[str, Any]
+    ) -> None:
+        """Correct ``last_replaced`` after *entry* was deleted or moved (B01-3).
+
+        Only when the part still shows the date that *entry* stamped. The new date
+        comes from the latest replacement left in *task*. If no replacement is left,
+        the date that *entry* replaced comes back.
+        """
+        src = _part_source(task)
+        if not src or _is_use_task(task) or LAST_REPLACED_BEFORE not in entry:
+            return
+        asset = self._assets.get(src["asset_id"])
+        part_id = src.get("part_id")
+        if asset is None or part_id is None:
+            return
+        part = assets.find_part(asset, part_id)
+        if part is None:
+            return
+        today = dt_util.as_local(dt_util.now()).date().isoformat()
+        if part.get("last_replaced") != min(_local_date(entry.get("ts")), today):
+            return
+        remaining = [
+            _local_date(c.get("ts"))
+            for c in task.get("completions") or []
+            if c.get("ts")
+        ]
+        part["last_replaced"] = (
+            min(max(remaining), today) if remaining else entry.get(LAST_REPLACED_BEFORE)
+        )
+
+    def _stamp_buy_restock(self, task: dict[str, Any], when: Any = None) -> None:
         """On completing an auto-created buy task, restock its part.
 
         Adds the part's ``restock_quantity`` (default 1, and decimal like every other
@@ -2874,7 +2946,18 @@ class HomeKeeperStore:
         part = assets.find_part(asset, part_id) if part_id is not None else None
         if part is not None:
             qty = assets.part_restock_quantity(part)
+            before = part.get("stock")
             self._emit_stock_event(assets.adjust_part_stock(part, qty), asset, part)
+            # Record the amount the count really moved, so an undo of this
+            # completion takes back the same amount (B01-5).
+            added = assets.stock_delta(before, part.get("stock"))
+            entry = _completion_entry(task, when) if when is not None else None
+            if entry is not None and added > 0:
+                entry["stock_added"] = {
+                    "asset_id": asset.get("id"),
+                    "part_id": part.get("id"),
+                    "quantity": added,
+                }
 
     def _emit_stock_event(
         self, transition: str, asset: dict[str, Any], part: dict[str, Any]

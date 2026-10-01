@@ -1021,3 +1021,159 @@ def test_b09_3_an_import_keeps_the_schedule_of_a_task_it_writes(store):
 
     assert store._tasks[task["id"]] is imported
     assert imported["last_completed"] is None
+
+
+# ── low findings: undo of a replacement and of a restock ─────────────────────
+
+
+def _wear_part_with_date(store, last_replaced="2026-05-01"):
+    asset = _asset(
+        store,
+        parts=[{**_WEAR, "stock": 4, "reorder_at": 1, "last_replaced": last_replaced}],
+    )
+    _run(store.reconcile_part_tasks())
+    task = next(iter(store._tasks.values()))
+    return asset["parts"][0], task
+
+
+def test_b01_3_undoing_the_only_replacement_restores_last_replaced(store):
+    part, task = _wear_part_with_date(store)
+    _run(store.complete_task(task["id"]))
+    assert part["last_replaced"] == "2026-06-13"
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["last_replaced"] == "2026-05-01"
+
+
+def test_b01_3_undoing_the_latest_replacement_falls_back_to_the_one_before(store):
+    part, task = _wear_part_with_date(store)
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    _run(store.complete_task(task["id"]))
+    assert part["last_replaced"] == "2026-06-13"
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["last_replaced"] == "2026-06-01"
+
+
+def test_b01_3_undoing_an_older_replacement_keeps_last_replaced(store):
+    part, task = _wear_part_with_date(store)
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    first = _completed_ts(store, task["id"])
+    _run(store.complete_task(task["id"]))
+    _run(store.delete_completion(task["id"], first))
+    assert part["last_replaced"] == "2026-06-13"
+
+
+def test_b01_3_a_manual_date_after_the_completion_is_kept_on_undo(store):
+    part, task = _wear_part_with_date(store)
+    _run(store.complete_task(task["id"]))
+    # The user then corrects the date on the part by hand.
+    part["last_replaced"] = "2026-06-10"
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["last_replaced"] == "2026-06-10"
+
+
+def test_b01_3_moving_a_replacement_moves_last_replaced(store):
+    part, task = _wear_part_with_date(store)
+    _run(store.complete_task(task["id"]))
+    old = _completed_ts(store, task["id"])
+    new = datetime(2026, 6, 2, 9, tzinfo=TZ).isoformat()
+    _run(store.move_completion(task["id"], old, new))
+    assert part["last_replaced"] == "2026-06-02"
+
+
+def test_b01_3_moving_an_older_replacement_keeps_last_replaced(store):
+    part, task = _wear_part_with_date(store)
+    _run(
+        store.complete_task(task["id"], completed_at=datetime(2026, 6, 1, 9, tzinfo=TZ))
+    )
+    first = _completed_ts(store, task["id"])
+    _run(store.complete_task(task["id"]))
+    _run(
+        store.move_completion(
+            task["id"], first, datetime(2026, 5, 20, 9, tzinfo=TZ).isoformat()
+        )
+    )
+    assert part["last_replaced"] == "2026-06-13"
+
+
+def test_b05_3_a_future_completion_stamps_today_not_the_future(store):
+    part, task = _wear_part_with_date(store)
+    _run(
+        store.complete_task(
+            task["id"], completed_at=datetime(2026, 6, 14, 8, tzinfo=TZ)
+        )
+    )
+    assert part["last_replaced"] == "2026-06-13"
+    # The appliance stays editable.
+    asset = next(iter(store._assets.values()))
+    assets_model.merge_update(asset, {"notes": "ok"}, now=NOW)
+    assets_model.merge_update(asset, {"parts": asset["parts"]}, now=NOW)
+    # The undo still finds the date that the completion stamped.
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["last_replaced"] == "2026-05-01"
+
+
+def _buy_task(store, asset, part):
+    return _task(
+        store,
+        name="Buy filter",
+        source={"buy": {"asset_id": asset["id"], "part_id": part["id"]}},
+    )
+
+
+def test_b01_5_undoing_a_buy_completion_takes_back_its_restock(store):
+    asset = _asset(
+        store,
+        parts=[{"name": "Filter", "stock": 1, "reorder_at": 3, "restock_quantity": 1}],
+    )
+    part = asset["parts"][0]
+    task = _buy_task(store, asset, part)
+    _run(store.complete_task(task["id"]))
+    assert part["stock"] == 2
+    entry = store._tasks[task["id"]]["completions"][-1]
+    assert entry["stock_added"] == {
+        "asset_id": asset["id"],
+        "part_id": part["id"],
+        "quantity": 1,
+    }
+    _run(store.delete_completion(task["id"], entry["ts"]))
+    assert part["stock"] == 1
+
+
+def test_b01_5_undo_takes_back_only_what_the_capped_restock_added(store):
+    asset = _asset(
+        store,
+        parts=[
+            {
+                "name": "Rinse aid",
+                "stock": 9998,
+                "reorder_at": 1,
+                "restock_quantity": 5,
+            }
+        ],
+    )
+    part = asset["parts"][0]
+    task = _buy_task(store, asset, part)
+    _run(store.complete_task(task["id"]))
+    assert part["stock"] == 10000
+    entry = store._tasks[task["id"]]["completions"][-1]
+    assert entry["stock_added"]["quantity"] == 2
+    _run(store.delete_completion(task["id"], entry["ts"]))
+    assert part["stock"] == 9998
+
+
+def test_b01_5_the_undo_of_a_restock_fires_the_low_event(store):
+    asset = _asset(
+        store,
+        parts=[{"name": "Filter", "stock": 1, "reorder_at": 1, "restock_quantity": 1}],
+    )
+    part = asset["parts"][0]
+    task = _buy_task(store, asset, part)
+    _run(store.complete_task(task["id"]))
+    assert part["stock"] == 2
+    _run(store.delete_completion(task["id"], _completed_ts(store, task["id"])))
+    assert part["stock"] == 1
+    assert len(store._hass.bus.of("home_keeper_part_low_stock")) == 1
