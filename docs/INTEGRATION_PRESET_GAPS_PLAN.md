@@ -110,6 +110,10 @@ companion in the bundle with its defaults, and the person can edit each one afte
 
 ## 9. Weekly check of the preset keys
 
+**Done, as a skill.** Each catalog entry pins the upstream commit we last read, and the
+weekly `preset-upkeep` skill (`.claude/skills/preset-upkeep`) runs the check, fixes or
+adds presets and opens one draft PR. The original idea follows.
+
 **Opens:** confidence that the presets still work. An integration can rename or remove
 an entity key in a new release, and a preset that names that key then matches nothing
 without an error.
