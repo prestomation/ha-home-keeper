@@ -57,6 +57,7 @@
   "card.loadError": "无法加载任务。Home Keeper 集成是否已设置？",
   "card.moreHidden.one": "还有 {n} 项",
   "card.moreHidden.other": "还有 {n} 项",
+  "card.profileMissing": "配置文件“{name}”不存在。请编辑卡片并选择其他配置文件。",
   "chip.archived": "已归档",
   "chip.autoSynced": "自动同步",
   "chip.autoSynced.tip": "由传感器自动创建。当传感器恢复正常时会自动清除——无法在此标记为完成。",

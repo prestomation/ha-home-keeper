@@ -65,6 +65,7 @@
   "card.moreHidden.many": "+{n} ещё",
   "card.moreHidden.one": "+{n} ещё",
   "card.moreHidden.other": "+{n} ещё",
+  "card.profileMissing": "Профиль \"{name}\" не существует. Измените карточку и выберите другой профиль.",
   "chip.archived": "В архиве",
   "chip.autoSynced": "Авто-синхронизация",
   "chip.autoSynced.tip": "Создано автоматически из датчика. Исчезнет само, когда датчик вернётся в норму — отметить выполненным здесь нельзя.",

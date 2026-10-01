@@ -57,6 +57,7 @@
   "card.loadError": "Det gick inte att läsa in uppgifter. Är Home Keeper-integrationen konfigurerad?",
   "card.moreHidden.one": "+{n} till",
   "card.moreHidden.other": "+{n} till",
+  "card.profileMissing": "Profilen \"{name}\" finns inte. Redigera kortet och välj en annan profil.",
   "chip.archived": "Arkiverad",
   "chip.autoSynced": "Auto-synkroniserad",
   "chip.autoSynced.tip": "Skapas automatiskt från en sensor. Försvinner av sig själv när sensorn återgår till normalt — kan inte markeras klar här.",

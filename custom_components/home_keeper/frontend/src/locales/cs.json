@@ -65,6 +65,7 @@
   "card.moreHidden.many": "+{n} dalších",
   "card.moreHidden.one": "+{n} další",
   "card.moreHidden.other": "+{n} dalších",
+  "card.profileMissing": "Profil \"{name}\" neexistuje. Upravte kartu a vyberte jiný profil.",
   "chip.archived": "Archivováno",
   "chip.autoSynced": "Automaticky synchronizováno",
   "chip.autoSynced.tip": "Vytvořeno automaticky ze senzoru. Zmizí samo, jakmile se senzor vrátí do normálu — zde nelze dokončit.",

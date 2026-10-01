@@ -57,6 +57,7 @@
   "card.loadError": "Taken konden niet worden geladen. Is de Home Keeper-integratie ingesteld?",
   "card.moreHidden.one": "+{n} meer",
   "card.moreHidden.other": "+{n} meer",
+  "card.profileMissing": "Het profiel \"{name}\" bestaat niet. Bewerk de kaart en kies een ander profiel.",
   "chip.archived": "Gearchiveerd",
   "chip.autoSynced": "Auto-gesynchroniseerd",
   "chip.autoSynced.tip": "Automatisch gemaakt vanuit een sensor. Verdwijnt vanzelf als de sensor weer normaal is — hier niet af te vinken.",

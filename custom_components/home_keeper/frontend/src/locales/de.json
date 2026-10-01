@@ -57,6 +57,7 @@
   "card.loadError": "Aufgaben konnten nicht geladen werden. Ist die Home Keeper-Integration eingerichtet?",
   "card.moreHidden.one": "+{n} weitere",
   "card.moreHidden.other": "+{n} weitere",
+  "card.profileMissing": "Das Profil \"{name}\" existiert nicht. Bearbeiten Sie die Karte und wählen Sie ein anderes Profil.",
   "chip.archived": "Archiviert",
   "chip.autoSynced": "Auto-synchronisiert",
   "chip.autoSynced.tip": "Automatisch aus einem Sensor erstellt. Wird von selbst gelöscht, sobald der Sensor wieder normal ist – hier nicht abschließbar.",

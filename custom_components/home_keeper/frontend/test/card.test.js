@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { HomeKeeperCard } from '../src/card.ts';
+import { FILTER_OPTS, HomeKeeperCard, RECURRENCE_OPTS, todoEntityId } from '../src/card.ts';
 
 // The card waits for HA's lazy components before first paint and renders them.
 // Register lightweight stand-ins so `whenDefined` resolves and the markup is
@@ -1025,5 +1025,234 @@ describe('HomeKeeperCard refresh with an open overlay (X11-3)', () => {
     push();
     await waitFor(() => sr(card).textContent.includes('Replace filter now'));
     expect(sr(card).querySelector('.hk-head')).not.toBe(header);
+  });
+});
+
+describe('HomeKeeperCard profile that is gone (F05-4)', () => {
+  const PROFILE = { id: 'p1', name: 'Kid chores', filter: { status: 'all', labels: ['kid'] } };
+  const tasks = [
+    { ...sampleTasks[0], id: 'a', name: 'Feed the cat', labels: ['kid'] },
+    { ...sampleTasks[0], id: 'b', name: 'Clean the gutters' },
+  ];
+
+  function hassWith(profiles) {
+    return {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks };
+        if (msg.type === 'home_keeper/get_profiles') {
+          if (profiles === 'fail') throw new Error('not_loaded');
+          return { profiles };
+        }
+        return {};
+      },
+    };
+  }
+
+  it('F05-4: shows a warning and no rows when the profile does not exist', async () => {
+    const card = makeCard({
+      type: 'custom:home-keeper-card',
+      profile: 'p-gone',
+      hide_when_empty: true,
+    });
+    card.hass = hassWith([PROFILE]);
+    await waitFor(() => sr(card)?.querySelector('ha-alert'));
+    const alert = sr(card).querySelector('ha-alert');
+    expect(alert.getAttribute('alert-type')).toBe('warning');
+    expect(alert.textContent).toBe(
+      'The profile "p-gone" does not exist. Edit the card and select a different profile.',
+    );
+    expect(sr(card).querySelector('.hk-row')).toBeNull();
+    // hide_when_empty does not hide the warning.
+    expect(card.style.display).toBe('');
+  });
+
+  it('F05-4: applies a profile found by id or by name', async () => {
+    for (const ref of ['p1', 'Kid chores']) {
+      const card = makeCard({ type: 'custom:home-keeper-card', profile: ref });
+      card.hass = hassWith([PROFILE]);
+      await waitFor(() => sr(card)?.querySelector('.hk-row'));
+      expect(sr(card).textContent).toContain('Feed the cat');
+      expect(sr(card).textContent).not.toContain('Clean the gutters');
+      expect(sr(card).querySelector('ha-alert')).toBeNull();
+    }
+  });
+
+  it('F05-4: keeps the last profile list when a later fetch fails', async () => {
+    const card = makeCard({ type: 'custom:home-keeper-card', profile: 'p1' });
+    card.hass = hassWith([PROFILE]);
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    let fetched = false;
+    const failing = hassWith('fail');
+    card.hass = {
+      ...failing,
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_profiles') fetched = true;
+        return failing.callWS(msg);
+      },
+      states: statePush(),
+    };
+    await waitFor(() => fetched);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(sr(card).textContent).toContain('Feed the cat');
+    expect(sr(card).textContent).not.toContain('Clean the gutters');
+    expect(sr(card).querySelector('ha-alert')).toBeNull();
+  });
+
+  it('F05-4: fetches the profiles when setConfig adds a profile', async () => {
+    const card = makeCard({ type: 'custom:home-keeper-card' });
+    card.hass = hassWith([PROFILE]);
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(sr(card).textContent).toContain('Clean the gutters');
+    card.setConfig({ type: 'custom:home-keeper-card', profile: 'p1' });
+    await waitFor(() => sr(card).textContent.includes('Feed the cat') && !sr(card).querySelector('ha-alert'));
+    expect(sr(card).textContent).toContain('Feed the cat');
+    expect(sr(card).textContent).not.toContain('Clean the gutters');
+    expect(sr(card).querySelector('ha-alert')).toBeNull();
+  });
+});
+
+describe('HomeKeeperCard failed Done (F05-5)', () => {
+  it('F05-5: shows a toast when the completion fails', async () => {
+    const card = makeCard();
+    card.hass = {
+      language: 'en',
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') return { tasks: sampleTasks };
+        if (msg.type === 'home_keeper/complete_task') throw new Error('save failed');
+        return {};
+      },
+    };
+    await waitFor(() => sr(card)?.querySelector('.hk-done'));
+    const toasts = [];
+    card.addEventListener('hass-notification', (e) => toasts.push(e.detail.message));
+    sr(card).querySelector('.hk-done').click();
+    await waitFor(() => toasts.length > 0);
+    expect(toasts).toEqual(['Something went wrong. Please try again.']);
+  });
+});
+
+describe('HomeKeeperCard disabled task rail (F05-7)', () => {
+  it('F05-7: gives no overdue rail to a disabled task with an old due date', async () => {
+    const old = new Date(Date.now() - 5 * 86_400_000).toISOString();
+    const card = makeCard({ type: 'custom:home-keeper-card', show_disabled: true });
+    card.hass = {
+      language: 'en',
+      callWS: async () => ({
+        tasks: [
+          { ...sampleTasks[0], id: 'off', name: 'Pool', enabled: false, next_due: old },
+          { ...sampleTasks[0], id: 'late', name: 'Late', next_due: old },
+        ],
+      }),
+    };
+    await waitFor(() => sr(card)?.querySelectorAll('.hk-row').length === 2);
+    const rows = [...sr(card).querySelectorAll('.hk-row')];
+    const byName = (n) => rows.find((r) => r.textContent.includes(n));
+    expect(byName('Pool').classList.contains('overdue')).toBe(false);
+    expect(byName('Late').classList.contains('overdue')).toBe(true);
+  });
+});
+
+describe('HomeKeeperCard editor options (F05-9)', () => {
+  it('F05-9: offers every card filter and every recurrence type', () => {
+    expect(FILTER_OPTS.map((o) => o.value)).toEqual([
+      'all',
+      'overdue',
+      'today',
+      'soon',
+      'no_due',
+      'shopping',
+      'counted',
+    ]);
+    expect(RECURRENCE_OPTS.map((o) => o.value)).toEqual([
+      'floating',
+      'fixed',
+      'triggered',
+      'one-off',
+      'sensor',
+      'use',
+    ]);
+    for (const o of [...FILTER_OPTS, ...RECURRENCE_OPTS]) expect(o.label).toBeTruthy();
+  });
+});
+
+describe('HomeKeeperCard to-do item subscription (F09-3)', () => {
+  function connection() {
+    const conn = { msgs: [], callbacks: [], unsubs: 0 };
+    conn.subscribeEvents = async () => () => {};
+    conn.subscribeMessage = async (cb, msg) => {
+      conn.msgs.push(msg);
+      conn.callbacks.push(cb);
+      cb({ items: [] }); // Home Assistant sends the current items at once.
+      return () => conn.unsubs++;
+    };
+    return conn;
+  }
+
+  it('F09-3: refreshes on a to-do push, also for a non-admin user', async () => {
+    let name = 'Replace filter';
+    let gets = 0;
+    const conn = connection();
+    const card = makeCard();
+    card.hass = {
+      language: 'en',
+      user: { is_admin: false },
+      connection: conn,
+      callWS: async (msg) => {
+        if (msg.type === 'home_keeper/get_tasks') {
+          gets++;
+          return { tasks: [{ ...sampleTasks[0], name }] };
+        }
+        return {};
+      },
+    };
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(conn.msgs).toEqual([
+      { type: 'todo/item/subscribe', entity_id: 'todo.home_keeper_tasks' },
+    ]);
+    await new Promise((r) => setTimeout(r, 30));
+    // The first message (the current items) does not cause a second load.
+    expect(gets).toBe(1);
+    name = 'Replace the HVAC filter';
+    conn.callbacks[0]({ items: [] });
+    await waitFor(() => sr(card).textContent.includes('Replace the HVAC filter'));
+    expect(gets).toBe(2);
+    // One subscription per connection.
+    card.hass = { ...card.hass, states: statePush() };
+    await new Promise((r) => setTimeout(r, 30));
+    expect(conn.msgs).toHaveLength(1);
+    card.remove();
+    expect(conn.unsubs).toBe(1);
+  });
+
+  it('F09-3: uses the registry entity id of the Home Keeper to-do list', () => {
+    expect(todoEntityId(undefined)).toBe('todo.home_keeper_tasks');
+    expect(
+      todoEntityId({
+        entities: {
+          'todo.shopping': { entity_id: 'todo.shopping', platform: 'shopping_list' },
+          'sensor.hk': { entity_id: 'sensor.hk', platform: 'home_keeper' },
+          'todo.chores': { entity_id: 'todo.chores', platform: 'home_keeper' },
+        },
+      }),
+    ).toBe('todo.chores');
+  });
+
+  it('F09-3: does not try again on a connection that refused it', async () => {
+    const conn = { calls: 0 };
+    conn.subscribeEvents = async () => () => {};
+    conn.subscribeMessage = async () => {
+      conn.calls++;
+      throw { code: 'invalid_entity_id' };
+    };
+    const card = makeCard();
+    const callWS = async () => ({ tasks: sampleTasks });
+    card.hass = { callWS, language: 'en', connection: conn };
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    for (let i = 0; i < 3; i++) {
+      card.hass = { callWS, language: 'en', connection: conn, states: statePush() };
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    expect(conn.calls).toBe(1);
   });
 });

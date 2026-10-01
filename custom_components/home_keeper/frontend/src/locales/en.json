@@ -57,6 +57,7 @@
   "card.loadError": "Couldn't load tasks. Is the Home Keeper integration set up?",
   "card.moreHidden.one": "+{n} more",
   "card.moreHidden.other": "+{n} more",
+  "card.profileMissing": "The profile \"{name}\" does not exist. Edit the card and select a different profile.",
   "chip.archived": "Archived",
   "chip.autoSynced": "Auto-synced",
   "chip.autoSynced.tip": "Created automatically from a sensor. It clears on its own when the sensor returns to normal. You can't mark it done here.",

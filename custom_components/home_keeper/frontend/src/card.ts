@@ -2,6 +2,7 @@ import * as api from './api';
 import {
   filterTasks,
   groupTasks,
+  normalizeCardConfig,
   profileMatches,
   sortTasks,
   type CardFilter,
@@ -43,7 +44,7 @@ import { setLanguage, t, tn } from './i18n';
 import { ensureMarkdown, markdownBlock, markdownReady, wireMarkdown } from './markdown';
 import { taskChipsList } from './panel-chips';
 import { MDI_OPEN_IN_NEW_ICON } from './panel-icons';
-import type { Asset, Hass, HassLabel, Profile, Task } from './types';
+import type { Asset, Hass, HassLabel, Profile, RecurrenceType, Task } from './types';
 import {
   areaName,
   deviceName,
@@ -143,12 +144,14 @@ const S: Record<string, string> = {
   hide_when_empty: 'Hide card when empty',
 };
 
-const FILTER_OPTS: { value: CardFilter; label: string }[] = [
+export const FILTER_OPTS: { value: CardFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'overdue', label: 'Overdue' },
   { value: 'today', label: 'Due by today (incl. overdue)' },
   { value: 'soon', label: 'Due soon' },
   { value: 'no_due', label: 'No due date' },
+  { value: 'shopping', label: 'Shopping (buy reminders)' },
+  { value: 'counted', label: 'Counted wear (use tasks)' },
 ];
 const SORT_OPTS: { value: CardSort; label: string }[] = [
   { value: 'due', label: 'Next due' },
@@ -162,12 +165,13 @@ const GROUP_OPTS: { value: CardGroupBy; label: string }[] = [
   { value: 'area', label: 'Area' },
   { value: 'device', label: 'Device' },
 ];
-const RECURRENCE_OPTS = [
+export const RECURRENCE_OPTS: { value: RecurrenceType; label: string }[] = [
   { value: 'floating', label: 'Floating' },
   { value: 'fixed', label: 'Fixed' },
   { value: 'triggered', label: 'Triggered (monitored)' },
   { value: 'one-off', label: 'One-off' },
   { value: 'sensor', label: 'Sensor (usage / threshold)' },
+  { value: 'use', label: 'Use (counted wear)' },
 ];
 const LABEL_MATCH_OPTS = [
   { value: 'any', label: 'Any selected label' },
@@ -353,6 +357,19 @@ interface DocumentChip {
   icon: string;
 }
 
+/**
+ * The entity id of the Home Keeper to-do list. The registry entry gives the id
+ * also after the user renamed it; the default id is the fallback.
+ */
+export function todoEntityId(hass: Hass | undefined): string {
+  for (const entry of Object.values(hass?.entities ?? {})) {
+    if (entry.platform === 'home_keeper' && entry.entity_id.startsWith('todo.')) {
+      return entry.entity_id;
+    }
+  }
+  return 'todo.home_keeper_tasks';
+}
+
 export class HomeKeeperCard extends HTMLElement {
   private _hass?: Hass;
   /** The integration's options, for the skip/snooze switches. Both default on, so
@@ -414,6 +431,13 @@ export class HomeKeeperCard extends HTMLElement {
   // The connection that refused our subscription (F09-1). We do not try again on
   // that connection: each refusal is one more ERROR line in the Home Assistant log.
   private _refusedConn?: Hass['connection'];
+  // The `todo/item/subscribe` subscription (F09-3). Home Assistant sends the to-do
+  // items each time the Home Keeper data changes, for every user, so this is the
+  // refresh signal for a rename, a note edit or a snooze too.
+  private _itemsUnsub?: () => void;
+  private _itemsConn?: Hass['connection'];
+  private _itemsSubscribing = false;
+  private _itemsRefusedConn?: Hass['connection'];
 
   // ── Lovelace lifecycle ──────────────────────────────────────────────────────
   static getConfigElement(): HTMLElement {
@@ -428,7 +452,13 @@ export class HomeKeeperCard extends HTMLElement {
     if (!config || typeof config !== 'object') {
       throw new Error('Invalid Home Keeper card configuration');
     }
-    this._config = { ...config };
+    const profileBefore = this._config.profile;
+    this._config = normalizeCardConfig(config);
+    // A newly chosen profile needs the profile list, or the card cannot apply it
+    // until the next refresh (F05-4).
+    if (this._loaded && this._config.profile && this._config.profile !== profileBefore) {
+      void this._loadProfiles().then(() => this._render());
+    }
     if (this._loaded) this._render();
   }
 
@@ -484,6 +514,11 @@ export class HomeKeeperCard extends HTMLElement {
       this._unsub = undefined;
       this._subConn = undefined;
     }
+    if (this._itemsUnsub) {
+      this._itemsUnsub();
+      this._itemsUnsub = undefined;
+      this._itemsConn = undefined;
+    }
   }
 
   /** One-time first paint: wait for lazy HA components, then render + load. */
@@ -511,7 +546,13 @@ export class HomeKeeperCard extends HTMLElement {
     }
   }
 
-  /** The live-update fingerprint, shared with the panel (see `hkStateSignal`). */
+  /**
+   * Cheap fingerprint of the Home Keeper entities, shared with the panel (see
+   * `hkStateSignal`). It is a fallback signal only. Home Assistant changes
+   * `last_updated` only when a state or an attribute changes, so a rename, a note
+   * edit or a snooze often leaves it the same (F09-3). The to-do item subscription
+   * (`_subscribeItems`) is the main signal.
+   */
   private _stateSignal(hass: Hass): string {
     return hkStateSignal(hass.states);
   }
@@ -527,6 +568,7 @@ export class HomeKeeperCard extends HTMLElement {
    * again on that connection.
    */
   private async _subscribe(): Promise<void> {
+    void this._subscribeItems();
     const conn = this._hass?.connection;
     if (!conn) return;
     if (this._hass?.user?.is_admin === false) return;
@@ -560,6 +602,50 @@ export class HomeKeeperCard extends HTMLElement {
     }
   }
 
+  /**
+   * Subscribe to the items of the Home Keeper to-do list (F09-3).
+   *
+   * The to-do entity is a coordinator entity, so Home Assistant pushes its items to
+   * this subscription on each coordinator update, which follows each change to the
+   * task data. Any user can send `todo/item/subscribe`. The first message is the
+   * current list, which the card has already loaded, so the card ignores it.
+   */
+  private async _subscribeItems(): Promise<void> {
+    const conn = this._hass?.connection;
+    if (!conn?.subscribeMessage) return;
+    if (this._itemsRefusedConn === conn) return;
+    if (this._itemsUnsub && this._itemsConn !== conn) {
+      this._itemsUnsub();
+      this._itemsUnsub = undefined;
+    }
+    if (this._itemsUnsub || this._itemsSubscribing) return;
+    this._itemsSubscribing = true;
+    let first = true;
+    try {
+      const unsub = await conn.subscribeMessage(
+        () => {
+          if (first) {
+            first = false;
+            return;
+          }
+          if (this._loaded) void this._refresh();
+        },
+        { type: 'todo/item/subscribe', entity_id: todoEntityId(this._hass) },
+      );
+      if (this._disconnected) {
+        unsub();
+        return;
+      }
+      this._itemsUnsub = unsub;
+      this._itemsConn = conn;
+    } catch {
+      // No to-do entity (for example, it is disabled). The state signal stays.
+      this._itemsRefusedConn = conn;
+    } finally {
+      this._itemsSubscribing = false;
+    }
+  }
+
   private async _refresh(): Promise<void> {
     if (!this._hass || this._refreshing) return;
     this._refreshing = true;
@@ -570,9 +656,7 @@ export class HomeKeeperCard extends HTMLElement {
       // rather than the caret silently vanishing from every row.
       this._options = (await api.getOptions(this._hass).catch(() => null))?.options ?? this._options;
       // Profiles are only needed when the card filters by one; fetch best-effort.
-      if (this._config.profile) {
-        this._profiles = await api.getProfiles(this._hass).catch(() => [] as Profile[]);
-      }
+      if (this._config.profile) await this._loadProfiles();
       // Appliance data is only needed to resolve per-task "show on card" links (either
       // explicit card_links or a linked part's product URL); fetch best-effort and
       // only when a task actually references one.
@@ -595,6 +679,28 @@ export class HomeKeeperCard extends HTMLElement {
       this._refreshing = false;
     }
     this._renderAfterRefresh();
+  }
+
+  /**
+   * Fetch the saved profiles. A failed fetch keeps the last list (F05-4): an empty
+   * list would make the configured profile look deleted.
+   */
+  private async _loadProfiles(): Promise<void> {
+    if (!this._hass) return;
+    const profiles = await api.getProfiles(this._hass).catch(() => null);
+    if (profiles) this._profiles = profiles;
+  }
+
+  /** The configured profile, or undefined when the card has none or it is gone. */
+  private _profile(): Profile | undefined {
+    const wanted = this._config.profile;
+    if (!wanted) return undefined;
+    return this._profiles.find((p) => p.id === wanted || p.name === wanted);
+  }
+
+  /** Whether the card names a profile that does not exist (F05-4). */
+  private _profileMissing(): boolean {
+    return !!this._config.profile && !this._profile();
   }
 
   /** Whether the create form or a dialog is open on the card. */
@@ -638,11 +744,9 @@ export class HomeKeeperCard extends HTMLElement {
     const devices = this._hass?.devices;
     const areas = this._hass?.areas;
     // A configured profile defines the task set; otherwise use the card's own filters.
-    const profile = this._config.profile
-      ? this._profiles.find(
-          (p) => p.id === this._config.profile || p.name === this._config.profile,
-        )
-      : undefined;
+    // A profile that is gone shows no rows, not every task (F05-4).
+    if (this._profileMissing()) return [];
+    const profile = this._profile();
     const filtered = profile
       ? this._tasks.filter((t) => profileMatches(t, profile.filter, devices, areas, now))
       : filterTasks(this._tasks, this._config, devices, now, areas);
@@ -661,7 +765,13 @@ export class HomeKeeperCard extends HTMLElement {
    *  rather than calling `_visibleCount()` itself so callers that already
    *  computed it (getCardSize, _render) don't re-run `_shaped()`. */
   private _isHiddenEmpty(n: number): boolean {
-    return !!this._config.hide_when_empty && this._loaded && !this._error && n === 0;
+    return (
+      !!this._config.hide_when_empty &&
+      this._loaded &&
+      !this._error &&
+      !this._profileMissing() &&
+      n === 0
+    );
   }
 
   // ── completion / CRUD ───────────────────────────────────────────────────────
@@ -701,6 +811,8 @@ export class HomeKeeperCard extends HTMLElement {
       await api.completeTask(this._hass, task.id);
     } catch (err) {
       console.error('home-keeper-card: complete failed', err);
+      // Tell the user that the completion was not recorded (F05-5).
+      toast(this, t('error.actionFailed'));
     } finally {
       this._completing.delete(task.id);
     }
@@ -842,6 +954,10 @@ export class HomeKeeperCard extends HTMLElement {
 
   private _listHtml(): string {
     const now = Date.now();
+    if (this._profileMissing()) {
+      const msg = t('card.profileMissing', { name: this._config.profile ?? '' });
+      return `<div class="hk-empty"><ha-alert alert-type="warning">${escapeHTML(msg)}</ha-alert></div>`;
+    }
     const shaped = this._shaped(now);
     if (!shaped.length) {
       const empty = this._tasks.length ? t('tasks.noMatch') : t('card.empty');
@@ -987,7 +1103,8 @@ export class HomeKeeperCard extends HTMLElement {
     // The danger rail follows the status pill: a buy reminder reads "Low stock" rather
     // than "Overdue" (see `statusChipHtml`), so it must not also carry the red edge
     // that says this work is late.
-    const overdue = isOverdue(task) && !isBuyTask(task);
+    // A switched-off task gets no overdue rail, the same as the panel row (F05-7).
+    const overdue = task.enabled !== false && isOverdue(task) && !isBuyTask(task);
     const statusChip = statusChipHtml(task, this._hass, {
       counted: countedProgress(task, this._assets, this._tasks),
     });

@@ -61,6 +61,7 @@
   "card.moreHidden.many": "+{n} més",
   "card.moreHidden.one": "+{n} més",
   "card.moreHidden.other": "+{n} més",
+  "card.profileMissing": "El perfil \"{name}\" no existeix. Editeu la targeta i seleccioneu un altre perfil.",
   "chip.archived": "Arxivat",
   "chip.autoSynced": "Auto-sincronitzat",
   "chip.autoSynced.tip": "Creat automàticament a partir d'un sensor. Desapareix sol quan el sensor torna a la normalitat: no es pot completar aquí.",

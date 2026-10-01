@@ -57,6 +57,7 @@
   "card.loadError": "Tehtävien lataus epäonnistui. Onko Home Keeper -integraatio määritetty?",
   "card.moreHidden.one": "+{n} lisää",
   "card.moreHidden.other": "+{n} lisää",
+  "card.profileMissing": "Profiilia \"{name}\" ei ole. Muokkaa korttia ja valitse toinen profiili.",
   "chip.archived": "Arkistoitu",
   "chip.autoSynced": "Auto-synkronoitu",
   "chip.autoSynced.tip": "Luotu automaattisesti anturista. Poistuu itsestään, kun anturi palaa normaaliksi — ei voi merkitä valmiiksi täällä.",

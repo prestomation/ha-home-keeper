@@ -299,7 +299,16 @@ export interface Hass {
       callback: (event: T) => void,
       eventType: string,
     ): Promise<() => void>;
+    // A websocket subscription command. The card uses `todo/item/subscribe`, which
+    // any user can send, to refresh when Home Keeper changes a task (F09-3).
+    subscribeMessage?<T = unknown>(
+      callback: (message: T) => void,
+      msg: Record<string, unknown>,
+    ): Promise<() => void>;
   };
+  // The entity registry entries that the frontend has. The card finds the Home
+  // Keeper to-do list here, also when the user renamed its entity id.
+  entities?: Record<string, { entity_id: string; platform?: string }>;
 }
 
 export type AssetKind = 'virtual' | 'existing';

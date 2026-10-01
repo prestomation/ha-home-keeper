@@ -57,6 +57,7 @@
   "card.loadError": "Kunne ikke laste oppgaver. Er Home Keeper-integrasjonen satt opp?",
   "card.moreHidden.one": "+{n} til",
   "card.moreHidden.other": "+{n} til",
+  "card.profileMissing": "Profilen \"{name}\" finnes ikke. Rediger kortet og velg en annen profil.",
   "chip.archived": "Arkivert",
   "chip.autoSynced": "Auto-synkronisert",
   "chip.autoSynced.tip": "Opprettet automatisk fra en sensor. Forsvinner av seg selv når sensoren blir normal igjen — kan ikke merkes som ferdig her.",

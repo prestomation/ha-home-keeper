@@ -65,6 +65,7 @@
   "card.moreHidden.many": "+{n} więcej",
   "card.moreHidden.one": "+{n} więcej",
   "card.moreHidden.other": "+{n} więcej",
+  "card.profileMissing": "Profil \"{name}\" nie istnieje. Edytuj kartę i wybierz inny profil.",
   "chip.archived": "Zarchiwizowane",
   "chip.autoSynced": "Auto-synchronizacja",
   "chip.autoSynced.tip": "Utworzone automatycznie z czujnika. Znika samo, gdy czujnik wróci do normy — nie można oznaczyć jako wykonane tutaj.",
