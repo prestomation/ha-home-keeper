@@ -37,6 +37,7 @@ import {
   navigateTo,
   normalizeIcon,
   notifyRowChip,
+  inkFor,
   parseRoute,
   partStockButtonStep,
   partStockStep,
@@ -2235,12 +2236,38 @@ describe('notifyRowChip', () => {
     expect(notifyRowChip('not-an-icon', '#e53935')).toBe('');
   });
 
-  it('falls back to a theme color rather than an unusable one', () => {
+  it('falls back to theme colors rather than an unusable one', () => {
     for (const bad of ['', null, 'red', '#fff', 'red;background:url(x)']) {
       const html = notifyRowChip('mdi:pill', bad);
-      expect(html).toContain('background:var(--secondary-text-color)');
+      expect(html).toContain(
+        'style="background:var(--secondary-background-color);color:var(--primary-text-color)"',
+      );
       expect(html).not.toContain('url(');
     }
+  });
+
+  it('X11-6: draws the glyph in the ink that reads on the fill', () => {
+    expect(notifyRowChip('mdi:pill', '#ffffff')).toContain('style="background:#ffffff;color:#000"');
+    expect(notifyRowChip('mdi:pill', '#FFEB3B')).toContain('color:#000');
+    expect(notifyRowChip('mdi:pill', '#000000')).toContain('color:#fff');
+    // A mid red reads better with black (4.97:1) than with white (4.23:1).
+    expect(notifyRowChip('mdi:pill', '#e53935')).toContain('color:#000');
+    expect(notifyRowChip('mdi:pill', '#283593')).toContain('color:#fff');
+  });
+
+  it('X11-6: inkFor picks the higher contrast at each side of the crossover', () => {
+    // Each channel weight and the sRGB curve count: a pure channel at full strength.
+    expect(inkFor('#00ff00')).toBe('#000'); // L 0.715
+    expect(inkFor('#ff0000')).toBe('#000'); // L 0.213
+    expect(inkFor('#0000ff')).toBe('#fff'); // L 0.072
+    // Greys either side of L = 0.179: #757575 is 0.178, #767676 is 0.181.
+    expect(inkFor('#757575')).toBe('#fff');
+    expect(inkFor('#767676')).toBe('#000');
+    // The linear segment of the sRGB curve: #0a0a0a is 0.003.
+    expect(inkFor('#0a0a0a')).toBe('#fff');
+    // A pale fill that is light only in one channel.
+    expect(inkFor('#ff00ff')).toBe('#000'); // L 0.285
+    expect(inkFor('#a000a0')).toBe('#fff'); // L 0.105
   });
 
   it('never lets a stored value reach the markup unchecked', () => {

@@ -682,7 +682,7 @@ export const STYLES = `
      glyph so every color the picker offers stays legible on the card. */
   .hk-notify-chip {
     display: grid; place-items: center;
-    width: 26px; height: 26px; border-radius: 6px; color: #fff;
+    width: 26px; height: 26px; border-radius: 6px;
   }
   .hk-notify-chip ha-icon { --mdc-icon-size: 17px; display: block; }
   .hk-item-name { flex: 1; font-weight: 500; }

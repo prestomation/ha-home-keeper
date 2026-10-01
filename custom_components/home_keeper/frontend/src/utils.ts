@@ -36,13 +36,34 @@ export function normalizeIcon(value: unknown): string {
 }
 
 /**
+ * The glyph color for a fill of *hex* (`#rrggbb`): black or white, whichever has the
+ * higher WCAG contrast against it. The picker is a free color wheel, so a fixed white
+ * glyph is invisible on a white or yellow fill (X11-6).
+ */
+export function inkFor(hex: string): '#000' | '#fff' {
+  const channel = (i: number): number => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  // Contrast with black is (L + 0.05) / 0.05, with white 1.05 / (L + 0.05). They are
+  // equal at L = 0.179, so a fill lighter than that takes the black glyph.
+  return lum > 0.179 ? '#000' : '#fff';
+}
+
+/**
  * The Settings row badge for a notification: the accent as the fill, the glyph in
- * white. Returns `''` without an icon, so a row that has none stays as it was.
+ * black or white, whichever reads on that fill. Returns `''` without an icon, so a
+ * row that has none stays as it was.
  *
  * Filled rather than a bare tinted glyph because the fill is the only treatment that
  * survives every color the picker offers — a pale glyph on the panel's white card is
- * invisible, while white on a pale fill is not. It is also what an iPhone draws, so the
- * chip and the phone agree.
+ * invisible, while a dark glyph on a pale fill is not. It is also what an iPhone
+ * draws, so the chip and the phone agree.
+ *
+ * With no color, the badge takes the theme's own surface and text colors, which
+ * contrast in a light and in a dark theme. A white glyph on the secondary text color
+ * was about 2.8:1 in Home Assistant's dark theme (X11-6).
  */
 export function notifyRowChip(icon: unknown, color: unknown): string {
   const name = normalizeIcon(icon);
@@ -52,9 +73,11 @@ export function notifyRowChip(icon: unknown, color: unknown): string {
     .toLowerCase();
   // The color reaches a `style` attribute, so accept only the one shape the backend
   // stores rather than escaping an arbitrary string into CSS.
-  const fill = /^#[0-9a-f]{6}$/.test(hex) ? hex : 'var(--secondary-text-color)';
+  const style = /^#[0-9a-f]{6}$/.test(hex)
+    ? `background:${hex};color:${inkFor(hex)}`
+    : 'background:var(--secondary-background-color);color:var(--primary-text-color)';
   return (
-    `<span class="hk-notify-chip" style="background:${fill}">` +
+    `<span class="hk-notify-chip" style="${style}">` +
     `<ha-icon icon="${escapeHTML(name)}"></ha-icon></span>`
   );
 }
