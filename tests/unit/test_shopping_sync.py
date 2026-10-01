@@ -535,3 +535,43 @@ def test_the_amount_is_formatted_in_the_household_language():
     assert _services(hass, "add_item") == [
         {"entity_id": TARGET, "item": "Buy Anode rod (1,5 kg)"}
     ]
+
+
+# ── B11-4: a target switch removes first, then adds ───────────────────────────
+
+_OLD = "todo.groceries"
+
+
+def _moved_store():
+    old = {KEY: {"entity_id": _OLD, "summary": "Buy Anode rod", "uid": "i1"}}
+    return _FakeStore(tasks={"t1": _buy_task()}, items=dict(old)), old
+
+
+def test_b11_4_a_target_switch_removes_then_adds_in_the_next_pass():
+    hass = _FakeHass({_OLD: [_item()], TARGET: []})
+    store, _old = _moved_store()
+    _sync(hass, store)
+    calls = [(name, data["entity_id"]) for name, data in hass.services.calls]
+    assert calls == [("remove_item", _OLD), ("add_item", TARGET)]
+    assert store.get_shopping_items() == {
+        KEY: {
+            "entity_id": TARGET,
+            "summary": "Buy Anode rod",
+            "uid": None,
+            "added_at": NOW.isoformat(),
+        }
+    }
+
+
+@pytest.mark.parametrize("add_fails", [False, True])
+def test_b11_4_a_failed_remove_keeps_the_old_line_and_adds_nothing(add_fails):
+    # The remove and the add shared one key, so a failed remove lost its
+    # bookkeeping to the add. The add now waits until the remove lands.
+    hass = _FakeHass({_OLD: [_item()], TARGET: []})
+    hass.services.fail.add("remove_item")
+    if add_fails:
+        hass.services.fail.add("add_item")
+    store, old = _moved_store()
+    _sync(hass, store)
+    assert _services(hass, "add_item") == []
+    assert store.get_shopping_items() == old

@@ -155,8 +155,16 @@ class ShoppingListSync(TodoSyncDriver):
         # Persist before settling: the reconcile below re-enters this class, and
         # what it finds should be what this pass concluded.
         await store.async_set_shopping_items(settled)
+        # A line moved off the old list goes on the new list in the next pass, which
+        # the planner holds until the remove has landed (B11-4).
+        moved = bool(target) and any(
+            op.key in desired
+            and not desired[op.key]["completed"]
+            and op.key not in settled
+            for op in plan.remove
+        )
         if not completed:
-            return False
+            return moved
         # Completing a buy reminder restocks the part, which normally lifts it
         # back above its threshold — the reconciler then retires the reminder, and
         # the next pass tidies whatever that leaves on the list.
