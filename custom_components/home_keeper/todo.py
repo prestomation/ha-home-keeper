@@ -115,13 +115,15 @@ class HomeKeeperTodoListEntity(
           duplicate the record of work done exactly once.
         * Editing the summary/notes in the detail dialog applies as a task update.
           The entity declares ``UPDATE_TODO_ITEM``, so a rename must actually persist
-          rather than silently revert on the next render.
+          rather than silently revert on the next render. A rename that comes in the
+          same save as the check-off is applied after the completion (X07-3).
         """
         if not item.uid:
             return
         task = self.coordinator.store.get_task(item.uid)
         if item.status == TodoItemStatus.COMPLETED:
             if task is not None and one_off_completed(task):
+                await self._async_apply_edits(item, task)
                 return
             try:
                 await self.coordinator.store.complete_task(item.uid)
@@ -134,11 +136,16 @@ class HomeKeeperTodoListEntity(
             # Completing an auto-buy task bumps stock (restocked) → its reminder is
             # removed; settle so those device entities are (un)registered.
             await self.coordinator.async_settle_buy_tasks()
-            return
+            # The completion can delete the task (a buy reminder), so read it again.
+            task = self.coordinator.store.get_task(item.uid)
 
-        # NEEDS_ACTION: persist summary/notes edits made in the card detail dialog.
+        # Persist summary/notes edits made in the card detail dialog.
         if task is None:
             return
+        await self._async_apply_edits(item, task)
+
+    async def _async_apply_edits(self, item: TodoItem, task: dict) -> None:
+        """Write the summary and notes of *item* to *task* if they changed."""
         updates: dict[str, str] = {}
         if item.summary is not None and item.summary != task.get("name"):
             updates["name"] = item.summary

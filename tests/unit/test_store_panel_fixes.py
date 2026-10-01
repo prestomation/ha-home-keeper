@@ -120,3 +120,21 @@ def test_f10_1_a_changed_reading_is_still_refused(store, method):  # noqa: F811
     task = _floating_with_history(store)
     with raises_exactly(sys.modules["hk.models"].TaskValidationError, READING_ERROR):
         _run(getattr(store, method)(task["id"], TS, {"reading": 60.0}))
+
+
+# ── B09-5: a rename of a part-owned task is refused, not reverted later ──────
+
+
+def test_b09_5_update_task_refuses_a_rename_of_a_wear_item_task(store):  # noqa: F811
+    task = _task(store)
+    task["source"] = {"part": {"asset_id": "a1", "part_id": "p1"}}
+    with pytest.raises(sys.modules["hk.models"].TaskValidationError, match="part"):
+        _run(store.update_task(task["id"], {"name": "Swap the filter"}))
+    assert store._tasks[task["id"]]["name"] == "Replace battery"
+
+
+def test_b09_5_update_task_keeps_a_rename_of_a_manual_link(store):  # noqa: F811
+    task = _task(store)
+    task["source"] = {"part": {"asset_id": "a1", "part_id": "p1", "manual": True}}
+    updated = _run(store.update_task(task["id"], {"name": "Swap the filter"}))
+    assert updated["name"] == "Swap the filter"

@@ -83,6 +83,7 @@ from .problem_tasks import rename_problem_entity as _rename_problem_entity
 from .reconcile import adopt_part_tags as _adopt_part_tags
 from .reconcile import buy_source as _buy_source
 from .reconcile import is_manual_part_link as _is_manual_part_link
+from .reconcile import is_part_owned_name_update as _is_part_owned_name_update
 from .reconcile import is_part_owned_tag_update as _is_part_owned_tag_update
 from .reconcile import is_use_task as _is_use_task
 from .reconcile import part_source as _part_source
@@ -545,6 +546,11 @@ class HomeKeeperStore:
                 "This task is auto-generated from an appliance wear part, and the "
                 "part sets its NFC/RFID tag. Set the tag on the part in the "
                 "appliance editor."
+            )
+        if _is_part_owned_name_update(existing, updates):
+            raise models.TaskValidationError(
+                "This task is auto-generated from an appliance part, and the part "
+                "sets its name. Change the part in the appliance editor."
             )
         # ``merge_update`` does not read ``source``, so it is merged here (B02-4). A
         # locked ``source`` stays as it is, like any other locked field.

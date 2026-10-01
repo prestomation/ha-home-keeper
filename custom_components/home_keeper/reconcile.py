@@ -582,6 +582,20 @@ def is_part_owned_tag_update(task: dict[str, Any], updates: dict[str, Any]) -> b
     )
 
 
+def is_part_owned_name_update(task: dict[str, Any], updates: dict[str, Any]) -> bool:
+    """Whether *updates* would change a name that the task's part owns (B09-5).
+
+    The reconciler writes the name of a wear item task and a use task on every pass.
+    A rename made on the task stays until the next pass and then goes away with no
+    event, so ``update_task`` refuses it and points to the part. The same name, with
+    or without outer spaces, is not a change. A manual consumable link keeps its name.
+    """
+    src = part_source(task)
+    if src is None or src.get("manual") or "name" not in updates:
+        return False
+    return str(updates["name"]).strip() != task.get("name")
+
+
 def reconcile_part_tasks(
     assets: dict[str, dict[str, Any]],
     tasks: dict[str, dict[str, Any]],

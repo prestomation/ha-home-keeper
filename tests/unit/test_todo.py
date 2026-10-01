@@ -434,3 +434,73 @@ def test_unknown_uid_on_the_rename_path_is_ignored() -> None:
     )
     assert store.updated == []
     assert calls == []
+
+
+# --- low-severity review fixes ------------------------------------------------
+
+
+def test_x07_3_a_rename_saved_with_the_check_off_is_kept() -> None:
+    """HA sends rename, notes and status in one update_item call."""
+    task = _task("float", "floating", next_due=DUE.isoformat(), notes="old")
+    entity, store, calls = _entity(task)
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(
+                uid="float",
+                summary="New name",
+                description="new",
+                status=TodoItemStatus.COMPLETED,
+            )
+        )
+    )
+    assert store.completed == ["float"]
+    assert store.updated == [("float", {"name": "New name", "notes": "new"})]
+    # The completion comes first, then the edit.
+    assert calls == ["settle", "refresh"]
+
+
+def test_x07_3_a_rejected_completion_does_not_apply_the_rename() -> None:
+    task = _task("synced", "triggered", next_due=DUE.isoformat())
+    entity, store, _calls = _entity(task)
+    store.raise_on_complete = todo.TaskValidationError("clear the problem first")
+    with pytest.raises(HomeAssistantError):
+        asyncio.run(
+            entity.async_update_todo_item(
+                TodoItem(
+                    uid="synced", summary="Renamed", status=TodoItemStatus.COMPLETED
+                )
+            )
+        )
+    assert store.updated == []
+
+
+def test_x07_3_a_rename_of_a_finished_one_off_is_kept_without_a_completion() -> None:
+    task = _task("done", "one-off", last_completed="2026-06-16T10:00:00-04:00")
+    entity, store, calls = _entity(task)
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(uid="done", summary="Renamed", status=TodoItemStatus.COMPLETED)
+        )
+    )
+    assert store.completed == []
+    assert store.updated == [("done", {"name": "Renamed"})]
+    assert calls == ["refresh"]
+
+
+def test_x07_3_a_completion_that_deletes_the_task_writes_no_edit() -> None:
+    """A completed buy reminder is gone after the completion."""
+    task = _task("buy", "floating", next_due=DUE.isoformat())
+    entity, store, _calls = _entity(task)
+
+    async def complete_and_delete(task_id: str):
+        store.completed.append(task_id)
+        del store._tasks[task_id]
+
+    store.complete_task = complete_and_delete
+    asyncio.run(
+        entity.async_update_todo_item(
+            TodoItem(uid="buy", summary="Renamed", status=TodoItemStatus.COMPLETED)
+        )
+    )
+    assert store.completed == ["buy"]
+    assert store.updated == []
