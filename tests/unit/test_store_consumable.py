@@ -1200,3 +1200,39 @@ def test_b18_9_a_problem_clear_event_carries_the_recorded_ts(store, monkeypatch)
     assert len(completed) == 1
     assert completed[0]["completed_at"] == task["last_completed"]
     assert completed[0]["completed_at"] == task["completions"][-1]["ts"]
+
+
+def _triggered(store, *, armed):
+    task = _task(store, recurrence_type="triggered")
+    task["next_due"] = NOW.isoformat() if armed else None
+    return task
+
+
+def test_x03_11_settle_skips_a_task_deleted_or_armed_since_the_decision(
+    store, monkeypatch
+):
+    dormant = _triggered(store, armed=False)
+    already = _triggered(store, armed=True)
+    monkeypatch.setattr(
+        store_mod,
+        "_settle_use_tasks",
+        lambda assets, tasks, now: (
+            ["deleted-meanwhile", already["id"], dormant["id"]],
+            False,
+        ),
+    )
+    assert _run(store.settle_use_tasks()) is True
+    triggered = store._hass.bus.of("home_keeper_task_triggered")
+    assert [e["task_id"] for e in triggered] == [dormant["id"]]
+    assert store._tasks[dormant["id"]]["next_due"] == NOW.isoformat()
+
+
+def test_x03_11_settle_with_nothing_left_to_arm_reports_no_change(store, monkeypatch):
+    already = _triggered(store, armed=True)
+    monkeypatch.setattr(
+        store_mod,
+        "_settle_use_tasks",
+        lambda assets, tasks, now: (["deleted-meanwhile", already["id"]], False),
+    )
+    assert _run(store.settle_use_tasks()) is False
+    assert store._hass.bus.of("home_keeper_task_triggered") == []

@@ -1934,12 +1934,19 @@ class HomeKeeperStore:
         )
         if trimmed:
             await self._save()
+        armed = False
         for task_id in to_arm:
+            # The decision above was made before an await. A task that was deleted
+            # or armed since then is skipped: trigger_task raises KeyError for the
+            # first, and arms the second a second time (X03-11).
+            task = self._tasks.get(task_id)
+            if task is None or task.get("next_due") is not None:
+                continue
             # Through trigger_task rather than by assignment: it is the chokepoint that
-            # fires the triggered event, and it saves. A task armed between the pure
-            # decision above and this loop is skipped by its own dormancy check.
+            # fires the triggered event, and it saves.
             await self.trigger_task(task_id)
-        return trimmed or bool(to_arm)
+            armed = True
+        return trimmed or armed
 
     async def async_rename_problem_sensor(
         self, old_entity_id: str, new_entity_id: str
