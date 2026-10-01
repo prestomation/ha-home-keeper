@@ -18,8 +18,10 @@ source says and not what it computes. A service registered with a name built at
 runtime rather than written out, a websocket command whose decorator ``type`` is
 not a string constant, or an ``HomeAssistantView`` whose ``url`` is not the
 ``PREFIX + "/…"`` shape ``_view_classes`` expects would each pass unnoticed.
-``test_admin_only_services_verify_admin`` matches the text of the call, so a
-``_verify_admin`` behind a condition that never runs still reads as gated. Every
+``test_admin_only_services_verify_admin`` requires ``await _verify_admin(call)`` as
+the first statement of an admin-only handler, so a gate placed later or behind a
+condition fails it. That a gate refuses a real non-admin at runtime is
+``tests/integration/test_admin_gates.py``'s job, for every admin-only service. Every
 one of those is a departure from how the component is written today, which is why
 literal-reading is enough; if you introduce one, the runtime test is the backstop
 and this file needs widening rather than trusting.
@@ -88,6 +90,16 @@ def _handler_bodies() -> dict[str, str]:
     """Unparsed source of every ``handle_*`` function, nested ones included."""
     return {
         node.name: ast.unparse(node)
+        for node in ast.walk(_INIT_TREE)
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+        and node.name.startswith("handle_")
+    }
+
+
+def _handler_nodes() -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    """The AST node of every ``handle_*`` function, nested ones included."""
+    return {
+        node.name: node
         for node in ast.walk(_INIT_TREE)
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
         and node.name.startswith("handle_")
@@ -226,19 +238,57 @@ def test_admin_only_services_verify_admin() -> None:
     gate that actually runs.
     """
     bodies = _handler_bodies()
+    nodes = _handler_nodes()
     modelled = {spec.name: spec for spec in api_surface.SERVICES}
     wrong: dict[str, str] = {}
     for name, handler, _ in _service_registrations():
         if name not in modelled:
             continue  # reported by test_every_registered_service_is_modelled
-        gated = "_verify_admin" in bodies.get(handler, "")
-        if gated != modelled[name].admin_only:
-            wrong[name] = (
-                "handler verifies admin but the model doesn't say admin_only"
-                if gated
-                else "model says admin_only but the handler never calls _verify_admin"
-            )
+        mentioned = "_verify_admin" in bodies.get(handler, "")
+        if modelled[name].admin_only:
+            node = nodes.get(handler)
+            if node is None or not _gates_first(node):
+                # X07-4: the text check passed a gate placed after the store call,
+                # inside a branch, or only in a comment. The gate must run first.
+                wrong[name] = (
+                    "model says admin_only but the handler's first statement is not "
+                    "'await _verify_admin(call)'"
+                )
+        elif mentioned:
+            wrong[name] = "handler verifies admin but the model doesn't say admin_only"
     assert not wrong, {"admin_gate_mismatch": wrong, "fix": _FIX}
+
+
+def _gates_first(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Whether *node*'s first statement, after a docstring, awaits the admin gate."""
+    body = list(node.body)
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body = body[1:]
+    return bool(body) and ast.unparse(body[0]) == "await _verify_admin(call)"
+
+
+def test_x07_4_gates_first_rejects_a_late_or_conditional_gate() -> None:
+    """X07-4: only an unconditional first-statement gate counts as gated."""
+
+    def first(source: str) -> bool:
+        fn = ast.parse(source).body[0]
+        assert isinstance(fn, ast.AsyncFunctionDef)
+        return _gates_first(fn)
+
+    assert first("async def h(call):\n    await _verify_admin(call)\n    x()\n")
+    assert first('async def h(call):\n    """Doc."""\n    await _verify_admin(call)\n')
+    assert not first("async def h(call):\n    x()\n    await _verify_admin(call)\n")
+    assert not first(
+        "async def h(call):\n    if a:\n        await _verify_admin(call)\n"
+    )
+    assert not first("async def h(call):\n    _verify_admin(call)\n")
+    assert not first("async def h(call):\n    # _verify_admin(call)\n    x()\n")
+    assert not first('async def h(call):\n    """Doc."""\n')
 
 
 def test_services_yaml_matches_model() -> None:
