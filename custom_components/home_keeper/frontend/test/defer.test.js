@@ -311,6 +311,16 @@ describe('snoozeHintText', () => {
     expect(text).not.toBe(t('defer.snoozePickDate'));
   });
 
+  it('F10-2: says "pick a date" for a preset with no date, whatever was typed before', () => {
+    const s = {
+      open: true,
+      task: task(),
+      preset: 'no-such-preset',
+      customAt: isoToHaDateTime('2026-09-20T09:00:00Z'),
+    };
+    expect(snoozeHintText(s, 'en', NOW)).toBe(t('defer.snoozePickDate'));
+  });
+
   it('F10-2: states the date a preset gives from a later due date', () => {
     const s = { open: true, task: task(), preset: '1d' };
     expect(snoozeHintText(s, 'en', NOW)).toMatch(/^Due date moves to .*Oct.*1.*2026/);

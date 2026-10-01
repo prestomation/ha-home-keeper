@@ -363,6 +363,9 @@ describe('looksLikeMarkdown', () => {
     ['a - b', 'dash inside a line'],
     ['--- x', 'dashes followed by text'],
     ['a | b', 'pipe not at the start of a line'],
+    ['a | b | c', 'two pipes, not at the start of a line'],
+    ['a > b', 'greater-than inside a line'],
+    ['note ---', 'dashes at the end of a line of text'],
   ])('F04-7: does not treat case %# as markup', (text) => {
     expect(looksLikeMarkdown(text)).toBe(false);
   });

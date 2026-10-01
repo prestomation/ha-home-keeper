@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { setLanguage } from '../src/i18n.ts';
+import { endOfZonedDay } from '../src/utils.ts';
 import {
   DAY_MS,
   SOON_DAYS,
@@ -281,6 +282,12 @@ describe('filterTasks', () => {
     expect(ids('overdue')).toEqual(['on']);
     expect(ids('today')).toEqual(['on', 't']);
     expect(ids('all')).toEqual(['off', 'on', 't']);
+  });
+
+  it('F05-7: today keeps a task due at the last instant of the day', () => {
+    const last = task({ id: 'last', next_due: new Date(endOfZonedDay(NOW)).toISOString() });
+    const ids = filterTasks([last], { type: '', filter: 'today' }, {}, NOW).map((t) => t.id);
+    expect(ids).toEqual(['last']);
   });
 
   it('hides managed tasks when hide_managed is set', () => {
