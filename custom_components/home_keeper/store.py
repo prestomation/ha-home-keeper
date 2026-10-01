@@ -32,6 +32,7 @@ from . import (
 )
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
+    ASSET_KIND_VIRTUAL,
     COMPLETION_ENTRY_FIELDS,
     EVENT_ASSET_ARCHIVED,
     EVENT_ASSET_CREATED,
@@ -1027,7 +1028,11 @@ class HomeKeeperStore:
         prospective_parent = updates.get(
             "parent_asset_id", existing.get("parent_asset_id")
         )
-        self._validate_parent(asset_id, prospective_parent)
+        self._validate_parent(
+            asset_id,
+            prospective_parent,
+            check_kind=prospective_parent != existing.get("parent_asset_id"),
+        )
         now = dt_util.now()
         merged = assets.merge_update(existing, updates, now=now)
         self._assets[asset_id] = merged
@@ -1317,14 +1322,30 @@ class HomeKeeperStore:
             )
 
     def _validate_parent(
-        self, asset_id: str | None, parent_asset_id: str | None
+        self,
+        asset_id: str | None,
+        parent_asset_id: str | None,
+        *,
+        check_kind: bool = True,
     ) -> None:
-        """Reject a parent link to a missing asset or one that forms a cycle."""
+        """Reject a parent link to a missing asset or one that forms a cycle.
+
+        With *check_kind*, also reject a parent that is not a virtual appliance
+        (B17-8). Only a virtual appliance has a Home Keeper device to nest under.
+        ``update_asset`` sets it only when the call changes the parent, so an edit
+        of an appliance with an older stored link still works.
+        """
         if not parent_asset_id:
             return
         if parent_asset_id not in self._assets:
             raise assets.AssetValidationError(
                 "parent_asset_id is not a known appliance"
+            )
+        if check_kind and self._assets[parent_asset_id].get("kind") != (
+            ASSET_KIND_VIRTUAL
+        ):
+            raise assets.AssetValidationError(
+                "parent_asset_id must name a virtual appliance"
             )
         if asset_id and assets.would_create_cycle(
             self._assets, asset_id, parent_asset_id
