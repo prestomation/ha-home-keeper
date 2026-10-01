@@ -1830,6 +1830,12 @@ export const STYLES = `
       font-size: 16px;
     }
     .hk-add-btn { --ha-button-height: var(--hk-tap); }
+    /* The stock stepper and the note editor get the same 2 phone rules (X11-7): a
+       thumb-size +/- target, and 16px text so that focus does not zoom the
+       companion app. The pill grows to hold the larger buttons. */
+    .hk-stock { height: var(--hk-tap); }
+    .hk-stock ha-icon-button { --mdc-icon-button-size: var(--hk-tap); }
+    .hk-stock-input, .hk-note-input { font-size: 16px; }
     /* Restore only the width the joined-segment rule zeroes out. Matching that rule's
        first-child specificity here would also tie with the .active rule and, as the
        later rule, repaint the active chip's background white under white text. */
