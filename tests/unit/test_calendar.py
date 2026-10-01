@@ -285,14 +285,14 @@ def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
     stops.
     """
     steps = 0
-    real_next = cal.recurrence.next_fixed_occurrence
+    real_step = cal.recurrence.step_fixed
 
     def counted(*args, **kwargs):
         nonlocal steps
         steps += 1
-        return real_next(*args, **kwargs)
+        return real_step(*args, **kwargs)
 
-    monkeypatch.setattr(cal.recurrence, "next_fixed_occurrence", counted)
+    monkeypatch.setattr(cal.recurrence, "step_fixed", counted)
     monkeypatch.setattr(cal.recurrence, "MAX_EXPAND_ITERATIONS", 5)
     monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 6, 15, 8))
 
@@ -304,8 +304,8 @@ def test_the_season_search_stops_at_its_iteration_bound(monkeypatch):
     )
 
     assert _entity({"t_fixed": task}).event is None
-    # One call to find the first occurrence, then one per bounded step.
-    assert steps == 6
+    # One step per bounded iteration.
+    assert steps == 5
 
 
 def test_collect_events_keeps_the_local_hour_across_a_dst_transition():
@@ -420,3 +420,85 @@ def test_b11_2_a_next_due_outside_the_window_is_not_added(monkeypatch):
         entity, _dt(2026, 10, 10, 18, 30), _dt(2026, 10, 11)
     )
     assert _starts(entity, _dt(2026, 10, 10), _dt(2026, 10, 10, 18)) == []
+
+
+# --- low-severity review fixes -----------------------------------------------
+
+
+def test_b11_7_collect_events_drops_a_fixed_occurrence_that_ends_at_the_window_start():
+    """A 06:00-07:00 occurrence is not in a window that starts at 07:00."""
+    anchor = _dt(2026, 6, 1, 6)
+    entity = _entity({"t_fixed": _fixed_task(anchor)})
+
+    starts = [
+        e.start
+        for e in entity._collect_events(_dt(2026, 6, 15, 7), _dt(2026, 6, 15, 22))
+    ]
+
+    assert starts == []
+    # 1 minute earlier, the occurrence is in progress and in the window.
+    starts = [
+        e.start
+        for e in entity._collect_events(_dt(2026, 6, 15, 6, 59), _dt(2026, 6, 15, 22))
+    ]
+    assert starts == [_dt(2026, 6, 15, 6)]
+
+
+def test_b11_8_season_walk_steps_from_the_last_occurrence(monkeypatch):
+    """The walk searches the grid from the anchor once, then steps.
+
+    Every 12 months from Jan 31 never reaches a short month, so a search from the
+    anchor walks the whole grid each time. One search per step made the walk
+    quadratic.
+    """
+    searches = 0
+    real_next = cal.recurrence.next_fixed_occurrence
+
+    def counted(*args, **kwargs):
+        nonlocal searches
+        searches += 1
+        return real_next(*args, **kwargs)
+
+    monkeypatch.setattr(cal.recurrence, "next_fixed_occurrence", counted)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 6, 15, 8))
+
+    task = _fixed_task(
+        _dt(2026, 1, 31, 9),
+        freq="MONTHLY",
+        interval=12,
+        active_season=[{"start": "04-01", "end": "09-30"}],
+    )
+
+    assert _entity({"t_fixed": task}).event is None
+    assert searches == 1
+
+
+def test_b11_8_season_walk_lands_on_the_grid(monkeypatch):
+    """Steps follow the clamped grid: Jan 31, Feb 28, Mar 28, Apr 28."""
+    monkeypatch.setattr(cal.dt_util, "now", lambda: _dt(2026, 1, 31, 12))
+
+    task = _fixed_task(
+        _dt(2026, 1, 31, 9),
+        freq="MONTHLY",
+        interval=1,
+        active_season=[{"start": "04-01", "end": "09-30"}],
+    )
+    event = _entity({"t_fixed": task}).event
+
+    assert event is not None
+    assert event.start == _dt(2026, 4, 28, 9)
+
+
+def test_b11_5_armed_sensor_and_triggered_tasks_stay_off_the_calendar(monkeypatch):
+    """The guide says the calendar does not show these tasks, armed or not."""
+    now = _dt(2026, 6, 15, 9, 30)
+    monkeypatch.setattr(cal.dt_util, "now", lambda: now)
+    armed = _dt(2026, 6, 15, 9)
+    tasks = {
+        "t_sensor": _floating_task(armed, id="t_sensor", recurrence_type="sensor"),
+        "t_trig": _floating_task(armed, id="t_trig", recurrence_type="triggered"),
+    }
+    entity = _entity(tasks)
+
+    assert entity.event is None
+    assert entity._collect_events(_dt(2026, 6, 15), _dt(2026, 6, 16)) == []

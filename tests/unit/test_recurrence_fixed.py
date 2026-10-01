@@ -556,3 +556,11 @@ def test_b07_5_defer_reads_the_grid_in_the_ha_zone():
     task["next_due"] = stored.isoformat()
     r.defer(task, la(2026, 11, 5, 12), now=la(2026, 11, 5, 12))
     assert task[r.DEFERRED_FROM] == stored.isoformat()
+
+
+def test_b11_8_step_fixed_gives_the_next_grid_occurrence():
+    # The clamped grid: Jan 31 -> Feb 28, then Feb 28 -> Mar 28.
+    assert r.step_fixed(dt(2026, 1, 31, 9), "MONTHLY", 1) == dt(2026, 2, 28, 9)
+    assert r.step_fixed(dt(2026, 2, 28, 9), "MONTHLY", 1) == dt(2026, 3, 28, 9)
+    assert r.step_fixed(dt(2026, 1, 1, 9), "WEEKLY", 2) == dt(2026, 1, 15, 9)
+    assert r.step_fixed(dt(2026, 1, 1, 9), "DAILY", 3) == dt(2026, 1, 4, 9)

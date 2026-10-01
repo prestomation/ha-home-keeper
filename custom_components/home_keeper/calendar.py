@@ -171,6 +171,9 @@ class HomeKeeperCalendarEntity(
                 if anchor is None:
                     continue
                 season = task.get("active_season")
+                # The expansion starts 1 event length early, to get an occurrence
+                # that is in progress at the window start. An occurrence that ends
+                # exactly at the window start is not in the window (B11-7).
                 starts = [
                     occ
                     for occ in recurrence.expand_fixed_occurrences(
@@ -180,7 +183,8 @@ class HomeKeeperCalendarEntity(
                         start_date - EVENT_DURATION,
                         end_date,
                     )
-                    if not season or recurrence.in_season(occ, season)
+                    if occ + EVENT_DURATION > start_date
+                    and (not season or recurrence.in_season(occ, season))
                 ]
                 due = _due(task)
                 if due is not None:

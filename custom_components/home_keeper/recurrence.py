@@ -207,7 +207,9 @@ def next_in_season_occurrence(
     for _ in range(MAX_EXPAND_ITERATIONS):
         if in_season(occ, season):
             return occ
-        occ = next_fixed_occurrence(anchor, freq, interval, after=occ)
+        # Step from the last occurrence (B11-8). A new search from the anchor on
+        # each step costs a full grid walk for a monthly anchor on day 29-31.
+        occ = step_fixed(occ, freq, interval)
     return None
 
 
@@ -239,6 +241,17 @@ def _step(dt: datetime, freq: str, interval: int) -> datetime:
     if freq == FREQ_MONTHLY:
         return add_months(dt, interval)
     raise ValueError(f"unknown freq: {freq!r}")
+
+
+def step_fixed(occ: datetime, freq: str, interval: int) -> datetime:
+    """The fixed occurrence after the grid occurrence *occ*.
+
+    This is the step that :func:`next_fixed_occurrence` and
+    :func:`expand_fixed_occurrences` use. A caller that walks the grid one occurrence
+    at a time uses it, because a new search from the anchor costs a full walk for a
+    monthly anchor on day 29-31.
+    """
+    return _step(occ, freq, interval)
 
 
 def _fast_forward(
