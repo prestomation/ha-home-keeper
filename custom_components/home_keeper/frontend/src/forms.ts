@@ -358,11 +358,13 @@ function formBaseline(task: Partial<Task>): unknown {
   const sd = task as Record<string, unknown>;
   const raw = sd.sensor_baseline ?? task.sensor?.baseline;
   const stored = task.sensor;
-  if (stored?.baseline == null || raw == null || raw === '') return raw;
-  const entityId = String(sd.sensor_entity_id ?? stored.entity_id ?? '');
+  if (stored?.baseline == null) return raw;
+  // The backend stores a trimmed attribute, and no attribute reads as "".
   const attribute = String(flatSensor(sd, 'sensor_attribute', stored.attribute) ?? '').trim();
   const rebound =
-    entityId !== stored.entity_id || attribute !== String(stored.attribute ?? '').trim();
+    (sd.sensor_entity_id ?? stored.entity_id) !== stored.entity_id ||
+    attribute !== (stored.attribute ?? '');
+  // A blank box is omitted whatever this returns, so only a number matters here.
   return rebound && Number(raw) === Number(stored.baseline) ? undefined : raw;
 }
 
