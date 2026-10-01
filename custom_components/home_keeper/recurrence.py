@@ -422,6 +422,25 @@ def _latest_ts(entries: Iterable[dict]) -> datetime | None:
     return max((when for when in stamps if when is not None), default=None)
 
 
+def latest_completion(completions: Iterable[dict]) -> dict | None:
+    """The completion with the latest ``ts``, compared as instants, else ``None``.
+
+    The text of two ``ts`` values with different UTC offsets does not sort in time
+    order, so each one is parsed (B15-7). An entry with no ``ts``, or a ``ts`` that is
+    not ISO 8601, is skipped. If two entries have the same instant, the first wins.
+    """
+    latest: dict | None = None
+    latest_at: datetime | None = None
+    for entry in completions:
+        try:
+            when = datetime.fromisoformat(entry.get("ts") or "")
+        except (TypeError, ValueError):
+            continue
+        if latest_at is None or when > latest_at:
+            latest, latest_at = entry, when
+    return latest
+
+
 def compute_next_due(task: dict, *, now: datetime) -> datetime:
     """Compute next_due for *task* from its current state (no mutation)."""
     rec_type = task.get("recurrence_type", REC_FLOATING)
