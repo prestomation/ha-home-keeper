@@ -6,7 +6,8 @@ loading a matching ``translations/<lang>.json`` with the *same* key structure.
 These pure-Python checks (no HA runtime) guard against drift and low-quality
 translations:
 
-* ``translations/en.json`` must be an exact structural copy of ``strings.json``.
+* ``translations/en.json`` must be an exact copy of ``strings.json``: same keys
+  and same values. Home Assistant shows the text in ``en.json``.
 * every ``translations/<lang>.json`` must have the identical key structure
   (keys, not values) — no missing or extra keys in any locale.
 * placeholder tokens (``{task_name}`` …) must match the English source per key,
@@ -256,6 +257,23 @@ def test_en_matches_strings() -> None:
         "missing_in_en": sorted(strings_keys - en_keys),
         "extra_in_en": sorted(en_keys - strings_keys),
     }
+
+
+def test_b21_4_en_values_match_strings() -> None:
+    """translations/en.json must have the same values as strings.json.
+
+    A custom integration reads its English text at runtime from
+    translations/en.json, but the API reference reads strings.json. A key-only
+    check let 21 values drift apart, so the action editor showed old text.
+    """
+    strings_values = _strings(_load(_STRINGS))
+    en_values = _strings(_load(_TRANSLATIONS / "en.json"))
+    drift = {
+        key: {"strings": value, "en": en_values.get(key)}
+        for key, value in strings_values.items()
+        if en_values.get(key) != value
+    }
+    assert not drift, drift
 
 
 @pytest.mark.parametrize("path", _locale_files(), ids=lambda p: p.name)
