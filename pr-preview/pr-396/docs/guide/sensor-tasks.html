@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Sensor-based tasks | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/sensor-tasks"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Sensor-based tasks | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports sensor-based tasks. A sensor-based task is bound to a Home"><meta data-rh="true" property="og:description" content="Home Keeper supports sensor-based tasks. A sensor-based task is bound to a Home"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-396/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/sensor-tasks"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/sensor-tasks" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/sensor-tasks" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Sensor-based tasks","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-396/docs/guide/sensor-tasks"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-396/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-396/assets/js/runtime~main.33211349.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-396/assets/js/runtime~main.75655bb9.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-396/assets/js/main.ebbd0ade.js" defer="defer"></script>
 </head>
 <body>
@@ -62,6 +62,8 @@ reporting, the hold stops. It starts again when the entity reports the condition
 again.</p>
 <p>If you change the condition of a task, Home Keeper reads the entity against the new
 condition. A task opens when the entity already meets the new condition.</p>
+<p>If you rename the entity ID of the bound entity, Home Keeper changes the task to
+the new entity ID.</p>
 <p>An armed sensor task behaves like any other task. It is on the to-do list and the
 calendar. It sets the device&#x27;s overdue sensor and fires the
 <code>home_keeper_task_overdue</code> event.</p>
@@ -135,7 +137,8 @@ condition directly. This is useful for hardware with no number to meter, such as
 remains in that state. After a completion the task arms again only after the
 sensor returns to normal and reaches the state again.</li>
 <li class="">If the sensor is already in the state when Home Assistant starts, the task does
-not arm again.</li>
+not arm again. This is also true when the integration of the sensor starts after
+Home Keeper.</li>
 <li class="">An optional hold ignores short trips, such as a door that must stay open for 10
 minutes before the task arms.</li>
 <li class="">For an entity that is not a binary sensor the state field accepts free text.</li>
