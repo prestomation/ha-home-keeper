@@ -224,7 +224,8 @@ def _normalize_also_every(data: Any) -> dict[str, Any]:
         raw_interval = 1
     try:
         interval = int(raw_interval)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise TaskValidationError(
             "sensor.also_every.interval must be a valid integer"
         ) from err
@@ -250,7 +251,8 @@ def _normalize_for_seconds(data: dict[str, Any]) -> int:
     raw_for = data.get("for_seconds") or 0
     try:
         for_seconds = int(raw_for)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise TaskValidationError("sensor.for_seconds must be an integer") from err
     if for_seconds < 0:
         raise TaskValidationError("sensor.for_seconds must be >= 0")
@@ -809,7 +811,8 @@ def normalize_fields(data: dict, *, tz: Any = None) -> dict:
         raw_interval = 1
     try:
         interval = int(raw_interval)
-    except (TypeError, ValueError) as err:
+    # int() of an infinite float raises OverflowError (B05-6).
+    except (TypeError, ValueError, OverflowError) as err:
         raise TaskValidationError("interval must be a valid integer") from err
     if interval < 1:
         raise TaskValidationError("interval must be >= 1")

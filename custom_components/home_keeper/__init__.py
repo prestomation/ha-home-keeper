@@ -8,6 +8,7 @@ panel; usage (viewing/completing tasks) is surfaced through native HA entities
 from __future__ import annotations
 
 import logging
+import math
 from datetime import timedelta
 from typing import Any
 
@@ -583,7 +584,14 @@ ADJUST_PART_STOCK_SCHEMA = vol.Schema(
     {
         vol.Required("asset_id"): cv.string,
         vol.Required("part_id"): cv.string,
-        vol.Required("delta"): vol.Coerce(float),
+        # Open bounds at the infinities refuse NaN and both infinities, which
+        # Coerce(float) accepts from the text "nan" and "inf" (B05-5).
+        vol.Required("delta"): vol.All(
+            vol.Coerce(float),
+            vol.Range(
+                min=-math.inf, max=math.inf, min_included=False, max_included=False
+            ),
+        ),
     }
 )
 # Detach a part's attached file (upload is HTTP-only — see manuals.py — since a

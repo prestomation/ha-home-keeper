@@ -8,6 +8,7 @@ reloads the entry on add/delete so per-task entities appear/disappear).
 from __future__ import annotations
 
 import functools
+import math
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -891,7 +892,14 @@ async def ws_restore_asset(
         vol.Required("asset_id"): str,
         vol.Required("part_id"): str,
         # Fractional, like stock itself — 0.33 of a bottle is a real adjustment.
-        vol.Required("delta"): vol.Coerce(float),
+        # Open bounds at the infinities refuse NaN and both infinities, which
+        # Coerce(float) accepts from the text "nan" and "inf" (B05-5).
+        vol.Required("delta"): vol.All(
+            vol.Coerce(float),
+            vol.Range(
+                min=-math.inf, max=math.inf, min_included=False, max_included=False
+            ),
+        ),
     }
 )
 @websocket_api.require_admin
