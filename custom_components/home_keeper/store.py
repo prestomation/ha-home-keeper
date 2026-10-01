@@ -793,9 +793,15 @@ class HomeKeeperStore:
         _reject_completion_blocked(existing, origin)
         now = dt_util.now()
         records_reading = models.task_records_reading(existing)
-        clean_metadata = models.normalize_completion_metadata(
-            metadata, allow_reading=records_reading
-        )
+        # A skip entry keeps only the skip fields (B03-5). ``cost`` and ``photo`` are
+        # completion fields, and ``update_skip`` cannot clear them from a skip.
+        clean_metadata = {
+            key: value
+            for key, value in models.normalize_completion_metadata(
+                metadata, allow_reading=records_reading
+            ).items()
+            if key in SKIP_ENTRY_FIELDS
+        }
         # Same resolution order as ``complete_task``: the caller's number wins (a skip
         # logged for an earlier moment carries the reading the user typed for it),
         # otherwise read the bound entity now. The same figure anchors the meter below,
@@ -840,10 +846,14 @@ class HomeKeeperStore:
         hand *is* a user action ("I serviced this last month, start counting from
         there"), so it fires ``home_keeper_task_updated`` like any other edit.
         A no-op for a non-sensor task or an unchanged value.
+
+        Rejects NaN and infinity with ``TaskValidationError`` (B02-8), as
+        ``models`` does for every other stored number.
         """
         task = self._tasks.get(task_id)
         if task is None:
             raise KeyError(task_id)
+        baseline = models._finite_float(baseline, "sensor.baseline")
         cfg = task.get("sensor")
         if not isinstance(cfg, dict):
             return task
