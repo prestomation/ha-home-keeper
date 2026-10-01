@@ -831,6 +831,83 @@ def test_b01_4_a_problem_sensor_sync_that_deletes_a_task_archives_it(store):
     assert _archived_ids(asset) == [task["id"]]
 
 
+# ── reconciler updates fire task_updated with real fields (B18-4, B12-4) ─────
+
+_PROBLEM = "binary_sensor.sump_problem"
+
+
+def _problem(device_id=None, area_id=None, name="Sump problem"):
+    meta = {"name": name, "device_id": device_id, "area_id": area_id}
+    return {_PROBLEM: {**meta, "is_problem": True}}
+
+
+def _updated(store):
+    return store._hass.bus.of(store_mod.EVENT_TASK_UPDATED)
+
+
+def test_b18_4_a_rehomed_problem_mirror_fires_updated_and_reloads(store):
+    assert _run(store.reconcile_problem_sensor_tasks(_problem(), config_entry_id="e"))
+    assert _updated(store) == []
+    # The sensor moves to a device: the mirror gets device-page entities.
+    moved = _problem(device_id="dev1")
+    assert _run(store.reconcile_problem_sensor_tasks(moved, config_entry_id="e"))
+    assert [e["changed_fields"] for e in _updated(store)] == [["device_id"]]
+    assert _updated(store)[0]["device_id"] == "dev1"
+
+
+def test_b18_4_an_area_move_fires_updated_without_a_reload(store):
+    _run(store.reconcile_problem_sensor_tasks(_problem(), config_entry_id="e"))
+    moved = _problem(area_id="cellar")
+    assert not _run(store.reconcile_problem_sensor_tasks(moved, config_entry_id="e"))
+    assert [e["changed_fields"] for e in _updated(store)] == [["area_id"]]
+
+
+def test_b18_4_a_rename_on_a_device_reloads(store):
+    _run(store.reconcile_problem_sensor_tasks(_problem("dev1"), config_entry_id="e"))
+    renamed = _problem("dev1", name="Sump pump problem")
+    assert _run(store.reconcile_problem_sensor_tasks(renamed, config_entry_id="e"))
+    assert [e["changed_fields"] for e in _updated(store)] == [["name"]]
+
+
+def _companion(store, area_id):
+    dc = sys.modules["hk.declarative_companions"]
+    spec = dc.normalize_declarative_companion(
+        {
+            "id": "spec1",
+            "name": "Leak",
+            "selection": {"target_integration": "demo"},
+            "trigger": {"mode": "state", "state": "on"},
+            "task_template": {"name_template": "Check {{ friendly_name }}"},
+        }
+    )
+    entity = {
+        "entity_registry_id": "reg1",
+        "entity_id": "binary_sensor.leak",
+        "device_id": None,
+        "area_id": area_id,
+    }
+    key = ("spec1", "reg1")
+    match = {
+        "entity_registry_id": "reg1",
+        "entity": entity,
+        "sensor": {"entity_id": "binary_sensor.leak", "mode": "state", "state": "on"},
+    }
+    return _run(
+        store.reconcile_declarative_companion_tasks(
+            spec, {key: match}, {key: ("Check leak", "")}, config_entry_id="e"
+        )
+    )
+
+
+def test_b12_4_a_companion_update_names_the_fields_it_changed(store, monkeypatch):
+    monkeypatch.setattr(store_mod, "async_dispatcher_send", lambda *args: None)
+    _companion(store, area_id=None)
+    assert _updated(store) == []
+    reloaded, _created = _companion(store, area_id="kitchen")
+    assert reloaded is False
+    assert [e["changed_fields"] for e in _updated(store)] == [["area_id"]]
+
+
 # ── an appliance edit (B05-1, B06-3, B09-3, B15-3) ───────────────────────────
 
 

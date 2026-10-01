@@ -157,6 +157,17 @@ def _task_owns_entities(task: dict[str, Any]) -> bool:
     return bool(task.get("device_id")) and bool(task.get("enabled", True))
 
 
+def _reload_for_update(before: dict[str, Any], after: dict[str, Any]) -> bool:
+    """Whether a reconciler update from *before* to *after* needs an entry reload.
+
+    Only a task that owns per-task entities before or after the update can need
+    one, and only when its :func:`task_entities.entity_set_key` moved: a new name,
+    device or button changes what is on the device page.
+    """
+    owns = _task_owns_entities(before) or _task_owns_entities(after)
+    return owns and entity_set_key(before) != entity_set_key(after)
+
+
 def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
     """Raise unless *origin* authorizes mutating a problem-sensor-synced task.
 
@@ -2033,11 +2044,14 @@ class HomeKeeperStore:
         :func:`problem_tasks.reconcile_problem_tasks`, persists, and fires the
         matching lifecycle events. Returns ``True`` when the per-task **entity set**
         changed (a task was created or removed) so the caller can decide between a
-        full entry reload and a plain coordinator refresh.
+        full entry reload and a plain coordinator refresh. A mirror that moves to
+        another device, or gets a new name, changes its entity set too (B18-4).
         """
         # One clock reading for the recorded clear and for its event, so the event's
         # ``completed_at`` is the ``ts`` of the history entry (B18-9).
         now = dt_util.now()
+        # Taken before the pass, because it changes a matched task in place.
+        before = {tid: dict(task) for tid, task in self._tasks.items()}
         new_tasks, ops, changed = _reconcile_problem_tasks(
             eligible,
             self._tasks,
@@ -2067,6 +2081,16 @@ class HomeKeeperStore:
                     EVENT_TASK_DELETED, events.task_event_data(task)
                 )
                 entity_set_changed = True
+            elif kind == "updated":
+                old = before.get(task["id"], {})
+                self._hass.bus.async_fire(
+                    EVENT_TASK_UPDATED,
+                    events.task_event_data(
+                        task, extra={"changed_fields": _changed_fields(old, task)}
+                    ),
+                )
+                if _reload_for_update(old, task):
+                    entity_set_changed = True
             elif kind == "armed":
                 self._hass.bus.async_fire(
                     EVENT_TASK_TRIGGERED, events.task_event_data(task)
@@ -2260,12 +2284,14 @@ class HomeKeeperStore:
         task made a moment ago must arm on a condition that is already true.
         """
         # Taken before the pass, because the reconcile rewrites a matched task in
-        # place: reading the old key off ``self._tasks`` afterwards sees the new one.
-        # Only a task that owns per-task entities can need a reload.
-        keys_before = {
-            tid: entity_set_key(t)
+        # place: reading the old fields off ``self._tasks`` afterwards sees the new
+        # ones. Each field is replaced, not changed in place, so a shallow copy of
+        # the tasks of this spec is enough.
+        before = {
+            tid: dict(t)
             for tid, t in self._tasks.items()
-            if _task_owns_entities(t)
+            if (key := declarative_companions.task_key(t)) is not None
+            and key[0] == spec["id"]
         }
         new_tasks, ops, changed = declarative_companions.reconcile_declarative_tasks(
             spec,
@@ -2324,20 +2350,22 @@ class HomeKeeperStore:
                     EVENT_TASK_UPDATED,
                     events.task_event_data(task, extra={"changed_fields": ["enabled"]}),
                 )
-                if task["id"] in keys_before:
+                if _task_owns_entities(before.get(task["id"], {})):
                     entity_set_changed = True
             elif kind == "updated":
+                # The fields the pass really changed (B12-4). An automation that
+                # filters on ``changed_fields`` reads the same list as for an edit.
+                old = before.get(task["id"], {})
                 self._hass.bus.async_fire(
                     EVENT_TASK_UPDATED,
-                    events.task_event_data(task, extra={"changed_fields": []}),
+                    events.task_event_data(
+                        task, extra={"changed_fields": _changed_fields(old, task)}
+                    ),
                 )
                 # A new rendered name, a companion rename or a new ``clear_on_recover``
                 # changes the names or the button on the device page, which only an
                 # entry reload makes again.
-                old_key = keys_before.get(task["id"])
-                if (old_key is not None or _task_owns_entities(task)) and (
-                    old_key != entity_set_key(task)
-                ):
+                if _reload_for_update(old, task):
                     entity_set_changed = True
         return entity_set_changed, created_ids
 
