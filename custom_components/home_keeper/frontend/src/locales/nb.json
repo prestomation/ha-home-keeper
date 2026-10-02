@@ -838,5 +838,16 @@
   "tasks.presets.added.one": "{n} forhåndsvalg lagt til",
   "tasks.presets.added.other": "{n} forhåndsvalg lagt til",
   "tasks.presets.addedSome": "{added} av {total} forhåndsvalg lagt til. Sett opp resten fra kortet over oppgavelisten.",
-  "tasks.presets.addFailed": "Home Keeper la ikke til forhåndsvalgene: {error}"
+  "tasks.presets.addFailed": "Home Keeper la ikke til forhåndsvalgene: {error}",
+  "photos.title": "Bilder",
+  "photos.count": "{n} av {max}",
+  "photos.add": "Legg til bilde",
+  "photos.empty": "Legg til et bilde for å vise hva som må gjøres og hvor.",
+  "photos.makeCover": "Bruk som forside",
+  "photos.remove": "Fjern bilde",
+  "photos.cover": "Forside",
+  "photos.open": "Åpne {name}",
+  "photos.coverAlt": "Bilde av {task}",
+  "photos.taskPhoto": "Oppgavebilde",
+  "photos.confirmRemove": "Fjerne {name} fra denne oppgaven? Home Keeper sletter filen."
 }

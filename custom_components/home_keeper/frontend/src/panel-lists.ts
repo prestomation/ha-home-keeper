@@ -36,6 +36,7 @@ import {
 import { deferMenu } from './panel-defer';
 import { openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
+import { listCoverHtml } from './panel-photo-markup';
 import { presetNudgeCard, wirePresetNudge } from './panel-preset-nudge';
 import { TASK_CARD_INLINE_CHIPS } from './panel-styles';
 import { LS_TREE_COLLAPSED } from './panel-types';
@@ -341,15 +342,20 @@ function taskCard(p: PanelHost, task: Task): string {
   // While the drawer is editing this task, the row stays lit and undimmed so the
   // thing being edited is visible next to the form editing it.
   const editing = p._edit.open && !!task.id && p._edit.task?.id === task.id;
+  // The cover thumbnail rides inside the clickable name block, so the row's grid
+  // layouts (wide and phone) keep the same tracks (#399).
+  const cover = listCoverHtml(p, task);
   // The row opens the task's detail page; "Done" stays as a quick action.
   return `
       <ha-card class="hk-card${overdue ? ' overdue' : ''}${editing ? ' hk-editing' : ''}${
         completedOneOff ? ' hk-task-done' : ''
       }" data-id="${escapeHTML(task.id)}">
         <div class="hk-card-row hk-row-task">
-          <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
+          <div class="grow clickable detail-open${cover ? ' hk-grow-with-cover' : ''}" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
+            ${cover}<div class="hk-grow-text">
             <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
             <div class="hk-meta">${escapeHTML(recurrenceSummary(task))}${dueText}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}</div>
+            </div>
           </div>
           <div class="hk-chips hk-chips-inline${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
           <span class="hk-row-spacer"></span>

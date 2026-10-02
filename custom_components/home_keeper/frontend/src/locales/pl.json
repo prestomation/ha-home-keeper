@@ -892,5 +892,16 @@
   "tasks.presets.added.many": "Dodano {n} gotowców",
   "tasks.presets.added.other": "Dodano {n} gotowca",
   "tasks.presets.addedSome": "Dodano {added} z {total} gotowców. Pozostałe skonfiguruj z karty nad listą zadań.",
-  "tasks.presets.addFailed": "Home Keeper nie dodał gotowców: {error}"
+  "tasks.presets.addFailed": "Home Keeper nie dodał gotowców: {error}",
+  "photos.title": "Zdjęcia",
+  "photos.count": "{n} z {max}",
+  "photos.add": "Dodaj zdjęcie",
+  "photos.empty": "Dodaj zdjęcie, aby pokazać, co trzeba zrobić i gdzie.",
+  "photos.makeCover": "Ustaw jako okładkę",
+  "photos.remove": "Usuń zdjęcie",
+  "photos.cover": "Okładka",
+  "photos.open": "Otwórz {name}",
+  "photos.coverAlt": "Zdjęcie: {task}",
+  "photos.taskPhoto": "Zdjęcie zadania",
+  "photos.confirmRemove": "Usunąć {name} z tego zadania? Home Keeper skasuje plik."
 }

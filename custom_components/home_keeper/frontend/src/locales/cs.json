@@ -892,5 +892,16 @@
   "tasks.presets.added.many": "Přidáno {n} předvolby",
   "tasks.presets.added.other": "Přidáno {n} předvoleb",
   "tasks.presets.addedSome": "Přidáno {added} z {total} předvoleb. Ostatní nastavte z karty nad seznamem úkolů.",
-  "tasks.presets.addFailed": "Home Keeper předvolby nepřidal: {error}"
+  "tasks.presets.addFailed": "Home Keeper předvolby nepřidal: {error}",
+  "photos.title": "Fotografie",
+  "photos.count": "{n} z {max}",
+  "photos.add": "Přidat fotografii",
+  "photos.empty": "Přidejte fotografii, která ukáže, co je třeba udělat a kde.",
+  "photos.makeCover": "Nastavit jako titulní",
+  "photos.remove": "Odebrat fotografii",
+  "photos.cover": "Titulní",
+  "photos.open": "Otevřít {name}",
+  "photos.coverAlt": "Fotografie: {task}",
+  "photos.taskPhoto": "Fotografie úkolu",
+  "photos.confirmRemove": "Odebrat {name} z tohoto úkolu? Home Keeper soubor smaže."
 }

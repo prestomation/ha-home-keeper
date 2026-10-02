@@ -892,5 +892,16 @@
   "tasks.presets.added.many": "Добавлено {n} шаблонов",
   "tasks.presets.added.other": "Добавлено {n} шаблона",
   "tasks.presets.addedSome": "Добавлено шаблонов: {added} из {total}. Остальные настройте в карточке над списком задач.",
-  "tasks.presets.addFailed": "Home Keeper не добавил шаблоны: {error}"
+  "tasks.presets.addFailed": "Home Keeper не добавил шаблоны: {error}",
+  "photos.title": "Фото",
+  "photos.count": "{n} из {max}",
+  "photos.add": "Добавить фото",
+  "photos.empty": "Добавьте фото, чтобы показать, что нужно сделать и где.",
+  "photos.makeCover": "Сделать обложкой",
+  "photos.remove": "Удалить фото",
+  "photos.cover": "Обложка",
+  "photos.open": "Открыть {name}",
+  "photos.coverAlt": "Фото: {task}",
+  "photos.taskPhoto": "Фото задачи",
+  "photos.confirmRemove": "Удалить {name} из этой задачи? Home Keeper удалит файл."
 }

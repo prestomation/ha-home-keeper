@@ -865,5 +865,16 @@
   "tasks.presets.added.many": "{n} de presets adicionados",
   "tasks.presets.added.other": "{n} presets adicionados",
   "tasks.presets.addedSome": "{added} de {total} presets adicionados. Configure os outros no cartão acima da lista de tarefas.",
-  "tasks.presets.addFailed": "O Home Keeper não adicionou os presets: {error}"
+  "tasks.presets.addFailed": "O Home Keeper não adicionou os presets: {error}",
+  "photos.title": "Fotos",
+  "photos.count": "{n} de {max}",
+  "photos.add": "Adicionar foto",
+  "photos.empty": "Adicione uma foto para mostrar o que precisa ser feito e onde.",
+  "photos.makeCover": "Usar como capa",
+  "photos.remove": "Remover foto",
+  "photos.cover": "Capa",
+  "photos.open": "Abrir {name}",
+  "photos.coverAlt": "Foto de {task}",
+  "photos.taskPhoto": "Foto da tarefa",
+  "photos.confirmRemove": "Remover {name} desta tarefa? O Home Keeper exclui o arquivo."
 }

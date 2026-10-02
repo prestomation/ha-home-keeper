@@ -47,6 +47,20 @@ describe('phone layout rules', () => {
     expect(rule(phone, '.hk-stock-input, .hk-note-input')).toContain('font-size: 16px');
   });
 
+  it('#399: the task cover goes full width above the name', () => {
+    expect(rule(phone, '.hk-head-with-cover')).toContain('flex-direction: column');
+    expect(rule(phone, '.hk-task-cover')).toContain('width: 100%');
+  });
+
+  it('#399: the photo strip scrolls sideways and its buttons take the tap size', () => {
+    const strip = rule(phone, '.hk-photo-strip');
+    expect(strip).toContain('flex-wrap: nowrap');
+    expect(strip).toContain('overflow-x: auto');
+    expect(rule(phone, '.hk-photo-actions ha-icon-button')).toContain(
+      '--mdc-icon-button-size: var(--hk-tap)',
+    );
+  });
+
   it('X11-4: the tree toggle has a tap-size ring', () => {
     const ring = rule(phone, '.hk-chevron::before');
     expect(ring).toContain("content: ''");

@@ -838,5 +838,16 @@
   "tasks.presets.added.one": "{n} esiasetus lisätty",
   "tasks.presets.added.other": "{n} esiasetusta lisätty",
   "tasks.presets.addedSome": "{added}/{total} esiasetusta lisätty. Ota loput käyttöön tehtäväluettelon yläpuolella olevasta kortista.",
-  "tasks.presets.addFailed": "Home Keeper ei lisännyt esiasetuksia: {error}"
+  "tasks.presets.addFailed": "Home Keeper ei lisännyt esiasetuksia: {error}",
+  "photos.title": "Valokuvat",
+  "photos.count": "{n}/{max}",
+  "photos.add": "Lisää valokuva",
+  "photos.empty": "Lisää valokuva näyttääksesi, mitä pitää tehdä ja missä.",
+  "photos.makeCover": "Aseta kansikuvaksi",
+  "photos.remove": "Poista valokuva",
+  "photos.cover": "Kansikuva",
+  "photos.open": "Avaa {name}",
+  "photos.coverAlt": "Valokuva: {task}",
+  "photos.taskPhoto": "Tehtävän valokuva",
+  "photos.confirmRemove": "Poistetaanko {name} tästä tehtävästä? Home Keeper poistaa tiedoston."
 }

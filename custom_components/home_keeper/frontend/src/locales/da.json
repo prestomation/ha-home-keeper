@@ -838,5 +838,16 @@
   "tasks.presets.added.one": "{n} forudindstilling tilføjet",
   "tasks.presets.added.other": "{n} forudindstillinger tilføjet",
   "tasks.presets.addedSome": "{added} af {total} forudindstillinger tilføjet. Opsæt resten fra kortet over opgavelisten.",
-  "tasks.presets.addFailed": "Home Keeper tilføjede ikke forudindstillingerne: {error}"
+  "tasks.presets.addFailed": "Home Keeper tilføjede ikke forudindstillingerne: {error}",
+  "photos.title": "Fotos",
+  "photos.count": "{n} af {max}",
+  "photos.add": "Tilføj foto",
+  "photos.empty": "Tilføj et foto for at vise, hvad der skal gøres og hvor.",
+  "photos.makeCover": "Brug som forside",
+  "photos.remove": "Fjern foto",
+  "photos.cover": "Forside",
+  "photos.open": "Åbn {name}",
+  "photos.coverAlt": "Foto af {task}",
+  "photos.taskPhoto": "Opgavefoto",
+  "photos.confirmRemove": "Fjern {name} fra denne opgave? Home Keeper sletter filen."
 }

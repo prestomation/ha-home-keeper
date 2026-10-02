@@ -838,5 +838,16 @@
   "tasks.presets.added.one": "{n} preset toegevoegd",
   "tasks.presets.added.other": "{n} presets toegevoegd",
   "tasks.presets.addedSome": "{added} van {total} presets toegevoegd. Stel de andere in via de kaart boven de takenlijst.",
-  "tasks.presets.addFailed": "Home Keeper heeft de presets niet toegevoegd: {error}"
+  "tasks.presets.addFailed": "Home Keeper heeft de presets niet toegevoegd: {error}",
+  "photos.title": "Foto's",
+  "photos.count": "{n} van {max}",
+  "photos.add": "Foto toevoegen",
+  "photos.empty": "Voeg een foto toe om te laten zien wat er moet gebeuren en waar.",
+  "photos.makeCover": "Als omslag",
+  "photos.remove": "Foto verwijderen",
+  "photos.cover": "Omslag",
+  "photos.open": "{name} openen",
+  "photos.coverAlt": "Foto van {task}",
+  "photos.taskPhoto": "Taakfoto",
+  "photos.confirmRemove": "{name} van deze taak verwijderen? Home Keeper wist het bestand."
 }

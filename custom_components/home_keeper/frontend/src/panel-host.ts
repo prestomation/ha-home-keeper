@@ -24,6 +24,7 @@
 
 import type { SkipState, SnoozeState } from './defer';
 import type { SignedUrlCache } from './documents';
+import type { TaskPhotoUrlCache } from './task-photos';
 import type { FormField, HaFormElement } from './forms';
 import type { MarkdownPreview } from './markdown';
 import type {
@@ -291,6 +292,9 @@ export interface PanelHost extends HTMLElement {
   /** Short-lived signed URLs for the uploaded files on screen; a detail page reads the
    *  href out of it as it renders and `_signFiles` fills in what wasn't minted yet. */
   _signedFiles: SignedUrlCache;
+  _signedPhotos: TaskPhotoUrlCache;
+  /** The signed URL for a `data-sign` key, from whichever cache owns that kind. */
+  _signedUrl(key: string): string | undefined;
   /** HA tag-registry entries as picker options, for the tag chip. */
   _tags: { value: string; label: string }[];
   /** Which sub-tab the open task detail is showing. */

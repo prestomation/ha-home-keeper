@@ -31,6 +31,7 @@ import {
 import { t } from './i18n';
 import type { MarkdownPreview } from './markdown';
 import type { PanelHost } from './panel-host';
+import { dialogCoverEl } from './panel-photo-markup';
 import type { Completion, Hass, Task } from './types';
 import { guardWrite, setBtnWeight, taskRecordsReading, toast } from './utils';
 
@@ -490,6 +491,10 @@ export function renderCompletionDialog(p: PanelHost, host: HTMLElement): void {
       notePreview?.update(String(value.note ?? ''));
     },
   );
+  // The task's cover first, when logging a new completion: the person doing the
+  // work sees which gap or which filter it was about (#399).
+  const cover = editing ? null : dialogCoverEl(p, c.task);
+  if (cover) body.appendChild(cover);
   body.appendChild(form);
   notePreview = p._attachNotePreview(body, String(c.data.note ?? ''));
 

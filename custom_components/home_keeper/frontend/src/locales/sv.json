@@ -838,5 +838,16 @@
   "tasks.presets.added.one": "{n} förinställning tillagd",
   "tasks.presets.added.other": "{n} förinställningar tillagda",
   "tasks.presets.addedSome": "{added} av {total} förinställningar tillagda. Konfigurera resten från kortet ovanför uppgiftslistan.",
-  "tasks.presets.addFailed": "Home Keeper lade inte till förinställningarna: {error}"
+  "tasks.presets.addFailed": "Home Keeper lade inte till förinställningarna: {error}",
+  "photos.title": "Foton",
+  "photos.count": "{n} av {max}",
+  "photos.add": "Lägg till foto",
+  "photos.empty": "Lägg till ett foto för att visa vad som behöver göras och var.",
+  "photos.makeCover": "Använd som omslag",
+  "photos.remove": "Ta bort foto",
+  "photos.cover": "Omslag",
+  "photos.open": "Öppna {name}",
+  "photos.coverAlt": "Foto av {task}",
+  "photos.taskPhoto": "Uppgiftsfoto",
+  "photos.confirmRemove": "Ta bort {name} från den här uppgiften? Home Keeper raderar filen."
 }

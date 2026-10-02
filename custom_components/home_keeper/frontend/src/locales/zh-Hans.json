@@ -838,5 +838,16 @@
   "tasks.presets.added.one": "已添加 {n} 个预设",
   "tasks.presets.added.other": "已添加 {n} 个预设",
   "tasks.presets.addedSome": "已添加 {added}/{total} 个预设。请在任务列表上方的卡片中设置其余预设。",
-  "tasks.presets.addFailed": "Home Keeper 没有添加预设：{error}"
+  "tasks.presets.addFailed": "Home Keeper 没有添加预设：{error}",
+  "photos.title": "照片",
+  "photos.count": "{n}/{max}",
+  "photos.add": "添加照片",
+  "photos.empty": "添加一张照片，说明需要做什么以及在哪里。",
+  "photos.makeCover": "设为封面",
+  "photos.remove": "移除照片",
+  "photos.cover": "封面",
+  "photos.open": "打开 {name}",
+  "photos.coverAlt": "{task} 的照片",
+  "photos.taskPhoto": "任务照片",
+  "photos.confirmRemove": "要从此任务中移除 {name} 吗？Home Keeper 会删除该文件。"
 }

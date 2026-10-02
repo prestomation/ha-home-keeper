@@ -865,5 +865,16 @@
   "tasks.presets.added.many": "{n} di preset aggiunti",
   "tasks.presets.added.other": "{n} preset aggiunti",
   "tasks.presets.addedSome": "{added} preset su {total} aggiunti. Configura gli altri dalla scheda sopra l'elenco delle attività.",
-  "tasks.presets.addFailed": "Home Keeper non ha aggiunto i preset: {error}"
+  "tasks.presets.addFailed": "Home Keeper non ha aggiunto i preset: {error}",
+  "photos.title": "Foto",
+  "photos.count": "{n} di {max}",
+  "photos.add": "Aggiungi foto",
+  "photos.empty": "Aggiungi una foto per mostrare cosa va fatto e dove.",
+  "photos.makeCover": "Usa come copertina",
+  "photos.remove": "Rimuovi foto",
+  "photos.cover": "Copertina",
+  "photos.open": "Apri {name}",
+  "photos.coverAlt": "Foto di {task}",
+  "photos.taskPhoto": "Foto dell'attività",
+  "photos.confirmRemove": "Rimuovere {name} da questa attività? Home Keeper elimina il file."
 }
