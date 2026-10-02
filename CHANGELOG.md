@@ -6,6 +6,202 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.28.0] - 2026-10-02
+
+### Added
+
+- **[Entity keys](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#entity-keys-and-task-names).**
+  A declarative companion can match entities by the key their integration gives them.
+  A rename or a change of the Home Assistant language no longer breaks the match.
+- **[Task names per key](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#entity-keys-and-task-names).**
+  Give each entity key its own task name, such as Replace filter. One declarative
+  companion then makes a task with a clear name for each part.
+- **[Key list](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#entity-keys-and-task-names).**
+  The declarative companion dialog lists the entity keys of the target integration.
+  Click a key to add it.
+- **[Device filter](https://prestomation.github.io/ha-home-keeper/docs/guide/settings).**
+  Limit a declarative companion to some devices.
+- **[Integration presets](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  More than 100 presets turn the wear readings of vacuums, printers, appliances, heaters and
+  other devices into tasks. The picker shows first the presets that match your devices,
+  and a search finds a brand or a part.
+- **[Preset suggestions](https://prestomation.github.io/ha-home-keeper/docs/guide/panel#presets-for-your-home).**
+  The Tasks tab shows the built-in presets that match entities in your home. Add them
+  all in one step, or set up each one from a card above the task list.
+- **[Preset summaries](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#what-a-preset-does).**
+  The Add dialog says in plain words what a preset watches and when it opens a task.
+  It also marks each section you change, and the preview shows what each entity reads now.
+- **[Actron Air preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#integration-presets).**
+  Home Keeper opens a task when an Actron Air system says that its filter needs a clean.
+- **[Per-task snooze length](https://prestomation.github.io/ha-home-keeper/docs/guide/snooze-and-skip#snooze-length-for-each-task).**
+  Set how long Snooze moves each task, such as 1 hour for a medicine reminder. The
+  snooze dialog and the Snooze button on a notification use it. (Fixes #367)
+
+### Fixed
+
+- **[Due dates from synced lists](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync#two-way-sync).**
+  A due date that you change on a two-way synced to-do list now moves the task to that date. Home Keeper no longer writes the old date back. (Fixes #398)
+- **Admin-only appliance writes.** A user who is not an admin can no longer upload an
+  appliance file or delete archived appliance history. These actions also showed that
+  user the private appliance fields, such as costs and serial numbers.
+- **Private data in diagnostics.** The diagnostics file no longer includes completion
+  notes, skip notes, costs, vendors, part numbers, links or custom fields.
+- **Serial numbers on devices.** Home Keeper no longer copies the serial number of an
+  appliance to its Home Assistant device, where any signed-in user can read it.
+- **[Device Pulse preset](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  It now opens a task when a device is offline for 1 hour and completes it when the device
+  replies. A companion made from the older preset keeps tasks that never complete, so
+  delete it and add the preset again.
+- **Device stopped reporting preset.** It now waits 48 hours and reads only timestamp
+  sensors, so it stops opening tasks for phones and for devices that report once a day.
+- **[Schedule after history edits](https://prestomation.github.io/ha-home-keeper/docs/guide/completions).**
+  A deleted, moved or back-filled completion no longer undoes a later skip, snooze or
+  due today. Undo of the latest completion on a fixed schedule now puts back the due
+  date it had before.
+- **[Snooze on fixed schedules](https://prestomation.github.io/ha-home-keeper/docs/guide/snooze-and-skip).**
+  Done on a snoozed fixed task now moves to the next date on the schedule. The
+  calendar now shows the snoozed date in place of the old one.
+- **[Times in the Home Assistant zone](https://prestomation.github.io/ha-home-keeper/docs/guide/completions).**
+  The panel and the card now show and save dates in the Home Assistant time zone, not
+  the browser zone. Due today and the day counts are now correct for a browser in a
+  different zone.
+- **[Card errors in the log](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  The dashboard card no longer writes an error to the Home Assistant log at each update
+  for a user who is not an admin.
+- **[Wear progress on the card](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  A user who is not an admin now sees the progress of a counted wear part on the card,
+  such as 17 of 25 wears.
+- **[Due soon on the card](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  The Due soon filter of the card now shows a task on the day it is due, the same as the
+  panel.
+- **[Card focus](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card).**
+  A refresh of the card no longer moves the focus out of an open form or dialog.
+- **Double presses.** A second press on Done, Skip, Snooze or Save while the first one
+  still runs no longer makes a second completion or a second task.
+- **Cleared sensor fields.** A cleared Attribute or Hold box on a sensor task now saves
+  as empty.
+- **[Empty stock box](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  An empty stock box on the appliance page no longer sets the stock to 0.
+- **Remove orphaned tasks.** The panel now asks before it deletes orphaned tasks, and
+  it deletes them in one step. It no longer shows every managed task as orphaned when
+  it cannot read the loaded integrations.
+- **[Document errors](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  An error on a document or a part file now shows next to it, and the link that you
+  typed stays in the box.
+- **[File removal](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  The panel now asks before it removes a document or the file of a part.
+- **Line breaks in notes.** A single line break in a note now shows as a new line.
+- **[Clear on recover](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  When you turn off Clear on recover in the declarative companion dialog, it now stays
+  off.
+- **Edits of old history.** You can now edit an old completion or skip of a task after
+  the task changed its type.
+- **Confirm dialog on a keyboard.** The confirm dialog now takes the focus and keeps it
+  until you close the dialog.
+- **[Disabled entities](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  A declarative companion task now keeps its history when its entity is disabled, also
+  through its device or integration. Home Keeper turns the task off, and turns it on
+  again when the entity is enabled.
+- **[Empty task names](https://prestomation.github.io/ha-home-keeper/docs/guide/settings#declarative-companions-config-driven-no-separate-integration).**
+  A name template that gives an empty name for one entity no longer stops all
+  declarative companions, and Home Assistant no longer fails to set up Home Keeper.
+- **Task names at restart.** A restart no longer renames declarative companion tasks
+  before their entities have a state.
+- **Entity names on one device.** Tasks that one declarative companion makes for
+  entities on the same device now get different entity names.
+- **Renamed problem sensors.** A problem sensor task now keeps its labels, history and
+  note when you change the entity ID of its sensor.
+- **Deleted declarative companions.** The device page entities of a deleted declarative
+  companion now go away at once.
+- **Actions during a reload.** The `home_keeper.*` actions now stay available while
+  Home Keeper reloads. A call at that time gives a clear error that says to try again.
+- **Device split repair.** The repair after the Home Assistant 2026.8 device split now
+  also updates related devices, profile device filters and problem sensor exclusions.
+- **Future Home Assistant versions.** Home Keeper no longer uses device registry calls
+  that Home Assistant 2027.8 removes.
+- **[Automatic notifications](https://prestomation.github.io/ha-home-keeper/docs/guide/notifications).**
+  An automatic notification now sends only when a task in its own profile becomes
+  overdue or due soon.
+- **[Old notification buttons](https://prestomation.github.io/ha-home-keeper/docs/guide/notifications).**
+  Snooze and Skip on an old notification now do nothing when the task has changed
+  since the notification was sent.
+- **[Snooze on a blocked task](https://prestomation.github.io/ha-home-keeper/docs/guide/notifications).**
+  The Snooze button on a notification for a task that Home Keeper completes by itself
+  now works when snooze is turned off in Settings.
+- **[Next task in a notification](https://prestomation.github.io/ha-home-keeper/docs/guide/notifications).**
+  After a tap on a button, the next notification shows the next task, not the task that
+  you acted on.
+- **[Sensor task completions](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  A task that clears when its sensor recovers now completes 1 time, also when many
+  devices recover together.
+- **[Sensor tasks at restart](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  A restart no longer arms sensor tasks again when their entity loads late, or when the
+  entity shows unavailable during the start of Home Assistant.
+- **[Meter resets](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  One short drop in a meter reading no longer resets the count of a usage task.
+- **[Done on an armed task](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  A sensor task that you mark done no longer arms again at once.
+- **[Sensor task speed](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  A change of one entity now checks only the tasks that use that entity.
+- **[Renamed entities](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  A sensor task now follows its entity when you change the entity ID.
+- **[State values in a file](https://prestomation.github.io/ha-home-keeper/docs/guide/sensor-tasks).**
+  An import with `state: on` without quotation marks now shows an error. Before, the
+  task was saved with the state True and never armed.
+- **[To-do due dates](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  A task due in the evening now shows on its correct day in a synced to-do list. Before,
+  it showed 1 day late in time zones behind UTC.
+- **[Deleted list items](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  If you delete an item from a synced to-do list or shopping list, Home Keeper no longer
+  marks its task complete or restocks its part.
+- **[New shopping items](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  A new buy reminder no longer matches the item that you ticked off the last time.
+- **[Sync to a new list](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  A profile sync that you move to a new list now works when the old list is gone.
+- **[Task on 2 lists](https://prestomation.github.io/ha-home-keeper/docs/guide/todo-sync).**
+  A task on the lists of 2 profiles now completes 1 time when you tick it off.
+- **Tasks that share a spare part.** Home Keeper no longer deletes tasks that use the
+  same spare part each time it starts. This affected Battery Notes tasks and tasks
+  made with Duplicate.
+- **[Part files](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  An edit of an appliance that does not change its parts, such as a notes edit or a
+  rename, now keeps the files attached to its parts. A file is now deleted from disk
+  when you remove its part.
+- **[Document uploads](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  An upload can no longer replace the file of a different document.
+- **Task history on removal.** Home Keeper now keeps the history of a declarative
+  companion task or a problem sensor task on its appliance when it removes the task.
+- **[Spare stock limit](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  Stock can no longer go above the largest allowed count. Before, an appliance with
+  too much stock could not be edited.
+- **[Last replaced date](https://prestomation.github.io/ha-home-keeper/docs/guide/appliances).**
+  A change of the Last replaced date of a wear part now moves the due date of its task.
+- **[Retention box](https://prestomation.github.io/ha-home-keeper/docs/guide/one-off-tasks).**
+  The box that deletes completed one-off tasks now saves only when you leave the box or
+  press Enter. A lower value takes effect at the next check, about 5 minutes later. The
+  largest value is 3650 days.
+- **[Settings cards](https://prestomation.github.io/ha-home-keeper/docs/guide/settings).**
+  A change in one Settings card no longer undoes a change that you made before in
+  another card, a profile or a notification.
+- **[Quick setting changes](https://prestomation.github.io/ha-home-keeper/docs/guide/settings).**
+  2 setting changes in quick succession now both save, where the second change failed
+  before.
+- **[Import on older Home Assistant](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  Import and the dry run work again on Home Assistant 2026.8 and older.
+- **[Restore of nested appliances](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  A file with appliances inside other appliances now restores onto a new install.
+- **[Appliances with one name](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  When 2 appliances have the same name, an export now keeps each task on the correct
+  appliance. An import that cannot tell them apart shows an error.
+- **[History on a repeated import](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  An import of the same file again no longer moves a task back to an older date, and
+  it keeps the newest history entries.
+- **[Tasks linked to a part](https://prestomation.github.io/ha-home-keeper/docs/guide/import-export).**
+  An export now includes a task that you linked to a spare part by hand.
+- **Import and export speed.** A large import or export no longer stops Home Assistant
+  while it reads or writes the file.
+- **Small bug fixes.** This release fixes many small bugs.
+
 ## [0.28.0b18]
 
 ### Fixed
