@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Aufgabenfoto entfernen",
+      "description": "Entfernt ein Foto von einer Aufgabe und löscht seine Datei. Fotos werden im Panel hinzugefügt, da ein Dienstaufruf keine Datei übertragen kann.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe mit dem Foto. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Die ID des Fotos. Der Dienst list_tasks liefert sie in den Fotos der Aufgabe."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Titelfoto der Aufgabe festlegen",
+      "description": "Macht ein Foto zum Titelfoto seiner Aufgabe. Das Titelfoto ist das erste Foto. Es erscheint in der Aufgabenliste, auf der Aufgabenseite und im Erledigt-Dialog.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe mit dem Foto. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Die ID des Fotos. Der Dienst list_tasks liefert sie in den Fotos der Aufgabe."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Aufgabenfoto-URL signieren",
+      "description": "Erstellt eine kurzlebige URL (kein Auth-Header nötig), über die die Bytes eines Aufgabenfotos abrufbar sind, z. B. um das Foto in einer Benachrichtigung zu zeigen.",
+      "fields": {
+        "task_id": {
+          "name": "Aufgabenname oder -ID",
+          "description": "Die ID der Aufgabe mit dem Foto. Der Name funktioniert ebenfalls. Das Panel zeigt die ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Die ID des Fotos. Der Dienst list_tasks liefert sie in den Fotos der Aufgabe."
+        },
+        "thumbnail": {
+          "name": "Vorschaubild",
+          "description": "Signiert die URL der kleinen Kopie mit höchstens 256 Pixeln an der langen Seite."
+        }
+      }
+    },
     "update_skip": {
       "name": "Überspringen aktualisieren",
       "description": "Ändert die Angaben eines protokollierten Überspringens, bestimmt durch seinen Zeitstempel. Das Datum bleibt erhalten und der Zeitplan unberührt.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Unbekanntes Dokument: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Unbekanntes Foto: {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Nur eine Aufgabe mit einer Verbrauchssensor-Bindung hat einen Zähler."

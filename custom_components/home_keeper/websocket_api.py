@@ -238,6 +238,9 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_sign_document_url)
     websocket_api.async_register_command(hass, ws_remove_part_file)
     websocket_api.async_register_command(hass, ws_sign_part_file_url)
+    websocket_api.async_register_command(hass, ws_remove_task_photo)
+    websocket_api.async_register_command(hass, ws_set_task_photo_cover)
+    websocket_api.async_register_command(hass, ws_sign_task_photo_urls)
     websocket_api.async_register_command(hass, ws_export_appliance_report)
     websocket_api.async_register_command(hass, ws_export_data)
     websocket_api.async_register_command(hass, ws_import_data)
@@ -1121,6 +1124,118 @@ async def ws_sign_part_file_url(
         _err(hass, connection, msg, "not_found", "unknown_part_file")
         return
     connection.send_result(msg["id"], {"url": signed})
+
+
+async def _task_photo_op(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    op: Any,
+) -> None:
+    """Run a photo store call and send back the task, or a not-found error."""
+    try:
+        task = await op(msg["task_id"], msg["photo_id"])
+    except KeyError as err:
+        if err.args and err.args[0] == msg["task_id"]:
+            _err(
+                hass,
+                connection,
+                msg,
+                "not_found",
+                "task_not_found",
+                task_id=msg["task_id"],
+            )
+        else:
+            _err(
+                hass,
+                connection,
+                msg,
+                "not_found",
+                "unknown_task_photo",
+                photo_id=msg["photo_id"],
+            )
+        return
+    connection.send_result(msg["id"], {"task": task})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/remove_task_photo",
+        vol.Required("task_id"): str,
+        vol.Required("photo_id"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_remove_task_photo(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    await _task_photo_op(hass, connection, msg, coord.store.remove_task_photo)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/set_task_photo_cover",
+        vol.Required("task_id"): str,
+        vol.Required("photo_id"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_set_task_photo_cover(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    await _task_photo_op(hass, connection, msg, coord.store.set_task_photo_cover)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "home_keeper/sign_task_photo_urls",
+        vol.Required("photos"): vol.All(
+            [
+                {
+                    vol.Required("task_id"): str,
+                    vol.Required("photo_id"): str,
+                    vol.Optional("thumb", default=False): bool,
+                }
+            ],
+            vol.Length(max=500),
+        ),
+    }
+)
+@websocket_api.async_response
+@_with_coordinator()
+async def ws_sign_task_photo_urls(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+    coord: HomeKeeperCoordinator,
+) -> None:
+    """Sign many task photo URLs at once (the list signs every visible cover).
+
+    A photo that is gone gets ``url: null`` rather than failing the whole batch: the
+    list may still show a row that was removed a moment ago.
+    """
+    urls = [
+        {
+            "task_id": ref["task_id"],
+            "photo_id": ref["photo_id"],
+            "thumb": ref["thumb"],
+            "url": await manuals.async_sign_task_photo_url(
+                hass, ref["task_id"], ref["photo_id"], thumb=ref["thumb"]
+            ),
+        }
+        for ref in msg["photos"]
+    ]
+    connection.send_result(msg["id"], {"urls": urls})
 
 
 @websocket_api.websocket_command(

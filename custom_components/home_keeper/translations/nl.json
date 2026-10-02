@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Taakfoto verwijderen",
+      "description": "Verwijdert een foto van een taak en wist het bestand. Voeg foto's toe in het paneel, omdat een serviceaanroep geen bestand kan meesturen.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "De ID van de taak met de foto. De naam werkt ook. Het paneel toont de ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "De ID van de foto. De service list_tasks geeft hem in de foto's van de taak."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Omslagfoto van taak instellen",
+      "description": "Maakt een foto de omslagfoto van zijn taak. De omslagfoto is de eerste foto. Hij staat in de takenlijst, op de taakpagina en in het afrondvenster.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "De ID van de taak met de foto. De naam werkt ook. Het paneel toont de ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "De ID van de foto. De service list_tasks geeft hem in de foto's van de taak."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "URL van taakfoto ondertekenen",
+      "description": "Maakt een kortlevende URL (geen auth-header nodig) die de bytes van een taakfoto geeft, bijvoorbeeld om de foto in een melding te tonen.",
+      "fields": {
+        "task_id": {
+          "name": "Taaknaam of -ID",
+          "description": "De ID van de taak met de foto. De naam werkt ook. Het paneel toont de ID."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "De ID van de foto. De service list_tasks geeft hem in de foto's van de taak."
+        },
+        "thumbnail": {
+          "name": "Miniatuur",
+          "description": "Ondertekent de URL van de kleine kopie, maximaal 256 pixels aan de lange zijde."
+        }
+      }
+    },
     "update_skip": {
       "name": "Overslaan bijwerken",
       "description": "Past de gegevens van een vastgelegd overslaan aan, aangeduid met het tijdstempel. Het overslaan houdt zijn datum en het schema blijft ongemoeid.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Onbekend document: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Onbekende foto: {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Alleen een taak met een gebruikssensor heeft een meter."

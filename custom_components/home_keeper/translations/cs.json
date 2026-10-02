@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Odebrat fotografii úkolu",
+      "description": "Odebere fotografii z úkolu a smaže její soubor. Fotografie přidávejte v panelu, protože volání služby nemůže nést soubor.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, který má fotografii. Funguje i jeho název. Panel zobrazuje ID."
+        },
+        "photo_id": {
+          "name": "ID fotografie",
+          "description": "ID fotografie. Služba list_tasks ho uvádí ve fotografiích úkolu."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Nastavit titulní fotografii úkolu",
+      "description": "Udělá z fotografie titulní fotografii jejího úkolu. Titulní fotografie je první fotografie. Zobrazuje se v seznamu úkolů, na stránce úkolu a v dialogu dokončení.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, který má fotografii. Funguje i jeho název. Panel zobrazuje ID."
+        },
+        "photo_id": {
+          "name": "ID fotografie",
+          "description": "ID fotografie. Služba list_tasks ho uvádí ve fotografiích úkolu."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Podepsat URL fotografie úkolu",
+      "description": "Vytvoří krátkodobou URL (bez ověřovací hlavičky), která vrací bajty fotografie úkolu, například pro zobrazení fotografie v oznámení.",
+      "fields": {
+        "task_id": {
+          "name": "Název nebo ID úkolu",
+          "description": "ID úkolu, který má fotografii. Funguje i jeho název. Panel zobrazuje ID."
+        },
+        "photo_id": {
+          "name": "ID fotografie",
+          "description": "ID fotografie. Služba list_tasks ho uvádí ve fotografiích úkolu."
+        },
+        "thumbnail": {
+          "name": "Náhled",
+          "description": "Podepíše URL malé kopie, nejvýše 256 pixelů na delší straně."
+        }
+      }
+    },
     "update_skip": {
       "name": "Upravit přeskočení",
       "description": "Upraví podrobnosti zaznamenaného přeskočení určeného časovým razítkem. Přeskočení si ponechá své datum a plán zůstává beze změny.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Neznámý dokument: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Neznámá fotografie: {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Měřič má jen úkol s vazbou na senzor využití."

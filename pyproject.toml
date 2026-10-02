@@ -95,6 +95,9 @@ only_mutate = [
     "custom_components/home_keeper/appliance_report.py",
     "custom_components/home_keeper/profiles.py",
     "custom_components/home_keeper/documents.py",
+    # Task photos (#399): the list rules and the on-disk paths. Pure, and driven by
+    # tests/unit/test_task_photos.py.
+    "custom_components/home_keeper/task_photos.py",
     "custom_components/home_keeper/events.py",
     "custom_components/home_keeper/transitions.py",
     "custom_components/home_keeper/tags.py",

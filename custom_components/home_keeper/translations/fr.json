@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Supprimer une photo de tâche",
+      "description": "Retire une photo d'une tâche et supprime son fichier. Ajoutez les photos dans le panneau, car un appel de service ne peut pas transporter de fichier.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'ID de la tâche qui a la photo. Son nom fonctionne aussi. Le panneau affiche l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la photo",
+          "description": "L'ID de la photo. Le service list_tasks la donne dans les photos de la tâche."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Définir la photo de couverture de la tâche",
+      "description": "Fait d'une photo la couverture de sa tâche. La couverture est la première photo. Elle apparaît dans la liste des tâches, sur la page de la tâche et dans la boîte de dialogue de réalisation.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'ID de la tâche qui a la photo. Son nom fonctionne aussi. Le panneau affiche l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la photo",
+          "description": "L'ID de la photo. Le service list_tasks la donne dans les photos de la tâche."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signer l'URL d'une photo de tâche",
+      "description": "Génère une URL de courte durée (sans en-tête d'authentification) qui donne les octets d'une photo de tâche, par exemple pour afficher la photo dans une notification.",
+      "fields": {
+        "task_id": {
+          "name": "Nom ou ID de la tâche",
+          "description": "L'ID de la tâche qui a la photo. Son nom fonctionne aussi. Le panneau affiche l'ID."
+        },
+        "photo_id": {
+          "name": "ID de la photo",
+          "description": "L'ID de la photo. Le service list_tasks la donne dans les photos de la tâche."
+        },
+        "thumbnail": {
+          "name": "Miniature",
+          "description": "Signe l'URL de la petite copie, de 256 pixels au plus sur son grand côté."
+        }
+      }
+    },
     "update_skip": {
       "name": "Mettre à jour l'omission",
       "description": "Modifie le détail d'une omission consignée, identifiée par son horodatage. L'omission garde sa date et la planification n'est pas touchée.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Document inconnu : {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Photo inconnue : {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Seule une tâche liée à un capteur d'utilisation a un compteur."

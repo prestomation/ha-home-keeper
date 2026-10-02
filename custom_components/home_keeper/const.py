@@ -41,6 +41,15 @@ MAX_DOCUMENT_BYTES = 100 * 1024 * 1024
 # of a document id — it lives under the same per-asset directory (asset deletion's
 # rmtree cleans it up for free) and is served by a sibling HTTP view.
 PART_FILE_URL_PREFIX = "/api/home_keeper/part_document"
+# Task photos (#399): up to MAX_TASK_PHOTOS images on a task, the first one the cover.
+# They live in a tree of their own, one folder per task, beside the documents tree, so
+# a task delete is one ``rmtree`` and no task id can name an appliance's folder. Each
+# photo has a small JPEG thumbnail next to it for the task list and the strip.
+TASK_PHOTOS_SUBDIR = "home_keeper/task_photos"
+TASK_PHOTO_URL_PREFIX = "/api/home_keeper/task_photo"
+MAX_TASK_PHOTOS = 6
+MAX_TASK_PHOTO_BYTES = 25 * 1024 * 1024
+TASK_PHOTO_THUMB_PX = 256
 # How many completion timestamps to retain per task. Generous so the panel's task
 # history shows years of cadence (e.g. 500 monthly completions ≈ 40 years) while
 # still bounding the stored list. When a task that belongs to an appliance is

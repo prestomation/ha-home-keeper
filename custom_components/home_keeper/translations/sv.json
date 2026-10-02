@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Ta bort uppgiftsfoto",
+      "description": "Tar bort ett foto från en uppgift och raderar filen. Lägg till foton i panelen, eftersom ett tjänsteanrop inte kan bära en fil.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som har fotot. Namnet fungerar också. Panelen visar ID:t."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotots ID. Tjänsten list_tasks ger det i uppgiftens foton."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Ange uppgiftens omslagsfoto",
+      "description": "Gör ett foto till omslagsfoto för sin uppgift. Omslagsfotot är det första fotot. Det visas i uppgiftslistan, på uppgiftssidan och i klar-dialogen.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som har fotot. Namnet fungerar också. Panelen visar ID:t."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotots ID. Tjänsten list_tasks ger det i uppgiftens foton."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signera URL för uppgiftsfoto",
+      "description": "Skapar en kortlivad URL (ingen auth-header behövs) som ger ett uppgiftsfotos byte, till exempel för att visa fotot i en avisering.",
+      "fields": {
+        "task_id": {
+          "name": "Uppgiftsnamn eller -ID",
+          "description": "ID för uppgiften som har fotot. Namnet fungerar också. Panelen visar ID:t."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotots ID. Tjänsten list_tasks ger det i uppgiftens foton."
+        },
+        "thumbnail": {
+          "name": "Miniatyr",
+          "description": "Signera URL:en för den lilla kopian, högst 256 pixlar på den långa sidan."
+        }
+      }
+    },
     "update_skip": {
       "name": "Uppdatera överhoppning",
       "description": "Ändrar detaljerna i en loggad överhoppning som identifieras av sin tidsstämpel. Överhoppningen behåller sitt datum och schemat lämnas orört.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Okänt dokument: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Okänt foto: {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Bara en uppgift med en förbrukningssensor har en mätare."

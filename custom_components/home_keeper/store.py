@@ -29,6 +29,7 @@ from . import (
     sensor_tasks,
     sensor_watcher,
     tags,
+    task_photos,
 )
 from .assets import STOCK_LOW, STOCK_OUT, STOCK_RESTOCKED
 from .const import (
@@ -280,6 +281,10 @@ class HomeKeeperStore:
         self._closed = False
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self._tasks: dict[str, dict[str, Any]] = {}
+        # The ids of the tasks that had photos at the last save. A task in this set
+        # that the next save no longer holds was deleted, by any of the many paths
+        # that remove a task, so its photo folder goes then (see ``_save``).
+        self._photo_task_ids: set[str] = set()
         self._assets: dict[str, dict[str, Any]] = {}
         # Durable free-text notes for problem-sensor mirrors, keyed by the sensor
         # ``entity_id`` (not the task id). Kept outside the task so a note survives the
@@ -391,8 +396,16 @@ class HomeKeeperStore:
                 stray["name"],
                 stray["tag_id"],
             )
+        self._photo_task_ids = self._tasks_with_photos()
         if changed:
             await self._save()
+
+    def _tasks_with_photos(self) -> set[str]:
+        return {
+            task_id
+            for task_id, task in self._tasks.items()
+            if task_photos.photos_of(task)
+        }
 
     def close(self) -> None:
         """Refuse every later save. The config entry unload calls this (X02-2)."""
@@ -413,6 +426,14 @@ class HomeKeeperStore:
                 "todo_list_items": self._todo_list_items,
             }
         )
+        # Delete the photo folders of the tasks this save dropped. After the save,
+        # so a failed save never leaves a task that names deleted files.
+        gone = self._photo_task_ids - self._tasks.keys()
+        self._photo_task_ids = self._tasks_with_photos()
+        if gone:
+            from . import manuals  # lazy: manuals -> devices would cycle at load
+
+            await manuals.async_delete_task_photo_dirs(self._hass, sorted(gone))
 
     async def async_persist(self) -> None:
         """Flush the current in-memory state to disk.
@@ -1279,6 +1300,74 @@ class HomeKeeperStore:
         # (the to-do sync does) must not see a half-applied import.
         for event_type, data in events_to_fire:
             self._hass.bus.async_fire(event_type, data)
+
+    async def _mutate_task_photos(self, task_id: str, op: _AssetOp) -> Any:
+        """Run *op* against a task's photos, then save and fire ``task_updated``.
+
+        The task twin of :meth:`_mutate_asset`. *op* raises ``KeyError`` for a
+        photo it cannot find. :data:`_UNCHANGED` hands the task back with no save
+        and no event.
+        """
+        task = self._tasks.get(task_id)
+        if task is None:
+            raise KeyError(task_id)
+        result = await op(task)
+        if result is _UNCHANGED:
+            return task
+        await self._save()
+        self._hass.bus.async_fire(
+            EVENT_TASK_UPDATED,
+            events.task_event_data(task, extra={"changed_fields": ["photos"]}),
+        )
+        return result
+
+    async def add_task_photo(
+        self, task_id: str, photo: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Add an uploaded photo to a task; return the stored entry.
+
+        Only the upload view calls this, after the file is on disk. Raises
+        ``KeyError`` for an unknown task and ``TaskValidationError`` for a full list
+        or a bad entry.
+        """
+
+        async def append(task: dict[str, Any]) -> dict[str, Any]:
+            return task_photos.append_photo(
+                task, photo, created=dt_util.now().isoformat()
+            )
+
+        return await self._mutate_task_photos(task_id, append)
+
+    async def remove_task_photo(self, task_id: str, photo_id: str) -> dict[str, Any]:
+        """Remove a photo from a task and delete its files; return the task.
+
+        Raises ``KeyError`` for an unknown task or photo.
+        """
+
+        async def remove(task: dict[str, Any]) -> dict[str, Any]:
+            from . import manuals  # lazy: manuals -> devices would cycle at load
+
+            removed = task_photos.remove_photo(task, photo_id)
+            if removed is None:
+                raise KeyError(photo_id)
+            await manuals.async_delete_task_photo(
+                self._hass, task_id, photo_id, removed["filename"]
+            )
+            return task
+
+        return await self._mutate_task_photos(task_id, remove)
+
+    async def set_task_photo_cover(self, task_id: str, photo_id: str) -> dict[str, Any]:
+        """Make a photo the cover (the first photo) of a task; return the task.
+
+        Raises ``KeyError`` for an unknown task or photo. A photo that is already
+        the cover saves nothing and fires nothing.
+        """
+
+        async def cover(task: dict[str, Any]) -> Any:
+            return task if task_photos.make_cover(task, photo_id) else _UNCHANGED
+
+        return await self._mutate_task_photos(task_id, cover)
 
     async def _mutate_asset(
         self, asset_id: str, op: _AssetOp, *, changed_field: str

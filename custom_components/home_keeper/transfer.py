@@ -40,7 +40,7 @@ from functools import lru_cache
 from typing import Any
 
 from . import assets as assets_model
-from . import models, reconcile, recurrence, resolve
+from . import models, reconcile, recurrence, resolve, task_photos
 from .const import (
     ASSET_KIND_EXISTING,
     COMPLETION_ENTRY_FIELDS,
@@ -85,6 +85,11 @@ EXCLUDED_TASK_KEYS: tuple[tuple[str, str], ...] = (
         "counted in `skipped`. The namespaces of an integration travel.",
     ),
     ("managed_by", "an owning integration's block; such a task is not exported"),
+    (
+        "photos",
+        "uploaded files, which a text document has no room for; counted in "
+        "`skipped`, like an appliance's uploaded documents",
+    ),
 )
 """``(key, reason)`` for every stored task key the document deliberately drops.
 
@@ -584,6 +589,17 @@ def count_file_documents(assets: list[dict[str, Any]]) -> int:
     )
 
 
+def count_task_photos(tasks: list[dict[str, Any]]) -> int:
+    """How many task photos the document leaves behind (see count_file_documents).
+
+    Only the tasks the document carries count: a task that does not travel does not
+    leave its photos behind either.
+    """
+    return sum(
+        len(task_photos.photos_of(task)) for task in tasks if is_portable_task(task)
+    )
+
+
 def build_document(
     tasks: list[dict[str, Any]],
     assets: list[dict[str, Any]],
@@ -630,6 +646,8 @@ def build_document(
         ]
         if links := count_consumable_links(tasks):
             skipped["consumable_links"] = links
+        if photos := count_task_photos(tasks):
+            skipped["task_photos"] = photos
     if skipped:
         document["home_keeper"]["skipped"] = skipped
     return document

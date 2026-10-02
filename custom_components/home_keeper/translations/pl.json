@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Usuń zdjęcie zadania",
+      "description": "Usuwa zdjęcie z zadania i kasuje jego plik. Dodawaj zdjęcia w panelu, ponieważ wywołanie usługi nie może przenieść pliku.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "ID zadania, które ma zdjęcie. Nazwa też działa. Panel pokazuje ID."
+        },
+        "photo_id": {
+          "name": "ID zdjęcia",
+          "description": "ID zdjęcia. Usługa list_tasks podaje je w zdjęciach zadania."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Ustaw okładkę zadania",
+      "description": "Ustawia zdjęcie jako okładkę jego zadania. Okładka to pierwsze zdjęcie. Widać ją na liście zadań, na stronie zadania i w oknie wykonania.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "ID zadania, które ma zdjęcie. Nazwa też działa. Panel pokazuje ID."
+        },
+        "photo_id": {
+          "name": "ID zdjęcia",
+          "description": "ID zdjęcia. Usługa list_tasks podaje je w zdjęciach zadania."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Podpisz URL zdjęcia zadania",
+      "description": "Tworzy krótkotrwały URL (bez nagłówka uwierzytelniania), który zwraca bajty zdjęcia zadania, na przykład aby pokazać zdjęcie w powiadomieniu.",
+      "fields": {
+        "task_id": {
+          "name": "Nazwa lub identyfikator zadania",
+          "description": "ID zadania, które ma zdjęcie. Nazwa też działa. Panel pokazuje ID."
+        },
+        "photo_id": {
+          "name": "ID zdjęcia",
+          "description": "ID zdjęcia. Usługa list_tasks podaje je w zdjęciach zadania."
+        },
+        "thumbnail": {
+          "name": "Miniatura",
+          "description": "Podpisuje URL małej kopii, o długim boku najwyżej 256 pikseli."
+        }
+      }
+    },
     "update_skip": {
       "name": "Aktualizuj pominięcie",
       "description": "Zmienia szczegóły zapisanego pominięcia wskazanego znacznikiem czasu. Pominięcie zachowuje swoją datę, a harmonogram pozostaje nietknięty.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Nieznany dokument: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Nieznane zdjęcie: {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Licznik ma tylko zadanie powiązane z czujnikiem zużycia."

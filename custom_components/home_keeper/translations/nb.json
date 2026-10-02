@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Fjern oppgavebilde",
+      "description": "Fjerner et bilde fra en oppgave og sletter filen. Legg til bilder i panelet, fordi et tjenestekall ikke kan bære en fil.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven med bildet. Navnet fungerer også. Panelet viser ID-en."
+        },
+        "photo_id": {
+          "name": "Bilde-ID",
+          "description": "ID-en til bildet. Tjenesten list_tasks gir den i bildene til oppgaven."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Angi forsidebilde for oppgaven",
+      "description": "Gjør et bilde til forsidebildet for oppgaven. Forsidebildet er det første bildet. Det vises i oppgavelisten, på oppgavesiden og i fullført-dialogen.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven med bildet. Navnet fungerer også. Panelet viser ID-en."
+        },
+        "photo_id": {
+          "name": "Bilde-ID",
+          "description": "ID-en til bildet. Tjenesten list_tasks gir den i bildene til oppgaven."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signer URL til oppgavebilde",
+      "description": "Lager en kortvarig URL (ingen auth-header trengs) som gir bytene til et oppgavebilde, for eksempel for å vise bildet i et varsel.",
+      "fields": {
+        "task_id": {
+          "name": "Oppgavenavn eller -ID",
+          "description": "ID-en til oppgaven med bildet. Navnet fungerer også. Panelet viser ID-en."
+        },
+        "photo_id": {
+          "name": "Bilde-ID",
+          "description": "ID-en til bildet. Tjenesten list_tasks gir den i bildene til oppgaven."
+        },
+        "thumbnail": {
+          "name": "Miniatyrbilde",
+          "description": "Signer URL-en til den lille kopien, maks 256 piksler på den lange siden."
+        }
+      }
+    },
     "update_skip": {
       "name": "Oppdater overhopping",
       "description": "Endrer detaljene i en loggført overhopping, identifisert ved tidsstempelet. Overhoppingen beholder datoen sin, og planen røres ikke.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Ukjent dokument: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Ukjent bilde: {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Bare en oppgave med en forbrukssensor har en måler."

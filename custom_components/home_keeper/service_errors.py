@@ -36,8 +36,11 @@ def _not_found(
     asset_id: str | None,
     part_id: str | None,
     document_id: str | None,
+    photo_id: str | None = None,
 ) -> ServiceValidationError | None:
     """The not-found error for a ``KeyError``, innermost record first."""
+    if photo_id is not None:
+        return service_error("unknown_task_photo", photo_id=photo_id)
     if asset_id is not None and part_id is not None:
         return service_error("unknown_part", asset_id=asset_id, part_id=part_id)
     if document_id is not None:
@@ -56,6 +59,7 @@ def store_errors(
     asset_id: str | None = None,
     part_id: str | None = None,
     document_id: str | None = None,
+    photo_id: str | None = None,
 ) -> Iterator[None]:
     """Translate the exceptions of a store call into localized service errors.
 
@@ -64,6 +68,8 @@ def store_errors(
     * ``asset_id`` and ``part_id`` give ``unknown_part``.
     * ``document_id`` gives ``unknown_document``. The handler must make sure that
       the appliance exists before the call (B02-6).
+    * ``photo_id`` gives ``unknown_task_photo``. The same rule: the handler checks
+      the task first.
     * ``asset_id`` alone gives ``asset_not_found``.
     * ``task_id`` gives ``task_not_found``.
 
@@ -77,6 +83,7 @@ def store_errors(
             asset_id=asset_id,
             part_id=part_id,
             document_id=document_id,
+            photo_id=photo_id,
         )
         if error is None:
             raise

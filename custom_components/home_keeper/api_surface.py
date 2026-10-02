@@ -199,6 +199,9 @@ SERVICES: tuple[ServiceSpec, ...] = (
     ServiceSpec("update_asset_document", admin_only=True),
     ServiceSpec("sign_document_url", response="only"),
     ServiceSpec("sign_part_file_url", response="only"),
+    ServiceSpec("remove_task_photo", admin_only=True),
+    ServiceSpec("set_task_photo_cover", admin_only=True),
+    ServiceSpec("sign_task_photo_url", response="only"),
     ServiceSpec("export_appliance_report", admin_only=True, response="only"),
     ServiceSpec("export_data", admin_only=True, response="only"),
     ServiceSpec("import_data", admin_only=True, response="only"),
@@ -366,7 +369,7 @@ EVENTS: tuple[EventSpec, ...] = (
         "EVENT_TASK_UPDATED",
         "fired",
         "task",
-        "a task actually changes",
+        "a task actually changes, including a photo added, removed or made the cover",
         extra=(_CHANGED_FIELDS,),
     ),
     EventSpec(
@@ -798,6 +801,16 @@ WEBSOCKET_COMMANDS: tuple[WebsocketSpec, ...] = (
     ),
     WebsocketSpec("home_keeper/sign_part_file_url", service="sign_part_file_url"),
     WebsocketSpec(
+        "home_keeper/remove_task_photo", admin_only=True, service="remove_task_photo"
+    ),
+    WebsocketSpec(
+        "home_keeper/set_task_photo_cover",
+        admin_only=True,
+        service="set_task_photo_cover",
+    ),
+    # Signs a list, so the task list signs every cover in one round trip.
+    WebsocketSpec("home_keeper/sign_task_photo_urls", service="sign_task_photo_url"),
+    WebsocketSpec(
         "home_keeper/export_appliance_report",
         admin_only=True,
         service="export_appliance_report",
@@ -853,6 +866,12 @@ HTTP_VIEWS: tuple[HttpViewSpec, ...] = (
     HttpViewSpec(
         "api:home_keeper:part_document",
         const.PART_FILE_URL_PREFIX + "/{asset_id}/{part_id}",
+        ("GET", "POST"),
+        admin_methods=("POST",),
+    ),
+    HttpViewSpec(
+        "api:home_keeper:task_photo",
+        const.TASK_PHOTO_URL_PREFIX + "/{task_id}/{photo_id}",
         ("GET", "POST"),
         admin_methods=("POST",),
     ),
