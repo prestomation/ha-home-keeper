@@ -50,8 +50,11 @@ Small liberties are fine, so the comment does not read the same on every issue:
   fits.
 - Keep the thanks plain. No praise of the idea ("great idea", "love this"), and no
   claim about the maintainer's own thinking ("I hadn't thought of that").
-- The rest may be reworded a little, but it must keep the version, the 3 install
-  steps and the note that the merge may wait for feedback.
+- The rest may be reworded a little, but it must keep all of these: the exact
+  version, the 3 install steps (Redownload, Show beta versions, pick the version),
+  and the note that the merge may wait for feedback.
+- The maintainer approves every comment before it is posted, so these liberties
+  never reach an issue without their review.
 
 The maintainer's earlier comments of this kind, for the voice:
 
