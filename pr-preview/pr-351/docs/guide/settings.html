@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Settings | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/settings"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Settings | Home Keeper"><meta data-rh="true" name="description" content="The Settings tab in the panel edits the integration options. The form matches the"><meta data-rh="true" property="og:description" content="The Settings tab in the panel edits the integration options. The form matches the"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-351/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/settings"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/settings" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/settings" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Settings","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/settings"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-351/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.745e2ec1.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.f8335313.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.9c0c1dc3.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.9f7789ab.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -17,7 +17,8 @@ available in the options flow under <strong>Settings → Devices &amp; services 
 through the <code>home_keeper.set_options</code> service.</p>
 <p>The tab has 7 sections:</p>
 <ul>
-<li class=""><strong>General</strong> sets how long completed one-off tasks are kept.</li>
+<li class=""><strong>General</strong> sets how long completed one-off tasks are kept. This number saves
+when you leave the box or press Enter.</li>
 <li class=""><strong>Shopping list</strong> selects the to-do list that
 <a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/appliances#send-buy-reminders-to-your-shopping-list">buy reminders are synced to</a>.</li>
 <li class=""><strong>Profiles</strong> holds the saved filters. See
@@ -31,7 +32,7 @@ devices and areas and labels. The exclusions apply only when the sync is on.</li
 holds the <a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/import-export#appliance-report">appliance report</a>.
 See <a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/import-export">Import and export</a>.</li>
 </ul>
-<p><img decoding="async" loading="lazy" alt="The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards" src="/ha-home-keeper/pr-preview/pr-351/assets/images/17-panel-settings-ff02c4c316ca40746eae466f71397fec.png" width="1280" height="3239" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The Home Keeper Settings tab, showing the General, Shopping list and problem-sensor sync cards" src="/ha-home-keeper/pr-preview/pr-351/assets/images/17-panel-settings-b5380311c27eae1f66f02b8b6b2025dc.png" width="1280" height="3479" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="companions">Companions<a href="#companions" class="hash-link" aria-label="Direct link to Companions" title="Direct link to Companions" translate="no">​</a></h4>
 <p>A companion is an integration that works with Home Keeper. Examples are a pet-care
 tracker that creates recurring tasks and a glue integration that turns a low battery
@@ -48,47 +49,285 @@ row has an <strong>Install</strong> link and a <strong>Dismiss</strong> button.<
 </ul>
 <p>To add a companion or a <a class="" href="/ha-home-keeper/pr-preview/pr-351/developer/glue-integrations">glue integration</a> to the catalog,
 <a href="https://github.com/prestomation/ha-home-keeper/issues/new?title=Companion%20suggestion:%20" target="_blank" rel="noopener noreferrer" class="">open a GitHub issue</a>.</p>
-<p><img decoding="async" loading="lazy" alt="The Companions section on the Settings tab: connected integrations with Configure buttons" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21-panel-companions-9ef937075f383dca455645637662d2c6.png" width="1280" height="3541" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The Companions section on the Settings tab: connected integrations with Configure buttons" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21-panel-companions-3fd60d00ecfcb6b783b8c6d0dc0b0b4b.png" width="736" height="499" class="img_ev3q"></p>
 <h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="declarative-companions-config-driven-no-separate-integration">Declarative companions (config-driven, no separate integration)<a href="#declarative-companions-config-driven-no-separate-integration" class="hash-link" aria-label="Direct link to Declarative companions (config-driven, no separate integration)" title="Direct link to Declarative companions (config-driven, no separate integration)" translate="no">​</a></h5>
-<p>A <strong>declarative companion</strong> is a recipe. The recipe targets an integration, or it
-matches entities through an entity id filter. The recipe sets a trigger mode: usage,
-threshold, state, or availability. The recipe also sets a Jinja template for the task
-name and the task notes.</p>
-<p>Home Keeper opens one managed task for each entity that matches the recipe. The task
-clears when the condition recovers. A task that a recipe made has an <strong>Edit recipe</strong>
-button on its detail page. The button opens the recipe that made the task.</p>
-<p>Each task that a recipe makes is a sensor-based task, so it has no due date until
-its condition is true. A task with no due date shows as <strong>Monitored</strong> and stays off
-the to-do list and the calendar. When the condition becomes true, Home Keeper sets
+<p>A <strong>declarative companion</strong> targets an integration, or it matches entities through an
+entity id filter. It sets a trigger mode: usage, threshold, state, availability, or
+template. It also sets a Jinja template for the task name and the task notes, and the
+labels to put on each task.</p>
+<p>Home Keeper opens one managed task for each entity that matches the declarative
+companion. The task clears when the condition recovers. A task that a declarative
+companion made has an <strong>Edit companion</strong> button on its detail page. The button opens
+the declarative companion that made the task.</p>
+<p>Each task that a declarative companion makes is a sensor-based task, so it has no due date until
+its condition is true. A task with no due date shows as <strong>Monitored</strong>, and neither
+the to-do list nor the calendar shows it. When the condition becomes true, Home Keeper sets
 the due date to that moment, so the task is due now and then overdue. The age of an
 overdue task shows how long the condition has been true. In the <strong>Firmware update
 available</strong> preset, a device with an update pending shows an overdue task, and a
 device with no update pending shows <strong>Monitored</strong>. All bundled presets complete the
 task automatically when the condition recovers, so those tasks offer no Done button.</p>
-<p>The <em>Add from preset</em> picker offers 2 presets.</p>
+<p>A task on a device also gets entities on the device page. Their names start with the
+name of the declarative companion, then Next due, Overdue or Mark done. When the
+declarative companion completes its tasks itself, the device page has no <strong>Mark done</strong> button for them. Home Keeper also refuses
+a completion or a skip by hand from a service call or an automation. Home Assistant sets the
+entity ID when the entity is first made and does not change it later. To get a
+shorter entity ID for an older entity, rename it in Home Assistant.</p>
+<p>The <em>Add from preset</em> picker offers 3 general presets, and the integration presets
+that <a href="#integration-presets" class="">Integration presets</a> describes.</p>
 <ul>
-<li class=""><strong>Device Pulse</strong> targets the per-device ping sensors from
+<li class=""><strong>Device Pulse</strong> watches the ping status of each device in
 <a href="https://github.com/studiobts/home-assistant-device-pulse" target="_blank" rel="noopener noreferrer" class="">studiobts/home-assistant-device-pulse</a>.
-The Device Pulse integration must be installed.</li>
+It opens a task when a device is offline for 1 hour. Home Keeper completes the
+task when the device replies again. The Device Pulse integration must be installed.</li>
 <li class=""><strong>Firmware update available</strong> matches every <code>update.*</code> entity that reports <code>on</code>.
 This covers UniFi, ESPHome, HACS, Reolink, and Bambu Lab.</li>
+<li class=""><strong>Device stopped reporting</strong> matches every <code>sensor.*_last_seen</code> timestamp sensor. It
+opens a task for each device that has not reported for 48 hours. This finds the
+Zigbee or Z-Wave devices that dropped off the mesh. It needs no other integration.</li>
 </ul>
+<p>A declarative companion keeps the settings it was saved with. A Device Pulse companion
+from before version 0.28.0b14 watches the total count of failed pings. That count never
+goes down, so Home Keeper never completes its tasks. Delete that companion and add the
+preset again.</p>
+<p>When a preset matches entities in your home, the Tasks tab suggests it. See
+<a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/panel#presets-for-your-home">Presets for your home</a>.</p>
+<p>A preset writes the task name and notes in the Home Assistant language. A later change
+of the language changes the tasks to the new language. When a declarative companion has
+your own name or notes, Home Keeper uses your text.</p>
 <p>Low batteries have no preset. The <a class="" href="/ha-home-keeper/pr-preview/pr-351/developer/glue-integrations">Battery Notes glue
 integration</a> already opens a task for each battery and
-also supplies the battery type and the count. Write a recipe for a low-battery
-<code>binary_sensor</code> if you do not use that glue integration.</p>
+also supplies the battery type and the count. Write a declarative companion for a
+low-battery <code>binary_sensor</code> if you do not use that glue integration.</p>
 <p>The <em>Add companion</em> dialog shows a live preview of the matches before you save. A
-warning shows above 50 matches. A recipe cannot match more than 500 entities. See
+warning shows above 50 matches. A declarative companion cannot match more than 500
+entities. See
 <a class="" href="/ha-home-keeper/pr-preview/pr-351/developer/integrating">INTEGRATING.md</a> for the service reference.</p>
-<p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21c-panel-declarative-preset-picker-2dff336306aafe5b27203bf0bf60f82f.png" width="1280" height="720" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The Add dialog seeded from the Firmware update available preset, with the live-preview panel on the right" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21d-panel-declarative-add-dialog-18aed1eabde6637b1688d09fda7be79b.png" width="612" height="1649" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The page of a task a recipe made, with an Edit recipe button and no Done button while the task is monitored" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21e-panel-declarative-task-detail-16180e4027b4be4e38db9abfb2c069b0.png" width="1280" height="720" class="img_ev3q"></p>
-<p>A recipe you switch off keeps the tasks it made. The tasks stop until you switch the
-recipe on again. Their history stays with them. Delete the recipe to remove its
-tasks.</p>
-<p>Each recipe gets a row under <strong>Settings → Companions</strong> with an Edit button and a
-Delete button. On a phone the row stacks, and the buttons take a line of their own.</p>
-<p><img decoding="async" loading="lazy" alt="A recipe row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21h-panel-declarative-row-actions-f22651304a0d1de2b9fb0f83a239b1ed.png" width="736" height="539" class="img_ev3q"></p>
-<p><img decoding="async" loading="lazy" alt="The same recipe row on a phone, with Edit and Delete on a line under the name" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21i-panel-mobile-recipe-row-e54284f4f3c276d5ae0d92d77276519b.png" width="390" height="844" class="img_ev3q"></p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/prestomation/ha-home-keeper/tree/main/website/docs/guide/views/settings.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/dashboard-card"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Dashboard card</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/import-export"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Import and export</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-351/docs/intro">User Guide</a></li><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-351/developer/integrating">Developer Guide</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://www.home-assistant.io/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Home Assistant<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://hacs.xyz/" target="_blank" rel="noopener noreferrer" class="footer__link-item">HACS<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper/issues" target="_blank" rel="noopener noreferrer" class="footer__link-item">Issues<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Home Keeper — a community Home Assistant integration. Built with Docusaurus.</div></div></div></footer></div>
+<p>The <em>Which entities?</em> section of the dialog has the integration and the entity domain.
+Click <strong>More filters</strong> to see the other filters. Set a device class there, or write an
+entity id regex. The device, area and label filters keep only the entities in them.
+An
+entity that has no area of its own uses the area of its device. When <strong>More filters</strong>
+is closed, its row shows how many filters and exclusions are set.</p>
+<p>The <strong>Exclusions</strong> block under the filters removes entities from the declarative
+companion. Select
+the entities, devices, areas or labels to exclude. Home Keeper then makes no task for
+an entity that matches one of them. This is the same as the exclusions of Problem
+sensor sync.</p>
+<p>Each row in the preview has an <strong>Exclude</strong> button. Click it to exclude that entity.
+The entity then shows under the matches with an <strong>Include</strong> button, which adds it
+back. The preview shows 10 matches at most. To exclude an entity that is not in the
+preview, select it in the excluded entities list.</p>
+<p><img decoding="async" loading="lazy" alt="The declarative companion dialog with More filters open and one excluded entity in the Exclusions block" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21j-panel-declarative-filters-2b7e5a3e80b68dce582cab758580a4d7.png" width="612" height="2552" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same dialog on a phone, with an Exclude button on each preview row" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21k-panel-mobile-declarative-filters-942c31fa383b70d769093875563d5f71.png" width="390" height="844" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The two-card preset picker modal (Device Pulse disabled because the upstream integration isn&amp;#39;t installed)" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21c-panel-declarative-preset-picker-bb21360d06c1f085d1522c3fad0adac4.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The Add dialog seeded from the Firmware update available preset, with the preset box at the top and the live preview at the bottom" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21d-panel-declarative-add-dialog-f996dd1384ec04335816a77c0683b5a5.png" width="612" height="1752" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The page of a task a declarative companion made, with Edit and Edit companion buttons and no Done button while the task is monitored" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21e-panel-declarative-task-detail-ac7a46a408391a1443d1e0c6448be76c.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same task page on a phone" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21e-mobile-companion-task-3f4cf0e209c7f1bc188e1e95712f9420.png" width="390" height="844" class="img_ev3q"></p>
+<p>A declarative companion you switch off keeps the tasks it made. The tasks stop until
+you switch it on again. Their history stays with them. Delete the declarative
+companion to remove its tasks.</p>
+<p>A disabled entity also keeps its task. The task stops while the entity is
+disabled. This also applies when you disable the device or the integration of the
+entity. When you enable the entity again, the same task starts again with its
+history.</p>
+<p>Each declarative companion gets a row under <strong>Settings → Companions</strong> with an Edit
+button and a Delete button. On a phone the row stacks, and the buttons take a line of
+their own.</p>
+<p><img decoding="async" loading="lazy" alt="A declarative companion row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21h-panel-declarative-row-actions-afc1fdedca7f3b5590b8bcfc4ea96ec4.png" width="736" height="540" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same row on a phone, with Edit and Delete on a line under the name" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21i-panel-mobile-declarative-row-18b3c3f70ac7f2e76127ba14322fa084.png" width="390" height="844" class="img_ev3q"></p>
+<h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="entity-keys-and-task-names">Entity keys and task names<a href="#entity-keys-and-task-names" class="hash-link" aria-label="Direct link to Entity keys and task names" title="Direct link to Entity keys and task names" translate="no">​</a></h5>
+<p>The <strong>Entity keys</strong> block under <strong>More filters</strong> matches the key that an integration
+gives each of its entities in its own code, such as <code>filter_time_left</code> for the filter
+sensor of a Roborock. A rename of the entity or a change of the Home Assistant
+language leaves the key as it is. An entity id regex breaks in both cases. Home Keeper
+then makes a task only for an entity with one of the keys.</p>
+<p>Home Assistant does not show these keys on its own screens. So when the declarative
+companion has a target integration, Home Keeper lists the keys of that integration&#x27;s
+entities under the block. Each key in the list shows one example entity and how many
+entities have the key. Click a key to add it, and click it again to take it out. Each
+device with the key gets its own task. To type a key that is not in the list,
+click <strong>Add key</strong>. Each row of the preview shows the key of its entity.</p>
+<p>Each key can also have a task name, such as <em>Replace filter</em>. The task name template
+reads it as <code>{{ task_name }}</code>, so one declarative companion can give each part its own
+task: <code>{{ task_name }}: {{ device_name }}</code>. A key with no task name uses the entity
+name. The key of the entity is also available as <code>{{ translation_key }}</code>.</p>
+<p><img decoding="async" loading="lazy" alt="The declarative companion dialog with two entity keys, one of them with the task name Replace the battery" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21u-panel-declarative-entity-keys-8949ca8d6f5a2bc7a39f81c4e18a4c2b.png" width="612" height="2552" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The entity keys on a phone, with each key above its task name" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21u-panel-mobile-declarative-entity-keys-eb5118cc8a74bf3dbefba005259e0308.png" width="390" height="844" class="img_ev3q"></p>
+<h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="what-a-preset-does">What a preset does<a href="#what-a-preset-does" class="hash-link" aria-label="Direct link to What a preset does" title="Direct link to What a preset does" translate="no">​</a></h5>
+<p>When you add a declarative companion from a preset, a box at the top of the dialog
+says what the preset does. It also names the tasks that the preset makes. An
+integration preset also gives its limit. A time limit shows in days when it is 2 days
+or more. The limit of a reading such as a water pressure is in the unit of the sensor.</p>
+<p>The box names each section that you change. The text in the box always describes the
+preset and not your changes. Click <strong>Reset to preset</strong> to put those sections back.
+Your name, description and exclusions do not change.</p>
+<p>Each row in the preview shows what the entity reads now. When a preset opens a task
+above a limit, a bar shows how near the reading is to that limit.</p>
+<p><img decoding="async" loading="lazy" alt="The preset box at the top of the Add dialog, with what the Tuya Local preset does and its task" src="/ha-home-keeper/pr-preview/pr-351/assets/images/78-panel-preset-summary-dde4573357b5756535abd793a382a54a.png" width="612" height="852" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The preset box after a change to the trigger, with the Changed chip and Reset to preset" src="/ha-home-keeper/pr-preview/pr-351/assets/images/78b-panel-preset-summary-changed-2607d2b43a923ccff5842709095fc3c2.png" width="612" height="852" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The preview row with the reading of the entity now" src="/ha-home-keeper/pr-preview/pr-351/assets/images/78a-panel-preset-reading-08e830619e5231853f782d6ddde6504f.png" width="612" height="852" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The preset box on a phone, after a change to the trigger" src="/ha-home-keeper/pr-preview/pr-351/assets/images/78c-panel-mobile-preset-summary-2efbe69cd5d4881882afdfec0d928116.png" width="390" height="844" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The preview row on a phone, with the reading of the entity now" src="/ha-home-keeper/pr-preview/pr-351/assets/images/78d-panel-mobile-preset-reading-7f4d3a029ae3e62d606450395bf08a20.png" width="390" height="844" class="img_ev3q"></p>
+<h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="integration-presets">Integration presets<a href="#integration-presets" class="hash-link" aria-label="Direct link to Integration presets" title="Direct link to Integration presets" translate="no">​</a></h5>
+<p>Many devices report the wear of their parts, such as the hours left on the filter of a
+robot vacuum or the toner level of a printer. An integration preset turns these
+readings into tasks for one integration.
+Each preset selects the entities by their <a href="#entity-keys-and-task-names" class="">entity keys</a>
+and gives each key its own task name, such as <em>Replace the main brush</em>.</p>
+<p>The picker shows first the presets that match entities you have, with the number of
+entities each one matches. An installed integration is not enough. A Tuya light has
+no filter or brush, so the Tuya preset for vacuum parts is not in that group. Then the picker
+shows the general presets. Click <strong>Show more presets</strong> to see the other presets, or
+type in the search box to find a brand or a part. Each preset card lists the tasks
+that it makes.</p>
+<p>Each integration can have up to 6 presets, one for each type of reading:</p>
+<ul>
+<li class=""><strong>Parts and supplies running low</strong>: a percentage falls below 10%.</li>
+<li class=""><strong>Parts near the end of their life</strong>: the time left on a part falls below a limit.
+The preset reads the time in any unit, from seconds to weeks.</li>
+<li class=""><strong>Wear counters</strong>: a counter that the device resets passes a service limit.</li>
+<li class=""><strong>Readings too low</strong> and <strong>readings too high</strong>: a measurement, such as the water
+pressure of a boiler, passes its service level.</li>
+<li class=""><strong>Service alerts</strong>: the device reports that it needs service.</li>
+</ul>
+<p>Home Keeper completes each task when the reading recovers. To complete it, reset the
+part on the device or refill the salt.</p>
+<p><img decoding="async" loading="lazy" alt="The preset picker with a search for filter, showing the integration presets and the tasks each one makes" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21v-panel-declarative-preset-search-e673e7b07343b60043bb55d58a84955f.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same search on a phone" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21v-panel-mobile-preset-search-757c0be3b5c56b8c9cf723720ff03446.png" width="390" height="844" class="img_ev3q"></p>
+<p>These integrations have presets:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Type of device</th><th>Integrations</th></tr></thead><tbody><tr><td>Air and ventilation</td><td>Actron Air, Dantherm ventilation, Dreo, Duco ventilation, Duux, Dyson, Flexit (Modbus), Flexit Nordic, Genvex Connect / Nilan gateway, Govee (purifiers), IKEA Trådfri (STARKVIND), Matter, Nest (legacy API), Nilan (CTS602 Modbus), Philips AirPurifier (CoAP), Pluggit ventilation, Pura fragrance diffusers, Renson Endura Delta, Samsung (Local Things), Tuya Local, Venstar thermostat, VeSync (Levoit), Winix, Zehnder ComfoConnect Pro (Modbus), Zigbee (ZHA)</td></tr><tr><td>Cars</td><td>Bosch eBike (Smart System &amp; eBike System 2), FordConnect Query, Porsche Connect, Smart #1 / #3 (Hello Smart), Stellantis (Peugeot/Citroën/DS/Opel/Fiat…), Škoda (MySkoda)</td></tr><tr><td>Garden and pool</td><td>Hot Spring spas, Husqvarna Automower, Mammotion (Luba), Ondilo ICO, Pentair ScreenLogic, Robonect (Husqvarna/Gardena/Flymo), Sunseeker mowers, Worx Landroid, Worx Landroid Vision</td></tr><tr><td>Heating and water</td><td>AquaCell softener, BWT AQA Perla (BLE), BWT Perla, DROP (water treatment), Fumis (pellet stoves), iQua softener, OpenTherm Gateway, Plugwise (Anna/Adam), Rehlko / Kohler generators, Salt Sentry, Stiebel Eltron ISG (LWZ), SYR Connect (softeners), Unique Waterontharder, Victron GX (generator), Viessmann ViCare</td></tr><tr><td>Kitchen and laundry</td><td>Candy Simply-Fi, ConnectLife (Hisense / Gorenje / ASKO), Electrolux (OCP API), Haier hOn (Haier/Candy/Hoover), Home Connect, Home Connect Local, HomeWhiz (Beko / Grundig / Arçelik), LG ThinQ, Midea (core), Miele, Whirlpool</td></tr><tr><td>Personal care</td><td>Philips shaver, Philips Sonicare (BLE)</td></tr><tr><td>Pets</td><td>EHEIM Digital (aquarium), Litter-Robot, PetKit, PETLIBRO</td></tr><tr><td>Printers</td><td>Brother printer, HP printer, Samsung SyncThru printer</td></tr><tr><td>Robot vacuums</td><td>Ecovacs, iRobot Roomba, Maytronics Dolphin, Roborock, Roomba+ (local MQTT), SmartThings, TP-Link Tapo vacuum, Tuya, Xiaomi Miio, Xiaomi Vacuum (cloud)</td></tr><tr><td>Storage (NAS)</td><td>MOS NAS, QNAP NAS, Synology NAS, UniFi UNAS (REST), Unraid, Unraid API, Unraid Management Agent</td></tr></tbody></table>
+<p>For an integration that is not in the list, write a declarative companion with the
+keys of its entities. The key of an entity is in the translation file of its
+integration.</p>
+<h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="task-labels-and-notes">Task labels and notes<a href="#task-labels-and-notes" class="hash-link" aria-label="Direct link to Task labels and notes" title="Direct link to Task labels and notes" translate="no">​</a></h5>
+<p>Use <strong>Task labels</strong> to find the tasks of one declarative companion. Set them in the
+<strong>Task template</strong> section of the dialog. Each task that the declarative companion makes
+gets these labels, and a Profile can then filter on them. Put a <em>Leak</em> label on the
+tasks of a declarative companion that watches leak sensors. A Profile with the <em>Leak</em>
+label and the Overdue status then shows only the leaks to fix now.</p>
+<p>When you save a change to the task labels, Home Keeper changes the tasks that exist too.
+It adds each label you added and removes each label you removed. Other labels on a task
+stay.</p>
+<p>You can also change one task. Click <strong>Edit</strong> on the task page. The form shows only the
+fields that the declarative companion does not set: the labels, the NFC tag, the
+completion detail, and the notes. Add a label there to put it on that task only. A
+label that you add to one task stays when the declarative companion changes, unless the
+declarative companion later adds and then removes a label with the same name.</p>
+<p>The notes belong to the declarative companion only when it has a notes template. Then
+Home Keeper writes the notes again on each change, and the task form does not show
+them. When the notes template is empty, the notes are yours. Write them on each task,
+and Home Keeper keeps them.</p>
+<p><img decoding="async" loading="lazy" alt="The Task template section with two task labels" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21s-panel-declarative-task-labels-03feeb825faad132d990b19422384417.png" width="612" height="2435" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same section on a phone" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21s-mobile-task-labels-9b5b85e346c9e3ba6c05eec2022ac501.png" width="390" height="844" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The Edit form of a declarative companion task. It shows only the labels, the tag, the completion detail and the notes" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21t-panel-declarative-task-edit-40ddb0481c1373f80896b2d1483d0fae.png" width="1280" height="900" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same form on a phone" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21t-mobile-companion-task-edit-af62e6e273cd201d3dfe9725ee8c85c9.png" width="390" height="844" class="img_ev3q"></p>
+<h5 class="anchor anchorTargetStickyNavbar_Vzrq" id="template-triggers">Template triggers<a href="#template-triggers" class="hash-link" aria-label="Direct link to Template triggers" title="Direct link to Template triggers" translate="no">​</a></h5>
+<p>The other 4 trigger modes each ask 1 plain question. State compares 1 string.
+Threshold compares 1 number. Neither can do arithmetic on a date.</p>
+<p>The <strong>template</strong> mode takes a Jinja template instead. The task is due while the
+template renders true. This example opens a task for a sensor that has not reported
+for a day:</p>
+<div class="language-jinja codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-jinja codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token plain">{{ (now() - as_datetime(state)) &gt;= timedelta(hours=24) }}</span><br></div></code></pre></div></div>
+<p>When the sensor is <code>unavailable</code> or <code>unknown</code>, <code>as_datetime</code> cannot read the state and
+the template does not render. Then the template decides nothing, and a task that is
+open stays open. Do not add a check such as <code>state not in [&#x27;unavailable&#x27;]</code>. That check
+makes the template render false, and with <strong>Auto-clear</strong> a false result completes the
+task.</p>
+<p>The template reads the same values as the task name template and the task notes
+template: <code>state</code>, <code>attributes.&lt;key&gt;</code>, <code>friendly_name</code>, <code>entity_id</code>, <code>device_name</code>,
+<code>area_name</code>, <code>integration</code> and <code>translation_key</code>. Only the task name and notes
+templates can read <code>task_name</code>. Home Assistant template functions are also available.</p>
+<p>A template must render <strong>true or false</strong>. Home Keeper accepts a true or false result,
+and the words <code>on</code>, <code>off</code>, <code>yes</code> and <code>no</code>. Anything else is an error.</p>
+<p>A number is an error, <code>1</code> and <code>0</code> included. So <code>{{ state }}</code> on a sensor that reports a
+number does not work, and <code>{{ 1 if state | float(0) &gt;= 500 else 0 }}</code> does not work
+either. Write the comparison on its own: <code>{{ state | float(0) &gt;= 500 }}</code>. Home Keeper
+reads a number as an error on purpose, because many sensors report <code>0</code> or <code>1</code>, and a
+template that gives back the reading must not look like an answer.</p>
+<p>An attribute that is not on the entity is also an error. Write
+<code>{{ attributes.get(&#x27;battery&#x27;) }}</code> or <code>{{ attributes.battery | default(0) }}</code> when the
+attribute can be missing.</p>
+<p>A template that does not render decides nothing. Home Keeper opens no task and closes
+no task, and it writes the error to the log once. A typo cannot complete the tasks that
+a declarative companion already opened.</p>
+<p>Home Keeper reads a name it does not know as an error. A misspelled <code>{{ stat == &#x27;on&#x27; }}</code>
+gives you the same red message as any other broken template. A template that reads
+false closes the tasks it opened when you set <strong>Auto-clear</strong>, so a typo must never look
+like a condition that went away.</p>
+<p>Home Keeper renders the template when the bound entity changes state, and again on
+each 5-minute pass. So a template that reads the clock, such as the example above, can
+take up to 5 minutes to open its task.</p>
+<p>The Add dialog renders the template against your own entities. Each row in the preview
+says <strong>Due now</strong> or <strong>Monitored</strong>, and the line above them says how many of the shown
+rows are due. The preview lists the matched entities before you write the template, so
+you can see what the declarative companion covers first.</p>
+<p><img decoding="async" loading="lazy" alt="The declarative companion dialog on Template mode. The preview shows a Due now chip and a Monitored chip" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21j-panel-template-trigger-31ec84de13c4bfd453de9ee8e93ddbb7.png" width="612" height="2432" class="img_ev3q"></p>
+<p>A template that cannot render shows the Jinja error instead, so you can correct it
+before you save. Such a template opens no task and closes no task.</p>
+<p><img decoding="async" loading="lazy" alt="The same dialog with a broken template. A red alert shows the Jinja error, and each row shows an Error chip" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21k-panel-template-trigger-error-e2c0e81106bf31717486780a3aefd028.png" width="612" height="2476" class="img_ev3q"></p>
+<p>An empty box is not an error. The preview lists the matched entities and tells you to
+write a template.</p>
+<p><img decoding="async" loading="lazy" alt="The declarative companion dialog on Template mode with an empty box. A blue note asks for a template, and the match list is below it" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21n-panel-template-empty-aed49054d02f8d68887f3262821d7e99.png" width="612" height="2464" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same empty state on a phone" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21o-panel-mobile-template-empty-8ece9cb10cbe8d2b1d48db93cfebfc3f.png" width="390" height="844" class="img_ev3q"></p>
+<p>On a phone the chip keeps its own column, and the task name wraps under itself.</p>
+<p><img decoding="async" loading="lazy" alt="The trigger section on a phone, with the Template mode and the Jinja box" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21m-panel-mobile-template-field-f8409201adeb8b9210fa3a4d7dabacb3.png" width="390" height="844" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The preview on a phone, with a Due now chip and a Monitored chip" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21l-panel-mobile-template-trigger-b85af53a20cb93400e47d0aef1eac00e.png" width="390" height="844" class="img_ev3q"></p>
+<p>The template mode is also on a single sensor task. Open <strong>Add task</strong>, set the schedule
+to Sensor, and pick Template as the trigger mode. Only an admin can set a template on a
+task, because a template reads registry data that other users cannot list.</p>
+<p>The task page shows the template and the current value of the entity. A template task
+waits for its condition, so it shows <strong>Monitored</strong> and it has no Done button.</p>
+<p><img decoding="async" loading="lazy" alt="The page of a template task. The sensor row shows the entity, its value and the template" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21p-panel-template-task-detail-32ea0e343b7376f1a3e67be28f245082.png" width="1280" height="900" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same task page on a phone" src="/ha-home-keeper/pr-preview/pr-351/assets/images/21q-panel-mobile-template-task-detail-e2de5ff4dfa10a42e5750338b6919e74.png" width="390" height="844" class="img_ev3q"></p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/prestomation/ha-home-keeper/tree/main/website/docs/guide/views/settings.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/dashboard-card"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Dashboard card</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/import-export"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Import and export</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-351/docs/intro">User Guide</a></li><li class="footer__item"><a class="footer__link-item" href="/ha-home-keeper/pr-preview/pr-351/developer/integrating">Developer Guide</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://www.home-assistant.io/" target="_blank" rel="noopener noreferrer" class="footer__link-item">Home Assistant<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://hacs.xyz/" target="_blank" rel="noopener noreferrer" class="footer__link-item">HACS<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://github.com/prestomation/ha-home-keeper/issues" target="_blank" rel="noopener noreferrer" class="footer__link-item">Issues<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Home Keeper — a community Home Assistant integration. Built with Docusaurus.</div></div></div></footer></div>
 </body>
 </html>

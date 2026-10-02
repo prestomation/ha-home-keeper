@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Dashboard card | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/dashboard-card"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Dashboard card | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports a dashboard card, Home Keeper Tasks (custom:home-keeper-card),"><meta data-rh="true" property="og:description" content="Home Keeper supports a dashboard card, Home Keeper Tasks (custom:home-keeper-card),"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-351/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/dashboard-card"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/dashboard-card" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/dashboard-card" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Dashboard card","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/dashboard-card"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-351/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.745e2ec1.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.f8335313.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.9c0c1dc3.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.9f7789ab.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -32,7 +32,13 @@ window, or a saved <a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guid
 <li class=""><strong>Hide card when empty</strong> removes the card from the dashboard when the filter matches
 no task. Without it the card shows &quot;No tasks match this filter.&quot;</li>
 </ul>
-<p>A completion made in the panel or on another surface is shown on the card immediately.</p>
+<p>The <strong>Due soon</strong> filter shows the tasks that are due in the next 7 days. This
+includes a task that is due later today, the same as the <strong>Due soon</strong> filter in
+the panel.</p>
+<p>The card shows a completion made in the panel or on another surface immediately.
+This applies to an admin user only, because Home Assistant does not send this event
+to a non-admin user. For a non-admin user, the card updates when a Home Keeper
+entity changes its state.</p>
 <p><img decoding="async" loading="lazy" alt="Home Keeper task card grouped into status sections" src="/ha-home-keeper/pr-preview/pr-351/assets/images/card-grouped-e330f13c883b459cc2d63d28e2452df2.png" width="330" height="621" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="read-a-tasks-note-from-the-card">Read a task&#x27;s note from the card<a href="#read-a-tasks-note-from-the-card" class="hash-link" aria-label="Direct link to Read a task&#x27;s note from the card" title="Direct link to Read a task&#x27;s note from the card" translate="no">​</a></h4>
 <p>A task with a note shows a <strong>Note</strong> chip on its row. The chip has the same tinted,

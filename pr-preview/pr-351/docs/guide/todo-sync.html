@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">To-do list sync | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/todo-sync"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="To-do list sync | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports synchronizing the tasks from a"><meta data-rh="true" property="og:description" content="Home Keeper supports synchronizing the tasks from a"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-351/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/todo-sync"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/todo-sync" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/todo-sync" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"To-do list sync","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/todo-sync"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-351/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.745e2ec1.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.f8335313.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.9c0c1dc3.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.9f7789ab.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -37,22 +37,41 @@ profile per child with a different list in each.</p>
 and records the completion in the task&#x27;s history. A recurring task is rescheduled
 and a new item is added when the task next becomes due. The completed item
 remains on the list.</li>
-<li class="">If a task is completed in Home Keeper, the item is marked complete on the list.</li>
+<li class="">If a task is completed in Home Keeper and still matches the profile, the item is
+marked complete on the list.</li>
 <li class="">If a task no longer matches the profile or is rescheduled or disabled, Home
-Keeper removes its open item from the list.</li>
+Keeper removes its open item from the list. A completion that reschedules a
+task out of the profile also removes the item.</li>
+<li class="">If 2 profiles sync the same task and the task is marked complete on both lists,
+Home Keeper completes the task one time.</li>
+<li class="">A due date that is changed on the list moves the task to that date. This works as
+a snooze does: the task keeps its time of day and its schedule. A task moved out of
+the profile&#x27;s <strong>Include</strong> tier is removed from the list until it is due again.
+A cleared date gets the task&#x27;s date back.</li>
 </ul>
 <p>Items include the task&#x27;s due date and notes if the list supports these fields.
+The due date is the date in the Home Assistant time zone.
 Home Keeper modifies only the items it added and does not modify an item that is
-already complete.</p>
+already complete. Home Keeper keeps the name that you give an item on the list and
+still syncs the other fields of that item. This works on a list that gives each item
+an ID.</p>
 <p>Items that a user adds to the list are not imported into Home Keeper. Only the
-completion state is read back from the list.</p>
+completion state and the due date are read back from the list. The due date is read
+back only from a list that gives each item an ID.</p>
 <p>Tasks that require an NFC or RFID tag scan are synchronized, but a completion on the
 to-do list does not complete the task. The item is re-added on the next sync.</p>
+<p>Tasks that clear only when a sensor recovers are synchronized the same way. These are
+<a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/triggered-tasks#sync-problem-binary-sensors-as-tasks">synced problem sensors</a>
+and tasks from a <a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/settings#declarative-companions-config-driven-no-separate-integration">declarative companion</a>
+that clears on recovery. The item shows what to fix. A completion on the to-do list
+does not complete the task, and the item is re-added on the next sync. When the
+sensor recovers, Home Keeper clears the task and the item is no longer open.</p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="options">Options<a href="#options" class="hash-link" aria-label="Direct link to Options" title="Direct link to Options" translate="no">​</a></h4>
 <p>2 switches are under the picker. Both are on by default.</p>
 <ul>
-<li class=""><strong>Two-way sync</strong>: turn this off for a display-only list. Completions on the list
-are then ignored.</li>
+<li class=""><strong>Two-way sync</strong>: turn this off for a display-only list. Completions and due
+date changes on the list are then ignored, and Home Keeper puts its own due date
+back.</li>
 <li class=""><strong>Treat removed items as completed</strong>: some providers such as Todoist hide
 completed items from Home Assistant. With this switch on a removed item is treated
 as complete. Turn it off if the list reports completions correctly. A <code>local_todo</code>

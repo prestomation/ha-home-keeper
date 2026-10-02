@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Notifications | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/notifications"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Notifications | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports sending a mobile-app notification for due tasks, with the"><meta data-rh="true" property="og:description" content="Home Keeper supports sending a mobile-app notification for due tasks, with the"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-351/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/notifications"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/notifications" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/notifications" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Notifications","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/notifications"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-351/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.745e2ec1.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.f8335313.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.9c0c1dc3.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.9f7789ab.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -17,10 +17,15 @@ for completing a task from the phone lock screen and for sending each user the
 tasks from their own profile. The buttons act on the task in Home Keeper:</p>
 <ul>
 <li class=""><strong>Mark done</strong> completes the task and advances the recurrence.</li>
-<li class=""><strong>Snooze</strong> defers the due date by the configured snooze duration.</li>
+<li class=""><strong>Snooze</strong> defers the due date by the configured snooze duration. A task with
+its own <a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/snooze-and-skip#snooze-length-for-each-task">snooze length</a>
+uses that length.</li>
 <li class=""><strong>Skip</strong> moves the task to its next occurrence.</li>
 <li class=""><strong>Open</strong> opens the task in Home Keeper.</li>
 </ul>
+<p>A notification can stay on the phone after the task changes, such as when a user
+completes the task in the panel. Mark done, Snooze, and Skip on that old
+notification then do nothing, so the task does not move again.</p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="configuration">Configuration<a href="#configuration" class="hash-link" aria-label="Direct link to Configuration" title="Direct link to Configuration" translate="no">​</a></h4>
 <p>Configure notifications in <strong>Settings → Notifications</strong>. Each notification has these
 fields:</p>
@@ -131,9 +136,13 @@ language.</p>
 when a task in the profile becomes overdue or due soon. Use a Home Assistant
 automation for more control over when notifications are sent. Send only when a
 person is at home, or send during a &quot;Chore time&quot; calendar event.</p>
+<p>If a snooze or a completion moves a task to a new due date that is already due soon,
+<strong>Send when due soon</strong> does not send for that task. The task sends again when it
+becomes overdue.</p>
 <p>The <code>home_keeper.notify</code> service sends a notification from an automation. Set
 <code>notification:</code> to a saved notification or <code>profile:</code> to a saved Profile. Set
-<code>target:</code> to override the destinations. The button actions fire events that other
+<code>target:</code> to override the destinations. When a user taps a button on a walk, the next
+task goes to the same destinations. The button actions fire events that other
 automations can use. See <a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/events">Events &amp; automations</a>.</p>
 <p>Two more fields change one call. <code>status:</code> replaces the Profile&#x27;s own status for that
 call, so <code>all</code> sends every task the Profile holds without a second Profile. <code>when_empty: all_clear</code> sends the &quot;All caught up&quot; card when no task matches. Home Keeper sends

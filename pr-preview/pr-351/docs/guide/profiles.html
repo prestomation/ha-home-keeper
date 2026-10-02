@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Profiles | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/profiles"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Profiles | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports saving a filter as a Profile. A Profile has a status tier and"><meta data-rh="true" property="og:description" content="Home Keeper supports saving a filter as a Profile. A Profile has a status tier and"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-351/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/profiles"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/profiles" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/profiles" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Profiles","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/profiles"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-351/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.745e2ec1.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.f8335313.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.9c0c1dc3.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.9f7789ab.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -55,12 +55,25 @@ without any manual work:</p>
 </ul>
 <p>The picker lists each connected companion, and each integration that already owns a
 task. A companion that is only a suggestion is not listed, because it owns no tasks.</p>
+<p>Home Keeper makes some tasks itself, and the picker lists these sources too:</p>
+<ul>
+<li class="">Each <a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/settings#declarative-companions-config-driven-no-separate-integration">declarative companion</a>,
+by its name. Select one to show only the tasks it makes, such as the tasks of a
+declarative companion that watches leak sensors.</li>
+<li class=""><strong>Problem sensors</strong>, for the tasks of
+<a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/triggered-tasks#sync-problem-binary-sensors-as-tasks">Problem sensor sync</a>, when one exists.</li>
+<li class=""><strong>All Home Keeper tasks</strong>, for the tasks of every declarative companion and every
+synced problem sensor together.</li>
+</ul>
+<p>A declarative companion that you delete stays in a saved Profile as <strong>Deleted
+declarative companion</strong>. It then selects no task. Remove it from the list.</p>
 <blockquote>
 <p><strong>A task you create in the panel has no companion.</strong> No integration owns it. A
 <strong>Companions</strong> filter does not select it and an <strong>Exclude companions</strong> filter does not
 remove it. Use a label filter for tasks you make yourself.</p>
 </blockquote>
-<p><img decoding="async" loading="lazy" alt="A Profile filtered to the Battery Notes companion in Settings → Profiles" src="/ha-home-keeper/pr-preview/pr-351/assets/images/profile-companion-filter-3f8567863bc9e2937bd0524333196361.png" width="736" height="1298" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="A Profile filtered to one declarative companion in Settings → Profiles" src="/ha-home-keeper/pr-preview/pr-351/assets/images/profile-companion-filter-5f32436d170c7aba06b7f5d61631c7d1.png" width="736" height="1378" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The same Companions picker on a phone" src="/ha-home-keeper/pr-preview/pr-351/assets/images/profile-mobile-companion-filter-5c13be01719c845d005fdb8492a96da1.png" width="390" height="844" class="img_ev3q"></p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="exclusions">Exclusions<a href="#exclusions" class="hash-link" aria-label="Direct link to Exclusions" title="Direct link to Exclusions" translate="no">​</a></h4>
 <p><strong>Exclude labels</strong>, <strong>Exclude areas</strong>, <strong>Exclude devices</strong>, and <strong>Exclude companions</strong>
 remove tasks from the Profile. An exclusion takes precedence over the include filters. Nothing is removed
@@ -77,7 +90,9 @@ notification digest to the maintenance tasks.</p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="synced-problem-sensors">Synced problem sensors<a href="#synced-problem-sensors" class="hash-link" aria-label="Direct link to Synced problem sensors" title="Direct link to Synced problem sensors" translate="no">​</a></h4>
 <p>A task synced from a <a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/triggered-tasks#sync-problem-binary-sensors-as-tasks"><code>problem</code> binary sensor</a>
 is included in a Profile while its sensor reports a problem. A notification for this
-task shows <strong>Snooze</strong> instead of <strong>Mark done</strong> and <strong>Skip</strong>.</p>
+task shows <strong>Snooze</strong> instead of <strong>Mark done</strong> and <strong>Skip</strong>.
+A <a class="" href="/ha-home-keeper/pr-preview/pr-351/docs/guide/todo-sync#two-way-sync">synced to-do list</a> shows the task, but a
+completion on the list does not complete it.</p>
 <p><img decoding="async" loading="lazy" alt="The Settings → Profiles card with saved filters" src="/ha-home-keeper/pr-preview/pr-351/assets/images/profiles-card-d9949e9f3801819181ddf94a5604d0db.png" width="736" height="4058" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The Tasks tab filtered to a saved Profile via the Profile dropdown" src="/ha-home-keeper/pr-preview/pr-351/assets/images/23-panel-profile-filter-7af7dff13292ea6150b3881882c144ba.png" width="1280" height="989" class="img_ev3q"></p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="task-count-sensors">Task count sensors<a href="#task-count-sensors" class="hash-link" aria-label="Direct link to Task count sensors" title="Direct link to Task count sensors" translate="no">​</a></h2>

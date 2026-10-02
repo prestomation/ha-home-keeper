@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Import and export | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/import-export"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Import and export | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper reads and writes its data as one file. Use it to move to another Home"><meta data-rh="true" property="og:description" content="Home Keeper reads and writes its data as one file. Use it to move to another Home"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-351/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/import-export"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/import-export" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/import-export" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Import and export","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/docs/guide/import-export"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-351/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.745e2ec1.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.f8335313.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.9c0c1dc3.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.9f7789ab.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -34,7 +34,7 @@ an <code>add_task</code> payload. An <code>appliances</code> record is an <code>
 <a class="" href="/ha-home-keeper/pr-preview/pr-351/developer/api#actions">API reference</a>
 lists every field of both, so it documents the file as well.</p>
 <p>The same fields also have a
-<a href="/ha-home-keeper/pr-preview/pr-351/assets/files/home-keeper-1.schema-dbf91cbf20151a89026141c8f53b890d.json" target="_blank" class="">JSON Schema</a>.
+<a href="/ha-home-keeper/pr-preview/pr-351/assets/files/home-keeper-1.schema-230ca1fe34baf5f7d51b2923806a3ddb.json" target="_blank" class="">JSON Schema</a>.
 Every export names it on the first line, so an editor such as Visual Studio Code
 checks the file and completes the field names as you type. Home Keeper builds the
 schema from the code, so it always matches the version you run.</p>
@@ -84,7 +84,7 @@ schema from the code, so it always matches the version you run.</p>
 
 
 
-<table><thead><tr><th>Field</th><th>Applies to</th><th>What it does</th></tr></thead><tbody><tr><td><code>external_id</code></td><td>both</td><td>Your own name for the record. See below.</td></tr><tr><td><code>area</code></td><td>both</td><td>An area name. A stated <code>area_id</code> wins.</td></tr><tr><td><code>appliance</code></td><td>tasks</td><td>Which appliance the task belongs to, by <code>external_id</code>, name, or id. A stated <code>device_id</code> wins, if that device is on this Home Assistant.</td></tr><tr><td><code>history</code></td><td>tasks</td><td>Past completions. Each entry needs <code>completed_at</code>, and can add <code>note</code>, <code>cost</code>, <code>who</code>, <code>photo</code>. A usage or threshold task can also add <code>reading</code>.</td></tr><tr><td><code>skips</code></td><td>tasks</td><td>Past skips. Each entry needs <code>skipped_at</code>.</td></tr><tr><td><code>parent_asset_id</code></td><td>appliances</td><td>The appliance this one sits under, by <code>external_id</code>, name, or id. List a parent before its children. An appliance cannot sit under itself, through one link or a chain of them.</td></tr><tr><td><code>archived</code></td><td>appliances</td><td><code>true</code> for an archived appliance.</td></tr></tbody></table>
+<table><thead><tr><th>Field</th><th>Applies to</th><th>What it does</th></tr></thead><tbody><tr><td><code>external_id</code></td><td>both</td><td>Your own name for the record. See below.</td></tr><tr><td><code>area</code></td><td>both</td><td>An area name. A stated <code>area_id</code> wins, if that area is on this Home Assistant.</td></tr><tr><td><code>appliance</code></td><td>tasks</td><td>Which appliance the task belongs to, by <code>external_id</code>, name, or id. A stated <code>device_id</code> wins, if that device is on this Home Assistant.</td></tr><tr><td><code>history</code></td><td>tasks</td><td>Past completions. Each entry needs <code>completed_at</code>, and can add <code>note</code>, <code>cost</code>, <code>who</code>, <code>photo</code>. A usage or threshold task can also add <code>reading</code>.</td></tr><tr><td><code>skips</code></td><td>tasks</td><td>Past skips. Each entry needs <code>skipped_at</code>.</td></tr><tr><td><code>parent_asset_id</code></td><td>appliances</td><td>The appliance this one sits under, by <code>external_id</code>, name, or id. List a parent before its children. An appliance cannot sit under itself, through one link or a chain of them.</td></tr><tr><td><code>archived</code></td><td>appliances</td><td><code>true</code> for an archived appliance. On an update, <code>false</code> restores an archived appliance.</td></tr></tbody></table>
 <p>A <code>reading</code> on any other task is an error. Preview names any entry field it does not
 read, then ignores it.</p>
 <p>Dates can be a plain <code>2026-03-04</code> or a full timestamp. History is read in date order,
@@ -103,7 +103,9 @@ export updates the same records.</li>
 <li class=""><strong><code>external_id</code></strong>, the name you choose. Set this one in a file you write
 yourself, because it makes a second run update the same records instead of making
 a copy of everything. An <code>external_id</code> names one record, so 2 records in one file
-cannot share one. If they do, you get an error that names both.</li>
+cannot share one. If they do, you get an error that names both.
+An <code>id</code> also names one record. If you copy a record to make a second one, remove
+the <code>id</code> from the copy.</li>
 <li class=""><strong><code>name</code></strong>, an exact match first, then one that ignores case and spaces.</li>
 </ol>
 <p>Home Keeper creates a record that matches no stored record. When a name matches 2
@@ -112,6 +114,13 @@ you meant. To create every record and match no stored record, pass <code>match: 
 <code>home_keeper.import_data</code>.</p>
 <p>An update only changes the fields the file states. Fields it leaves out keep the
 value they have.</p>
+<p>An update adds the <code>history</code> and <code>skips</code> of the file to the entries the task has, in
+date order. When the task was done after the last date in the file, the task keeps
+its last completion and its due date. So an import of the same file again does not
+move a task back.</p>
+<p>When 2 appliances have the same name, an <code>appliance</code> or <code>parent_asset_id</code> that
+gives this name is an error. Use the <code>external_id</code> or the id of the appliance. An
+export names such an appliance by its id.</p>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="importexport-limitations">Import/Export Limitations<a href="#importexport-limitations" class="hash-link" aria-label="Direct link to Import/Export Limitations" title="Direct link to Import/Export Limitations" translate="no">​</a></h4>
 <p>The file does not hold every record. What an export leaves out is listed in its own
 <code>home_keeper</code> block, and the preview names every field that Home Keeper did not read
@@ -121,12 +130,19 @@ on the way back in.</p>
 PDF, so upload those again after an import. A link to a document is only text,
 so it stays.</li>
 <li class=""><strong>Tasks that another part of Home Keeper owns</strong>, such as a wear part&#x27;s replacement
-reminder, a buy reminder, a problem-sensor mirror, or a recipe&#x27;s task. Home Keeper
-builds these again from the appliance and its parts, which the file does include.
+reminder, a buy reminder, a problem-sensor mirror, or a declarative companion task.
+Home Keeper builds these again from the appliance and its parts, which the file does
+include.
 A counted wear item keeps its count. The count is on the part, because the 2
 tasks that use it are not in the file.</li>
 <li class=""><strong>Tasks created by companions.</strong></li>
-<li class=""><strong>Settings, profiles, notifications and recipes.</strong> These stay in the config entry.</li>
+<li class=""><strong>The link from a task to a consumable.</strong> The task is in the file, but its link is
+not. The <code>home_keeper</code> block counts these links. Link the tasks again after an
+import.</li>
+<li class=""><strong>Appliances that a companion manages</strong>, with their stock counts. The companion
+builds the appliance again after an import. Enter the counts again.</li>
+<li class=""><strong>Settings, profiles, notifications and declarative companions.</strong> These stay in the
+config entry.</li>
 </ul>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="how-big-a-file-can-be">How big a file can be<a href="#how-big-a-file-can-be" class="hash-link" aria-label="Direct link to How big a file can be" title="Direct link to How big a file can be" translate="no">​</a></h4>
 <p>The panel and the service each hold their own limit.</p>

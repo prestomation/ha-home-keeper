@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Glue integrations | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/developer/glue-integrations"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Glue integrations | Home Keeper"><meta data-rh="true" name="description" content="A glue integration is a small, standalone Home Assistant integration whose only job"><meta data-rh="true" property="og:description" content="A glue integration is a small, standalone Home Assistant integration whose only job"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-351/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/developer/glue-integrations"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/developer/glue-integrations" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/developer/glue-integrations" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Glue integrations","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/developer/glue-integrations"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-351/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.745e2ec1.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.f8335313.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.9c0c1dc3.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.9f7789ab.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -83,7 +83,32 @@ needs replacing. The glue maps that one-to-one onto a Home Keeper triggered task
 
 
 
-<table><thead><tr><th>Battery Notes says…</th><th>Glue calls</th><th>Result in Home Keeper</th></tr></thead><tbody><tr><td>battery went <strong>low</strong> (first seen)</td><td><code>add_task</code> with <code>recurrence_type: &quot;triggered&quot;</code></td><td>a <em>&quot;Replace battery&quot;</em> task, <strong>armed / due-now</strong>, attached to the battery&#x27;s device</td></tr><tr><td>battery went <strong>low</strong> again later</td><td><code>home_keeper.trigger_task</code></td><td>the existing task re-arms (history preserved)</td></tr><tr><td>battery <strong>replaced</strong></td><td><code>home_keeper.complete_task</code> (with an <code>origin</code>)</td><td>the task records a completion and goes <strong>dormant</strong></td></tr><tr><td>user ticks the task off <strong>in Home Keeper</strong></td><td>(listener reacts to <code>home_keeper_task_completed</code>, <code>origin = None</code>)</td><td>glue tells Battery Notes the battery was replaced</td></tr></tbody></table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Battery Notes says…</th><th>Glue calls</th><th>Result in Home Keeper</th></tr></thead><tbody><tr><td>battery went <strong>low</strong> (first seen)</td><td><code>add_task</code> with <code>recurrence_type: &quot;triggered&quot;</code></td><td>a <em>&quot;Replace battery&quot;</em> task, <strong>armed / due-now</strong>, attached to the battery&#x27;s device</td></tr><tr><td>battery went <strong>low</strong> again later</td><td><code>home_keeper.trigger_task</code></td><td>the existing task re-arms (history preserved)</td></tr><tr><td>battery <strong>replaced</strong></td><td><code>home_keeper.complete_task</code> (with an <code>origin</code>)</td><td>the task records a completion and goes <strong>dormant</strong></td></tr><tr><td>user ticks the task off <strong>in Home Keeper</strong></td><td>(listener reacts to <code>home_keeper_task_completed</code>, <code>origin = None</code>)</td><td>glue tells Battery Notes the battery was replaced</td></tr><tr><td>every battery type it knows about</td><td><code>add_asset</code> once, then <code>update_managed_asset</code></td><td>a managed <strong>Batteries</strong> appliance with 1 consumable part per battery type</td></tr><tr><td>the type and count a low device takes</td><td><code>set_task_consumable</code> with that device&#x27;s <code>quantity</code></td><td>the <em>&quot;Replace battery&quot;</em> task reads <em>&quot;Takes 2 AAA, 2 left&quot;</em></td></tr><tr><td>battery <strong>replaced</strong>, from either side</td><td>(no extra call)</td><td>the completion takes 2 AAA off that part&#x27;s stock</td></tr><tr><td>stock at or below its reorder point</td><td>(no extra call)</td><td>a <em>&quot;Buy AAA&quot;</em> task, and a line on the shopping list</td></tr></tbody></table>
+<p>The appliance is <strong>managed</strong>. The glue owns its name and its list of parts. The user
+owns every stock number. A type the user has not counted yet stays untracked and opens
+no buy task. See <a class="" href="/ha-home-keeper/pr-preview/pr-351/developer/integrating#8-managing-an-appliance">INTEGRATING.md §8</a> for the
+<code>managed_by</code> block on an appliance and for <code>update_managed_asset</code>. The <code>quantity</code> on a
+consumable link is there too.</p>
 <p>Because the task <strong>persists across cycles</strong> instead of being deleted and recreated, its
 completion history accumulates, so you learn the real cadence (&quot;this smoke-detector
 battery lasts ~13 months&quot;) instead of losing it on every replacement.</p>

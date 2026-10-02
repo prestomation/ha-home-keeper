@@ -367,6 +367,17 @@
           "require_tag_scan": {
             "type": "boolean"
           },
+          "snooze_hours": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "minimum": 1
+              }
+            ]
+          },
           "active_season": {
             "anyOf": [
               {

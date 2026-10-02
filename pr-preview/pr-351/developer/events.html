@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Events reference | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/developer/events"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-developer-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-developer-current"><meta data-rh="true" property="og:title" content="Events reference | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper fires a Home Assistant bus event for every state change:"><meta data-rh="true" property="og:description" content="Home Keeper fires a Home Assistant bus event for every state change:"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-351/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/developer/events"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/developer/events" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/developer/events" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Events","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-351/developer/events"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-351/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.745e2ec1.js" defer="defer"></script>
-<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.f8335313.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/runtime~main.9c0c1dc3.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-351/assets/js/main.9f7789ab.js" defer="defer"></script>
 </head>
 <body>
 <svg style="display: none;"><defs>
@@ -99,8 +99,10 @@ entity is unavailable) through the same <code>home_keeper_task_triggered</code>.
 are introduced.</p>
 <p>A <code>threshold</code> or <code>state</code> binding that sets <strong><code>clear_on_recover</code></strong> also clears itself when
 its condition goes away, and that path fires an ordinary <code>home_keeper_task_completed</code>
-carrying <code>origin: home_keeper_sensor_recover</code>. Match on that origin to tell a
-self-clearing sensor task from someone pressing Done. If the task is linked to a
+with <code>origin: home_keeper_sensor_recover</code>. Match on that origin to tell a
+self-clearing sensor task from someone pressing Done. A task that a declarative
+companion with <code>clear_on_recover</code> made cannot be completed by hand: <code>home_keeper.complete_task</code>
+refuses it, and it has no Mark done button on its device page. If the task is linked to a
 consumable, the auto-completion consumes one spare, potentially producing
 <code>home_keeper_part_low_stock</code> or <code>home_keeper_part_out_of_stock</code> the same as any other
 completion path. A bound entity going
@@ -160,11 +162,18 @@ sensor-armed &quot;replace the fridge filter&quot; task draws down inventory and
 when you mark it done.</p>
 <p>Each completion takes off the part&#x27;s <strong>Used per completion</strong> amount. A part that leaves
 it unset gives up one whole spare. A bottle that sets <code>0.33</code> lasts three refills.</p>
+<p>Deleting that completion gives the stock back. Home Keeper records on the completion
+how much it really took, so a completion that found only 1 of the 2 spares it wanted
+gives back 1. The return fires <code>home_keeper_part_restocked</code> when it lifts the part above
+its reorder point.</p>
 <p>A part with <strong>Auto-create buy task</strong> enabled goes one step further: crossing the reorder
 threshold auto-creates a one-off <em>&quot;Buy {part}&quot;</em> task (a <code>home_keeper_task_created</code> event)
 and restocking removes it (<code>home_keeper_task_deleted</code>). No new event type is involved,
 just the ordinary task lifecycle. Completing that buy task restocks the part by its
-<code>restock_quantity</code>, which fires <code>home_keeper_part_restocked</code> like any other restock.</p>
+<code>restock_quantity</code>, which fires <code>home_keeper_part_restocked</code> like any other restock.
+Deleting that completion takes the restock back. The return fires
+<code>home_keeper_part_low_stock</code> or <code>home_keeper_part_out_of_stock</code> when the count crosses
+the threshold again.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="asset-appliance-lifecycle">Asset (appliance) lifecycle<a href="#asset-appliance-lifecycle" class="hash-link" aria-label="Direct link to Asset (appliance) lifecycle" title="Direct link to Asset (appliance) lifecycle" translate="no">​</a></h3>
 <p>Attaching or removing an appliance <strong>document</strong> (a manual/warranty/receipt link, or an
 uploaded file) is an appliance change, so it surfaces as <code>home_keeper_asset_updated</code>
@@ -196,11 +205,11 @@ in <code>upstream_domain</code>.</p>
 emitted at setup and on reload to ask companions to announce themselves again. Its
 data is empty. A companion answers it by calling <code>home_keeper.register_companion</code>.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="declarative-companion-crud">Declarative companion CRUD<a href="#declarative-companion-crud" class="hash-link" aria-label="Direct link to Declarative companion CRUD" title="Direct link to Declarative companion CRUD" translate="no">​</a></h3>
-<p>A <strong>declarative companion</strong> is a Home-Keeper-owned recipe (target integration + entity
-filters + Jinja-templated task name/notes; see <a class="" href="/ha-home-keeper/pr-preview/pr-351/developer/integrating">INTEGRATING.md</a> §7)
+<p>A <strong>declarative companion</strong> is a Home-Keeper-owned spec (target integration + entity
+filters + Jinja-templated task name/notes, described in <a class="" href="/ha-home-keeper/pr-preview/pr-351/developer/integrating">INTEGRATING.md</a> §7)
 that materializes one managed sensor task per matching entity. Spec-level CRUD fires
-its own bus events so an automation can react to the recipe list changing; the
-materialized sensor tasks themselves emit the ordinary <code>home_keeper_task_created</code> /
+its own bus events so an automation can react to the list of declarative companions
+changing. The materialized sensor tasks themselves emit the ordinary <code>home_keeper_task_created</code> /
 <code>_updated</code> / <code>_deleted</code> / <code>_triggered</code> / <code>_completed</code> events, so an automation that
 already listens to <code>home_keeper_task_completed</code> just works. Automations that want to
 filter to declarative tasks read <code>managed_by.integration == &quot;home_keeper&quot;</code> and
@@ -236,6 +245,8 @@ fractional, so a bottle topped up a third at a time reports <code>0.67</code> at
 is really at. And <code>unit</code> is whatever the part counts itself in (<code>&quot;ml&quot;</code>, <code>&quot;bottles&quot;</code>),
 or <code>&quot;&quot;</code> for one counted in whole spares, so a notification can read
 <code>{{ trigger.event.data.stock }} {{ trigger.event.data.unit }}</code> and be right either way.</p>
+<p>A stock event also holds the appliance&#x27;s <code>source</code> and <code>managed_by</code>, as the asset
+events do, so an integration that manages an appliance can find its own stock events.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="example-automations">Example automations<a href="#example-automations" class="hash-link" aria-label="Direct link to Example automations" title="Direct link to Example automations" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="notify-when-anything-becomes-overdue-event-trigger">Notify when anything becomes overdue (event trigger)<a href="#notify-when-anything-becomes-overdue-event-trigger" class="hash-link" aria-label="Direct link to Notify when anything becomes overdue (event trigger)" title="Direct link to Notify when anything becomes overdue (event trigger)" translate="no">​</a></h3>
 <div class="language-yaml codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-yaml codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><div class="token-line" style="color:#393A34"><span class="token key atrule" style="color:#00a4db">automation</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> </span><span class="token key atrule" style="color:#00a4db">alias</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;Maintenance overdue → notify&quot;</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token key atrule" style="color:#00a4db">trigger</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> </span><span class="token key atrule" style="color:#00a4db">platform</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> event</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token key atrule" style="color:#00a4db">event_type</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> home_keeper_task_overdue</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token key atrule" style="color:#00a4db">action</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"> </span><span class="token key atrule" style="color:#00a4db">service</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> notify.mobile_app_phone</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token key atrule" style="color:#00a4db">data</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token key atrule" style="color:#00a4db">message</span><span class="token punctuation" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">&gt;</span><span class="token punctuation" style="color:#393A34">-</span><span class="token plain"></span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">            </span><span class="token punctuation" style="color:#393A34">{</span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"> trigger.event.data.name </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">}</span><span class="token plain"> is overdue</span><br></div><div class="token-line" style="color:#393A34"><span class="token plain">            (</span><span class="token punctuation" style="color:#393A34">{</span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"> trigger.event.data.days_overdue </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">}</span><span class="token plain"> day(s)).</span><br></div></code></pre></div></div>
