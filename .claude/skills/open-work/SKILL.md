@@ -169,7 +169,14 @@ The **next stable** version is the newest beta section with its suffix removed. 
 example, `0.29.0b3` gives `0.29.0`. When no section is newer than the last stable,
 there is no draft: say "No changes since vX.Y.Z" and stop this step.
 
-Get the text of each section newer than the last stable, newest first:
+First make sure that `CHANGELOG.md` has a `## [X.Y.Z]` heading for the last stable
+from the release list. If it does not, the loops in step 1 and below read every
+section in the file. Do not write a draft. Say in the report that the heading is
+missing.
+
+Get the text of each section newer than the last stable, newest first. These are
+the same versions as the loop in step 1. That loop reads `--json` for the issue
+list, and this one reads `--notes` for the bullets:
 
 ```bash
 for v in $(grep -oP '^## \[\K[^\]]+' CHANGELOG.md \
@@ -183,8 +190,12 @@ Then get the CHANGELOG bullets that the open PRs add. These are not merged, so t
 are not certain:
 
 - For each open PR that is not from Dependabot, use `pull_request_read` with
-  `get_files`. When `CHANGELOG.md` is in the list, use `get_diff` and keep the added
-  `- **` bullet lines and their continuation lines.
+  `get_files`. When `CHANGELOG.md` is in the list, use `get_diff`. Keep each added
+  line that starts with `+- **`, and the added lines after it that start with `+`
+  and a space. The bullet stops at the first line that is not an added, indented
+  line.
+- When the diff changes a bullet that is already in a section, and does not add
+  one, show the new text in place of the old text, and mark it with the PR number.
 
 Write the draft as the stable section, with the rules in `AGENTS.md` ("A stable
 release's `## [X.Y.Z]` notes describe what changed since the last _stable_
@@ -194,17 +205,30 @@ release"):
 - Put all the beta bullets into one `### Added`, one `### Changed` and one
   `### Fixed`. A feature that a beta added is in **Added**, also when a later beta
   changed it.
-- Remove a `### Changed` bullet that changes only a feature that is new since the
-  last stable. Merge its text into the Added bullet for that feature when a user
-  must know it.
+- A `### Changed` bullet that changes only a feature that is new since the last
+  stable does not go in `### Changed`. The bold lead or the link of the bullet
+  names the feature. Find the Added bullet with the same feature. When the Changed
+  bullet changes what a user sees in the stable release, add its second sentence
+  to that Added bullet. When it changes only something that a beta did, remove it.
+  When no Added bullet matches, keep the bullet in `### Changed`.
 - Keep each bullet as the CHANGELOG has it. Do not write the bullets again.
-- `### Fixed` must give each `(Fixes #N)` from the sections above. Add the issues
-  that a commit since the last stable fixes, from
-  `git log --format=%B <last-stable-commit>..origin/main | python3 ci/release-issues.py --scan`.
-  The local clone has no tags, so find the last stable commit with
-  `git log --format=%H -1 -S '## [X.Y.Z]' -- CHANGELOG.md`, where `X.Y.Z` is
-  the last stable. When `--scan` finds an issue that the sections do not give, say
-  so under the draft. The `notify-issues` job does not close that issue.
+- `### Fixed` must give each `(Fixes #N)` from the sections above. Then do a check
+  of the commits since the last stable. The local clone has no tags, so get the tag
+  of the last stable first:
+
+  ```bash
+  git fetch -q --no-tags origin tag vX.Y.Z
+  git log --format=%B vX.Y.Z..origin/main | python3 ci/release-issues.py --scan
+  ```
+
+  If the tag fetch fails, use the oldest commit that added the stable heading:
+  `git log --reverse --format=%H -S '## [X.Y.Z]' -- CHANGELOG.md | head -1`. That
+  is the release commit. A later commit that changes the heading again comes after
+  it, so `--reverse` and `head -1` do not take it.
+- When `--scan` finds an issue that the sections do not give, or a Changed bullet
+  stays because no Added bullet matches, write it in a **Check before release** list
+  at the end of the draft. The `notify-issues` job does not close an issue that the
+  section does not give.
 - Put the bullets from open PRs at the end, under the heading
   **Pending, from open PRs**, with the PR number on each bullet. Do not mix them
   into the merged bullets.
@@ -220,7 +244,9 @@ Write the report in chat. Start with one line of totals, for example:
 Then one section for each group that is not empty, in the order A to G, then a
 **Next stable (draft)** section with the draft from step 5, then the Backlog. Start
 the draft section with the version and the last stable it follows, for example
-`0.29.0, after v0.28.0. Tentative: this can change before the release.` Each group
+`0.29.0, after v0.28.0. Tentative: this can change before the release.` After the
+bullets, give **Pending, from open PRs**, then **Check before release** when it is
+not empty. Each group
 line has:
 
 - the issue or PR number as a link, and the title,
