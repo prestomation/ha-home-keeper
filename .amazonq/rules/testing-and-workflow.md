@@ -606,3 +606,6 @@ gate); CI publishes it to the job summary.
   - The ban is on *you* posting, not on repo automation working from a fixed
     template: `release.yml`'s `notify-issues` job and `ha-beta.yml`'s regression
     reporter both comment on issues by design.
+  - One exception: the preview-build comment of the `preview-comment` skill
+    (`.claude/skills/preview-comment/SKILL.md`). It is posted only when the
+    maintainer asks, and only after the maintainer approves the exact text.

@@ -441,6 +441,11 @@
     `ha-beta.yml`'s regression reporter (the nightly went red). Adding a comment to
     an issue by hand, or by asking an agent to, is still off-limits — if something
     needs saying there, the maintainer says it.
+  - **One exception: the preview-build comment.** When the maintainer asks for it,
+    the `preview-comment` skill (`.claude/skills/preview-comment/SKILL.md`) posts
+    one short note on the issue: the preview version, how to install it, and that
+    the PR may wait for feedback. The agent shows the exact text first and posts
+    only after the maintainer approves it. Nothing else is posted on an issue.
 
 ## Conventions live in `.amazonq/rules/` — keep them current
 
@@ -547,6 +552,10 @@ rules. Keep the rules and `AGENTS.md` consistent with each other.
   open PRs, the CHANGELOG and the to-do files, and sorts each item by who must act
   next: the maintainer or an agent, the next stable release, a tester of a preview
   build, or the reporter. It only reports. See `.claude/skills/open-work/SKILL.md`.
+- **The `preview-comment` skill tells a reporter a preview build is ready.** It
+  reads the version from the PR's preview-release comment, drafts the maintainer's
+  short note, and posts it on the issue only after the maintainer approves the
+  exact text. See `.claude/skills/preview-comment/SKILL.md`.
 - **An options flow merges; it never replaces.** Home Assistant stores what an options
   flow returns from `async_create_entry` as the *entire* `entry.options`, and the
   Configure dialog renders only `options.FLOW_OPTIONS` — so return
