@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Logging completions | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-422/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-422/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-422/docs/guide/completions"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Logging completions | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper supports per-completion detail on a task. The default is a 1-tap"><meta data-rh="true" property="og:description" content="Home Keeper supports per-completion detail on a task. The default is a 1-tap"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-422/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-422/docs/guide/completions"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-422/docs/guide/completions" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-422/docs/guide/completions" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Completions","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-422/docs/guide/completions"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-422/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-422/assets/js/runtime~main.9f7267ec.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-422/assets/js/runtime~main.40f3274a.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-422/assets/js/main.9309ccf1.js" defer="defer"></script>
 </head>
 <body>
@@ -34,6 +34,8 @@ field lists the <code>person</code> entities.</p>
 <p>A completion photo records the work on one date. For a photo that stays on the
 task, such as the place that needs work, use <a class="" href="/ha-home-keeper/pr-preview/pr-422/docs/guide/task-photos">task photos</a>. When
 the task has one, its cover shows at the top of the dialog.</p>
+<p>To add a photo to a one-tap task, select the arrow beside <strong>Done</strong>, then <strong>Done with
+photo or note…</strong>. See <a class="" href="/ha-home-keeper/pr-preview/pr-422/docs/guide/task-photos#after-photos">after photos</a>.</p>
 <p>The task&#x27;s history shows each completion&#x27;s:</p>
 <ul>
 <li class="">note</li>
@@ -73,7 +75,7 @@ metadata is passed:</p>
 instead of completing it directly. An automation can pass <code>note</code>, <code>cost</code>,
 <code>photo</code>, and <code>who</code> to the <code>home_keeper.complete_task</code> service.</p>
 </blockquote>
-<p><img decoding="async" loading="lazy" alt="The completion-details dialog (note, cost, who and photo captured when a task is marked done)" src="/ha-home-keeper/pr-preview/pr-422/assets/images/11-panel-completion-dialog-ba99717586d44f9d712f25b2acad543e.png" width="1280" height="1272" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The completion-details dialog (note, cost, who and photo captured when a task is marked done)" src="/ha-home-keeper/pr-preview/pr-422/assets/images/11-panel-completion-dialog-fa9800c2f9d6554aa093aae4aa312173.png" width="1280" height="1282" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="Task history annotated with per-completion cost and notes, each row editable" src="/ha-home-keeper/pr-preview/pr-422/assets/images/7c-panel-task-history-tab-0372ea3f4c6dc4e08b7bf5834b6ac00e.png" width="1280" height="973" class="img_ev3q"></p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="undo-a-one-tap-done">Undo a one-tap Done<a href="#undo-a-one-tap-done" class="hash-link" aria-label="Direct link to Undo a one-tap Done" title="Direct link to Undo a one-tap Done" translate="no">​</a></h2>
 <p>After a one-tap <strong>Done</strong> in the panel, a message names the task. Select <strong>Undo</strong> in
