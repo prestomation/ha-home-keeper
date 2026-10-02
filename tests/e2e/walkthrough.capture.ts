@@ -311,6 +311,18 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(searchBox).toHaveValue('');
   await page.waitForTimeout(BEAT);
 
+  // 1f. Task photos (#399). The fridge filter row carries its cover thumbnail, and
+  //     its page shows the cover beside the name and the strip first in the
+  //     Schedule tab. Back to the list after.
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  await expect(panel.locator('.hk-photo')).not.toHaveCount(0);
+  await expect(panel.locator('.hk-task-cover-img')).toHaveAttribute('src', /authSig=/, {
+    timeout: 15_000,
+  });
+  await page.waitForTimeout(BEAT * 2);
+  await page.goBack();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+
   // 2. Open a task's detail page — full schedule, notes, completion history, and
   //    (since this task is linked to a part with a product URL) a clickable
   //    "Consumable link" row that jumps straight to buying the replacement.

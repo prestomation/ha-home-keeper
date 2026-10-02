@@ -52,7 +52,25 @@
         ],
         "completion_detail": "optional",
         "completion_required_fields": [],
-        "skips": []
+        "skips": [],
+        "photos": [
+          {
+            "id": "9b1f4e2a-6c3d-4f8e-a1b2-c3d4e5f60718",
+            "name": "Filter housing",
+            "filename": "filter-housing.jpg",
+            "content_type": "image/jpeg",
+            "size": 16405,
+            "created": "2026-09-10T11:40:00-04:00"
+          },
+          {
+            "id": "0d7e3c91-2b4a-4e6f-9a8b-7c6d5e4f3a21",
+            "name": "Cartridge label",
+            "filename": "cartridge-label.jpg",
+            "content_type": "image/jpeg",
+            "size": 17148,
+            "created": "2026-09-10T11:40:00-04:00"
+          }
+        ]
       },
       "25f086ad-91ce-4ca4-8f05-73b443565479": {
         "id": "25f086ad-91ce-4ca4-8f05-73b443565479",

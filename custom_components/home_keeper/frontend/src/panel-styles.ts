@@ -1707,25 +1707,25 @@ export const STYLES = `
   }
   .hk-photos-card .hk-detail-inner { padding-block: 12px; }
   .hk-photo-hint { margin: 0 0 10px; color: var(--secondary-text-color); }
-  .hk-photo-strip { display: flex; gap: 8px; flex-wrap: wrap; }
-  .hk-photo {
-    position: relative; width: 96px; aspect-ratio: 1; border-radius: 8px; overflow: hidden;
+  .hk-photo-strip { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+  /* A tile is the photo with its buttons in a row under it, not on it: on a 96px
+     photo, two buttons on top hide most of what the photo is for. */
+  .hk-photo { position: relative; width: 96px; display: flex; flex-direction: column; gap: 2px; }
+  .hk-photo-link {
+    display: block; width: 96px; aspect-ratio: 1; border-radius: 8px; overflow: hidden;
     border: 1px solid var(--divider-color); background: var(--hk-accent-soft);
   }
-  .hk-photo-link { display: block; width: 100%; height: 100%; }
   .hk-photo-badge {
-    position: absolute; left: 4px; bottom: 4px; padding: 1px 6px; border-radius: 4px;
+    position: absolute; left: 4px; top: 4px; padding: 1px 6px; border-radius: 4px;
     font-size: 0.7rem; color: #fff; background: rgba(0, 0, 0, 0.6); pointer-events: none;
   }
-  /* The buttons sit on the photo, so they get their own dark plate to read on any
-     image, and stay a full tap target (--hk-tap) on a phone. */
-  .hk-photo-actions { position: absolute; top: 2px; right: 2px; display: flex; gap: 2px; }
+  .hk-photo-actions { display: flex; justify-content: center; gap: 4px; }
   .hk-photo-actions ha-icon-button {
-    --mdc-icon-button-size: 32px; --mdc-icon-size: 18px; color: #fff;
-    background: rgba(0, 0, 0, 0.55); border-radius: 50%;
+    --mdc-icon-button-size: 36px; --ha-icon-button-size: 36px; --mdc-icon-size: 20px;
+    color: var(--secondary-text-color);
   }
   .hk-photo-add {
-    width: 96px; aspect-ratio: 1; display: grid; place-content: center; justify-items: center;
+    width: 96px; height: 96px; align-self: flex-start; display: grid; place-content: center; justify-items: center;
     gap: 4px; border: 1.5px dashed var(--divider-color); border-radius: 8px; background: none;
     color: var(--secondary-text-color); font: inherit; font-size: 0.8rem; cursor: pointer;
   }
@@ -1835,7 +1835,9 @@ export const STYLES = `
     .hk-photo-strip { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
     .hk-photo, .hk-photo-add { flex: none; }
     /* Two full-size tap targets (2 x --hk-tap) still fit across a 96px tile. */
-    .hk-photo-actions ha-icon-button { --mdc-icon-button-size: var(--hk-tap); }
+    .hk-photo-actions ha-icon-button {
+      --mdc-icon-button-size: var(--hk-tap); --ha-icon-button-size: var(--hk-tap);
+    }
     /* The tree toggle keeps its 24px look, but a transparent ring takes the tap
        target to --hk-tap (X11-4). */
     .hk-chevron::before {

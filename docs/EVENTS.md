@@ -113,6 +113,10 @@ meter reset) stays **silent**, because it is internal state, not a user action. 
 by hand through the `set_task_meter` service does fire `home_keeper_task_updated` with
 `changed_fields: ["sensor"]`.
 
+**Task photos** are a task change too. Adding a photo, removing one, or making one the
+cover fires `home_keeper_task_updated` with `changed_fields: ["photos"]`. There is no
+separate photo event.
+
 **Buy reminders ticked off on a synced shopping list** ride these same events too.
 When *Settings → Shopping list* points at a to-do list, each auto-created **"Buy
 {part}"** reminder is put on it. Ticking that line off there fires an ordinary

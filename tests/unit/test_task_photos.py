@@ -156,6 +156,13 @@ def test_normalize_photo_entry_refuses_a_bad_size(size):
         tp.normalize_photo_entry(_entry(size=size))
 
 
+def test_normalize_photo_entry_refuses_a_missing_type():
+    entry = _entry()
+    del entry["content_type"]
+    with raises_exactly(TaskValidationError, "unsupported photo type: ''"):
+        tp.normalize_photo_entry(entry)
+
+
 def test_normalize_photo_entry_refuses_a_non_object():
     with raises_exactly(TaskValidationError, "each photo must be an object"):
         tp.normalize_photo_entry("attic.jpg")
@@ -253,9 +260,11 @@ def test_make_cover_of_the_cover_changes_nothing():
     assert [p["id"] for p in task["photos"]] == ["p0", "p1", "p2"]
 
 
-def test_make_cover_of_an_unknown_photo():
-    with pytest.raises(KeyError):
+def test_make_cover_of_an_unknown_photo_names_the_photo():
+    # The websocket tells a gone task from a gone photo by this argument.
+    with pytest.raises(KeyError) as info:
         tp.make_cover(_task(2), "nope")
+    assert info.value.args == ("nope",)
 
 
 # ── paths ───────────────────────────────────────────────────────────────────

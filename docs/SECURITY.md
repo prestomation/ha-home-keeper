@@ -34,6 +34,7 @@ panel uses, and the matching `home_keeper.*` service.
 | --- | --- |
 | Create, edit, delete, archive and restore appliances | `add_asset`, `update_asset`, `delete_asset`, `archive_asset`, `restore_asset` |
 | Appliance documents and part files | `add_asset_document`, `update_asset_document`, `remove_asset_document`, `remove_part_file`, and a file upload (`POST`) to `/api/home_keeper/document/…` or `/api/home_keeper/part_document/…` |
+| Task photos | `remove_task_photo`, `set_task_photo_cover`, and a photo upload (`POST`) to `/api/home_keeper/task_photo/…` |
 | Delete an archived completion from an appliance's history | `delete_archived_completion` |
 | Delete every orphaned task (a task whose managing integration is not loaded) | `delete_orphaned_tasks` |
 | Spare-part stock adjustments | `adjust_part_stock` |
@@ -101,8 +102,8 @@ Home Keeper serves uploaded manuals, receipts and photos through an
 authenticated Home Assistant view.
 
 To open a file, the panel creates a signed URL. The signed URL lasts 1 hour
-for the panel, and 15 minutes for the `sign_document_url` and
-`sign_part_file_url` services. A service result can leave the panel, so it
+for the panel, and 15 minutes for the `sign_document_url`,
+`sign_part_file_url` and `sign_task_photo_url` services. A service result can leave the panel, so it
 gets the shorter lifetime.
 
 A signed URL is a bearer credential. Anyone who has the link can get the
@@ -118,7 +119,10 @@ that any user can complete.
 
 Home Keeper accepts one consequence: a non-admin user who guesses an appliance id
 and a document id learns whether that pair exists, from whether the request
-succeeds. The narrowed appliance view only lists documents already shown on
+succeeds. The same applies to a task id and a photo id.
+
+Home Keeper reads the whole image of a task photo to make its thumbnail. It refuses
+a file that is not a readable image, and a file with more than 250 million pixels. The narrowed appliance view only lists documents already shown on
 a card.
 
 Home Assistant serves only the 2 built JavaScript bundles as a static path. Home

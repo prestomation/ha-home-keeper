@@ -203,3 +203,11 @@ describe('TaskPhotoUrlCache', () => {
     expect(batches).toHaveLength(1);
   });
 });
+
+describe('photo limits', () => {
+  it('mirror const.py', async () => {
+    const limits = await import('../src/limits.ts');
+    expect(limits.MAX_TASK_PHOTO_BYTES).toBe(26214400);
+    expect(limits.MAX_TASK_PHOTOS).toBe(6);
+  });
+});

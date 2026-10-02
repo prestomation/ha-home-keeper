@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.29.0b1]
+
+### Added
+
+- **[Task photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos).**
+  Attach up to 6 photos to a task to show what needs work and where. The first photo
+  shows on the task list, the task page and the completion dialog. (Fixes #399)
+
 ## [0.28.0] - 2026-10-02
 
 ### Added

@@ -116,11 +116,9 @@ export class TaskPhotoUrlCache {
         return false;
       }
     })();
+    // Kept after it settles: awaiting a settled batch costs one microtask, and
+    // clearing it would race a call that started waiting on it.
     this._pending = batch;
-    try {
-      return await batch;
-    } finally {
-      if (this._pending === batch) this._pending = undefined;
-    }
+    return batch;
   }
 }

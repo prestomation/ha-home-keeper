@@ -17,6 +17,11 @@ home_keeper/*
 !home_keeper/documents/
 home_keeper/documents/*
 !home_keeper/documents/e8d76383-4067-415c-975f-2ee73f475fa1/
+# The seeded photos of "Replace fridge filter" (#399), with their thumbnails, for the
+# same reason: the .storage fixture names them, so a signed URL has to serve them.
+!home_keeper/task_photos/
+home_keeper/task_photos/*
+!home_keeper/task_photos/72347867-23a3-47f8-84d5-917be61e8a6d/
 
 # Ignore all generated .storage entries except the seeded fixtures.
 .storage/*

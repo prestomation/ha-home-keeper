@@ -26,7 +26,7 @@ import {
   shotVisible,
   shotWithDrawer,
 } from './shots';
-import { ASSET, PART, TASK } from './fixture-ids';
+import { ASSET, PART, PHOTO, TASK } from './fixture-ids';
 import { DESKTOP, PHONE } from './viewports';
 
 /** The name of the throwaway appliance the orphaned-owner shots create. */
@@ -312,6 +312,17 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   // buy reminder in the store — taken here it only ever captured "No tasks match this
   // filter", which is a picture of nothing.)
 
+  // 58b. The cover thumbnail on a task row (#399), next to rows that have none.
+  const coverRow = panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"] img.hk-row-cover`);
+  await expect(coverRow).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+  await expect
+    .poll(() => coverRow.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+    .toBe(true);
+  await centre(coverRow);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/58b-panel-task-photo-row.png` });
+
   // 1a2. Completion-details dialog — a task whose capture mode is "optional" or
   // "required" opens this dialog on Done so you can record a note, cost, who and a
   // photo. The seeded "Replace fridge filter" task is set to optional capture.
@@ -339,6 +350,20 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await expect(panel.locator('.hk-detail-row', { hasText: 'Next due' })).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/7-panel-task-detail.png`, fullPage: true });
+
+  // 58. Task photos (#399): the cover beside the name and the strip first in the
+  // Schedule tab. Wait for the signed thumbnails, or the shot shows empty boxes.
+  await expect(panel.locator('.hk-photo')).toHaveCount(2);
+  for (const img of await panel.locator('.hk-task-cover-img, .hk-photo-img').all()) {
+    await expect(img).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true);
+  }
+  await expect(panel.locator(`[data-photo-tile="${PHOTO.filterHousing}"] .hk-photo-badge`)).toBeVisible();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/58-panel-task-photos.png` });
 
   // 7b. The Notes tab. The note is Markdown (issue #163). Assert it actually rendered
   // — `ha-markdown` is one of HA's lazily-loaded elements, so a regression here
@@ -2489,6 +2514,28 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await panel.locator('#a-cancel').click();
   await expect(panel.locator('#hk-asset-form')).toHaveCount(0, { timeout: 10_000 });
   await setAnodeTag(page, null);
+
+  // 58c/58d. Task photos on a phone (#399): the row thumbnail, then the task page,
+  // where the cover goes full width above the name and the strip scrolls sideways.
+  await openPanel(page);
+  const coverRowPhone = panel.locator(
+    `.detail-open[data-detail-id="${TASK.fridgeFilter}"] img.hk-row-cover`,
+  );
+  await expect(coverRowPhone).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+  await centre(coverRowPhone);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/58d-panel-mobile-task-photo-row.png` });
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  await expect(panel.locator('.hk-photo')).toHaveCount(2);
+  for (const img of await panel.locator('.hk-task-cover-img, .hk-photo-img').all()) {
+    await expect(img).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true);
+  }
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${OUT}/58c-panel-mobile-task-photos.png`, fullPage: true });
 
   await page.setViewportSize(DESKTOP);
 });
