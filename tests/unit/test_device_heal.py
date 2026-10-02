@@ -183,6 +183,11 @@ class FakeStore:
         self._assets = assets or []
         self.saves = 0
         self.merged: dict[str, str] | None = None
+        # The order the heal drives the store in, and each task's device id as the
+        # merge saw it. The merge only joins copies on 2 different halves, so it has
+        # to see the ids before the repoint moves them onto one half (#417).
+        self.calls: list[str] = []
+        self.ids_at_merge: dict[str, str | None] = {}
 
     def get_tasks(self) -> dict:
         return self._tasks
@@ -191,6 +196,7 @@ class FakeStore:
         return list(self._assets)
 
     async def async_repoint_device_ids(self, mapping: dict[str, str]) -> int:
+        self.calls.append("repoint")
         changed = 0
         for task in self._tasks.values():
             if (new_id := mapping.get(task.get("device_id") or "")) is not None:
@@ -223,7 +229,9 @@ class FakeStore:
         return changed
 
     async def async_merge_split_duplicates(self, canonical: dict[str, str]) -> int:
+        self.calls.append("merge")
         self.merged = canonical
+        self.ids_at_merge = {tid: t.get("device_id") for tid, t in self._tasks.items()}
         return 0
 
 
@@ -648,6 +656,82 @@ def test_heal_reads_every_device_from_a_2026_9_shaped_registry():
     store = FakeStore()
     heal(ModernFakeRegistry([survivor]), store)
     assert store.merged == {"zwave_real": DEAD_THERMOSTAT}
+
+
+def test_417_heal_merges_before_it_repoints():
+    """The merge sees the old id and the new id, not two copies on one half (#417).
+
+    A glue made its task on the merged device. After the split it found no task for
+    its half and made a second one there. The repoint moves the first copy onto the
+    same half, so a merge that ran after it would see one half and keep both.
+    """
+    bambu_half = FakeDevice(
+        "bambu_half",
+        config_entries=frozenset({ZWAVE_ENTRY}),
+        composite_device_id=DEAD_THERMOSTAT,
+    )
+    hk_half = FakeDevice(
+        "hk_half",
+        config_entries=frozenset({HK_ENTRY}),
+        composite_device_id=DEAD_THERMOSTAT,
+    )
+    registry = FakeRegistry(
+        [hk_half, bambu_half], {DEAD_THERMOSTAT: [hk_half, bambu_half]}
+    )
+    glue = "home_keeper_bambu_lab"
+    store = FakeStore(
+        tasks={
+            "old": task("old", DEAD_THERMOSTAT, {glue: {"device_id": DEAD_THERMOSTAT}}),
+            "new": task("new", "bambu_half", {glue: {"device_id": "bambu_half"}}),
+        }
+    )
+    heal(registry, store)
+    assert store.calls == ["merge", "repoint"]
+    assert store.ids_at_merge == {"old": DEAD_THERMOSTAT, "new": "bambu_half"}
+    # The composite id is its own root, so the old copy and the new one share a key.
+    assert store.merged == {
+        "hk_half": DEAD_THERMOSTAT,
+        "bambu_half": DEAD_THERMOSTAT,
+        DEAD_THERMOSTAT: DEAD_THERMOSTAT,
+    }
+
+
+def test_417_a_collected_composite_maps_to_its_successors_root():
+    """A dead id only a snapshot resolves joins the split its successor came from.
+
+    Home Assistant has garbage-collected the composite, so no live device names it.
+    Without the heal's answer the merge could not tell the old copy belongs to the
+    same original as the new one.
+    """
+    survivor = FakeDevice(
+        "zwave_real",
+        config_entries=frozenset({ZWAVE_ENTRY}),
+        identifiers=frozenset({("zwave_js", "4268179804-12-57")}),
+        composite_device_id="older_composite",
+    )
+    store = FakeStore(
+        tasks={"t1": task("t1", DEAD_THERMOSTAT)},
+        assets=[existing_asset("a1", DEAD_THERMOSTAT, THERMOSTAT_IDENTS)],
+    )
+    heal(FakeRegistry([HK_HALF, survivor]), store)
+    assert store.merged == {
+        "zwave_real": "older_composite",
+        DEAD_THERMOSTAT: "older_composite",
+    }
+    assert store.get_tasks()["t1"]["device_id"] == "zwave_real"
+
+
+def test_417_a_resolved_id_with_no_split_root_maps_to_its_live_id():
+    """A successor with no composite id gives the dead id its own live id as root.
+
+    The merge then ignores it: a root that no split device carries is not a split.
+    """
+    store = FakeStore(
+        tasks={"t1": task("t1", DEAD_THERMOSTAT)},
+        assets=[existing_asset("a1", DEAD_THERMOSTAT, THERMOSTAT_IDENTS)],
+    )
+    heal(FakeRegistry([HK_HALF, ZWAVE_DEVICE]), store)
+    assert store.merged == {DEAD_THERMOSTAT: "zwave_real"}
 
 
 # ── X03-8: the other places that keep a device id ────────────────────────────

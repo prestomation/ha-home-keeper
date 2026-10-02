@@ -139,6 +139,13 @@ break = 80
 # cannot even *parse* when targeting an older version. It bails with a syntax error
 # inside HA and reports nothing about our code, so this silently stops being a gate.
 python_version = "3.14"
+# Home Assistant 2026.10 types its schema arguments with probatio, the engine it
+# aliases `voluptuous` to at runtime since 2026.9. hass-nabucasa still installs the
+# real voluptuous, so without this mypy reads our `import voluptuous as vol` as a
+# different class and rejects every schema we pass in (#417). The stubs in
+# `typings/` point `voluptuous` at probatio for mypy only, as Home Assistant core's
+# `stubs/voluptuous` does. Remove them when the code imports probatio directly.
+mypy_path = "typings"
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true

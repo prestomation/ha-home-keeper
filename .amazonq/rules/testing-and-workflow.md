@@ -302,7 +302,9 @@
   dir, then boots the current HA against that same dir so HA runs its own migration
   in between — two cold starts for the whole suite. The pre-split tag is a frozen
   pin: it defines "the world users upgrade from", so bumping it changes the meaning
-  of the test.
+  of the test. Every PR runs it against `stable` in `integration.yml`; the nightly
+  runs it against `beta`. A PR that changes the split repair (`devices.py`,
+  `store.py`) gets an upgrade run before it merges (#403 did not, see #417).
 - **A test must exercise the shipped function, never a copy of it.** Re-implementing
   the logic under test inside the test file (to dodge an import) proves nothing: the
   production code keeps zero coverage and every later edit to it stays green. An
