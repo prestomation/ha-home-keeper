@@ -1,6 +1,6 @@
 ---
 name: open-work
-description: Report the open work on Home Keeper and sort it by who must act next. Reads the open issues, the open PRs, the CHANGELOG and the to-do files in the repository. Use when asked what is open, what is actionable, what to work on next, or what waits on a release or on a user.
+description: Report the open work on Home Keeper and sort it by who must act next, and show a draft of the CHANGELOG for the next stable release. Reads the open issues, the open PRs, the CHANGELOG and the to-do files in the repository. Use when asked what is open, what is actionable, what to work on next, what waits on a release or on a user, or what the next stable release will contain.
 ---
 
 # Open work
@@ -8,7 +8,9 @@ description: Report the open work on Home Keeper and sort it by who must act nex
 This skill makes a report. It does not change anything. Many open issues need no
 work: the fix is in a beta and waits for the next stable release, or a preview build
 waits for a user to test it. This skill finds those, so that the report shows the
-items that need the maintainer or an agent now.
+items that need the maintainer or an agent now. The report also shows a draft of
+the CHANGELOG for the next stable release, so the maintainer can see what that
+release will contain before they cut it.
 
 Use only the GitHub read tools (`list_*`, `issue_read`, `pull_request_read`). Never
 comment on an issue or a PR, never close, label or edit anything, and never merge
@@ -158,13 +160,100 @@ section after the groups, one line each, with the file and heading:
 Do not list each idea in `IDEAS.md`. Most of that file is a parking lot, and it is
 not committed scope.
 
-## 5. Write the report
+## 5. Draft the CHANGELOG for the next stable release
+
+This draft is for the report only. Do not write it to `CHANGELOG.md`. The
+maintainer writes the real section when they cut the stable release.
+
+The **next stable** version is the newest beta section with its suffix removed. For
+example, `0.29.0b3` gives `0.29.0`. When no section is newer than the last stable,
+there is no draft: say "No changes since vX.Y.Z" and stop this step.
+
+First make sure that `CHANGELOG.md` has a `## [X.Y.Z]` heading for the last stable
+from the release list. If it does not, the loops in step 1 and below read every
+section in the file. Do not write a draft. Say in the report that the heading is
+missing.
+
+Get the text of each section newer than the last stable, newest first. These are
+the same versions as the loop in step 1. That loop reads `--json` for the issue
+list, and this one reads `--notes` for the bullets:
+
+```bash
+for v in $(grep -oP '^## \[\K[^\]]+' CHANGELOG.md \
+           | awk '/^[0-9]+\.[0-9]+\.[0-9]+$/{exit} {print}'); do
+  printf '=== %s\n' "$v"
+  python3 ci/release-issues.py --version "$v" --notes 2>/dev/null
+done
+```
+
+Then get the CHANGELOG bullets that the open PRs add. These are not merged, so they
+are not certain:
+
+- For each open PR that is not from Dependabot, use `pull_request_read` with
+  `get_files`. When `CHANGELOG.md` is in the list, use `get_diff`. Keep each added
+  line that starts with `+- **`, and the added lines after it that start with `+`
+  and one or more spaces. The bullet stops at the first line that does not start
+  that way.
+- When the diff changes a bullet that is already in a section, and does not add
+  one, the old text is in the removed (`-`) lines of the same hunk. Show the new
+  text in place of the old text, and mark it with the PR number.
+
+Write the draft as the stable section, with the rules in `AGENTS.md` ("A stable
+release's `## [X.Y.Z]` notes describe what changed since the last _stable_
+release"):
+
+- Write it for a user who upgrades from the last stable. Do not show the betas.
+- Put all the beta bullets into one `### Added`, one `### Changed` and one
+  `### Fixed`. A feature that a beta added is in **Added**, also when a later beta
+  changed it.
+- A `### Changed` bullet that changes only a feature that is new since the last
+  stable does not go in `### Changed`. The bold lead or the link of the bullet
+  names the feature. Find the Added bullet whose bold lead or link names the same
+  feature or the same documentation page. When the Changed bullet changes what a
+  user sees in the stable release, add the text after its bold lead to that Added
+  bullet. When the result has more than 3 sentences, do not merge: keep the bullet
+  in `### Changed`, and put it on the **Check before release** list. When it
+  changes only
+  something that a beta did, remove it. When no Added bullet matches, or more than
+  one matches, keep the bullet in `### Changed`.
+- Keep each bullet as the CHANGELOG has it. Do not write the bullets again.
+- `### Fixed` must give each `(Fixes #N)` from the sections above. Then do a check
+  of the commits since the last stable. In the commands below, replace `X.Y.Z` with
+  the last stable version, for example `0.28.0`. The local clone has no tags, so get
+  the tag of the last stable first:
+
+  ```bash
+  git fetch -q --no-tags origin tag vX.Y.Z
+  git log --format=%B vX.Y.Z..origin/main | python3 ci/release-issues.py --scan
+  ```
+
+  If the tag fetch fails, use the oldest commit that added the stable heading:
+  `git log --reverse --format=%H -S '## [X.Y.Z]' -- CHANGELOG.md | head -1`. That
+  is the release commit. A later commit that changes the heading again comes after
+  it, so `--reverse` and `head -1` do not take it.
+- When `--scan` finds an issue that the sections do not give, or a Changed bullet
+  stays in `### Changed` for one of the reasons above, write it in a
+  **Check before release** list at the end of the draft. The `notify-issues` job does not close an issue that the
+  section does not give.
+- Put the bullets from open PRs at the end, under the heading
+  **Pending, from open PRs**, with the PR number on each bullet. Do not mix them
+  into the merged bullets.
+- Give the beta that first shipped each bullet in brackets after it, for example
+  `(0.29.0b1)`. The report uses this to show what beta testers can use now. The
+  real stable section does not have it.
+
+## 6. Write the report
 
 Write the report in chat. Start with one line of totals, for example:
 `11 open issues, 7 open PRs: 4 actionable, 2 wait on stable, 3 wait on testers.`
 
-Then one section for each group that is not empty, in the order A to G, then the
-Backlog. Each line has:
+Then one section for each group that is not empty, in the order A to G, then a
+**Next stable (draft)** section with the draft from step 5, then the Backlog. Start
+the draft section with the version and the last stable it follows, for example
+`0.29.0, after v0.28.0. Tentative: this can change before the release.` After the
+bullets, give **Pending, from open PRs**, then **Check before release** when it is
+not empty. Each group
+line has:
 
 - the issue or PR number as a link, and the title,
 - the linked PR or issue, if there is one,
