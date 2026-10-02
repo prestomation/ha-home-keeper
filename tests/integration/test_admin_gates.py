@@ -221,6 +221,8 @@ _ADMIN_ONLY_CALLS: dict[str, dict] = {
         "document_id": "x",
         "changes": {"name": "n"},
     },
+    "remove_task_photo": {"task_id": "x", "photo_id": "x"},
+    "set_task_photo_cover": {"task_id": "x", "photo_id": "x"},
     "export_appliance_report": {},
     "export_data": {},
     "import_data": {"document": {"home_keeper": {"format": 1}}, "dry_run": True},
@@ -749,6 +751,40 @@ def test_uploads_refuse_a_non_admin(non_admin_token, priced_asset, route):
     )
     assert r.status_code == 401, f"{route} took a non-admin upload: {r.status_code}"
     assert "SN-SECRET-1" not in r.text
+
+
+def test_a_task_photo_upload_refuses_a_non_admin(ha, non_admin_token):
+    # #399: a photo upload changes a task, and its reply carries the full task.
+    name = f"Photo gate probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {"name": name, "recurrence_type": "floating", "interval": 7, "unit": "days"},
+    )
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    try:
+        r = requests.post(
+            f"{HA_URL}/api/home_keeper/task_photo/{task['id']}/{uuid.uuid4()}",
+            headers={"Authorization": f"Bearer {non_admin_token}"},
+            files={"file": ("probe.png", PNG_BYTES, "image/png")},
+            timeout=30,
+        )
+        assert r.status_code == 401, (
+            f"task_photo took a non-admin upload: {r.status_code}"
+        )
+        resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+        after = next(
+            t
+            for t in resp.get("service_response", resp)["tasks"]
+            if t["id"] == task["id"]
+        )
+        assert not after.get("photos")
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
 
 
 def test_the_device_registry_does_not_carry_the_serial_number(
