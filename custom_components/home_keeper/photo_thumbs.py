@@ -60,6 +60,10 @@ def make_thumbnail(src: Path, dst: Path, px: int = TASK_PHOTO_THUMB_PX) -> None:
             if image.width * image.height > _pixel_limit(image):
                 raise ThumbnailError("the image is too large to read")
             image.draft("RGB", (px, px))
+            # The higher JPEG limit holds only because draft mode shrinks the decode.
+            # Check that it did, before anything is decoded.
+            if image.width * image.height > _MAX_PIXELS:
+                raise ThumbnailError("the image is too large to read")
             frame = ImageOps.exif_transpose(image) or image
             frame.thumbnail((px, px))
             if frame.mode in ("RGBA", "LA", "P"):

@@ -108,16 +108,46 @@ def test_too_many_pixels_is_refused(tmp_path, monkeypatch):
 
 
 def test_a_jpeg_has_its_own_higher_limit(tmp_path, monkeypatch):
-    # Draft mode decodes a JPEG small, so it may be larger than other formats.
-    monkeypatch.setattr(thumbs, "_MAX_PIXELS", 99)
-    monkeypatch.setattr(thumbs, "_MAX_PIXELS_JPEG", 100)
-    src = _write(tmp_path / "a.jpg", Image.new("RGB", (10, 10)), "JPEG")
+    # Draft mode decodes an 800x800 JPEG for a 32px thumbnail at 1/8: 100x100.
+    monkeypatch.setattr(thumbs, "_MAX_PIXELS", 100 * 100)
+    monkeypatch.setattr(thumbs, "_MAX_PIXELS_JPEG", 800 * 800)
+    src = _write(tmp_path / "a.jpg", Image.new("RGB", (800, 800)), "JPEG")
     dst = tmp_path / "thumb.jpg"
-    thumbs.make_thumbnail(src, dst, 256)
-    assert dst.exists()
-    monkeypatch.setattr(thumbs, "_MAX_PIXELS_JPEG", 99)
+    thumbs.make_thumbnail(src, dst, 32)
+    assert _open(dst).size == (32, 32)
+    monkeypatch.setattr(thumbs, "_MAX_PIXELS_JPEG", 800 * 800 - 1)
     with raises_exactly(thumbs.ThumbnailError, "the image is too large to read"):
-        thumbs.make_thumbnail(src, dst, 256)
+        thumbs.make_thumbnail(src, dst, 32)
+
+
+def test_a_jpeg_that_draft_mode_does_not_shrink_is_refused(tmp_path, monkeypatch):
+    # The higher JPEG limit is safe only when draft mode shrinks the decode.
+    monkeypatch.setattr(thumbs, "_MAX_PIXELS", 99)
+    monkeypatch.setattr(Image.Image, "draft", lambda self, mode, size: None)
+    src = _write(tmp_path / "a.jpg", Image.new("RGB", (10, 10)), "JPEG")
+    with raises_exactly(thumbs.ThumbnailError, "the image is too large to read"):
+        thumbs.make_thumbnail(src, tmp_path / "thumb.jpg", 256)
+
+
+def test_the_draft_check_is_inclusive(tmp_path, monkeypatch):
+    # 320x240 for a 32px box decodes at 1/4: 80x60, which must fit _MAX_PIXELS.
+    monkeypatch.setattr(thumbs, "_MAX_PIXELS", 80 * 60)
+    src = _write(tmp_path / "a.jpg", Image.new("RGB", (320, 240)), "JPEG")
+    dst = tmp_path / "thumb.jpg"
+    thumbs.make_thumbnail(src, dst, 32)
+    assert _open(dst).size == (32, 24)
+    monkeypatch.setattr(thumbs, "_MAX_PIXELS", 80 * 60 - 1)
+    with raises_exactly(thumbs.ThumbnailError, "the image is too large to read"):
+        thumbs.make_thumbnail(src, dst, 32)
+
+
+def test_pillow_marks_a_progressive_jpeg_with_both_keys(tmp_path):
+    src = _write(
+        tmp_path / "p.jpg", Image.new("RGB", (10, 10)), "JPEG", progressive=True
+    )
+    with Image.open(src) as image:
+        assert image.info.get("progressive") == 1
+        assert image.info.get("progression") == 1
 
 
 def test_a_progressive_jpeg_gets_the_lower_limit(tmp_path):
