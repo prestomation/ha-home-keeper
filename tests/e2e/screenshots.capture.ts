@@ -118,7 +118,7 @@ async function captureAfterPhotos(page: Page, panel: Locator, phone: boolean): P
     path: name(
       phone ? '58j' : '58i',
       '-panel-completed-after-photo',
-      '-panel-mobile-completed-after-photo',
+      '-panel-mobile-completed-row-photo',
     ),
   });
   // The open state is kept per browser, and later shots expect the group closed.
