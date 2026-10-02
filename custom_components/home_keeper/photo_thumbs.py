@@ -18,10 +18,13 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .const import TASK_PHOTO_THUMB_PX
 
-# A decompression bomb is a small file that expands to a huge bitmap. Pillow warns
-# above its default limit and raises at twice that. Make it raise at the limit: a
-# phone photo is far below it (a 200 megapixel sensor is 2e8 pixels).
-_MAX_PIXELS = 2.5e8
+# A decompression bomb is a small file that expands to a huge bitmap. A JPEG is
+# decoded in draft mode, at 1/8 of its size or less for a thumbnail, so it can be as
+# large as the biggest phone sensor (200 megapixels) and still decode to a few
+# megapixels. Every other format decodes at full size, so it gets a lower limit:
+# 50 megapixels of RGB is about 150 MB of memory.
+_MAX_PIXELS_JPEG = 2.5e8
+_MAX_PIXELS = 5e7
 
 
 class ThumbnailError(ValueError):
@@ -37,7 +40,8 @@ def make_thumbnail(src: Path, dst: Path, px: int = TASK_PHOTO_THUMB_PX) -> None:
     """
     try:
         with Image.open(src) as image:
-            if image.width * image.height > _MAX_PIXELS:
+            limit = _MAX_PIXELS_JPEG if image.format == "JPEG" else _MAX_PIXELS
+            if image.width * image.height > limit:
                 raise ThumbnailError("the image is too large to read")
             image.draft("RGB", (px, px))
             frame = ImageOps.exif_transpose(image) or image

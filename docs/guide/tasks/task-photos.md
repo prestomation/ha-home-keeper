@@ -44,6 +44,11 @@ Assistant configuration. A Home Assistant backup includes them. Home Keeper also
 keeps a small copy of each photo for the task list and the photo strip, so a page
 with many photos loads quickly.
 
+The original photo is not changed. A photo from a phone can hold the place where you
+took it, and the original keeps that data. The small copy does not.
+
+To keep the place out of a photo, turn off location in the camera first.
+
 When you delete a task, Home Keeper deletes its photos. The history that a deleted
 task leaves on its appliance does not keep them.
 

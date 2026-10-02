@@ -107,6 +107,34 @@ def test_too_many_pixels_is_refused(tmp_path, monkeypatch):
         thumbs.make_thumbnail(src, tmp_path / "thumb.jpg", 256)
 
 
+def test_a_jpeg_has_its_own_higher_limit(tmp_path, monkeypatch):
+    # Draft mode decodes a JPEG small, so it may be larger than other formats.
+    monkeypatch.setattr(thumbs, "_MAX_PIXELS", 99)
+    monkeypatch.setattr(thumbs, "_MAX_PIXELS_JPEG", 100)
+    src = _write(tmp_path / "a.jpg", Image.new("RGB", (10, 10)), "JPEG")
+    dst = tmp_path / "thumb.jpg"
+    thumbs.make_thumbnail(src, dst, 256)
+    assert dst.exists()
+    monkeypatch.setattr(thumbs, "_MAX_PIXELS_JPEG", 99)
+    with raises_exactly(thumbs.ThumbnailError, "the image is too large to read"):
+        thumbs.make_thumbnail(src, dst, 256)
+
+
+def test_the_limits_keep_a_200_megapixel_jpeg_and_refuse_a_huge_png():
+    assert thumbs._MAX_PIXELS_JPEG >= 2e8
+    assert thumbs._MAX_PIXELS <= 5e7
+
+
+def test_the_thumbnail_drops_the_exif_data(tmp_path):
+    exif = Image.Exif()
+    exif[0x8825] = {2: (47.0, 36.0, 0.0)}  # a GPS block
+    exif[0x0110] = "Phone model"
+    src = _write(tmp_path / "a.jpg", Image.new("RGB", (40, 40)), "JPEG", exif=exif)
+    dst = tmp_path / "thumb.jpg"
+    thumbs.make_thumbnail(src, dst, 256)
+    assert len(_open(dst).getexif()) == 0
+
+
 def test_exactly_the_pixel_limit_is_read(tmp_path, monkeypatch):
     monkeypatch.setattr(thumbs, "_MAX_PIXELS", 100)
     src = _write(tmp_path / "a.png", Image.new("RGB", (10, 10)), "PNG")
