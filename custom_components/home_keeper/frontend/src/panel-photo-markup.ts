@@ -13,7 +13,14 @@
 
 import { t } from './i18n';
 import type { PanelHost } from './panel-host';
-import { coverOf, taskPhotoKey } from './task-photos';
+import {
+  completionFullUrl,
+  completionThumbUrl,
+  coverOf,
+  headPhotoLabels,
+  lastCompletionPhoto,
+  taskPhotoKey,
+} from './task-photos';
 import type { Task, TaskPhoto } from './types';
 import { escapeHTML, safeFileHref } from './utils';
 
@@ -56,9 +63,55 @@ export function taskCoverHtml(p: PanelHost, task: Task): string {
   );
 }
 
+/** A link that opens the photo of the last completion, around its 256px copy. The
+ *  image store serves it without a signed URL, so it needs no `data-sign`. */
+function afterPhotoLink(task: Task, url: string, className: string, imgClass: string): string {
+  const alt = escapeHTML(t('photos.afterAlt', { task: task.name }));
+  return `<a class="${className}" href="${safeFileHref(completionFullUrl(url))}" target="_blank" rel="noopener" aria-label="${alt}"><img class="${imgClass}" src="${safeFileHref(
+    completionThumbUrl(url),
+  )}" alt="${alt}" loading="lazy" decoding="async" /></a>`;
+}
+
+/**
+ * The photos beside the task name on the task page (#399).
+ *
+ * When the last completion has a photo, the cover and that photo show as a
+ * labelled pair, so the page shows the work and its result together. Otherwise
+ * the cover shows alone, as before, or nothing when the task has no photo.
+ */
+export function taskHeadPhotosHtml(p: PanelHost, task: Task): string {
+  const after = lastCompletionPhoto(task);
+  if (!after) return taskCoverHtml(p, task);
+  const labels = headPhotoLabels(task);
+  const tile = (inner: string, label: string): string =>
+    `<div class="hk-head-photo">${inner}<span class="hk-photo-badge">${escapeHTML(label)}</span></div>`;
+  const cover = taskCoverHtml(p, task);
+  return (
+    `<div class="hk-head-photos">${cover ? tile(cover, labels.cover) : ''}` +
+    `${tile(afterPhotoLink(task, after, 'hk-task-cover', 'hk-task-cover-img'), labels.last)}</div>`
+  );
+}
+
+/** Whether *task* is a one-off that is done, which the Completed group holds. */
+function isCompletedOneOff(task: Task): boolean {
+  return task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+}
+
 /** The small cover on a task list row, or '' when there is none. Not a link: the
- *  row itself opens the task. */
+ *  row itself opens the task.
+ *
+ *  A one-off that is done shows the photo of its completion instead, with a check
+ *  mark, so the Completed group shows the result of the work (#399). */
 export function listCoverHtml(p: PanelHost, task: Task): string {
+  const after = isCompletedOneOff(task) ? lastCompletionPhoto(task) : null;
+  if (after) {
+    return (
+      `<span class="hk-row-after"><img class="hk-row-cover" src="${safeFileHref(
+        completionThumbUrl(after),
+      )}" alt="${escapeHTML(t('photos.afterAlt', { task: task.name }))}" loading="lazy" decoding="async" />` +
+      `<span class="hk-row-after-check" aria-hidden="true"><ha-icon icon="mdi:check"></ha-icon></span></span>`
+    );
+  }
   const cover = coverOf(task);
   if (!cover) return '';
   return photoImg(p, task, cover, 'hk-row-cover', t('photos.coverAlt', { task: task.name }));

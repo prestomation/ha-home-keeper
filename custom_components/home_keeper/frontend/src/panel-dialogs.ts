@@ -32,6 +32,7 @@ import { t } from './i18n';
 import type { MarkdownPreview } from './markdown';
 import type { PanelHost } from './panel-host';
 import { dialogCoverEl } from './panel-photo-markup';
+import { coverOf } from './task-photos';
 import type { Completion, Hass, Task } from './types';
 import { guardWrite, setBtnWeight, taskRecordsReading, toast } from './utils';
 
@@ -425,6 +426,41 @@ export function makeDialog(
   return { dialog, body, footer, mount };
 }
 
+let pictureUploadLoad: Promise<boolean> | null = null;
+
+/**
+ * Make Home Assistant load `ha-picture-upload`, the photo field of the completion
+ * dialog.
+ *
+ * Home Assistant loads the element only with the pages that use it, so on a fresh
+ * page load the dialog had no photo field at all (#399). The media selector with
+ * image upload brings it in, so a hidden one is mounted until the element is
+ * defined. Resolves false when that does not happen within 8 seconds.
+ */
+export function loadPictureUpload(hass: Hass | undefined): Promise<boolean> {
+  if (customElements.get('ha-picture-upload')) return Promise.resolve(true);
+  if (!pictureUploadLoad) {
+    const probe = document.createElement('ha-selector') as HTMLElement & {
+      hass?: Hass;
+      selector?: unknown;
+    };
+    probe.hass = hass;
+    probe.selector = { media: { image_upload: true } };
+    probe.hidden = true;
+    document.body.appendChild(probe);
+    pictureUploadLoad = Promise.race([
+      customElements.whenDefined('ha-picture-upload').then(() => true),
+      new Promise<boolean>((r) => setTimeout(() => r(false), 8000)),
+    ]).then((ok) => {
+      probe.remove();
+      // A failed load may succeed on the next dialog, so it is not cached.
+      if (!ok) pictureUploadLoad = null;
+      return ok;
+    });
+  }
+  return pictureUploadLoad;
+}
+
 /** Build the completion-details dialog (log a new completion, or edit a past one). */
 export function renderCompletionDialog(p: PanelHost, host: HTMLElement): void {
   const c = p._completion;
@@ -498,12 +534,19 @@ export function renderCompletionDialog(p: PanelHost, host: HTMLElement): void {
   body.appendChild(form);
   notePreview = p._attachNotePreview(body, String(c.data.note ?? ''));
 
-  // Photo upload via HA's native picture-upload, if the element is available in
-  // this frontend build (degrade gracefully if not — the rest still works).
-  if (customElements.get('ha-picture-upload')) {
+  // Photo upload via HA's native picture-upload. When the element is not loaded
+  // yet, load it and draw the dialog again for the same completion. If it never
+  // loads, the rest of the dialog still works.
+  if (!customElements.get('ha-picture-upload')) {
+    const task = c.task;
+    void loadPictureUpload(p._hass).then((ok) => {
+      if (ok && p._completion.open && p._completion.task === task) p._render();
+    });
+  } else {
     const label = document.createElement('div');
     label.className = 'hk-completion-photo-label';
-    label.textContent = t('completion.photo');
+    // Beside a task photo, the completion photo is the "after" of the pair (#399).
+    label.textContent = coverOf(c.task) ? t('completion.afterPhoto') : t('completion.photo');
     const upload = document.createElement('ha-picture-upload') as HTMLElement & {
       hass?: Hass;
       value?: string | null;

@@ -3,12 +3,18 @@ import { SIGNED_URL_REFRESH_MS } from '../src/documents.ts';
 import {
   TaskPhotoUrlCache,
   canAddPhoto,
+  completionFullUrl,
+  completionThumbUrl,
   coverOf,
   coverRefs,
   detailRefs,
+  headPhotoLabels,
+  lastCompletion,
+  lastCompletionPhoto,
   photosOf,
   taskPhotoKey,
 } from '../src/task-photos.ts';
+import { t } from '../src/i18n.ts';
 
 const photo = (id) => ({ id, name: `${id}.jpg`, filename: `${id}.jpg`, content_type: 'image/jpeg', size: 1 });
 const task = (id, n) => ({ id, name: id, photos: Array.from({ length: n }, (_, i) => photo(`${id}p${i}`)) });
@@ -209,5 +215,80 @@ describe('photo limits', () => {
     const limits = await import('../src/limits.ts');
     expect(limits.MAX_TASK_PHOTO_BYTES).toBe(26214400);
     expect(limits.MAX_TASK_PHOTOS).toBe(6);
+  });
+});
+
+describe('the photo of the last completion (#399)', () => {
+  const c = (ts, photo) => ({ ts, ...(photo ? { photo } : {}) });
+
+  it('takes the completion that set last_completed, not the last entry', () => {
+    // A backdated entry goes to the end of the list without moving last_completed.
+    const task = {
+      last_completed: '2026-09-20T10:00:00Z',
+      completions: [c('2026-09-20T10:00:00Z', '/a.jpg'), c('2026-08-01T10:00:00Z', '/b.jpg')],
+    };
+    expect(lastCompletion(task).ts).toBe('2026-09-20T10:00:00Z');
+    expect(lastCompletionPhoto(task)).toBe('/a.jpg');
+  });
+
+  it('falls back to the newest entry when none matches last_completed', () => {
+    const task = {
+      last_completed: '2026-01-01T00:00:00Z',
+      completions: [
+        c('2026-08-01T10:00:00Z', '/b.jpg'),
+        c('2026-09-20T10:00:00Z', '/a.jpg'),
+        c('2026-09-01T10:00:00Z', '/c.jpg'),
+      ],
+    };
+    expect(lastCompletionPhoto(task)).toBe('/a.jpg');
+    // The first of 2 entries with the same time stays: a later tie does not replace it.
+    const tie = { completions: [c('2026-09-20T10:00:00Z', '/x.jpg'), c('2026-09-20T10:00:00Z', '/y.jpg')] };
+    expect(lastCompletionPhoto(tie)).toBe('/x.jpg');
+  });
+
+  it('gives nothing for a task with no completions, or a last one with no photo', () => {
+    expect(lastCompletion({})).toBeUndefined();
+    expect(lastCompletionPhoto({ completions: null })).toBeNull();
+    const noPhoto = { last_completed: 'x', completions: [c('2026-08-01T10:00:00Z', '/b.jpg'), c('x')] };
+    // The last completion has no photo, so an older one does not take its place.
+    expect(lastCompletionPhoto(noPhoto)).toBeNull();
+  });
+
+  it('refuses a URL that is not safe to show', () => {
+    for (const photo of ['javascript:alert(1)', 'data:image/png;base64,xx', '//evil.example/a.jpg']) {
+      expect(lastCompletionPhoto({ completions: [c('2026-08-01T10:00:00Z', photo)] })).toBeNull();
+    }
+    expect(lastCompletionPhoto({ completions: [c('2026-08-01T10:00:00Z', 'https://x.example/a.jpg')] })).toBe(
+      'https://x.example/a.jpg',
+    );
+  });
+
+  it('asks the image store for its 256px copy, and leaves any other URL as it is', () => {
+    expect(completionThumbUrl('/api/image/serve/abc123/original')).toBe('/api/image/serve/abc123/256x256');
+    // The dialog's picture upload stores the 512px copy.
+    expect(completionThumbUrl('/api/image/serve/abc123/512x512')).toBe('/api/image/serve/abc123/256x256');
+    expect(completionThumbUrl('/api/image/serve/abc123/512x512?x=1')).toBe('/api/image/serve/abc123/512x512?x=1');
+    expect(completionThumbUrl('/api/image/serve/abc123/large')).toBe('/api/image/serve/abc123/large');
+    expect(completionThumbUrl('/local/after.jpg')).toBe('/local/after.jpg');
+    expect(completionThumbUrl('https://x.example/api/image/serve/a/original')).toBe(
+      'https://x.example/api/image/serve/a/original',
+    );
+  });
+
+  it('opens the image store original, and any other URL as it is', () => {
+    expect(completionFullUrl('/api/image/serve/abc123/512x512')).toBe('/api/image/serve/abc123/original');
+    expect(completionFullUrl('/api/image/serve/abc123/original')).toBe('/api/image/serve/abc123/original');
+    expect(completionFullUrl('/local/after.jpg')).toBe('/local/after.jpg');
+  });
+
+  it('labels a one-off pair before and after, and a repeating pair cover and last completion', () => {
+    expect(headPhotoLabels({ recurrence_type: 'one-off' })).toEqual({
+      cover: t('photos.before'),
+      last: t('photos.after'),
+    });
+    expect(headPhotoLabels({ recurrence_type: 'floating' })).toEqual({
+      cover: t('photos.cover'),
+      last: t('photos.lastCompletion'),
+    });
   });
 });

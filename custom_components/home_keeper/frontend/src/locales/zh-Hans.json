@@ -862,5 +862,12 @@
   "done.toast": "{name} 已完成。",
   "btn.undo": "撤销",
   "layout.holdHint": "轻点查看操作。长按打开任务。",
-  "layout.saveFailed": "无法保存布局。下次访问时将恢复为之前的布局。"
+  "layout.saveFailed": "无法保存布局。下次访问时将恢复为之前的布局。",
+  "defer.details": "完成并添加照片或备注…",
+  "defer.detailsHint": "记录工作，然后标记为完成",
+  "completion.afterPhoto": "完成后照片",
+  "photos.before": "之前",
+  "photos.after": "之后",
+  "photos.lastCompletion": "最近一次完成",
+  "photos.afterAlt": "{task} 完成后的照片"
 }

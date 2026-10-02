@@ -10,8 +10,10 @@
 
 import * as api from './api';
 import { SIGNED_URL_REFRESH_MS } from './documents';
+import { t } from './i18n';
 import { MAX_TASK_PHOTOS } from './limits';
-import type { Hass, Task, TaskPhoto } from './types';
+import type { Completion, Hass, Task, TaskPhoto } from './types';
+import { isSafeImageUrl } from './utils';
 
 /** One photo URL a surface shows: the original, or with `thumb` the small copy. */
 export interface TaskPhotoRef {
@@ -33,6 +35,65 @@ export function coverOf(task: Pick<Task, 'photos'> | null | undefined): TaskPhot
 /** Whether the task has room for another photo. */
 export function canAddPhoto(task: Pick<Task, 'photos'>): boolean {
   return photosOf(task).length < MAX_TASK_PHOTOS;
+}
+
+/**
+ * The completion that set the task's last completed time, or the newest entry.
+ *
+ * `completions` is in the order the entries were logged, not by date: a backdated
+ * entry goes to the end without moving `last_completed`. So the last entry is not
+ * always the latest one.
+ */
+export function lastCompletion(
+  task: Pick<Task, 'completions' | 'last_completed'>,
+): Completion | undefined {
+  const list = Array.isArray(task.completions) ? task.completions : [];
+  const match = list.find((c) => c.ts === task.last_completed);
+  if (match) return match;
+  let newest: Completion | undefined;
+  for (const c of list) {
+    if (!newest || Date.parse(c.ts) > Date.parse(newest.ts)) newest = c;
+  }
+  return newest;
+}
+
+/** The photo of the last completion (the "after" photo), or null when it has none
+ *  or its URL is not safe to show. */
+export function lastCompletionPhoto(
+  task: Pick<Task, 'completions' | 'last_completed'>,
+): string | null {
+  const photo = lastCompletion(task)?.photo;
+  return isSafeImageUrl(photo) ? photo : null;
+}
+
+/** An image store URL: `/api/image/serve/<id>/<original | NxN>`. The completion
+ *  dialog's picture upload stores the 512px copy. */
+const IMAGE_STORE_URL = /^(\/api\/image\/serve\/[^/?#]+)\/(?:original|\d+x\d+)$/;
+
+/** Home Assistant's image store serves a 256px copy beside the original. A
+ *  thumbnail asks for that copy. Any other URL is used as it is. */
+export function completionThumbUrl(url: string): string {
+  return url.replace(IMAGE_STORE_URL, '$1/256x256');
+}
+
+/** The full-size photo that a tap opens: the image store's original. */
+export function completionFullUrl(url: string): string {
+  return url.replace(IMAGE_STORE_URL, '$1/original');
+}
+
+/**
+ * The labels of the 2 photos on the task page: the cover, and the photo of the
+ * last completion. A one-off task has one piece of work, so its pair reads as
+ * before and after. A task that repeats has many, and its cover shows the task,
+ * not the state before the last completion.
+ */
+export function headPhotoLabels(task: Pick<Task, 'recurrence_type'>): {
+  cover: string;
+  last: string;
+} {
+  return task.recurrence_type === 'one-off'
+    ? { cover: t('photos.before'), last: t('photos.after') }
+    : { cover: t('photos.cover'), last: t('photos.lastCompletion') };
 }
 
 /** The cache key of a ref — also what a surface stamps on its `<img data-sign>`. */

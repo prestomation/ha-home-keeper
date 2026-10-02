@@ -916,5 +916,12 @@
   "done.toast": "{name} — wykonane.",
   "btn.undo": "Cofnij",
   "layout.holdHint": "Dotknij, aby zobaczyć akcje. Przytrzymaj, aby otworzyć zadanie.",
-  "layout.saveFailed": "Nie udało się zapisać układu. Przy następnej wizycie wróci poprzedni."
+  "layout.saveFailed": "Nie udało się zapisać układu. Przy następnej wizycie wróci poprzedni.",
+  "defer.details": "Zrobione ze zdjęciem lub notatką…",
+  "defer.detailsHint": "Zapisz pracę, a potem oznacz ją jako zrobioną",
+  "completion.afterPhoto": "Zdjęcie po",
+  "photos.before": "Przed",
+  "photos.after": "Po",
+  "photos.lastCompletion": "Ostatnie wykonanie",
+  "photos.afterAlt": "Zdjęcie zadania {task} po pracy"
 }

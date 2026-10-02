@@ -113,7 +113,7 @@ export function safeHref(url: unknown): string {
  * completion `photo` field is caller-supplied via `home_keeper.complete_task`, so it
  * must be validated before it reaches an href/src.
  */
-export function isSafeImageUrl(url: unknown): boolean {
+export function isSafeImageUrl(url: unknown): url is string {
   return typeof url === 'string' && (isHttpUrl(url) || /^\/[^/]/.test(url));
 }
 

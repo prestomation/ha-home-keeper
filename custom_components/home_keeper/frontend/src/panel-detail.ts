@@ -48,7 +48,7 @@ import {
   MDI_WEAR,
 } from './panel-icons';
 import { assetAncestry } from './panel-lists';
-import { taskCoverHtml } from './panel-photo-markup';
+import { taskHeadPhotosHtml } from './panel-photo-markup';
 import { photosSection, wireTaskPhotos } from './panel-task-photos';
 import { consumableLinkLabel, consumableOptions, documentOptions } from './panel-task-form';
 import { partBackstopLabel, partCountsUses, taskFormIsEmpty } from './forms';
@@ -473,8 +473,9 @@ function taskDetail(p: PanelHost, task: Task): string {
   };
   const tab = p._taskTab();
   // The cover sits beside the name: the photo is what tells a person which gap in
-  // which ceiling this task means (#399).
-  const cover = taskCoverHtml(p, task);
+  // which ceiling this task means. The photo of the last completion sits beside it,
+  // so the page shows the result too (#399).
+  const cover = taskHeadPhotosHtml(p, task);
   // Above everything, and only on a task that is off. A switched-off task is absent
   // from the to-do list, the calendar, its own entities, every profile and every
   // announcement, so the page that still shows a schedule has to say why none of it

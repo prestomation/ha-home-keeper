@@ -37,6 +37,31 @@ To make a different photo the cover, select the star on that photo.
 Select a photo to open the full image in a new tab. To remove a photo, select the
 delete button on the photo, then confirm. Home Keeper deletes the file.
 
+## After photos
+
+A completion can have its own photo. It shows the result of the work. Home Keeper
+shows this after photo beside the task photo.
+
+To add an after photo to a task that completes with one tap:
+
+1. Select the arrow beside **Done**.
+2. Select **Done with photo or note…**.
+3. In the dialog, add the photo, then select **Mark done**.
+
+A task that asks for completion details opens the same dialog from **Done**.
+
+When the last completion has a photo, the task page shows it beside the cover:
+
+- A one-off task shows the 2 photos as **Before** and **After**.
+- A task that repeats shows them as **Cover** and **Last completion**.
+
+![A completed one-off task with the old sticker as Before and the new sticker as After](../../images/58g-panel-task-before-after.png)
+
+A one-off task in the **Completed** group shows its after photo with a check mark,
+in place of the cover.
+
+![The Completed group with the after photo on the task row](../../images/58i-panel-completed-after-photo.png)
+
 ## Where the files are
 
 Home Keeper keeps the files in the `home_keeper/task_photos` folder of your Home

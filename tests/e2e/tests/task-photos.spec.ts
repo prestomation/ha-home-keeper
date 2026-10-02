@@ -135,3 +135,88 @@ test.describe('Task photos (#399)', { tag: '@responsive' }, () => {
     expect((await res.json()).message).toContain('unsupported photo type');
   });
 });
+
+/**
+ * After photos (#399). "Renew car registration" is a done one-off: its cover is the
+ * expired sticker, and its completion photo is the new one, served from `www/` as
+ * `/local/` the way the image store serves a photo the completion dialog took.
+ */
+test.describe('After photos (#399)', { tag: '@responsive' }, () => {
+  const AFTER = '/local/home-keeper-e2e/new-sticker.jpg';
+
+  test('the Done menu opens the completion dialog on a one-tap task', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    const split = panel.locator(`.hk-split[data-id="${TASK.furnaceFilter}"]`).first();
+    await split.locator('.hk-split-caret').click();
+    const item = split.locator('.hk-defer-menu .hk-defer-details');
+    await expect(item).toBeVisible();
+    // First in the menu, above the deferrals.
+    await expect(split.locator('.hk-defer-menu [role="menuitem"]').first()).toHaveClass(
+      /hk-defer-details/,
+    );
+    await item.click();
+    const dialog = panel.locator('ha-dialog[open]');
+    await expect(dialog).toHaveAttribute('heading', /Replace furnace filter/);
+    // The photo field is there even on a fresh page load, where Home Assistant has
+    // not loaded its picture upload yet: the dialog loads it.
+    await expect(dialog.locator('.hk-completion-photo-label')).toHaveText('Photo', {
+      timeout: 15_000,
+    });
+    await expect(dialog.locator('ha-picture-upload')).toBeVisible();
+    // Cancel logs nothing: the task stays due.
+    await page.keyboard.press('Escape');
+    await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
+    await expect(panel.locator(`.done-btn[data-id="${TASK.furnaceFilter}"]`)).toBeVisible();
+    expect(errors, 'no panel errors').toEqual([]);
+  });
+
+  test('a task that asks for details has no details entry', async ({ page }) => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    const split = panel.locator(`.hk-split[data-id="${TASK.fridgeFilter}"]`).first();
+    await split.locator('.hk-split-caret').click();
+    await expect(split.locator('.hk-defer-menu')).toBeVisible();
+    await expect(split.locator('.hk-defer-details')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+  });
+
+  test('the task page shows the cover and the after photo as a pair', async ({ page }) => {
+    const errors = trackPanelErrors(page);
+    await page.goto('/home-keeper/tasks/' + TASK.carRegistration, { waitUntil: 'domcontentloaded' });
+    const panel = page.locator('home-keeper-panel').first();
+    const tiles = panel.locator('.hk-head-photos .hk-head-photo');
+    await expect(tiles).toHaveCount(2, { timeout: 15_000 });
+    await expect(tiles.nth(0).locator('.hk-photo-badge')).toHaveText('Before');
+    await expect(tiles.nth(1).locator('.hk-photo-badge')).toHaveText('After');
+    await expect(tiles.nth(0).locator('img')).toHaveAttribute('src', /size=thumb&authSig=/, {
+      timeout: 15_000,
+    });
+    const after = tiles.nth(1).locator('a.hk-task-cover');
+    await expect(after).toHaveAttribute('href', AFTER);
+    await expect(after.locator('img')).toHaveAttribute('src', AFTER);
+    await expect
+      .poll(() =>
+        after.locator('img').evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0),
+      )
+      .toBe(true);
+    // A repeating task with no completion photo keeps the single cover.
+    await page.goto('/home-keeper/tasks/' + TASK.fridgeFilter, { waitUntil: 'domcontentloaded' });
+    await expect(panel.locator('a.hk-task-cover img')).toHaveAttribute('src', /authSig=/, {
+      timeout: 15_000,
+    });
+    await expect(panel.locator('.hk-head-photos')).toHaveCount(0);
+    expect(errors, 'no panel errors').toEqual([]);
+  });
+
+  test('the Completed group shows the after photo with a check', async ({ page }) => {
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    const completed = panel.locator('details.hk-group[data-group-key="status:completed"]');
+    await completed.locator('summary').click();
+    const row = completed.locator(`.detail-open[data-detail-id="${TASK.carRegistration}"]`);
+    await expect(row.locator('.hk-row-after img.hk-row-cover')).toHaveAttribute('src', AFTER);
+    await expect(row.locator('.hk-row-after-check')).toBeVisible();
+  });
+});

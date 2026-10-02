@@ -862,5 +862,12 @@
   "done.toast": "{name} ist erledigt.",
   "btn.undo": "Rückgängig",
   "layout.holdHint": "Tippen für Aktionen. Gedrückt halten, um die Aufgabe zu öffnen.",
-  "layout.saveFailed": "Das Layout wurde nicht gespeichert. Beim nächsten Besuch gilt wieder das alte."
+  "layout.saveFailed": "Das Layout wurde nicht gespeichert. Beim nächsten Besuch gilt wieder das alte.",
+  "defer.details": "Erledigt mit Foto oder Notiz…",
+  "defer.detailsHint": "Arbeit erfassen und als erledigt markieren",
+  "completion.afterPhoto": "Foto danach",
+  "photos.before": "Vorher",
+  "photos.after": "Nachher",
+  "photos.lastCompletion": "Letzte Erledigung",
+  "photos.afterAlt": "Foto von {task} nach der Arbeit"
 }

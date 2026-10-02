@@ -38,7 +38,12 @@ describe('deferVerbs', () => {
   it('offers every verb when nothing is configured', () => {
     // The switches default *on*, so an install that predates them — every existing
     // one — must read as "offer everything" rather than as "all off".
-    expect(deferVerbs(task(), {}, NOW)).toEqual({ snooze: true, skip: true, dueToday: true });
+    expect(deferVerbs(task(), {}, NOW)).toEqual({
+      snooze: true,
+      skip: true,
+      dueToday: true,
+      details: true,
+    });
   });
 
   it('withdraws each verb independently when its switch is off', () => {
@@ -46,16 +51,19 @@ describe('deferVerbs', () => {
       snooze: false,
       skip: true,
       dueToday: true,
+      details: true,
     });
     expect(deferVerbs(task(), { allow_skip: false }, NOW)).toEqual({
       snooze: true,
       skip: false,
       dueToday: true,
+      details: true,
     });
     expect(deferVerbs(task(), { allow_due_today: false }, NOW)).toEqual({
       snooze: true,
       skip: true,
       dueToday: false,
+      details: true,
     });
   });
 
@@ -66,6 +74,7 @@ describe('deferVerbs', () => {
       snooze: false,
       skip: false,
       dueToday: false,
+      details: false,
     });
   });
 
@@ -79,6 +88,7 @@ describe('deferVerbs', () => {
       snooze: true,
       skip: false,
       dueToday: true,
+      details: false,
     });
   });
 
@@ -92,6 +102,7 @@ describe('deferVerbs', () => {
       snooze: true,
       skip: true,
       dueToday: false,
+      details: true,
     });
   });
 
@@ -108,6 +119,34 @@ describe('deferVerbs', () => {
     );
   });
 
+  it('offers details only on a one-tap task (#399)', () => {
+    // A task that asks for details opens the dialog from Done already, so the entry
+    // would repeat it. A missing mode is one-tap, as everywhere else.
+    expect(deferVerbs(task({ completion_detail: 'none' }), {}, NOW).details).toBe(true);
+    expect(deferVerbs(task({ completion_detail: 'optional' }), {}, NOW).details).toBe(false);
+    expect(deferVerbs(task({ completion_detail: 'required' }), {}, NOW).details).toBe(false);
+  });
+
+  it('withholds details on a task locked to its tag (#399)', () => {
+    // Done refuses a tag-locked task, so a second way to complete it must refuse too.
+    // Both halves of the lock are needed: the flag alone locks nothing.
+    expect(deferVerbs(task({ tag_id: 'tag1', require_tag_scan: true }), {}, NOW).details).toBe(
+      false,
+    );
+    expect(deferVerbs(task({ require_tag_scan: true }), {}, NOW).details).toBe(true);
+  });
+
+  it('keeps details when every deferral switch is off (#399)', () => {
+    // The entry is not a deferral, so the deferral switches do not govern it.
+    const off = { allow_snooze: false, allow_skip: false, allow_due_today: false };
+    expect(deferVerbs(task(), off, NOW)).toEqual({
+      snooze: false,
+      skip: false,
+      dueToday: false,
+      details: true,
+    });
+  });
+
   it('reads the wall clock when no now is given', () => {
     // The default parameter is the production path: every caller omits it.
     const longPast = task({ next_due: '2000-01-01T00:00:00Z' });
@@ -121,6 +160,31 @@ describe('deferSplit', () => {
   it('returns Done untouched when no verb is on offer', () => {
     const done = '<ha-button class="done-btn">Done</ha-button>';
     expect(deferSplit(task(), done, { snooze: false, skip: false })).toBe(done);
+  });
+
+  it('wraps Done when only the details entry is on offer (#399)', () => {
+    // Every deferral switch off still leaves a one-tap task the details entry, and
+    // it needs the caret to be reached.
+    const html = deferSplit(task(), '<b>Done</b>', {
+      snooze: false,
+      skip: false,
+      dueToday: false,
+      details: true,
+    });
+    expect(html).toContain('hk-split-caret');
+    expect(html).toContain('hk-defer-details');
+    expect(html).not.toContain('hk-defer-snooze');
+  });
+
+  it('lists the details entry first, with its label and hint (#399)', () => {
+    const html = deferMenuItems({ snooze: true, skip: false, dueToday: false, details: true });
+    expect(html.indexOf('hk-defer-details')).toBeLessThan(html.indexOf('hk-defer-snooze'));
+    expect(html).toContain(t('defer.details'));
+    expect(html).toContain(t('defer.detailsHint'));
+    expect(html).toContain('mdi:camera-outline');
+    expect(deferMenuItems({ snooze: true, skip: false, dueToday: false, details: false })).not.toContain(
+      'hk-defer-details',
+    );
   });
 
   it('returns nothing at all when there is no Done to wrap', () => {

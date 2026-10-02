@@ -448,14 +448,25 @@
           {
             "ts": "2026-06-16T14:30:00-04:00",
             "cost": 92.0,
-            "note": "Renewed online; sticker mailed"
+            "note": "Renewed online; sticker mailed",
+            "photo": "/local/home-keeper-e2e/new-sticker.jpg"
           }
         ],
         "labels": [
           "home"
         ],
         "completion_detail": "optional",
-        "completion_required_fields": []
+        "completion_required_fields": [],
+        "photos": [
+          {
+            "id": "5c2e8f14-7a3b-4d9e-b6c1-2f8a9d0e4b73",
+            "name": "Expired sticker",
+            "filename": "expired-sticker.jpg",
+            "content_type": "image/jpeg",
+            "size": 51785,
+            "created": "2026-06-01T09:00:00-04:00"
+          }
+        ]
       },
       "cfc844bd-e9de-4efe-84b3-5f4417d186c9": {
         "id": "cfc844bd-e9de-4efe-84b3-5f4417d186c9",

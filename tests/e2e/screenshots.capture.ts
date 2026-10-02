@@ -74,6 +74,67 @@ const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
 
 /** Fill the input of the nth ha-form text selector within a scope. */
+/**
+ * The after photo (#399) at one width: the details entry in the Done menu, the
+ * done one-off in the Completed group, and its page with the before-and-after
+ * pair. "Renew car registration" is that seeded one-off. *phone* picks the file
+ * names; the caller sets the viewport.
+ */
+async function captureAfterPhotos(page: Page, panel: Locator, phone: boolean): Promise<void> {
+  const name = (n: string, desktop: string, mobile: string): string =>
+    `${OUT}/${n}${phone ? mobile : desktop}.png`;
+  const loaded = async (img: Locator): Promise<void> => {
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0), {
+        timeout: 15_000,
+      })
+      .toBe(true);
+  };
+
+  await openPanel(page);
+  const split = panel.locator(`.hk-split[data-id="${TASK.furnaceFilter}"]`).first();
+  await centre(split);
+  await split.locator('.hk-split-caret').click();
+  await expect(split.locator('.hk-defer-details')).toBeVisible();
+  // The menu hangs below the row, so bring all of it into view.
+  await split.locator('.hk-defer-menu [role="menuitem"]').last().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: name(phone ? '58f' : '58e', '-panel-done-menu-details', '-panel-mobile-done-menu-details'),
+  });
+  await page.keyboard.press('Escape');
+  await expect(split.locator('.hk-defer-menu')).toBeHidden();
+
+  const completed = panel.locator('details.hk-group[data-group-key="status:completed"]');
+  await completed.locator('summary').click();
+  const after = completed.locator(
+    `.detail-open[data-detail-id="${TASK.carRegistration}"] .hk-row-after img`,
+  );
+  await loaded(after);
+  await centre(after);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: name(
+      phone ? '58j' : '58i',
+      '-panel-completed-after-photo',
+      '-panel-mobile-completed-after-photo',
+    ),
+  });
+  // The open state is kept per browser, and later shots expect the group closed.
+  await completed.locator('summary').click();
+
+  await page.goto(`/home-keeper/tasks/${TASK.carRegistration}`, { waitUntil: 'domcontentloaded' });
+  const tiles = panel.locator('.hk-head-photos img');
+  await expect(tiles).toHaveCount(2, { timeout: 15_000 });
+  for (const img of await tiles.all()) await loaded(img);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: name(phone ? '58h' : '58g', '-panel-task-before-after', '-panel-mobile-task-before-after'),
+  });
+}
+
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
   await scope.locator('ha-selector-text').nth(nth).locator('input, textarea').fill(value);
 }
@@ -335,6 +396,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await noteField.waitFor({ state: 'visible', timeout: 15_000 });
   await noteField.fill('Replaced cartridge; rinsed housing');
   await panel.locator('ha-dialog[open] ha-selector-number input').first().fill('42.50');
+  // The dialog loads Home Assistant's picture upload, then draws the photo field.
+  await expect(panel.locator('ha-dialog[open] ha-picture-upload')).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/11-panel-completion-dialog.png`, fullPage: true });
   // Dismiss via Escape (closes ha-dialog) so the capture records no extra completion.
@@ -365,6 +428,12 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/58-panel-task-photos.png` });
+
+  // 58e/58g/58i. After photos (#399), desktop.
+  await captureAfterPhotos(page, panel, false);
+  await openPanel(page);
+  await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
+  await expect(panel.locator('.hk-subtab[data-tab="schedule"].active')).toBeVisible();
 
   // 7b. The Notes tab. The note is Markdown (issue #163). Assert it actually rendered
   // — `ha-markdown` is one of HA's lazily-loaded elements, so a regression here
@@ -2615,6 +2684,9 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
   }
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/58c-panel-mobile-task-photos.png`, fullPage: true });
+
+  // 58f/58h/58j. After photos (#399), phone.
+  await captureAfterPhotos(page, panel, true);
 
   // The task layout is stored per user on the server, so it outlives this capture
   // and would greet the next run — and the e2e suite — in whatever the last shot

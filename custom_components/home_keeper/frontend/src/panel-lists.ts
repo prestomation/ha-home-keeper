@@ -36,7 +36,7 @@ import {
   scopeMatches,
 } from './panel-controls';
 import { deferMenu, openSkip, openSnooze, setDueToday, verbsFor } from './panel-defer';
-import { openConfirmDialog } from './panel-dialogs';
+import { openCompletionDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
 import { listCoverHtml } from './panel-photo-markup';
 import { presetNudgeCard, wirePresetNudge } from './panel-preset-nudge';
@@ -481,6 +481,7 @@ export function closeActionSheet(p: PanelHost): void {
 /** The icon and the label each sheet row carries. */
 const SHEET_ROWS: Record<SheetAction['id'], { icon: string; key: string }> = {
   done: { icon: 'mdi:check-circle-outline', key: 'btn.done' },
+  details: { icon: 'mdi:camera-outline', key: 'defer.details' },
   snooze: { icon: 'mdi:clock-outline', key: 'btn.snooze' },
   skip: { icon: 'mdi:skip-next-outline', key: 'btn.skip' },
   dueToday: { icon: 'mdi:calendar-today', key: 'btn.dueToday' },
@@ -534,6 +535,7 @@ export function renderActionSheet(p: PanelHost, host: HTMLElement): void {
       else void p._complete(task);
       return;
     }
+    if (action.id === 'details') return openCompletionDialog(p, task);
     if (action.id === 'snooze') return openSnooze(p, task);
     if (action.id === 'skip') return openSkip(p, task);
     if (action.id === 'dueToday') return void setDueToday(p, task);

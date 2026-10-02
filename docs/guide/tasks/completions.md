@@ -26,6 +26,9 @@ A completion photo records the work on one date. For a photo that stays on the
 task, such as the place that needs work, use [task photos](task-photos.md). When
 the task has one, its cover shows at the top of the dialog.
 
+To add a photo to a one-tap task, select the arrow beside **Done**, then **Done with
+photo or note…**. See [after photos](task-photos.md#after-photos).
+
 The task's history shows each completion's:
 
 - note

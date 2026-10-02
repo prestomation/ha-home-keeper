@@ -862,5 +862,12 @@
   "done.toast": "{name} is done.",
   "btn.undo": "Undo",
   "layout.holdHint": "Tap for actions. Press and hold to open the task.",
-  "layout.saveFailed": "Could not save the layout. It changes back on your next visit."
+  "layout.saveFailed": "Could not save the layout. It changes back on your next visit.",
+  "defer.details": "Done with photo or note…",
+  "defer.detailsHint": "Log the work, then mark it done",
+  "completion.afterPhoto": "After photo",
+  "photos.before": "Before",
+  "photos.after": "After",
+  "photos.lastCompletion": "Last completion",
+  "photos.afterAlt": "Photo of {task} after the work"
 }

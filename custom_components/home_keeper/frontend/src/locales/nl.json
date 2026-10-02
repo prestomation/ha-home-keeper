@@ -862,5 +862,12 @@
   "done.toast": "{name} is klaar.",
   "btn.undo": "Ongedaan maken",
   "layout.holdHint": "Tik voor acties. Houd ingedrukt om de taak te openen.",
-  "layout.saveFailed": "De indeling is niet opgeslagen. Bij je volgende bezoek geldt weer de vorige."
+  "layout.saveFailed": "De indeling is niet opgeslagen. Bij je volgende bezoek geldt weer de vorige.",
+  "defer.details": "Klaar met foto of notitie…",
+  "defer.detailsHint": "Leg het werk vast en markeer het als klaar",
+  "completion.afterPhoto": "Foto na",
+  "photos.before": "Voor",
+  "photos.after": "Na",
+  "photos.lastCompletion": "Laatste voltooiing",
+  "photos.afterAlt": "Foto van {task} na het werk"
 }

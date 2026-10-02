@@ -22,6 +22,9 @@ home_keeper/documents/*
 !home_keeper/task_photos/
 home_keeper/task_photos/*
 !home_keeper/task_photos/72347867-23a3-47f8-84d5-917be61e8a6d/
+# And the old sticker of "Renew car registration", whose completion photo (the new
+# sticker) is served from www/ as /local/, like a photo from the image store.
+!home_keeper/task_photos/4fa204b6-ff6b-4bab-96c7-c8128b462c06/
 
 # Ignore all generated .storage entries except the seeded fixtures.
 .storage/*

@@ -132,7 +132,7 @@ export function sheetFlags(task: Task): SheetFlags {
 }
 
 /** Which action a sheet row performs. */
-export type SheetActionId = 'done' | 'snooze' | 'skip' | 'dueToday' | 'open';
+export type SheetActionId = 'done' | 'details' | 'snooze' | 'skip' | 'dueToday' | 'open';
 
 /** One row of the action sheet. */
 export interface SheetAction {
@@ -142,7 +142,8 @@ export interface SheetAction {
 }
 
 /**
- * The sheet's rows, in order: Done, Snooze, Skip, Due today, Open task.
+ * The sheet's rows, in order: Done, Done with photo or note, Snooze, Skip, Due
+ * today, Open task.
  *
  * Done leads because it is what most taps are for, and Open task is always last
  * because it is the way out of the sheet rather than an action on the task. A
@@ -155,6 +156,7 @@ export function sheetActions(verbs: DeferVerbs, flags: SheetFlags): SheetAction[
   if (!flags.dormant && !flags.completedOneOff) {
     actions.push({ id: 'done', blocked: flags.blocked });
   }
+  if (verbs.details) actions.push({ id: 'details', blocked: false });
   if (verbs.snooze) actions.push({ id: 'snooze', blocked: false });
   if (verbs.skip) actions.push({ id: 'skip', blocked: false });
   if (verbs.dueToday) actions.push({ id: 'dueToday', blocked: false });

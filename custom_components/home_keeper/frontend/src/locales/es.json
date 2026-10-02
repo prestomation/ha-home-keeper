@@ -889,5 +889,12 @@
   "done.toast": "{name} está hecha.",
   "btn.undo": "Deshacer",
   "layout.holdHint": "Toca para ver las acciones. Mantén pulsado para abrir la tarea.",
-  "layout.saveFailed": "No se pudo guardar el diseño. Volverá al anterior en tu próxima visita."
+  "layout.saveFailed": "No se pudo guardar el diseño. Volverá al anterior en tu próxima visita.",
+  "defer.details": "Hecho con foto o nota…",
+  "defer.detailsHint": "Registra el trabajo y márcalo como hecho",
+  "completion.afterPhoto": "Foto de después",
+  "photos.before": "Antes",
+  "photos.after": "Después",
+  "photos.lastCompletion": "Última finalización",
+  "photos.afterAlt": "Foto de {task} después del trabajo"
 }

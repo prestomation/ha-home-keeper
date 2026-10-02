@@ -862,5 +862,12 @@
   "done.toast": "{name} er utført.",
   "btn.undo": "Angre",
   "layout.holdHint": "Trykk for handlinger. Hold inne for å åpne oppgaven.",
-  "layout.saveFailed": "Oppsettet ble ikke lagret. Det går tilbake ved neste besøk."
+  "layout.saveFailed": "Oppsettet ble ikke lagret. Det går tilbake ved neste besøk.",
+  "defer.details": "Utført med bilde eller notat…",
+  "defer.detailsHint": "Registrer arbeidet, og merk det som utført",
+  "completion.afterPhoto": "Bilde etter",
+  "photos.before": "Før",
+  "photos.after": "Etter",
+  "photos.lastCompletion": "Siste utførelse",
+  "photos.afterAlt": "Bilde av {task} etter arbeidet"
 }

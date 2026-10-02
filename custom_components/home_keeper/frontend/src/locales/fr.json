@@ -889,5 +889,12 @@
   "done.toast": "{name} est terminée.",
   "btn.undo": "Annuler",
   "layout.holdHint": "Touchez pour les actions. Maintenez appuyé pour ouvrir la tâche.",
-  "layout.saveFailed": "Impossible d'enregistrer la disposition. L'ancienne revient à votre prochaine visite."
+  "layout.saveFailed": "Impossible d'enregistrer la disposition. L'ancienne revient à votre prochaine visite.",
+  "defer.details": "Terminé avec photo ou note…",
+  "defer.detailsHint": "Consigner le travail, puis le marquer comme terminé",
+  "completion.afterPhoto": "Photo après",
+  "photos.before": "Avant",
+  "photos.after": "Après",
+  "photos.lastCompletion": "Dernière réalisation",
+  "photos.afterAlt": "Photo de {task} après le travail"
 }

@@ -862,5 +862,12 @@
   "done.toast": "{name} on tehty.",
   "btn.undo": "Kumoa",
   "layout.holdHint": "Napauta nähdäksesi toiminnot. Avaa tehtävä painamalla pitkään.",
-  "layout.saveFailed": "Asettelua ei voitu tallentaa. Se palautuu seuraavalla käyntikerralla."
+  "layout.saveFailed": "Asettelua ei voitu tallentaa. Se palautuu seuraavalla käyntikerralla.",
+  "defer.details": "Valmis kuvan tai muistiinpanon kanssa…",
+  "defer.detailsHint": "Kirjaa työ ja merkitse se valmiiksi",
+  "completion.afterPhoto": "Kuva jälkeen",
+  "photos.before": "Ennen",
+  "photos.after": "Jälkeen",
+  "photos.lastCompletion": "Viimeisin suoritus",
+  "photos.afterAlt": "Kuva tehtävästä {task} työn jälkeen"
 }

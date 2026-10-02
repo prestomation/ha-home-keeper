@@ -916,5 +916,12 @@
   "done.toast": "{name} je hotovo.",
   "btn.undo": "Zpět",
   "layout.holdHint": "Klepnutím zobrazíte akce. Podržením otevřete úkol.",
-  "layout.saveFailed": "Rozložení se nepodařilo uložit. Při příští návštěvě se vrátí původní."
+  "layout.saveFailed": "Rozložení se nepodařilo uložit. Při příští návštěvě se vrátí původní.",
+  "defer.details": "Hotovo s fotkou nebo poznámkou…",
+  "defer.detailsHint": "Zapište práci a označte ji jako hotovou",
+  "completion.afterPhoto": "Fotka po",
+  "photos.before": "Před",
+  "photos.after": "Po",
+  "photos.lastCompletion": "Poslední dokončení",
+  "photos.afterAlt": "Fotka úkolu {task} po práci"
 }

@@ -179,6 +179,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     onSnooze: (task) => openSnooze(this, task),
     onSkip: (task) => openSkip(this, task),
     onDueToday: (task) => void setDueToday(this, task),
+    onDetails: (task) => openCompletionDialog(this, task),
   });
   _confirmDelete: {
     open: boolean;

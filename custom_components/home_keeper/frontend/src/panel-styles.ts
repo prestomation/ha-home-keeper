@@ -1875,6 +1875,19 @@ export const STYLES = `
     flex: none; width: 40px; height: 40px; border-radius: 6px;
     border: 1px solid var(--divider-color); background: var(--hk-accent-soft);
   }
+  /* The cover and the last completion photo, side by side, each with its label. */
+  .hk-head-photos { flex: none; display: flex; gap: 8px; }
+  .hk-head-photo { position: relative; }
+  .hk-head-photos .hk-task-cover { width: 140px; }
+  /* A done one-off row shows its completion photo, marked with a check. */
+  .hk-row-after { position: relative; flex: none; display: block; width: 40px; height: 40px; }
+  .hk-row-after .hk-row-cover { width: 40px; height: 40px; box-sizing: border-box; border-radius: 6px; }
+  .hk-row-after-check {
+    position: absolute; right: -4px; bottom: -4px; width: 18px; height: 18px;
+    display: grid; place-content: center; border-radius: 50%;
+    background: var(--success-color, #2e7d32); color: #fff;
+    border: 2px solid var(--card-background-color); --mdc-icon-size: 12px;
+  }
   .hk-completion-cover {
     display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 8px;
     background: var(--hk-accent-soft); color: var(--hk-accent-ink); font-size: 0.85rem;
@@ -1969,6 +1982,9 @@ export const STYLES = `
        it (#399), and the photo strip scrolls sideways rather than wrapping. */
     .hk-head-with-cover { flex-direction: column; gap: 12px; }
     .hk-task-cover { width: 100%; aspect-ratio: 16 / 9; }
+    .hk-head-photos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+    .hk-head-photo:only-child { grid-column: 1 / -1; }
+    .hk-head-photos .hk-task-cover { width: 100%; aspect-ratio: 4 / 3; }
     .hk-photo-strip { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
     .hk-photo, .hk-photo-add { flex: none; }
     /* Two full-size tap targets (2 x --hk-tap) still fit across a 96px tile. */

@@ -346,6 +346,21 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.goBack();
   await expect(panel.locator('#hk-list')).toBeVisible();
 
+  // 1h. After photos (#399). The caret beside Done on a one-tap task offers "Done
+  //     with photo or note…", and a done one-off shows its after photo beside the
+  //     cover. Nothing is logged: the menu closes with Escape.
+  const furnaceSplit = panel.locator(`.hk-split[data-id="${TASK.furnaceFilter}"]`).first();
+  await furnaceSplit.scrollIntoViewIfNeeded();
+  await furnaceSplit.locator('.hk-split-caret').click();
+  await expect(furnaceSplit.locator('.hk-defer-details')).toBeVisible();
+  await page.waitForTimeout(BEAT);
+  await page.keyboard.press('Escape');
+  await page.goto(`/home-keeper/tasks/${TASK.carRegistration}`, { waitUntil: 'domcontentloaded' });
+  await expect(panel.locator('.hk-head-photos .hk-head-photo')).toHaveCount(2, { timeout: 15_000 });
+  await page.waitForTimeout(BEAT * 2);
+  await page.goBack();
+  await expect(panel.locator('#hk-list')).toBeVisible();
+
   // 2. Open a task's detail page — full schedule, notes, completion history, and
   //    (since this task is linked to a part with a product URL) a clickable
   //    "Consumable link" row that jumps straight to buying the replacement.
