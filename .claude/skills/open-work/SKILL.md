@@ -195,7 +195,8 @@ are not certain:
   and one or more spaces. The bullet stops at the first line that does not start
   that way.
 - When the diff changes a bullet that is already in a section, and does not add
-  one, show the new text in place of the old text, and mark it with the PR number.
+  one, the old text is in the removed (`-`) lines of the same hunk. Show the new
+  text in place of the old text, and mark it with the PR number.
 
 Write the draft as the stable section, with the rules in `AGENTS.md` ("A stable
 release's `## [X.Y.Z]` notes describe what changed since the last _stable_
@@ -210,7 +211,9 @@ release"):
   names the feature. Find the Added bullet whose bold lead or link names the same
   feature or the same documentation page. When the Changed bullet changes what a
   user sees in the stable release, add the text after its bold lead to that Added
-  bullet, and keep the result at 3 sentences or fewer. When it changes only
+  bullet. When the result has more than 3 sentences, do not merge: keep the bullet
+  in `### Changed`, and put it on the **Check before release** list. When it
+  changes only
   something that a beta did, remove it. When no Added bullet matches, or more than
   one matches, keep the bullet in `### Changed`.
 - Keep each bullet as the CHANGELOG has it. Do not write the bullets again.
@@ -229,8 +232,8 @@ release"):
   is the release commit. A later commit that changes the heading again comes after
   it, so `--reverse` and `head -1` do not take it.
 - When `--scan` finds an issue that the sections do not give, or a Changed bullet
-  stays because it matches no Added bullet or more than one, write it in a **Check before release** list
-  at the end of the draft. The `notify-issues` job does not close an issue that the
+  stays in `### Changed` for one of the reasons above, write it in a
+  **Check before release** list at the end of the draft. The `notify-issues` job does not close an issue that the
   section does not give.
 - Put the bullets from open PRs at the end, under the heading
   **Pending, from open PRs**, with the PR number on each bullet. Do not mix them
