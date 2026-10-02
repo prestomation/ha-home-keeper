@@ -192,8 +192,8 @@ are not certain:
 - For each open PR that is not from Dependabot, use `pull_request_read` with
   `get_files`. When `CHANGELOG.md` is in the list, use `get_diff`. Keep each added
   line that starts with `+- **`, and the added lines after it that start with `+`
-  and a space. The bullet stops at the first line that is not an added, indented
-  line.
+  and one or more spaces. The bullet stops at the first line that does not start
+  that way.
 - When the diff changes a bullet that is already in a section, and does not add
   one, show the new text in place of the old text, and mark it with the PR number.
 
@@ -207,14 +207,17 @@ release"):
   changed it.
 - A `### Changed` bullet that changes only a feature that is new since the last
   stable does not go in `### Changed`. The bold lead or the link of the bullet
-  names the feature. Find the Added bullet with the same feature. When the Changed
-  bullet changes what a user sees in the stable release, add its second sentence
-  to that Added bullet. When it changes only something that a beta did, remove it.
-  When no Added bullet matches, keep the bullet in `### Changed`.
+  names the feature. Find the Added bullet whose bold lead or link names the same
+  feature or the same documentation page. When the Changed bullet changes what a
+  user sees in the stable release, add the text after its bold lead to that Added
+  bullet, and keep the result at 3 sentences or fewer. When it changes only
+  something that a beta did, remove it. When no Added bullet matches, or more than
+  one matches, keep the bullet in `### Changed`.
 - Keep each bullet as the CHANGELOG has it. Do not write the bullets again.
 - `### Fixed` must give each `(Fixes #N)` from the sections above. Then do a check
-  of the commits since the last stable. The local clone has no tags, so get the tag
-  of the last stable first:
+  of the commits since the last stable. In the commands below, replace `X.Y.Z` with
+  the last stable version, for example `0.28.0`. The local clone has no tags, so get
+  the tag of the last stable first:
 
   ```bash
   git fetch -q --no-tags origin tag vX.Y.Z
@@ -226,7 +229,7 @@ release"):
   is the release commit. A later commit that changes the heading again comes after
   it, so `--reverse` and `head -1` do not take it.
 - When `--scan` finds an issue that the sections do not give, or a Changed bullet
-  stays because no Added bullet matches, write it in a **Check before release** list
+  stays because it matches no Added bullet or more than one, write it in a **Check before release** list
   at the end of the draft. The `notify-issues` job does not close an issue that the
   section does not give.
 - Put the bullets from open PRs at the end, under the heading
