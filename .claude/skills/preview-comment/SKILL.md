@@ -37,10 +37,21 @@ the maintainer approves the exact text.
 
 ## 2. Write the text
 
-Write it as the maintainer does: casual, 2 or 3 short sentences, no headings, no
-greeting, no sign-off. Use this template and change only the version:
+Write it as the maintainer does: casual, 3 or 4 short sentences, no headings, no
+greeting, no sign-off. Start from this template:
 
-> This is available in preview build **{version}** if you'd like to try it out. In HACS, open Home Keeper → ⋮ → **Redownload**, turn on **Show beta versions**, and pick `{version}`. I'd like some feedback before I merge, so I may hold off until I hear from you.
+> Thanks for the suggestion{detail}. This is available in preview build **{version}** if you'd like to try it out. In HACS, open Home Keeper → ⋮ → **Redownload**, turn on **Show beta versions**, and pick `{version}`. I'd like some feedback before I merge, so I may hold off until I hear from you.
+
+Small liberties are fine, so the comment does not read the same on every issue:
+
+- Open with one short thank-you. Say "suggestion" for a feature request and "report"
+  for a bug. `{detail}` is an optional short clause that names something specific
+  from the issue, such as the example the reporter gave. Leave it out when nothing
+  fits.
+- Keep the thanks plain. No praise of the idea ("great idea", "love this"), and no
+  claim about the maintainer's own thinking ("I hadn't thought of that").
+- The rest may be reworded a little, but it must keep the version, the 3 install
+  steps and the note that the merge may wait for feedback.
 
 The maintainer's earlier comments of this kind, for the voice:
 
