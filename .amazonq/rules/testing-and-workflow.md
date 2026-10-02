@@ -607,5 +607,7 @@ gate); CI publishes it to the job summary.
     template: `release.yml`'s `notify-issues` job and `ha-beta.yml`'s regression
     reporter both comment on issues by design.
   - One exception: the preview-build comment of the `preview-comment` skill
-    (`.claude/skills/preview-comment/SKILL.md`). It is posted only when the
-    maintainer asks, and only after the maintainer approves the exact text.
+    (`.claude/skills/preview-comment/SKILL.md`). The maintainer must ask for it in
+    the current session. The agent shows the exact final text first, and posts it
+    unchanged only after the maintainer approves that text. Nothing else is posted
+    on an issue.

@@ -444,8 +444,9 @@
   - **One exception: the preview-build comment.** When the maintainer asks for it,
     the `preview-comment` skill (`.claude/skills/preview-comment/SKILL.md`) posts
     one short note on the issue: the preview version, how to install it, and that
-    the PR may wait for feedback. The agent shows the exact text first and posts
-    only after the maintainer approves it. Nothing else is posted on an issue.
+    the PR may wait for feedback. The maintainer must ask for it in the current
+    session. The agent shows the exact final text first, and posts it unchanged only
+    after the maintainer approves that text. Nothing else is posted on an issue.
 
 ## Conventions live in `.amazonq/rules/` — keep them current
 
