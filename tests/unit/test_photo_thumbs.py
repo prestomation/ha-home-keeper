@@ -120,6 +120,41 @@ def test_a_jpeg_has_its_own_higher_limit(tmp_path, monkeypatch):
         thumbs.make_thumbnail(src, dst, 256)
 
 
+def test_a_progressive_jpeg_gets_the_lower_limit(tmp_path):
+    src = _write(
+        tmp_path / "p.jpg", Image.new("RGB", (10, 10)), "JPEG", progressive=True
+    )
+    with Image.open(src) as image:
+        assert thumbs._pixel_limit(image) == thumbs._MAX_PIXELS
+
+
+def test_a_cmyk_jpeg_gets_the_lower_limit(tmp_path):
+    src = _write(tmp_path / "c.jpg", Image.new("CMYK", (10, 10)), "JPEG")
+    with Image.open(src) as image:
+        assert thumbs._pixel_limit(image) == thumbs._MAX_PIXELS
+
+
+@pytest.mark.parametrize("mode", ["RGB", "L"])
+def test_a_baseline_jpeg_gets_the_higher_limit(tmp_path, mode):
+    src = _write(tmp_path / "b.jpg", Image.new(mode, (10, 10)), "JPEG")
+    with Image.open(src) as image:
+        assert thumbs._pixel_limit(image) == thumbs._MAX_PIXELS_JPEG
+
+
+@pytest.mark.parametrize("fmt", ["PNG", "GIF", "WEBP"])
+def test_other_formats_get_the_lower_limit(tmp_path, fmt):
+    src = _write(tmp_path / f"x.{fmt.lower()}", Image.new("RGB", (10, 10)), fmt)
+    with Image.open(src) as image:
+        assert thumbs._pixel_limit(image) == thumbs._MAX_PIXELS
+
+
+@pytest.mark.parametrize("fmt", ["TIFF", "BMP"])
+def test_a_format_the_upload_does_not_accept_is_refused(tmp_path, fmt):
+    src = _write(tmp_path / "x.img", Image.new("RGB", (10, 10)), fmt)
+    with raises_exactly(thumbs.ThumbnailError, "the image could not be read"):
+        thumbs.make_thumbnail(src, tmp_path / "thumb.jpg", 256)
+
+
 def test_the_limits_keep_a_200_megapixel_jpeg_and_refuse_a_huge_png():
     assert thumbs._MAX_PIXELS_JPEG >= 2e8
     assert thumbs._MAX_PIXELS <= 5e7

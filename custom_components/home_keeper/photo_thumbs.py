@@ -18,13 +18,28 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .const import TASK_PHOTO_THUMB_PX
 
-# A decompression bomb is a small file that expands to a huge bitmap. A JPEG is
-# decoded in draft mode, at 1/8 of its size or less for a thumbnail, so it can be as
-# large as the biggest phone sensor (200 megapixels) and still decode to a few
-# megapixels. Every other format decodes at full size, so it gets a lower limit:
-# 50 megapixels of RGB is about 150 MB of memory.
+# A decompression bomb is a small file that expands to a huge bitmap. A baseline
+# RGB or greyscale JPEG is decoded in draft mode, at 1/8 of its size or less for a
+# thumbnail, so it can be as large as the biggest phone sensor (200 megapixels) and
+# still decode to a few megapixels. A progressive JPEG keeps every coefficient at
+# full size while it decodes, and a CMYK one has 4 channels, so those two get the
+# limit of every other format: 50 megapixels of RGB is about 150 MB of memory.
 _MAX_PIXELS_JPEG = 2.5e8
 _MAX_PIXELS = 5e7
+# The formats the upload accepts (see ``task_photos.IMAGE_TYPES``). Pillow tries
+# only these, so a file it would read as TIFF or BMP is refused here as well.
+_FORMATS = ("JPEG", "PNG", "GIF", "WEBP")
+
+
+def _pixel_limit(image: Image.Image) -> float:
+    """The largest image Home Keeper reads for *image*'s format and mode."""
+    draft_decodes = (
+        image.format == "JPEG"
+        and image.mode in ("RGB", "L")
+        and not image.info.get("progressive")
+        and not image.info.get("progression")
+    )
+    return _MAX_PIXELS_JPEG if draft_decodes else _MAX_PIXELS
 
 
 class ThumbnailError(ValueError):
@@ -39,9 +54,10 @@ def make_thumbnail(src: Path, dst: Path, px: int = TASK_PHOTO_THUMB_PX) -> None:
     frame. Raises :class:`ThumbnailError` when *src* cannot be read as an image.
     """
     try:
-        with Image.open(src) as image:
-            limit = _MAX_PIXELS_JPEG if image.format == "JPEG" else _MAX_PIXELS
-            if image.width * image.height > limit:
+        # ``open`` reads only the header. Nothing is decoded until the size is known
+        # to be in the limit.
+        with Image.open(src, formats=_FORMATS) as image:
+            if image.width * image.height > _pixel_limit(image):
                 raise ThumbnailError("the image is too large to read")
             image.draft("RGB", (px, px))
             frame = ImageOps.exif_transpose(image) or image
