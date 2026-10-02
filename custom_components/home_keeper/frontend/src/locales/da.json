@@ -838,5 +838,18 @@
   "tasks.presets.added.one": "{n} forudindstilling tilføjet",
   "tasks.presets.added.other": "{n} forudindstillinger tilføjet",
   "tasks.presets.addedSome": "{added} af {total} forudindstillinger tilføjet. Opsæt resten fra kortet over opgavelisten.",
-  "tasks.presets.addFailed": "Home Keeper tilføjede ikke forudindstillingerne: {error}"
+  "tasks.presets.addFailed": "Home Keeper tilføjede ikke forudindstillingerne: {error}",
+  "layout.label": "Visning",
+  "layout.rows": "Rækker",
+  "layout.tiles": "Fliser",
+  "layout.board": "Tavle",
+  "btn.openTask": "Åbn opgave",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "om {n} d",
+  "layout.short.today": "I dag",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} er udført.",
+  "btn.undo": "Fortryd",
+  "layout.holdHint": "Tryk for handlinger. Hold nede for at åbne opgaven.",
+  "layout.saveFailed": "Layoutet kunne ikke gemmes. Det skifter tilbage ved dit næste besøg."
 }

@@ -865,5 +865,18 @@
   "tasks.presets.added.many": "{n} de presets ajoutés",
   "tasks.presets.added.other": "{n} presets ajoutés",
   "tasks.presets.addedSome": "{added} presets sur {total} ajoutés. Configurez les autres depuis la carte au-dessus de la liste des tâches.",
-  "tasks.presets.addFailed": "Home Keeper n'a pas ajouté les presets : {error}"
+  "tasks.presets.addFailed": "Home Keeper n'a pas ajouté les presets : {error}",
+  "layout.label": "Disposition",
+  "layout.rows": "Lignes",
+  "layout.tiles": "Tuiles",
+  "layout.board": "Tableau",
+  "btn.openTask": "Ouvrir la tâche",
+  "layout.short.overdue": "{n} j",
+  "layout.short.in": "dans {n} j",
+  "layout.short.today": "Aujourd'hui",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} est terminée.",
+  "btn.undo": "Annuler",
+  "layout.holdHint": "Touchez pour les actions. Maintenez appuyé pour ouvrir la tâche.",
+  "layout.saveFailed": "Impossible d'enregistrer la disposition. L'ancienne revient à votre prochaine visite."
 }

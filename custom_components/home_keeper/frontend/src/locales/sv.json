@@ -838,5 +838,18 @@
   "tasks.presets.added.one": "{n} förinställning tillagd",
   "tasks.presets.added.other": "{n} förinställningar tillagda",
   "tasks.presets.addedSome": "{added} av {total} förinställningar tillagda. Konfigurera resten från kortet ovanför uppgiftslistan.",
-  "tasks.presets.addFailed": "Home Keeper lade inte till förinställningarna: {error}"
+  "tasks.presets.addFailed": "Home Keeper lade inte till förinställningarna: {error}",
+  "layout.label": "Vy",
+  "layout.rows": "Rader",
+  "layout.tiles": "Rutor",
+  "layout.board": "Tavla",
+  "btn.openTask": "Öppna uppgift",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "om {n} d",
+  "layout.short.today": "I dag",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} är klar.",
+  "btn.undo": "Ångra",
+  "layout.holdHint": "Tryck för åtgärder. Håll ned för att öppna uppgiften.",
+  "layout.saveFailed": "Layouten kunde inte sparas. Den återställs vid nästa besök."
 }

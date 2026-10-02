@@ -892,5 +892,18 @@
   "tasks.presets.added.many": "Přidáno {n} předvolby",
   "tasks.presets.added.other": "Přidáno {n} předvoleb",
   "tasks.presets.addedSome": "Přidáno {added} z {total} předvoleb. Ostatní nastavte z karty nad seznamem úkolů.",
-  "tasks.presets.addFailed": "Home Keeper předvolby nepřidal: {error}"
+  "tasks.presets.addFailed": "Home Keeper předvolby nepřidal: {error}",
+  "layout.label": "Rozvržení",
+  "layout.rows": "Řádky",
+  "layout.tiles": "Dlaždice",
+  "layout.board": "Tabule",
+  "btn.openTask": "Otevřít úkol",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "za {n} d",
+  "layout.short.today": "Dnes",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} je hotovo.",
+  "btn.undo": "Zpět",
+  "layout.holdHint": "Klepnutím zobrazíte akce. Podržením otevřete úkol.",
+  "layout.saveFailed": "Rozložení se nepodařilo uložit. Při příští návštěvě se vrátí původní."
 }
