@@ -838,5 +838,18 @@
   "tasks.presets.added.one": "{n} Vorlage hinzugefügt",
   "tasks.presets.added.other": "{n} Vorlagen hinzugefügt",
   "tasks.presets.addedSome": "{added} von {total} Vorlagen hinzugefügt. Richten Sie die anderen über die Karte über der Aufgabenliste ein.",
-  "tasks.presets.addFailed": "Home Keeper hat die Vorlagen nicht hinzugefügt: {error}"
+  "tasks.presets.addFailed": "Home Keeper hat die Vorlagen nicht hinzugefügt: {error}",
+  "layout.label": "Ansicht",
+  "layout.rows": "Zeilen",
+  "layout.tiles": "Kacheln",
+  "layout.board": "Tafel",
+  "btn.openTask": "Aufgabe öffnen",
+  "layout.short.overdue": "{n} T",
+  "layout.short.in": "in {n} T",
+  "layout.short.today": "Heute",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} ist erledigt.",
+  "btn.undo": "Rückgängig",
+  "layout.holdHint": "Tippen für Aktionen. Gedrückt halten, um die Aufgabe zu öffnen.",
+  "layout.saveFailed": "Das Layout wurde nicht gespeichert. Beim nächsten Besuch gilt wieder das alte."
 }

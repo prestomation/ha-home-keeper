@@ -838,5 +838,18 @@
   "tasks.presets.added.one": "{n} forhåndsvalg lagt til",
   "tasks.presets.added.other": "{n} forhåndsvalg lagt til",
   "tasks.presets.addedSome": "{added} av {total} forhåndsvalg lagt til. Sett opp resten fra kortet over oppgavelisten.",
-  "tasks.presets.addFailed": "Home Keeper la ikke til forhåndsvalgene: {error}"
+  "tasks.presets.addFailed": "Home Keeper la ikke til forhåndsvalgene: {error}",
+  "layout.label": "Visning",
+  "layout.rows": "Rader",
+  "layout.tiles": "Fliser",
+  "layout.board": "Tavle",
+  "btn.openTask": "Åpne oppgave",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "om {n} d",
+  "layout.short.today": "I dag",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} er utført.",
+  "btn.undo": "Angre",
+  "layout.holdHint": "Trykk for handlinger. Hold inne for å åpne oppgaven.",
+  "layout.saveFailed": "Oppsettet ble ikke lagret. Det går tilbake ved neste besøk."
 }

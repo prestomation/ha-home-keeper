@@ -865,5 +865,18 @@
   "tasks.presets.added.many": "{n} de presets adicionados",
   "tasks.presets.added.other": "{n} presets adicionados",
   "tasks.presets.addedSome": "{added} de {total} presets adicionados. Configure os outros no cartão acima da lista de tarefas.",
-  "tasks.presets.addFailed": "O Home Keeper não adicionou os presets: {error}"
+  "tasks.presets.addFailed": "O Home Keeper não adicionou os presets: {error}",
+  "layout.label": "Disposição",
+  "layout.rows": "Linhas",
+  "layout.tiles": "Blocos",
+  "layout.board": "Quadro",
+  "btn.openTask": "Abrir tarefa",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "em {n} d",
+  "layout.short.today": "Hoje",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} concluída.",
+  "btn.undo": "Desfazer",
+  "layout.holdHint": "Toque para ver as ações. Mantenha pressionado para abrir a tarefa.",
+  "layout.saveFailed": "Não foi possível salvar o layout. Ele volta ao anterior na próxima visita."
 }

@@ -838,5 +838,18 @@
   "tasks.presets.added.one": "{n} preset added",
   "tasks.presets.added.other": "{n} presets added",
   "tasks.presets.addedSome": "{added} of {total} presets added. Set up the others from the card above the task list.",
-  "tasks.presets.addFailed": "Home Keeper did not add the presets: {error}"
+  "tasks.presets.addFailed": "Home Keeper did not add the presets: {error}",
+  "layout.label": "Layout",
+  "layout.rows": "Rows",
+  "layout.tiles": "Tiles",
+  "layout.board": "Board",
+  "btn.openTask": "Open task",
+  "layout.short.overdue": "{n}d",
+  "layout.short.in": "in {n}d",
+  "layout.short.today": "Today",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} is done.",
+  "btn.undo": "Undo",
+  "layout.holdHint": "Tap for actions. Press and hold to open the task.",
+  "layout.saveFailed": "Could not save the layout. It changes back on your next visit."
 }

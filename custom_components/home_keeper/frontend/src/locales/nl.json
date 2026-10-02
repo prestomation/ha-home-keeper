@@ -838,5 +838,18 @@
   "tasks.presets.added.one": "{n} preset toegevoegd",
   "tasks.presets.added.other": "{n} presets toegevoegd",
   "tasks.presets.addedSome": "{added} van {total} presets toegevoegd. Stel de andere in via de kaart boven de takenlijst.",
-  "tasks.presets.addFailed": "Home Keeper heeft de presets niet toegevoegd: {error}"
+  "tasks.presets.addFailed": "Home Keeper heeft de presets niet toegevoegd: {error}",
+  "layout.label": "Weergave",
+  "layout.rows": "Rijen",
+  "layout.tiles": "Tegels",
+  "layout.board": "Bord",
+  "btn.openTask": "Taak openen",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "over {n} d",
+  "layout.short.today": "Vandaag",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} is klaar.",
+  "btn.undo": "Ongedaan maken",
+  "layout.holdHint": "Tik voor acties. Houd ingedrukt om de taak te openen.",
+  "layout.saveFailed": "De indeling is niet opgeslagen. Bij je volgende bezoek geldt weer de vorige."
 }

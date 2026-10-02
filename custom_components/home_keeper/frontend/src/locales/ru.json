@@ -892,5 +892,18 @@
   "tasks.presets.added.many": "Добавлено {n} шаблонов",
   "tasks.presets.added.other": "Добавлено {n} шаблона",
   "tasks.presets.addedSome": "Добавлено шаблонов: {added} из {total}. Остальные настройте в карточке над списком задач.",
-  "tasks.presets.addFailed": "Home Keeper не добавил шаблоны: {error}"
+  "tasks.presets.addFailed": "Home Keeper не добавил шаблоны: {error}",
+  "layout.label": "Вид",
+  "layout.rows": "Строки",
+  "layout.tiles": "Плитки",
+  "layout.board": "Доска",
+  "btn.openTask": "Открыть задачу",
+  "layout.short.overdue": "{n} д",
+  "layout.short.in": "через {n} д",
+  "layout.short.today": "Сегодня",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "«{name}» выполнено.",
+  "btn.undo": "Отменить",
+  "layout.holdHint": "Нажмите, чтобы увидеть действия. Удерживайте, чтобы открыть задачу.",
+  "layout.saveFailed": "Не удалось сохранить вид. При следующем визите вернётся прежний."
 }

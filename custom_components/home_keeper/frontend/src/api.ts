@@ -19,6 +19,7 @@ import type {
   Task,
 } from './types';
 import { parseNudgeState, type PresetNudgeState } from './preset-nudge';
+import { parseTaskLayout, type TaskLayout } from './task-layout';
 
 /** Thin wrappers around the Home Keeper websocket commands. */
 
@@ -183,6 +184,28 @@ export async function setPresetNudge(hass: Hass, state: PresetNudgeState): Promi
     type: 'frontend/set_user_data',
     key: PRESET_NUDGE_KEY,
     value: state,
+  });
+}
+
+const TASK_LAYOUT_KEY = 'home_keeper_task_layout';
+
+/** Which layout the current user reads the task list in — rows, tiles or board.
+ *  Stored the same way as the intro banner's dismissal, so the choice follows the
+ *  user across browsers and devices instead of being pinned to one of them.
+ *  A value this panel does not know reads as `rows` (see `parseTaskLayout`). */
+export async function getTaskLayout(hass: Hass): Promise<TaskLayout> {
+  const res = await hass.callWS<{ value: unknown }>({
+    type: 'frontend/get_user_data',
+    key: TASK_LAYOUT_KEY,
+  });
+  return parseTaskLayout(res.value);
+}
+
+export async function setTaskLayout(hass: Hass, value: TaskLayout): Promise<void> {
+  await hass.callWS({
+    type: 'frontend/set_user_data',
+    key: TASK_LAYOUT_KEY,
+    value,
   });
 }
 
