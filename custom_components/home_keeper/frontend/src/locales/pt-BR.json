@@ -876,5 +876,18 @@
   "photos.open": "Abrir {name}",
   "photos.coverAlt": "Foto de {task}",
   "photos.taskPhoto": "Foto da tarefa",
-  "photos.confirmRemove": "Remover {name} desta tarefa? O Home Keeper exclui o arquivo."
+  "photos.confirmRemove": "Remover {name} desta tarefa? O Home Keeper exclui o arquivo.",
+  "layout.label": "Disposição",
+  "layout.rows": "Linhas",
+  "layout.tiles": "Blocos",
+  "layout.board": "Quadro",
+  "btn.openTask": "Abrir tarefa",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "em {n} d",
+  "layout.short.today": "Hoje",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} concluída.",
+  "btn.undo": "Desfazer",
+  "layout.holdHint": "Toque para ver as ações. Mantenha pressionado para abrir a tarefa.",
+  "layout.saveFailed": "Não foi possível salvar o layout. Ele volta ao anterior na próxima visita."
 }

@@ -876,5 +876,18 @@
   "photos.open": "Ouvrir {name}",
   "photos.coverAlt": "Photo de {task}",
   "photos.taskPhoto": "Photo de la tâche",
-  "photos.confirmRemove": "Retirer {name} de cette tâche ? Home Keeper supprime le fichier."
+  "photos.confirmRemove": "Retirer {name} de cette tâche ? Home Keeper supprime le fichier.",
+  "layout.label": "Disposition",
+  "layout.rows": "Lignes",
+  "layout.tiles": "Tuiles",
+  "layout.board": "Tableau",
+  "btn.openTask": "Ouvrir la tâche",
+  "layout.short.overdue": "{n} j",
+  "layout.short.in": "dans {n} j",
+  "layout.short.today": "Aujourd'hui",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} est terminée.",
+  "btn.undo": "Annuler",
+  "layout.holdHint": "Touchez pour les actions. Maintenez appuyé pour ouvrir la tâche.",
+  "layout.saveFailed": "Impossible d'enregistrer la disposition. L'ancienne revient à votre prochaine visite."
 }

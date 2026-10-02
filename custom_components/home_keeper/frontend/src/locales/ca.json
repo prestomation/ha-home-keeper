@@ -876,5 +876,18 @@
   "photos.open": "Obre {name}",
   "photos.coverAlt": "Foto de {task}",
   "photos.taskPhoto": "Foto de la tasca",
-  "photos.confirmRemove": "Vols treure {name} d'aquesta tasca? Home Keeper n'elimina el fitxer."
+  "photos.confirmRemove": "Vols treure {name} d'aquesta tasca? Home Keeper n'elimina el fitxer.",
+  "layout.label": "Disposició",
+  "layout.rows": "Files",
+  "layout.tiles": "Mosaics",
+  "layout.board": "Tauler",
+  "btn.openTask": "Obre la tasca",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "d'aquí a {n} d",
+  "layout.short.today": "Avui",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} feta.",
+  "btn.undo": "Desfés",
+  "layout.holdHint": "Toca per veure les accions. Mantén premut per obrir la tasca.",
+  "layout.saveFailed": "No s'ha pogut desar la disposició. Tornarà a l'anterior en la propera visita."
 }

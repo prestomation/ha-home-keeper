@@ -903,5 +903,18 @@
   "photos.open": "Открыть {name}",
   "photos.coverAlt": "Фото: {task}",
   "photos.taskPhoto": "Фото задачи",
-  "photos.confirmRemove": "Удалить {name} из этой задачи? Home Keeper удалит файл."
+  "photos.confirmRemove": "Удалить {name} из этой задачи? Home Keeper удалит файл.",
+  "layout.label": "Вид",
+  "layout.rows": "Строки",
+  "layout.tiles": "Плитки",
+  "layout.board": "Доска",
+  "btn.openTask": "Открыть задачу",
+  "layout.short.overdue": "{n} д",
+  "layout.short.in": "через {n} д",
+  "layout.short.today": "Сегодня",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "«{name}» выполнено.",
+  "btn.undo": "Отменить",
+  "layout.holdHint": "Нажмите, чтобы увидеть действия. Удерживайте, чтобы открыть задачу.",
+  "layout.saveFailed": "Не удалось сохранить вид. При следующем визите вернётся прежний."
 }

@@ -876,5 +876,18 @@
   "photos.open": "Abrir {name}",
   "photos.coverAlt": "Foto de {task}",
   "photos.taskPhoto": "Foto de la tarea",
-  "photos.confirmRemove": "¿Quitar {name} de esta tarea? Home Keeper elimina el archivo."
+  "photos.confirmRemove": "¿Quitar {name} de esta tarea? Home Keeper elimina el archivo.",
+  "layout.label": "Diseño",
+  "layout.rows": "Filas",
+  "layout.tiles": "Mosaicos",
+  "layout.board": "Tablero",
+  "btn.openTask": "Abrir tarea",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "en {n} d",
+  "layout.short.today": "Hoy",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} está hecha.",
+  "btn.undo": "Deshacer",
+  "layout.holdHint": "Toca para ver las acciones. Mantén pulsado para abrir la tarea.",
+  "layout.saveFailed": "No se pudo guardar el diseño. Volverá al anterior en tu próxima visita."
 }

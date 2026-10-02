@@ -849,5 +849,18 @@
   "photos.open": "Öppna {name}",
   "photos.coverAlt": "Foto av {task}",
   "photos.taskPhoto": "Uppgiftsfoto",
-  "photos.confirmRemove": "Ta bort {name} från den här uppgiften? Home Keeper raderar filen."
+  "photos.confirmRemove": "Ta bort {name} från den här uppgiften? Home Keeper raderar filen.",
+  "layout.label": "Vy",
+  "layout.rows": "Rader",
+  "layout.tiles": "Rutor",
+  "layout.board": "Tavla",
+  "btn.openTask": "Öppna uppgift",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "om {n} d",
+  "layout.short.today": "I dag",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} är klar.",
+  "btn.undo": "Ångra",
+  "layout.holdHint": "Tryck för åtgärder. Håll ned för att öppna uppgiften.",
+  "layout.saveFailed": "Layouten kunde inte sparas. Den återställs vid nästa besök."
 }

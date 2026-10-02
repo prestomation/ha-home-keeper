@@ -849,5 +849,18 @@
   "photos.open": "Avaa {name}",
   "photos.coverAlt": "Valokuva: {task}",
   "photos.taskPhoto": "Tehtävän valokuva",
-  "photos.confirmRemove": "Poistetaanko {name} tästä tehtävästä? Home Keeper poistaa tiedoston."
+  "photos.confirmRemove": "Poistetaanko {name} tästä tehtävästä? Home Keeper poistaa tiedoston.",
+  "layout.label": "Asettelu",
+  "layout.rows": "Rivit",
+  "layout.tiles": "Ruudut",
+  "layout.board": "Taulu",
+  "btn.openTask": "Avaa tehtävä",
+  "layout.short.overdue": "{n} pv",
+  "layout.short.in": "{n} pv päästä",
+  "layout.short.today": "Tänään",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} on tehty.",
+  "btn.undo": "Kumoa",
+  "layout.holdHint": "Napauta nähdäksesi toiminnot. Avaa tehtävä painamalla pitkään.",
+  "layout.saveFailed": "Asettelua ei voitu tallentaa. Se palautuu seuraavalla käyntikerralla."
 }

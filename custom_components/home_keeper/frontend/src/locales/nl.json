@@ -849,5 +849,18 @@
   "photos.open": "{name} openen",
   "photos.coverAlt": "Foto van {task}",
   "photos.taskPhoto": "Taakfoto",
-  "photos.confirmRemove": "{name} van deze taak verwijderen? Home Keeper wist het bestand."
+  "photos.confirmRemove": "{name} van deze taak verwijderen? Home Keeper wist het bestand.",
+  "layout.label": "Weergave",
+  "layout.rows": "Rijen",
+  "layout.tiles": "Tegels",
+  "layout.board": "Bord",
+  "btn.openTask": "Taak openen",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "over {n} d",
+  "layout.short.today": "Vandaag",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} is klaar.",
+  "btn.undo": "Ongedaan maken",
+  "layout.holdHint": "Tik voor acties. Houd ingedrukt om de taak te openen.",
+  "layout.saveFailed": "De indeling is niet opgeslagen. Bij je volgende bezoek geldt weer de vorige."
 }

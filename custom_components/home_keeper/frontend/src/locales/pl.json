@@ -903,5 +903,18 @@
   "photos.open": "Otwórz {name}",
   "photos.coverAlt": "Zdjęcie: {task}",
   "photos.taskPhoto": "Zdjęcie zadania",
-  "photos.confirmRemove": "Usunąć {name} z tego zadania? Home Keeper skasuje plik."
+  "photos.confirmRemove": "Usunąć {name} z tego zadania? Home Keeper skasuje plik.",
+  "layout.label": "Układ",
+  "layout.rows": "Wiersze",
+  "layout.tiles": "Kafelki",
+  "layout.board": "Tablica",
+  "btn.openTask": "Otwórz zadanie",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "za {n} d",
+  "layout.short.today": "Dzisiaj",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} — wykonane.",
+  "btn.undo": "Cofnij",
+  "layout.holdHint": "Dotknij, aby zobaczyć akcje. Przytrzymaj, aby otworzyć zadanie.",
+  "layout.saveFailed": "Nie udało się zapisać układu. Przy następnej wizycie wróci poprzedni."
 }

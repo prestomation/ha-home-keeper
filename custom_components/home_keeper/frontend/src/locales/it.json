@@ -876,5 +876,18 @@
   "photos.open": "Apri {name}",
   "photos.coverAlt": "Foto di {task}",
   "photos.taskPhoto": "Foto dell'attività",
-  "photos.confirmRemove": "Rimuovere {name} da questa attività? Home Keeper elimina il file."
+  "photos.confirmRemove": "Rimuovere {name} da questa attività? Home Keeper elimina il file.",
+  "layout.label": "Disposizione",
+  "layout.rows": "Righe",
+  "layout.tiles": "Riquadri",
+  "layout.board": "Bacheca",
+  "btn.openTask": "Apri attività",
+  "layout.short.overdue": "{n} g",
+  "layout.short.in": "tra {n} g",
+  "layout.short.today": "Oggi",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} completata.",
+  "btn.undo": "Annulla",
+  "layout.holdHint": "Tocca per le azioni. Tieni premuto per aprire l'attività.",
+  "layout.saveFailed": "Impossibile salvare il layout. Alla prossima visita tornerà quello precedente."
 }

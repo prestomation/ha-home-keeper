@@ -849,5 +849,18 @@
   "photos.open": "Open {name}",
   "photos.coverAlt": "Photo of {task}",
   "photos.taskPhoto": "Task photo",
-  "photos.confirmRemove": "Remove {name} from this task? Home Keeper deletes the file."
+  "photos.confirmRemove": "Remove {name} from this task? Home Keeper deletes the file.",
+  "layout.label": "Layout",
+  "layout.rows": "Rows",
+  "layout.tiles": "Tiles",
+  "layout.board": "Board",
+  "btn.openTask": "Open task",
+  "layout.short.overdue": "{n}d",
+  "layout.short.in": "in {n}d",
+  "layout.short.today": "Today",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} is done.",
+  "btn.undo": "Undo",
+  "layout.holdHint": "Tap for actions. Press and hold to open the task.",
+  "layout.saveFailed": "Could not save the layout. It changes back on your next visit."
 }

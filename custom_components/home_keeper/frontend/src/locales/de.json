@@ -849,5 +849,18 @@
   "photos.open": "{name} öffnen",
   "photos.coverAlt": "Foto von {task}",
   "photos.taskPhoto": "Aufgabenfoto",
-  "photos.confirmRemove": "{name} von dieser Aufgabe entfernen? Home Keeper löscht die Datei."
+  "photos.confirmRemove": "{name} von dieser Aufgabe entfernen? Home Keeper löscht die Datei.",
+  "layout.label": "Ansicht",
+  "layout.rows": "Zeilen",
+  "layout.tiles": "Kacheln",
+  "layout.board": "Tafel",
+  "btn.openTask": "Aufgabe öffnen",
+  "layout.short.overdue": "{n} T",
+  "layout.short.in": "in {n} T",
+  "layout.short.today": "Heute",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} ist erledigt.",
+  "btn.undo": "Rückgängig",
+  "layout.holdHint": "Tippen für Aktionen. Gedrückt halten, um die Aufgabe zu öffnen.",
+  "layout.saveFailed": "Das Layout wurde nicht gespeichert. Beim nächsten Besuch gilt wieder das alte."
 }

@@ -849,5 +849,18 @@
   "photos.open": "Åpne {name}",
   "photos.coverAlt": "Bilde av {task}",
   "photos.taskPhoto": "Oppgavebilde",
-  "photos.confirmRemove": "Fjerne {name} fra denne oppgaven? Home Keeper sletter filen."
+  "photos.confirmRemove": "Fjerne {name} fra denne oppgaven? Home Keeper sletter filen.",
+  "layout.label": "Visning",
+  "layout.rows": "Rader",
+  "layout.tiles": "Fliser",
+  "layout.board": "Tavle",
+  "btn.openTask": "Åpne oppgave",
+  "layout.short.overdue": "{n} d",
+  "layout.short.in": "om {n} d",
+  "layout.short.today": "I dag",
+  "layout.cardAria": "{name}, {status}",
+  "done.toast": "{name} er utført.",
+  "btn.undo": "Angre",
+  "layout.holdHint": "Trykk for handlinger. Hold inne for å åpne oppgaven.",
+  "layout.saveFailed": "Oppsettet ble ikke lagret. Det går tilbake ved neste besøk."
 }
