@@ -60,6 +60,7 @@ import {
   escapeHTML,
   formatDate,
   isBuyTask,
+  isCompletedOneOff,
   isMonitoredDormant,
   isOverdue,
   recurrenceSummary,
@@ -287,8 +288,7 @@ export function assetsList(p: PanelHost): string {
  * opens onto the same facts the row carries.
  */
 function taskMetaHtml(p: PanelHost, task: Task): string {
-  const completedOneOff =
-    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  const completedOneOff = isCompletedOneOff(task);
   // A switched-off task shows no due date. The stored one is frozen at whatever it was
   // when the task went off, so printing it states a deadline Home Keeper will not keep:
   // nothing announces it, no to-do item carries it, and the row's own status chip says
@@ -322,8 +322,7 @@ function taskCard(p: PanelHost, task: Task): string {
   const managed = managedChip(p, task);
   // A completed one-off (do-once, now dormant) shows when it was done instead of a
   // due date.
-  const completedOneOff =
-    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  const completedOneOff = isCompletedOneOff(task);
   // How overdue it is rides the right-hand status pill rather than the meta line, so
   // urgency reads at the end of the row instead of buried mid-sentence. `elapsed` is
   // the list row's alone: down a long list the count is what separates a week late

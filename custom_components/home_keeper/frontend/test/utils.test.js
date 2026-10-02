@@ -67,6 +67,7 @@ import {
   tasksForAsset,
   toast,
   usageIntervalStats,
+  isCompletedOneOff,
 } from '../src/utils.ts';
 import { setLanguage } from '../src/i18n';
 
@@ -2385,5 +2386,20 @@ describe('hkStateSignal (X12-7)', () => {
     ).toBe(`2:${Date.parse('2026-10-01T10:00:00Z')}`);
     // A missing or bad stamp counts the entity but moves no stamp.
     expect(hkStateSignal({ 'todo.home_keeper_tasks': {} })).toBe('1:0');
+  });
+});
+
+describe('isCompletedOneOff', () => {
+  const done = { recurrence_type: 'one-off', next_due: null, last_completed: '2026-06-16T14:30:00Z' };
+
+  it('holds for a one-off with a completion and no next due date', () => {
+    expect(isCompletedOneOff(done)).toBe(true);
+  });
+
+  it('fails when any of the 3 conditions fails', () => {
+    expect(isCompletedOneOff({ ...done, recurrence_type: 'floating' })).toBe(false);
+    expect(isCompletedOneOff({ ...done, next_due: '2026-11-01T10:00:00Z' })).toBe(false);
+    expect(isCompletedOneOff({ ...done, last_completed: null })).toBe(false);
+    expect(isCompletedOneOff({ ...done, last_completed: '' })).toBe(false);
   });
 });

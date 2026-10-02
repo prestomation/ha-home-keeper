@@ -51,6 +51,7 @@ import {
   dueLabel,
   escapeHTML,
   isBuyTask,
+  isCompletedOneOff,
   isHttpUrl,
   isMonitoredDormant,
   isOverdue,
@@ -1175,8 +1176,7 @@ export class HomeKeeperCard extends HTMLElement {
     // *disabled* mark-done that, on tap, explains its source clears it.
     const dormant = isMonitoredDormant(task);
     // A completed one-off (do-once, now dormant) is also nothing to complete — hide Done.
-    const completedOneOff =
-      task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+    const completedOneOff = isCompletedOneOff(task);
     // A scan-locked task greys its mark-done the same way a source-cleared one does:
     // tapping it explains that the tag is the only way in.
     const blocked = Boolean(task.managed_by?.completion_blocked) || scanRequired(task);

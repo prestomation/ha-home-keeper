@@ -15,7 +15,7 @@ import { DAY_MS, statusBucket } from './card-filter';
 import type { DeferVerbs } from './defer';
 import { t } from './i18n';
 import type { Task } from './types';
-import { isBuyTask, isMonitoredDormant, isOverdue, scanRequired } from './utils';
+import { isBuyTask, isCompletedOneOff, isMonitoredDormant, isOverdue, scanRequired } from './utils';
 
 /** The layouts the Tasks tab offers, in the order the Layout menu lists them. */
 export const TASK_LAYOUTS = ['rows', 'tiles', 'board'] as const;
@@ -125,8 +125,7 @@ export interface SheetFlags {
 export function sheetFlags(task: Task): SheetFlags {
   return {
     dormant: isMonitoredDormant(task),
-    completedOneOff:
-      task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed,
+    completedOneOff: isCompletedOneOff(task),
     blocked: Boolean(task.managed_by?.completion_blocked) || scanRequired(task),
   };
 }

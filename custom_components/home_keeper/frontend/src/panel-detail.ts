@@ -71,6 +71,7 @@ import {
   formatQuantity,
   intervalText,
   isBuyTask,
+  isCompletedOneOff,
   isMonitoredDormant,
   navigateTo,
   partStockButtonStep,
@@ -406,8 +407,7 @@ function taskDetail(p: PanelHost, task: Task): string {
         : '';
 
   const monitored = isMonitoredDormant(task);
-  const completedOneOff =
-    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  const completedOneOff = isCompletedOneOff(task);
   const due = monitored
     ? t('due.monitored')
     : completedOneOff

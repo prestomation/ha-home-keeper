@@ -22,7 +22,7 @@ import {
   taskPhotoKey,
 } from './task-photos';
 import type { Task, TaskPhoto } from './types';
-import { escapeHTML, safeFileHref } from './utils';
+import { escapeHTML, isCompletedOneOff, safeFileHref } from './utils';
 
 /** An `<img>` for one photo, at thumbnail or full size. */
 export function photoImg(
@@ -90,11 +90,6 @@ export function taskHeadPhotosHtml(p: PanelHost, task: Task): string {
     `<div class="hk-head-photos">${cover ? tile(cover, labels.cover) : ''}` +
     `${tile(afterPhotoLink(task, after, 'hk-task-cover', 'hk-task-cover-img'), labels.last)}</div>`
   );
-}
-
-/** Whether *task* is a one-off that is done, which the Completed group holds. */
-function isCompletedOneOff(task: Task): boolean {
-  return task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
 }
 
 /** The small cover on a task list row, or '' when there is none. Not a link: the
