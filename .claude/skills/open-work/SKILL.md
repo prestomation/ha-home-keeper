@@ -98,8 +98,7 @@ The maintainer or an agent must act. Show the items in this order of urgency:
 These are open work that is not in issues. Report them in a short **Backlog** section
 after the groups, one line each, with the file and heading:
 
-- `IDEAS.md`: each section whose text has **Blocked on:** and the blocker, and the
-  "Not fixed" and "Fixed in part" lists under "Open items from the ... deep review". When
+- `IDEAS.md`: each item whose text has **Blocked on:** and the blocker. When
   one command can check a blocker (for example `npm view <package> versions`), check it.
   When the blocker is gone, mark the item **unblocked**. Do not list each idea: most of
   the file is a parking lot, not committed scope.
