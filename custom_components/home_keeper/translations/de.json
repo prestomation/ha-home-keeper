@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Anstehende Aufgaben"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Home-Keeper-Ereignisse",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Aufgabe erstellt",
+              "task_updated": "Aufgabe aktualisiert",
+              "task_deleted": "Aufgabe gelöscht",
+              "task_completed": "Aufgabe erledigt",
+              "task_uncompleted": "Erledigung entfernt",
+              "task_completion_updated": "Erledigung aktualisiert",
+              "task_triggered": "Aufgabe ausgelöst",
+              "task_snoozed": "Aufgabe zurückgestellt",
+              "task_skipped": "Aufgabe übersprungen",
+              "task_due_today_set": "Aufgabe auf heute gesetzt",
+              "task_skip_updated": "Überspringen aktualisiert",
+              "task_skip_removed": "Überspringen entfernt",
+              "task_overdue": "Aufgabe wurde überfällig",
+              "task_due_soon": "Aufgabe bald fällig",
+              "part_low_stock": "Ersatzteil mit niedrigem Bestand",
+              "part_out_of_stock": "Ersatzteil nicht vorrätig",
+              "part_restocked": "Ersatzteil aufgefüllt",
+              "asset_created": "Gerät hinzugefügt",
+              "asset_updated": "Gerät aktualisiert",
+              "asset_deleted": "Gerät gelöscht",
+              "asset_archived": "Gerät archiviert",
+              "asset_restored": "Gerät wiederhergestellt"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Ereignisse",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Aufgabe erstellt",
+              "task_updated": "Aufgabe aktualisiert",
+              "task_deleted": "Aufgabe gelöscht",
+              "task_completed": "Aufgabe erledigt",
+              "task_uncompleted": "Erledigung entfernt",
+              "task_completion_updated": "Erledigung aktualisiert",
+              "task_triggered": "Aufgabe ausgelöst",
+              "task_snoozed": "Aufgabe zurückgestellt",
+              "task_skipped": "Aufgabe übersprungen",
+              "task_due_today_set": "Aufgabe auf heute gesetzt",
+              "task_skip_updated": "Überspringen aktualisiert",
+              "task_skip_removed": "Überspringen entfernt",
+              "task_overdue": "Aufgabe wurde überfällig",
+              "task_due_soon": "Aufgabe bald fällig",
+              "part_low_stock": "Ersatzteil mit niedrigem Bestand",
+              "part_out_of_stock": "Ersatzteil nicht vorrätig",
+              "part_restocked": "Ersatzteil aufgefüllt",
+              "asset_created": "Gerät hinzugefügt",
+              "asset_updated": "Gerät aktualisiert",
+              "asset_deleted": "Gerät gelöscht",
+              "asset_archived": "Gerät archiviert",
+              "asset_restored": "Gerät wiederhergestellt",
+              "companion_connected": "Companion verbunden",
+              "companion_suggested": "Companion vorgeschlagen",
+              "declarative_companion_added": "Deklarativer Companion hinzugefügt",
+              "declarative_companion_updated": "Deklarativer Companion aktualisiert",
+              "declarative_companion_removed": "Deklarativer Companion gelöscht"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

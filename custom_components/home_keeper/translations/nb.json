@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Kommende oppgaver"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Home Keeper-hendelser",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Oppgave opprettet",
+              "task_updated": "Oppgave oppdatert",
+              "task_deleted": "Oppgave slettet",
+              "task_completed": "Oppgave utført",
+              "task_uncompleted": "Fullføring fjernet",
+              "task_completion_updated": "Fullføring oppdatert",
+              "task_triggered": "Oppgave utløst",
+              "task_snoozed": "Oppgave utsatt",
+              "task_skipped": "Oppgave hoppet over",
+              "task_due_today_set": "Oppgave satt til i dag",
+              "task_skip_updated": "Overhopping oppdatert",
+              "task_skip_removed": "Overhopping fjernet",
+              "task_overdue": "Oppgave ble forfalt",
+              "task_due_soon": "Oppgave forfaller snart",
+              "part_low_stock": "Lavt lager av reservedel",
+              "part_out_of_stock": "Reservedel utsolgt",
+              "part_restocked": "Reservedel fylt på",
+              "asset_created": "Apparat lagt til",
+              "asset_updated": "Apparat oppdatert",
+              "asset_deleted": "Apparat slettet",
+              "asset_archived": "Apparat arkivert",
+              "asset_restored": "Apparat gjenopprettet"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Hendelser",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Oppgave opprettet",
+              "task_updated": "Oppgave oppdatert",
+              "task_deleted": "Oppgave slettet",
+              "task_completed": "Oppgave utført",
+              "task_uncompleted": "Fullføring fjernet",
+              "task_completion_updated": "Fullføring oppdatert",
+              "task_triggered": "Oppgave utløst",
+              "task_snoozed": "Oppgave utsatt",
+              "task_skipped": "Oppgave hoppet over",
+              "task_due_today_set": "Oppgave satt til i dag",
+              "task_skip_updated": "Overhopping oppdatert",
+              "task_skip_removed": "Overhopping fjernet",
+              "task_overdue": "Oppgave ble forfalt",
+              "task_due_soon": "Oppgave forfaller snart",
+              "part_low_stock": "Lavt lager av reservedel",
+              "part_out_of_stock": "Reservedel utsolgt",
+              "part_restocked": "Reservedel fylt på",
+              "asset_created": "Apparat lagt til",
+              "asset_updated": "Apparat oppdatert",
+              "asset_deleted": "Apparat slettet",
+              "asset_archived": "Apparat arkivert",
+              "asset_restored": "Apparat gjenopprettet",
+              "companion_connected": "Følgesvenn tilkoblet",
+              "companion_suggested": "Følgesvenn foreslått",
+              "declarative_companion_added": "Deklarativ companion lagt til",
+              "declarative_companion_updated": "Deklarativ companion oppdatert",
+              "declarative_companion_removed": "Deklarativ companion slettet"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

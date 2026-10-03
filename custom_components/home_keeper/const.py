@@ -3,12 +3,20 @@
 DOMAIN = "home_keeper"
 
 # Entity platforms forwarded from the config entry.
-PLATFORMS = ["todo", "calendar", "button", "sensor", "binary_sensor", "number"]
+PLATFORMS = [
+    "todo",
+    "calendar",
+    "button",
+    "sensor",
+    "binary_sensor",
+    "number",
+    "event",
+]
 
 # Frontend panel.
 # PANEL_VERSION is the single source of truth that release.yml validates against
 # manifest.json's "version" (mirrors Pawsistant's CARD_VERSION check).
-PANEL_VERSION = "0.29.0b1"
+PANEL_VERSION = "0.29.0b2"
 PANEL_URL_PATH = "home-keeper"  # sidebar route -> /home-keeper
 PANEL_STATIC_URL = "/home_keeper_panel"  # static path that serves the JS bundle
 PANEL_JS_FILENAME = "home-keeper-panel.js"

@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Upcoming tasks"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Home Keeper events",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Task created",
+              "task_updated": "Task updated",
+              "task_deleted": "Task deleted",
+              "task_completed": "Task completed",
+              "task_uncompleted": "Completion removed",
+              "task_completion_updated": "Completion updated",
+              "task_triggered": "Task triggered",
+              "task_snoozed": "Task snoozed",
+              "task_skipped": "Task skipped",
+              "task_due_today_set": "Task set due today",
+              "task_skip_updated": "Skip updated",
+              "task_skip_removed": "Skip removed",
+              "task_overdue": "Task became overdue",
+              "task_due_soon": "Task due soon",
+              "part_low_stock": "Spare part low on stock",
+              "part_out_of_stock": "Spare part out of stock",
+              "part_restocked": "Spare part restocked",
+              "asset_created": "Appliance added",
+              "asset_updated": "Appliance updated",
+              "asset_deleted": "Appliance deleted",
+              "asset_archived": "Appliance archived",
+              "asset_restored": "Appliance restored"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Events",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Task created",
+              "task_updated": "Task updated",
+              "task_deleted": "Task deleted",
+              "task_completed": "Task completed",
+              "task_uncompleted": "Completion removed",
+              "task_completion_updated": "Completion updated",
+              "task_triggered": "Task triggered",
+              "task_snoozed": "Task snoozed",
+              "task_skipped": "Task skipped",
+              "task_due_today_set": "Task set due today",
+              "task_skip_updated": "Skip updated",
+              "task_skip_removed": "Skip removed",
+              "task_overdue": "Task became overdue",
+              "task_due_soon": "Task due soon",
+              "part_low_stock": "Spare part low on stock",
+              "part_out_of_stock": "Spare part out of stock",
+              "part_restocked": "Spare part restocked",
+              "asset_created": "Appliance added",
+              "asset_updated": "Appliance updated",
+              "asset_deleted": "Appliance deleted",
+              "asset_archived": "Appliance archived",
+              "asset_restored": "Appliance restored",
+              "companion_connected": "Companion connected",
+              "companion_suggested": "Companion suggested",
+              "declarative_companion_added": "Declarative companion added",
+              "declarative_companion_updated": "Declarative companion updated",
+              "declarative_companion_removed": "Declarative companion deleted"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

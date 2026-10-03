@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "即将到来的任务"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Home Keeper 事件",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "任务已创建",
+              "task_updated": "任务已更新",
+              "task_deleted": "任务已删除",
+              "task_completed": "任务已完成",
+              "task_uncompleted": "完成记录已删除",
+              "task_completion_updated": "完成记录已更新",
+              "task_triggered": "任务已触发",
+              "task_snoozed": "任务已推迟",
+              "task_skipped": "任务已跳过",
+              "task_due_today_set": "任务已设为今天到期",
+              "task_skip_updated": "跳过记录已更新",
+              "task_skip_removed": "跳过记录已删除",
+              "task_overdue": "任务已逾期",
+              "task_due_soon": "任务即将到期",
+              "part_low_stock": "备件库存不足",
+              "part_out_of_stock": "备件缺货",
+              "part_restocked": "备件已补货",
+              "asset_created": "电器已添加",
+              "asset_updated": "电器已更新",
+              "asset_deleted": "电器已删除",
+              "asset_archived": "电器已归档",
+              "asset_restored": "电器已恢复"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "事件",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "任务已创建",
+              "task_updated": "任务已更新",
+              "task_deleted": "任务已删除",
+              "task_completed": "任务已完成",
+              "task_uncompleted": "完成记录已删除",
+              "task_completion_updated": "完成记录已更新",
+              "task_triggered": "任务已触发",
+              "task_snoozed": "任务已推迟",
+              "task_skipped": "任务已跳过",
+              "task_due_today_set": "任务已设为今天到期",
+              "task_skip_updated": "跳过记录已更新",
+              "task_skip_removed": "跳过记录已删除",
+              "task_overdue": "任务已逾期",
+              "task_due_soon": "任务即将到期",
+              "part_low_stock": "备件库存不足",
+              "part_out_of_stock": "备件缺货",
+              "part_restocked": "备件已补货",
+              "asset_created": "电器已添加",
+              "asset_updated": "电器已更新",
+              "asset_deleted": "电器已删除",
+              "asset_archived": "电器已归档",
+              "asset_restored": "电器已恢复",
+              "companion_connected": "搭档已连接",
+              "companion_suggested": "搭档已推荐",
+              "declarative_companion_added": "声明式搭档已添加",
+              "declarative_companion_updated": "声明式搭档已更新",
+              "declarative_companion_removed": "声明式搭档已删除"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

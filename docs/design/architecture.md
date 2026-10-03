@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: 38521969a866
+source_hash: 44f7c75c1485
 ---
 
 # Architecture
@@ -46,7 +46,7 @@ This page gives the module map, the privilege boundary, the entry lifecycle and 
 | Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `shopping.py`, `todo_items.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
 | Boundary | `options.py`, `coordinator.py`, `device_compat.py`, `notifier.py`, `card.py`, `sensor_watcher.py`, `tag_listener.py` | Home Assistant imports only under `TYPE_CHECKING`. |
 | Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
-| Platforms | `todo.py`, `calendar.py`, `button.py`, `sensor.py`, `binary_sensor.py`, `number.py` | `const.PLATFORMS` lists them. |
+| Platforms | `todo.py`, `calendar.py`, `button.py`, `sensor.py`, `binary_sensor.py`, `number.py`, `event.py` | `const.PLATFORMS` lists them. |
 
 The mutation allowlist (`only_mutate` in `pyproject.toml`) is drawn from the first 2 rows.
 `api_surface.py` declares each surface that an integrator sees ([events-api](events-api.md)).

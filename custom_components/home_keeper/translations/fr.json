@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Tâches à venir"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Événements Home Keeper",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tâche créée",
+              "task_updated": "Tâche mise à jour",
+              "task_deleted": "Tâche supprimée",
+              "task_completed": "Tâche réalisée",
+              "task_uncompleted": "Réalisation supprimée",
+              "task_completion_updated": "Réalisation mise à jour",
+              "task_triggered": "Tâche déclenchée",
+              "task_snoozed": "Tâche reportée",
+              "task_skipped": "Tâche ignorée",
+              "task_due_today_set": "Tâche prévue aujourd'hui",
+              "task_skip_updated": "Omission mise à jour",
+              "task_skip_removed": "Omission supprimée",
+              "task_overdue": "Tâche devenue en retard",
+              "task_due_soon": "Tâche bientôt due",
+              "part_low_stock": "Pièce de rechange en stock bas",
+              "part_out_of_stock": "Pièce de rechange en rupture de stock",
+              "part_restocked": "Pièce de rechange réapprovisionnée",
+              "asset_created": "Appareil ajouté",
+              "asset_updated": "Appareil mis à jour",
+              "asset_deleted": "Appareil supprimé",
+              "asset_archived": "Appareil archivé",
+              "asset_restored": "Appareil restauré"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Événements",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tâche créée",
+              "task_updated": "Tâche mise à jour",
+              "task_deleted": "Tâche supprimée",
+              "task_completed": "Tâche réalisée",
+              "task_uncompleted": "Réalisation supprimée",
+              "task_completion_updated": "Réalisation mise à jour",
+              "task_triggered": "Tâche déclenchée",
+              "task_snoozed": "Tâche reportée",
+              "task_skipped": "Tâche ignorée",
+              "task_due_today_set": "Tâche prévue aujourd'hui",
+              "task_skip_updated": "Omission mise à jour",
+              "task_skip_removed": "Omission supprimée",
+              "task_overdue": "Tâche devenue en retard",
+              "task_due_soon": "Tâche bientôt due",
+              "part_low_stock": "Pièce de rechange en stock bas",
+              "part_out_of_stock": "Pièce de rechange en rupture de stock",
+              "part_restocked": "Pièce de rechange réapprovisionnée",
+              "asset_created": "Appareil ajouté",
+              "asset_updated": "Appareil mis à jour",
+              "asset_deleted": "Appareil supprimé",
+              "asset_archived": "Appareil archivé",
+              "asset_restored": "Appareil restauré",
+              "companion_connected": "Companion connecté",
+              "companion_suggested": "Companion suggéré",
+              "declarative_companion_added": "Companion déclaratif ajouté",
+              "declarative_companion_updated": "Companion déclaratif mis à jour",
+              "declarative_companion_removed": "Companion déclaratif supprimé"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

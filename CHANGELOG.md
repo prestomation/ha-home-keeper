@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.29.0b2]
+
+### Added
+
+- **[Event entities](https://prestomation.github.io/ha-home-keeper/docs/guide/events#event-entities).**
+  Each device that has a Home Keeper task or appliance now has an event entity, and 1 more
+  entity gets all Home Keeper events. In the automation editor, use the Event received
+  trigger and select a device, area or label. (Fixes #415)
+
 ## [0.29.0b1]
 
 ### Added

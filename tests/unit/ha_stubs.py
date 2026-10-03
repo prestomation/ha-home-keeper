@@ -89,7 +89,7 @@ def install_ha_stubs() -> None:
 
 
 def _install_components(ha: types.ModuleType) -> None:
-    """``homeassistant.components.{calendar,todo,button}`` — the entity platforms."""
+    """``homeassistant.components.{calendar,todo,button,event}``: entity platforms."""
     components = _mod("homeassistant.components")
     ha.components = components
 
@@ -170,6 +170,16 @@ def _install_components(ha: types.ModuleType) -> None:
 
         comp_button.ButtonEntity = ButtonEntity
     components.button = comp_button
+
+    comp_event = _mod("homeassistant.components.event")
+    if not hasattr(comp_event, "EventEntity"):
+
+        class EventEntity:
+            async def async_added_to_hass(self) -> None:
+                pass
+
+        comp_event.EventEntity = EventEntity
+    components.event = comp_event
 
 
 def _install_config_entries() -> None:

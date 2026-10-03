@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Tasques pròximes"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Esdeveniments de Home Keeper",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tasca creada",
+              "task_updated": "Tasca actualitzada",
+              "task_deleted": "Tasca eliminada",
+              "task_completed": "Tasca completada",
+              "task_uncompleted": "Realització eliminada",
+              "task_completion_updated": "Realització actualitzada",
+              "task_triggered": "Tasca activada",
+              "task_snoozed": "Tasca posposada",
+              "task_skipped": "Tasca omesa",
+              "task_due_today_set": "Tasca marcada per a avui",
+              "task_skip_updated": "Omissió actualitzada",
+              "task_skip_removed": "Omissió eliminada",
+              "task_overdue": "La tasca ha quedat endarrerida",
+              "task_due_soon": "La tasca venç aviat",
+              "part_low_stock": "Peça de recanvi amb estoc baix",
+              "part_out_of_stock": "Peça de recanvi sense estoc",
+              "part_restocked": "Peça de recanvi reabastida",
+              "asset_created": "Electrodomèstic afegit",
+              "asset_updated": "Electrodomèstic actualitzat",
+              "asset_deleted": "Electrodomèstic eliminat",
+              "asset_archived": "Electrodomèstic arxivat",
+              "asset_restored": "Electrodomèstic restaurat"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Esdeveniments",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tasca creada",
+              "task_updated": "Tasca actualitzada",
+              "task_deleted": "Tasca eliminada",
+              "task_completed": "Tasca completada",
+              "task_uncompleted": "Realització eliminada",
+              "task_completion_updated": "Realització actualitzada",
+              "task_triggered": "Tasca activada",
+              "task_snoozed": "Tasca posposada",
+              "task_skipped": "Tasca omesa",
+              "task_due_today_set": "Tasca marcada per a avui",
+              "task_skip_updated": "Omissió actualitzada",
+              "task_skip_removed": "Omissió eliminada",
+              "task_overdue": "La tasca ha quedat endarrerida",
+              "task_due_soon": "La tasca venç aviat",
+              "part_low_stock": "Peça de recanvi amb estoc baix",
+              "part_out_of_stock": "Peça de recanvi sense estoc",
+              "part_restocked": "Peça de recanvi reabastida",
+              "asset_created": "Electrodomèstic afegit",
+              "asset_updated": "Electrodomèstic actualitzat",
+              "asset_deleted": "Electrodomèstic eliminat",
+              "asset_archived": "Electrodomèstic arxivat",
+              "asset_restored": "Electrodomèstic restaurat",
+              "companion_connected": "Company connectat",
+              "companion_suggested": "Company suggerit",
+              "declarative_companion_added": "Companion declaratiu afegit",
+              "declarative_companion_updated": "Companion declaratiu actualitzat",
+              "declarative_companion_removed": "Companion declaratiu eliminat"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

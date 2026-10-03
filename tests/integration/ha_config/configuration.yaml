@@ -152,8 +152,32 @@ input_text:
   hk_last_uncompleted_ts:
     name: HK last uncompleted ts
     max: 255
+  hk_last_event_entity_event:
+    name: HK last event entity event
+    max: 255
 
 automation:
+  # Uses the Event received trigger on the water heater's Home Keeper event entity,
+  # so tests/integration/test_event_entities.py can show that an automation built in
+  # the new trigger editor runs.
+  - alias: Capture Home Keeper event entity
+    triggers:
+      - trigger: event.received
+        target:
+          entity_id: event.garage_water_heater_home_keeper_events
+        options:
+          event_type:
+            - task_completed
+            - part_low_stock
+    actions:
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.hk_last_event_entity_event
+        data:
+          value: >-
+            {{ trigger.to_state.attributes.event_type }}:{{
+            trigger.to_state.attributes.task_id
+            | default(trigger.to_state.attributes.part_id) }}
   - alias: Capture Home Keeper task completed
     trigger:
       - platform: event

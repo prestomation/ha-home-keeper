@@ -79,6 +79,11 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
   `tests/unit/test_api_surface.py` parses the source and fails on drift.
 - A device-facing event also needs a `device_trigger.py` trigger with
   `strings.json` `device_automation` labels at full translation parity.
+- **A new fired event with a payload is also an event entity type.** `event.py` takes the
+  list from `api_surface.event_entity_events`. Add its label to the `event` entities in
+  `strings.json` and all locales. A payload with no `device_id` reaches only the global
+  entity. To keep a large payload key off the recorder, add it to
+  `EVENT_ENTITY_DROPPED_FIELDS` with a reason.
 - **The runtime reads the model.** `device_trigger.py` builds its maps from
   `triggers_for()`. Never write a second literal list beside a modelled one.
 - **The model holds names and structure only.** Labels and descriptions come from

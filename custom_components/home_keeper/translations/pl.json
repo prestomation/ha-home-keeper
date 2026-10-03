@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Nadchodzące zadania"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Zdarzenia Home Keeper",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Zadanie utworzone",
+              "task_updated": "Zadanie zaktualizowane",
+              "task_deleted": "Zadanie usunięte",
+              "task_completed": "Zadanie ukończone",
+              "task_uncompleted": "Wykonanie usunięte",
+              "task_completion_updated": "Wykonanie zaktualizowane",
+              "task_triggered": "Zadanie wyzwolone",
+              "task_snoozed": "Zadanie odłożone",
+              "task_skipped": "Zadanie pominięte",
+              "task_due_today_set": "Zadanie ustawione na dziś",
+              "task_skip_updated": "Pominięcie zaktualizowane",
+              "task_skip_removed": "Pominięcie usunięte",
+              "task_overdue": "Zadanie stało się zaległe",
+              "task_due_soon": "Termin zadania zbliża się",
+              "part_low_stock": "Niski stan części zapasowej",
+              "part_out_of_stock": "Brak części zapasowej na stanie",
+              "part_restocked": "Część zapasowa uzupełniona",
+              "asset_created": "Urządzenie dodane",
+              "asset_updated": "Urządzenie zaktualizowane",
+              "asset_deleted": "Urządzenie usunięte",
+              "asset_archived": "Urządzenie zarchiwizowane",
+              "asset_restored": "Urządzenie przywrócone"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Zdarzenia",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Zadanie utworzone",
+              "task_updated": "Zadanie zaktualizowane",
+              "task_deleted": "Zadanie usunięte",
+              "task_completed": "Zadanie ukończone",
+              "task_uncompleted": "Wykonanie usunięte",
+              "task_completion_updated": "Wykonanie zaktualizowane",
+              "task_triggered": "Zadanie wyzwolone",
+              "task_snoozed": "Zadanie odłożone",
+              "task_skipped": "Zadanie pominięte",
+              "task_due_today_set": "Zadanie ustawione na dziś",
+              "task_skip_updated": "Pominięcie zaktualizowane",
+              "task_skip_removed": "Pominięcie usunięte",
+              "task_overdue": "Zadanie stało się zaległe",
+              "task_due_soon": "Termin zadania zbliża się",
+              "part_low_stock": "Niski stan części zapasowej",
+              "part_out_of_stock": "Brak części zapasowej na stanie",
+              "part_restocked": "Część zapasowa uzupełniona",
+              "asset_created": "Urządzenie dodane",
+              "asset_updated": "Urządzenie zaktualizowane",
+              "asset_deleted": "Urządzenie usunięte",
+              "asset_archived": "Urządzenie zarchiwizowane",
+              "asset_restored": "Urządzenie przywrócone",
+              "companion_connected": "Towarzysz połączony",
+              "companion_suggested": "Towarzysz zasugerowany",
+              "declarative_companion_added": "Deklaratywny towarzysz dodany",
+              "declarative_companion_updated": "Deklaratywny towarzysz zaktualizowany",
+              "declarative_companion_removed": "Deklaratywny towarzysz usunięty"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Attività in arrivo"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Eventi di Home Keeper",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Attività creata",
+              "task_updated": "Attività aggiornata",
+              "task_deleted": "Attività eliminata",
+              "task_completed": "Attività completata",
+              "task_uncompleted": "Completamento rimosso",
+              "task_completion_updated": "Completamento aggiornato",
+              "task_triggered": "Attività attivata",
+              "task_snoozed": "Attività posposta",
+              "task_skipped": "Attività saltata",
+              "task_due_today_set": "Attività in scadenza oggi",
+              "task_skip_updated": "Salto aggiornato",
+              "task_skip_removed": "Salto rimosso",
+              "task_overdue": "Attività diventata scaduta",
+              "task_due_soon": "Attività in scadenza",
+              "part_low_stock": "Ricambio con scorte basse",
+              "part_out_of_stock": "Ricambio esaurito",
+              "part_restocked": "Ricambio rifornito",
+              "asset_created": "Elettrodomestico aggiunto",
+              "asset_updated": "Elettrodomestico aggiornato",
+              "asset_deleted": "Elettrodomestico eliminato",
+              "asset_archived": "Elettrodomestico archiviato",
+              "asset_restored": "Elettrodomestico ripristinato"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Eventi",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Attività creata",
+              "task_updated": "Attività aggiornata",
+              "task_deleted": "Attività eliminata",
+              "task_completed": "Attività completata",
+              "task_uncompleted": "Completamento rimosso",
+              "task_completion_updated": "Completamento aggiornato",
+              "task_triggered": "Attività attivata",
+              "task_snoozed": "Attività posposta",
+              "task_skipped": "Attività saltata",
+              "task_due_today_set": "Attività in scadenza oggi",
+              "task_skip_updated": "Salto aggiornato",
+              "task_skip_removed": "Salto rimosso",
+              "task_overdue": "Attività diventata scaduta",
+              "task_due_soon": "Attività in scadenza",
+              "part_low_stock": "Ricambio con scorte basse",
+              "part_out_of_stock": "Ricambio esaurito",
+              "part_restocked": "Ricambio rifornito",
+              "asset_created": "Elettrodomestico aggiunto",
+              "asset_updated": "Elettrodomestico aggiornato",
+              "asset_deleted": "Elettrodomestico eliminato",
+              "asset_archived": "Elettrodomestico archiviato",
+              "asset_restored": "Elettrodomestico ripristinato",
+              "companion_connected": "Companion connesso",
+              "companion_suggested": "Companion suggerito",
+              "declarative_companion_added": "Companion dichiarativo aggiunto",
+              "declarative_companion_updated": "Companion dichiarativo aggiornato",
+              "declarative_companion_removed": "Companion dichiarativo eliminato"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {
