@@ -1,13 +1,14 @@
 ---
 name: preview-comment
-description: Draft the maintainer's short comment that tells an issue reporter a preview build of the fix is ready to try, and post it on the issue only after the maintainer approves the exact text. Use only when the maintainer asks to post the preview comment, or to tell a reporter that a preview build is ready.
+description: Draft the maintainer's short comment that tells an issue reporter a preview build of the fix is ready to try, with links to its preview docs, and post it on the issue only after the maintainer approves the exact text. Use only when the maintainer asks to post the preview comment, or to tell a reporter that a preview build is ready.
 ---
 
 # Preview comment
 
 This skill writes one comment on one issue: the note that a preview build of the fix
-is ready, the version to install, how to install it, and that the PR may wait for
-feedback. It is the only exception to `AGENTS.md`, "Never comment on a GitHub issue".
+is ready, the version to install, how to install it, the preview docs when the PR
+changes the user guide, and that the PR may wait for feedback. It is the only
+exception to `AGENTS.md`, "Never comment on a GitHub issue".
 The exception holds only when the maintainer asks for this comment, and only after
 the maintainer approves the exact text.
 
@@ -34,13 +35,25 @@ the maintainer approves the exact text.
 3. If the PR has no such comment, the preview has not been published. Say so: the PR
    needs the `preview-release` label and a finished `publish` job. Do not guess a
    version.
+4. Find the newest comment from `github-actions[bot]` with the marker
+   `<!-- doc-preview-changed-pages -->`. Keep only the links whose path has
+   `/docs/guide/`. Drop "Release Notes" and the `/developer/` pages: they are not for
+   a user. Keep each link's text, for example "Events & automations".
+5. If the PR body's CHANGELOG bullet links to a section of one of those pages (a
+   `#anchor` on the same page), add that anchor to the preview link, so it opens on
+   the new section. If no guide link remains, or the PR has no such comment, the
+   comment has no docs sentence.
 
 ## 2. Write the text
 
 Write it as the maintainer does: casual, 3 or 4 short sentences, no headings, no
 greeting such as "Hi name", no sign-off. Start from this template:
 
-> Thanks for the suggestion. This is available in preview build **{version}** if you'd like to try it out. In HACS, open Home Keeper → ⋮ → **Redownload**, turn on **Show beta versions**, and pick `{version}`. I'd like some feedback before I merge, so I may hold off until I hear from you.
+> Thanks for the suggestion. This is available in preview build **{version}** if you'd like to try it out. In HACS, open Home Keeper → ⋮ → **Redownload**, turn on **Show beta versions**, and pick `{version}`. The docs for it are here: {guide links}. I'd like some feedback before I merge, so I may hold off until I hear from you.
+
+`{guide links}` is each guide link from step 1 as a Markdown link with its page title,
+joined with "and" for 2 links or commas for more. Without guide links, leave out the
+whole "The docs for it are here" sentence.
 
 Small liberties are fine, so the comment does not read the same on every issue:
 
@@ -51,7 +64,7 @@ Small liberties are fine, so the comment does not read the same on every issue:
   about the maintainer's own thinking ("I hadn't thought of that").
 - The rest may be reworded a little, but it must keep all of these: the exact
   version, the 3 install steps (Redownload, Show beta versions, pick the version),
-  and the note that the merge may wait for feedback.
+  each guide link from step 1, and the note that the merge may wait for feedback.
 - The maintainer approves every comment before it is posted, so these liberties
   never reach an issue without their review.
 
