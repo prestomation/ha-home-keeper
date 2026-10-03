@@ -6,15 +6,9 @@ summary: The Simplified Technical English rules and the glossary for all English
 # Home Keeper — writing style (ASD-STE100)
 
 All English text in this project follows **ASD-STE100 Simplified Technical English**
-(STE). This applies to:
-
-- User documentation: `README.md`, `CHANGELOG.md`, `docs/guide/**/*.md`, the canonical
-  `docs/*.md` and `docs/design/*.md`, and `website/docs/intro.md`.
-- User-facing strings: `strings.json`, `services.yaml`, the English frontend locale
-  (`locales/en.json`), log messages, and exception text.
-- Code comments and docstrings.
-- PR titles and bodies, PR comments, and review replies.
-- Replies to the maintainer in chat.
+(STE): user docs (`README.md`, `CHANGELOG.md`, `docs/`, `website/docs/intro.md`),
+user-facing strings (`strings.json`, `services.yaml`, `locales/en.json`, logs and
+exceptions), code comments, PR text and review replies, and chat replies.
 
 Other locales are translations. They do not follow STE. Keep their placeholders and
 keys the same as the English source (see [testing.md](testing.md#translations)).
@@ -23,20 +17,17 @@ keys the same as the English source (see [testing.md](testing.md#translations)).
 
 ### Words
 
-- Use one approved word for one thing. Do not use synonyms for variety. The project
-  names are in the glossary below.
-- Use a word for one meaning only. Example: "close" is a verb, not an adjective.
+- Use one approved word for one thing, and one meaning for one word. Do not use synonyms
+  for variety. The project names are in the glossary below.
 - Use the shortest common word. Write "start", not "initiate". Write "use", not
   "utilize". Write "show", not "surface" or "expose".
 - Do not use slang, idiom, or metaphor. No "side door", "on the floor", "reach for",
   "under the hood".
-- Do not use contractions. Write "do not", not "don't".
-- Write numbers as numerals. Write "3 tasks", not "three tasks". The exception is a
-  number that starts a sentence.
+- Do not use contractions. Write numbers as numerals ("3 tasks"), except at the start of
+  a sentence.
 - Use "must" for a requirement. Use "can" for a possibility. Do not use "may",
   "might", "should", or "could".
-- Use "if" for a condition. Use "when" for a point in time.
-- Use "make sure that", not "ensure".
+- Use "if" for a condition and "when" for a point in time. Write "make sure that", not "ensure".
 - Do not put more than 3 nouns in a row. Write "the list of tasks that are due", not
   "the due task list summary view".
 - **Name the noun.** Do not write "nothing", "anything", or "something" where a real
@@ -65,18 +56,15 @@ keys the same as the English source (see [testing.md](testing.md#translations)).
   panel shows a link", not "The panel shows a link if the task has a device".
 - Do not use parentheses for a second thought. Write it as a separate sentence, or
   remove it.
-- Do not use em dashes. Do not use semicolons in prose.
-- Do not use rhetorical questions.
+- Do not use em dashes, semicolons in prose, or rhetorical questions.
 
 ### Paragraphs and structure
 
-- Keep a paragraph to 6 sentences or fewer. Start with the topic sentence.
-- Give one topic per paragraph.
+- Keep a paragraph to 6 sentences or fewer and 1 topic. Start with the topic sentence.
 - Use a numbered list for steps in sequence. Use a bulleted list for items with no
   sequence. Do not put more than 2 items in a series inside one sentence. Use a
   list instead.
-- Put a warning or caution before the step it applies to. Write it as a command:
-  "Do not delete the config directory while the container runs."
+- Put a warning before the step it applies to. Write it as a command.
 - Use a table for data with 2 or more attributes per row. Do not put full
   sentences in a table cell if a short phrase is enough.
 - Write a heading as a noun phrase or a command: "Admin operations", "Install the panel".
@@ -96,8 +84,7 @@ keys the same as the English source (see [testing.md](testing.md#translations)).
 - Do not invent a reason for a behavior. Write why only if the maintainer stated the
   reason. "Items that a user adds are not imported" is a fact. "Because a to-do item
   cannot hold a recurrence" is an invented reason.
-- Do not invent context that the software does not have. A to-do list has no
-  concept of home or work.
+- Do not invent context that the software does not have.
 - Use the active voice when the reader is the actor: "select a list". The passive
   voice is acceptable when the actor is obvious or is the software: "the item is
   marked complete on the list".
@@ -121,15 +108,11 @@ keys the same as the English source (see [testing.md](testing.md#translations)).
   - A stock phrase such as "worth noting", "in short", or "out of the box".
   - Alliteration, wordplay, or a pun.
 
-  The instructions in this file use "Write X, not Y" to teach a rule. User text does not.
-
 ### Vale
 
-- The `HomeKeeper` Vale style in `styles/HomeKeeper/` enforces the house rules.
-  `.vale.ini` loads it next to `ai-tells`. Add a token there when a new banned word
-  appears in review.
-- If STE and the `ai-tells` style disagree, STE wins. Disable the vale rule for that
-  line with an inline comment.
+- The `HomeKeeper` style in `styles/HomeKeeper/` enforces these rules next to `ai-tells`.
+  Add a token there when review finds a new banned word. If STE and `ai-tells` disagree,
+  STE wins. Disable the vale rule for that line with an inline comment.
 - Vale reads a whole list as one block, and its regexes cross sentence ends. Keep
   commas out of list items. Do not start 2 sentences in a row with the same word, or
   `StackedAnaphora` fires.
@@ -188,14 +171,10 @@ can appear in a heading.
 
 ## Checklist before you commit prose
 
-1. Read each sentence. Count the words. Split any sentence over the limit.
-2. Find every "-ing" verb, every "may", "should", "ensure", and every contraction.
-   Replace them.
-3. Find every synonym for a glossary name. Replace it.
-4. Find every parenthesis, em dash, and semicolon. Remove or split.
-5. Find every contrast formula, colon reveal, aphorism, and dramatic fragment.
-   Rewrite each one as a plain statement.
-6. Find every sentence that opens with "it", "this", or "there". Cut the subject and
-   the verb, and keep the phrase.
-7. Check that every instruction is a command in the active voice.
-8. Run `vale <file>` on a documentation file.
+1. Count the words in each sentence. Split any sentence over the limit.
+2. Replace every "-ing" verb, "may", "should", "ensure", contraction, and glossary synonym.
+3. Remove or split every parenthesis, em dash, and semicolon.
+4. Rewrite every contrast formula, colon reveal, aphorism, and dramatic fragment.
+5. Cut the subject and verb from each sentence that opens with "it", "this", or "there".
+6. Check that every instruction is a command in the active voice.
+7. Run `vale <file>` on a documentation file.

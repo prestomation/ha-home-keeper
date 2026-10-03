@@ -81,7 +81,7 @@ bash ci/test-mutation-frontend.sh          # Stryker, changed line ranges only
   `ha-beta.yml` and `ci/setup-ci-deps.sh` install from it. Add a new stub package there.
 - `typings/voluptuous/*.pyi` makes mypy read `voluptuous` as probatio, the way HA 2026.9
   and later alias it. Delete the stubs when the code imports probatio directly.
-- User-facing exceptions are localized ([services-and-events.md](services-and-events.md#errors)).
+- User-facing exceptions are localized ([architecture.md](architecture.md#localized-text)).
 
 ## Home Assistant versions
 

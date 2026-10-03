@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/shopping_sync.py
   - custom_components/home_keeper/frontend/src/shopping-preview.ts
 related: [profiles-notifications, appliances, coordinator-entities, store, recurrence]
-source_hash: pending
+source_hash: 2900cf120415
 ---
 
 # To-do, calendar and list sync

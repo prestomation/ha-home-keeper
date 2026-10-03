@@ -1143,7 +1143,7 @@ def _register_services(hass: HomeAssistant) -> None:
         Raises HA core's ``Unauthorized`` rather than a translated
         ``ServiceValidationError``: this is an auth failure, not bad input, and the
         websocket/REST layers already map it to a 401/``unauthorized`` the frontend
-        renders. See ``.amazonq/rules/architecture-and-code.md`` → "Privilege model".
+        renders. See ``.amazonq/rules/architecture.md`` → "Privilege model".
         """
         if not await _caller_is_admin(call):
             raise Unauthorized(context=call.context)

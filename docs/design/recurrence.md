@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/defer-dialogs.ts
   - custom_components/home_keeper/frontend/src/panel-defer.ts
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: pending
+source_hash: 95c9ea675726
 ---
 
 # Task model and recurrence

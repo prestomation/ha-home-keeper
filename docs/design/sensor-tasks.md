@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/problem_tasks.py
   - custom_components/home_keeper/problem_sync.py
 related: [recurrence, store, coordinator-entities, completions, companions-presets, events-api]
-source_hash: pending
+source_hash: cf98537f7a43
 ---
 
 # Sensor tasks and problem sensors

@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-upload.ts
   - custom_components/home_keeper/frontend/src/markdown.ts
 related: [appliances, completions, store, frontend, events-api]
-source_hash: pending
+source_hash: a2cda8ea47e4
 ---
 
 # Documents and photos

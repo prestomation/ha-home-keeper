@@ -56,8 +56,8 @@ summary: How the dev docs are typed, capped and checked, and how to keep a desig
 - A length exception (`max_lines` plus `exception: <reason>` in the front matter) is
   allowed for at most 2 docs in the repository. Shorten the doc before you ask for one.
 - `check` also fails on history (`this PR`, `originally`, `Phase 2`), a broken link or
-  anchor, a backticked file or `module.function` that does not exist, a `docs/...md` path
-  in code that does not exist, and a sentence of 12 or more words that is in 2 docs. Keep
+  anchor, a backticked file or `module.function` that does not exist, a doc path named in
+  code that does not exist, and a sentence of 12 or more words that is in 2 docs. Keep
   a fact in 1 place and link to it.
 - `lint.yml`'s `docs-audit` job runs `python3 ci/docs.py check --base origin/main`.
 

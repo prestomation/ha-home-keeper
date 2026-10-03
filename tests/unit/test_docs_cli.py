@@ -599,6 +599,10 @@ def test_goal_change_notice(repo: Path) -> None:
 # ------------------------------------------------------------------ the real gate
 
 
+@pytest.mark.skipif(
+    not (_ROOT / ".git").exists(),
+    reason="needs the whole checkout; mutmut runs from a partial copy in mutants/",
+)
 def test_repository_docs_are_clean() -> None:
     """The same gate as the lint.yml ``docs-audit`` job."""
     found, _ = docs.check(_ROOT, docs.load_config(_ROOT))

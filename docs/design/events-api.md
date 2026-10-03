@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: pending
+source_hash: fd1aa0945c55
 ---
 
 # Events and API surface

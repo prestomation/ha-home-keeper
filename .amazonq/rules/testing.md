@@ -31,10 +31,8 @@ Run the tests locally before you push. CI is not the test runner.
 ## Dependencies
 
 - **A missing test dependency fails the run. It never skips.** Import every package in
-  `requirements-test.txt` plainly. A skip reads as "this lane does not cover that", so a
-  broken environment looks like a choice. Use `pytest.importorskip` only for
-  `homeassistant` and `voluptuous`, which a bare lane really lacks. Do not add a session
-  check over the whole requirements file: the mypy job installs only its own packages.
+  `requirements-test.txt` plainly, so a broken environment does not look like a choice.
+  Use `pytest.importorskip` only for `homeassistant` and `voluptuous`.
 - **A dependency that changes what other tests skip stays out of
   `requirements-test.txt`.** `voluptuous-openapi` pulls in `voluptuous`, which decides
   whether `test_config_flow.py` runs. `ci/install-schema-deps.sh` installs it and
@@ -44,8 +42,8 @@ Run the tests locally before you push. CI is not the test runner.
   The job checks the HA version and greps the output to prove that the tests ran. Run it
   locally with `HK_SCHEMA_GATE=1 pytest tests/unit/test_generate_schema.py` after
   `pip install homeassistant voluptuous-openapi jsonschema` on a Python at HA's floor.
-- Give an opt-in gate a sibling in the lane that every PR runs.
-  `test_no_exported_value_is_null` in `test_transfer_coverage.py` is the schema gate's.
+- Give an opt-in gate a sibling in the lane that every PR runs
+  (`test_no_exported_value_is_null` for the schema gate).
 - Never subtract the `EXCLUDED_*` keys from the published schema. They name what export
   omits, and import still accepts some of them. Keep `additionalProperties` open.
 
@@ -53,9 +51,8 @@ Run the tests locally before you push. CI is not the test runner.
 
 - Write a property test when the claim is about a whole domain ("the fast path always
   agrees with the slow one"). Write an ordinary test for a single case.
-- They live in `tests/unit/test_recurrence_properties.py` and
-  `tests/unit/test_transfer_properties.py`, share `tests/unit/property_strategies.py`,
-  and carry the `property` marker (`pytest tests/unit -m property`).
+- They live in `tests/unit/test_*_properties.py`, share
+  `tests/unit/property_strategies.py`, and carry the `property` marker.
 - Build inputs with `models.build_task` or `assets.build_asset`. Never hand-roll a dict.
 - A property holds for every input it can draw, or its generator is scoped until it
   does. Pin a real defect with `xfail(strict=True)` and an `@example` reproducer.
@@ -112,7 +109,6 @@ Run the tests locally before you push. CI is not the test runner.
   `--disable-features=LocalNetworkAccessChecks` in its own `test.use({ launchOptions })`,
   never in `playwright.config.ts`. `launchOptions` replaces the config's copy, so the spec
   sets `CHROMIUM_EXEC` itself.
-- Give an assertion on browser plumbing a failure message that names what it saw.
 - **Bring the container down before you clean the fixture.** Reset with
   `git clean -fdX tests/integration/ha_config/` before each capture, and check
   `git status tests/integration/` after. The clean deletes the bind mountpoint, and a
@@ -132,8 +128,7 @@ Run the tests locally before you push. CI is not the test runner.
 - A capture config pins the desktop project with `captureConfig()` from
   `tests/e2e/capture-config.ts`. `--list` must show 1 project.
 - Measure layout by relations (A is above B), never by coordinates. Assert that a list is
-  not empty before you loop over it. Prove an anchored element by scrolling and reading
-  its box again.
+  not empty before you loop over it.
 
 ## Translations
 

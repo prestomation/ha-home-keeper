@@ -10,14 +10,14 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: pending
+source_hash: 38521969a866
 ---
 
 # Architecture
 
 Home Keeper is a Home Assistant integration that tracks home maintenance and chores.
 Administrators manage tasks and appliances in a sidebar panel. All household members use
-the tasks through native entities: a to-do list, a calendar, and entities on device pages.
+the tasks through native entities, such as the to-do list and the calendar.
 This page gives the module map, the privilege boundary, the entry lifecycle and a doc index.
 
 ## Goals
@@ -45,7 +45,7 @@ This page gives the module map, the privilege boundary, the entry lifecycle and 
 |---|---|---|
 | Pure core | `recurrence.py`, `models.py`, `assets.py`, `events.py`, `transitions.py`, `profiles.py`, `notifications.py`, `transfer.py`, `reconcile.py`, `sensor_tasks.py`, `problem_tasks.py`, `shopping.py`, `todo_items.py`, `const.py`, the catalogs | No `homeassistant` import. Time and zone come in as arguments. |
 | Boundary | `options.py`, `coordinator.py`, `device_compat.py`, `notifier.py`, `card.py`, `sensor_watcher.py`, `tag_listener.py` | Home Assistant imports only under `TYPE_CHECKING`. |
-| Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `companions.py`, the sync modules | Talks to Home Assistant; calls into the core. |
+| Glue | `__init__.py`, `store.py`, `devices.py`, `websocket_api.py`, `panel.py`, `config_flow.py`, `diagnostics.py`, `manuals.py`, `companions.py`, the sync modules | Talks to Home Assistant and calls into the core. |
 | Platforms | `todo.py`, `calendar.py`, `button.py`, `sensor.py`, `binary_sensor.py`, `number.py` | `const.PLATFORMS` lists them. |
 
 The mutation allowlist (`only_mutate` in `pyproject.toml`) is drawn from the first 2 rows.
@@ -83,7 +83,7 @@ Each websocket command calls the same store method as its service twin.
 4. Register the panel, the card, the document HTTP views and the websocket commands.
    Then forward `const.PLATFORMS` and prune devices that lost their entities.
 5. Ask companions to register again. Add the options and language listeners, which reload.
-6. Start the sensor watcher and the list syncs. The syncs run after Home Assistant starts.
+6. Start the sensor watcher. Start the list syncs when the Home Assistant start is done.
 7. Enable transition events, start the 5-minute clock, refresh 1 more time, and set the
    companion registry live after start.
 

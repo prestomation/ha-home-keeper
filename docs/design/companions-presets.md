@@ -16,7 +16,7 @@ implements:
   - custom_components/home_keeper/frontend/src/preset-summary.ts
   - custom_components/home_keeper/frontend/src/panel-preset-nudge.ts
 related: [sensor-tasks, store, events-api, transfer, frontend]
-source_hash: pending
+source_hash: 5bef7a92a59a
 ---
 
 # Companions and presets
