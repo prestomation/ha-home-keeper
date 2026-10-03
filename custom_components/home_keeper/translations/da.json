@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Fjern opgavefoto",
+      "description": "Fjerner et foto fra en opgave og sletter filen. Tilføj fotos i panelet, da et servicekald ikke kan bære en fil.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "ID'et for opgaven med fotoet. Navnet virker også. Panelet viser ID'et."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotoets ID. Tjenesten list_tasks giver det i opgavens fotos."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Angiv opgavens forsidefoto",
+      "description": "Gør et foto til forsidefoto for dets opgave. Forsidefotoet er det første foto. Det vises på opgavelisten, på opgavesiden og i udført-dialogen.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "ID'et for opgaven med fotoet. Navnet virker også. Panelet viser ID'et."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotoets ID. Tjenesten list_tasks giver det i opgavens fotos."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Signer URL til opgavefoto",
+      "description": "Opretter en kortlivet URL (ingen auth-header nødvendig), der giver et opgavefotos bytes, for eksempel for at vise fotoet i en notifikation.",
+      "fields": {
+        "task_id": {
+          "name": "Opgavenavn eller -ID",
+          "description": "ID'et for opgaven med fotoet. Navnet virker også. Panelet viser ID'et."
+        },
+        "photo_id": {
+          "name": "Foto-ID",
+          "description": "Fotoets ID. Tjenesten list_tasks giver det i opgavens fotos."
+        },
+        "thumbnail": {
+          "name": "Miniature",
+          "description": "Signer URL'en til den lille kopi, højst 256 pixel på den lange side."
+        }
+      }
+    },
     "update_skip": {
       "name": "Opdater overspringning",
       "description": "Ret detaljerne i en registreret overspringning, identificeret ved dens tidsstempel. Overspringningen beholder sin dato, og planen røres ikke.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Ukendt dokument: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Ukendt foto: {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Kun en opgave med en forbrugssensor har en måler."

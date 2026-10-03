@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: fd1aa0945c55
+source_hash: 21fb13b846ce
 ---
 
 # Events and API surface
@@ -100,6 +100,7 @@ use `SupportsResponse.ONLY`. `services.yaml` and `strings.json` hold all labels.
 `websocket_api._with_coordinator` finds the coordinator and maps store exceptions to error
 codes. `backend_i18n.resolve_exception` localizes the text, because a websocket error gets
 no later translation. Each `WebsocketSpec` names its service twin, if there is one.
+`home_keeper/sign_task_photo_urls` signs a list, and its twin signs 1 photo.
 
 An admin-only operation has 2 gates: `@websocket_api.require_admin` on the command, and
 `await _verify_admin(call)` first in the service handler. A call with no user is trusted.
@@ -114,7 +115,8 @@ uuid succeeds (`resolve.looks_like_id`).
 
 `service_errors.store_errors` turns a store `KeyError`, `TaskValidationError` or
 `AssetValidationError` into a `ServiceValidationError` with a translation key. The
-innermost id given picks the key (`unknown_part` before `asset_not_found`).
+innermost id given picks the key: `unknown_task_photo` or `unknown_part` before
+`asset_not_found`.
 
 ### The declared surface
 

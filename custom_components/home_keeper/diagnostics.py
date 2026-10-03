@@ -34,6 +34,9 @@ TO_REDACT = {
     # Who did it, and a picture of it.
     "who",
     "photo",
+    # A task's own photos (#399): their names are what a person typed or the
+    # file was called on their phone.
+    "photos",
     # The appliance record: the same fields the card's narrowed view withholds.
     "serial_number",
     "cost",

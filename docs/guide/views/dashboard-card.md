@@ -8,7 +8,8 @@ To add the card, select **Home Keeper Tasks** in the dashboard **Add card** pick
 From the card, a user can:
 
 - complete a task with **Done**
-- add a task with the **+** button in the header
+- add a task with the **+** button in the header, with [photos](../tasks/task-photos.md)
+- open the cover photo of a task
 - open the document links that a task shows
 - read a task's note with the **Note** chip
 
@@ -33,6 +34,12 @@ to a non-admin user. For a non-admin user, the card updates when a Home Keeper
 entity changes its state.
 
 ![Home Keeper task card grouped into status sections](../../images/card-grouped.png)
+
+#### Task photos on the card
+
+A task with [photos](../tasks/task-photos.md) shows its cover at the start of its row.
+Select the cover to open the full image. In the **New task** form, select **Add photo** to
+add photos. Any user can do this, also a user who is not an admin.
 
 #### Read a task's note from the card
 

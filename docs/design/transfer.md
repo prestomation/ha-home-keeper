@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/transfer.py
   - custom_components/home_keeper/transfer_runner.py
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: df0b9d283641
+source_hash: 3804045eb4d5
 ---
 
 # Import and export
@@ -67,9 +67,9 @@ over `MAX_IMPORT_RECORDS` is an error. The panel has the lower `MAX_IMPORT_WS_BY
 `managed_by`, appliances with a `source`, and tasks in a reserved reconciler namespace. A
 consumable link that the user made is the exception: the task travels and the link stays.
 Other `source` namespaces travel, so an integration finds its tasks after a restore.
-`home_keeper.skipped` counts `file_documents` (appliance and part files) and
-`consumable_links`. `transfer_runner.async_export_document` builds the document on the loop
-and writes the YAML in the executor, on a deep copy that shares no value with the store.
+`home_keeper.skipped` counts the uploaded files in `file_documents` and `task_photos`, and
+the `consumable_links`. `transfer_runner.async_export_document` builds the document on the
+loop and writes the YAML in the executor, on a deep copy that shares no value with the store.
 
 ### Planning an import
 
@@ -141,7 +141,7 @@ no reason, a service field the import drops, part-schema drift, and a null in an
 
 ## One-way doors
 
-- The envelope keys `format`, `version`, `exported_at`, `skipped` and its 2 counts.
+- The envelope keys `format`, `version`, `exported_at`, `skipped` and its 3 counts.
 - The sections `appliances` and `tasks`, the keys `external_id`, `appliance`, `area`,
   `archived`, `carried_uses`, `history[].completed_at` and `skips[].skipped_at`.
 - The schema URL, the service fields `include`, `document`, `dry_run` and `match`, the report

@@ -62,6 +62,15 @@ def test_panel_upload_limit_matches_backend() -> None:
     )
 
 
+def test_panel_task_photo_limits_match_backend() -> None:
+    """The photo size and count the panel checks are the ones the backend enforces."""
+    for name in ("MAX_TASK_PHOTO_BYTES", "MAX_TASK_PHOTOS"):
+        assert _typescript_limit(name) == _python_limit(name), (
+            f"frontend/src/limits.ts {name} has drifted from const.py"
+        )
+    assert _python_limit("MAX_TASK_PHOTO_BYTES") % (1024 * 1024) == 0
+
+
 def test_upload_limit_is_a_whole_number_of_megabytes() -> None:
     """The limit is rendered as '{mb} MB' in both the backend error (strings.json
     ``file_too_large``) and the panel's pre-check message, so a fractional value would

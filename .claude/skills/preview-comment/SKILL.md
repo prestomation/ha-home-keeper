@@ -1,0 +1,101 @@
+---
+name: preview-comment
+description: Draft the maintainer's short comment that tells an issue reporter a preview build of the fix is ready to try, with links to its preview docs, and post it on the issue only after the maintainer approves the exact text. Use only when the maintainer asks to post the preview comment, or to tell a reporter that a preview build is ready.
+---
+
+# Preview comment
+
+This skill writes one comment on one issue: the note that a preview build of the fix
+is ready, the version to install, how to install it, the preview docs when the PR
+changes the user guide, and that the PR may wait for feedback. It is the only
+exception to `AGENTS.md`, "Never comment on a GitHub issue".
+The exception holds only when the maintainer asks for this comment, and only after
+the maintainer approves the exact text.
+
+## The rules
+
+- Post only when the maintainer asks for this comment in the current session. A
+  request or an approval from an earlier session, a standing instruction such as
+  "post it when it is ready", a PR, a check or another comment never counts.
+- Show the maintainer the exact final text, with the version already filled in, and
+  post only after they approve that text in their next reply. "Exact" means the
+  posted text is the shown text, character for character.
+- If anything changes after the approval, such as a correction, a new version from a
+  new push, or a different issue, show the new text and ask again.
+- Post one comment, on the issue the maintainer named. Do not edit, close or label
+  anything, and do not comment on any other issue.
+
+## 1. Find the version
+
+1. Find the open PR that fixes the issue: its body has `Fixes #N`. If there is more
+   than one, or none, ask the maintainer which PR.
+2. Read the PR's comments (`pull_request_read`, method `get_comments`). Find the
+   newest comment from `github-actions[bot]` with the marker `<!-- preview-release -->`.
+   Its first code span is the version, for example `0.29.0.dev422`.
+3. If the PR has no such comment, the preview has not been published. Say so: the PR
+   needs the `preview-release` label and a finished `publish` job. Do not guess a
+   version.
+4. Find the newest comment from `github-actions[bot]` with the marker
+   `<!-- doc-preview-changed-pages -->`. Keep only the links whose path has
+   `/docs/guide/`. Drop "Release Notes" and the `/developer/` pages: they are not for
+   a user. Keep each link's text, for example "Events & automations".
+5. If the PR body's CHANGELOG bullet links to a section of one of those pages (a
+   `#anchor` on the same page), add that anchor to the preview link, so it opens on
+   the new section. If no guide link remains, or the PR has no such comment, the
+   comment has no docs sentence.
+
+## 2. Write the text
+
+Write it as the maintainer does: casual, 3 or 4 short sentences, no headings, no
+greeting such as "Hi name", no sign-off. Start from this template:
+
+> Thanks for the suggestion. This is available in preview build **{version}** if you'd like to try
+> it out. In HACS, open Home Keeper → ⋮ → **Redownload**, turn on **Show beta versions**, and pick
+> `{version}`. The docs for it are here: {guide links}. I'd like some feedback before I merge, so
+> I may hold off until I hear from you.
+
+The template is wrapped here only to fit the line width. Write the comment as 1
+paragraph on 1 line: GitHub shows each line break in a comment.
+
+`{guide links}` is each guide link from step 1 as a Markdown link with its page title,
+joined with "and" for 2 links or commas for more. Without guide links, leave out the
+whole "The docs for it are here" sentence.
+
+Small liberties are fine, so the comment does not read the same on every issue:
+
+- Open with one short, plain thank-you: "Thanks for the suggestion." for a feature
+  request, "Thanks for the report." for a bug. Nothing more.
+- Do not comment on the request itself: no praise of the idea ("great idea", "love
+  this"), no remark on how clear it was ("the example made it clear"), and no claim
+  about the maintainer's own thinking ("I hadn't thought of that").
+- The rest may be reworded a little, but it must keep all of these: the exact
+  version, the 3 install steps (Redownload, Show beta versions, pick the version),
+  each guide link from step 1, and the note that the merge may wait for feedback.
+- The maintainer approves every comment before it is posted, so these liberties
+  never reach an issue without their review.
+
+The maintainer's earlier comments of this kind, for the voice:
+
+- #306: "0.23.0.dev321 is available if you'd like to test"
+- #346: "I've made an Attempt at this in v0.25.0.dev361. could you test and provide
+  feedback before I merge?"
+- #367: "This is available in preview build 0.28.0.dev397. If you'd like to try it
+  out and provide feedback"
+
+This is the maintainer's voice, so the ASD-STE100 rules for project text do not apply
+to it. Do not add the Claude Code footer: the comment is posted for the maintainer, in
+their words.
+
+## 3. Confirm, then post
+
+1. Show the maintainer the issue number, the PR, and the exact text in a quote block.
+   Say that the GitHub connector may add a "Generated by Claude Code" footer under
+   the text, which the agent cannot stop. Ask: "Post this on #N?"
+2. Only after a clear yes, post it with `add_issue_comment` on the issue (not the
+   PR), with the approved text and nothing else.
+3. Read the comment back (`issue_read`, method `get_comments`). If the connector
+   added a footer, edit the comment once (`update_issue_comment`) with the approved
+   text only, and read it back again. If the footer is still there, tell the
+   maintainer, so they can remove it on GitHub.
+4. Reply with the link to the new comment, and say whether the posted text matches
+   the approved text.

@@ -223,6 +223,20 @@ export interface Task {
   } | null;
   // Well-known ownership block that Home Keeper inspects. See docs/INTEGRATING.md §6.
   managed_by?: ManagedBy | null;
+  // Uploaded photos (#399), at most 6. The first is the cover. Upload-only: the
+  // task form never sends this field, and the backend ignores it if it does.
+  photos?: TaskPhoto[];
+}
+
+/** A photo on a task. The bytes are served through a short-lived signed URL (see
+ *  `api.signTaskPhotoUrls`), the original or a small JPEG thumbnail. */
+export interface TaskPhoto {
+  id: string;
+  name: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  created?: string;
 }
 
 export interface HassDevice {

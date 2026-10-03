@@ -52,7 +52,25 @@
         ],
         "completion_detail": "optional",
         "completion_required_fields": [],
-        "skips": []
+        "skips": [],
+        "photos": [
+          {
+            "id": "9b1f4e2a-6c3d-4f8e-a1b2-c3d4e5f60718",
+            "name": "Filter housing",
+            "filename": "filter-housing.jpg",
+            "content_type": "image/jpeg",
+            "size": 16405,
+            "created": "2026-09-10T11:40:00-04:00"
+          },
+          {
+            "id": "0d7e3c91-2b4a-4e6f-9a8b-7c6d5e4f3a21",
+            "name": "Cartridge label",
+            "filename": "cartridge-label.jpg",
+            "content_type": "image/jpeg",
+            "size": 17148,
+            "created": "2026-09-10T11:40:00-04:00"
+          }
+        ]
       },
       "25f086ad-91ce-4ca4-8f05-73b443565479": {
         "id": "25f086ad-91ce-4ca4-8f05-73b443565479",
@@ -430,14 +448,25 @@
           {
             "ts": "2026-06-16T14:30:00-04:00",
             "cost": 92.0,
-            "note": "Renewed online; sticker mailed"
+            "note": "Renewed online; sticker mailed",
+            "photo": "/local/home-keeper-e2e/new-sticker.jpg"
           }
         ],
         "labels": [
           "home"
         ],
         "completion_detail": "optional",
-        "completion_required_fields": []
+        "completion_required_fields": [],
+        "photos": [
+          {
+            "id": "5c2e8f14-7a3b-4d9e-b6c1-2f8a9d0e4b73",
+            "name": "Expired sticker",
+            "filename": "expired-sticker.jpg",
+            "content_type": "image/jpeg",
+            "size": 51785,
+            "created": "2026-06-01T09:00:00-04:00"
+          }
+        ]
       },
       "cfc844bd-e9de-4efe-84b3-5f4417d186c9": {
         "id": "cfc844bd-e9de-4efe-84b3-5f4417d186c9",

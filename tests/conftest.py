@@ -40,6 +40,11 @@ _PURE_MODULES = (
     "models",
     "assets",
     "documents",
+    # Imports ``documents`` and ``models``, so it comes after both.
+    "task_photos",
+    # Pure but for Pillow, which requirements-test.txt names. Not on the mutation
+    # allowlist: the thumbnail is Pillow's work, not a rule of ours.
+    "photo_thumbs",
     "events",
     "transitions",
     "reconcile",

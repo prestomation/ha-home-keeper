@@ -870,6 +870,73 @@ export async function signPartFileUrl(
   return res.url;
 }
 
+/**
+ * Upload a photo to a task (#399) via the Home Keeper HTTP view. *photoId* is a
+ * client-minted uuid that becomes the photo's id. Returns the updated task.
+ */
+export async function uploadTaskPhoto(
+  hass: Hass,
+  taskId: string,
+  photoId: string,
+  file: File,
+  opts?: UploadOptions,
+): Promise<Task> {
+  const res = await postUploadAuthed<{ task: Task }>(
+    hass,
+    `/api/home_keeper/task_photo/${taskId}/${photoId}`,
+    uploadBody(file),
+    opts,
+  );
+  return res.task;
+}
+
+/** Remove a photo from a task; its files are deleted. Returns the updated task. */
+export async function removeTaskPhoto(
+  hass: Hass,
+  taskId: string,
+  photoId: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/remove_task_photo',
+    task_id: taskId,
+    photo_id: photoId,
+  });
+  return res.task;
+}
+
+/** Make a photo the cover (the first photo) of its task. Returns the updated task. */
+export async function setTaskPhotoCover(
+  hass: Hass,
+  taskId: string,
+  photoId: string,
+): Promise<Task> {
+  const res = await hass.callWS<{ task: Task }>({
+    type: 'home_keeper/set_task_photo_cover',
+    task_id: taskId,
+    photo_id: photoId,
+  });
+  return res.task;
+}
+
+/** One photo to sign: the original, or with `thumb` the small copy. */
+export interface TaskPhotoRef {
+  task_id: string;
+  photo_id: string;
+  thumb: boolean;
+}
+
+/** Sign many task photo URLs in one round trip. A gone photo gets `url: null`. */
+export async function signTaskPhotoUrls(
+  hass: Hass,
+  photos: TaskPhotoRef[],
+): Promise<Array<TaskPhotoRef & { url: string | null }>> {
+  const res = await hass.callWS<{ urls: Array<TaskPhotoRef & { url: string | null }> }>({
+    type: 'home_keeper/sign_task_photo_urls',
+    photos,
+  });
+  return res.urls;
+}
+
 /** Fetch the portable document plus a ready-to-save YAML file. */
 export async function exportData(
   hass: Hass,

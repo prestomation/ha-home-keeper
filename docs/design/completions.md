@@ -7,7 +7,7 @@ implements:
   - custom_components/home_keeper/tags.py
   - custom_components/home_keeper/tag_listener.py
 related: [recurrence, store, appliances, documents-photos, sensor-tasks, events-api, frontend]
-source_hash: 2e3577dbc457
+source_hash: 4e6d651172a9
 ---
 
 # Completions
@@ -74,15 +74,18 @@ Home Keeper captures it and a task with no sensor cannot supply it.
 
 `_complete` in `panel.ts` refuses a scan-only task with a toast. For `optional` or
 `required` it calls `openCompletionDialog`. Otherwise it calls `api.completeTask`, and the
-toast's Undo deletes the new entry by its `ts`. The card has no dialog, so a `required`
-task sends the user to the panel.
+toast's Undo deletes the new entry by its `ts`. On a one-tap task, the Done with photo or
+note item of the Done menu opens the dialog (`defer.deferVerbs`). The card has no dialog,
+so a `required` task sends the user to the panel.
 
 `renderCompletionDialog` in `panel-dialogs.ts` builds one `ha-form` for both uses. To log
-a completion it shows Completed at, note, cost, who (person picker) and, for a numeric
-sensor task, the live reading. In edit mode it hides Completed at, because an edit never
-moves `ts`. A photo field appears only if the frontend has `ha-picture-upload`. In
-`optional` mode a Skip details button completes with no detail. The panel blocks Mark done
-while a required field is empty. `guardWrite` stops a double click from logging 2 entries.
+a completion it shows the task cover ([task-photos](task-photos.md)), Completed at, note,
+cost, who (person picker) and, for a numeric sensor task, the live reading. In edit mode it
+hides Completed at, because an edit never moves `ts`. The photo field is `ha-picture-upload`.
+`loadPictureUpload` mounts a hidden media selector to load it, and the dialog shows no photo
+field if the load fails in 8 seconds. In `optional` mode a Skip details button completes
+with no detail. The panel blocks Mark done while a required field is empty. `guardWrite`
+stops a double click from logging 2 entries.
 
 Completed at back-dates the entry. `recurrence.apply_completion` logs an entry older than
 the latest as backfill: it moves neither `last_completed` nor a floating or fixed `next_due`.

@@ -13,6 +13,13 @@
 /** Hard per-file upload ceiling — mirrors MAX_DOCUMENT_BYTES in const.py. */
 export const MAX_DOCUMENT_BYTES = 100 * 1024 * 1024;
 
+/** The largest task photo — mirrors MAX_TASK_PHOTO_BYTES in const.py. Smaller than a
+ *  document: a phone photo is a few megabytes, and a bigger file is a mistake. */
+export const MAX_TASK_PHOTO_BYTES = 25 * 1024 * 1024;
+
+/** How many photos a task holds — mirrors MAX_TASK_PHOTOS in const.py. */
+export const MAX_TASK_PHOTOS = 6;
+
 /**
  * The largest websocket frame Home Assistant accepts — mirrors MAX_IMPORT_WS_BYTES
  * in const.py.

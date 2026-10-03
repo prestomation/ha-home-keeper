@@ -18,6 +18,9 @@ How the surfaces work is in [events-api](../../docs/design/events-api.md). Integ
   `_register_services`, add a `services.yaml` entry, and add `strings.json` text with
   parity in every `translations/<lang>.json`. A websocket command, if any, calls the same
   `HomeKeeperStore` method. Never give it a second code path.
+- **Record the privilege of each new surface.** Set `admin_only` or `admin_methods` in
+  `api_surface.py`, and give the reason in the PR's Security section
+  ([architecture.md](architecture.md#how-to-decide)).
 - A websocket command is optional. If the service already does what the panel needs, the
   panel can call it through `call_service` with `return_response: true`. Settings,
   Notifications, **Test** (`api.runNotification`) does this on purpose.

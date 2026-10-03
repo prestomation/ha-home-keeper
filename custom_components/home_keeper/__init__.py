@@ -619,6 +619,20 @@ SIGN_PART_FILE_URL_SCHEMA = vol.Schema(
         vol.Required("part_id"): cv.string,
     }
 )
+# Task photos (#399). Upload is HTTP-only, like a document; these need no bytes.
+TASK_PHOTO_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("photo_id"): cv.string,
+    }
+)
+SIGN_TASK_PHOTO_URL_SCHEMA = vol.Schema(
+    {
+        vol.Required("task_id"): cv.string,
+        vol.Required("photo_id"): cv.string,
+        vol.Optional("thumbnail", default=False): cv.boolean,
+    }
+)
 EXPORT_APPLIANCE_REPORT_SCHEMA = vol.Schema({})
 
 # The portable document, both directions. ``document`` is deliberately a bare dict or
@@ -911,6 +925,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     manuals.async_register_http(hass)
     # Uploads spool to a temp file; a restart mid-upload would otherwise strand it.
     await manuals.async_cleanup_temp_uploads(hass)
+    # Photo folders of tasks deleted while the files could not go (#399).
+    await manuals.async_sweep_task_photos(hass, set(store.get_tasks()))
     websocket_api.async_register(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Platforms have removed entities for deleted/excluded tasks; drop Home Keeper
@@ -1669,6 +1685,45 @@ def _register_services(hass: HomeAssistant) -> None:
             "expires_in": int(manuals.SERVICE_DOCUMENT_URL_TTL.total_seconds()),
         }
 
+    # The task photo services are open, like ``update_task``: a photo is task data.
+    async def handle_remove_task_photo(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        _require_known("task", coord.store.get_tasks(), task_id)
+        # The task exists, so a KeyError is for the photo (B02-6).
+        with _store_errors(photo_id=call.data["photo_id"]):
+            await coord.store.remove_task_photo(task_id, call.data["photo_id"])
+
+    async def handle_set_task_photo_cover(call: ServiceCall) -> None:
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        _require_known("task", coord.store.get_tasks(), task_id)
+        with _store_errors(photo_id=call.data["photo_id"]):
+            await coord.store.set_task_photo_cover(task_id, call.data["photo_id"])
+
+    async def handle_sign_task_photo_url(call: ServiceCall) -> dict[str, Any]:
+        """Mint a short-lived signed URL for a task photo.
+
+        For a notification that shows the photo, or an agent that reads it. Not
+        admin-only, the same as ``sign_document_url``.
+        """
+        coord = _coordinator()
+        task_id = _task_ref(coord, call.data["task_id"])
+        _require_known("task", coord.store.get_tasks(), task_id)
+        signed = await manuals.async_sign_task_photo_url(
+            hass,
+            task_id,
+            call.data["photo_id"],
+            thumb=call.data["thumbnail"],
+            ttl=manuals.SERVICE_DOCUMENT_URL_TTL,
+        )
+        if signed is None:
+            raise service_error("unknown_task_photo", photo_id=call.data["photo_id"])
+        return {
+            "url": f"{_instance_base_url(hass)}{signed}",
+            "expires_in": int(manuals.SERVICE_DOCUMENT_URL_TTL.total_seconds()),
+        }
+
     async def handle_export_appliance_report(call: ServiceCall) -> dict[str, Any]:
         # Admin-only: the report carries every asset's serial numbers, purchase costs
         # and value totals. Mirrors ``ws_export_appliance_report``'s ``require_admin``.
@@ -1860,6 +1915,19 @@ def _register_services(hass: HomeAssistant) -> None:
         "sign_part_file_url",
         handle_sign_part_file_url,
         SIGN_PART_FILE_URL_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN, "remove_task_photo", handle_remove_task_photo, TASK_PHOTO_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, "set_task_photo_cover", handle_set_task_photo_cover, TASK_PHOTO_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "sign_task_photo_url",
+        handle_sign_task_photo_url,
+        SIGN_TASK_PHOTO_URL_SCHEMA,
         supports_response=SupportsResponse.ONLY,
     )
 

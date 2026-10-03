@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: e0528da99ed4
+source_hash: 9f2a6a80f2cb
 ---
 
 # Store
@@ -93,6 +93,8 @@ internal state: the 2 sync bookkeeping setters (which also skip an unchanged sav
   and skips. They re-anchor the schedule and meter, and draw or return part stock.
 - **Appliances:** CRUD, archive, managed appliances, stock (`_emit_stock_event`), and
   documents and part files through `_mutate_asset`.
+- **Task photos:** add, remove and set the cover through `_mutate_task_photos`. `_save`
+  removes the photo folder of each task that it dropped ([task-photos](task-photos.md)).
 - **Reconcilers:** `reconcile_part_tasks`, `reconcile_buy_tasks`, `settle_use_tasks`,
   `reconcile_problem_sensor_tasks` and `reconcile_declarative_companion_tasks` call a
   pure pass, save once, and fire the lifecycle events the pass implies.

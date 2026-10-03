@@ -19,6 +19,7 @@ import {
   escapeHTML,
   formatDateTime,
   isOverdue,
+  scanRequired,
   resolveSnoozePreset,
   snoozePresetForHours,
   taskSnoozeHours,
@@ -29,6 +30,8 @@ export interface DeferVerbs {
   snooze: boolean;
   skip: boolean;
   dueToday: boolean;
+  /** Open the completion dialog on a one-tap task, for a photo or a note (#399). */
+  details: boolean;
 }
 
 /**
@@ -48,6 +51,11 @@ export interface DeferVerbs {
  *   button says. #312 asked for this on a task that was explicitly not overdue,
  *   and `notifications.py` keeps the verb off notifications for the same reason.
  *
+ * The details entry is not a deferral, but it rides the same caret (#399). It is
+ * offered only on a one-tap task: a task that asks for details already opens the
+ * dialog from Done, so the entry would repeat it. A blocked or tag-locked task
+ * cannot be completed from the panel at all, and a dormant one has no Done.
+ *
  * Hiding rather than disabling: a control that explains why it is dead earns its
  * place when the action is the page's whole point, but these are already tucked
  * behind a caret, and a menu of dead entries is just noise.
@@ -66,6 +74,8 @@ export function deferVerbs(
     snooze: allowSnooze && !dormant,
     skip: allowSkip && !blocked && !dormant,
     dueToday: allowDueToday && !dormant && !isOverdue(task, now),
+    details:
+      (task.completion_detail ?? 'none') === 'none' && !blocked && !dormant && !scanRequired(task),
   };
 }
 
@@ -77,6 +87,14 @@ export function deferMenuItems(verbs: DeferVerbs): string {
     `<span class="hk-defer-text">${escapeHTML(label)}` +
     `<span class="hk-defer-sub">${escapeHTML(sub)}</span></span></button>`;
   return (
+    (verbs.details
+      ? item(
+          'hk-defer-details',
+          'mdi:camera-outline',
+          t('defer.details'),
+          t('defer.detailsHint'),
+        )
+      : '') +
     (verbs.snooze
       ? item('hk-defer-snooze', 'mdi:clock-outline', t('btn.snooze'), t('defer.snoozeHint'))
       : '') +
@@ -107,7 +125,9 @@ export function deferSplit(
   verbs: DeferVerbs,
   weight: BtnWeight = 'primary',
 ): string {
-  if (!doneBtn || (!verbs.snooze && !verbs.skip && !verbs.dueToday)) return doneBtn;
+  if (!doneBtn || (!verbs.snooze && !verbs.skip && !verbs.dueToday && !verbs.details)) {
+    return doneBtn;
+  }
   // The caret is an ha-button carrying *Done's own weight*, which is the only way the
   // two halves are guaranteed to paint the same. Home Assistant fills a button from
   // its appearance, and the weights differ by surface — the task page's Done is solid

@@ -835,6 +835,21 @@ def test_websocket_commands_name_a_real_service() -> None:
     assert not dangling, {"websocket_points_at_no_such_service": dangling}
 
 
+def test_websocket_admin_matches_service_twin() -> None:
+    """A command and its service twin are 1 operation, so they have 1 privilege.
+
+    A gate on 1 half only is no gate: ``call_service`` goes around a gated command, and
+    the websocket goes around a gated service.
+    """
+    services = {spec.name: spec.admin_only for spec in api_surface.SERVICES}
+    wrong = {
+        spec.type: {"websocket": spec.admin_only, "service": services[spec.service]}
+        for spec in api_surface.WEBSOCKET_COMMANDS
+        if spec.service in services and spec.admin_only != services[spec.service]
+    }
+    assert not wrong, {"admin_only_differs_from_service_twin": wrong}
+
+
 def test_http_views_match_source() -> None:
     """Each ``HomeAssistantView``'s url, name, auth and methods are modelled."""
     modelled = {spec.name: spec for spec in api_surface.HTTP_VIEWS}

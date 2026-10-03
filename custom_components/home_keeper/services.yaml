@@ -1428,6 +1428,69 @@ sign_part_file_url:
       selector:
         text:
 
+remove_task_photo:
+  name: Remove task photo
+  description: >-
+    Remove a photo from a task and delete its file. Add photos in the panel. A
+    service call cannot send a file.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task that has the photo. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    photo_id:
+      name: Photo ID
+      description: The id of the photo. The list_tasks service gives it in the photos of the task.
+      required: true
+      selector:
+        text:
+
+set_task_photo_cover:
+  name: Set task photo cover
+  description: >-
+    Make a photo the cover of its task. The cover is the first photo. It shows
+    on the task list, the task page and the completion dialog.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task that has the photo. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    photo_id:
+      name: Photo ID
+      description: The id of the photo. The list_tasks service gives it in the photos of the task.
+      required: true
+      selector:
+        text:
+
+sign_task_photo_url:
+  name: Sign task photo URL
+  description: >-
+    Mint a short-lived URL (no auth header needed) that gives the bytes of a task
+    photo. Use it to show the photo in a notification.
+  fields:
+    task_id:
+      name: Task name or ID
+      description: The id of the task that has the photo. Its name works too. The panel shows the id.
+      required: true
+      selector:
+        text:
+    photo_id:
+      name: Photo ID
+      description: The id of the photo. The list_tasks service gives it in the photos of the task.
+      required: true
+      selector:
+        text:
+    thumbnail:
+      name: Thumbnail
+      description: Sign the URL of the small copy, at most 256 pixels on its long side.
+      default: false
+      selector:
+        boolean:
+
 export_appliance_report:
   name: Export appliance report
   description: >-

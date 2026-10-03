@@ -1,6 +1,7 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
 import { SIGNED_URL_REFRESH_MS, SignedUrlCache, assetFileRefs } from './documents';
+import { TaskPhotoUrlCache, coverRefs, detailRefs } from './task-photos';
 import {
   buildTaskPayload,
   consumableLinkToken,
@@ -46,6 +47,7 @@ import {
 } from './panel-settings';
 import { STYLES } from './panel-styles';
 import { renderTaskForm } from './panel-task-form';
+import { releaseStaged, uploadStaged } from './photo-staging';
 import {
   LS_ASSET_FILTER,
   LS_ASSET_VIEW,
@@ -178,6 +180,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     onSnooze: (task) => openSnooze(this, task),
     onSkip: (task) => openSkip(this, task),
     onDueToday: (task) => void setDueToday(this, task),
+    onDetails: (task) => openCompletionDialog(this, task),
   });
   _confirmDelete: {
     open: boolean;
@@ -281,6 +284,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // so every file is opened by a native anchor tap rather than a JS `window.open` the
   // iOS app's WKWebView would swallow (issue #164). Filled by `_signFiles`.
   _signedFiles = new SignedUrlCache();
+  _signedPhotos = new TaskPhotoUrlCache();
   // Pending re-sign of the on-screen files' URLs before they expire; see `_armResign`.
   private _resignTimer: ReturnType<typeof setTimeout> | null = null;
   // The panel's URL prefix (e.g. `/home-keeper`), supplied by HA via `route`.
@@ -1099,6 +1103,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     return this._detail.kind === kind && !!id && this._detail.id === id;
   }
   _closeForm(): void {
+    releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
     this._edit = { open: false, task: null };
     this._render();
   }
@@ -1132,6 +1137,23 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       if (desired !== consumableLinkToken(saved)) {
         const [assetId, partId] = desired ? desired.split(':') : ['', ''];
         await api.setTaskConsumable(this._hass, saved.id, assetId || null, partId || null);
+      }
+      // Photos picked in the New task form upload now that the task has an id. A
+      // failed photo does not undo the task: the form closes, and the task page opens
+      // so the user can add the photo again there.
+      const staged = this._edit.photos ?? [];
+      if (staged.length) {
+        const hass = this._hass;
+        const { failed } = await uploadStaged(staged, (photoId, file) =>
+          api.uploadTaskPhoto(hass, saved.id, photoId, file),
+        );
+        if (failed.length) {
+          this._closeForm();
+          toast(this, t('photos.uploadPartial', { n: String(failed.length) }));
+          await this._refresh();
+          this._openDetail('task', saved.id);
+          return;
+        }
       }
       this._closeForm();
       await this._refresh();
@@ -2318,12 +2340,22 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       ...assetFileRefs(detailAsset ?? {}),
       ...assetFileRefs(this._assetEdit.asset ?? {}),
     ];
+    // Task photos (#399): every cover thumbnail, for the list rows and the completion
+    // dialog, plus every photo of the open task.
+    const detailTask =
+      this._detail?.kind === 'task'
+        ? this._tasks.find((task) => task.id === this._detail?.id)
+        : undefined;
+    const photoRefs = [...coverRefs(this._tasks), ...(detailTask ? detailRefs(detailTask) : [])];
     // A screen with no uploaded files still calls through, so the cache drops the URLs
     // of whatever was on the previous one.
-    await this._signedFiles.ensure(hass, refs);
+    await Promise.all([
+      this._signedFiles.ensure(hass, refs),
+      this._signedPhotos.ensure(hass, photoRefs),
+    ]);
     this._applySignedHrefs();
     // A sign in flight at unmount must not arm the timer again (F01-6).
-    this._armResign(this.isConnected && refs.length > 0);
+    this._armResign(this.isConnected && refs.length + photoRefs.length > 0);
   }
 
   /**
@@ -2353,9 +2385,21 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     const root = this.shadowRoot;
     if (!root) return;
     root.querySelectorAll<HTMLAnchorElement>('a[data-sign]').forEach((el) => {
-      const url = this._signedFiles.getByKey(el.dataset.sign || '');
+      const url = this._signedUrl(el.dataset.sign || '');
       if (url && el.getAttribute('href') !== url) el.setAttribute('href', url);
     });
+    // A task photo's <img> waits for its URL the same way an anchor does.
+    root.querySelectorAll<HTMLImageElement>('img[data-sign]').forEach((el) => {
+      const url = this._signedUrl(el.dataset.sign || '');
+      if (url && el.getAttribute('src') !== url) el.setAttribute('src', url);
+    });
+  }
+
+  /** The signed URL for a `data-sign` key, from whichever cache owns that kind. */
+  _signedUrl(key: string): string | undefined {
+    return key.startsWith('task-photo:')
+      ? this._signedPhotos.getByKey(key)
+      : this._signedFiles.getByKey(key);
   }
 
   /**

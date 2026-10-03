@@ -36,8 +36,9 @@ import {
   scopeMatches,
 } from './panel-controls';
 import { deferMenu, openSkip, openSnooze, setDueToday, verbsFor } from './panel-defer';
-import { openConfirmDialog } from './panel-dialogs';
+import { openCompletionDialog, openConfirmDialog } from './panel-dialogs';
 import type { PanelHost } from './panel-host';
+import { listCoverHtml } from './panel-photo-markup';
 import { presetNudgeCard, wirePresetNudge } from './panel-preset-nudge';
 import { TASK_CARD_INLINE_CHIPS } from './panel-styles';
 import { LS_TREE_COLLAPSED } from './panel-types';
@@ -59,6 +60,7 @@ import {
   escapeHTML,
   formatDate,
   isBuyTask,
+  isCompletedOneOff,
   isMonitoredDormant,
   isOverdue,
   recurrenceSummary,
@@ -286,8 +288,7 @@ export function assetsList(p: PanelHost): string {
  * opens onto the same facts the row carries.
  */
 function taskMetaHtml(p: PanelHost, task: Task): string {
-  const completedOneOff =
-    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  const completedOneOff = isCompletedOneOff(task);
   // A switched-off task shows no due date. The stored one is frozen at whatever it was
   // when the task went off, so printing it states a deadline Home Keeper will not keep:
   // nothing announces it, no to-do item carries it, and the row's own status chip says
@@ -321,8 +322,7 @@ function taskCard(p: PanelHost, task: Task): string {
   const managed = managedChip(p, task);
   // A completed one-off (do-once, now dormant) shows when it was done instead of a
   // due date.
-  const completedOneOff =
-    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  const completedOneOff = isCompletedOneOff(task);
   // How overdue it is rides the right-hand status pill rather than the meta line, so
   // urgency reads at the end of the row instead of buried mid-sentence. `elapsed` is
   // the list row's alone: down a long list the count is what separates a week late
@@ -375,15 +375,20 @@ function taskCard(p: PanelHost, task: Task): string {
   // While the drawer is editing this task, the row stays lit and undimmed so the
   // thing being edited is visible next to the form editing it.
   const editing = p._edit.open && !!task.id && p._edit.task?.id === task.id;
+  // The cover thumbnail rides inside the clickable name block, so the row's grid
+  // layouts (wide and phone) keep the same tracks (#399).
+  const cover = listCoverHtml(p, task);
   // The row opens the task's detail page; "Done" stays as a quick action.
   return `
       <ha-card class="hk-card${overdue ? ' overdue' : ''}${editing ? ' hk-editing' : ''}${
         completedOneOff ? ' hk-task-done' : ''
       }" data-id="${escapeHTML(task.id)}">
         <div class="hk-card-row hk-row-task">
-          <div class="grow clickable detail-open" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
+          <div class="grow clickable detail-open${cover ? ' hk-grow-with-cover' : ''}" data-detail-kind="task" data-detail-id="${escapeHTML(task.id)}" role="button" tabindex="0">
+            ${cover}<div class="hk-grow-text">
             <div class="hk-name"><span class="hk-name-text">${escapeHTML(task.name)}</span></div>
             <div class="hk-meta">${taskMetaHtml(p, task)}</div>
+            </div>
           </div>
           <div class="hk-chips hk-chips-inline${chipsOpen ? ' hk-chips-open' : ''}">${inlineChips.join('')}${more}</div>
           <span class="hk-row-spacer"></span>
@@ -475,6 +480,7 @@ export function closeActionSheet(p: PanelHost): void {
 /** The icon and the label each sheet row carries. */
 const SHEET_ROWS: Record<SheetAction['id'], { icon: string; key: string }> = {
   done: { icon: 'mdi:check-circle-outline', key: 'btn.done' },
+  details: { icon: 'mdi:camera-outline', key: 'defer.details' },
   snooze: { icon: 'mdi:clock-outline', key: 'btn.snooze' },
   skip: { icon: 'mdi:skip-next-outline', key: 'btn.skip' },
   dueToday: { icon: 'mdi:calendar-today', key: 'btn.dueToday' },
@@ -528,6 +534,7 @@ export function renderActionSheet(p: PanelHost, host: HTMLElement): void {
       else void p._complete(task);
       return;
     }
+    if (action.id === 'details') return openCompletionDialog(p, task);
     if (action.id === 'snooze') return openSnooze(p, task);
     if (action.id === 'skip') return openSkip(p, task);
     if (action.id === 'dueToday') return void setDueToday(p, task);

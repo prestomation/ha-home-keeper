@@ -103,6 +103,10 @@ reset) fires **no event**, because it is internal state. A baseline that a user 
 with the `set_task_meter` service fires `home_keeper_task_updated` with
 `changed_fields: ["sensor"]`.
 
+**Task photos.** A photo change is a task change. When a user adds a photo, removes a
+photo or makes a photo the cover, Home Keeper fires `home_keeper_task_updated` with
+`changed_fields: ["photos"]`. There is no separate photo event.
+
 **Shopping list.** When *Settings → Shopping list* names a to-do list, each automatic
 "Buy {part}" reminder goes on it. The completion has
 `source: {"buy": {"asset_id": …, "part_id": …}}`. It restocks the part by its restock

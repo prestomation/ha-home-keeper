@@ -41,6 +41,8 @@
     "custom_components/home_keeper/frontend/src/preset-picker.ts",
     "custom_components/home_keeper/frontend/src/preset-nudge.ts",
     "custom_components/home_keeper/frontend/src/preset-summary.ts",
+    "custom_components/home_keeper/frontend/src/task-photos.ts",
+    "custom_components/home_keeper/frontend/src/photo-staging.ts",
     "custom_components/home_keeper/frontend/src/task-layout.ts"
   ],
   "thresholds": {

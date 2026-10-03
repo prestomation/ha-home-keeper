@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Poista tehtävän valokuva",
+      "description": "Poistaa valokuvan tehtävästä ja sen tiedoston. Lisää valokuvat paneelissa, koska palvelukutsu ei voi kuljettaa tiedostoa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jolla valokuva on. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "photo_id": {
+          "name": "Valokuvan tunnus",
+          "description": "Valokuvan tunnus. Palvelu list_tasks antaa sen tehtävän valokuvissa."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Aseta tehtävän kansikuva",
+      "description": "Tekee valokuvasta tehtävänsä kansikuvan. Kansikuva on ensimmäinen valokuva. Se näkyy tehtäväluettelossa, tehtäväsivulla ja valmis-ikkunassa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jolla valokuva on. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "photo_id": {
+          "name": "Valokuvan tunnus",
+          "description": "Valokuvan tunnus. Palvelu list_tasks antaa sen tehtävän valokuvissa."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Allekirjoita tehtävän valokuvan URL",
+      "description": "Luo lyhytikäisen URL-osoitteen (ei todennusotsaketta), joka antaa tehtävän valokuvan tavut, esimerkiksi valokuvan näyttämiseen ilmoituksessa.",
+      "fields": {
+        "task_id": {
+          "name": "Tehtävän nimi tai tunnus",
+          "description": "Sen tehtävän tunnus, jolla valokuva on. Myös nimi toimii. Paneeli näyttää tunnuksen."
+        },
+        "photo_id": {
+          "name": "Valokuvan tunnus",
+          "description": "Valokuvan tunnus. Palvelu list_tasks antaa sen tehtävän valokuvissa."
+        },
+        "thumbnail": {
+          "name": "Pikkukuva",
+          "description": "Allekirjoita pienen kopion URL, enintään 256 pikseliä pitkältä sivulta."
+        }
+      }
+    },
     "update_skip": {
       "name": "Päivitä ohitus",
       "description": "Muokkaa kirjatun ohituksen tietoja, jotka tunnistetaan aikaleimasta. Ohitus säilyttää päivämääränsä eikä aikatauluun kosketa.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Tuntematon asiakirja: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Tuntematon valokuva: {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Vain käyttöanturiin sidotulla tehtävällä on mittari."

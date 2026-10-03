@@ -13,7 +13,7 @@ summary: What each CI workflow gates, the mutation and typing gates, vale, and h
 | `test.yml` | vitest, pytest unit, HACS validation, hassfest |
 | `mutation.yml` | mutmut and Stryker on the changed code, 80% gate |
 | `integration.yml` | Docker integration tests, and the upgrade suite against `stable` |
-| `e2e.yml` | Docker and Playwright; uploads the report on a failure |
+| `e2e.yml` | Docker and Playwright; uploads the report on a failure. The job limit is 25 min: shard the suite when a run takes more than 22 min, and never raise the limit again |
 | `walkthrough-preview.yml` | the walkthrough gif comment ([pr-workflow.md](pr-workflow.md#walkthrough-video)) |
 | `ha-beta.yml` | nightly against HA `beta`; gates nothing, files `ha-beta-regression` |
 | `pytest_coverage.yml` | the coverage comment on a PR |
@@ -123,3 +123,5 @@ bash ci/test-mutation-frontend.sh          # Stryker, changed line ranges only
 - The scripts only find. The weekly `preset-upkeep` skill decides, edits the catalog and
   opens 1 draft PR. Neither script is a PR gate.
 - The `open-work` skill only reports open work, sorted by who must act next.
+- The `preview-comment` skill drafts the note that tells a reporter a preview build is
+  ready. It posts the note only after the maintainer approves the exact text.

@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Quitar foto de tarea",
+      "description": "Quita una foto de una tarea y elimina su archivo. Añade fotos desde el panel, porque una llamada de servicio no puede llevar un archivo.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El ID de la tarea que tiene la foto. Su nombre también funciona. El panel muestra el ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "El ID de la foto. El servicio list_tasks lo da en las fotos de la tarea."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Establecer portada de la tarea",
+      "description": "Convierte una foto en la portada de su tarea. La portada es la primera foto. Aparece en la lista de tareas, en la página de la tarea y en el diálogo de completado.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El ID de la tarea que tiene la foto. Su nombre también funciona. El panel muestra el ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "El ID de la foto. El servicio list_tasks lo da en las fotos de la tarea."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Firmar URL de foto de tarea",
+      "description": "Genera una URL de corta duración (sin cabecera de autenticación) que da los bytes de una foto de tarea, por ejemplo para mostrar la foto en una notificación.",
+      "fields": {
+        "task_id": {
+          "name": "Nombre o ID de la tarea",
+          "description": "El ID de la tarea que tiene la foto. Su nombre también funciona. El panel muestra el ID."
+        },
+        "photo_id": {
+          "name": "ID de la foto",
+          "description": "El ID de la foto. El servicio list_tasks lo da en las fotos de la tarea."
+        },
+        "thumbnail": {
+          "name": "Miniatura",
+          "description": "Firma la URL de la copia pequeña, de 256 píxeles como máximo en su lado largo."
+        }
+      }
+    },
     "update_skip": {
       "name": "Actualizar omisión",
       "description": "Modifica el detalle de una omisión registrada, identificada por su marca de tiempo. La omisión conserva su fecha y la planificación no se toca.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Documento desconocido: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Foto desconocida: {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Solo una tarea vinculada a un sensor de uso tiene un contador."

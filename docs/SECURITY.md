@@ -35,7 +35,7 @@ panel uses, and the matching `home_keeper.*` service.
 
 | Operation | Services |
 | --- | --- |
-| Create, edit, delete, archive and restore appliances | `add_asset`, `update_asset`, `delete_asset`, `archive_asset`, `restore_asset` |
+| Create, edit, delete, archive and restore appliances | `add_asset`, `update_asset`, `update_managed_asset`, `delete_asset`, `archive_asset`, `restore_asset` |
 | Appliance documents and part files | `add_asset_document`, `update_asset_document`, `remove_asset_document`, `remove_part_file`, and a file upload (`POST`) to `/api/home_keeper/document/…` or `/api/home_keeper/part_document/…` |
 | Delete an archived completion from an appliance's history | `delete_archived_completion` |
 | Delete every orphaned task (a task whose managing integration is not loaded) | `delete_orphaned_tasks` |
@@ -43,6 +43,7 @@ panel uses, and the matching `home_keeper.*` service.
 | Settings, profiles and notification delivery | `set_options` |
 | The appliance report (costs, serials, value totals) | `export_appliance_report` |
 | Data export and import (every task, note, serial and cost) | `export_data`, `import_data` |
+| Declarative companions (they read entities with templates) | `add_declarative_companion`, `update_declarative_companion`, `delete_declarative_companion` |
 
 Home Keeper creates a Home Assistant device for each appliance and removes it with the
 appliance. Home Assistant reserves device registry changes for admins, so this is a second
@@ -66,7 +67,9 @@ Any signed-in user can use these surfaces:
 
 - The to-do list, the calendar, and the per-task device-page entities.
 - The dashboard task card, with its document and product links.
-- Complete, snooze, skip and create tasks.
+- Create, edit, delete, complete, snooze and skip tasks.
+- Add, remove and reorder the photos of a task, from the panel or the card. A photo is
+  task data, so it follows the task.
 - Read tasks and profiles.
 
 The card reads appliance data, so a non-admin user gets a narrowed view. It holds the
@@ -103,8 +106,8 @@ Home Keeper serves uploaded manuals, receipts and photos through an
 authenticated Home Assistant view.
 
 To open a file, the panel creates a signed URL. The signed URL lasts 1 hour
-for the panel, and 15 minutes for the `sign_document_url` and
-`sign_part_file_url` services. A service result can leave the panel, so it
+for the panel, and 15 minutes for the `sign_document_url`,
+`sign_part_file_url` and `sign_task_photo_url` services. A service result can leave the panel, so it
 gets the shorter lifetime.
 
 A signed URL is a bearer credential. Anyone who has the link can get the
@@ -115,13 +118,19 @@ Home Assistant accepts a signature on `GET` and `HEAD` requests only. The
 upload endpoints also require a real authenticated user, so a link that can
 read a file can never replace it.
 
-A signed URL is not admin-only. The card needs one to open a document on a task
+A signed URL is not admin-only. The card needs one to open a document or a photo on a task
 that any user can complete.
 
 Home Keeper accepts one consequence: a non-admin user who guesses an appliance id
 and a document id learns whether that pair exists, from whether the request
-succeeds. The narrowed appliance view only lists documents already shown on
-a card.
+succeeds. The same applies to a task id and a photo id. The narrowed appliance view
+only lists documents already shown on a card.
+
+Home Keeper reads the whole image of a task photo to make its thumbnail. It refuses
+a file that is not a readable PNG, JPEG, WebP or GIF image.
+
+The pixel limit is 50 million. A baseline RGB or greyscale JPEG has a limit of 250
+million, because Home Keeper decodes it at 1/8 of its size or less.
 
 Home Assistant serves only the 2 built JavaScript bundles as a static path. Home
 Assistant serves static paths before authentication, so Home Keeper does
@@ -141,6 +150,8 @@ runs at render time even if the stored value was already validated.
   page does not help if an account is shared or a long-lived token leaks.
 - **A non-admin user can create and complete tasks.** Home Keeper has no
   read-only user. Use Home Assistant's own user model for that.
+- **Any user can fill the disk with photos.** A task holds up to 6 photos of up to
+  25 MB each, and any user can create tasks. Home Keeper has no quota for each user.
 
 ## Report a problem
 

@@ -48,6 +48,8 @@ import {
   MDI_WEAR,
 } from './panel-icons';
 import { assetAncestry } from './panel-lists';
+import { taskHeadPhotosHtml } from './panel-photo-markup';
+import { photosSection, wireTaskPhotos } from './panel-task-photos';
 import { consumableLinkLabel, consumableOptions, documentOptions } from './panel-task-form';
 import { partBackstopLabel, partCountsUses, taskFormIsEmpty } from './forms';
 import type { Asset, Part, Task } from './types';
@@ -69,6 +71,7 @@ import {
   formatQuantity,
   intervalText,
   isBuyTask,
+  isCompletedOneOff,
   isMonitoredDormant,
   navigateTo,
   partStockButtonStep,
@@ -404,8 +407,7 @@ function taskDetail(p: PanelHost, task: Task): string {
         : '';
 
   const monitored = isMonitoredDormant(task);
-  const completedOneOff =
-    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  const completedOneOff = isCompletedOneOff(task);
   const due = monitored
     ? t('due.monitored')
     : completedOneOff
@@ -452,7 +454,9 @@ function taskDetail(p: PanelHost, task: Task): string {
   // the appliance page is one less layout to learn. Schedule first — what the task
   // is and when it is next due — with the notes and the history one tap off.
   const bodies: Record<TaskTab, string> = {
+    // Photos first: the one thing on this tab that shows what the work is and where.
     schedule: `
+      ${photosSection(p, task)}
       <div class="hk-section">${escapeHTML(t('detail.schedule'))}</div>
       <ha-card class="hk-detail-card"><div class="hk-detail-inner">
         ${row(t('field.recurrence_type'), recurrenceSummary(task))}
@@ -468,6 +472,10 @@ function taskDetail(p: PanelHost, task: Task): string {
     history: historySection(p, 'task', task.id),
   };
   const tab = p._taskTab();
+  // The cover sits beside the name: the photo is what tells a person which gap in
+  // which ceiling this task means. The photo of the last completion sits beside it,
+  // so the page shows the result too (#399).
+  const cover = taskHeadPhotosHtml(p, task);
   // Above everything, and only on a task that is off. A switched-off task is absent
   // from the to-do list, the calendar, its own entities, every profile and every
   // announcement, so the page that still shows a schedule has to say why none of it
@@ -485,7 +493,9 @@ function taskDetail(p: PanelHost, task: Task): string {
       : '';
   return `
       ${disabledBanner}
-      <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner">
+      <ha-card class="hk-detail-card hk-asset-head"><div class="hk-detail-inner${cover ? ' hk-head-with-cover' : ''}">
+        ${cover}
+        <div class="hk-head-main">
         <div class="hk-detail-title">${escapeHTML(task.name)}</div>
         <div class="hk-chips">${statusChip}${dev}${area}${tag}${consumable}${taskChips}${managed}</div>
         <div class="hk-detail-actions">
@@ -493,6 +503,7 @@ function taskDetail(p: PanelHost, task: Task): string {
           ${manage}
         </div>
         ${completionHint}
+        </div>
       </div>
       <nav class="hk-subtabs" aria-label="${escapeHTML(task.name)}">${taskSubtabs(task, tab)}</nav>
       </ha-card>
@@ -1210,6 +1221,7 @@ function wireDetailActions(p: PanelHost, root: ShadowRoot): void {
       });
     }
     p._wireNoteEditor(root, { kind: 'task', id: task.id });
+    wireTaskPhotos(p, root, task);
     root.querySelector('.d-del')?.addEventListener('click', () => {
       openConfirmDialog(p, t('confirm.deleteTask', { name: task.name }), () => {
         // The detail is about to vanish: replace it with its list so Forward

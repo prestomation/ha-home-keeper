@@ -113,7 +113,7 @@ export function safeHref(url: unknown): string {
  * completion `photo` field is caller-supplied via `home_keeper.complete_task`, so it
  * must be validated before it reaches an href/src.
  */
-export function isSafeImageUrl(url: unknown): boolean {
+export function isSafeImageUrl(url: unknown): url is string {
   return typeof url === 'string' && (isHttpUrl(url) || /^\/[^/]/.test(url));
 }
 
@@ -1210,7 +1210,7 @@ export function dueLabel(task: Task, now: Date = new Date(), hass?: Hass): strin
   // scheduled. It is counting, and that is its whole job.
   if (task.recurrence_type === 'use') return t('due.counting');
   // A completed one-off (do-once, now dormant) reads as "Completed".
-  if (task.recurrence_type === 'one-off' && !task.next_due && task.last_completed) {
+  if (isCompletedOneOff(task)) {
     return t('due.completed');
   }
   if (!task.next_due) return t('due.none');
@@ -1311,8 +1311,7 @@ function statusInfo(
   // where `statusBucket` puts it by running its `completed` check ahead of its buy
   // check. The pill runs them in the same order for the same reason: a row filed under
   // Completed must not carry a chip arguing it is still outstanding.
-  const boughtAlready =
-    task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
+  const boughtAlready = isCompletedOneOff(task);
   if (isBuyTask(task) && !boughtAlready) return { label: t('chip.lowStock'), cls: 'hk-shopping' };
   if (!isOverdue(task, now)) return { label: dueLabel(task, now, hass), cls: '' };
   const days = task.next_due
@@ -1442,6 +1441,16 @@ export function personName(hass: Hass | undefined, entityId: string): string {
  */
 export function scanRequired(task: Partial<Task>): boolean {
   return !!task.tag_id && !!task.require_tag_scan;
+}
+
+/**
+ * Whether *task* is a one-off that is done: no next due date, and a completion.
+ * This is the task the Completed group holds.
+ */
+export function isCompletedOneOff(
+  task: Pick<Task, 'recurrence_type' | 'next_due' | 'last_completed'>,
+): boolean {
+  return task.recurrence_type === 'one-off' && !task.next_due && !!task.last_completed;
 }
 
 // ── panel routing ────────────────────────────────────────────────────────────

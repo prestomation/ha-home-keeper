@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "Remover foto da tarefa",
+      "description": "Remove uma foto de uma tarefa e exclui o arquivo. Adicione fotos pelo painel, pois uma chamada de serviço não pode levar um arquivo.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O ID da tarefa que tem a foto. O nome também funciona. O painel mostra o ID."
+        },
+        "photo_id": {
+          "name": "ID da foto",
+          "description": "O ID da foto. O serviço list_tasks o fornece nas fotos da tarefa."
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "Definir capa da tarefa",
+      "description": "Torna uma foto a capa da tarefa. A capa é a primeira foto. Ela aparece na lista de tarefas, na página da tarefa e na caixa de conclusão.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O ID da tarefa que tem a foto. O nome também funciona. O painel mostra o ID."
+        },
+        "photo_id": {
+          "name": "ID da foto",
+          "description": "O ID da foto. O serviço list_tasks o fornece nas fotos da tarefa."
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "Assinar URL da foto da tarefa",
+      "description": "Gera uma URL de curta duração (sem cabeçalho de autenticação) que fornece os bytes de uma foto da tarefa, por exemplo para mostrar a foto em uma notificação.",
+      "fields": {
+        "task_id": {
+          "name": "Nome ou ID da tarefa",
+          "description": "O ID da tarefa que tem a foto. O nome também funciona. O painel mostra o ID."
+        },
+        "photo_id": {
+          "name": "ID da foto",
+          "description": "O ID da foto. O serviço list_tasks o fornece nas fotos da tarefa."
+        },
+        "thumbnail": {
+          "name": "Miniatura",
+          "description": "Assina a URL da cópia pequena, com no máximo 256 pixels no lado maior."
+        }
+      }
+    },
     "update_skip": {
       "name": "Atualizar omissão",
       "description": "Altera os detalhes de uma omissão registrada, identificada pelo carimbo de data/hora. A omissão mantém sua data e a programação não é alterada.",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "Documento desconhecido: {document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "Foto desconhecida: {photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "Apenas uma tarefa vinculada a um sensor de uso tem um medidor."

@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { test, expect, Locator, Page } from '@playwright/test';
 import { openCardDashboard } from './tests/helpers';
 import { TASK } from './fixture-ids';
@@ -10,6 +12,24 @@ import { PHONE } from './viewports';
  * Kept out of the *.spec.ts suite so it doesn't run as a normal test.
  */
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
+
+/** Pick the seeded filter housing photo in a card's New task form (#399), and wait
+ *  for its preview. */
+async function pickFormPhoto(form: Locator): Promise<void> {
+  const dir = path.resolve(__dirname, '../integration/ha_config/home_keeper/task_photos', TASK.fridgeFilter);
+  const file = fs.readdirSync(dir).find((f) => f.endsWith('__filter-housing.jpg'));
+  if (!file) throw new Error('no seeded filter housing photo');
+  await form.locator('.hk-form-photos input[type="file"]').setInputFiles({
+    name: 'filter-housing.jpg',
+    mimeType: 'image/jpeg',
+    buffer: fs.readFileSync(path.join(dir, file)),
+  });
+  const preview = form.locator('.hk-form-photos .hk-staged img');
+  await expect(preview).toHaveCount(1);
+  await expect
+    .poll(() => preview.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+    .toBe(true);
+}
 
 async function fillText(scope: Locator, nth: number, value: string): Promise<void> {
   await scope.locator('ha-selector-text').nth(nth).locator('input, textarea').fill(value);
@@ -178,6 +198,21 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await page.waitForTimeout(400);
   await shotCard(page, card, `${OUT}/card-add-form.png`);
 
+  // 4b. Photos in the card's New task form (#399), and the cover on a task row. The
+  // shot takes no Create, so the store does not change.
+  await pickFormPhoto(form);
+  const coverImg = card.locator(`.hk-row a.hk-cover img`).first();
+  await expect(coverImg).toHaveAttribute('src', /authSig=/, { timeout: 15_000 });
+  await expect
+    .poll(() => coverImg.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+    .toBe(true);
+  await page.waitForTimeout(400);
+  await shotCard(page, card, `${OUT}/card-add-form-photos.png`);
+  await form.locator('ha-button', { hasText: 'Cancel' }).click();
+  await expect(card.locator('.hk-form')).toHaveCount(0);
+  await card.locator('#hk-add').click();
+  await expect(form.locator('ha-form').first()).toBeVisible();
+
   // 5. The card's default title fallback (#150 follow-up: was hardcoded English,
   // S.defaultTitle, now t('tab.tasks')) plus the no-tasks-match-filter message.
   // Reconfigure the label-filtered card in place (setConfig, no dashboard YAML
@@ -286,6 +321,10 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   // The form is taller than a phone screen, so shoot the form element itself: the
   // element shot scrolls and stitches, and it ends at Create and Cancel.
   await mobileForm.screenshot({ path: `${OUT}/card-mobile-add-form.png` });
+  // 7d. The same form with a photo picked (#399).
+  await pickFormPhoto(mobileForm);
+  await page.waitForTimeout(400);
+  await mobileForm.screenshot({ path: `${OUT}/card-mobile-add-form-photos.png` });
 
   // The deleted-profile warning on a phone (F05-4).
   await mobileForm.locator('ha-button', { hasText: 'Cancel' }).click();

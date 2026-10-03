@@ -95,7 +95,7 @@ const COGNATE_IDENTICAL = {
   de: ['chip.orphaned', 'detail.about', 'detail.id', 'due.in_units', 'field.doc_name', 'field.doc_url', 'field.name', 'field.sensor_entity_id', 'group.integration', 'group.status', 'notify.opt.normal', 'opt.meta.link', 'opt.meta.text', 'opt.month.11', 'opt.month.4', 'opt.month.8', 'opt.month.9'],
   es: ['detail.id', 'field.doc_url', 'field.sensor_entity_id', 'notify.opt.normal', 'settings.general_heading'],
   fi: ['field.doc_url'],
-  fr: ['chip.note', 'completion.photo', 'detail.id', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'section.notes', 'settings.exclusions', 'tab.documents'],
+  fr: ['chip.note', 'completion.photo', 'detail.id', 'field.doc_url', 'field.kind', 'field.note', 'field.notes', 'field.stock', 'field.type', 'meta.seed.notes', 'notify.defaultName', 'notify.heading', 'notify.style', 'opt.meta.date', 'photos.title', 'section.notes', 'settings.exclusions', 'tab.documents'],
   it: ['detail.id', 'field.area_id', 'field.doc_url', 'group.area', 'opt.meta.link'],
   // `part.taskName.service` is "Service {part} ({asset})" in Norwegian, which takes
   // the English verb unchanged ("service bilen"). Danish and Swedish inflect it

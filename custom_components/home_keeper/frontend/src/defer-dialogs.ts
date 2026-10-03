@@ -27,6 +27,8 @@ export interface DeferMenuHost {
   onSnooze(task: Task): void;
   onSkip(task: Task): void;
   onDueToday(task: Task): void;
+  /** Open the completion dialog. Only the panel offers it (#399). */
+  onDetails?(task: Task): void;
 }
 
 /**
@@ -94,6 +96,10 @@ export class DeferMenus {
     menu.querySelector('.hk-defer-due-today')?.addEventListener('click', () => {
       this.close();
       this.host.onDueToday(task);
+    });
+    menu.querySelector('.hk-defer-details')?.addEventListener('click', () => {
+      this.close();
+      this.host.onDetails?.(task);
     });
   }
 

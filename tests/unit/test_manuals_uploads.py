@@ -310,3 +310,256 @@ def test_x02_1_an_upload_with_no_reload_writes_the_store(hass, tmp_path):
     stored = tmp_path / manuals.MANUALS_SUBDIR / "a1" / f"{document_id}__manual.pdf"
     assert stored.read_bytes() == PDF
     assert _incoming(tmp_path) == []
+
+
+# ── task photos (#399) ───────────────────────────────────────────────────────
+def _png(size=(40, 30)) -> bytes:
+    import io
+
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new("RGB", size, "red").save(buffer, "PNG")
+    return buffer.getvalue()
+
+
+PHOTO_ID = "3f2c8a1e-5b6d-4c7e-8f90-a1b2c3d4e5f6"
+
+
+class _TaskStore:
+    def __init__(self, tasks: dict, *, fail: Exception | None = None) -> None:
+        self.tasks = tasks
+        self.fail = fail
+        self.added: list[dict] = []
+
+    def get_task(self, task_id):
+        return self.tasks.get(task_id)
+
+    async def add_task_photo(self, task_id, photo):
+        if self.fail is not None:
+            if isinstance(self.fail, KeyError):
+                self.tasks.pop(task_id, None)
+            raise self.fail
+        self.added.append(photo)
+        self.tasks[task_id].setdefault("photos", []).append(photo)
+        return photo
+
+
+class _PhotoRequest(_Request):
+    def __init__(self, hass, reader, query=None) -> None:
+        super().__init__(hass, reader)
+        self.query = query or {}
+
+
+def _task_dir(tmp_path: Path, task_id: str = "t1") -> Path:
+    return tmp_path / manuals.TASK_PHOTOS_SUBDIR / task_id
+
+
+def _post_photo(hass, filename, data):
+    reader = _Reader([_BodyPartReader(filename, [data])])
+    return asyncio.run(
+        manuals.HomeKeeperTaskPhotoView().post(
+            _PhotoRequest(hass, reader), "t1", PHOTO_ID
+        )
+    )
+
+
+def test_a_task_photo_upload_stores_the_file_and_a_thumbnail(hass, tmp_path):
+    store = _TaskStore({"t1": {"id": "t1"}})
+    hass.coord = types.SimpleNamespace(store=store)
+    data = _png()
+
+    result = _post_photo(hass, "Attic gap.png", data)
+
+    assert result[0] == "json"
+    assert store.added == [
+        {
+            "id": PHOTO_ID,
+            "name": "Attic gap.png",
+            "filename": "Attic_gap.png",
+            "content_type": "image/png",
+            "size": len(data),
+        }
+    ]
+    folder = _task_dir(tmp_path)
+    assert (folder / f"{PHOTO_ID}__Attic_gap.png").read_bytes() == data
+    assert (folder / f"thumb_{PHOTO_ID}__thumb.jpg").is_file()
+    assert _incoming(tmp_path) == []
+
+
+def test_a_task_photo_upload_refuses_a_pdf(hass, tmp_path):
+    store = _TaskStore({"t1": {"id": "t1"}})
+    hass.coord = types.SimpleNamespace(store=store)
+
+    result = _post_photo(hass, "manual.pdf", PDF)
+
+    assert result == ("message", "invalid_task", 400)
+    assert store.added == []
+    assert not _task_dir(tmp_path).exists()
+    assert _incoming(tmp_path) == []
+
+
+def test_a_task_photo_that_does_not_decode_leaves_nothing(hass, tmp_path):
+    store = _TaskStore({"t1": {"id": "t1"}})
+    hass.coord = types.SimpleNamespace(store=store)
+
+    result = _post_photo(hass, "fake.jpg", b"\xff\xd8\xff\xe0" + b"\x00" * 64)
+
+    assert result == ("message", "invalid_task", 400)
+    assert store.added == []
+    assert list(_task_dir(tmp_path).glob("*")) == []
+    assert _incoming(tmp_path) == []
+
+
+def test_a_task_photo_upload_to_an_unknown_task(hass, tmp_path):
+    hass.coord = types.SimpleNamespace(store=_TaskStore({}))
+
+    result = _post_photo(hass, "a.png", _png())
+
+    assert result == ("message", "task_not_found", 404)
+    assert _incoming(tmp_path) == []
+
+
+def test_a_task_photo_upload_to_a_task_deleted_meanwhile_leaves_no_folder(
+    hass, tmp_path
+):
+    store = _TaskStore({"t1": {"id": "t1"}}, fail=KeyError("t1"))
+    hass.coord = types.SimpleNamespace(store=store)
+
+    result = _post_photo(hass, "a.png", _png())
+
+    assert result == ("message", "task_not_found", 404)
+    assert not _task_dir(tmp_path).exists()
+    assert _incoming(tmp_path) == []
+
+
+def test_a_task_photo_upload_to_a_full_task_removes_its_files(hass, tmp_path):
+    from hk_models import TaskValidationError
+
+    store = _TaskStore({"t1": {"id": "t1"}}, fail=TaskValidationError("full"))
+    hass.coord = types.SimpleNamespace(store=store)
+
+    result = _post_photo(hass, "a.png", _png())
+
+    assert result == ("message", "invalid_task", 400)
+    assert list(_task_dir(tmp_path).glob("*")) == []
+
+
+def test_a_task_photo_upload_with_a_taken_id_gets_a_new_one(hass, tmp_path):
+    store = _TaskStore({"t1": {"id": "t1", "photos": [{"id": PHOTO_ID}]}})
+    hass.coord = types.SimpleNamespace(store=store)
+
+    _post_photo(hass, "a.png", _png())
+
+    new_id = store.added[0]["id"]
+    assert new_id != PHOTO_ID
+    assert (_task_dir(tmp_path) / f"{new_id}__a.png").is_file()
+
+
+def test_a_task_photo_upload_needs_a_real_user(hass, tmp_path):
+    hass.coord = types.SimpleNamespace(store=_TaskStore({"t1": {"id": "t1"}}))
+    request = _PhotoRequest(hass, _Reader([]))
+    request._data["hass_user"] = types.SimpleNamespace(system_generated=True)
+
+    result = asyncio.run(
+        manuals.HomeKeeperTaskPhotoView().post(request, "t1", PHOTO_ID)
+    )
+
+    assert result == ("message", "upload_requires_user", 401)
+
+
+def test_a_photo_upload_stops_at_its_own_limit(hass, tmp_path):
+    reader = _Reader([_BodyPartReader("a.png", [b"x" * 11])])
+    result = asyncio.run(
+        manuals._parse_upload(hass, _View(), _Request(hass, reader), max_bytes=10)
+    )
+    assert result == ("message", "file_too_large", 413)
+    assert _incoming(tmp_path) == []
+
+
+def test_a_photo_upload_at_its_limit_is_read(hass, tmp_path):
+    reader = _Reader([_BodyPartReader("a.png", [b"x" * 10])])
+    uploaded, _, _ = asyncio.run(
+        manuals._parse_upload(hass, _View(), _Request(hass, reader), max_bytes=10)
+    )
+    assert uploaded.size == 10
+
+
+def _get_photo(hass, photo_id, query=None):
+    return asyncio.run(
+        manuals.HomeKeeperTaskPhotoView().get(
+            _PhotoRequest(hass, _Reader([]), query), "t1", photo_id
+        )
+    )
+
+
+def test_a_task_photo_get_serves_the_original_or_the_thumbnail(
+    hass, tmp_path, monkeypatch
+):
+    served: list[Path] = []
+    monkeypatch.setattr(
+        manuals.web,
+        "FileResponse",
+        lambda path, headers: served.append(Path(path)) or ("file", headers),
+        raising=False,
+    )
+    store = _TaskStore({"t1": {"id": "t1"}})
+    hass.coord = types.SimpleNamespace(store=store)
+    _post_photo(hass, "a.png", _png())
+
+    original = _get_photo(hass, PHOTO_ID)
+    thumb = _get_photo(hass, PHOTO_ID, {"size": "thumb"})
+
+    assert served == [
+        (_task_dir(tmp_path) / f"{PHOTO_ID}__a.png").resolve(),
+        (_task_dir(tmp_path) / f"thumb_{PHOTO_ID}__thumb.jpg").resolve(),
+    ]
+    assert original[1]["Content-Disposition"].startswith('inline; filename="a.png"')
+    assert thumb[1]["Content-Disposition"] == 'inline; filename="thumb.jpg"'
+
+
+def test_a_task_photo_get_of_an_unknown_photo_is_404(hass, tmp_path):
+    hass.coord = types.SimpleNamespace(store=_TaskStore({"t1": {"id": "t1"}}))
+    assert _get_photo(hass, "nope").status == 404
+
+
+def test_a_task_photo_get_of_a_missing_file_is_404(hass, tmp_path):
+    photo = {"id": PHOTO_ID, "filename": "gone.png"}
+    hass.coord = types.SimpleNamespace(
+        store=_TaskStore({"t1": {"id": "t1", "photos": [photo]}})
+    )
+    assert _get_photo(hass, PHOTO_ID).status == 404
+
+
+def test_the_sweep_removes_only_the_folders_of_gone_tasks(hass, tmp_path):
+    root = tmp_path / manuals.TASK_PHOTOS_SUBDIR
+    for name in ("live", "gone", ".incoming"):
+        (root / name).mkdir(parents=True)
+        (root / name / "x").write_bytes(b"x")
+
+    asyncio.run(manuals.async_sweep_task_photos(hass, {"live"}))
+
+    assert sorted(p.name for p in root.iterdir()) == [".incoming", "live"]
+
+
+def test_the_sweep_with_no_photo_folder_does_nothing(hass, tmp_path):
+    asyncio.run(manuals.async_sweep_task_photos(hass, {"live"}))
+    assert not (tmp_path / manuals.TASK_PHOTOS_SUBDIR).exists()
+
+
+def test_deleting_a_task_photo_removes_the_file_and_the_thumbnail(hass, tmp_path):
+    hass.coord = types.SimpleNamespace(store=_TaskStore({"t1": {"id": "t1"}}))
+    _post_photo(hass, "a.png", _png())
+
+    asyncio.run(manuals.async_delete_task_photo(hass, "t1", PHOTO_ID, "a.png"))
+
+    assert list(_task_dir(tmp_path).iterdir()) == []
+
+
+def test_uninstall_removes_the_photo_tree(hass, tmp_path):
+    hass.coord = types.SimpleNamespace(store=_TaskStore({"t1": {"id": "t1"}}))
+    _post_photo(hass, "a.png", _png())
+
+    asyncio.run(manuals.async_delete_all_documents(hass))
+
+    assert not (tmp_path / manuals.TASK_PHOTOS_SUBDIR).exists()

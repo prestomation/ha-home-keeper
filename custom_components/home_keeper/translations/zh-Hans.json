@@ -918,6 +918,52 @@
         }
       }
     },
+    "remove_task_photo": {
+      "name": "移除任务照片",
+      "description": "从任务中移除一张照片并删除其文件。请在面板中添加照片，因为服务调用无法携带文件。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "拥有该照片的任务的 ID。名称同样可用。面板中会显示 ID。"
+        },
+        "photo_id": {
+          "name": "照片 ID",
+          "description": "照片的 ID。list_tasks 服务会在任务的照片中返回它。"
+        }
+      }
+    },
+    "set_task_photo_cover": {
+      "name": "设置任务封面照片",
+      "description": "将一张照片设为其任务的封面。封面是第一张照片，会显示在任务列表、任务页面和完成对话框中。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "拥有该照片的任务的 ID。名称同样可用。面板中会显示 ID。"
+        },
+        "photo_id": {
+          "name": "照片 ID",
+          "description": "照片的 ID。list_tasks 服务会在任务的照片中返回它。"
+        }
+      }
+    },
+    "sign_task_photo_url": {
+      "name": "签署任务照片 URL",
+      "description": "生成一个短期有效的 URL（无需身份验证标头），用于获取任务照片的字节数据，例如在通知中显示照片。",
+      "fields": {
+        "task_id": {
+          "name": "任务名称或 ID",
+          "description": "拥有该照片的任务的 ID。名称同样可用。面板中会显示 ID。"
+        },
+        "photo_id": {
+          "name": "照片 ID",
+          "description": "照片的 ID。list_tasks 服务会在任务的照片中返回它。"
+        },
+        "thumbnail": {
+          "name": "缩略图",
+          "description": "签署小副本的 URL，长边最多 256 像素。"
+        }
+      }
+    },
     "update_skip": {
       "name": "更新跳过记录",
       "description": "按时间戳修改已记录跳过的详情。跳过保留原有日期，计划安排不受影响。",
@@ -1116,6 +1162,9 @@
     },
     "unknown_document": {
       "message": "未知文档：{document_id}"
+    },
+    "unknown_task_photo": {
+      "message": "未知照片：{photo_id}"
     },
     "meter_requires_usage_task": {
       "message": "只有绑定了用量传感器的任务才有计量。"

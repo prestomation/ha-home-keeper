@@ -6,6 +6,18 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.29.0b2]
+
+### Added
+
+- **[Task photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos).**
+  Attach up to 6 photos to a task to show what needs work and where. Add them when you
+  create the task in the panel or on the dashboard card, as any user who can create
+  tasks. (Fixes #399)
+- **[After photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos#after-photos).**
+  Add a photo when you mark a task done, also on a one-tap task. The task page and the
+  Completed group show it beside the task photo.
+
 ## [0.29.0b1]
 
 ### Added

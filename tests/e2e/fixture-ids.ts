@@ -54,6 +54,12 @@ export const PART = {
   tpValve: '11a79824-31d5-4ccc-b5b9-12104ff7e327',
 } as const;
 
+/** Photos on "Replace fridge filter" (#399). The housing is the cover. */
+export const PHOTO = {
+  filterHousing: '9b1f4e2a-6c3d-4f8e-a1b2-c3d4e5f60718',
+  cartridgeLabel: '0d7e3c91-2b4a-4e6f-9a8b-7c6d5e4f3a21',
+} as const;
+
 /** Documents attached to the water heater. */
 export const DOC = {
   manualPdf: '56656a41-c3a1-4db7-9adf-d1b0fb9e0c23',

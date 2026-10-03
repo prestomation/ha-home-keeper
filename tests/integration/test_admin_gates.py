@@ -12,6 +12,7 @@ then drives both surfaces — REST service calls and the websocket API — with 
 tokens, asserting the admin succeeds where the non-admin is refused.
 """
 
+import base64
 import importlib.util
 import sys
 import uuid
@@ -749,6 +750,59 @@ def test_uploads_refuse_a_non_admin(non_admin_token, priced_asset, route):
     )
     assert r.status_code == 401, f"{route} took a non-admin upload: {r.status_code}"
     assert "SN-SECRET-1" not in r.text
+
+
+# A 1x1 PNG that decodes. The upload makes a thumbnail, so it refuses PNG_BYTES above,
+# which has the right magic bytes but no readable image.
+PHOTO_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+def _photo_upload(token, task_id, photo_id):
+    return requests.post(
+        f"{HA_URL}/api/home_keeper/task_photo/{task_id}/{photo_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("probe.png", PHOTO_PNG, "image/png")},
+        timeout=30,
+    )
+
+
+def test_a_non_admin_can_add_and_change_task_photos(ha, non_admin, non_admin_token):
+    # #399: a photo is task data, so it is open like add_task and update_task. A user
+    # who is not an admin adds photos from the dashboard card.
+    name = f"Photo usage probe {uuid.uuid4().hex[:8]}"
+    call_service(
+        ha,
+        "home_keeper",
+        "add_task",
+        {"name": name, "recurrence_type": "floating", "interval": 7, "unit": "days"},
+    )
+    resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+    task = next(
+        t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
+    )
+    first, second = str(uuid.uuid4()), str(uuid.uuid4())
+    try:
+        for photo_id in (first, second):
+            r = _photo_upload(non_admin_token, task["id"], photo_id)
+            assert r.status_code == 200, f"a non-admin could not upload: {r.text}"
+        data = {"task_id": task["id"], "photo_id": second}
+        r = _call(non_admin, "set_task_photo_cover", data)
+        assert r.status_code == 200, f"a non-admin could not set the cover: {r.text}"
+        r = _call(
+            non_admin, "remove_task_photo", {"task_id": task["id"], "photo_id": first}
+        )
+        assert r.status_code == 200, f"a non-admin could not remove a photo: {r.text}"
+        resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
+        after = next(
+            t
+            for t in resp.get("service_response", resp)["tasks"]
+            if t["id"] == task["id"]
+        )
+        assert [p["id"] for p in after["photos"]] == [second]
+    finally:
+        call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
 
 
 def test_the_device_registry_does_not_carry_the_serial_number(

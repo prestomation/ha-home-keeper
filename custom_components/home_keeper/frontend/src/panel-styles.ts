@@ -1831,6 +1831,72 @@ export const STYLES = `
      reason the task cannot be completed here. */
   .hk-sheet-row.hk-sheet-blocked { color: var(--hk-ink-2); }
   .hk-completion-photo-label { font-weight: 500; font-size: 0.9rem; }
+  /* Task photos (#399). Every image is the 256px thumbnail; a tap opens the original.
+     An image waiting for its signed URL shows the tinted box, not a broken icon. */
+  .hk-head-with-cover { display: flex; gap: 16px; align-items: flex-start; }
+  .hk-head-main { flex: 1; min-width: 0; }
+  .hk-task-cover {
+    flex: none; display: block; width: 168px; aspect-ratio: 4 / 3; border-radius: 8px;
+    overflow: hidden; border: 1px solid var(--divider-color); background: var(--hk-accent-soft);
+  }
+  .hk-task-cover-img, .hk-photo-img, .hk-row-cover, .hk-completion-cover-img {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+  .hk-photos-card .hk-detail-inner { padding-block: 12px; }
+  .hk-photo-hint { margin: 0 0 10px; color: var(--secondary-text-color); }
+  .hk-photo-strip { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+  /* A tile is the photo with its buttons in a row under it, not on it: on a 96px
+     photo, two buttons on top hide most of what the photo is for. */
+  .hk-photo { position: relative; width: 96px; display: flex; flex-direction: column; gap: 2px; }
+  .hk-photo-link {
+    display: block; width: 96px; aspect-ratio: 1; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--divider-color); background: var(--hk-accent-soft);
+  }
+  .hk-photo-badge {
+    position: absolute; left: 4px; top: 4px; padding: 1px 6px; border-radius: 4px;
+    font-size: 0.7rem; color: #fff; background: rgba(0, 0, 0, 0.6); pointer-events: none;
+  }
+  .hk-photo-actions { display: flex; justify-content: center; gap: 4px; }
+  .hk-photo-actions ha-icon-button {
+    --mdc-icon-button-size: 36px; --ha-icon-button-size: 36px; --mdc-icon-size: 20px;
+    color: var(--secondary-text-color);
+  }
+  .hk-photo-add {
+    width: 96px; height: 96px; align-self: flex-start; display: grid; place-content: center; justify-items: center;
+    gap: 4px; border: 1.5px dashed var(--divider-color); border-radius: 8px; background: none;
+    color: var(--secondary-text-color); font: inherit; font-size: 0.8rem; cursor: pointer;
+  }
+  .hk-photo-add:hover, .hk-photo-add:focus-visible { border-color: var(--primary-color); color: var(--primary-color); }
+  .hk-photo-add[disabled] { cursor: default; opacity: 0.6; }
+  .hk-photo-upload-status:not(:empty) { margin-top: 10px; }
+  .hk-staged-help { margin: 10px 0 0; }
+  .hk-form-photos-head .hk-section-count { margin-inline-start: 6px; }
+  .hk-grow-with-cover { display: flex; gap: 10px; align-items: center; }
+  .hk-grow-text { flex: 1; min-width: 0; }
+  .hk-row-cover {
+    flex: none; width: 40px; height: 40px; border-radius: 6px;
+    border: 1px solid var(--divider-color); background: var(--hk-accent-soft);
+  }
+  /* The cover and the last completion photo, side by side, each with its label. */
+  .hk-head-photos { flex: none; display: flex; gap: 8px; }
+  .hk-head-photo { position: relative; }
+  .hk-head-photos .hk-task-cover { width: 140px; }
+  /* A done one-off row shows its completion photo, marked with a check. */
+  .hk-row-after { position: relative; flex: none; display: block; width: 40px; height: 40px; }
+  .hk-row-after .hk-row-cover { width: 40px; height: 40px; box-sizing: border-box; border-radius: 6px; }
+  .hk-row-after-check {
+    position: absolute; right: -4px; bottom: -4px; width: 18px; height: 18px;
+    display: grid; place-content: center; border-radius: 50%;
+    background: var(--success-color, #2e7d32); color: #fff;
+    border: 2px solid var(--card-background-color); --mdc-icon-size: 12px;
+  }
+  .hk-completion-cover {
+    display: flex; gap: 10px; align-items: center; padding: 8px; border-radius: 8px;
+    background: var(--hk-accent-soft); color: var(--hk-accent-ink); font-size: 0.85rem;
+  }
+  .hk-completion-cover-link {
+    flex: none; display: block; width: 56px; height: 56px; border-radius: 6px; overflow: hidden;
+  }
 
   /* ── Phone-width tab bar ───────────────────────────────────────────────────
      Hidden by default and swapped in for ha-tab-group below the phone breakpoint,
@@ -1914,6 +1980,19 @@ export const STYLES = `
 
   @media (max-width: 700px) {
     ha-tab-group { display: none; }
+    /* A phone has no room beside the name, so the task cover goes full width above
+       it (#399), and the photo strip scrolls sideways rather than wrapping. */
+    .hk-head-with-cover { flex-direction: column; gap: 12px; }
+    .hk-task-cover { width: 100%; aspect-ratio: 16 / 9; }
+    .hk-head-photos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+    .hk-head-photo:only-child { grid-column: 1 / -1; }
+    .hk-head-photos .hk-task-cover { width: 100%; aspect-ratio: 4 / 3; }
+    .hk-photo-strip { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+    .hk-photo, .hk-photo-add { flex: none; }
+    /* Two full-size tap targets (2 x --hk-tap) still fit across a 96px tile. */
+    .hk-photo-actions ha-icon-button {
+      --mdc-icon-button-size: var(--hk-tap); --ha-icon-button-size: var(--hk-tap);
+    }
     /* The tree toggle keeps its 24px look, but a transparent ring takes the tap
        target to --hk-tap (X11-4). */
     .hk-chevron::before {

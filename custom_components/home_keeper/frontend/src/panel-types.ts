@@ -7,6 +7,7 @@
  * panel, so they stay here rather than widening the shared surface.
  */
 
+import type { StagedPhoto } from './photo-staging';
 import type {
   Asset,
   Completion,
@@ -53,6 +54,8 @@ export interface EditState {
   open: boolean;
   task: Partial<Task> | null;
   error?: string;
+  /** Photos picked in the New task form. They upload after Create (#399). */
+  photos?: StagedPhoto[];
 }
 export interface AssetEditState {
   /** Set while Create/Save runs, so a second press is ignored (X12-4). */

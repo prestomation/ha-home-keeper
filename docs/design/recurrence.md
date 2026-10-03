@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/defer-dialogs.ts
   - custom_components/home_keeper/frontend/src/panel-defer.ts
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: 95c9ea675726
+source_hash: 72acedfe806c
 ---
 
 # Task model and recurrence
@@ -109,7 +109,8 @@ snooze never makes a task due earlier. The store rejects both on a dormant task.
 
 In the frontend, `defer.deferVerbs` decides which actions to show. All need a `next_due`.
 Skip also needs a task that is not `completion_blocked`. Due today also needs a task that is
-not overdue. Each action has an option switch. `defer.snoozeTarget` repeats the
+not overdue. Each action has an option switch. The details item opens the completion dialog
+on a one-tap task that is not blocked or scan-only. `defer.snoozeTarget` repeats the
 `snooze_from` rule and refuses a custom date that is not later. `defer-dialogs.ts` holds the
 menu controller and both dialogs, which the panel and the card share. `panel-defer.ts` binds
 them to the panel host.
