@@ -24,9 +24,22 @@ const GLOBAL_EVENTS = 'event.home_keeper_events';
 /** Open a device page and bring the event entity row into view. */
 async function devicePage(page: Page, deviceId: string, entityName: string): Promise<void> {
   await page.goto(`/config/devices/device/${deviceId}`, { waitUntil: 'domcontentloaded' });
-  const row = page.getByText(entityName, { exact: true }).first();
+  // Look for the row inside the device page itself. A match anywhere on the page
+  // let a shot go out while Home Assistant still showed its loading screen.
+  const devicePanel = page.locator('ha-config-device-page');
+  await expect(devicePanel).toBeAttached({ timeout: 30000 });
+  const row = devicePanel.getByText(entityName, { exact: true }).first();
   await expect(row).toBeVisible({ timeout: 30000 });
+  // After the automation editor, Home Assistant loads the whole app again, and its
+  // launch screen fades out over a page that is already drawn. Wait until it is gone.
+  await expect
+    .poll(() => page.evaluate(() => document.getElementById('ha-launch-screen') === null), {
+      timeout: 30000,
+    })
+    .toBe(true);
   await page.waitForTimeout(2000);
+  await expect(devicePanel).toBeAttached();
+  await expect(row).toBeVisible();
   // A desktop shot takes the full page. On a phone, the Events card is the last
   // card, and the page scrolls inside a shadow root, not the window, so scroll
   // each scrollable element to its end.
