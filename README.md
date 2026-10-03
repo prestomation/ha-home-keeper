@@ -22,7 +22,7 @@
 | custom\_components/home\_keeper/declarative\_companion\_sync.py  |      235 |      103 |       52 |        1 |     57% |78-79, 122-162, 182-183, 197-224, 235-240, 251-255, 265, 276-280, 284, 303, 334-338, 460-480, 488, 495, 502, 507-508, 581, 587, 600-670, 685-692, 702-707 |
 | custom\_components/home\_keeper/declarative\_companions.py       |      393 |        3 |      196 |        3 |     99% |136, 262, 264 |
 | custom\_components/home\_keeper/declarative\_preset\_text.py     |        2 |        0 |        0 |        0 |    100% |           |
-| custom\_components/home\_keeper/declarative\_presets.py          |      152 |        0 |       58 |        0 |    100% |           |
+| custom\_components/home\_keeper/declarative\_presets.py          |      161 |        0 |       60 |        0 |    100% |           |
 | custom\_components/home\_keeper/declarative\_presets\_catalog.py |        3 |        0 |        0 |        0 |    100% |           |
 | custom\_components/home\_keeper/device\_compat.py                |       52 |        0 |       20 |        0 |    100% |           |
 | custom\_components/home\_keeper/device\_trigger.py               |       69 |       69 |       24 |        0 |      0% |    23-163 |
@@ -67,8 +67,8 @@
 | custom\_components/home\_keeper/transfer.py                      |      650 |        2 |      270 |        4 |     99% |633-\>651, 882, 901, 1600-\>1599 |
 | custom\_components/home\_keeper/transfer\_runner.py              |       57 |        4 |       18 |        5 |     85% |105-\>132, 129-\>132, 134-\>174, 145-153, 174-\>180 |
 | custom\_components/home\_keeper/transitions.py                   |       45 |        0 |       16 |        0 |    100% |           |
-| custom\_components/home\_keeper/websocket\_api.py                |      633 |      633 |       82 |        0 |      0% |    8-1747 |
-| **TOTAL**                                                        | **11318** | **2727** | **4080** |  **284** | **77%** |           |
+| custom\_components/home\_keeper/websocket\_api.py                |      633 |      633 |       82 |        0 |      0% |    8-1754 |
+| **TOTAL**                                                        | **11327** | **2727** | **4082** |  **284** | **77%** |           |
 
 
 ## Setup coverage badge
