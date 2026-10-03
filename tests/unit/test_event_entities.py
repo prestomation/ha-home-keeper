@@ -146,20 +146,32 @@ def test_dropped_fields_are_real_payload_keys_with_a_reason() -> None:
         assert reason.strip(), name
 
 
-def test_kept_payload_fields_hold_no_nested_objects() -> None:
-    """A payload key an event entity keeps is a scalar or a list of strings.
+# The declared types a kept payload field may have: values that stay small.
+_SMALL_TYPES = frozenset(
+    {"bool", "int", "float", "str", "str | None", "int | None", "float | None"}
+    | {"list[str]"}
+)
 
-    The recorder keeps each event's attributes. A new payload field that holds a
-    dict, or a list of dicts, must go in ``EVENT_ENTITY_DROPPED_FIELDS`` with a
-    reason, or this test fails. It is the check that the dropped list is complete.
+
+def test_kept_payload_fields_hold_only_small_values() -> None:
+    """A payload key that an event entity keeps has a known small type.
+
+    The recorder keeps each event's attributes. A new payload field must have a
+    type in ``_SMALL_TYPES``, or go in ``EVENT_ENTITY_DROPPED_FIELDS`` with a
+    reason. A field with no type, or a type such as ``dict``, ``list[dict]`` or
+    ``Any``, fails this test until someone makes that choice.
     """
     fields = [f for spine in api_surface.PAYLOAD_SPINES.values() for f in spine]
     fields += [f for spec in api_surface.EVENTS for f in spec.extra]
     dropped = api_surface.EVENT_ENTITY_DROPPED_FIELDS
-    nested = sorted({f.name for f in fields if "dict" in f.type} - set(dropped))
-    assert nested == [], {
-        "nested_fields_kept": nested,
-        "fix": "add each one to api_surface.EVENT_ENTITY_DROPPED_FIELDS with a reason",
+    unsafe = sorted(
+        {f"{f.name}: {f.type!r}" for f in fields if f.type.strip() not in _SMALL_TYPES}
+        - {f"{f.name}: {f.type!r}" for f in fields if f.name in dropped}
+    )
+    assert unsafe == [], {
+        "kept_fields_without_a_small_type": unsafe,
+        "fix": "add each one to api_surface.EVENT_ENTITY_DROPPED_FIELDS with a "
+        "reason, or give it a small type",
     }
 
 
