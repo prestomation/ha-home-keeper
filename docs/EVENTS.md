@@ -83,8 +83,8 @@ To complete a task whose **Require tag scan** toggle blocks every UI surface, an
 automation can pass `origin: home_keeper_tag_scan` to `complete_task`.
 
 **Sensor tasks** use the triggered lifecycle. The watcher fires
-`home_keeper_task_triggered` when a bound entity meets the condition of the task: a usage
-meter passes its target, a threshold is crossed, or a `state` entity enters its state.
+`home_keeper_task_triggered` when a bound entity meets the condition of the task. A
+usage meter that passes its target is one case. A `state` entity that enters its state is another.
 The task then becomes `home_keeper_task_overdue` as any due task does. A user completion
 clears it and resets the baseline of a usage meter. A usage meter with a **time
 backstop** (`also_every` in its `sensor` block) arms on the first half that is due, also while the
@@ -93,9 +93,9 @@ entity is unavailable.
 With `clear_on_recover`, the task completes itself. A task that a declarative companion
 with `clear_on_recover` made cannot be completed by hand: `home_keeper.complete_task`
 refuses it, and its device page has no Mark done button. If the task is linked to a
-consumable, the auto-completion uses 1 spare, and can fire `home_keeper_part_low_stock`
-or `home_keeper_part_out_of_stock`. An `unavailable` or `unknown` entity counts as no
-reading, not a recovery, and fires nothing. A device that goes off the network never
+consumable, the auto-completion uses 1 spare. It can then fire `home_keeper_part_low_stock`
+or `home_keeper_part_out_of_stock`. An `unavailable` or `unknown` entity is not a
+recovery. It counts as no reading and fires no event. A device that goes off the network never
 completes a task.
 
 The baseline bookkeeping of the watcher (a new meter anchor, a re-anchor after a meter
@@ -149,7 +149,7 @@ track **both** `stock` and `reorder_at` to fire anything. If 1 change takes a lo
 Stock goes down, and these events fire, when a user completes a task **linked to that
 part**. This includes an automatic wear-part replacement task and a task linked by hand
 with `home_keeper.set_task_consumable`. Each completion removes the **Used per
-completion** amount of the part (1 spare if unset; `0.33` makes a bottle last 3 refills).
+completion** amount of the part (1 spare if unset). With `0.33`, a bottle lasts 3 refills.
 
 A deleted completion gives the stock back. The completion records the amount that it
 really took: if it found 1 of the 2 spares it needed, it gives back 1. The return fires
@@ -183,8 +183,8 @@ and `home_keeper_asset_deleted` does not fire.
 Home Keeper shows integrations that work with it in **Settings → Companions** (see
 [INTEGRATING.md §9](INTEGRATING.md#9-discovery-and-declarative-companions)).
 As with time-based transitions, Home Keeper records the state at startup with no events.
-An event fires only when a companion *changes* state while Home Assistant runs: it
-registers itself, or a user installs a glue or a known upstream. Home Keeper checks the
+An event fires only when a companion *changes* state at run time, as when it
+registers itself or when a user installs a glue. Home Keeper checks the
 state on each coordinator refresh (about 5 minutes). A read (the panel, or
 `list_companions`) fires nothing.
 
@@ -197,8 +197,8 @@ to `home_keeper.register_companion`.
 
 ### Declarative companion CRUD
 
-A **declarative companion** is a spec that Home Keeper owns: a target integration, entity
-filters, and a Jinja template for the task name and notes (see
+A **declarative companion** is a spec that Home Keeper owns. It names a target integration
+and entity filters, with a Jinja template for the task name and notes (see
 [INTEGRATING.md §9](INTEGRATING.md#9-discovery-and-declarative-companions)). It makes 1 managed
 sensor task for each matching entity. Changes to a spec fire their own events. The
 sensor tasks fire the ordinary task events, so an automation on
@@ -220,8 +220,8 @@ the payloads.
 `stock` and `reorder_at` can be fractional: a bottle topped up a third at a time reports
 `0.67`. `unit` is the unit of the part (`"ml"`, `"bottles"`), or `""` for whole spares.
 A notification can use `{{ trigger.event.data.stock }} {{ trigger.event.data.unit }}`
-for both. A stock event also holds the `source` and `managed_by` of the appliance, as the
-asset events do, so an integration that manages an appliance can find its stock events.
+for both. Like the asset events, a stock event holds the `source` and `managed_by` of the
+appliance. An integration that manages an appliance uses them to find its stock events.
 
 ## Example automations
 
@@ -286,8 +286,8 @@ its `task_id`, because those task events have `device_id: null`.
 - Home Keeper never reads `source`. Use it, and the `origin` on completions, to find your
   own tasks and remove duplicates. See [INTEGRATING.md](INTEGRATING.md).
 - **An import fires 1 event per record, not 1 per completion.** A document that
-  `home_keeper.import_data` reads can hold years of history, and that history did not
-  occur now. A backfilled completion fires no `home_keeper_task_completed`. The record
+  `home_keeper.import_data` reads holds old history, from before the import. A
+  backfilled completion fires no `home_keeper_task_completed`. The record
   arrives as 1 `home_keeper_task_created` or `home_keeper_task_updated`. An update that
   only adds history still fires, with `completions` in its `changed_fields`. To mirror
   completions, read the task history on that event. Do not count completion events.

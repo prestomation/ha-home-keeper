@@ -8,8 +8,8 @@ summary: How another integration adds tasks and appliances to Home Keeper and ke
 This guide is for **authors of other Home Assistant integrations** that push recurring tasks
 into Home Keeper, such as a battery, plant or pet integration. Your integration owns the
 schedule. It uses only the **event bus and services**: there is no Python import in either
-direction and no hard dependency. Home Keeper stores the `source` and `origin` values
-verbatim, echoes them, and never branches on their contents.
+direction and no hard dependency. Home Keeper stores and echoes the `source` and `origin`
+values verbatim. It never branches on their contents.
 
 Every action, field, event and payload is in the generated
 [API reference](https://prestomation.github.io/ha-home-keeper/developer/api). The event
@@ -19,7 +19,7 @@ catalog is in [EVENTS.md](EVENTS.md).
 
 - Guard every call with `hass.services.has_service("home_keeper", "<service>")`, so your
   integration works when Home Keeper is absent.
-- While the Home Keeper config entry reloads or is disabled, a call raises
+- When the Home Keeper config entry reloads or is disabled, a call raises
   `HomeAssistantError` with the translation key `integration_not_loaded`. Catch it where a
   failed call must not stop your code, and try again on `home_keeper_register_companions` (§9).
 - Use ids, not names. Each `task_id`, `asset_id`, `part_id` and `document_id` field also
@@ -49,7 +49,7 @@ if hass.services.has_service(DOMAIN_HK, "add_task"):
 With a `device_id`, the next-due sensor, overdue binary_sensor and mark-done button show on
 that device page. Get the id with `async_get_device_by_identifier` (Home Assistant 2026.9+).
 
-**Find a task again** after a restart: call `list_tasks` with `return_response=True` and
+**Find a task again** after a restart. Call `list_tasks` with `return_response=True`, then
 match on your `source` namespace. Put a unique id of your own, such as a `schedule_id`, in
 `source`. **Put a device id at the top level of your namespace, under the key
 `device_id`.** When Home Assistant renumbers a device, Home Keeper heals only the task
@@ -58,8 +58,8 @@ next reconcile makes a duplicate.
 
 ## 2. Reacting to a completion
 
-Home Keeper fires `home_keeper_task_completed` on every completion, from every surface: the
-to-do checkbox, the device button, the panel and the `complete_task` service.
+Home Keeper fires `home_keeper_task_completed` on every completion, from every surface. These
+include the to-do checkbox and the device button, the panel and the `complete_task` service.
 
 ```python
 @callback
@@ -122,8 +122,8 @@ task. Home Keeper reads `managed_by` and acts on it.
 - `add_task` rejects `deletion_protected` without `config_entry_id` (`invalid_task`),
   because Home Keeper then cannot see that your integration is gone.
 
-**Cleanup.** When the recorded config entry is not loaded, the task is *orphaned*: the chip
-shows **Integration offline**, **Delete** comes back, and the task list offers **Remove
+**Cleanup.** When the recorded config entry is not loaded, the task is *orphaned*. The chip
+shows **Integration offline** and **Delete** comes back. The task list also offers **Remove
 orphaned tasks** (`home_keeper.delete_orphaned_tasks`, admin-only). As a last resort,
 `delete_task` with `force: true` ignores the protection.
 
@@ -171,7 +171,7 @@ chips. Do not send a chip for a linked part, because Home Keeper draws that chip
 ## 8. Managing an appliance
 
 Send `managed_by` and `source` to `home_keeper.add_asset` to own an appliance and its parts.
-The block is the same as for a task, without `completion_prompt` and `completion_blocked`.
+Its block is the task block without `completion_prompt` and `completion_blocked`.
 Both fields are **create-only**: `update_asset` ignores `source`, and accepts `managed_by`
 only as `null`. Find your appliance again with `home_keeper.list_assets`.
 

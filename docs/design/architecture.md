@@ -91,11 +91,11 @@ A failure in the repair or the prune is logged and does not stop setup.
 
 ### Unload and remove
 
-`async_unload_entry` unloads the platforms, discards edge state for a disabled entry, and
+`async_unload_entry` unloads the platforms and discards edge state for a disabled entry. It
 closes the store so that a pass from before the unload cannot write over a new store.
-It removes the panel only for a disabled entry: most unloads are half of a reload, and a
-missing panel sends an open page to the default dashboard. `async_remove_entry` removes
-the panel, the card resource, the storage document and the uploaded files.
+It removes the panel only for a disabled entry, because a reload with no panel sends an
+open page to the default dashboard. `async_remove_entry` removes the panel, the card
+resource, the storage document and the uploaded files.
 
 ### Config entry and options
 
@@ -146,5 +146,5 @@ keys in `diagnostics.TO_REDACT`, because users attach dumps to public issues.
 
 - The domain `home_keeper`, the panel path `/home-keeper`, and the option keys in
   `entry.options` (`const.OPTION_*`). Automations call `home_keeper.set_options` by key.
-- The service names and fields; the API surface model lists them
+- The service names and fields. The API surface model lists them
   ([INTEGRATING.md](../INTEGRATING.md)).

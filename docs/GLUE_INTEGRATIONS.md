@@ -20,8 +20,8 @@ Home Keeper.
 
 Use the glue pattern when:
 
-- The source integration **already shows the state you need** (an event, a sensor, a
-  `binary_sensor`) but does not know about Home Keeper.
+- The source integration **already shows the state you need**, as an event or a sensor,
+  but does not know about Home Keeper.
 - You **cannot or do not want to change** the source integration: it is third-party,
   or the Home Keeper link is optional and must not be a hard dependency.
 - The mapping is *"when this condition is true, a task is due; when it is resolved, the
@@ -71,15 +71,15 @@ every stock number. A type that the user did not count stays untracked and opens
 task. See [INTEGRATING.md §8](INTEGRATING.md#8-managing-an-appliance) for the
 `managed_by` block, `update_managed_asset`, and the `quantity` on a consumable link.
 
-The task **stays across cycles**. The glue does not delete it and make it again, so its
-completion history grows. You learn the real cadence ("this smoke-detector battery lasts
+The task **stays across cycles**, because the glue never deletes it to make it again, so
+its completion history grows. You learn the real cadence ("this smoke-detector battery lasts
 about 13 months").
 
 ### Keep the 2 sides in sync without loops
 
-A feedback loop is possible: a replacement completes the task, Home Keeper fires
-`home_keeper_task_completed`, the listener marks the battery replaced in Battery Notes,
-and that can complete the task again. Stop it as
+A feedback loop is possible. When a replacement completes the task, Home Keeper fires
+`home_keeper_task_completed`. If the listener then marks the battery replaced in Battery
+Notes, that can complete the task again. Stop it as
 [INTEGRATING.md §4](INTEGRATING.md#4-two-way-sync-and-loop-prevention) describes:
 
 - When the **glue** completes a task, pass a known `origin`, such as your domain.
@@ -101,8 +101,8 @@ tasks again:
 
 See [INTEGRATING.md §5](INTEGRATING.md#5-lifecycle) for the full lifecycle. See
 [INTEGRATING.md §6](INTEGRATING.md#6-declaring-managed-ownership-optional) to declare
-`managed_by`. Home Keeper then shows a *"Managed by …"* chip, locks the fields the user
-must not edit, and cleans up orphaned tasks if the glue is removed.
+`managed_by`. Home Keeper then shows a *"Managed by …"* chip and locks the fields the user
+must not edit. When the glue is removed, Home Keeper cleans up its orphaned tasks.
 
 ## Testing
 

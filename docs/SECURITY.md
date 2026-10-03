@@ -16,7 +16,7 @@ a partner, older children, a housemate, or a guest account on a wall tablet.
 
 Home Assistant reserves Settings and Developer tools for admins. Home
 Assistant also restricts the changes that its own `config/*` commands make,
-such as changes to the device registry, the entity registry, and config
+such as changes to the device registry and the entity registry, and to config
 entries, to admins. Home Keeper follows the same rule.
 
 The risks are small. A guest account must not:
@@ -69,8 +69,8 @@ Any signed-in user can use these surfaces:
 - Complete, snooze, skip and create tasks.
 - Read tasks and profiles.
 
-The card reads appliance data, so a non-admin user gets a narrowed view: the
-appliance's documents, its link-type custom fields, and each part's name,
+The card reads appliance data, so a non-admin user gets a narrowed view. It holds the
+appliance's documents and its link-type custom fields. For each part it holds the name,
 product URL, stock count, reorder point and stock unit. Stock is not private: the
 spares `number` entity of each part shows the count to every user.
 
@@ -81,7 +81,7 @@ uses can then see the count.
 
 The narrowed view withholds purchase costs, part costs, part vendors, part numbers,
 serial numbers, warranty dates, and free-text custom fields. The narrowed view is an
-allowlist: a new appliance field stays private until a developer adds it.
+allowlist. A new appliance field stays private until a developer adds it.
 
 ## Notifications
 
