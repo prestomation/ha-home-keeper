@@ -36,20 +36,13 @@ export function taskPhotoUploadKey(taskId: string): string {
   return `task-photo:${taskId}`;
 }
 
-/** Whether the panel may add, remove or reorder photos on *task*. An owning
- *  integration can lock the field like any other. */
-export function photosEditable(task: Task): boolean {
-  return !(task.managed_by?.locked_fields ?? []).includes('photos');
-}
-
 /**
  * The Photos section at the top of the Schedule tab. A task with no photos shows it
- * only when the panel can add one, as an invitation; a locked task with none shows
- * nothing.
+ * as an invitation. Photos belong to the household, so an owning integration cannot
+ * lock them: `photos` in `managed_by.locked_fields` has no effect.
  */
 export function photosSection(p: PanelHost, task: Task): string {
   const photos = photosOf(task);
-  if (!photos.length && !photosEditable(task)) return '';
   return `
       <div class="hk-section">${escapeHTML(t('photos.title'))}
         <span class="hk-section-count">${escapeHTML(
@@ -64,20 +57,17 @@ export function photosSection(p: PanelHost, task: Task): string {
  *  task page and the Edit form both show it. */
 function photoStripHtml(p: PanelHost, task: Task): string {
   const photos = photosOf(task);
-  const editable = photosEditable(task);
   const tiles = photos
     .map((photo, i) => {
-      const actions = editable
-        ? `<div class="hk-photo-actions">${
-            i > 0
-              ? `<ha-icon-button class="hk-photo-cover-btn" data-photo-id="${escapeHTML(
-                  photo.id,
-                )}" label="${escapeHTML(t('photos.makeCover'))}"></ha-icon-button>`
-              : ''
-          }<ha-icon-button class="hk-photo-remove" data-photo-id="${escapeHTML(
-            photo.id,
-          )}" label="${escapeHTML(t('photos.remove'))}"></ha-icon-button></div>`
-        : '';
+      const actions = `<div class="hk-photo-actions">${
+        i > 0
+          ? `<ha-icon-button class="hk-photo-cover-btn" data-photo-id="${escapeHTML(
+              photo.id,
+            )}" label="${escapeHTML(t('photos.makeCover'))}"></ha-icon-button>`
+          : ''
+      }<ha-icon-button class="hk-photo-remove" data-photo-id="${escapeHTML(
+        photo.id,
+      )}" label="${escapeHTML(t('photos.remove'))}"></ha-icon-button></div>`;
       const badge = i === 0 ? `<span class="hk-photo-badge">${escapeHTML(t('photos.cover'))}</span>` : '';
       return `<div class="hk-photo" data-photo-tile="${escapeHTML(photo.id)}">${photoLink(
         p,
@@ -90,7 +80,7 @@ function photoStripHtml(p: PanelHost, task: Task): string {
     .join('');
   const key = taskPhotoUploadKey(task.id);
   const add =
-    editable && canAddPhoto(task)
+    canAddPhoto(task)
       ? `<button type="button" class="hk-photo-add">
           <ha-svg-icon class="hk-photo-add-icon"></ha-svg-icon>
           <span>${escapeHTML(uploadButtonLabel(p, key, t('photos.add')))}</span>
@@ -176,14 +166,14 @@ function formPhotosHeading(n: number): HTMLElement {
  * - A saved task shows the strip of its task page, and each change takes effect at
  *   once. It reads the stored task, not the draft, so an upload shows at once.
  *
- * Returns null when the form shows no Photos section.
+ * Returns null only when the saved task is not loaded yet.
  */
 export function formPhotosSection(p: PanelHost, task: Partial<Task>): HTMLElement | null {
   const wrap = document.createElement('div');
   wrap.className = 'hk-form-photos';
   if (task.id) {
     const stored = p._tasks.find((x) => x.id === task.id);
-    if (!stored || (!photosOf(stored).length && !photosEditable(stored))) return null;
+    if (!stored) return null;
     const body = document.createElement('div');
     body.className = 'hk-form-photos-body';
     body.innerHTML = photoStripHtml(p, stored);

@@ -122,6 +122,22 @@ def test_set_the_cover_that_is_already_the_cover_saves_nothing(store):  # noqa: 
     assert store._hass.bus.of(EVENT_TASK_UPDATED) == []
 
 
+def test_an_owner_cannot_lock_photos(store, deleted):  # noqa: F811
+    # Photos belong to the household, like the stock of a managed part. ``photos`` in
+    # ``locked_fields`` has no effect: add, cover and remove all still work.
+    task = _task(
+        store,
+        managed_by={"integration": "x", "locked_fields": ["name", "photos"]},
+    )
+    for i in range(2):
+        _run(store.add_task_photo(task["id"], _photo(i)))
+    _run(store.set_task_photo_cover(task["id"], "p1"))
+    updated = _run(store.remove_task_photo(task["id"], "p0"))
+
+    assert [p["id"] for p in updated["photos"]] == ["p1"]
+    assert deleted == [("photo", task["id"], "p0", "p0.jpg")]
+
+
 def test_set_the_cover_of_an_unknown_photo(store):  # noqa: F811
     task = _with_photos(store, 1)
     with pytest.raises(KeyError):

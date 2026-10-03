@@ -9,7 +9,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-task-photos.ts
   - custom_components/home_keeper/frontend/src/panel-photo-markup.ts
 related: [documents-photos, store, completions, transfer, frontend, events-api]
-source_hash: 8f50868d8808
+source_hash: 29da4773e806
 ---
 
 # Task photos
@@ -21,8 +21,8 @@ A completion photo is a different record, which [completions](completions.md) de
 
 ## Goals
 
-- **G1. Photos are task data.** Any user who can use a task can add, remove and reorder its
-  photos ([architecture](architecture.md#administration-usage-and-privilege)).
+- **G1. Photos belong to the household.** Any user can add, remove and reorder photos, also
+  on a managed task: `photos` in `locked_fields` has no effect, like part stock.
 - **G2. Files stay on disk.** The store keeps the photo metadata. The bytes go to 1 folder
   per task, and the folder goes when the task goes.
 - **G3. Light lists.** A list shows the thumbnail. The original loads only on a tap.
@@ -110,8 +110,7 @@ removes each folder that `task_photos.stale_task_dirs` finds with no live task.
   shows. A one-off labels it Before and After, and other types use Cover and Last completion.
   `task-photos.lastCompletion` finds the entry that set `last_completed`.
 - `panel-task-photos.photosSection` puts the Photos strip at the top of the Schedule tab, with
-  Add, Make cover and Remove. `panel-upload.runUpload` sends 1 photo at a time. If
-  `managed_by.locked_fields` holds `photos`, the strip shows no controls.
+  Add, Make cover and Remove. `panel-upload.runUpload` sends 1 photo at a time.
 - A list row shows the 40px cover. A completed one-off shows its completion photo instead.
 - The task form has a Photos section under Basics. Edit shows the strip of the task page.
   The card shows the 40px cover on each row, and a tap opens the original.
@@ -145,5 +144,6 @@ the count. The panel then opens the task page, where the user can add the photo 
 - The services `remove_task_photo`, `set_task_photo_cover` and `sign_task_photo_url`.
 - `home_keeper_task_updated` with `changed_fields: ["photos"]` for each photo change.
 - The export count `skipped.task_photos`.
+- `photos` cannot be locked. Photos that an owner supplies need an owner on each photo.
 - The disk layout `home_keeper/task_photos/<task_id>/` with `<photo_id>__<filename>` and
   `thumb_<photo_id>__thumb.jpg`.

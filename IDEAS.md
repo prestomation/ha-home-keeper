@@ -239,6 +239,9 @@ Nothing here is committed scope. When an item ships, remove it. The design docs 
   registration: things with an expiry date that are not appliances.
 - **Natural-language task creation** and **nameplate scanning** to add an appliance.
 - **Adaptive intervals.** Learn the interval from the completion history.
+- **Photos from an owning integration.** Give each photo an optional owner
+  (`photos[].managed_by`). The owner adds and removes only its own photos. The user keeps
+  the rest, adds more and picks the cover, as with the user keys of a managed part.
 
 ## Testing and CI
 
