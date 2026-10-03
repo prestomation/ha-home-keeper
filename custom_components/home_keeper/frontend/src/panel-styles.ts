@@ -625,11 +625,10 @@ export const STYLES = `
   }
   .hk-companion-ic { color: var(--state-icon-color, var(--primary-text-color)); flex: 0 0 auto; }
   .hk-companion-body { flex: 1 1 auto; min-width: 0; }
-  /* The name, its status chip and the preset badge take as many lines as they need.
-     An ha-assist-chip does not become smaller than its label, and a preset badge reads
-     "Preset: " plus the preset id, so on one line it left the box and covered the
-     buttons beside it. This holds at every width: the Settings column is also narrow
-     below 1000px. */
+  /* The name and its status chips take as many lines as they need. An ha-assist-chip
+     does not become smaller than its label, so on one line a long name pushed it out of
+     the box and over the buttons beside it. This holds at every width: the Settings
+     column is also narrow below 1000px. */
   .hk-companion-name {
     display: flex; align-items: center; gap: 8px; font-weight: 500;
     flex-wrap: wrap; row-gap: 4px; overflow-wrap: anywhere;
@@ -2275,10 +2274,29 @@ export const STYLES = `
   .hk-companion-group-decl { margin-top: 20px; }
   .hk-decl-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
   .hk-decl-empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; }
-  .hk-decl-matches { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }
-  ha-assist-chip.hk-decl-preset-chip {
-    --ha-assist-chip-container-color: var(--secondary-background-color);
-    --ha-assist-chip-filled-container-color: var(--secondary-background-color);
+  /* A declarative companion row: the integration logo on a soft tile, with a badge in
+     the corner for the kind of duty, and 1 meta line under the name. */
+  .hk-decl-tile {
+    position: relative; width: 40px; height: 40px; border-radius: var(--hk-r-row);
+    background: var(--hk-page); display: grid; place-items: center;
+  }
+  .hk-decl-logo { width: 28px; height: 28px; object-fit: contain; --mdc-icon-size: 24px; }
+  .hk-decl-shape {
+    position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px;
+    border-radius: var(--hk-r-pill); background: var(--hk-surface);
+    border: 1px solid var(--hk-line); display: grid; place-items: center;
+    color: var(--hk-ink-2); --mdc-icon-size: 13px;
+  }
+  .hk-decl-meta {
+    display: flex; flex-wrap: wrap; column-gap: 6px; row-gap: 2px; margin-top: 2px;
+    color: var(--hk-ink-2); font-size: 0.85rem;
+  }
+  /* The dot goes after a part, so a line that wraps ends with it and never starts with it. */
+  .hk-decl-meta > span:not(:last-child)::after { content: "·"; margin-left: 6px; }
+  .hk-decl-custom {
+    display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
+    border: 1px dashed var(--hk-line); border-radius: var(--hk-r-btn);
+    color: var(--hk-ink-2); font-size: 0.8rem; font-weight: 400;
   }
   .hk-decl-preset-list { display: grid; gap: 10px; min-width: min(420px, 80vw); }
   .hk-decl-preset-card {

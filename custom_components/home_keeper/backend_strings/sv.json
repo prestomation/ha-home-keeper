@@ -31,6 +31,9 @@
   "declarative_preset.limit.below": "{description} Gräns: under {limit}.",
   "declarative_preset.limit.above": "{description} Gräns: över {limit}.",
   "declarative_preset.limit.life": "{description} Gräns: under {limit} kvar, eller under 10 %.",
+  "declarative_preset.limit_short.below": "under {limit}",
+  "declarative_preset.limit_short.above": "över {limit}",
+  "declarative_preset.limit_short.life": "under {limit} kvar",
   "declarative_preset.unit.hours": "{n} timmar",
   "declarative_preset.unit.days": "{n} dagar",
   "declarative_task.completion_prompt": "Öppnad av den deklarativa companion ”{name}”. Home Keeper slutför denna uppgift automatiskt när villkoret försvinner, så den kan inte slutföras manuellt."

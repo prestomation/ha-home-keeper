@@ -31,6 +31,9 @@
   "declarative_preset.limit.below": "{description} Limit: pod {limit}.",
   "declarative_preset.limit.above": "{description} Limit: nad {limit}.",
   "declarative_preset.limit.life": "{description} Limit: zbývá méně než {limit}, nebo méně než 10 %.",
+  "declarative_preset.limit_short.below": "pod {limit}",
+  "declarative_preset.limit_short.above": "nad {limit}",
+  "declarative_preset.limit_short.life": "zbývá méně než {limit}",
   "declarative_preset.unit.hours": "{n} h",
   "declarative_preset.unit.days": "{n} d",
   "declarative_task.completion_prompt": "Otevřeno deklarativním společníkem „{name}“. Home Keeper tuto úlohu automaticky dokončí, jakmile podmínka pomine, takže ji nelze dokončit ručně."

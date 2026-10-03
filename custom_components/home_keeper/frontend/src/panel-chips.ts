@@ -343,19 +343,25 @@ export function wireDeviceChips(p: PanelHost, root: ParentNode): void {
       el.replaceWith(svg);
     };
     const img = chip.querySelector<HTMLImageElement>('img.hk-dev-img');
-    if (img) {
-      img.addEventListener('error', () => {
-        // First failure: retry the generic `_/` brand path; then give up.
-        const domain = img.dataset.domain;
-        if (domain && !img.dataset.retried) {
-          img.dataset.retried = '1';
-          img.src = brandLogoUrl(domain, true);
-        } else {
-          fallbackIcon();
-        }
-      });
+    if (img) wireBrandImage(img, fallbackIcon);
+    else fallbackIcon();
+  });
+}
+
+/**
+ * Make a brand logo `<img>` (with `data-domain`) fail over. The first error retries
+ * the generic `_/` brand path. The second calls *fallback*, which puts an icon in
+ * its place. The device chip and the companion row both use it, so a logo that is
+ * not there fails over the same way on each.
+ */
+export function wireBrandImage(img: HTMLImageElement, fallback: () => void): void {
+  img.addEventListener('error', () => {
+    const domain = img.dataset.domain;
+    if (domain && !img.dataset.retried) {
+      img.dataset.retried = '1';
+      img.src = brandLogoUrl(domain, true);
     } else {
-      fallbackIcon();
+      fallback();
     }
   });
 }

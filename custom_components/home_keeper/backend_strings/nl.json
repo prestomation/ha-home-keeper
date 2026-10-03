@@ -31,6 +31,9 @@
   "declarative_preset.limit.below": "{description} Grens: onder {limit}.",
   "declarative_preset.limit.above": "{description} Grens: boven {limit}.",
   "declarative_preset.limit.life": "{description} Grens: minder dan {limit} over, of minder dan 10%.",
+  "declarative_preset.limit_short.below": "onder {limit}",
+  "declarative_preset.limit_short.above": "boven {limit}",
+  "declarative_preset.limit_short.life": "minder dan {limit} over",
   "declarative_preset.unit.hours": "{n} uur",
   "declarative_preset.unit.days": "{n} dagen",
   "declarative_task.completion_prompt": "Geopend door de declaratieve companion „{name}“. Home Keeper rondt deze taak automatisch af zodra de conditie verdwijnt, dus kan de taak niet handmatig worden afgevinkt."

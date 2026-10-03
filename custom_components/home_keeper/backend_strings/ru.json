@@ -31,6 +31,9 @@
   "declarative_preset.limit.below": "{description} Порог: ниже {limit}.",
   "declarative_preset.limit.above": "{description} Порог: выше {limit}.",
   "declarative_preset.limit.life": "{description} Порог: осталось меньше {limit} или меньше 10 %.",
+  "declarative_preset.limit_short.below": "ниже {limit}",
+  "declarative_preset.limit_short.above": "выше {limit}",
+  "declarative_preset.limit_short.life": "осталось меньше {limit}",
   "declarative_preset.unit.hours": "{n} ч",
   "declarative_preset.unit.days": "{n} дн.",
   "declarative_task.completion_prompt": "Открыта декларативным компаньоном «{name}». Home Keeper автоматически завершает эту задачу, когда условие исчезает, поэтому её нельзя завершить вручную."

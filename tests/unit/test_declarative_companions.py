@@ -2928,6 +2928,7 @@ def test_each_shape_adds_its_own_limit_sentence():
 def test_a_limit_on_a_shape_with_no_limit_sentence_is_not_said():
     preset = dict(presets.CATALOG_PRESETS[3])
     preset["description_key"] = "declarative_preset.shape.alert.description"
+    preset["shape"] = "alert"
     preset["limit"] = {"kind": "number", "value": 5, "above": True}
     assert presets.preset_description(preset, "en", _fake_resolve) == (
         "en:declarative_preset.shape.alert.description:"
@@ -2945,6 +2946,81 @@ def test_every_preset_description_resolves_in_every_language(lang):
         if limit is not None:
             said = presets.format_limit(limit, lang, backend_i18n.resolve_string)
             assert said in text, (lang, preset["id"], text)
+
+
+def test_each_integration_preset_names_its_shape_and_brand():
+    dreo = presets.preset_by_id("dreo_percent_low")
+    assert dreo is not None
+    assert (dreo["shape"], dreo["brand"]) == ("percent_low", "Dreo")
+    for preset in presets.CATALOG_PRESETS:
+        if "name_args" in preset:
+            assert preset["shape"] in presets.SHAPES, preset["id"]
+            assert preset["brand"] == preset["name_args"]["integration"]
+            assert preset["description_key"] == (
+                f"declarative_preset.shape.{preset['shape']}.description"
+            )
+        else:
+            assert "shape" not in preset and "brand" not in preset, preset["id"]
+
+
+def test_limit_text_says_the_limit_in_a_short_phrase():
+    def call(preset_id):
+        preset = presets.preset_by_id(preset_id)
+        assert preset is not None
+        return presets.limit_text(preset, "en", _fake_resolve)
+
+    assert call("dreo_percent_low") == (
+        "en:declarative_preset.limit_short.below:limit=10%"
+    )
+    assert call("dantherm_life_low").startswith(
+        "en:declarative_preset.limit_short.life:"
+    )
+    assert call("zha_wear_high") == (
+        "en:declarative_preset.limit_short.above:"
+        "limit=en:declarative_preset.unit.days:n=180"
+    )
+    assert call("ondilo_ico_reading_low").startswith(
+        "en:declarative_preset.limit_short.below:"
+    )
+    assert call("synology_dsm_reading_high").startswith(
+        "en:declarative_preset.limit_short.above:"
+    )
+    # No limit, or a general preset: nothing to say.
+    assert call("tplink_life_low") is None
+    assert call("device_pulse") is None
+    assert call("firmware_update_available") is None
+
+
+def test_limit_text_reads_well_in_english_and_german():
+    roborock = presets.preset_by_id("roborock_life_low")
+    synology = presets.preset_by_id("synology_dsm_reading_high")
+    zha = presets.preset_by_id("zha_wear_high")
+    assert roborock is not None and synology is not None and zha is not None
+    resolve = backend_i18n.resolve_string
+    assert presets.limit_text(roborock, "en", resolve) == "less than 24 hours left"
+    assert presets.limit_text(synology, "en", resolve) == "above 85"
+    assert presets.limit_text(zha, "de", resolve) == "über 180 Tage"
+
+
+def test_limit_text_is_none_for_a_shape_with_no_limit_sentence():
+    preset = dict(presets.CATALOG_PRESETS[3])
+    preset["shape"] = "alert"
+    preset["limit"] = {"kind": "number", "value": 5, "above": True}
+    assert presets.limit_text(preset, "en", _fake_resolve) is None
+
+
+@pytest.mark.parametrize("lang", _LANGS)
+def test_every_limit_text_resolves_in_every_language(lang):
+    for preset in presets.CATALOG_PRESETS:
+        text = presets.limit_text(preset, lang, backend_i18n.resolve_string)
+        limit = preset.get("limit")
+        if limit is None:
+            assert text is None, (lang, preset["id"])
+            continue
+        assert text is not None, (lang, preset["id"])
+        assert "{" not in text and "declarative_preset." not in text, (lang, text)
+        said = presets.format_limit(limit, lang, backend_i18n.resolve_string)
+        assert said in text, (lang, preset["id"], text)
 
 
 # ── F06-3: the preview reads a draft ─────────────────────────────────────────

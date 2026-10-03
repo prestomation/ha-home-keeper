@@ -31,6 +31,9 @@
   "declarative_preset.limit.below": "{description} Limit: below {limit}.",
   "declarative_preset.limit.above": "{description} Limit: above {limit}.",
   "declarative_preset.limit.life": "{description} Limit: less than {limit} left, or less than 10%.",
+  "declarative_preset.limit_short.below": "below {limit}",
+  "declarative_preset.limit_short.above": "above {limit}",
+  "declarative_preset.limit_short.life": "less than {limit} left",
   "declarative_preset.unit.hours": "{n} hours",
   "declarative_preset.unit.days": "{n} days",
   "declarative_task.completion_prompt": "Opened by the declarative companion “{name}”. Home Keeper completes this task when the watched condition recovers, so it cannot be marked done by hand."

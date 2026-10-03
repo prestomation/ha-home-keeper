@@ -16,7 +16,7 @@ implements:
   - custom_components/home_keeper/frontend/src/preset-summary.ts
   - custom_components/home_keeper/frontend/src/panel-preset-nudge.ts
 related: [sensor-tasks, store, events-api, transfer, frontend]
-source_hash: 5bef7a92a59a
+source_hash: f0f10c9551be
 ---
 
 # Companions and presets
@@ -113,8 +113,8 @@ upstream `source` file, a `verified` pin, and duties. A duty has a name id in
 `declarative_presets._integration_presets` makes 1 preset per shape, platform, state and
 device class group. The 6 `SHAPES` give a `threshold`, `state` or `template` trigger (the
 template converts time units to hours), always with `clear_on_recover`.
-`declarative_presets.localized_task_template` puts unedited preset text into the Home
-Assistant language. Text a user edited stays as written.
+Each preset keeps its `shape` and `brand`, and `limit_text` says its limit in short. Unedited
+preset text goes into the Home Assistant language (`localized_task_template`). Edits stay.
 
 Upkeep: `ci/check_preset_keys.py` reports keys changed upstream since `verified.ref`, and
 `ci/find_preset_candidates.py` lists uncovered integrations. The weekly `preset-upkeep`
@@ -124,7 +124,8 @@ skill reads both, fixes the catalog, moves the pins and opens 1 draft PR.
 
 - `panel-declarative.ts` draws the Companions list, the preset picker and the add/edit
   dialog, with More filters (`declarative-filters.ts`) and a live preview: up to 10 rendered
-  rows, the count, a template-trigger verdict per row, and Exclude.
+  rows, the count, a template-trigger verdict per row, and Exclude. A list row shows the
+  integration logo, a shape badge, and `preset-summary.companionOrigin` (brand, platform, limit).
 - `preset-picker.ts` puts integration presets with matches first, then general presets,
   then the rest behind Show all. `preset-summary.ts` shows the source preset, the changed
   sections, and each reading against the preset limit.

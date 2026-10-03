@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.29.0b3]
+
+### Changed
+
+- **Clearer companion rows.** Each declarative companion on the Companions card now
+  shows the logo of the integration it watches, the kind of duty, the entity platform
+  and the limit. A companion you made yourself has a Custom chip.
+
 ## [0.29.0b2]
 
 ### Added

@@ -1612,6 +1612,13 @@ async def ws_list_declarative_presets(
                 # The one limit the trigger compares with, or ``None``. The preview
                 # draws each reading against it.
                 "limit": preset.get("limit"),
+                # The integration preset's brand name, shape and limit as a short
+                # phrase. A companion row shows them; a general preset has none.
+                "brand": preset.get("brand"),
+                "shape": preset.get("shape"),
+                "limit_text": declarative_presets.limit_text(
+                    preset, lang, resolve_string
+                ),
                 # Seeded in the household's language, so a new companion is saved
                 # with task text a user can read.
                 "default_spec": declarative_presets.localized_default_spec(

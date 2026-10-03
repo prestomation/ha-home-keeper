@@ -31,6 +31,9 @@
   "declarative_preset.limit.below": "{description} Grenze: unter {limit}.",
   "declarative_preset.limit.above": "{description} Grenze: über {limit}.",
   "declarative_preset.limit.life": "{description} Grenze: weniger als {limit} übrig oder weniger als 10 %.",
+  "declarative_preset.limit_short.below": "unter {limit}",
+  "declarative_preset.limit_short.above": "über {limit}",
+  "declarative_preset.limit_short.life": "weniger als {limit} übrig",
   "declarative_preset.unit.hours": "{n} Stunden",
   "declarative_preset.unit.days": "{n} Tage",
   "declarative_task.completion_prompt": "Erstellt vom deklarativen Companion „{name}“. Diese Aufgabe wird automatisch abgeschlossen, sobald die Bedingung wegfällt, und kann deshalb nicht manuell abgeschlossen werden."
