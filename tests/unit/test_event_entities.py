@@ -146,6 +146,23 @@ def test_dropped_fields_are_real_payload_keys_with_a_reason() -> None:
         assert reason.strip(), name
 
 
+def test_kept_payload_fields_hold_no_nested_objects() -> None:
+    """A payload key an event entity keeps is a scalar or a list of strings.
+
+    The recorder keeps each event's attributes. A new payload field that holds a
+    dict, or a list of dicts, must go in ``EVENT_ENTITY_DROPPED_FIELDS`` with a
+    reason, or this test fails. It is the check that the dropped list is complete.
+    """
+    fields = [f for spine in api_surface.PAYLOAD_SPINES.values() for f in spine]
+    fields += [f for spec in api_surface.EVENTS for f in spec.extra]
+    dropped = api_surface.EVENT_ENTITY_DROPPED_FIELDS
+    nested = sorted({f.name for f in fields if "dict" in f.type} - set(dropped))
+    assert nested == [], {
+        "nested_fields_kept": nested,
+        "fix": "add each one to api_surface.EVENT_ENTITY_DROPPED_FIELDS with a reason",
+    }
+
+
 def test_event_attributes_drop_the_large_keys_only() -> None:
     data = {
         "task_id": "t1",
@@ -198,6 +215,19 @@ def test_device_entity_ignores_another_device_and_no_device() -> None:
     bus.fire("home_keeper_task_overdue", {"task_id": "t2", "device_id": None})
     assert not hasattr(entity, "last_event_type")
     assert entity.writes == 0
+
+
+def test_appliance_with_no_device_yet_reaches_only_the_global_entity() -> None:
+    """A virtual appliance's device_id is None until its device exists."""
+    device = event.HomeKeeperDeviceEventEntity(_device("dev1"))
+    glob = event.HomeKeeperGlobalEventEntity()
+    device_bus = _added(device)
+    global_bus = _added(glob)
+    data = {"asset_id": "a1", "asset_name": "Heater", "device_id": None}
+    device_bus.fire("home_keeper_asset_created", data)
+    global_bus.fire("home_keeper_asset_created", data)
+    assert device.writes == 0
+    assert glob.last_event_type == "asset_created"
 
 
 def test_device_entity_gets_part_and_appliance_events() -> None:
