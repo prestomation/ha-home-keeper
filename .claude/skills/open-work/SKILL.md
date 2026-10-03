@@ -5,42 +5,31 @@ description: Report the open work on Home Keeper and sort it by who must act nex
 
 # Open work
 
-This skill makes a report. It does not change anything. Many open issues need no
-work: the fix is in a beta and waits for the next stable release, or a preview build
-waits for a user to test it. This skill finds those, so that the report shows the
-items that need the maintainer or an agent now. The report also shows a draft of
-the CHANGELOG for the next stable release, so the maintainer can see what that
-release will contain before they cut it.
-
-Use only the GitHub read tools (`list_*`, `issue_read`, `pull_request_read`). Never
-comment on an issue or a PR, never close, label or edit anything, and never merge
-(see `AGENTS.md`, "Never comment on a GitHub issue"). When the report suggests a
-step such as a reminder, it is a suggestion for the maintainer. Do not do it. Write
-the report in ASD-STE100 English.
+This skill makes a report. It does not change anything. Many open issues need no work: the fix
+is in a beta and waits for the stable release, or a preview build waits for a tester. The
+report finds those, shows the items that need the maintainer or an agent now, and shows a draft
+of the CHANGELOG for the next stable release. Use only the GitHub read tools (`list_*`,
+`issue_read`, `pull_request_read`). Never comment, close, label, edit or merge (see
+`AGENTS.md`, "Never comment on a GitHub issue"). A step that the report suggests, such as a
+reminder, is for the maintainer. Do not do it. Write the report in ASD-STE100 English.
 
 ## 1. Collect the data
 
-Use the GitHub MCP tools (owner `prestomation`, repo `ha-home-keeper`). Make the
-independent calls together.
+Use the GitHub MCP tools (owner `prestomation`, repo `ha-home-keeper`). Make independent calls
+together.
 
-1. `list_issues`, state `OPEN`, all pages. Fields: number, title, labels, user,
-   comments, created_at, updated_at.
-2. `list_pull_requests`, state `open`. Fields: number, title, draft, labels, user,
-   head, updated_at, body.
-3. `list_releases`, the last 30. Keep `tag_name`, `prerelease` and `published_at`.
-   The newest release with `prerelease: false` is the **last stable**.
-4. For each open issue that has comments: `issue_read` with `get_comments`. For each
-   issue: `issue_read` with `get`, to read `closed_by_pull_requests` (the linked PRs).
-5. For each open PR: `pull_request_read` for its comments, reviews, check status and
-   mergeable state.
+1. `list_issues`, state `OPEN`, all pages. `list_pull_requests`, state `open`.
+2. `list_releases`, the last 30: `tag_name`, `prerelease`, `published_at`. The newest
+   release with `prerelease: false` is the **last stable**.
+3. For each issue: `issue_read` with `get` (for `closed_by_pull_requests`, the linked PRs),
+   and with `get_comments` when it has comments. For each open PR: `pull_request_read` for
+   comments, reviews, check status and mergeable state.
 
-Then read the repository (the local clone does not have the tags, so use the release
-list from step 3 for "is this version out"):
+The local clone has no tags, so use the release list to know if a version is out. List the
+issues that each CHANGELOG section newer than the last stable fixes:
 
 ```bash
-# Each issue that a CHANGELOG section newer than the last stable fixes, by version.
-# The loop stops at the first stable heading. A section with no text makes
-# release-issues.py exit 1; that section has no fixes, so the loop skips it.
+# Stops at the first stable heading. An empty section makes release-issues.py exit 1: skip it.
 for v in $(grep -oP '^## \[\K[^\]]+' CHANGELOG.md \
            | awk '/^[0-9]+\.[0-9]+\.[0-9]+$/{exit} {print}'); do
   json=$(python3 ci/release-issues.py --version "$v" --json 2>/dev/null) || continue
@@ -48,135 +37,89 @@ for v in $(grep -oP '^## \[\K[^\]]+' CHANGELOG.md \
 done
 ```
 
-`ci/release-issues.py` is the same parser that `release.yml` uses to close issues, so
-this list agrees with what the next release does. Only `(Fixes #N)` counts. The
-CHANGELOG is newest first, so these are the sections above the last stable heading
-in the file.
+`ci/release-issues.py` is the parser that `release.yml` uses to close issues, so this list
+agrees with the next release. Only `(Fixes #N)` counts.
 
 ## 2. Know who wrote each comment
 
 - **Maintainer:** `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR`.
-- **Bot:** a login that ends in `[bot]`, or `github-actions`. A bot comment is never
-  the "last human comment". Two bot comments carry a state:
-  - `<!-- home-keeper-release vX.Y.Z... -->`: release `vX.Y.Z...` has the fix.
-  - `<!-- preview-release -->` on a PR: a preview build is available. The workflow
-    edits one sticky comment, so use the newest comment with this marker.
+- **Bot:** a login that ends in `[bot]`, or `github-actions`. Two bot comments carry a
+  state: `<!-- home-keeper-release vX.Y.Z... -->` (that release has the fix) and, on a PR,
+  `<!-- preview-release -->` (a preview build is available; use the newest one).
 - **User:** any other author.
 
-The **last human comment** on an issue is the newest comment that is not from a bot.
-Look at the linked PR too: a user can give feedback on the PR and not on the issue.
+The **last human comment** is the newest comment that is not from a bot. Look at the linked
+PR too: a user can give feedback there and not on the issue.
 
 ## 3. Sort each item into one group
 
-Sort again on each run. Put each open issue and each open PR into the first group
-that matches, in the order A to G. Use one group for each item. When an issue and its PR are in the same state, show them as
-one line.
+Put each open issue and PR into the first group that matches, in the order A to G. When an
+issue and its PR are in the same state, show them as one line.
 
 ### A. Actionable now
 
-The maintainer or an agent must act. The rules are in order of urgency. Show the
-items in that order.
+The maintainer or an agent must act. Show the items in this order of urgency:
 
-1. An issue with the `ha-beta-regression` label. The nightly run against the Home
+1. An issue with the `ha-beta-regression` label: the nightly run against the Home
    Assistant beta failed.
-2. An open PR from the maintainer or an agent with failed CI, a merge conflict, or
-   review threads that have no reply.
-3. A user replied last, on the issue or on its linked PR. This includes feedback on
-   a preview build or on a beta ("it does not work", "it works, thanks"). Because A
-   comes before B, an issue with a fix in a beta is in this group when a user
-   replied after the bot's beta comment. A "works" reply on a preview build means:
-   merge the PR. A "works" reply on a beta needs no step: say so, and the item can
-   wait for the stable.
-4. A PR from an outside contributor that has no maintainer review after its last
-   push.
+2. An open PR from the maintainer or an agent with failed CI, a merge conflict, or review
+   threads with no reply.
+3. A user replied last, on the issue or its linked PR. This includes feedback on a preview
+   build or a beta, also when the fix is in a beta (A comes before B). A "works" reply on a
+   preview build means: merge the PR. A "works" reply on a beta needs no step: say so.
+4. A PR from an outside contributor with no maintainer review after its last push.
 5. A new issue with no maintainer comment and no linked PR.
-6. A Dependabot PR with green CI. It is ready to merge. A Dependabot PR with red CI
-   is actionable work too: say what failed.
-7. A fix in the CHANGELOG under a version that is not in the release list. The fix
-   is merged, but no build has it. Cut a beta.
+6. A Dependabot PR. With green CI it is ready to merge; with red CI, say what failed.
+7. A fix in the CHANGELOG under a version that is not in the release list. No build has
+   it. Cut a beta.
 
-### B. Waits on a stable release
+### B to G. Items that wait
 
-The issue number is in a `(Fixes #N)` line of a CHANGELOG section above the last
-stable heading (newer than the last stable), and that version is in the release
-list as a published beta. A fix in a version that is not in the release list is
-rule A7, not this group. Nobody needs to do work on the
-issue. `notify-issues` in `release.yml` closes it when the next stable ships. Give
-the beta version for each one. When this group is not empty, say how many issues the
-next stable release closes.
-
-### C. Waits on a tester
-
-A linked open PR has the `preview-release` label, and the last human comment on the
-issue and on the PR is from the maintainer (for example "I have a preview build,
-0.26.0.dev351"). Give the number of days since that comment. After 14 days, mark the
-item **stale**. The maintainer can then send a reminder, merge the PR without
-feedback, or close it.
-
-### D. Waits on the reporter
-
-The last human comment is from the maintainer, it asks a question or asks for logs,
-and there is no preview build. Give the number of days. After 30 days, mark it
-**stale**.
-
-### E. Waits on the maintainer to decide
-
-A design question that the maintainer must answer, for example a choice between
-options in a mockup, and no linked PR yet. These are actionable for the maintainer
-but not for an agent. Keep them apart from group A so that an agent does not start
-them.
-
-### F. Draft PR with no recent activity
-
-A draft PR from any author, not in group C, with no push or comment for 14 days or
-more. The maintainer can finish it, or close it.
-
-### G. Other
-
-An item that matches no rule above. Give the reason in a few words. When an item is
-in this group, a rule above is missing, so say that in the report.
+- **B. Waits on a stable release.** The issue is in a `(Fixes #N)` line of a section newer
+  than the last stable, and that version is a published beta. `notify-issues` in
+  `release.yml` closes it when the stable ships. Give the beta version, and say how many
+  issues the next stable closes.
+- **C. Waits on a tester.** A linked open PR has the `preview-release` label, and the last
+  human comment on the issue and the PR is from the maintainer. Give the days since that
+  comment. After 14 days, mark it **stale**: the maintainer can send a reminder, merge
+  without feedback, or close it.
+- **D. Waits on the reporter.** The last human comment is from the maintainer, it asks a
+  question or for logs, and there is no preview build. Give the days. After 30 days, mark
+  it **stale**.
+- **E. Waits on the maintainer to decide.** A design question for the maintainer (for
+  example a choice between mockup options) with no linked PR. Keep these apart from group
+  A so that an agent does not start them.
+- **F. Stale draft PR.** A draft PR, not in group C, with no push or comment for 14 days.
+- **G. Other.** An item that matches no rule. Give the reason, and say that a rule is
+  missing.
 
 ## 4. Read the to-do files in the repository
 
-These are not issues, but they are open work. Report them in a short **Backlog**
-section after the groups, one line each, with the file and heading:
+These are open work that is not in issues. Report them in a short **Backlog** section
+after the groups, one line each, with the file and heading:
 
-- `IDEAS.md`: each section or bullet with **Status: blocked**, and the "Not fixed"
-  and "Fixed in part" lists under "Open items from the ... deep review". For a
-  blocked item, check the blocker when one command can check it (for example
-  `npm view <package> versions`). When the blocker is gone, keep the item in the
-  Backlog and mark it **unblocked**.
-- `docs/*_PLAN.md`: each plan whose **Status** line is `proposed`, `planned`, or
-  says that a part is still to do (for example "frontend next"). Skip the plans that
-  say `implemented` or `shipped`.
-- `TODO` and `FIXME` comments. This search does not find names like
-  `TODO_DOMAIN`:
+- `IDEAS.md`: each item whose text has **Blocked on:** and the blocker. When
+  one command can check a blocker (for example `npm view <package> versions`), check it.
+  When the blocker is gone, mark the item **unblocked**. Do not list each idea: most of
+  the file is a parking lot, not committed scope.
+- The backlog docs: `python3 ci/docs.py list --kind backlog`. Give each one with its title.
+- The docs gate: `python3 ci/docs.py check`. Report each problem as one Backlog line.
+- `TODO` and `FIXME` comments (this search does not find names like `TODO_DOMAIN`):
 
   ```bash
   grep -rnE '(#|//|/\*|<!--)\s*(TODO|FIXME)\b' custom_components ci tests \
       --exclude-dir=node_modules --exclude-dir=dist
   ```
 
-Do not list each idea in `IDEAS.md`. Most of that file is a parking lot, and it is
-not committed scope.
-
 ## 5. Draft the CHANGELOG for the next stable release
 
-This draft is for the report only. Do not write it to `CHANGELOG.md`. The
-maintainer writes the real section when they cut the stable release.
+The draft is for the report only. Do not write it to `CHANGELOG.md`. The **next stable** is
+the newest beta section without its suffix (`0.29.0b3` gives `0.29.0`). When no section is
+newer than the last stable, say "No changes since vX.Y.Z" and stop. When `CHANGELOG.md` has
+no `## [X.Y.Z]` heading for the last stable, the loops read every section: write no draft,
+and say that the heading is missing.
 
-The **next stable** version is the newest beta section with its suffix removed. For
-example, `0.29.0b3` gives `0.29.0`. When no section is newer than the last stable,
-there is no draft: say "No changes since vX.Y.Z" and stop this step.
-
-First make sure that `CHANGELOG.md` has a `## [X.Y.Z]` heading for the last stable
-from the release list. If it does not, the loops in step 1 and below read every
-section in the file. Do not write a draft. Say in the report that the heading is
-missing.
-
-Get the text of each section newer than the last stable, newest first. These are
-the same versions as the loop in step 1. That loop reads `--json` for the issue
-list, and this one reads `--notes` for the bullets:
+Get the text of each section newer than the last stable:
 
 ```bash
 for v in $(grep -oP '^## \[\K[^\]]+' CHANGELOG.md \
@@ -186,79 +129,49 @@ for v in $(grep -oP '^## \[\K[^\]]+' CHANGELOG.md \
 done
 ```
 
-Then get the CHANGELOG bullets that the open PRs add. These are not merged, so they
-are not certain:
+Then get the bullets that open PRs add. For each open PR not from Dependabot, use
+`pull_request_read` with `get_files`. When `CHANGELOG.md` is in the list, use `get_diff`. Keep
+each added line that starts with `+- **` and the following lines that start with `+` and
+spaces. Keep each bullet as written. When the diff changes an existing bullet, show the new
+text in place of the old (the `-` lines of the hunk), and mark it with the PR number.
 
-- For each open PR that is not from Dependabot, use `pull_request_read` with
-  `get_files`. When `CHANGELOG.md` is in the list, use `get_diff`. Keep each added
-  line that starts with `+- **`, and the added lines after it that start with `+`
-  and one or more spaces. The bullet stops at the first line that does not start
-  that way.
-- When the diff changes a bullet that is already in a section, and does not add
-  one, the old text is in the removed (`-`) lines of the same hunk. Show the new
-  text in place of the old text, and mark it with the PR number.
+Write the draft as the stable section, by the `AGENTS.md` rule "A stable release's
+`## [X.Y.Z]` notes describe what changed since the last _stable_ release":
 
-Write the draft as the stable section, with the rules in `AGENTS.md` ("A stable
-release's `## [X.Y.Z]` notes describe what changed since the last _stable_
-release"):
-
-- Write it for a user who upgrades from the last stable. Do not show the betas.
-- Put all the beta bullets into one `### Added`, one `### Changed` and one
-  `### Fixed`. A feature that a beta added is in **Added**, also when a later beta
-  changed it.
-- A `### Changed` bullet that changes only a feature that is new since the last
-  stable does not go in `### Changed`. The bold lead or the link of the bullet
-  names the feature. Find the Added bullet whose bold lead or link names the same
-  feature or the same documentation page. When the Changed bullet changes what a
-  user sees in the stable release, add the text after its bold lead to that Added
-  bullet. When the result has more than 3 sentences, do not merge: keep the bullet
-  in `### Changed`, and put it on the **Check before release** list. When it
-  changes only
-  something that a beta did, remove it. When no Added bullet matches, or more than
-  one matches, keep the bullet in `### Changed`.
-- Keep each bullet as the CHANGELOG has it. Do not write the bullets again.
-- `### Fixed` must give each `(Fixes #N)` from the sections above. Then do a check
-  of the commits since the last stable. In the commands below, replace `X.Y.Z` with
-  the last stable version, for example `0.28.0`. The local clone has no tags, so get
-  the tag of the last stable first:
+- Write for a user who upgrades from the last stable. Do not show the betas.
+- Put all beta bullets into one `### Added`, `### Changed` and `### Fixed`. A feature that
+  a beta added is in **Added**, also when a later beta changed it.
+- A `### Changed` bullet that changes only a feature that is new since the last stable:
+  find the one Added bullet whose bold lead or link names the same feature or page. If
+  the change is visible in the stable, add its text after the bold lead to that Added
+  bullet; if the result has more than 3 sentences, keep it in `### Changed` and put it on
+  **Check before release**. If it changes only something a beta did, remove it. If zero
+  or more than one Added bullet match, keep it in `### Changed`.
+- `### Fixed` gives each `(Fixes #N)` from the sections. Then check the commits since the
+  last stable (replace `X.Y.Z`, for example `0.28.0`):
 
   ```bash
   git fetch -q --no-tags origin tag vX.Y.Z
   git log --format=%B vX.Y.Z..origin/main | python3 ci/release-issues.py --scan
   ```
 
-  If the tag fetch fails, use the oldest commit that added the stable heading:
-  `git log --reverse --format=%H -S '## [X.Y.Z]' -- CHANGELOG.md | head -1`. That
-  is the release commit. A later commit that changes the heading again comes after
-  it, so `--reverse` and `head -1` do not take it.
-- When `--scan` finds an issue that the sections do not give, or a Changed bullet
-  stays in `### Changed` for one of the reasons above, write it in a
-  **Check before release** list at the end of the draft. The `notify-issues` job does not close an issue that the
-  section does not give.
-- Put the bullets from open PRs at the end, under the heading
-  **Pending, from open PRs**, with the PR number on each bullet. Do not mix them
-  into the merged bullets.
-- Give the beta that first shipped each bullet in brackets after it, for example
-  `(0.29.0b1)`. The report uses this to show what beta testers can use now. The
-  real stable section does not have it.
+  If the tag fetch fails, use the release commit:
+  `git log --reverse --format=%H -S '## [X.Y.Z]' -- CHANGELOG.md | head -1`.
+- Put each issue that `--scan` finds and the sections omit on **Check before release**:
+  `notify-issues` does not close it.
+- Put the open-PR bullets last, under **Pending, from open PRs**, with the PR number.
+- After each merged bullet, give the beta that first shipped it, for example `(0.29.0b1)`.
 
 ## 6. Write the report
 
-Write the report in chat. Start with one line of totals, for example:
-`11 open issues, 7 open PRs: 4 actionable, 2 wait on stable, 3 wait on testers.`
+Write the report in chat. Start with one line of totals, for example: `11 open issues, 7 open
+PRs: 4 actionable, 2 wait on stable, 3 wait on testers.` Then one section for each group that
+is not empty (A to G), **Next stable (draft)**, and the Backlog. Start the draft with the
+version and the last stable, for example `0.29.0, after v0.28.0. Tentative: this can change
+before the release.` After the bullets, give **Pending, from open PRs**, then **Check before
+release** when it is not empty. Each group line has the issue or PR number as a link and the
+title, the linked PR or issue, why it is in this group (who spoke last, and when), and for
+group A, the next step.
 
-Then one section for each group that is not empty, in the order A to G, then a
-**Next stable (draft)** section with the draft from step 5, then the Backlog. Start
-the draft section with the version and the last stable it follows, for example
-`0.29.0, after v0.28.0. Tentative: this can change before the release.` After the
-bullets, give **Pending, from open PRs**, then **Check before release** when it is
-not empty. Each group
-line has:
-
-- the issue or PR number as a link, and the title,
-- the linked PR or issue, if there is one,
-- why it is in this group, in a few words (who spoke last, and when),
-- for group A, the next step.
-
-When the maintainer asks for it, or when the report is for other people, publish it
-as an artifact. Do not post it on GitHub.
+When the maintainer asks, or when the report is for other people, publish it as an
+artifact. Do not post it on GitHub.

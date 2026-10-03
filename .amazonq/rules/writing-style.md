@@ -1,162 +1,125 @@
+---
+title: Writing style (ASD-STE100)
+summary: The Simplified Technical English rules and the glossary for all English text in Home Keeper.
+---
+
 # Home Keeper — writing style (ASD-STE100)
 
 All English text in this project follows **ASD-STE100 Simplified Technical English**
-(STE). This applies to:
-
-- User documentation: `README.md`, `CHANGELOG.md`, `docs/guide/**/*.md`, the canonical `docs/*.md`,
-  `website/docs/intro.md`.
-- User-facing strings: `strings.json`, `services.yaml`, the English frontend locale
-  (`locales/en.json`), log messages, and exception text.
-- Code comments and docstrings.
-- PR titles and bodies, PR comments, and review replies.
-- Replies to the maintainer in chat.
+(STE): user docs (`README.md`, `CHANGELOG.md`, `docs/`, `website/docs/intro.md`),
+user-facing strings (`strings.json`, `services.yaml`, `locales/en.json`, logs and
+exceptions), code comments, PR text and review replies, and chat replies.
 
 Other locales are translations. They do not follow STE. Keep their placeholders and
-keys the same as the English source (see "Translations" in
-`testing-and-workflow.md`).
+keys the same as the English source (see [testing.md](testing.md#translations)).
 
 ## The rules
 
 ### Words
 
-- Use one approved word for one thing. Do not use synonyms for variety. The project
-  names are in the glossary below.
-- Use a word for one meaning only. Example: "close" is a verb, not an adjective.
+- Use one approved word for one thing, and one meaning for one word. Do not use synonyms
+  for variety. The project names are in the glossary below.
 - Use the shortest common word. Write "start", not "initiate". Write "use", not
   "utilize". Write "show", not "surface" or "expose".
 - Do not use slang, idiom, or metaphor. No "side door", "on the floor", "reach for",
   "under the hood".
-- Do not use contractions. Write "do not", not "don't".
-- Write numbers as numerals. Write "3 tasks", not "three tasks". The exception is a
-  number that starts a sentence.
+- Do not use contractions. Write numbers as numerals ("3 tasks"), except at the start of
+  a sentence.
 - Use "must" for a requirement. Use "can" for a possibility. Do not use "may",
   "might", "should", or "could".
-- Use "if" for a condition. Use "when" for a point in time.
-- Use "make sure that", not "ensure".
+- Use "if" for a condition and "when" for a point in time. Write "make sure that", not "ensure".
 - Do not put more than 3 nouns in a row. Write "the list of tasks that are due", not
   "the due task list summary view".
-- **Name the noun. Do not write "nothing", "anything", or "something"** where a real
+- **Name the noun.** Do not write "nothing", "anything", or "something" where a real
   noun fits. Write "a record that matches no stored record", not "a record that
-  matches nothing". Write "the import reports every field it did not read", not "the
-  import reports anything it did not read". A vague pronoun makes the reader guess
-  which thing is meant.
+  matches nothing".
 - **Say what a thing does, not what it does not do.** Write "Preview only reports what
-  would change", not "Preview reports what would change and writes nothing". A trailing
-  negative reads as an afterthought and leaves the reader to work out the point. Use a
+  would change", not "Preview reports what would change and writes nothing". Use a
   negative only when the absence *is* the point, such as a limitation.
 
 ### Sentences
 
-- Keep a sentence to 20 words or fewer in instructions. Keep a sentence to 25 words or
-  fewer in descriptive text.
-- Give one instruction per sentence. Give one idea per sentence.
-- Prefer the active voice when the reader is the actor. See "Voice" below for
-  when the passive voice is acceptable.
+- Keep a sentence to 20 words or fewer in instructions, and to 25 words or fewer in
+  descriptive text.
+- Give one instruction or one idea per sentence.
 - Use the simple present tense for descriptions. Use the imperative for instructions.
 - Do not use a verb form that ends in "-ing" as the main verb. Write "before you
   start the container", not "before starting the container". As a noun it is
   acceptable: "synchronizing the tasks".
 - Do not omit articles. Write "open the panel", not "open panel".
-- **A product or platform name takes no article.** This is the one exception to the rule
-  above. Write "iPhone shows this color behind the icon", not "An iPhone shows this
-  color". Write "on iPhone", not "on an iPhone". The name is a proper noun, so it reads
-  the way "Android" already does, and a sentence that names both platforms stays
-  parallel. The same goes for Home Assistant, HACS, and Home Keeper itself.
-  - The article still belongs to a common noun that the name modifies. "An Android
-    channel keeps the settings it was created with" is correct, because the article is
-    for "channel", not for "Android".
+- **A product or platform name takes no article.** Write "on iPhone", not "on an
+  iPhone". The same goes for Android, Home Assistant, HACS, and Home Keeper. The article
+  still belongs to a common noun that the name modifies: "An Android channel keeps its
+  settings" is correct.
 - Do not omit "that" after "make sure", "confirm", and "check".
 - Put a condition before its instruction. Write "If the task has a device, the
   panel shows a link", not "The panel shows a link if the task has a device".
 - Do not use parentheses for a second thought. Write it as a separate sentence, or
   remove it.
-- Do not use em dashes. Do not use semicolons in prose.
-- Do not use rhetorical questions.
+- Do not use em dashes, semicolons in prose, or rhetorical questions.
 
 ### Paragraphs and structure
 
-- Keep a paragraph to 6 sentences or fewer. Start with the topic sentence.
-- Give one topic per paragraph.
+- Keep a paragraph to 6 sentences or fewer and 1 topic. Start with the topic sentence.
 - Use a numbered list for steps in sequence. Use a bulleted list for items with no
   sequence. Do not put more than 2 items in a series inside one sentence. Use a
   list instead.
-- Put a warning or caution before the step it applies to. Write it as a command:
-  "Do not delete the config directory while the container runs."
+- Put a warning before the step it applies to. Write it as a command.
 - Use a table for data with 2 or more attributes per row. Do not put full
   sentences in a table cell if a short phrase is enough.
-- Write a heading as a noun phrase or a command. Write "Admin operations" or
-  "Install the panel".
+- Write a heading as a noun phrase or a command: "Admin operations", "Install the panel".
 
 ### Voice
 
 - State the fact first. Start a feature section with what the software supports
   or does: "Home Keeper supports synchronizing the tasks from a profile to any
-  `todo` entity." Then say what it is useful for. Do not open with why a reader
-  can care, a problem statement, or a scene from a household.
-- Write about the software and the configuration, not about people. Write "The
-  profile designates which tasks are synchronized to the configured to-do list",
-  not "The profile carries the sync".
+  `todo` entity." Then say what it is useful for. Do not open with a problem
+  statement or a scene from a household.
+- Write about the software and the configuration, not about people.
 - Do not personify the software. It does not carry, know, want, learn, remember,
   or refuse. It supports, stores, reads, writes, adds, removes, and marks.
 - Do not describe the UI. The user can see it. Do not describe a rail, a dot, a
   color, a layout, or how a page looks on a phone. Write what the user does and
   what the software does in response: "Select a list in the To-do list picker."
-- Do not invent a reason for a behavior. Write what the software does today. Do
-  not write why, unless the maintainer stated the reason. "Items that a user adds
-  are not imported" is a fact. "Because a to-do item cannot hold a recurrence" is
-  an invented reason.
-- Do not invent context that the software does not have. A to-do list has no
-  concept of home or work. A task has no concept of a child.
-- The passive voice is acceptable when the actor is obvious or is the software:
-  "the item is marked complete on the list". Prefer the active voice when the
-  reader is the actor: "select a list".
-- A verb form that ends in "-ing" is acceptable as a noun: "synchronizing the
-  tasks" and "for tracking these tasks". Do not use it as the main verb of a
-  sentence.
+- Do not invent a reason for a behavior. Write why only if the maintainer stated the
+  reason. "Items that a user adds are not imported" is a fact. "Because a to-do item
+  cannot hold a recurrence" is an invented reason.
+- Do not invent context that the software does not have.
+- Use the active voice when the reader is the actor: "select a list". The passive
+  voice is acceptable when the actor is obvious or is the software: "the item is
+  marked complete on the list".
 
 ### Tone
 
 - Do not write for effect. Do not use "simply", "just", "note that", or
   "it is important to note".
-- **Cut the empty subject and verb. Write the fact as a phrase.** Write "Due every 6
-  months", not "It comes due every 6 months". Write "Two tasks", not "This creates two
-  tasks". Write "No spare in stock", not "There is no spare in stock". A subject that
-  names nothing, such as "it", "this", or "there", adds a word and no fact. The rule
-  applies to UI text, to help text, and to a short line that states a value. A full
-  sentence is still correct in a paragraph of documentation, where the subject names a
-  real thing.
-- Do not tell a story. Write what the software does and what the user does.
-- Do not repeat a point in different words.
-- **Do not write mannered prose.** This rule is strict. It applies to `CHANGELOG.md`
-  and to all user documentation. Write each fact as a plain statement. Do not use
-  these forms:
+- **Cut the empty subject and verb.** Write "Due every 6 months", not "It comes due
+  every 6 months". Write "No spare in stock", not "There is no spare in stock". This
+  applies to UI text, help text, and a short line that states a value. A full sentence
+  is still correct in documentation, where the subject names a real thing.
+- Do not tell a story. Do not repeat a point in different words.
+- **Do not write mannered prose.** This rule is strict for `CHANGELOG.md` and all user
+  documentation. Write each fact as a plain statement. Do not use these forms:
   - A contrast formula such as "not X, but Y" or "X, not Y". Write Y.
-  - A colon that sets up a reveal, such as "The fix is simple: one field." Write a
-    full sentence.
+  - A colon that sets up a reveal, such as "The fix is simple: one field."
   - An aphorism, or a line written to sound neat, such as "Its part is its editor."
   - A dramatic fragment, such as "No setup. No automation."
   - Quotation marks around a name that you made up.
-  - A stock phrase such as "worth noting", "in short", "the good news is", or "out of
-    the box".
+  - A stock phrase such as "worth noting", "in short", or "out of the box".
   - Alliteration, wordplay, or a pun.
 
-  These examples come from user text. The instructions in this file use "Write X, not
-  Y" to teach a rule, and user text does not.
-- The house rules above are enforced by the `HomeKeeper` Vale style in
-  `styles/HomeKeeper/`. It is committed, and `.vale.ini` loads it next to
-  `ai-tells`. Add a token there when a new banned word appears in review.
-- The `vale` job in `lint.yml` still runs. STE and the `ai-tells` style agree on
-  most points. If they disagree, STE wins, and you disable the vale rule for that
-  line with an inline comment.
+### Vale
+
+- The `HomeKeeper` style in `styles/HomeKeeper/` enforces these rules next to `ai-tells`.
+  Add a token there when review finds a new banned word. If STE and `ai-tells` disagree,
+  STE wins. Disable the vale rule for that line with an inline comment.
 - Vale reads a whole list as one block, and its regexes cross sentence ends. Keep
-  commas out of list items. Two commas in one list can trip `VerbTricolon` even
-  when they are in different bullets. Do not start 2 sentences in a row with the
-  same word, or `StackedAnaphora` fires. The local `vale` binary misses some hits
-  that CI reports, so match the regexes in `styles/ai-tells/*.yml` by hand.
+  commas out of list items. Do not start 2 sentences in a row with the same word, or
+  `StackedAnaphora` fires.
 - Do not start a list item with a bold noun phrase and a colon, such as
   "**The dashboard card**: ...". `LabelAndExplain` fires on "The X:" and "A X:".
-  Write the item as a sentence. A bold UI name followed by a colon, such as
-  "**Two-way sync**: turn this off ...", is acceptable because it has no article.
+  A bold UI name with no article, such as "**Two-way sync**: turn this off", is acceptable.
+- How the `vale` CI job runs is in [ci-and-ha-versions.md](ci-and-ha-versions.md#vale).
 
 ## Glossary of approved names
 
@@ -175,7 +138,7 @@ Use these names and no others for these things.
 | complete (a task) | tick off, mark done, finish, check off, close | "Home Keeper completes the task" when a sensor recovers, not "the task closes". |
 | snooze (a task) | postpone, defer, push back | |
 | skip (a task) | dismiss, cancel | |
-| due today (a task) | pull forward, bring forward, advance, move up | Moves the due date to today. Records no completion. "Forward" reads as *later* for a date, so it is not a name for this. |
+| due today (a task) | pull forward, bring forward, advance, move up | Moves the due date to today. Records no completion. |
 | due, overdue | late, past due | A task is "due" on its due date. A task past its due date is "overdue". |
 | admin | administrator, owner | |
 | user | member, household member | "non-admin user" is permitted. |
@@ -184,34 +147,23 @@ Use these names and no others for these things.
 | websocket command | ws command, socket call | |
 | config entry | integration entry, entry | |
 | device | | A device is a Home Assistant device. Do not call an appliance a device. |
-| wear item | wear part, consumable | A part has a type. "wear" is one of the types, so "wear item" is the name for that type. |
+| wear item | wear part, consumable | "wear" is a part type, so "wear item" is the name for that type. |
 | counted wear item | usage counter, use counter | A wear item that measures its interval in uses. It makes a use task and a replacement task. |
 | use task | counter task, counting task | The task a household completes to record 1 use. |
 | companion | | An integration that Home Keeper lists under Settings, Companions. |
-| declarative companion | recipe | A companion that Home Keeper runs itself from a spec the user writes. The short forms "the declarative companion" and "the companion" are correct. |
-| glue integration | glue, bridge, connector | The pattern name for a small integration that connects another integration to Home Keeper. A glue integration is one kind of companion. |
-| AI agent | assistant, AI assistant, chatbot, LLM, model | Use it for any tool a user asks to write or read Home Keeper data on their behalf. "Home Assistant" is unrelated and keeps its name. |
+| declarative companion | recipe | A companion that Home Keeper runs itself from a spec the user writes. "The companion" is a correct short form. |
+| glue integration | glue, bridge, connector | A small integration that connects another integration to Home Keeper. It is one kind of companion. |
+| AI agent | assistant, AI assistant, chatbot, LLM, model | Any tool a user asks to write or read Home Keeper data for them. |
 
-Service and code names keep their current identifiers. `add_asset` stays `add_asset`
-in code and in a code span. The prose around it says "appliance".
+Service and code names keep their identifiers. `add_asset` stays `add_asset` in code and
+in a code span. The prose around it says "appliance". Add a row when a new name appears.
+A name in this table is a technical name, so it can be a noun or a verb as listed, and it
+can appear in a heading.
 
-Add a row when a new name appears. A name in this table is a technical name, so it
-can be a noun or a verb as listed, and it can appear in a heading.
+## Length budgets
 
-## Special budgets that still apply
-
-- **CHANGELOG bullets** stay at 3 sentences or fewer. See `testing-and-workflow.md`.
-- **A CHANGELOG bullet's bold lead** is a label, not a sentence. Write a noun phrase
-  of 2 to 5 words. Do not write more than 8 words. Write "**Declarative
-  companions.**", not "**Home Keeper can now open a task for every entity that
-  matches a filter.**". The sentence after the lead says what a user notices.
-- **A bold lead is a heading, so it does not take articles or prepositions.** Write
-  "**Seasonal tasks.**", not "**Seasons on a task.**". The rule "Do not omit
-  articles" applies to a sentence. It does not apply to a heading.
-- **A CHANGELOG bullet says what a user gets. It does not say how the feature
-  works.** Write the lead and 1 or 2 short sentences. Do not write which buttons the
-  feature hides, what it rewrites, or which fields it adds. Put that in `README.md`.
-  If a short bullet loses necessary information, write 2 bullets.
+- **CHANGELOG bullets** follow the budget and the bold-lead rules in
+  [changelog-and-release.md](changelog-and-release.md).
 - **`services.yaml` descriptions** stay at 1 or 2 sentences. The first sentence says
   what the service does. The second says a constraint, if there is one.
 - **UI labels** in `locales/en.json` and `strings.json` are 1 to 4 words. A tooltip
@@ -219,14 +171,10 @@ can be a noun or a verb as listed, and it can appear in a heading.
 
 ## Checklist before you commit prose
 
-1. Read each sentence. Count the words. Split any sentence over the limit.
-2. Find every "-ing" verb, every "may", "should", "ensure", and every contraction.
-   Replace them.
-3. Find every synonym for a glossary name. Replace it.
-4. Find every parenthesis, em dash, and semicolon. Remove or split.
-5. Find every contrast formula, colon reveal, aphorism, and dramatic fragment.
-   Rewrite each one as a plain statement.
-6. Find every sentence that opens with "it", "this", or "there". Cut the subject and
-   the verb, and keep the phrase.
-7. Check that every instruction is a command in the active voice.
-8. Run `vale <file>` on a documentation file.
+1. Count the words in each sentence. Split any sentence over the limit.
+2. Replace every "-ing" verb, "may", "should", "ensure", contraction, and glossary synonym.
+3. Remove or split every parenthesis, em dash, and semicolon.
+4. Rewrite every contrast formula, colon reveal, aphorism, and dramatic fragment.
+5. Cut the subject and verb from each sentence that opens with "it", "this", or "there".
+6. Check that every instruction is a command in the active voice.
+7. Run `vale <file>` on a documentation file.

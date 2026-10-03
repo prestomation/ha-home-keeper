@@ -9,6 +9,7 @@ import {
   guideRoute,
   guideFileDrift,
   guideFilesOnDisk,
+  stripSourceHead,
 } from '../../website/scripts/doc-map.mjs';
 
 /**
@@ -87,5 +88,20 @@ describe('GUIDE_ROUTES', () => {
 
   it('has no route for a file outside the guide', () => {
     expect(GUIDE_ROUTES['docs/EVENTS.md']).toBeUndefined();
+  });
+});
+
+describe('stripSourceHead', () => {
+  it('drops the source front matter and the leading H1', () => {
+    const raw = '---\ntitle: X\nimplements:\n  - a.py\n---\n\n# Title\n\nBody.\n';
+    expect(stripSourceHead(raw)).toBe('Body.\n');
+  });
+
+  it('drops only the H1 when there is no front matter', () => {
+    expect(stripSourceHead('# Title\n\nBody.\n')).toBe('Body.\n');
+  });
+
+  it('keeps a horizontal rule later in the body', () => {
+    expect(stripSourceHead('# T\n\nA\n\n---\n\nB\n')).toBe('A\n\n---\n\nB\n');
   });
 });

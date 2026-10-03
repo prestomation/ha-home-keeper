@@ -303,7 +303,7 @@ def test_the_count_runs_again_after_a_skip(ha):
 def test_completing_the_replacement_while_dormant_restarts_the_count(ha):
     """The early renewal: you renew the coating before the count reaches its target.
 
-    ``docs/COUNTED_WEAR_ITEMS_PLAN.md`` has always said this is allowed and simply
+    ``docs/design/appliances.md`` says this is allowed and simply
     restarts the count, and ``store.complete_task`` has always accepted it — but the
     panel withheld Done, so no user could reach it. This tier is what proves the
     backend half really does restart the cycle rather than merely accept the call.

@@ -3,8 +3,7 @@ name: Preview release (PR build)
 # Opt-in, HACS-installable "preview release" of the integration from a PR — an
 # ephemeral GitHub **pre-release** (zip attached) a maintainer/tester can install via
 # HACS (Show beta versions) to try the PR *without* merging to main or bumping the
-# real version. See RELEASE.md ("Preview releases") and
-# docs/PR_PREVIEW_RELEASE_PLAN.md.
+# real version. See RELEASE.md ("Preview releases").
 #
 # Trigger: add the `preview-release` label to the PR (only users with write access
 # can label, so the label is a maintainer gate). The publish job runs in the

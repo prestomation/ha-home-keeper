@@ -11,7 +11,7 @@ encode/decode that routes a notification tap back to the right task and notifica
 (and tells a fresh tap from a stale one — see :func:`is_current_action`).
 The filter/queue live in ``profiles.py``; HA-aware sending in ``notifier.py``.
 
-See ``docs/PROFILES_REFACTOR_PLAN.md`` / ``docs/ACTIONABLE_NOTIFICATIONS_PLAN.md``.
+See ``docs/design/profiles-notifications.md``.
 """
 
 from __future__ import annotations

@@ -5,7 +5,7 @@ unit — that maintenance tasks (and, later, batteries / other metadata) hang of
 of. Like tasks, an asset is stored as a plain JSON-serializable ``dict`` so it
 round-trips through HA's ``Store`` and the websocket/service APIs untouched.
 
-Concerns living in one record (see ``IDEAS.md`` / ``docs/DESIGN.md``):
+Concerns living in one record (see ``docs/design/appliances.md``):
 
 1. **Virtual-device provision** — when an appliance has no Home Assistant device
    to attach to, Home Keeper registers a real registry device for it

@@ -1,10 +1,16 @@
+---
+title: UX review skill source
+summary: Where the ux-review skill comes from and how to run it on Home Keeper; read it before a review in this repository.
+---
+
 # Source of this skill
 
 This directory is a copy of `skills/ux-review/` from
 https://github.com/crowecawcaw/ux-skills at commit
-`b772a0945bbe1918ccf919ea95a50ce5216f5f53` (2026-07-07). Do not edit the copied
-files. To update the skill, copy the directory again from a newer commit and
-change the commit in this file.
+`b772a0945bbe1918ccf919ea95a50ce5216f5f53`. `SKILL.md` is shortened to the repository line
+cap, and the `report.md` format is in `examples.md`. The process is the same. To update the
+skill, compare it with a newer upstream commit, apply the changes, and change the commit in
+this file.
 
 ## How to use the skill in this repository
 
@@ -21,7 +27,12 @@ change the commit in this file.
   elements in every open shadow root and logs in with the session state that
   `tests/e2e/global-setup.ts` writes. Run it from `tests/e2e`, so that
   `playwright-core` resolves:
-  `STORAGE_STATE=.auth/state.json node ../../.claude/skills/ux-review/tools/style-inventory-ha.mjs <scenario.json> <out.md>`.
+
+  ```bash
+  STORAGE_STATE=.auth/state.json \
+    node ../../.claude/skills/ux-review/tools/style-inventory-ha.mjs <scenario.json> <out.md>
+  ```
+
   Give the scenario a first `wait` of about 9000 ms. A cold panel is still on the
   loading screen after 4 s. A scenario that picks a layout changes the stored
   layout for the e2e user, so end with a scenario that picks `rows` again.

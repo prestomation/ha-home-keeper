@@ -25,3 +25,7 @@ Fixes #
       step through it
 - [ ] New user-facing feature → version bumped to the next beta (`manifest.json` +
       `const.py`), `preview-release` label applied
+- [ ] `python3 ci/docs.py check` is clean. For each design doc re-stamped, say if
+      its text changed, or why the code change needs no doc change
+- [ ] A design doc's Goals or Non-goals changed → a **Goal changes** section below
+      that says what changed and that the maintainer agreed

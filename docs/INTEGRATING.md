@@ -1,1019 +1,274 @@
+---
+title: Integrating with Home Keeper
+summary: How another integration adds tasks and appliances to Home Keeper and keeps them in sync.
+---
+
 # Integrating with Home Keeper
 
-This guide is for **authors of other Home Assistant integrations** who want to push
-recurring tasks into Home Keeper and keep them in sync with completions. Picture a
-battery integration that schedules "replace battery" or a plant integration that
-schedules "water the fern". A pet integration might do the same for "trim nails".
+This guide is for **authors of other Home Assistant integrations** that push recurring tasks
+into Home Keeper, such as a battery, plant or pet integration. Your integration owns the
+schedule. It uses only the **event bus and services**: there is no Python import in either
+direction and no hard dependency. Home Keeper stores and echoes the `source` and `origin`
+values verbatim. It never branches on their contents.
 
-Home Keeper is the recurring-task engine. **Your integration owns the schedule
-configuration**; it talks to Home Keeper purely over the Home Assistant **event bus and
-services**. There is no Python import in either direction and no hard dependency: if Home
-Keeper isn't installed, your calls are simply skipped.
+Every action, field, event and payload is in the generated
+[API reference](https://prestomation.github.io/ha-home-keeper/developer/api). The event
+catalog is in [EVENTS.md](EVENTS.md).
 
-> **Home Keeper knows nothing about your integration.** The `source` and `origin` values
-> below are *opaque* to Home Keeper. It stores and echoes them verbatim and never
-> branches on their contents. Everything domain-specific lives in your integration.
+**Rules for every integration:**
 
-## At a glance
-
-| You want to… | Do this |
-|---|---|
-| Create a recurring task | Call `home_keeper.add_task` with a `source` namespaced under your domain |
-| Create a *condition-driven* task | Call `home_keeper.add_task` with `recurrence_type: "triggered"` (no schedule) |
-| Create a *sensor-based* task | Call `home_keeper.add_task` with `recurrence_type: "sensor"` and a `sensor` mapping (see §7 for how Home Keeper evaluates it) |
-| Learn the new task's id | Read `task_id` from `add_task`'s response (`return_response=True`) |
-| React when a task is completed | Subscribe to the `home_keeper_task_completed` event |
-| Complete a task from your side | Call `home_keeper.complete_task` with a unique `origin` |
-| Re-arm a triggered task | Call `home_keeper.trigger_task` when the condition becomes true again |
-| Avoid infinite loops | Filter the event by `origin`, and apply your side-effect without re-calling `complete_task` |
-| Remove a task | Call `home_keeper.delete_task` |
-
-Guard **every** service call with
-`hass.services.has_service("home_keeper", "<service>")` so your integration works fine
-when Home Keeper is absent.
-
-The actions stay registered while Home Keeper is installed, also while its config
-entry reloads or is disabled. A call at that time raises `HomeAssistantError` with the
-translation key `integration_not_loaded`. Catch that error where a failed call must
-not stop your own code, and try again when Home Keeper sends
-`home_keeper_register_companions` (see [Discovery](#7-discovery-announce-yourself-so-users-can-find-you-optional)).
-
-This guide teaches the flow. For the complete list of actions, their fields, every
-event and its payload, see the [API reference](https://prestomation.github.io/ha-home-keeper/developer/api), which is generated from the
-integration and shows the same labels Home Assistant does.
+- Guard every call with `hass.services.has_service("home_keeper", "<service>")`, so your
+  integration works when Home Keeper is absent.
+- When the Home Keeper config entry reloads or is disabled, a call raises
+  `HomeAssistantError` with the translation key `integration_not_loaded`. Catch it where a
+  failed call must not stop your code, and try again on `home_keeper_register_companions` (§9).
+- Use ids, not names. Each `task_id`, `asset_id`, `part_id` and `document_id` field also
+  accepts a name for hand-written YAML, but a name can change and is not unique.
 
 ## 1. Creating a task
 
-Call the existing `home_keeper.add_task` service. Recurrence is either **floating**
-(`interval` + `unit`) or **fixed** (`freq` + `interval` + `anchor`):
+Recurrence is **floating** (`interval` + `unit`, from the last completion) or **fixed**
+(`freq` + `interval` + `anchor`). Keep the returned `task_id`:
 
 ```python
 DOMAIN_HK = "home_keeper"
 
 if hass.services.has_service(DOMAIN_HK, "add_task"):
-    await hass.services.async_call(
-        DOMAIN_HK,
-        "add_task",
-        {
-            "name": "Replace smoke-detector battery",
-            # Optional free text. The panel renders `notes` as **Markdown** (GFM), so
-            # a procedure, a part number in `code`, or a link to your docs all format
-            # properly. Send the Markdown *source*. Home Keeper stores it verbatim and
-            # hands the same raw text to the todo/calendar item descriptions.
-            "notes": "Uses a **9V** battery.\n\nSee [our docs](https://example.com).",
-            # floating: every N days/weeks/months, measured from completion
-            "recurrence_type": "floating",
-            "interval": 6,
-            "unit": "months",
-            # fixed alternative:
-            #   "recurrence_type": "fixed",
-            #   "freq": "MONTHLY",            # DAILY | WEEKLY | MONTHLY
-            #   "interval": 1,
-            #   "anchor": "2026-01-01T08:00:00",  # sets the time-of-day; naive is OK
-            #
-            # Optional "last done" seed. A floating task with no completion history
-            # is due *immediately* (a chore you've never done is due now, not a full
-            # interval from now). If you already know when the activity last happened,
-            # pass it here to seed an initial completion so the first next-due is
-            # measured from it (next_due = last_completed + interval) instead:
-            #   "last_completed": "2026-01-01T08:00:00",  # naive is OK
-            #
-            # Optional: attach the task to an existing device so Home Keeper's
-            # next-due sensor, overdue binary_sensor and mark-done button appear on
-            # that device's page. Pass a device *registry id* (not your own key).
-            "device_id": my_device_id,
-            # Opaque provenance, namespaced under YOUR domain. Put whatever you need
-            # here to recognise the task later. Home Keeper stores it verbatim.
-            "source": {"my_integration": {"thing_id": thing_id}},
-        },
-        blocking=True,
-    )
+    resp = await hass.services.async_call(DOMAIN_HK, "add_task", {
+        "name": "Replace smoke-detector battery",
+        "notes": "Uses a **9V** battery.",  # Markdown source, stored verbatim
+        "recurrence_type": "floating", "interval": 6, "unit": "months",
+        # Fixed: "recurrence_type": "fixed", "freq": "MONTHLY", "anchor": "2026-01-01T08:00:00"
+        "last_completed": "2026-01-01T08:00:00",  # optional; else the task is due now
+        "device_id": my_device_id,  # optional device registry id
+        "source": {"my_integration": {"thing_id": thing_id}},  # namespaced under YOUR domain
+    }, blocking=True, return_response=True)
+    task_id = resp["task_id"]
 ```
 
-Resolving a device registry id from your own identifiers:
+With a `device_id`, the next-due sensor, overdue binary_sensor and mark-done button show on
+that device page. Get the id with `async_get_device_by_identifier` (Home Assistant 2026.9+).
+
+**Find a task again** after a restart. Call `list_tasks` with `return_response=True`, then
+match on your `source` namespace. Put a unique id of your own, such as a `schedule_id`, in
+`source`. **Put a device id at the top level of your namespace, under the key
+`device_id`.** When Home Assistant renumbers a device, Home Keeper heals only the task
+`device_id` and `source.<your-namespace>.device_id`. Another place is not healed, and your
+next reconcile makes a duplicate.
+
+## 2. Reacting to a completion
+
+Home Keeper fires `home_keeper_task_completed` on every completion, from every surface. These
+include the to-do checkbox and the device button, the panel and the `complete_task` service.
 
 ```python
-from homeassistant.helpers import device_registry as dr
-
-dev = dr.async_get(hass).async_get_device_by_identifier(
-    ("my_integration", thing_id), entry.entry_id
-)
-my_device_id = dev.id if dev else None  # omit device_id if None
-```
-
-`async_get_device_by_identifier` is in Home Assistant 2026.9 and later. Home
-Assistant 2026.9 deprecates `async_get_device`, and 2027.8 removes it. On an
-older Home Assistant, use `async_get_device(identifiers={("my_integration",
-thing_id)})`.
-
-## 2. Getting the task id back
-
-`add_task` returns the new task's id in its service response. Call it with
-`return_response=True` and read `task_id`:
-
-```python
-resp = await hass.services.async_call(
-    DOMAIN_HK, "add_task", data, blocking=True, return_response=True
-)
-task_id = resp["task_id"]
-# Persist task_id on your side so you can complete/delete it later.
-```
-
-If you need to resolve an id you didn't capture (e.g. reconciling after a restart),
-`list_tasks` returns every task and you can match on your `source` namespace:
-
-```python
-resp = await hass.services.async_call(
-    DOMAIN_HK, "list_tasks", {}, blocking=True, return_response=True
-)
-task_id = next(
-    (
-        t["id"]
-        for t in resp["tasks"]
-        if (t.get("source") or {}).get("my_integration", {}).get("thing_id") == thing_id
-    ),
-    None,
-)
-```
-
-> Embed a unique id of your own (e.g. a `schedule_id` you generate) inside `source` so
-> the match stays unambiguous even if the user creates tasks with matching names.
-
-Every `task_id` / `asset_id` / `part_id` / `document_id` service field also accepts the
-object's **name**. That is what makes the services usable in hand-written YAML. Don't
-build an integration on it. A name is user-editable and not unique, so a rename or a
-collision breaks you silently. Capture the id instead, or match on your own `source`
-namespace. A name that several objects share is rejected rather than guessed, so at
-least the failure is loud.
-
-## 3. Reacting to a completion
-
-Home Keeper fires `home_keeper_task_completed` on **every** completion, whatever the
-surface: the to-do list checkbox, the device mark-done button, or the `complete_task`
-service. Subscribe in `async_setup_entry` and unsubscribe on unload:
-
-```python
-EVENT_HK_COMPLETED = "home_keeper_task_completed"
-
-
 @callback
 def _on_hk_completed(event):
-    # Ignore completions we initiated ourselves (see §4, loop prevention).
     if event.data.get("origin") == "my_integration":
-        return
-    src = (event.data.get("source") or {}).get("my_integration")
-    if not src:
-        return  # not one of our tasks
-    # Apply your side-effect WITHOUT calling complete_task again (see §4).
-    hass.async_create_task(_record_done(src, event.data.get("completed_at")))
+        return  # the echo of our own completion (§4)
+    if src := (event.data.get("source") or {}).get("my_integration"):
+        hass.async_create_task(_record_done(src, event.data.get("completed_at")))
 
-
-entry.async_on_unload(hass.bus.async_listen(EVENT_HK_COMPLETED, _on_hk_completed))
+entry.async_on_unload(hass.bus.async_listen("home_keeper_task_completed", _on_hk_completed))
 ```
 
-Event payload:
+The payload has `task_id`, `name`, `source`, `completed_at`, `origin` (`None` for a user),
+`managed_by`, and the common
+[task fields](https://prestomation.github.io/ha-home-keeper/developer/api#task-payload).
 
-| Field | Type | Meaning |
-|---|---|---|
-| `task_id` | `str` | The completed task. |
-| `name` | `str` | Its display name. |
-| `source` | `dict \| None` | Exactly what you passed to `add_task`. |
-| `completed_at` | `str` (ISO) | When it was completed. |
-| `origin` | `str \| None` | Whatever the completer passed. `None` for a manual/Home-Keeper-UI completion. |
+## 3. Completing from your side
 
-The payload also carries the common task **spine** (`device_id`, `area_id`,
-`recurrence_type`, `next_due`, `enabled`, `managed_by`), listed field by field in the
-[API reference](https://prestomation.github.io/ha-home-keeper/developer/api#task-payload).
-If you only read the fields above, nothing changes for you.
-
-> **`home_keeper_task_completed` is one of a full catalog.** Home Keeper fires events
-> for the entire lifecycle: tasks created/updated/deleted/uncompleted/triggered,
-> overdue/due-soon, spare parts low/out/restocked, and appliances created/updated/
-> deleted. All are built by the same pure payload builders in `events.py`. If your
-> integration needs to react to more than completion, see [EVENTS.md](EVENTS.md) for the
-> catalog. Everything below stays focused on the completion contract.
+Call `home_keeper.complete_task` with `task_id`, an optional `completed_at`, and
+`origin: "my_integration"`. For an undo, Home Keeper fires `home_keeper_task_uncompleted`,
+whose `ts` names the removed completion. To undo from your side, call
+`home_keeper.delete_completion` with `task_id`, that `ts` and your `origin`.
 
 ## 4. Two-way sync and loop prevention
 
-To make the task behave like "the same button" on both sides you complete it from your
-side too. The danger is an infinite loop: you complete the task → Home Keeper fires the
-event → your listener completes it again → … Break it with **two independent guards**:
+A call you make comes back to your listener as an event. Use **two guards** to stop a loop:
 
-1. **`origin` marker.** When *you* complete a task, pass a value you recognise. Home
-   Keeper echoes it in the event; your listener ignores events whose `origin` is yours.
-
-   ```python
-   await hass.services.async_call(
-       DOMAIN_HK,
-       "complete_task",
-       {"task_id": task_id, "origin": "my_integration", "completed_at": when_iso},
-       blocking=True,
-   )
-   ```
-
-2. **Don't re-complete on the inbound path.** When your listener reacts to a completion
-   it did not initiate (§3), apply the side-effect through a code path that does not
-   call `home_keeper.complete_task`. Then even if the `origin` check were ever bypassed,
-   no loop can form. (In Home Keeper's own first client this means writing the mirrored
-   record straight to storage rather than re-entering the user-facing "log" service that
-   itself triggers completion.)
-
-Either guard alone closes the loop. Together they add a second layer of protection.
-
-### Undoing a completion
-
-Completion is only half of "the same button". A user who marks a chore done by mistake
-expects the undo to travel too. Home Keeper fires `home_keeper_task_uncompleted` when a
-completion is removed, and the payload names the completion by the `ts` that went away,
-so you can drop exactly the mirrored record it stood for:
-
-```python
-EVENT_HK_UNCOMPLETED = "home_keeper_task_uncompleted"
-
-
-@callback
-def _on_hk_uncompleted(event):
-    if event.data.get("origin") == "my_integration":
-        return  # the echo of an undo we initiated
-    src = (event.data.get("source") or {}).get("my_integration")
-    if not src:
-        return
-    hass.async_create_task(_drop_record(src, event.data["ts"]))
-
-
-entry.async_on_unload(hass.bus.async_listen(EVENT_HK_UNCOMPLETED, _on_hk_uncompleted))
-```
-
-Going the other way, when the user deletes the record on *your* side, call
-`home_keeper.delete_completion` with the same `ts` and your `origin` marker:
-
-```python
-await hass.services.async_call(
-    DOMAIN_HK,
-    "delete_completion",
-    {"task_id": task_id, "ts": ts, "origin": "my_integration"},
-    blocking=True,
-)
-```
-
-Both guards from above apply unchanged: check `origin` on the way in, and delete your
-own record through a path that does not re-enter `delete_completion`.
-
-A `ts` that isn't in the task's history is a no-op. Nothing changes and no event fires,
-so a stale or already-undone call is safe. A completion is also
-*identified* by its `ts`: to re-time one, undo it and complete again at the new time
-(that is exactly what Home Keeper's own `move_completion` does, firing the same two
-events with no `origin` because moving is a user edit from the panel).
+1. **`origin` marker.** Send your own `origin`. Your listener ignores events with it.
+2. **No completion on the inbound path.** When your listener reacts to an event, write your
+   record through a code path that does not call `complete_task` or `delete_completion`.
 
 ## 5. Lifecycle
 
-Keep the two sides from drifting:
-
-- **Your config is removed** → call `home_keeper.delete_task` for the task ids you stored.
-  A call for an id that is already deleted succeeds. A name that matches no task gets the
-  `task_not_found` error.
-- **Home Keeper is absent** → the `has_service` guards make every call a no-op; your
-  integration keeps working, and tasks you couldn't create simply don't sync.
-- **The user deletes a task directly in Home Keeper** → `home_keeper_task_deleted`
-  fires, carrying your `source` (see [EVENTS.md](EVENTS.md)), so you can react live.
-  Still reconcile on your own setup for the deletions that happened while you were not
-  running: call `list_tasks`, and for any of your schedules whose stored `task_id` is
-  gone, either recreate it (re-`add_task` with the same `source`) or drop your schedule,
-  whichever matches what your integration means by the task disappearing.
-- **A device you attached to disappears** → Home Keeper degrades gracefully (the task
-  falls back to a self-owned device). Still delete the task when your thing goes away.
+- **Your config is removed:** call `home_keeper.delete_task` for the ids you stored. A call
+  for an id that is already deleted succeeds. A name that matches no task fails with
+  `task_not_found`.
+- **The user deletes a task in Home Keeper:** `home_keeper_task_deleted` fires with your
+  `source`. Also reconcile at setup with `list_tasks`, for deletions while you were stopped.
 
 ## 6. Declaring managed ownership (optional)
 
-Pass `managed_by` alongside `source` in your `add_task` call to tell Home Keeper that
-your integration is the authoritative owner of this task. Unlike `source` (which Home
-Keeper never inspects), `managed_by` is a **well-known block that Home Keeper acts on**:
-
-```python
-await hass.services.async_call(
-    DOMAIN_HK,
-    "add_task",
-    {
-        "name": "Buddy: Medicine",
-        "device_id": pet_device_id,
-        "source": {"my_integration": {"schedule_id": schedule_id}},
-        "managed_by": {
-            # Required.
-            "integration": "my_integration",  # your DOMAIN
-            "display_name": "My Integration",  # shown in the UI chip
-            # Optional.
-            "icon": "mdi:pill",  # mdi icon (future use)
-            "locked_fields": ["device_id", "name"],  # user cannot change these
-            "config_entry_id": entry.entry_id,  # enables orphan detection + deep link
-            "completion_prompt": "Log as Buddy's medicine dose?",  # shown near Done
-            "deletion_protected": True,  # blocks deletion from HK panel
-        },
-        **recurrence_payload,
-    },
-    blocking=True,
-    return_response=True,
-)
-```
-
-An **appliance** can be managed the same way. `home_keeper.add_asset` takes the same
-block without `completion_prompt` and `completion_blocked`. Its `locked_fields`
-vocabulary names the appliance's own fields plus its `parts` list. See
-[§8](#8-managing-an-appliance).
-
-### What Home Keeper does with `managed_by`
+Pass `managed_by` with `source` on `add_task` to declare your integration as the owner of a
+task. Home Keeper reads `managed_by` and acts on it.
 
 | Field | Effect |
 |---|---|
-| `display_name` | Shows a **"Managed by {name}"** chip on every task card and detail page. |
-| `locked_fields` | Those fields are **removed from the edit form**. User edits are silently ignored by `update_task`. Lock every field the form offers and there is nothing left to edit, so the task page **withholds Edit** and names your integration instead. |
-| `config_entry_id` | If the entry is unloaded, the chip becomes **"Integration offline"** (orphan detection). Also enables an **"Edit in {name}"** deep link on the detail page. |
-| `completion_prompt` | A short hint shown near the **Done** button so users know a completion triggers an action in your integration. |
-| `deletion_protected` | Replaces the **Delete** button with "Delete from {name} instead." The `delete_task` service also rejects the call with a descriptive error, **but only while your integration is still loaded** (see cleanup below). **Requires `config_entry_id`**. `add_task` rejects a protected task without one. |
+| `integration` | Required. Your domain. |
+| `display_name` | Required. A **Managed by {name}** chip on the task card and page. |
+| `icon` | An `mdi:` icon. |
+| `locked_fields` | The panel removes these fields from the edit form. With every field locked, the task page shows no Edit button. |
+| `config_entry_id` | Orphan detection, and an **Edit in {name}** link on the task page. |
+| `completion_prompt` | A short hint near the **Done** button. |
+| `deletion_protected` | The panel shows "Delete from {name} instead", and `delete_task` rejects the call while your entry is loaded. Requires `config_entry_id`. |
 
-### Cleanup when your integration is gone or broken
+- Set `managed_by` once, on `add_task`. The `update_task` service has no `managed_by`
+  field, so a call that sends one fails validation.
+- Home Keeper removes the locked fields from every `update_task` payload, also from your
+  own calls. A locked field keeps the value it had at creation. Lock only the fields your
+  integration never changes. To change one, delete the task and add it again.
+- `add_task` rejects `deletion_protected` without `config_entry_id` (`invalid_task`),
+  because Home Keeper then cannot see that your integration is gone.
 
-Deletion protection is intentionally **not a one-way trap**. It only holds while the
-owner is present, so a user is never stuck with tasks they can't remove:
-
-- **Orphan detection.** When the `config_entry_id` you recorded is no longer loaded
-  (uninstalled, disabled, or failing to set up), Home Keeper treats the task as
-  *orphaned*: the chip flips to **"Integration offline"**, the **Delete** button comes
-  back, and the task list shows a **"Remove orphaned tasks"** banner for bulk cleanup.
-  The button asks for confirmation, then calls `home_keeper.delete_orphaned_tasks`
-  (admin-only), which deletes all orphaned tasks in one save and reloads Home Keeper
-  once at most. Supplying `config_entry_id` matters, since that's how Home Keeper
-  knows your integration went away.
-- **Force escape hatch.** `home_keeper.delete_task` accepts `force: true`, which bypasses
-  protection entirely. It's the last-resort path (e.g. Developer Tools → Actions) for a
-  task that has no `config_entry_id` recorded, or any other edge case:
-
-  ```yaml
-  action: home_keeper.delete_task
-  data:
-    task_id: "abc-123"
-    force: true
-  ```
-
-> **`config_entry_id` is required when `deletion_protected` is set.** `add_task` rejects
-> a protected task without it (`TaskValidationError` / `invalid_task`), because without it
-> Home Keeper couldn't auto-detect that you've been removed and the protection would
-> become a permanent trap. The `force` delete remains as a last resort for any task that
-> predates this rule.
-
-Your integration should still call `delete_task` itself for the ids it owns when its
-config entry is removed (see §5). Orphan cleanup is the safety net for when it can't.
-
-### What to be aware of
-
-- `managed_by` is a **UI contract**. Other integrations or automations can still call
-  `complete_task` or `update_task` on non-locked fields.
-- Set `managed_by` once at creation via `add_task`. The `update_task` service has no
-  `managed_by` field, so a call that sends one fails validation.
-- An appliance takes the same block through `add_asset`. There, `update_asset` accepts
-  the single value `managed_by: null`, which gives the appliance back to the user
-  (see [§8](#8-managing-an-appliance)).
-- Home Keeper removes the locked fields from every `update_task` payload, and that
-  includes a call from your own integration. A locked field keeps the value it had at
-  creation. Lock only the fields your integration never changes. To change a locked
-  field, delete the task and add it again.
-
-### `managed_by` in the completion event
-
-The `home_keeper_task_completed` event now includes a `managed_by` field (same shape as
-above, or `None` for unmanaged tasks). Integrations that own tasks don't need to inspect
-it. Your `origin` guard and `source` namespace already identify your completions.
+**Cleanup.** When the recorded config entry is not loaded, the task is *orphaned*. The chip
+shows **Integration offline** and **Delete** comes back. The task list also offers **Remove
+orphaned tasks** (`home_keeper.delete_orphaned_tasks`, admin-only). As a last resort,
+`delete_task` with `force: true` ignores the protection.
 
 ## 7. Condition-driven (triggered) tasks
 
-Some maintenance isn't periodic. It's a response to a **condition** your integration
-detects, such as a battery dropping low or a water sensor going wet. A filter's
-pressure-drop crossing a threshold works the same way. For these, pass
-`recurrence_type: "triggered"` instead of a floating/fixed schedule. A triggered task
-has **no schedule at all** (no `interval`/`unit`/`freq`/`anchor`). Your integration owns
-its lifecycle entirely.
+For work that a condition starts, such as a low battery or a wet water sensor, send
+`recurrence_type: "triggered"` and no schedule fields. A triggered task is **armed**
+(`next_due` is a time and the task is overdue on every surface) or **dormant** (`next_due` is
+`null` and the task shows only in the panel **Monitored** section).
 
-A triggered task has two states, carried by its `next_due`:
+`add_task` creates the task armed. When the condition resolves, `complete_task` records a
+completion and makes the task dormant. When the condition comes back, `trigger_task` arms it
+again. Both calls are idempotent. Keep **one task per monitored thing** and toggle it, so
+that the id and the history stay.
 
-- **armed / due-now**: `next_due` is a timestamp. It reads as overdue on every surface
-  (to-do list, device overdue binary_sensor, panel) the whole time it's armed.
-- **dormant**: `next_due` is `null`. It is invisible to the to-do list, the calendar,
-  and the overdue/due-soon sensors, present but quietly waiting. The panel buckets it
-  into a collapsed **"Monitored"** section so it's browsable without cluttering the list.
+### Sensor-based tasks
 
-The lifecycle, mapped to the three services:
-
-| When your condition… | Call | Effect |
-|---|---|---|
-| first becomes true | `add_task` with `recurrence_type: "triggered"` | creates the task **armed** (due-now) |
-| becomes true again later | `home_keeper.trigger_task` (`task_id`) | re-arms a dormant task (→ due-now) |
-| resolves | `home_keeper.complete_task` (`task_id`, `origin`) | records a completion and returns the task to dormant |
-
-Completing a triggered task is what *clears* it. It records the event in the task's
-completion history (so the full cadence accumulates, e.g. "battery replaced every
-~13 months") and then goes dormant rather than rescheduling. `trigger_task` is the
-inverse: it arms the task without recording anything. Both are idempotent.
+With `recurrence_type: "sensor"` and a `sensor` mapping, Home Keeper watches an entity and
+arms the task itself (`home_keeper_task_triggered`). The task starts dormant.
 
 ```python
-# Condition first detected → create the task, armed/due-now:
-resp = await hass.services.async_call(
-    DOMAIN_HK,
-    "add_task",
-    {
-        "name": f"Replace battery: {device_name}",
-        "recurrence_type": "triggered",  # no interval/unit/freq/anchor
-        "device_id": device_id,
-        "source": {"my_integration": {"device_id": device_id}},
-        "managed_by": {  # see §6, recommended for owned tasks
-            "integration": "my_integration",
-            "display_name": "My Integration",
-            "config_entry_id": entry.entry_id,
-            "deletion_protected": True,
-            "locked_fields": ["name", "device_id"],
-        },
-    },
-    blocking=True,
-    return_response=True,
-)
-task_id = resp["task_id"]
-
-# Condition resolved (records history, goes dormant):
-await hass.services.async_call(
-    DOMAIN_HK,
-    "complete_task",
-    {"task_id": task_id, "origin": "my_integration"},
-    blocking=True,
-)
-
-# Condition true again later (re-arm the same task, history is preserved):
-await hass.services.async_call(
-    DOMAIN_HK,
-    "trigger_task",
-    {"task_id": task_id},
-    blocking=True,
-)
+# Usage: due when the reading advances by `target` since the last completion.
+"sensor": {"entity_id": "sensor.x1c_total_usage_hours", "mode": "usage", "target": 300,
+           "unit": "h",                                      # display label only
+           "also_every": {"interval": 6, "unit": "months"},  # time backstop
+           "combinator": "any",                              # or "all"
+           "baseline": 660}                                  # else the first reading
+# Threshold: due when the reading crosses the comparison for for_seconds.
+"sensor": {"entity_id": "sensor.airflow", "mode": "threshold",
+           "comparison": "<", "value": 60, "for_seconds": 120}
 ```
 
-> **Put your device id at the top level of your `source` payload, under the key
-> `device_id`.** Home Keeper rewrites device ids when Home Assistant renumbers a device
-> (2026.8 split every merged device into one per config entry, invalidating stored ids),
-> and it heals exactly two places: the task's own `device_id`, and
-> `source.<your-namespace>.device_id`. A device id kept anywhere else (nested deeper, or
-> under a name of your own) is not healed, so your next reconcile won't match the
-> existing task and will create a duplicate. Anything that isn't a device id can live in
-> the payload in whatever shape you like.
+The `also_every` backstop applies also when the entity is unavailable.
+`home_keeper.set_task_meter` moves the baseline. A completion records the live value as
+`reading`. To mirror earlier work, send `reading` on `complete_task`, and send it again on
+each `update_completion`, which clears a key that you omit.
 
-> **Don't delete-and-recreate on every cycle.** Keep one persistent triggered task per
-> monitored thing and toggle it with `complete_task` / `trigger_task`. That keeps the
-> task id stable and preserves the replacement history on the task. Reconcile after a
-> restart with `list_tasks` (match your `source`), arming/clearing to match the current
-> condition; only `delete_task` when the monitored thing goes away for good.
+### Task chips
 
-Two-way sync works exactly as in §3 through §4: a user checking the task off in Home Keeper
-fires `home_keeper_task_completed` (origin `None`) and Home Keeper has already set the
-task dormant for you. Your listener just applies its own side-effect (without
-re-calling `complete_task`). Triggered tasks never appear on the calendar.
-
-### Sensor-based tasks (Home Keeper arms them for you)
-
-A **sensor** task is the self-driven cousin of a triggered task: instead of *you*
-arming it, you hand Home Keeper a numeric entity and a condition and it arms the task
-itself. Pass `recurrence_type: "sensor"` and a `sensor` mapping:
-
-```python
-# Usage / meter: due once the reading advances 15000 units since the last completion.
-{
-    "recurrence_type": "sensor",
-    "sensor": {"entity_id": "sensor.odometer", "mode": "usage", "target": 15000},
-}
-
-# Threshold: due when the reading crosses the comparison (optional for_seconds hold,
-# optional attribute to read instead of the state).
-{
-    "recurrence_type": "sensor",
-    "sensor": {
-        "entity_id": "sensor.airflow",
-        "mode": "threshold",
-        "comparison": "<",
-        "value": 60,
-        "for_seconds": 120,
-    },
-}
-```
-
-The task starts **dormant**; Home Keeper's internal watcher arms it (firing
-`home_keeper_task_triggered`, then `home_keeper_task_overdue`) when the condition is
-met. Completing it clears it like any user task, and for a `usage` meter, resets the
-baseline so the next interval is measured from the reading at completion. You don't
-arm/clear it yourself; this is internal to Home Keeper, so no contribution API is
-involved.
-
-#### Usage meters: the full binding
-
-A `usage` binding takes four more optional keys, all of which a glue integration is
-expected to set when it knows the answer better than the user does:
-
-```python
-{
-    "recurrence_type": "sensor",
-    "sensor": {
-        "entity_id": "sensor.x1c_total_usage_hours",
-        "mode": "usage",
-        "target": 300,
-        # Display label for the target. Purely cosmetic (the meter arithmetic is
-        # unit-agnostic), but it turns a bare "300" into "300 h" in the panel and rides
-        # along as the ``usage_unit`` attribute for dashboards.
-        "unit": "h",
-        # The time backstop: the "or every 6 months" half of a real service interval,
-        # measured from the last completion (or the task's creation before the first).
-        "also_every": {"interval": 6, "unit": "months"},
-        # "any" (default) = whichever comes first; "all" = both must be met.
-        "combinator": "any",
-        # Start the meter somewhere other than the live reading, e.g. you already know
-        # the machine was serviced 40 hours ago. Omit it and the watcher anchors to the
-        # first valid reading it sees. Pair it with a top-level ``last_completed`` and
-        # the seeded history entry records the reading too, which also anchors the
-        # ``also_every`` backstop to the same service.
-        "baseline": 660,
-    },
-}
-```
-
-The backstop is evaluated **even when the bound entity is unavailable**, so a device
-that has been offline for a year still comes due for its annual service. Both halves
-reset together on completion.
-
-> **Forward compatibility.** `also_every` / `unit` / `combinator` landed in 0.12.0.
-> `normalize_sensor` builds its result from known keys only, so an older Home Keeper
-> silently drops them and the task still works as a plain meter, so a glue can send
-> them unconditionally rather than version-gating.
-
-If you need to move a usage task's baseline *after* creation (the user serviced the
-machine outside Home Keeper, or the meter itself was replaced), call
-`home_keeper.set_task_meter` with `{"task_id": ..., "baseline": 660}` (omit `baseline`
-to anchor to the live reading). It records no completion, and fires
-`home_keeper_task_updated` with `changed_fields: ["sensor"]`.
-
-#### The reading on a completion
-
-Completing a sensor task in `usage` or `threshold` mode records the bound sensor's
-value on the history entry as `reading`, and echoes it in the
-`home_keeper_task_completed` payload. Home Keeper reads the sensor live. A glue
-integration mirroring work that happened earlier needs to put an explicit
-`reading` on its `home_keeper.complete_task` call, since the meter has moved on
-in the meantime. On a `usage` task that same number becomes the new baseline, so the log and
-the anchor can never disagree.
-
-`home_keeper.update_completion` amends it after the fact. Note the standard
-omitted-key-clears semantics: send `reading` back with every edit you make to a sensor
-task's completion, or you will wipe it. Editing the reading on the **latest**
-completion re-anchors the meter and puts `meter_baseline` in the
-`home_keeper_task_completion_updated` payload.
-
-### Linking a task to a consumable (draw down stock on completion)
-
-Any task (sensor-armed or not) can be **linked to an appliance consumable/part** so
-that completing it draws the part's per-use amount off its `stock` and fires the
-edge-triggered `home_keeper_part_low_stock` / `_out_of_stock` events at the reorder
-threshold (see [docs/EVENTS.md](EVENTS.md)). That amount is one whole spare unless the
-part sets a `consume_quantity`, and both it and `stock` may be fractional. A part
-measured in millilitres draws down by `250`, a bottle topped up in thirds by `0.33`.
-Use the `home_keeper.set_task_consumable` service:
-
-```yaml
-service: home_keeper.set_task_consumable
-data:
-  task_id: "<task id>"
-  asset_id: "<appliance id>"
-  part_id: "<consumable part id>"   # omit asset_id/part_id to clear the link
-```
-
-An optional `quantity` sets what this one task consumes per completion, in place of the
-part's own `consume_quantity` (see [§8](#8-managing-an-appliance)).
-
-This is the end-to-end recipe for *"my fridge tells me when the water filter is spent,
-auto-subtract a spare and tell me to buy more"*: create a `sensor` task bound to the
-filter's life/usage entity, link it to the filter consumable, and an automation on
-`home_keeper_part_low_stock` adds it to your shopping list. The link is recorded on the
-task's `source` (`{"part": {asset_id, part_id, manual: true}}`); the `manual` flag keeps
-it independent of the wear-part reconciler, so it is never auto-deleted and stays fully
-editable. A reconciler-derived wear-part task is already bound to its part and cannot be
-re-linked by hand.
-
-### Attaching metadata chips to a task (`task_chips`)
-
-Any task can carry a list of **integration-provided metadata chips** that appear in
-both the sidebar panel's task list and the dashboard card. Chips are a compact way to
-surface contextual information alongside a task, such as the battery type needed
-to replace a low battery, or a part number. When the task is linked to a part in
-Home Keeper, use the part chip that the link gives instead (see
-[Drawing stock down from a task](#drawing-stock-down-from-a-task)).
-
-**Schema.** Each chip is an object with one required and two optional fields:
-
-| Field   | Required | Description |
-|---------|----------|-------------|
-| `label` | ✅ | Display text shown on the chip. |
-| `icon`  | optional | An `mdi:` icon name (e.g. `mdi:battery`). Shown at the start of the chip. |
-| `url`   | optional | An `http(s)://` URL. When present the chip becomes a clickable link (opens in a new tab). |
-
-Pass `task_chips` in your `add_task` call:
-
-```yaml
-service: home_keeper.add_task
-data:
-  name: "Replace battery: Front door sensor"
-  recurrence_type: triggered
-  device_id: "abc123"
-  task_chips:
-    - label: "2× AAA"
-      icon: "mdi:battery"
-  managed_by:
-    integration: my_integration
-    display_name: My Integration
-    deletion_protected: true
-    config_entry_id: "..."
-```
-
-Chips can also be updated later via `update_task`. Home Keeper only rewrites `task_chips`
-when you explicitly send the field. A routine name/notes update will never clear chips
-set at creation time:
-
-```yaml
-service: home_keeper.update_task
-data:
-  task_id: "<task id>"
-  task_chips:
-    - label: "CR2032"
-      icon: "mdi:battery"
-```
-
-**Chips are integration-owned**. The panel does not expose a chip editor to users.
-Chips survive renaming (they are stored on the task, not derived at render time) and
-are included in every `home_keeper_task_*` event's payload under `task_chips`.
-
-## 7. Discovery: announce yourself so users can find you (optional)
-
-Everything above works without Home Keeper knowing your integration exists. But users
-generally don't know two integrations work together until they stumble onto it. To
-close that gap, Home Keeper has a **companion registry**: announce yourself and you'll
-appear in the panel's **Settings → Companions** section, with a **Configure** button
-that deep-links to your own integration page (`/config/integrations/integration/<your
-domain>`, where your **Configure** is one click away, the same deep link Home Keeper
-uses for "Edit in X"; there's no stable public URL to open an options *dialog*
-directly).
-
-Call the `home_keeper.register_companion` service at your setup (guarded so you degrade
-gracefully when Home Keeper is absent), and again whenever Home Keeper asks companions
-to re-announce. It fires `home_keeper_register_companions` at its own setup (and on
-reload), which covers the case where Home Keeper starts *after* you:
-
-```python
-DOMAIN_HK = "home_keeper"
-
-
-async def _announce(hass, entry):
-    if not hass.services.has_service(DOMAIN_HK, "register_companion"):
-        return
-    await hass.services.async_call(
-        DOMAIN_HK,
-        "register_companion",
-        {
-            "domain": "my_integration",
-            "name": "My Integration",
-            "icon": "mdi:puzzle",
-            "description": "One line on what it does with Home Keeper.",
-            # Carried for the panel's "Configure" button (today it deep-links by
-            # domain to your integration page; the entry id is stored for future use).
-            "config_entry_id": entry.entry_id,
-            "docs_url": "https://github.com/me/my-integration",
-            "capabilities": ["whatever_you_provide"],
-        },
-        blocking=False,
-    )
-
-
-# In async_setup_entry:
-await _announce(hass, entry)
-entry.async_on_unload(
-    hass.bus.async_listen(
-        "home_keeper_register_companions",
-        lambda _e: hass.async_create_task(_announce(hass, entry)),
-    )
-)
-```
-
-Home Keeper stores the descriptor **verbatim** and never imports your integration. The
-registry is in-memory and best-effort: it survives Home Keeper config-entry reloads and
-is rebuilt on restart as companions re-announce. Registering fires
-`home_keeper_companion_connected` (edge-triggered) so automations can react.
-
-> **Popular integrations that aren't Home-Keeper-aware.** Home Keeper also includes a
-> tiny curated *catalog* so it can detect a popular upstream (e.g. Battery Notes) and
-> **suggest** the glue that bridges it, even before that glue is installed. That path
-> is for integrations Home Keeper can't expect to call `register_companion` themselves;
-> if you're writing a Home-Keeper-aware integration, just register. The glue itself
-> registers like any other companion once installed.
-
-### Declarative companions (no code, for users AND for you)
-
-Not every companion needs to be a separate integration. If your case is "watch these
-entities and open a task per match, with a templated name", the panel's
-**Settings → Companions → Declarative** section covers it. You pick a target integration
-(or leave blank and use an entity id regex), pick a trigger mode (usage, threshold,
-state, or the new **availability**, which arms when an entity is `unavailable`/`unknown` for a
-hold interval), and provide Jinja templates for the task name and notes. Home Keeper
-materializes one managed sensor task per matching entity and keeps it in sync as
-entities are added, renamed, or removed.
-
-The bundled general presets are **device_pulse** (per-device ping sensors from
-studiobts/home-assistant-device-pulse), **firmware_update_available** (update
-domain, covers UniFi, ESPHome, HACS, Reolink, Bambu Lab in one declarative
-companion) and **device_stopped_reporting**. Each **integration preset** covers one
-integration and one type of reading, and its id is `<domain>_<shape>`, such as
-`roborock_life_low`. A preset for a platform other than `sensor` adds the platform to
-the id, and a preset for one alert state adds that state, as in
-`<domain>_alert_binary_sensor_on`. Each selects by `target_integration` and `translation_keys`, and
-fills `task_names` for each key. The catalog is `declarative_presets_catalog.py`, and
-`ci/check_preset_keys.py` checks its keys against each integration's translation file. Full config surface via `home_keeper.add_declarative_companion` /
-`update_declarative_companion` / `delete_declarative_companion` /
-`list_declarative_companions` services (admin-only). Managed tasks fire the ordinary
-`home_keeper_task_*` events. Filter to declarative tasks via
-`managed_by.integration == "home_keeper"` and `source.declarative_companion.spec_id`.
-
-A call to `add_declarative_companion`, `update_declarative_companion` or
-`delete_declarative_companion` returns when the reconcile is complete. A change that
-makes or removes a task with device-page entities reloads the config entry. The call
-returns after that reload, so your next call finds Home Keeper loaded.
-
-`selection.translation_keys` matches the `translation_key` that the integration sets
-on each entity in the entity registry. A rename, the Home Assistant language, and a
-change to how Home Assistant builds entity ids leave that key alone, so prefer it to
-`entity_regex` when the integration sets keys. `task_template.task_names` maps a key to
-plain text, which the name and notes templates read as `{{ task_name }}`. An entity
-whose key has no entry reads its friendly name there. Both templates can also read
-`{{ translation_key }}`, and a `template`-mode trigger can read it too.
-`selection.device_ids` keeps only the entities of those devices.
-
-`task_template.labels` puts labels on each task. An `update_declarative_companion`
-call that changes this list adds the new labels to the existing tasks and removes the
-dropped ones, and fires `home_keeper_task_updated` with `changed_fields: ["labels"]`
-for each task. Other labels on a task stay. `labels` is never in the task's
-`managed_by.locked_fields`, so `update_task` can add a label to one task. `notes` is
-locked only when the spec has a `notes_template`.
-
-A Profile selects the tasks of one declarative companion with
-`home_keeper:declarative:<spec_id>` in its `companions` or `exclude_companions` list.
-`home_keeper:problem_sensors` selects the synced problem sensors. Both are derived from
-the task's `source`. Plain `home_keeper` still selects all of them.
-
-**When to build a hand-coded companion instead.** A declarative companion is a good fit
-when the trigger is "an entity crosses a condition." It's the wrong fit when your
-integration needs to *write back* to the upstream (Battery Notes' `set_battery_replaced`
-on completion) or has to maintain domain state across completions (replacement history).
-For those cases, publish a glue integration
-per this section and use `home_keeper.add_task` + `complete_task` + the events.
+`task_chips` on `add_task` or `update_task` puts chips on the task in the panel and the card.
+Each chip has `label` (required), `icon` (an `mdi:` name) and `url` (`http(s)://`).
+`update_task` changes the chips only when the call sends `task_chips`. Users cannot edit
+chips. Do not send a chip for a linked part, because Home Keeper draws that chip (§8).
 
 ## 8. Managing an appliance
 
-An integration can own an **appliance**, not only a task. Pass `managed_by` and
-`source` to `home_keeper.add_asset` and Home Keeper records your integration as the
-owner of that appliance and of its parts.
+Send `managed_by` and `source` to `home_keeper.add_asset` to own an appliance and its parts.
+Its block is the task block without `completion_prompt` and `completion_blocked`.
+Both fields are **create-only**: `update_asset` ignores `source`, and accepts `managed_by`
+only as `null`. Find your appliance again with `home_keeper.list_assets`.
 
-```yaml
-service: home_keeper.add_asset
-data:
-  name: Batteries
-  kind: virtual
-  source:
-    my_integration:
-      role: battery_stock
-  managed_by:
-    integration: my_integration
-    display_name: My Integration
-    config_entry_id: "<your entry id>"
-    deletion_protected: true
-    locked_fields: ["name", "parts"]
-```
+### Locked parts
 
-`managed_by` is the same block as a task's, without `completion_prompt` and
-`completion_blocked` (an appliance has no completion). `deletion_protected` still
-requires `config_entry_id`, and orphan detection is unchanged: once your entry is
-unloaded, the user can delete the appliance again.
+The vocabulary is `const.ASSET_LOCKED_FIELDS`. Each field except `parts` works as on a task.
+A locked `parts` splits each part: the owner keys are yours, the stock keys are the user's.
 
-Both fields are **create-only**. `update_asset` ignores `source`, and ignores
-`managed_by` except for the single value `null`, which is the uninstall path below.
-`source` is opaque to Home Keeper, exactly as it is on a task. Call
-`home_keeper.list_assets` and match on your namespace to find your appliance again
-after a restart.
-
-### `locked_fields` on an appliance
-
-The vocabulary is `const.ASSET_LOCKED_FIELDS`: `name`, `area_id`, `icon`,
-`manufacturer`, `model`, `serial_number`, `notes`, `cost`, `documents`, `metadata`,
-`parts`, `parent_asset_id`, `related_device_ids`.
-
-Every entry but `parts` behaves as it does on a task. The panel drops the field from
-the edit form, and `update_asset` strips it from the payload.
-
-`"parts"` is **structural**, not a plain strip. The list itself is yours, and the
-stock numbers on each part stay the user's:
-
-| Owner keys, locked | User keys, never yours |
+| Owner keys (locked) | User keys (never yours) |
 |---|---|
 | `name`, `type`, `notes`, `part_number`, `vendor`, `url`, `cost` | `stock`, `reorder_at`, `stock_unit` |
 | `replace_interval`, `replace_unit`, `replace_also_every`, `action` | `consume_quantity`, `create_buy_task` |
 | `use_noun`, `use_task_name`, `last_replaced`, `carried_uses` | `restock_quantity` |
 
-So an `update_asset` call with a `parts` list writes only the user keys, and only on
-the parts that are already stored. It never adds a part and never removes one.
+`update_asset` writes only user keys, on parts that exist. To write owner keys, call
+`home_keeper.update_managed_asset` (admin-only, your appliances only) with `asset_id`, an
+optional `name`, and the full `parts` list. Parts match on `id`. A part without a known `id`
+is new and starts at `stock: null`. Do not send `stock`, because Home Keeper drops it. A part
+you leave out is removed only if it tracks no stock. To name the devices that use shared
+stock, write a "Used by" line in the part `notes`.
 
-### `update_managed_asset`
+### Stock and `source`
 
-Locking `parts` leaves you a door of your own. Write the owner keys after creation
-through `home_keeper.update_managed_asset`:
+`home_keeper.set_task_consumable` links a task to a part (omit `asset_id` and `part_id` to
+unlink). Each completion takes `quantity` off the part `stock`, or the part
+`consume_quantity` (default 1) when you omit it. The link is stored as
+`source["part"] = {asset_id, part_id, manual: true, quantity}`. The task shows a chip such as
+**Takes 2 AAA · 2 left**. `delete_completion` gives back the `stock_drawn` of that
+completion. A count at the reorder level fires `home_keeper_part_low_stock` or
+`home_keeper_part_out_of_stock`.
 
-```yaml
-service: home_keeper.update_managed_asset
-data:
-  asset_id: "<asset id>"
-  name: Batteries            # optional: re-applies your locked name
-  parts:                     # optional: the whole list, as you want it
-    - id: "<part id>"        # omit on a new part
-      name: AAA
-      type: consumable
-      notes: "Used by 4 devices · 7 installed — Front door sensor (2), Thermostat (2)"
-```
+For a use that is not a task, call `home_keeper.adjust_part_stock` with a negative `delta`.
+The response is `{stock, applied_delta, reorder_at, unit, status}`. To undo, send
+`applied_delta` back negated, because it differs from `delta` when the count stops at 0. Each
+counted part on a virtual appliance has a spares `number` entity,
+`home_keeper_asset_<asset id>_part_<part id>_stock`, which all users can read.
 
-What the service does with that list:
+`source` is a map of namespaces. Home Keeper owns `part`, `buy` and `declarative_companion`.
+**Merge into `source` and remove only your own key.** On `update_task`, each namespace in the
+call replaces the stored one, `null` removes it, and a reserved name fails with
+`invalid_task`.
 
-- Parts are matched on `id`. A part with an unknown `id` or with no `id` at all is a
-  **new** part.
-- A new part starts at `stock: null` and tracks nothing. It opens no buy task. The
-  panel offers the user a **Start counting** button. Do not send a `stock` value. It is
-  a user key and Home Keeper drops it.
-- A part you leave out is removed **only if it tracks no stock**. A part the user has
-  counted stays in the list. Those spares are in a drawer whatever your integration
-  believes.
-- The call is admin-only and it rejects an appliance your integration does not manage.
-  Your own service call has no user context and passes the admin gate.
+**Uninstall.** A delete of a managed appliance deletes the user's stock counts. In
+`async_remove_entry`, call `update_asset` with `{"asset_id": asset_id, "managed_by": None}`.
+The locks come off and the user keeps the appliance. Delete it only when no part tracks stock.
 
-### Drawing stock down from a task
+## 9. Discovery and declarative companions
 
-`home_keeper.set_task_consumable` links a task to a part, so a completion of that task
-takes an amount off the part's `stock`. It takes an optional `quantity`:
-
-```yaml
-service: home_keeper.set_task_consumable
-data:
-  task_id: "<task id>"
-  asset_id: "<asset id>"
-  part_id: "<part id>"
-  quantity: 2
-```
-
-`quantity` is what **this task** consumes per completion, and it must be greater than
-zero. Leave it out and the part's own `consume_quantity` applies, which is 1 spare by
-default. A device that takes 2 AAA batteries links its replacement task with
-`quantity: 2`.
-
-The link is recorded as `source["part"] = {asset_id, part_id, manual: true, quantity}`.
-
-A linked task shows a part chip such as **Takes 2 AAA · 2 left**. A part with no
-count shows **Takes 2 AAA**. A click on the chip opens the part on its appliance page,
-at `/home-keeper/appliances/<asset id>/parts/<part id>`. Home Keeper draws this chip,
-so do not send a `task_chips` entry for the same part. Keep your own chip for a task
-that has no link.
-
-Deleting a completion (`home_keeper.delete_completion`) gives back the stock that
-completion took. Home Keeper records the amount on the completion as `stock_drawn`. The
-count stops at zero, so the recorded amount can be less than `quantity`. The delete
-also puts back the part's `last_replaced` date. If another replacement remains, the
-date of the latest one is used. Otherwise the date from before the completion comes
-back.
-
-### Drawing stock down without a task
-
-Not every use is a task. Call `home_keeper.adjust_part_stock` with a negative `delta`,
-and ask for the response:
-
-```yaml
-service: home_keeper.adjust_part_stock
-data:
-  asset_id: "<asset id>"
-  part_id: "<part id>"
-  delta: -1
-response_variable: result
-```
-
-The response is `{stock, applied_delta, reorder_at, unit, status}`. `status` is `ok`,
-`low`, `out` or `untracked`. Keep `applied_delta` if you want to undo the change
-later, and send it back negated. It differs from `delta` when the count stops at zero.
-
-### Showing stock to a user
-
-Each counted part on a virtual appliance has a spares `number` entity, with the unique
-ID `home_keeper_asset_<asset id>_part_<part id>_stock`. Its state is the count. Its
-attributes are `asset_id`, `part_id`, `reorder_at`, `restock_quantity` and `status`. Every user can read
-it, so a dashboard card can show the count without an admin read. Setting the number
-moves the count, the same as `adjust_part_stock`.
-
-### Every writer merges into `source`, and pops its own key only
-
-`source` is a map of namespaces, on a task and on an appliance alike. Home Keeper owns
-the reserved names (`part`, `buy`, `declarative_companion`), your integration owns its
-own, and neither side rewrites the whole map. `set_task_consumable` merges `part` in
-beside your namespace, and unlinking pops `part` and leaves the rest. Hold your own
-writers to the same rule.
-
-`update_task` applies this rule to a task's `source`. Each namespace in the call
-replaces the stored namespace of the same name, and the other namespaces stay. A
-namespace with the value `null` is removed. A call that names a reserved namespace
-fails with `invalid_task`. An appliance's `source` is create-only.
-
-### Handing the appliance back when you are removed
-
-Deleting a managed appliance deletes its parts, and with them every count the user
-entered. Hand it over instead, from `async_remove_entry`:
+Call `home_keeper.register_companion` at setup to show your integration in the panel
+**Settings → Companions** section. Call it again on `home_keeper_register_companions`, which
+Home Keeper fires at its own setup and reload.
 
 ```python
-await hass.services.async_call(
-    "home_keeper",
-    "update_asset",
-    {"asset_id": asset_id, "managed_by": None},
-    blocking=True,
-)
+await hass.services.async_call(DOMAIN_HK, "register_companion", {
+    "domain": "my_integration", "name": "My Integration", "icon": "mdi:puzzle",
+    "description": "One line on what it does with Home Keeper.",
+    "config_entry_id": entry.entry_id, "docs_url": "https://github.com/me/my-integration",
+}, blocking=False)
 ```
 
-The appliance stays where it is, the locks come off, and the user keeps an ordinary
-appliance with their stock. Delete the appliance instead only when no part tracks
-stock, so there is nothing to lose.
+Registering fires `home_keeper_companion_connected`.
 
-### The "Used by" line in a part's notes
+A declarative companion makes one managed sensor task for each entity that matches a
+selection. Users make them in **Settings → Companions → Declarative**. An integration can call
+`add_declarative_companion`, `update_declarative_companion`, `delete_declarative_companion`
+and `list_declarative_companions` (all admin-only).
 
-Shared stock has no single device to attach to. Name the devices in the part's
-`notes` instead. It is an owner key and the panel renders it as Markdown. The Battery
-Notes glue writes `Used by 4 devices · 7 installed — Front door sensor (2), Thermostat
-(2)`. A type that is stocked but no longer fitted gets `Not used by any device`. Home
-Keeper stores that text and renders it. The format is a convention between you and the
-user.
+- Select by `target_integration` and `selection.translation_keys` in preference to
+  `entity_regex`: a translation key does not change on a rename or a language change.
+  `selection.device_ids` limits the selection to those devices.
+- `task_template.task_names` maps a key to a name, read as `{{ task_name }}`.
+- A call returns after the reconcile, and after a config entry reload if one is necessary.
+- Find these tasks by `managed_by.integration == "home_keeper"` and
+  `source.declarative_companion.spec_id`. A Profile selects them with
+  `home_keeper:declarative:<spec_id>`.
+- The presets are in `declarative_presets_catalog.py`. An integration preset id is
+  `<domain>_<shape>`, such as `roborock_life_low`.
+
+Write a glue integration instead when you must write back to the upstream integration on
+completion, or keep state across completions. See [GLUE_INTEGRATIONS.md](GLUE_INTEGRATIONS.md).
 
 ## Testing your integration
 
-Home Keeper includes a fake so you can test the contract end-to-end **without** standing
-up its panel, storage, or entities, and **without publishing anything to PyPI**. Add
-Home Keeper as a git test dependency:
-
-```
-# requirements-test.txt (or your pyproject test extra)
-home-keeper @ git+https://github.com/prestomation/ha-home-keeper@main
-```
-
-Then, in a real Home Assistant test environment (e.g.
-`pytest-homeassistant-custom-component`):
+Add `home-keeper @ git+https://github.com/prestomation/ha-home-keeper@main` to your test
+requirements, and use the fake with `pytest-homeassistant-custom-component`:
 
 ```python
 from home_keeper.testing import async_setup_fake_home_keeper
 
-
-async def test_my_integration_two_way_sync(hass):
+async def test_two_way_sync(hass):
     hk = await async_setup_fake_home_keeper(hass)  # registers the real service names
     # ... set up your integration so it calls home_keeper.add_task ...
-
     task = hk.get_task_by_source("my_integration", thing_id="abc")
-    assert task is not None  # you created the task
-
-    # Inbound: simulate a user checking the task off in Home Keeper (origin=None).
-    hk.fire_user_completion(task["id"])
-    await hass.async_block_till_done()
-    # ... assert your integration mirrored the completion (and didn't loop) ...
+    hk.fire_user_completion(task["id"])  # a user completion, origin=None
+    await hass.async_block_till_done()  # then assert your record, with no loop
 ```
 
-`async_setup_fake_home_keeper` returns a `FakeHomeKeeper` with `.tasks`,
-`.get_task_by_source(namespace, **match)`, and `.fire_user_completion(task_id)`. The
-fake is built on Home Keeper's own model/recurrence code and the same event-payload
-builder the real integration uses (`home_keeper.events.completion_event_data`), so it
-can't drift from production. For the highest fidelity you can instead set up the real
-Home Keeper config entry in your test `hass`. The fake is the lighter-weight default.
-
-## Worked example: Pawsistant (one example client)
-
-[Pawsistant](https://github.com/prestomation/pawsistant) (a pet-care logger) is the first
-integration built on this contract. It is *one example*, not anything Home Keeper is
-aware of. A user attaches a recurring schedule to a pet activity (e.g. "medicine every 2
-weeks"):
-
-1. Pawsistant calls `add_task` with `recurrence_type="floating"`, `interval=2`,
-   `unit="weeks"`, the pet's `device_id`, and
-   `source={"pawsistant": {"dog_id": …, "event_type": "medicine", "schedule_id": …}}`,
-   and reads the `task_id` from the `add_task` response. If the pet already has a
-   logged "medicine" event, Pawsistant passes its timestamp as `last_completed` so the
-   first due date is measured from when it was actually last done; otherwise the task
-   is due now.
-2. **Complete in Home Keeper** (checkbox / device button) → `home_keeper_task_completed`
-   fires with `origin=None`; Pawsistant logs a "medicine" event for that pet (writing
-   straight to its store, so it doesn't re-complete the task).
-3. **Log "medicine" in Pawsistant** → Pawsistant calls `complete_task` with
-   `origin="pawsistant"`. The resulting event is ignored by its own listener.
-
-The Home Keeper task and the Pawsistant care log behave as the same button, in both
-directions, with no loop.
+`FakeHomeKeeper` also has `.tasks`. It uses the real model, recurrence and event payload code
+(`home_keeper.events.completion_event_data`), so it cannot drift from production.
+[Pawsistant](https://github.com/prestomation/pawsistant) is one client of this contract.
