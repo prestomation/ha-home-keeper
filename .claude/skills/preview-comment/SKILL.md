@@ -49,7 +49,13 @@ the maintainer approves the exact text.
 Write it as the maintainer does: casual, 3 or 4 short sentences, no headings, no
 greeting such as "Hi name", no sign-off. Start from this template:
 
-> Thanks for the suggestion. This is available in preview build **{version}** if you'd like to try it out. In HACS, open Home Keeper → ⋮ → **Redownload**, turn on **Show beta versions**, and pick `{version}`. The docs for it are here: {guide links}. I'd like some feedback before I merge, so I may hold off until I hear from you.
+> Thanks for the suggestion. This is available in preview build **{version}** if you'd like to try
+> it out. In HACS, open Home Keeper → ⋮ → **Redownload**, turn on **Show beta versions**, and pick
+> `{version}`. The docs for it are here: {guide links}. I'd like some feedback before I merge, so
+> I may hold off until I hear from you.
+
+The template is wrapped here only to fit the line width. Write the comment as 1
+paragraph on 1 line: GitHub shows each line break in a comment.
 
 `{guide links}` is each guide link from step 1 as a Markdown link with its page title,
 joined with "and" for 2 links or commas for more. Without guide links, leave out the
