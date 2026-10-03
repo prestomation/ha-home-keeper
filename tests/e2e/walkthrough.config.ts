@@ -53,6 +53,10 @@ export default captureConfig('walkthrough.capture.ts', {
   // outgrow it still pays by shortening the walk, because the note above about the
   // 30-minute job cap has not changed.
   //
+  // Re-measured for #415, which added beat 7d (the Event received trigger, 6 beats
+  // plus a page load of the automation editor): **258s in the dev container**, a 40%
+  // margin against the 360s cap, so the cap stays where it is.
+  //
   // 32 beats at 900ms is ~29s, and the interactions alongside them cover the rest.
   // Every one was correct under the gate that requires a new surface to appear in the
   // tour; none moved this number. **A PR that adds a beat re-measures and moves it** —
