@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_reconcile_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-02 22:24 +0000
+            created at 2026-10-03 03:01 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -98,7 +98,7 @@
     <p class="pln"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="str">Everything here is HA-free so it&#x27;s unit-testable in isolation (like ``recurrence.py``).</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t15" href="#t15">15</a></span><span class="t"><span class="str">The filter semantics are the single source of truth that the TS side (``card-filter``)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t16" href="#t16">16</a></span><span class="t"><span class="str">must match &#8212; see ``tests/fixtures/profile_filter_cases.json`` and</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="str">``docs/PROFILES_REFACTOR_PLAN.md``.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="str">``docs/design/profiles-notifications.md``.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t18" href="#t18">18</a></span><span class="t"><span class="str">&quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t19" href="#t19">19</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t20" href="#t20">20</a></span><span class="t"><span class="key">from</span> <span class="nam">__future__</span> <span class="key">import</span> <span class="nam">annotations</span>&nbsp;</span><span class="r"></span></p>
@@ -318,8 +318,8 @@
     <p class="pln"><span class="n"><a id="t234" href="#t234">234</a></span><span class="t"><span class="str">    the sensor reports a problem, and dormant (``next_due is None``, excluded by the</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t235" href="#t235">235</a></span><span class="t"><span class="str">    check above) once the sensor clears. Dropping the armed ones outright hid a whole</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t236" href="#t236">236</a></span><span class="t"><span class="str">    class of overdue work from every Profile, in the panel and on the card, under every</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t237" href="#t237">237</a></span><span class="t"><span class="str">    status (#248). They are still left out of *walk* notifications, but that belongs to</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t238" href="#t238">238</a></span><span class="t"><span class="str">    delivery rather than to the filter &#8212; see ``notifications.is_walkable``.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t237" href="#t237">237</a></span><span class="t"><span class="str">    status (#248). Walk notifications keep them too, and</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t238" href="#t238">238</a></span><span class="t"><span class="str">    ``notifications.actions_for`` gives them a Snooze button.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t239" href="#t239">239</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t240" href="#t240">240</a></span><span class="t"><span class="str">    The ``exclude_labels``/``exclude_areas``/``exclude_devices``/``exclude_companions``</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t241" href="#t241">241</a></span><span class="t"><span class="str">    lists then subtract: any hit drops the task even when it satisfied every include</span>&nbsp;</span><span class="r"></span></p>
@@ -430,7 +430,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_reconcile_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-02 22:24 +0000
+            created at 2026-10-03 03:01 +0000
         </p>
     </div>
 </footer>

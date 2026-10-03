@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_coordinator_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-02 22:24 +0000
+            created at 2026-10-03 03:01 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -410,7 +410,7 @@
     <p class="pln"><span class="n"><a id="t326" href="#t326">326</a></span><span class="t"><span class="com"># loudly it lands (channel, urgency) and how it looks (icon, color).</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t327" href="#t327">327</a></span><span class="t"><span class="com"># Edited from the panel&#x27;s Settings &#8594; Notifications card and the set_options service;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t328" href="#t328">328</a></span><span class="t"><span class="com"># consumed by the notify service, the action listener, and the coordinator&#x27;s automatic</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t329" href="#t329">329</a></span><span class="t"><span class="com"># source. See notifications.py and docs/PROFILES_REFACTOR_PLAN.md.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t329" href="#t329">329</a></span><span class="t"><span class="com"># source. See docs/design/profiles-notifications.md.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t330" href="#t330">330</a></span><span class="t"><span class="nam">OPTION_NOTIFICATIONS</span> <span class="op">=</span> <span class="str">&quot;notifications&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t331" href="#t331">331</a></span><span class="t"><span class="com"># An existing Home Assistant to-do list (a ``todo.*`` entity id) that auto-buy</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t332" href="#t332">332</a></span><span class="t"><span class="com"># reminders are mirrored onto &#8212; a shopping list, so &quot;go buy more&quot; reaches voice</span>&nbsp;</span><span class="r"></span></p>
@@ -491,7 +491,7 @@
     <p class="pln"><span class="n"><a id="t407" href="#t407">407</a></span><span class="t"><span class="com"># ``sensor_tasks.py``). Three modes: ``usage`` (a meter &#8212; due after the reading</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t408" href="#t408">408</a></span><span class="t"><span class="com"># advances ``target`` units since the last completion), ``threshold`` (due when</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t409" href="#t409">409</a></span><span class="t"><span class="com"># the reading crosses a numeric comparison) and ``state`` (due when the entity enters</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t410" href="#t410">410</a></span><span class="t"><span class="com"># a given state). See docs/SENSOR_TASKS_PLAN.md.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t410" href="#t410">410</a></span><span class="t"><span class="com"># a given state). See docs/design/sensor-tasks.md.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t411" href="#t411">411</a></span><span class="t"><span class="nam">REC_SENSOR</span> <span class="op">=</span> <span class="str">&quot;sensor&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t412" href="#t412">412</a></span><span class="t"><span class="com"># A counted wear item&#x27;s *use* task: the one surface a household taps to say &quot;I wore</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t413" href="#t413">413</a></span><span class="t"><span class="com"># it / I used it once&quot;. It has no cadence and no due date at all &#8212; ``next_due`` is</span>&nbsp;</span><span class="r"></span></p>
@@ -501,7 +501,7 @@
     <p class="pln"><span class="n"><a id="t417" href="#t417">417</a></span><span class="t"><span class="com"># replacement task beside it arms once enough entries accumulate since the last</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t418" href="#t418">418</a></span><span class="t"><span class="com"># replacement (see ``reconcile.uses_since_replacement``). Distinct from</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t419" href="#t419">419</a></span><span class="t"><span class="com"># ``triggered``, which an owner arms and clears, and from ``sensor``, which reads a</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t420" href="#t420">420</a></span><span class="t"><span class="com"># number: nothing ever arms a use task. See docs/COUNTED_WEAR_ITEMS_PLAN.md.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t420" href="#t420">420</a></span><span class="t"><span class="com"># number: nothing ever arms a use task. See docs/design/appliances.md.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t421" href="#t421">421</a></span><span class="t"><span class="nam">REC_USE</span> <span class="op">=</span> <span class="str">&quot;use&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t422" href="#t422">422</a></span><span class="t"><span class="nam">RECURRENCE_TYPES</span> <span class="op">=</span> <span class="op">[</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t423" href="#t423">423</a></span><span class="t">    <span class="nam">REC_FLOATING</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -676,7 +676,7 @@
     <p class="pln"><span class="n"><a id="t592" href="#t592">592</a></span><span class="t"><span class="com"># DEFERRED (not implemented this prototype): a stable cross-integration contribution</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t593" href="#t593">593</a></span><span class="t"><span class="com"># interface so integrations like Battery Notes can push maintenance tasks without</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t594" href="#t594">594</a></span><span class="t"><span class="com"># this integration knowing anything about them. The intended hook is a dispatcher</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t595" href="#t595">595</a></span><span class="t"><span class="com"># signal plus a `home_keeper.contribute_task` service. See docs/DESIGN.md.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t595" href="#t595">595</a></span><span class="t"><span class="com"># signal plus a `home_keeper.contribute_task` service. See IDEAS.md.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t596" href="#t596">596</a></span><span class="t"><span class="nam">SIGNAL_TASK_CONTRIBUTION</span> <span class="op">=</span> <span class="fst">f&quot;</span><span class="op">{</span><span class="nam">DOMAIN</span><span class="op">}</span><span class="fst">_task_contribution</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t597" href="#t597">597</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t598" href="#t598">598</a></span><span class="t"><span class="com"># &#9472;&#9472; Companion discovery &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;</span>&nbsp;</span><span class="r"></span></p>
@@ -1067,7 +1067,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_coordinator_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-02 22:24 +0000
+            created at 2026-10-03 03:01 +0000
         </p>
     </div>
 </footer>

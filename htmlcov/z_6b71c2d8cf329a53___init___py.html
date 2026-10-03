@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_api_surface_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-02 22:24 +0000
+            created at 2026-10-03 03:01 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -427,7 +427,7 @@
     <p class="pln"><span class="n"><a id="t343" href="#t343">343</a></span><span class="t"><span class="com"># ``origin`` is a free-form marker the caller passes so it can recognise (and ignore)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t344" href="#t344">344</a></span><span class="t"><span class="com"># the completion event it triggered. Home Keeper only echoes it back in the event.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t345" href="#t345">345</a></span><span class="t"><span class="com"># The metadata fields (note/cost/photo/who) are the optional per-completion context;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t346" href="#t346">346</a></span><span class="t"><span class="com"># ``photo`` is an image-upload id and ``who`` a person entity id.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t346" href="#t346">346</a></span><span class="t"><span class="com"># ``photo`` is an image URL and ``who`` a person entity id.</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t347" href="#t347">347</a></span><span class="t"><span class="nam">COMPLETE_TASK_SCHEMA</span> <span class="op">=</span> <span class="nam">vol</span><span class="op">.</span><span class="nam">Schema</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t348" href="#t348">348</a></span><span class="t">    <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t349" href="#t349">349</a></span><span class="t">        <span class="nam">vol</span><span class="op">.</span><span class="nam">Required</span><span class="op">(</span><span class="str">&quot;task_id&quot;</span><span class="op">)</span><span class="op">:</span> <span class="nam">cv</span><span class="op">.</span><span class="nam">string</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -1227,7 +1227,7 @@
     <p class="pln"><span class="n"><a id="t1143" href="#t1143">1143</a></span><span class="t"><span class="str">        Raises HA core&#x27;s ``Unauthorized`` rather than a translated</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1144" href="#t1144">1144</a></span><span class="t"><span class="str">        ``ServiceValidationError``: this is an auth failure, not bad input, and the</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1145" href="#t1145">1145</a></span><span class="t"><span class="str">        websocket/REST layers already map it to a 401/``unauthorized`` the frontend</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t1146" href="#t1146">1146</a></span><span class="t"><span class="str">        renders. See ``.amazonq/rules/architecture-and-code.md`` &#8594; &quot;Privilege model&quot;.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1146" href="#t1146">1146</a></span><span class="t"><span class="str">        renders. See ``.amazonq/rules/architecture.md`` &#8594; &quot;Privilege model&quot;.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1147" href="#t1147">1147</a></span><span class="t"><span class="str">        &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1148" href="#t1148">1148</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="key">await</span> <span class="nam">_caller_is_admin</span><span class="op">(</span><span class="nam">call</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1149" href="#t1149">1149</a></span><span class="t">            <span class="key">raise</span> <span class="nam">Unauthorized</span><span class="op">(</span><span class="nam">context</span><span class="op">=</span><span class="nam">call</span><span class="op">.</span><span class="nam">context</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -2207,7 +2207,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_api_surface_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-02 22:24 +0000
+            created at 2026-10-03 03:01 +0000
         </p>
     </div>
 </footer>

@@ -42,7 +42,7 @@
 | custom\_components/home\_keeper/problem\_tasks.py                |       76 |        0 |       30 |        0 |    100% |           |
 | custom\_components/home\_keeper/profiles.py                      |      106 |        1 |       50 |        1 |     99% |       132 |
 | custom\_components/home\_keeper/reconcile.py                     |      374 |        5 |      210 |        8 |     98% |190, 210, 316, 318, 319-\>322, 395, 790-\>798, 955-\>953 |
-| custom\_components/home\_keeper/recurrence.py                    |      415 |        7 |      194 |        8 |     98% |243, 346, 358, 391, 492, 693, 1044-\>1046, 1130 |
+| custom\_components/home\_keeper/recurrence.py                    |      415 |        7 |      194 |        8 |     98% |244, 347, 359, 392, 493, 694, 1045-\>1047, 1131 |
 | custom\_components/home\_keeper/resolve.py                       |       62 |        0 |       18 |        0 |    100% |           |
 | custom\_components/home\_keeper/sensor.py                        |      169 |      109 |       42 |        0 |     28% |58, 63, 76-126, 141-165, 186-187, 191-192, 196-219, 230-265, 304-309, 323-326, 371-381, 384-388, 392-399 |
 | custom\_components/home\_keeper/sensor\_tasks.py                 |      193 |        2 |       82 |        3 |     98% |147, 180-\>175, 207 |
