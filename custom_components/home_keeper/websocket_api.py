@@ -1165,7 +1165,6 @@ async def _task_photo_op(
         vol.Required("photo_id"): str,
     }
 )
-@websocket_api.require_admin
 @websocket_api.async_response
 @_with_coordinator()
 async def ws_remove_task_photo(
@@ -1184,7 +1183,6 @@ async def ws_remove_task_photo(
         vol.Required("photo_id"): str,
     }
 )
-@websocket_api.require_admin
 @websocket_api.async_response
 @_with_coordinator()
 async def ws_set_task_photo_cover(

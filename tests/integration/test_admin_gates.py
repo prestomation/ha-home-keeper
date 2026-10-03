@@ -221,8 +221,6 @@ _ADMIN_ONLY_CALLS: dict[str, dict] = {
         "document_id": "x",
         "changes": {"name": "n"},
     },
-    "remove_task_photo": {"task_id": "x", "photo_id": "x"},
-    "set_task_photo_cover": {"task_id": "x", "photo_id": "x"},
     "export_appliance_report": {},
     "export_data": {},
     "import_data": {"document": {"home_keeper": {"format": 1}}, "dry_run": True},
@@ -753,9 +751,19 @@ def test_uploads_refuse_a_non_admin(non_admin_token, priced_asset, route):
     assert "SN-SECRET-1" not in r.text
 
 
-def test_a_task_photo_upload_refuses_a_non_admin(ha, non_admin_token):
-    # #399: a photo upload changes a task, and its reply carries the full task.
-    name = f"Photo gate probe {uuid.uuid4().hex[:8]}"
+def _photo_upload(token, task_id, photo_id):
+    return requests.post(
+        f"{HA_URL}/api/home_keeper/task_photo/{task_id}/{photo_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("probe.png", PNG_BYTES, "image/png")},
+        timeout=30,
+    )
+
+
+def test_a_non_admin_can_add_and_change_task_photos(ha, non_admin, non_admin_token):
+    # #399: a photo is task data, so it is open like add_task and update_task. A user
+    # who is not an admin adds photos from the dashboard card.
+    name = f"Photo usage probe {uuid.uuid4().hex[:8]}"
     call_service(
         ha,
         "home_keeper",
@@ -766,23 +774,25 @@ def test_a_task_photo_upload_refuses_a_non_admin(ha, non_admin_token):
     task = next(
         t for t in resp.get("service_response", resp)["tasks"] if t["name"] == name
     )
+    first, second = str(uuid.uuid4()), str(uuid.uuid4())
     try:
-        r = requests.post(
-            f"{HA_URL}/api/home_keeper/task_photo/{task['id']}/{uuid.uuid4()}",
-            headers={"Authorization": f"Bearer {non_admin_token}"},
-            files={"file": ("probe.png", PNG_BYTES, "image/png")},
-            timeout=30,
+        for photo_id in (first, second):
+            r = _photo_upload(non_admin_token, task["id"], photo_id)
+            assert r.status_code == 200, f"a non-admin could not upload: {r.text}"
+        data = {"task_id": task["id"], "photo_id": second}
+        r = _call(non_admin, "set_task_photo_cover", data)
+        assert r.status_code == 200, f"a non-admin could not set the cover: {r.text}"
+        r = _call(
+            non_admin, "remove_task_photo", {"task_id": task["id"], "photo_id": first}
         )
-        assert r.status_code == 401, (
-            f"task_photo took a non-admin upload: {r.status_code}"
-        )
+        assert r.status_code == 200, f"a non-admin could not remove a photo: {r.text}"
         resp = call_service(ha, "home_keeper", "list_tasks", {}, return_response=True)
         after = next(
             t
             for t in resp.get("service_response", resp)["tasks"]
             if t["id"] == task["id"]
         )
-        assert not after.get("photos")
+        assert [p["id"] for p in after["photos"]] == [second]
     finally:
         call_service(ha, "home_keeper", "delete_task", {"task_id": task["id"]})
 

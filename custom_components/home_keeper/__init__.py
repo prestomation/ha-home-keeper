@@ -1685,8 +1685,8 @@ def _register_services(hass: HomeAssistant) -> None:
             "expires_in": int(manuals.SERVICE_DOCUMENT_URL_TTL.total_seconds()),
         }
 
+    # The task photo services are open, like ``update_task``: a photo is task data.
     async def handle_remove_task_photo(call: ServiceCall) -> None:
-        await _verify_admin(call)
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
         _require_known("task", coord.store.get_tasks(), task_id)
@@ -1695,7 +1695,6 @@ def _register_services(hass: HomeAssistant) -> None:
             await coord.store.remove_task_photo(task_id, call.data["photo_id"])
 
     async def handle_set_task_photo_cover(call: ServiceCall) -> None:
-        await _verify_admin(call)
         coord = _coordinator()
         task_id = _task_ref(coord, call.data["task_id"])
         _require_known("task", coord.store.get_tasks(), task_id)

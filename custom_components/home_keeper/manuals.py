@@ -1031,9 +1031,8 @@ class HomeKeeperTaskPhotoView(HomeAssistantView):
         )
         return web.FileResponse(path, headers={hdrs.CONTENT_DISPOSITION: disposition})
 
-    # Admin-only, like the photo services: a write changes the task, and the reply
-    # carries the full task.
-    @require_admin
+    # Open, like ``add_task``: a photo is task data, and the reply is the task, which
+    # any user can already read. The real-user check below still stops a signed URL.
     async def post(
         self, request: web.Request, task_id: str, photo_id: str
     ) -> web.Response:
