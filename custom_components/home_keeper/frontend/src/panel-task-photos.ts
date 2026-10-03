@@ -12,6 +12,14 @@ import type { PanelHost } from './panel-host';
 import { MDI_DELETE } from './panel-icons';
 import { photoImg, photoLink } from './panel-photo-markup';
 import { IMAGE_ACCEPT, filePicker, renderUploadStatus, runUpload, uploadButtonLabel } from './panel-upload';
+import {
+  STAGED_PHOTO_ACCEPT,
+  makeStagedCover,
+  rejectionMessage,
+  stageFiles,
+  stagedTilesHtml,
+  unstage,
+} from './photo-staging';
 import { canAddPhoto, photosOf } from './task-photos';
 import type { Task } from './types';
 import { escapeHTML, randomId, toast } from './utils';
@@ -41,8 +49,22 @@ export function photosEditable(task: Task): boolean {
  */
 export function photosSection(p: PanelHost, task: Task): string {
   const photos = photosOf(task);
+  if (!photos.length && !photosEditable(task)) return '';
+  return `
+      <div class="hk-section">${escapeHTML(t('photos.title'))}
+        <span class="hk-section-count">${escapeHTML(
+          t('photos.count', { n: String(photos.length), max: String(MAX_TASK_PHOTOS) }),
+        )}</span></div>
+      <ha-card class="hk-detail-card hk-photos-card"><div class="hk-detail-inner">
+        ${photoStripHtml(p, task)}
+      </div></ha-card>`;
+}
+
+/** The hint, the strip of tiles with the add tile, and the upload status line. The
+ *  task page and the Edit form both show it. */
+function photoStripHtml(p: PanelHost, task: Task): string {
+  const photos = photosOf(task);
   const editable = photosEditable(task);
-  if (!photos.length && !editable) return '';
   const tiles = photos
     .map((photo, i) => {
       const actions = editable
@@ -75,21 +97,14 @@ export function photosSection(p: PanelHost, task: Task): string {
         </button>`
       : '';
   const hint = !photos.length ? `<p class="hk-photo-hint">${escapeHTML(t('photos.empty'))}</p>` : '';
-  return `
-      <div class="hk-section">${escapeHTML(t('photos.title'))}
-        <span class="hk-section-count">${escapeHTML(
-          t('photos.count', { n: String(photos.length), max: String(MAX_TASK_PHOTOS) }),
-        )}</span></div>
-      <ha-card class="hk-detail-card hk-photos-card"><div class="hk-detail-inner">
-        ${hint}
+  return `${hint}
         <div class="hk-photo-strip">${tiles}${add}</div>
-        <div class="hk-photo-upload-status"></div>
-      </div></ha-card>`;
+        <div class="hk-photo-upload-status"></div>`;
 }
 
 /** Wire the Photos section: the add tile, the cover and remove buttons, and the
  *  upload progress and error under the strip. */
-export function wireTaskPhotos(p: PanelHost, root: ShadowRoot, task: Task): void {
+export function wireTaskPhotos(p: PanelHost, root: ParentNode, task: Task): void {
   const key = taskPhotoUploadKey(task.id);
   const status = root.querySelector<HTMLElement>('.hk-photo-upload-status');
   if (status) renderUploadStatus(p, status, key);
@@ -141,4 +156,90 @@ async function photoAction(p: PanelHost, run: () => Promise<Task>): Promise<void
     toast(p, String((err as { message?: string })?.message || err));
   }
   await p._refresh();
+}
+
+/** The heading of the form's Photos section, with the "n of 6" count. */
+function formPhotosHeading(n: number): HTMLElement {
+  const heading = document.createElement('div');
+  heading.className = 'hk-eyebrow hk-form-section hk-form-photos-head';
+  heading.innerHTML = `${escapeHTML(t('photos.title'))} <span class="hk-section-count">${escapeHTML(
+    t('photos.count', { n: String(n), max: String(MAX_TASK_PHOTOS) }),
+  )}</span>`;
+  return heading;
+}
+
+/**
+ * The Photos section of the task form, under Basics.
+ *
+ * - A new task has no id yet, so the photos wait in the browser (`p._edit.photos`)
+ *   and upload after Create.
+ * - A saved task shows the strip of its task page, and each change takes effect at
+ *   once. It reads the stored task, not the draft, so an upload shows at once.
+ *
+ * Returns null when the form shows no Photos section.
+ */
+export function formPhotosSection(p: PanelHost, task: Partial<Task>): HTMLElement | null {
+  const wrap = document.createElement('div');
+  wrap.className = 'hk-form-photos';
+  if (task.id) {
+    const stored = p._tasks.find((x) => x.id === task.id);
+    if (!stored || (!photosOf(stored).length && !photosEditable(stored))) return null;
+    const body = document.createElement('div');
+    body.className = 'hk-form-photos-body';
+    body.innerHTML = photoStripHtml(p, stored);
+    wrap.append(formPhotosHeading(photosOf(stored).length), body);
+    wireTaskPhotos(p, body, stored);
+    return wrap;
+  }
+  const list = p._edit.photos ?? [];
+  const body = document.createElement('div');
+  body.className = 'hk-form-photos-body';
+  const add =
+    list.length < MAX_TASK_PHOTOS
+      ? `<button type="button" class="hk-photo-add hk-staged-add">
+          <ha-svg-icon class="hk-photo-add-icon"></ha-svg-icon>
+          <span>${escapeHTML(t('photos.add'))}</span>
+        </button>`
+      : '';
+  body.innerHTML = `<div class="hk-photo-strip">${stagedTilesHtml(list, true)}${add}</div>
+    <p class="hk-photo-hint hk-staged-help">${escapeHTML(t('photos.stagedHelp'))}</p>`;
+  wrap.append(formPhotosHeading(list.length), body);
+  body.querySelectorAll<HTMLElement>('.hk-photo-add-icon').forEach((el) => setIcon(el, MDI_CAMERA_PLUS));
+  body.querySelectorAll<HTMLElement>('.hk-staged-cover').forEach((el) => setIcon(el, MDI_STAR_OUTLINE));
+  body.querySelectorAll<HTMLElement>('.hk-staged-remove').forEach((el) => setIcon(el, MDI_DELETE));
+  const addBtn = body.querySelector<HTMLElement>('.hk-staged-add');
+  if (addBtn) {
+    const picker = document.createElement('input');
+    picker.type = 'file';
+    picker.accept = STAGED_PHOTO_ACCEPT;
+    picker.multiple = true;
+    picker.style.display = 'none';
+    picker.addEventListener('change', () => {
+      const res = stageFiles(p._edit.photos ?? [], Array.from(picker.files ?? []), (f) =>
+        URL.createObjectURL(f),
+      );
+      picker.value = '';
+      p._edit.photos = res.list;
+      const first = res.rejected[0];
+      if (first) toast(p, rejectionMessage(first.file, first.reason));
+      p._render();
+    });
+    addBtn.addEventListener('click', () => picker.click());
+    addBtn.after(picker);
+  }
+  body.querySelectorAll<HTMLElement>('.hk-staged-cover').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      p._edit.photos = makeStagedCover(p._edit.photos ?? [], btn.dataset.stagedKey ?? '');
+      p._render();
+    });
+  });
+  body.querySelectorAll<HTMLElement>('.hk-staged-remove').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      p._edit.photos = unstage(p._edit.photos ?? [], btn.dataset.stagedKey ?? '', (u) =>
+        URL.revokeObjectURL(u),
+      );
+      p._render();
+    });
+  });
+  return wrap;
 }

@@ -47,6 +47,7 @@ import {
 } from './panel-settings';
 import { STYLES } from './panel-styles';
 import { renderTaskForm } from './panel-task-form';
+import { releaseStaged, uploadStaged } from './photo-staging';
 import {
   LS_ASSET_FILTER,
   LS_ASSET_VIEW,
@@ -1102,6 +1103,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     return this._detail.kind === kind && !!id && this._detail.id === id;
   }
   _closeForm(): void {
+    releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
     this._edit = { open: false, task: null };
     this._render();
   }
@@ -1135,6 +1137,23 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       if (desired !== consumableLinkToken(saved)) {
         const [assetId, partId] = desired ? desired.split(':') : ['', ''];
         await api.setTaskConsumable(this._hass, saved.id, assetId || null, partId || null);
+      }
+      // Photos picked in the New task form upload now that the task has an id. A
+      // failed photo does not undo the task: the form closes, and the task page opens
+      // so the user can add the photo again there.
+      const staged = this._edit.photos ?? [];
+      if (staged.length) {
+        const hass = this._hass;
+        const { failed } = await uploadStaged(staged, (photoId, file) =>
+          api.uploadTaskPhoto(hass, saved.id, photoId, file),
+        );
+        if (failed.length) {
+          this._closeForm();
+          toast(this, t('photos.uploadPartial', { n: String(failed.length) }));
+          await this._refresh();
+          this._openDetail('task', saved.id);
+          return;
+        }
       }
       this._closeForm();
       await this._refresh();

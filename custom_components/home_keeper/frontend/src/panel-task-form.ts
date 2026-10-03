@@ -34,6 +34,7 @@ import { isManagedOrphan } from './panel-chips';
 import { openConfirmDialog } from './panel-dialogs';
 import { setIcon } from './panel-history';
 import type { PanelHost } from './panel-host';
+import { formPhotosSection } from './panel-task-photos';
 import { MDI_CLOSE, SENSOR_DOCS_URL } from './panel-icons';
 import { isDisplayableDocument, documentLabel } from './documents';
 import type { Asset, Task } from './types';
@@ -519,6 +520,11 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
       heading.className = 'hk-eyebrow hk-form-section';
       heading.textContent = t(`form.section.${section.key}`);
       formWrap.append(heading, form);
+      // The photos are part of what a task is, so they sit with the name and notes.
+      if (section.key === 'basics') {
+        const photos = formPhotosSection(p, task);
+        if (photos) formWrap.appendChild(photos);
+      }
     }
   }
   inner.appendChild(formWrap);

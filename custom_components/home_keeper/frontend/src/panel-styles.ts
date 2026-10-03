@@ -1869,6 +1869,8 @@ export const STYLES = `
   .hk-photo-add:hover, .hk-photo-add:focus-visible { border-color: var(--primary-color); color: var(--primary-color); }
   .hk-photo-add[disabled] { cursor: default; opacity: 0.6; }
   .hk-photo-upload-status:not(:empty) { margin-top: 10px; }
+  .hk-staged-help { margin: 10px 0 0; }
+  .hk-form-photos-head .hk-section-count { margin-inline-start: 6px; }
   .hk-grow-with-cover { display: flex; gap: 10px; align-items: center; }
   .hk-grow-text { flex: 1; min-width: 0; }
   .hk-row-cover {
