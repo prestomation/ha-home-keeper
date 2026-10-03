@@ -129,6 +129,75 @@ pytest_add_cli_args_test_selection = ["tests/unit"]
 # ci/mutation_report.py fails the run if they drift.
 break = 80
 
+# ci/docs.py: the docs CLI and the docs gate (lint.yml, `docs-audit`). A doc's kind
+# comes from the first glob here that matches its path; `strip` is cut from the path
+# to make the doc id. A kind with no cap (the user guide) gets only the link check.
+[tool.docs-audit]
+line_width = 100
+max_exceptions = 2
+duplicate_min_words = 12
+# Every file here must be in at least one design doc's `implements`.
+coverage = [
+    "custom_components/home_keeper/*.py",
+    "custom_components/home_keeper/frontend/src/**/*.ts",
+]
+uncovered = []
+link_scan = ["**/*.md"]
+link_skip = ["CHANGELOG.md", "**/node_modules/**", "website/docs/guide/**", "website/developer/**"]
+# Where a backticked file or `module.func` reference may live.
+code_dirs = [
+    "custom_components/home_keeper",
+    "custom_components/home_keeper/frontend/src",
+    "custom_components/home_keeper/frontend",
+    "ci",
+    "tests",
+    "docs",
+    "website/scripts",
+]
+code_ref_ignore = ["**/dist/**", "dist/**", "docs/videos/**"]
+# Files whose text is searched for a `docs/...md` path that must exist.
+# Test fixtures name docs that do not exist on purpose.
+doc_ref_skip = ["tests/frontend/**", "tests/unit/test_docs_cli.py"]
+doc_ref_suffixes = [".py", ".ts", ".js", ".mjs", ".md", ".yml", ".yaml", ".toml", ".sh", ".ini", ".json"]
+budgets = [{ files = ["CLAUDE.md", "AGENTS.md"], max_lines = 250 }]
+kinds = [
+    { glob = "docs/design/*.md", kind = "design", strip = "docs/design/" },
+    { glob = "docs/guide/**/*.md", kind = "guide", strip = "docs/" },
+    { glob = "docs/*.md", kind = "reference", strip = "docs/" },
+    { glob = ".amazonq/rules/*.md", kind = "rules", strip = ".amazonq/" },
+    { glob = ".claude/skills/**/*.md", kind = "skill", strip = ".claude/skills/" },
+    { glob = "AGENTS.md", kind = "process" },
+    { glob = "CLAUDE.md", kind = "process" },
+    { glob = "RELEASE.md", kind = "process" },
+    { glob = "website/README.md", kind = "process" },
+    { glob = "IDEAS.md", kind = "backlog" },
+]
+
+[tool.docs-audit.caps]
+design = 150
+reference = 300
+rules = 200
+process = 200
+backlog = 300
+skill = 200
+
+# Text that tells history instead of the current design. Prose only; code spans and
+# fences are not checked.
+[tool.docs-audit.history]
+all = [
+    '(?i)\bthis PR\b',
+    '\bPR #\d+',
+    '(?i)\boriginally\b',
+    '(?i)\bpreviously\b',
+    '(?i)\bwe first\b',
+    '(?i)\bused to be\b',
+    '(?i)\bhistorically\b',
+    '\bPhase \d',
+    'Status:',
+    '(?i)\bwritten (in )?(january|february|march|april|may|june|july|august|september|october|november|december) \d{4}',
+]
+design = ['(?<![\w/&-])#\d{2,}\b']
+
 # Strict typing is a Platinum quality-scale gate (see custom_components/home_keeper/
 # quality_scale.yaml). CI runs `mypy custom_components/home_keeper` with Home
 # Assistant installed so HA's own types resolve; keep the integration error-free.

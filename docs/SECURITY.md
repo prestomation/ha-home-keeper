@@ -1,10 +1,13 @@
+---
+title: Security model
+summary: What admins and non-admin users can do in Home Keeper, for maintainers and admins.
+---
+
 # Security model
 
 Home Keeper has one rule: only an admin can manage the home. Any signed-in user
 can use it. Admins control the configuration and the appliance costs. Any user can
 see due tasks and complete them.
-
-This page shows what a non-admin user can and cannot do.
 
 ## Why this rule exists
 
@@ -24,8 +27,8 @@ The risks are small. A guest account must not:
 
 ## Admin only
 
-The Home Keeper panel is admin-only. It is in the Home Assistant sidebar. A non-admin user does not see
-the panel.
+The Home Keeper panel in the Home Assistant sidebar is admin-only. A non-admin user does
+not see the panel.
 
 Home Keeper gates each admin operation in 2 places: the websocket API the
 panel uses, and the matching `home_keeper.*` service.
@@ -41,10 +44,9 @@ panel uses, and the matching `home_keeper.*` service.
 | The appliance report (costs, serials, value totals) | `export_appliance_report` |
 | Data export and import (every task, note, serial and cost) | `export_data`, `import_data` |
 
-Home Keeper creates a Home Assistant device for each appliance, and removes
-the device when it deletes the appliance. Home Assistant reserves device
-registry changes for admins, so appliance changes are admin-only for this
-reason too.
+Home Keeper creates a Home Assistant device for each appliance and removes it with the
+appliance. Home Assistant reserves device registry changes for admins, so this is a second
+reason that appliance changes are admin-only.
 
 Any signed-in user can read the device registry, which shows the name, make,
 model and area of each appliance. For this reason, Home Keeper keeps the serial
@@ -78,8 +80,8 @@ fields to show the progress, such as "17 of 25 wears". The user who records the
 uses can then see the count.
 
 The narrowed view withholds purchase costs, part costs, part vendors, part numbers,
-serial numbers, warranty dates, and free-text custom fields. The narrowed view is an allowlist. A new appliance field stays private until a
-developer adds it to the allowlist.
+serial numbers, warranty dates, and free-text custom fields. The narrowed view is an
+allowlist: a new appliance field stays private until a developer adds it.
 
 ## Notifications
 

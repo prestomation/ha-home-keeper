@@ -86,7 +86,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         # and Developer tools (and every ``config/*`` websocket command). Usage is
         # unaffected: a non-admin household member still completes tasks through the
         # todo list, the calendar, the per-task device entities and the dashboard
-        # card. See docs/DESIGN.md → "Privilege model".
+        # card. See docs/design/architecture.md.
         require_admin=True,
         config={
             "_panel_custom": {

@@ -1,54 +1,59 @@
+---
+title: Glue integrations
+summary: How to write a small integration that connects a third-party integration to Home Keeper.
+---
+
 # Glue integrations
 
-A **glue integration** is a small, standalone Home Assistant integration whose only job
-is to **bridge another integration to Home Keeper**. It owns no schedule logic and no UI
-of its own. It watches the other integration's signals and translates them into Home
-Keeper service calls (and listens for Home Keeper completions to translate back).
+A **glue integration** is a small, standalone Home Assistant integration. Its only job is
+to **connect another integration to Home Keeper**. It has no schedule logic and no UI. It
+watches the signals of the other integration and changes them into Home Keeper service
+calls. It also listens for Home Keeper completions and sends them back.
 
-This is the lightest way to make a third-party integration "Home Keeper aware" **without
-modifying it**. The reference example is
+With glue, a third-party integration can work with Home Keeper **without changes to it**.
+The reference example is
 [Home Keeper / Battery Notes](https://github.com/prestomation/ha-home-keeper-battery-notes),
 which connects [Battery Notes](https://github.com/andrew-codechimp/HA-Battery-Notes) to
 Home Keeper.
 
 ## When to use a glue integration
 
-Reach for the glue pattern when:
+Use the glue pattern when:
 
-- The source integration **already exposes the state you care about** (an event, a sensor,
-  a `binary_sensor`) but knows nothing about Home Keeper.
-- You **can't or don't want to modify** the source integration (it's third-party, or the
-  Home-Keeper link is opt-in and shouldn't be a hard dependency).
-- The mapping is essentially *"when this condition is true, a task is due; when it's
-  resolved, the task is done."*
+- The source integration **already shows the state you need** (an event, a sensor, a
+  `binary_sensor`) but does not know about Home Keeper.
+- You **cannot or do not want to change** the source integration: it is third-party,
+  or the Home Keeper link is optional and must not be a hard dependency.
+- The mapping is *"when this condition is true, a task is due; when it is resolved, the
+  task is done."*
 
-If you own the source integration, you don't need glue. Call the Home Keeper services
-directly from it (see [INTEGRATING.md](INTEGRATING.md)). Glue exists precisely for the
-case where the two sides must stay decoupled.
+If you own the source integration, you do not need glue. Call the Home Keeper services
+directly from it (see [INTEGRATING.md](INTEGRATING.md)). Glue is for the case where the
+2 sides must stay separate.
 
 ## The shape of the glue
 
 A glue integration is a normal custom integration with a config entry. In
 `async_setup_entry` it:
 
-1. **Discovers** the things to track from the source integration (e.g. enumerates Battery
-   Notes devices, or subscribes to its events).
+1. **Finds** the things to track in the source integration. Battery Notes glue lists
+   the Battery Notes devices or subscribes to their events.
 2. **Maps** each one to a Home Keeper **triggered** task (armed when the condition is
-   true, dormant otherwise) using `home_keeper.add_task` /
-   `home_keeper.trigger_task` / `home_keeper.complete_task`.
-3. **Listens** to `home_keeper_task_completed` so a completion made *in Home Keeper* is
-   reflected back into the source integration (and vice-versa), with loop prevention.
+   true, dormant at other times) with `home_keeper.add_task`,
+   `home_keeper.trigger_task` and `home_keeper.complete_task`.
+3. **Listens** to `home_keeper_task_completed`, so a completion made *in Home Keeper*
+   goes back to the source integration, with loop prevention.
 
-Everything it does is the **triggered-task contract** already documented in
-[INTEGRATING.md §7](INTEGRATING.md#7-condition-driven-triggered-tasks). The glue
-integration is just a thin client of it. Guard every call with
-`hass.services.has_service("home_keeper", "<service>")` so the glue degrades to a no-op
-when Home Keeper isn't installed.
+All of this is the **triggered-task contract** in
+[INTEGRATING.md §7](INTEGRATING.md#7-condition-driven-triggered-tasks). The glue is a
+thin client of it. Guard every call with
+`hass.services.has_service("home_keeper", "<service>")`, so the glue does nothing when
+Home Keeper is not installed.
 
-## Worked example: Battery Notes
+## Example: Battery Notes
 
-Battery Notes tracks each device's battery and flips a **low-battery** signal when it
-needs replacing. The glue maps that one-to-one onto a Home Keeper triggered task:
+Battery Notes tracks the battery of each device and sets a **low-battery** signal when the
+battery needs replacement. The glue maps that signal to a Home Keeper triggered task:
 
 | Battery Notes says… | Glue calls | Result in Home Keeper |
 |---|---|---|
@@ -61,47 +66,46 @@ needs replacing. The glue maps that one-to-one onto a Home Keeper triggered task
 | battery **replaced**, from either side | (no extra call) | the completion takes 2 AAA off that part's stock |
 | stock at or below its reorder point | (no extra call) | a *"Buy AAA"* task, and a line on the shopping list |
 
-The appliance is **managed**. The glue owns its name and its list of parts. The user
-owns every stock number. A type the user has not counted yet stays untracked and opens
-no buy task. See [INTEGRATING.md §8](INTEGRATING.md#8-managing-an-appliance) for the
-`managed_by` block on an appliance and for `update_managed_asset`. The `quantity` on a
-consumable link is there too.
+The appliance is **managed**. The glue owns its name and its list of parts. The user owns
+every stock number. A type that the user did not count stays untracked and opens no buy
+task. See [INTEGRATING.md §8](INTEGRATING.md#8-managing-an-appliance) for the
+`managed_by` block, `update_managed_asset`, and the `quantity` on a consumable link.
 
-Because the task **persists across cycles** instead of being deleted and recreated, its
-completion history accumulates, so you learn the real cadence ("this smoke-detector
-battery lasts ~13 months") instead of losing it on every replacement.
+The task **stays across cycles**. The glue does not delete it and make it again, so its
+completion history grows. You learn the real cadence ("this smoke-detector battery lasts
+about 13 months").
 
-### Keeping the two sides in sync without loops
+### Keep the 2 sides in sync without loops
 
-The danger is a feedback loop: a replacement completes the task → Home Keeper fires
-`home_keeper_task_completed` → the glue's listener marks it replaced in Battery Notes →
-which might complete the task again. Break it exactly as
+A feedback loop is possible: a replacement completes the task, Home Keeper fires
+`home_keeper_task_completed`, the listener marks the battery replaced in Battery Notes,
+and that can complete the task again. Stop it as
 [INTEGRATING.md §4](INTEGRATING.md#4-two-way-sync-and-loop-prevention) describes:
 
-- When the **glue** completes a task, pass a recognizable `origin` (e.g. your domain), and
-  have the listener **ignore events whose `origin` is its own**.
-- On the inbound path (a completion the glue did not initiate), apply the side-effect
-  **without** calling `complete_task` again.
+- When the **glue** completes a task, pass a known `origin`, such as your domain.
+  The listener **ignores events whose `origin` is its own**.
+- On the inbound path (a completion that the glue did not start), apply the side effect
+  **without** a second call to `complete_task`.
 
-Either guard closes the loop. Use both.
+Each guard stops the loop. Use both.
 
-## Reconciling on restart
+## Reconcile on restart
 
-Triggered tasks are persistent, so on `async_setup_entry` the glue should reconcile rather
-than blindly recreate:
+Triggered tasks stay, so on `async_setup_entry` the glue must reconcile, not make the
+tasks again:
 
-- Call `home_keeper.list_tasks` and match on your `source` namespace to find tasks you
-  already created.
-- For each tracked thing: if no task exists, `add_task`; then **arm or clear** it
-  (`trigger_task` / `complete_task`) to match the source integration's *current* state.
-- Only `delete_task` when the tracked thing disappears for good.
+- Call `home_keeper.list_tasks` and match on your `source` namespace to find your tasks.
+- For each tracked thing: if no task exists, call `add_task`. Then **arm or clear** it
+  (`trigger_task` / `complete_task`) to match the *current* state of the source.
+- Call `delete_task` only when the tracked thing is gone permanently.
 
-See [INTEGRATING.md §5](INTEGRATING.md#5-lifecycle) for the full lifecycle, and
-[INTEGRATING.md §6](INTEGRATING.md#6-declaring-managed-ownership-optional) for declaring
-`managed_by` so Home Keeper shows a *"Managed by …"* chip, locks fields the user
-shouldn't edit, and cleans up orphaned tasks if the glue is removed.
+See [INTEGRATING.md §5](INTEGRATING.md#5-lifecycle) for the full lifecycle. See
+[INTEGRATING.md §6](INTEGRATING.md#6-declaring-managed-ownership-optional) to declare
+`managed_by`. Home Keeper then shows a *"Managed by …"* chip, locks the fields the user
+must not edit, and cleans up orphaned tasks if the glue is removed.
 
 ## Testing
 
-Test the glue end-to-end against Home Keeper's bundled fake (no panel, storage, or
-entities required). See [INTEGRATING.md → Testing your integration](INTEGRATING.md#testing-your-integration).
+Test the glue end-to-end against the fake that Home Keeper includes. It needs no panel,
+storage, or entities. See
+[INTEGRATING.md → Testing your integration](INTEGRATING.md#testing-your-integration).

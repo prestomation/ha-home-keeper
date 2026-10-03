@@ -343,7 +343,7 @@ DELETE_TASK_SCHEMA = vol.Schema(
 # ``origin`` is a free-form marker the caller passes so it can recognise (and ignore)
 # the completion event it triggered. Home Keeper only echoes it back in the event.
 # The metadata fields (note/cost/photo/who) are the optional per-completion context;
-# ``photo`` is an image-upload id and ``who`` a person entity id.
+# ``photo`` is an image URL and ``who`` a person entity id.
 COMPLETE_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,

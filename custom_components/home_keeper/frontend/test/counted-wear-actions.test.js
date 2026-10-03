@@ -4,7 +4,7 @@ import { definePanelStubs, waitFor } from './panel-harness.js';
 /**
  * Done on a counted wear item's replacement task, on all 3 surfaces that draw one.
  *
- * `docs/COUNTED_WEAR_ITEMS_PLAN.md` always said an early completion was allowed and
+ * `docs/design/appliances.md` says an early completion was allowed and
  * restarts the count, and `store.complete_task` has always honoured it — it stamps the
  * part's `last_replaced`, consumes a spare, and moves `last_completed`, which is the
  * instant `reconcile.cycle_start` measures the next count from. Only the panel

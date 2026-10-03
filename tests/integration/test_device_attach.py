@@ -2,7 +2,7 @@
 
 Home Keeper's headline device behaviour is that a task attached to a device another
 integration owns puts its per-task entities **on that device's page** — the
-Battery-Notes-style merge described in ``docs/DESIGN.md`` → "Device attachment".
+Battery-Notes-style merge described in ``docs/design/appliances.md``.
 ``coordinator.device_info_for_task`` implements it by copying the foreign device's
 identifiers and connections verbatim into a ``DeviceInfo``.
 

@@ -352,8 +352,8 @@ function listHas(list: string[] | undefined, id: string | null | undefined): boo
  * `next_due` of the moment its sensor went bad while the problem stands, so it reads as
  * overdue, and drops back to `next_due: null` (excluded below) once the sensor clears.
  * Dropping the armed ones outright hid every synced problem from every Profile, under
- * every status (#248). Walk notifications still leave them out, but that is a delivery
- * rule in `notifications.is_walkable`, not part of the filter.
+ * every status (#248). Walk notifications keep them too, and
+ * `notifications.actions_for` gives them a Snooze button.
  */
 export function profileMatches(
   task: Task,
