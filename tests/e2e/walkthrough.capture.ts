@@ -33,6 +33,7 @@
  * context (reusing the auth state global-setup wrote) rather than the default
  * `page` fixture, then saves the video to a stable name we can transcode.
  */
+import * as fs from 'fs';
 import { test, expect, Browser, Locator, Page } from '@playwright/test';
 import { resolve } from 'path';
 import {
@@ -345,6 +346,34 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT * 2);
   await page.goBack();
   await expect(panel.locator('#hk-list')).toBeVisible();
+
+  // 1g2. Photos in the New task form (#399). Pick 2 photos under the notes, show
+  //      them as the cover and the strip, then Cancel: nothing is stored.
+  await panel.locator('#add-btn').click();
+  const formPhotos = panel.locator('#hk-task-form .hk-form-photos');
+  await expect(formPhotos).toBeVisible();
+  await panel
+    .locator('#hk-task-form ha-selector-text')
+    .first()
+    .locator('input, textarea')
+    .fill('Replace the under-sink filter');
+  await formPhotos.locator('.hk-staged-add + input[type="file"]').setInputFiles(
+    ['filter-housing', 'cartridge-label'].map((stem) => {
+      const dir = resolve(
+        __dirname,
+        '../integration/ha_config/home_keeper/task_photos',
+        TASK.fridgeFilter,
+      );
+      const file = fs.readdirSync(dir).find((f) => f.endsWith(`__${stem}.jpg`));
+      if (!file) throw new Error(`no seeded photo ${stem}`);
+      return { name: `${stem}.jpg`, mimeType: 'image/jpeg', buffer: fs.readFileSync(resolve(dir, file)) };
+    }),
+  );
+  await expect(formPhotos.locator('.hk-staged')).toHaveCount(2);
+  await formPhotos.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-task-form')).toHaveCount(0, { timeout: 10_000 });
 
   // 1h. After photos (#399). The caret beside Done on a one-tap task offers "Done
   //     with photo or note…", and a done one-off shows its after photo beside the

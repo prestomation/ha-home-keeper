@@ -12,6 +12,7 @@ then drives both surfaces — REST service calls and the websocket API — with 
 tokens, asserting the admin succeeds where the non-admin is refused.
 """
 
+import base64
 import importlib.util
 import sys
 import uuid
@@ -751,11 +752,18 @@ def test_uploads_refuse_a_non_admin(non_admin_token, priced_asset, route):
     assert "SN-SECRET-1" not in r.text
 
 
+# A 1x1 PNG that decodes. The upload makes a thumbnail, so it refuses PNG_BYTES above,
+# which has the right magic bytes but no readable image.
+PHOTO_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
 def _photo_upload(token, task_id, photo_id):
     return requests.post(
         f"{HA_URL}/api/home_keeper/task_photo/{task_id}/{photo_id}",
         headers={"Authorization": f"Bearer {token}"},
-        files={"file": ("probe.png", PNG_BYTES, "image/png")},
+        files={"file": ("probe.png", PHOTO_PNG, "image/png")},
         timeout=30,
     )
 
