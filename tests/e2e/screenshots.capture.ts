@@ -8,6 +8,8 @@
  * text fields live inside `ha-selector-text` (fill the inner input) and dropdowns
  * are `ha-select` built on `ha-dropdown` (open, then click the role="menuitem").
  */
+import * as fs from 'fs';
+import * as path from 'path';
 import { test, expect, Locator, Page } from '@playwright/test';
 import {
   authToken,
@@ -18,7 +20,13 @@ import {
   openTaskTab,
   setTaskLayout,
 } from './tests/helpers';
-import { FIRMWARE_PRESET, markAllPresetsSeen, suggestOnly } from './user-data';
+import {
+  FIRMWARE_PRESET,
+  INTRO_KEY,
+  markAllPresetsSeen,
+  setUserData,
+  suggestOnly,
+} from './user-data';
 import {
   centre,
   expandGroup,
@@ -73,6 +81,54 @@ const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
 
 
+/** The seeded photos of the fridge filter task, as files to pick in a form. */
+const FORM_PHOTOS = ['filter-housing', 'cartridge-label'].map((stem) => {
+  const dir = path.resolve(
+    __dirname,
+    '../integration/ha_config/home_keeper/task_photos',
+    TASK.fridgeFilter,
+  );
+  const file = fs.readdirSync(dir).find((f) => f.endsWith(`__${stem}.jpg`));
+  if (!file) throw new Error(`no seeded photo ${stem}`);
+  return { name: `${stem}.jpg`, mimeType: 'image/jpeg', buffer: fs.readFileSync(path.join(dir, file)) };
+});
+
+/**
+ * Photos in the New task form (#399) at one width: 2 picked photos in the Photos
+ * section under the notes. The shot takes no Create, so the store does not change.
+ */
+async function captureFormPhotos(page: Page, panel: Locator, phone: boolean): Promise<void> {
+  await openPanel(page);
+  const section = panel.locator('#hk-task-form .hk-form-photos');
+  // The page before this one can still finish a navigation, which reloads the panel
+  // and closes the form. So open the form and pick the photos again until both hold.
+  await expect(async () => {
+    if (!(await section.isVisible())) await panel.locator('#add-btn').click({ timeout: 5_000 });
+    await panel
+      .locator('#hk-task-form ha-selector-text')
+      .first()
+      .locator('input, textarea')
+      .fill('Replace the under-sink filter', { timeout: 5_000 });
+    await section
+      .locator('.hk-staged-add + input[type="file"]')
+      .setInputFiles(FORM_PHOTOS, { timeout: 5_000 });
+    await expect(section.locator('.hk-staged')).toHaveCount(2, { timeout: 5_000 });
+  }).toPass({ timeout: 45_000 });
+  for (const img of await section.locator('.hk-staged img').all()) {
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0))
+      .toBe(true);
+  }
+  await centre(section);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  await page.screenshot({
+    path: `${OUT}/${phone ? '58l-panel-mobile-task-form-photos' : '58k-panel-task-form-photos'}.png`,
+  });
+  await panel.locator('#f-cancel').click();
+  await expect(panel.locator('#hk-task-form')).toHaveCount(0, { timeout: 10_000 });
+}
+
 /** Fill the input of the nth ha-form text selector within a scope. */
 /**
  * The after photo (#399) at one width: the details entry in the Done menu, the
@@ -106,7 +162,8 @@ async function captureAfterPhotos(page: Page, panel: Locator, phone: boolean): P
   await expect(split.locator('.hk-defer-menu')).toBeHidden();
 
   const completed = panel.locator('details.hk-group[data-group-key="status:completed"]');
-  await completed.locator('summary').click();
+  // The open state is kept per browser, so a run before this one can leave it open.
+  await expandGroup(completed);
   const after = completed.locator(
     `.detail-open[data-detail-id="${TASK.carRegistration}"] .hk-row-after img`,
   );
@@ -122,7 +179,9 @@ async function captureAfterPhotos(page: Page, panel: Locator, phone: boolean): P
     ),
   });
   // The open state is kept per browser, and later shots expect the group closed.
-  await completed.locator('summary').click();
+  if (await completed.evaluate((el: HTMLDetailsElement) => el.open)) {
+    await completed.locator('summary').click();
+  }
 
   await page.goto(`/home-keeper/tasks/${TASK.carRegistration}`, { waitUntil: 'domcontentloaded' });
   const tiles = panel.locator('.hk-head-photos img');
@@ -333,6 +392,9 @@ async function showPresetSuggestions(
 }
 
 test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
+  // Step 0 shows the first-run intro, so start with it not dismissed: an earlier run
+  // on the same container dismisses it.
+  await setUserData(authToken(), INTRO_KEY, false);
   // 1. The admin sidebar panel — task list with floating + fixed + overdue tasks.
   await openPanel(page);
   const panel = page.locator('home-keeper-panel').first();
@@ -431,6 +493,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 58e/58g/58i. After photos (#399), desktop.
   await captureAfterPhotos(page, panel, false);
+  // 58k. Photos in the New task form (#399), desktop.
+  await captureFormPhotos(page, panel, false);
   await openPanel(page);
   await panel.locator(`.detail-open[data-detail-id="${TASK.fridgeFilter}"]`).click();
   await expect(panel.locator('.hk-subtab[data-tab="schedule"].active')).toBeVisible();
@@ -2687,6 +2751,8 @@ test('capture Home Keeper panel + usage screenshots', async ({ page }) => {
 
   // 58f/58h/58j. After photos (#399), phone.
   await captureAfterPhotos(page, panel, true);
+  // 58l. Photos in the New task form (#399), phone.
+  await captureFormPhotos(page, panel, true);
 
   // The task layout is stored per user on the server, so it outlives this capture
   // and would greet the next run — and the e2e suite — in whatever the last shot

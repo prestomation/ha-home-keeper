@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { authToken, openPanel, trackPanelErrors } from './helpers';
+import {
+  authToken,
+  deleteTask,
+  listTasks,
+  openCardDashboard,
+  openPanel,
+  trackPanelErrors,
+} from './helpers';
 import { PHOTO, TASK } from '../fixture-ids';
 
 /**
@@ -218,5 +225,94 @@ test.describe('After photos (#399)', { tag: '@responsive' }, () => {
     const row = completed.locator(`.detail-open[data-detail-id="${TASK.carRegistration}"]`);
     await expect(row.locator('.hk-row-after img.hk-row-cover')).toHaveAttribute('src', AFTER);
     await expect(row.locator('.hk-row-after-check')).toBeVisible();
+  });
+});
+
+/**
+ * Photos when you create a task (#399). The form keeps the picked photos in the
+ * browser and uploads them after Create, in order, so the first one is the cover.
+ * The panel and the card do the same.
+ */
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+test.describe('Photos in the New task form (#399)', { tag: '@responsive' }, () => {
+  let created: string[] = [];
+  test.afterEach(async () => {
+    await Promise.all(created.map(deleteTask));
+    created = [];
+  });
+
+  test('the panel form uploads the picked photos after Create, the cover first', async ({
+    page,
+  }) => {
+    const errors = trackPanelErrors(page);
+    await openPanel(page);
+    const panel = page.locator('home-keeper-panel').first();
+    const NAME = 'E2E photo form probe';
+
+    await panel.locator('#add-btn').click();
+    const section = panel.locator('#hk-task-form .hk-form-photos');
+    await expect(section).toBeVisible();
+    await panel
+      .locator('#hk-task-form ha-selector-text')
+      .first()
+      .locator('input, textarea')
+      .fill(NAME);
+    await section.locator('.hk-staged-add + input[type="file"]').setInputFiles([
+      { name: 'gap.png', mimeType: 'image/png', buffer: PNG },
+      { name: 'hatch.png', mimeType: 'image/png', buffer: PNG },
+    ]);
+    const tiles = section.locator('.hk-staged');
+    await expect(tiles).toHaveCount(2);
+    await expect(section.locator('.hk-section-count')).toHaveText('2 of 6');
+    // Make the second photo the cover before Create.
+    await tiles.nth(1).locator('.hk-staged-cover').click();
+    await expect(tiles.first().locator('img')).toHaveAttribute('alt', 'hatch.png');
+    await panel.locator('#f-save').click();
+
+    await expect
+      .poll(async () => (await listTasks()).find((t) => t.name === NAME)?.photos?.length ?? 0, {
+        timeout: 20_000,
+      })
+      .toBe(2);
+    const task = (await listTasks()).find((t) => t.name === NAME)!;
+    created.push(task.id);
+    expect(task.photos.map((p: { name: string }) => p.name)).toEqual(['hatch.png', 'gap.png']);
+    await expect(panel.locator('#hk-task-form')).toHaveCount(0);
+    expect(errors, 'no panel errors').toEqual([]);
+  });
+
+  test('the card form uploads a photo after Create, and the row shows the cover', async ({
+    page,
+  }) => {
+    const card = await openCardDashboard(page);
+    const NAME = 'E2E card photo probe';
+
+    await card.locator('#hk-add').click();
+    const form = card.locator('.hk-form');
+    await expect(form.locator('ha-form').first()).toBeVisible();
+    await form.locator('ha-selector-text').first().locator('input, textarea').fill(NAME);
+    await form
+      .locator('.hk-form-photos input[type="file"]')
+      .setInputFiles({ name: 'gap.png', mimeType: 'image/png', buffer: PNG });
+    await expect(form.locator('.hk-form-photos .hk-staged')).toHaveCount(1);
+    await form.locator('ha-button', { hasText: 'Create' }).click();
+
+    await expect
+      .poll(async () => (await listTasks()).find((t) => t.name === NAME)?.photos?.length ?? 0, {
+        timeout: 20_000,
+      })
+      .toBe(1);
+    const task = (await listTasks()).find((t) => t.name === NAME)!;
+    created.push(task.id);
+    const row = card.locator('.hk-row', { hasText: NAME });
+    await expect(row.locator('a.hk-cover img')).toHaveAttribute('src', /size=thumb&authSig=/, {
+      timeout: 20_000,
+    });
+    const src = await row.locator('a.hk-cover img').getAttribute('src');
+    expect((await page.request.get(`${BASE}${src}`)).status()).toBe(200);
   });
 });

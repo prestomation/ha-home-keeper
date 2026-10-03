@@ -180,10 +180,17 @@ describe('stagedTilesHtml', () => {
     expect(tiles[0].querySelector('.hk-staged-remove')?.getAttribute('label')).toBe(t('photos.remove'));
     expect(tiles[1].querySelector('img')?.getAttribute('src')).toBe('blob:b.jpg');
     expect(tiles[1].querySelector('img')?.getAttribute('alt')).toBe('b.jpg');
+    // The only text is the Cover badge: no stray text between or inside the tiles.
+    expect(doc.body.firstElementChild.textContent).toBe(t('photos.cover'));
+    expect(doc.body.firstElementChild.children).toHaveLength(2);
   });
 
   it('shows no Make cover without withCover', () => {
-    expect(stagedTilesHtml(staged('a.jpg', 'b.jpg'), false)).not.toContain('hk-staged-cover');
+    const html = stagedTilesHtml(staged('a.jpg', 'b.jpg'), false);
+    expect(html).not.toContain('hk-staged-cover');
+    const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+    expect(doc.body.firstElementChild.textContent).toBe(t('photos.cover'));
+    expect(doc.querySelectorAll('.hk-photo-actions')[1].children).toHaveLength(1);
   });
 
   it('escapes the file name', () => {
