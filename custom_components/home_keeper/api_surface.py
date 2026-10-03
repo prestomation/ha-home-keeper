@@ -721,6 +721,24 @@ ENTITY_PLATFORMS: tuple[EntityPlatformSpec, ...] = (
         ),
     ),
     EntityPlatformSpec(
+        "event",
+        ("device_events", "home_keeper_events"),
+        attributes=(
+            Field(
+                "event_type",
+                "str",
+                "the bus event name without the home_keeper_ prefix, for example "
+                "task_completed",
+            ),
+            Field(
+                "*",
+                "",
+                "the bus event payload, without the keys in "
+                "EVENT_ENTITY_DROPPED_FIELDS",
+            ),
+        ),
+    ),
+    EntityPlatformSpec(
         "number",
         ("part_spares",),
         attributes=(
@@ -925,8 +943,17 @@ SURFACE_KINDS: tuple[SurfaceKind, ...] = (
     SurfaceKind(
         "Entity platforms",
         "published",
-        "todo, calendar, sensor, binary_sensor, button and number — usage surfaces, "
-        "as opposed to the admin-only panel.",
+        "todo, calendar, sensor, binary_sensor, button, number and event — usage "
+        "surfaces, as opposed to the admin-only panel.",
+    ),
+    SurfaceKind(
+        "Event entities",
+        "published",
+        "Each bus event with a payload is also an event on an event entity, for the "
+        "Event received trigger. The global entity gets all of them. A device "
+        "entity gets the task, part and appliance events of its device. "
+        "home_keeper_register_companions is not mirrored: it asks companions to "
+        "announce themselves and is not a state change.",
     ),
     SurfaceKind(
         "Entity attributes",
@@ -1054,6 +1081,50 @@ def triggers_for(scope: str) -> dict[str, str]:
     return {spec.type: spec.event for spec in DEVICE_TRIGGERS if spec.scope == scope}
 
 
+# ── Event entities ───────────────────────────────────────────────────────────
+#
+# ``event.py`` mirrors the bus events onto event entities. It takes the list from
+# here, so a new fired event with a payload is mirrored with no second list to
+# keep in step.
+
+EVENT_ENTITY_DEVICE_PAYLOADS: tuple[str, ...] = ("task", "stock", "asset")
+"""The payloads that carry a ``device_id``. Only these go to a device's entity."""
+
+EVENT_ENTITY_DROPPED_FIELDS: dict[str, str] = {
+    "source": "opaque provenance; can be large, and is on the bus event",
+    "managed_by": "ownership block; can be large, and is on the bus event",
+    "task_chips": "display metadata, not useful in an automation",
+    "active_season": "schedule detail, not useful in an automation",
+    "note": "free text of any length; the recorder keeps each event",
+    "photo": "a file reference, not useful in an automation",
+}
+"""Payload keys that an event entity does not copy, with the reason for each.
+
+The recorder stores the attributes of every event, so the entity keeps the ids,
+the names and the short per-event fields. The full payload stays on the bus event.
+"""
+
+
+def event_entity_type(event_name: str) -> str:
+    """The event type on an event entity: the bus name without ``home_keeper_``."""
+    return event_name.removeprefix(f"{const.DOMAIN}_")
+
+
+def event_entity_events(scope: str) -> dict[str, str]:
+    """Return ``{event_type: bus_event_name}`` for ``"device"`` or ``"global"``.
+
+    The global entity mirrors every fired event that has a payload. A device entity
+    mirrors only the events whose payload carries a ``device_id``.
+    """
+    return {
+        event_entity_type(spec.name): spec.name
+        for spec in EVENTS
+        if spec.direction == "fired"
+        and spec.payload != "none"
+        and (scope == "global" or spec.payload in EVENT_ENTITY_DEVICE_PAYLOADS)
+    }
+
+
 def events_by_payload(payload: str) -> tuple[EventSpec, ...]:
     """Return every fired event sharing one payload shape, in declaration order."""
     return tuple(
@@ -1065,6 +1136,8 @@ __all__ = [
     "DEVICE_TRIGGERS",
     "ENTITY_PLATFORMS",
     "EVENTS",
+    "EVENT_ENTITY_DEVICE_PAYLOADS",
+    "EVENT_ENTITY_DROPPED_FIELDS",
     "HTTP_VIEWS",
     "OPTIONS",
     "PAYLOAD_SPINES",
@@ -1082,6 +1155,8 @@ __all__ = [
     "ServiceSpec",
     "SurfaceKind",
     "WebsocketSpec",
+    "event_entity_events",
+    "event_entity_type",
     "events_by_payload",
     "triggers_for",
 ]

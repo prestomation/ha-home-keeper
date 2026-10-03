@@ -10,16 +10,17 @@ implements:
   - custom_components/home_keeper/binary_sensor.py
   - custom_components/home_keeper/button.py
   - custom_components/home_keeper/number.py
+  - custom_components/home_keeper/event.py
   - custom_components/home_keeper/service_device.py
 related: [architecture, store, events-api, appliances, profiles-notifications, sensor-tasks]
-source_hash: 8c9493957e34
+source_hash: 3b3efe7bec33
 ---
 
 # Coordinator and entities
 
 `HomeKeeperCoordinator` in `coordinator.py` holds the task map that every entity reads. A
-refresh reads the local store and is also the clock for time-based work. The entity platforms
-publish tasks, counts and part stock as Home Assistant entities on device pages.
+refresh reads the local store and is also the clock for time-based work. The platforms publish
+tasks, counts, part stock and events as entities on device pages.
 
 ## Goals
 
@@ -103,7 +104,7 @@ and links to the device without a claim. If not, it gets a self-owned device wit
 name. On a shared device, `task_entities.entity_name_prefix` puts a label before each name:
 the companion name, or the task name without the device name.
 
-### Part and appliance entities
+### Part, appliance and event entities
 
 On parts from `coordinator.virtual_asset_parts`, `number.py` gives a spares `number` per
 stock-tracked part, and an edit calls `store.adjust_part_stock`. `binary_sensor.py` gives a
@@ -111,6 +112,9 @@ low-stock sensor per part with a reorder threshold. `sensor.py` gives a `date` s
 tracked date metadata entry. Before it adds entities, each platform calls
 `entity.prune_registry_entries`. Its `keep` returns `None` for a unique ID shape that the
 platform does not own, so no platform removes the entities of another.
+`event.py` gives `home_keeper_events` (service device, every event with a payload) and
+`home_keeper_device_<device_id>_events` on each device from `event.event_devices`, which gets
+the events with that `device_id`. They listen on the bus, so a reload can lose an event.
 
 ### Count sensors and the service device
 
@@ -138,7 +142,7 @@ exists, so the device always has an entity.
 ## One-way doors
 
 - Unique ID shapes in the table above, plus `home_keeper_asset_<asset_id>_part_<part_id>_stock`,
-  `..._low_stock` and `home_keeper_asset_<asset_id>_meta_<entry_id>`.
+  `..._low_stock`, `home_keeper_asset_<asset_id>_meta_<entry_id>` and the event entity ids.
 - Entity attributes, declared in `api_surface.ENTITY_PLATFORMS`. The `last_completion_<field>`
   keys follow `const.COMPLETION_ENTRY_FIELDS`, and `usage_*` keys exist only on usage tasks.
 - The count semantics: `due_soon` excludes overdue tasks; `due_today` is a local calendar date.

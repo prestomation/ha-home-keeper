@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Nadcházející úkoly"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Události Home Keeper",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Úkol vytvořen",
+              "task_updated": "Úkol aktualizován",
+              "task_deleted": "Úkol smazán",
+              "task_completed": "Úkol dokončen",
+              "task_uncompleted": "Dokončení odebráno",
+              "task_completion_updated": "Dokončení upraveno",
+              "task_triggered": "Úkol spuštěn",
+              "task_snoozed": "Úkol odložen",
+              "task_skipped": "Úkol přeskočen",
+              "task_due_today_set": "Úkol nastaven na dnešek",
+              "task_skip_updated": "Přeskočení upraveno",
+              "task_skip_removed": "Přeskočení odebráno",
+              "task_overdue": "Úkol se stal po termínu",
+              "task_due_soon": "Úkol brzy splatný",
+              "part_low_stock": "Náhradní díl s nízkou zásobou",
+              "part_out_of_stock": "Náhradní díl není skladem",
+              "part_restocked": "Náhradní díl doplněn",
+              "asset_created": "Spotřebič přidán",
+              "asset_updated": "Spotřebič aktualizován",
+              "asset_deleted": "Spotřebič smazán",
+              "asset_archived": "Spotřebič archivován",
+              "asset_restored": "Spotřebič obnoven"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Události",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Úkol vytvořen",
+              "task_updated": "Úkol aktualizován",
+              "task_deleted": "Úkol smazán",
+              "task_completed": "Úkol dokončen",
+              "task_uncompleted": "Dokončení odebráno",
+              "task_completion_updated": "Dokončení upraveno",
+              "task_triggered": "Úkol spuštěn",
+              "task_snoozed": "Úkol odložen",
+              "task_skipped": "Úkol přeskočen",
+              "task_due_today_set": "Úkol nastaven na dnešek",
+              "task_skip_updated": "Přeskočení upraveno",
+              "task_skip_removed": "Přeskočení odebráno",
+              "task_overdue": "Úkol se stal po termínu",
+              "task_due_soon": "Úkol brzy splatný",
+              "part_low_stock": "Náhradní díl s nízkou zásobou",
+              "part_out_of_stock": "Náhradní díl není skladem",
+              "part_restocked": "Náhradní díl doplněn",
+              "asset_created": "Spotřebič přidán",
+              "asset_updated": "Spotřebič aktualizován",
+              "asset_deleted": "Spotřebič smazán",
+              "asset_archived": "Spotřebič archivován",
+              "asset_restored": "Spotřebič obnoven",
+              "companion_connected": "Společník připojen",
+              "companion_suggested": "Společník navržen",
+              "declarative_companion_added": "Deklarativní společník přidán",
+              "declarative_companion_updated": "Deklarativní společník aktualizován",
+              "declarative_companion_removed": "Deklarativní společník smazán"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

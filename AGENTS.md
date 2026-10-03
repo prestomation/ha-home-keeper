@@ -59,7 +59,8 @@ your topic before you change code or push.
 - **Ask Amazon Q for a review after each push.** Post `/q review {request}` and ask for
   critical feedback on named topics. Triage what comes back.
 - **Never comment on a GitHub issue.** Findings go in the PR. Link the issue with
-  `Fixes #N`; the release closes it.
+  `Fixes #N`; the release closes it. The 1 exception is the `preview-comment` skill,
+  and only with the maintainer's approval of the exact text.
 
 ### Plans and PR bodies
 

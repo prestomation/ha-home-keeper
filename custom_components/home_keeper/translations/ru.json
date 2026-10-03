@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Предстоящие задачи"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "События Home Keeper",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Задача создана",
+              "task_updated": "Задача обновлена",
+              "task_deleted": "Задача удалена",
+              "task_completed": "Задача выполнена",
+              "task_uncompleted": "Выполнение удалено",
+              "task_completion_updated": "Выполнение обновлено",
+              "task_triggered": "Задача запущена",
+              "task_snoozed": "Задача отложена",
+              "task_skipped": "Задача пропущена",
+              "task_due_today_set": "Задача назначена на сегодня",
+              "task_skip_updated": "Пропуск обновлён",
+              "task_skip_removed": "Пропуск удалён",
+              "task_overdue": "Задача стала просроченной",
+              "task_due_soon": "Срок задачи скоро наступит",
+              "part_low_stock": "Низкий запас запчасти",
+              "part_out_of_stock": "Запчасть закончилась",
+              "part_restocked": "Запчасть пополнена",
+              "asset_created": "Устройство добавлено",
+              "asset_updated": "Устройство обновлено",
+              "asset_deleted": "Устройство удалено",
+              "asset_archived": "Устройство архивировано",
+              "asset_restored": "Устройство восстановлено"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "События",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Задача создана",
+              "task_updated": "Задача обновлена",
+              "task_deleted": "Задача удалена",
+              "task_completed": "Задача выполнена",
+              "task_uncompleted": "Выполнение удалено",
+              "task_completion_updated": "Выполнение обновлено",
+              "task_triggered": "Задача запущена",
+              "task_snoozed": "Задача отложена",
+              "task_skipped": "Задача пропущена",
+              "task_due_today_set": "Задача назначена на сегодня",
+              "task_skip_updated": "Пропуск обновлён",
+              "task_skip_removed": "Пропуск удалён",
+              "task_overdue": "Задача стала просроченной",
+              "task_due_soon": "Срок задачи скоро наступит",
+              "part_low_stock": "Низкий запас запчасти",
+              "part_out_of_stock": "Запчасть закончилась",
+              "part_restocked": "Запчасть пополнена",
+              "asset_created": "Устройство добавлено",
+              "asset_updated": "Устройство обновлено",
+              "asset_deleted": "Устройство удалено",
+              "asset_archived": "Устройство архивировано",
+              "asset_restored": "Устройство восстановлено",
+              "companion_connected": "Компаньон подключён",
+              "companion_suggested": "Компаньон предложен",
+              "declarative_companion_added": "Декларативный компаньон добавлен",
+              "declarative_companion_updated": "Декларативный компаньон обновлён",
+              "declarative_companion_removed": "Декларативный компаньон удалён"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

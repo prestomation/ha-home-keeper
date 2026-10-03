@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Próximas tareas"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Eventos de Home Keeper",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tarea creada",
+              "task_updated": "Tarea actualizada",
+              "task_deleted": "Tarea eliminada",
+              "task_completed": "Tarea realizada",
+              "task_uncompleted": "Finalización eliminada",
+              "task_completion_updated": "Finalización actualizada",
+              "task_triggered": "Tarea activada",
+              "task_snoozed": "Tarea pospuesta",
+              "task_skipped": "Tarea omitida",
+              "task_due_today_set": "Tarea marcada para hoy",
+              "task_skip_updated": "Omisión actualizada",
+              "task_skip_removed": "Omisión eliminada",
+              "task_overdue": "Tarea vencida",
+              "task_due_soon": "Tarea próxima a vencer",
+              "part_low_stock": "Pieza de repuesto con stock bajo",
+              "part_out_of_stock": "Pieza de repuesto agotada",
+              "part_restocked": "Pieza de repuesto repuesta",
+              "asset_created": "Electrodoméstico añadido",
+              "asset_updated": "Electrodoméstico actualizado",
+              "asset_deleted": "Electrodoméstico eliminado",
+              "asset_archived": "Electrodoméstico archivado",
+              "asset_restored": "Electrodoméstico restaurado"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Eventos",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tarea creada",
+              "task_updated": "Tarea actualizada",
+              "task_deleted": "Tarea eliminada",
+              "task_completed": "Tarea realizada",
+              "task_uncompleted": "Finalización eliminada",
+              "task_completion_updated": "Finalización actualizada",
+              "task_triggered": "Tarea activada",
+              "task_snoozed": "Tarea pospuesta",
+              "task_skipped": "Tarea omitida",
+              "task_due_today_set": "Tarea marcada para hoy",
+              "task_skip_updated": "Omisión actualizada",
+              "task_skip_removed": "Omisión eliminada",
+              "task_overdue": "Tarea vencida",
+              "task_due_soon": "Tarea próxima a vencer",
+              "part_low_stock": "Pieza de repuesto con stock bajo",
+              "part_out_of_stock": "Pieza de repuesto agotada",
+              "part_restocked": "Pieza de repuesto repuesta",
+              "asset_created": "Electrodoméstico añadido",
+              "asset_updated": "Electrodoméstico actualizado",
+              "asset_deleted": "Electrodoméstico eliminado",
+              "asset_archived": "Electrodoméstico archivado",
+              "asset_restored": "Electrodoméstico restaurado",
+              "companion_connected": "Companion conectado",
+              "companion_suggested": "Companion sugerido",
+              "declarative_companion_added": "Companion declarativo añadido",
+              "declarative_companion_updated": "Companion declarativo actualizado",
+              "declarative_companion_removed": "Companion declarativo eliminado"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

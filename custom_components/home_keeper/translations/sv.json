@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Kommande uppgifter"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Home Keeper-händelser",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Uppgift skapad",
+              "task_updated": "Uppgift uppdaterad",
+              "task_deleted": "Uppgift borttagen",
+              "task_completed": "Uppgift slutförd",
+              "task_uncompleted": "Slutförande borttaget",
+              "task_completion_updated": "Slutförande uppdaterat",
+              "task_triggered": "Uppgift utlöst",
+              "task_snoozed": "Uppgift uppskjuten",
+              "task_skipped": "Uppgift överhoppad",
+              "task_due_today_set": "Uppgift satt till i dag",
+              "task_skip_updated": "Överhoppning uppdaterad",
+              "task_skip_removed": "Överhoppning borttagen",
+              "task_overdue": "Uppgift blev försenad",
+              "task_due_soon": "Uppgift förfaller snart",
+              "part_low_stock": "Reservdel med lågt lagersaldo",
+              "part_out_of_stock": "Reservdel slut i lager",
+              "part_restocked": "Reservdel påfylld",
+              "asset_created": "Apparat tillagd",
+              "asset_updated": "Apparat uppdaterad",
+              "asset_deleted": "Apparat borttagen",
+              "asset_archived": "Apparat arkiverad",
+              "asset_restored": "Apparat återställd"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Händelser",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Uppgift skapad",
+              "task_updated": "Uppgift uppdaterad",
+              "task_deleted": "Uppgift borttagen",
+              "task_completed": "Uppgift slutförd",
+              "task_uncompleted": "Slutförande borttaget",
+              "task_completion_updated": "Slutförande uppdaterat",
+              "task_triggered": "Uppgift utlöst",
+              "task_snoozed": "Uppgift uppskjuten",
+              "task_skipped": "Uppgift överhoppad",
+              "task_due_today_set": "Uppgift satt till i dag",
+              "task_skip_updated": "Överhoppning uppdaterad",
+              "task_skip_removed": "Överhoppning borttagen",
+              "task_overdue": "Uppgift blev försenad",
+              "task_due_soon": "Uppgift förfaller snart",
+              "part_low_stock": "Reservdel med lågt lagersaldo",
+              "part_out_of_stock": "Reservdel slut i lager",
+              "part_restocked": "Reservdel påfylld",
+              "asset_created": "Apparat tillagd",
+              "asset_updated": "Apparat uppdaterad",
+              "asset_deleted": "Apparat borttagen",
+              "asset_archived": "Apparat arkiverad",
+              "asset_restored": "Apparat återställd",
+              "companion_connected": "Kompanjon ansluten",
+              "companion_suggested": "Kompanjon föreslagen",
+              "declarative_companion_added": "Deklarativ companion tillagd",
+              "declarative_companion_updated": "Deklarativ companion uppdaterad",
+              "declarative_companion_removed": "Deklarativ companion borttagen"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

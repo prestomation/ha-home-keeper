@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Próximas tarefas"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Eventos do Home Keeper",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tarefa criada",
+              "task_updated": "Tarefa atualizada",
+              "task_deleted": "Tarefa excluída",
+              "task_completed": "Tarefa concluída",
+              "task_uncompleted": "Conclusão removida",
+              "task_completion_updated": "Conclusão atualizada",
+              "task_triggered": "Tarefa acionada",
+              "task_snoozed": "Tarefa adiada",
+              "task_skipped": "Tarefa pulada",
+              "task_due_today_set": "Tarefa definida para hoje",
+              "task_skip_updated": "Omissão atualizada",
+              "task_skip_removed": "Omissão removida",
+              "task_overdue": "Tarefa ficou atrasada",
+              "task_due_soon": "Tarefa vence em breve",
+              "part_low_stock": "Peça sobressalente com estoque baixo",
+              "part_out_of_stock": "Peça sobressalente sem estoque",
+              "part_restocked": "Peça sobressalente reposta",
+              "asset_created": "Eletrodoméstico adicionado",
+              "asset_updated": "Eletrodoméstico atualizado",
+              "asset_deleted": "Eletrodoméstico excluído",
+              "asset_archived": "Eletrodoméstico arquivado",
+              "asset_restored": "Eletrodoméstico restaurado"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Eventos",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tarefa criada",
+              "task_updated": "Tarefa atualizada",
+              "task_deleted": "Tarefa excluída",
+              "task_completed": "Tarefa concluída",
+              "task_uncompleted": "Conclusão removida",
+              "task_completion_updated": "Conclusão atualizada",
+              "task_triggered": "Tarefa acionada",
+              "task_snoozed": "Tarefa adiada",
+              "task_skipped": "Tarefa pulada",
+              "task_due_today_set": "Tarefa definida para hoje",
+              "task_skip_updated": "Omissão atualizada",
+              "task_skip_removed": "Omissão removida",
+              "task_overdue": "Tarefa ficou atrasada",
+              "task_due_soon": "Tarefa vence em breve",
+              "part_low_stock": "Peça sobressalente com estoque baixo",
+              "part_out_of_stock": "Peça sobressalente sem estoque",
+              "part_restocked": "Peça sobressalente reposta",
+              "asset_created": "Eletrodoméstico adicionado",
+              "asset_updated": "Eletrodoméstico atualizado",
+              "asset_deleted": "Eletrodoméstico excluído",
+              "asset_archived": "Eletrodoméstico arquivado",
+              "asset_restored": "Eletrodoméstico restaurado",
+              "companion_connected": "Companion conectado",
+              "companion_suggested": "Companion sugerido",
+              "declarative_companion_added": "Companion declarativo adicionado",
+              "declarative_companion_updated": "Companion declarativo atualizado",
+              "declarative_companion_removed": "Companion declarativo excluído"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

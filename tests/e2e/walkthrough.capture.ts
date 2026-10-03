@@ -45,6 +45,7 @@ import {
   openSettingsSection,
   openTaskTab,
 } from './tests/helpers';
+import { HEATER_EVENTS, deviceIdOf, openEventReceivedTrigger } from './event-trigger';
 import { ASSET, PART, TASK } from './fixture-ids';
 import { FIRMWARE_PRESET, markAllPresetsSeen, suggestOnly } from './user-data';
 import { DESKTOP, PHONE, Viewport } from './viewports';
@@ -1175,6 +1176,20 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(notifyRow.locator('> .hk-item-body')).toBeHidden();
   await notifyCard.scrollIntoViewIfNeeded();
   await page.waitForTimeout(BEAT * 3);
+
+  // 7d. Event entities (#415). The water heater's device has a Home Keeper events
+  //     entity, so Home Assistant's own Event received trigger can target the device
+  //     and pick from Home Keeper's event types by name. Hold on the filled trigger,
+  //     then open the list of types: that list is what the entity adds.
+  await openEventReceivedTrigger(page, await deviceIdOf(page, HEATER_EVENTS), [
+    'task_completed',
+    'task_overdue',
+  ]);
+  await page.waitForTimeout(BEAT * 3);
+  await page.getByText('Event type', { exact: true }).last().click();
+  await expect(page.getByText('Spare part low on stock').first()).toBeVisible();
+  await page.waitForTimeout(BEAT * 3);
+  await page.keyboard.press('Escape');
 
   // 8. The usage surfaces — the native to-do list and calendar, and beside them the
   //    family's own list, now carrying the synced chores with their due dates.

@@ -10,7 +10,7 @@ created, edited, completed, deleted, or becomes overdue or due soon. It also fir
 spare-part stock changes (low stock, out of stock, restocked) and appliance changes
 (added, changed, removed). Automations and other integrations use these events.
 
-You can react to the events in 2 ways:
+You can react to the events in 3 ways:
 
 1. **Visual automation editor (device triggers).** On a Home Keeper **appliance**,
    *Add automation → When* lists Home Keeper triggers such as **"Task became overdue"**
@@ -23,7 +23,12 @@ You can react to the events in 2 ways:
    [device links](design/coordinator-entities.md#per-task-entities-and-device-links)).
    For those tasks, automate on the task's entities (`binary_sensor.<task>_overdue`,
    `sensor.<task>_next_due`) or use the event trigger below.
-2. **Event trigger (any automation).** For global automations ("*any* part low → add to
+2. **Event entities (Event received trigger).** Each device with a Home Keeper task or
+   appliance has a **Home Keeper events** entity, and the Home Keeper device has a
+   **Home Keeper Events** entity that gets all events. The event type is the event name
+   without `home_keeper_`. See the
+   [guide](https://prestomation.github.io/ha-home-keeper/docs/guide/events#event-entities).
+3. **Event trigger (any automation).** For global automations ("*any* part low → add to
    1 shopping list"), use a `platform: event` trigger on the event name.
 
 The [API reference](https://prestomation.github.io/ha-home-keeper/developer/api#events)

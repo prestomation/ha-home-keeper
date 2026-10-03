@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Tulevat tehtävät"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Home Keeper -tapahtumat",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tehtävä luotu",
+              "task_updated": "Tehtävä päivitetty",
+              "task_deleted": "Tehtävä poistettu",
+              "task_completed": "Tehtävä suoritettu",
+              "task_uncompleted": "Suoritus poistettu",
+              "task_completion_updated": "Suoritus päivitetty",
+              "task_triggered": "Tehtävä laukaistu",
+              "task_snoozed": "Tehtävä lykätty",
+              "task_skipped": "Tehtävä ohitettu",
+              "task_due_today_set": "Tehtävä asetettu tälle päivälle",
+              "task_skip_updated": "Ohitus päivitetty",
+              "task_skip_removed": "Ohitus poistettu",
+              "task_overdue": "Tehtävä erääntyi",
+              "task_due_soon": "Tehtävä erääntyy pian",
+              "part_low_stock": "Varaosan varasto vähissä",
+              "part_out_of_stock": "Varaosa loppu",
+              "part_restocked": "Varaosa täydennetty",
+              "asset_created": "Laite lisätty",
+              "asset_updated": "Laite päivitetty",
+              "asset_deleted": "Laite poistettu",
+              "asset_archived": "Laite arkistoitu",
+              "asset_restored": "Laite palautettu"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Tapahtumat",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Tehtävä luotu",
+              "task_updated": "Tehtävä päivitetty",
+              "task_deleted": "Tehtävä poistettu",
+              "task_completed": "Tehtävä suoritettu",
+              "task_uncompleted": "Suoritus poistettu",
+              "task_completion_updated": "Suoritus päivitetty",
+              "task_triggered": "Tehtävä laukaistu",
+              "task_snoozed": "Tehtävä lykätty",
+              "task_skipped": "Tehtävä ohitettu",
+              "task_due_today_set": "Tehtävä asetettu tälle päivälle",
+              "task_skip_updated": "Ohitus päivitetty",
+              "task_skip_removed": "Ohitus poistettu",
+              "task_overdue": "Tehtävä erääntyi",
+              "task_due_soon": "Tehtävä erääntyy pian",
+              "part_low_stock": "Varaosan varasto vähissä",
+              "part_out_of_stock": "Varaosa loppu",
+              "part_restocked": "Varaosa täydennetty",
+              "asset_created": "Laite lisätty",
+              "asset_updated": "Laite päivitetty",
+              "asset_deleted": "Laite poistettu",
+              "asset_archived": "Laite arkistoitu",
+              "asset_restored": "Laite palautettu",
+              "companion_connected": "Kumppani yhdistetty",
+              "companion_suggested": "Kumppania ehdotettu",
+              "declarative_companion_added": "Deklaratiivinen kumppani lisätty",
+              "declarative_companion_updated": "Deklaratiivinen kumppani päivitetty",
+              "declarative_companion_removed": "Deklaratiivinen kumppani poistettu"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

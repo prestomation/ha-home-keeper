@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Komende taken"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Home Keeper-gebeurtenissen",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Taak aangemaakt",
+              "task_updated": "Taak bijgewerkt",
+              "task_deleted": "Taak verwijderd",
+              "task_completed": "Taak voltooid",
+              "task_uncompleted": "Voltooiing verwijderd",
+              "task_completion_updated": "Voltooiing bijgewerkt",
+              "task_triggered": "Taak geactiveerd",
+              "task_snoozed": "Taak uitgesteld",
+              "task_skipped": "Taak overgeslagen",
+              "task_due_today_set": "Taak op vandaag gezet",
+              "task_skip_updated": "Overslaan bijgewerkt",
+              "task_skip_removed": "Overslaan verwijderd",
+              "task_overdue": "Taak is verlopen",
+              "task_due_soon": "Taak vervalt binnenkort",
+              "part_low_stock": "Reserveonderdeel bijna op",
+              "part_out_of_stock": "Reserveonderdeel niet op voorraad",
+              "part_restocked": "Reserveonderdeel aangevuld",
+              "asset_created": "Apparaat toegevoegd",
+              "asset_updated": "Apparaat bijgewerkt",
+              "asset_deleted": "Apparaat verwijderd",
+              "asset_archived": "Apparaat gearchiveerd",
+              "asset_restored": "Apparaat hersteld"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Gebeurtenissen",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Taak aangemaakt",
+              "task_updated": "Taak bijgewerkt",
+              "task_deleted": "Taak verwijderd",
+              "task_completed": "Taak voltooid",
+              "task_uncompleted": "Voltooiing verwijderd",
+              "task_completion_updated": "Voltooiing bijgewerkt",
+              "task_triggered": "Taak geactiveerd",
+              "task_snoozed": "Taak uitgesteld",
+              "task_skipped": "Taak overgeslagen",
+              "task_due_today_set": "Taak op vandaag gezet",
+              "task_skip_updated": "Overslaan bijgewerkt",
+              "task_skip_removed": "Overslaan verwijderd",
+              "task_overdue": "Taak is verlopen",
+              "task_due_soon": "Taak vervalt binnenkort",
+              "part_low_stock": "Reserveonderdeel bijna op",
+              "part_out_of_stock": "Reserveonderdeel niet op voorraad",
+              "part_restocked": "Reserveonderdeel aangevuld",
+              "asset_created": "Apparaat toegevoegd",
+              "asset_updated": "Apparaat bijgewerkt",
+              "asset_deleted": "Apparaat verwijderd",
+              "asset_archived": "Apparaat gearchiveerd",
+              "asset_restored": "Apparaat hersteld",
+              "companion_connected": "Companion verbonden",
+              "companion_suggested": "Companion voorgesteld",
+              "declarative_companion_added": "Declaratieve companion toegevoegd",
+              "declarative_companion_updated": "Declaratieve companion bijgewerkt",
+              "declarative_companion_removed": "Declaratieve companion verwijderd"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {

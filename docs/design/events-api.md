@@ -12,7 +12,7 @@ implements:
   - custom_components/home_keeper/services.yaml
   - custom_components/home_keeper/testing.py
 related: [architecture, store, coordinator-entities, appliances, profiles-notifications]
-source_hash: fd1aa0945c55
+source_hash: 2b296ab1bad9
 ---
 
 # Events and API surface
@@ -90,6 +90,8 @@ A standalone task has `device_id: null` in its payload, so its device filters on
 `device_trigger._attach_filter` reads only the device registry, because automations attach
 at startup, often before the entry loads. `device_trigger._filters` reads the coordinator,
 but only to choose which triggers to offer.
+`event.py` also mirrors each event that has a payload onto event entities, for the Event
+received trigger. The list is `api_surface.event_entity_events` (see `coordinator-entities`).
 
 ### Services and websocket commands
 

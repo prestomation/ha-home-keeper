@@ -1052,6 +1052,75 @@
       "upcoming_tasks": {
         "name": "Kommende opgaver"
       }
+    },
+    "event": {
+      "device_events": {
+        "name": "Home Keeper-hændelser",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Opgave oprettet",
+              "task_updated": "Opgave opdateret",
+              "task_deleted": "Opgave slettet",
+              "task_completed": "Opgave udført",
+              "task_uncompleted": "Gennemførelse fjernet",
+              "task_completion_updated": "Gennemførelse opdateret",
+              "task_triggered": "Opgave udløst",
+              "task_snoozed": "Opgave udsat",
+              "task_skipped": "Opgave sprunget over",
+              "task_due_today_set": "Opgave sat til i dag",
+              "task_skip_updated": "Overspringning opdateret",
+              "task_skip_removed": "Overspringning fjernet",
+              "task_overdue": "Opgave blev forsinket",
+              "task_due_soon": "Opgave forfalder snart",
+              "part_low_stock": "Lavt lager af reservedel",
+              "part_out_of_stock": "Reservedel udsolgt",
+              "part_restocked": "Reservedel genopfyldt",
+              "asset_created": "Apparat tilføjet",
+              "asset_updated": "Apparat opdateret",
+              "asset_deleted": "Apparat slettet",
+              "asset_archived": "Apparat arkiveret",
+              "asset_restored": "Apparat gendannet"
+            }
+          }
+        }
+      },
+      "home_keeper_events": {
+        "name": "Hændelser",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "task_created": "Opgave oprettet",
+              "task_updated": "Opgave opdateret",
+              "task_deleted": "Opgave slettet",
+              "task_completed": "Opgave udført",
+              "task_uncompleted": "Gennemførelse fjernet",
+              "task_completion_updated": "Gennemførelse opdateret",
+              "task_triggered": "Opgave udløst",
+              "task_snoozed": "Opgave udsat",
+              "task_skipped": "Opgave sprunget over",
+              "task_due_today_set": "Opgave sat til i dag",
+              "task_skip_updated": "Overspringning opdateret",
+              "task_skip_removed": "Overspringning fjernet",
+              "task_overdue": "Opgave blev forsinket",
+              "task_due_soon": "Opgave forfalder snart",
+              "part_low_stock": "Lavt lager af reservedel",
+              "part_out_of_stock": "Reservedel udsolgt",
+              "part_restocked": "Reservedel genopfyldt",
+              "asset_created": "Apparat tilføjet",
+              "asset_updated": "Apparat opdateret",
+              "asset_deleted": "Apparat slettet",
+              "asset_archived": "Apparat arkiveret",
+              "asset_restored": "Apparat gendannet",
+              "companion_connected": "Ledsager forbundet",
+              "companion_suggested": "Ledsager foreslået",
+              "declarative_companion_added": "Deklarativ companion tilføjet",
+              "declarative_companion_updated": "Deklarativ companion opdateret",
+              "declarative_companion_removed": "Deklarativ companion slettet"
+            }
+          }
+        }
+      }
     }
   },
   "device_automation": {
