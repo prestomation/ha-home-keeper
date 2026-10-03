@@ -44,6 +44,18 @@ import { setLanguage, t, tn } from './i18n';
 import { ensureMarkdown, markdownBlock, markdownReady, wireMarkdown } from './markdown';
 import { taskChipsList } from './panel-chips';
 import { MDI_OPEN_IN_NEW_ICON } from './panel-icons';
+import {
+  STAGED_PHOTO_ACCEPT,
+  type StagedPhoto,
+  rejectionMessage,
+  releaseStaged,
+  stageFiles,
+  stagedTilesHtml,
+  unstage,
+  uploadStaged,
+} from './photo-staging';
+import { TaskPhotoUrlCache, coverOf, taskPhotoKey } from './task-photos';
+import { MAX_TASK_PHOTOS } from './limits';
 import type { Asset, Hass, HassLabel, Profile, RecurrenceType, Task } from './types';
 import {
   areaName,
@@ -195,7 +207,7 @@ const STYLES = `
     border-bottom: 1px solid var(--divider-color);
   }
   .hk-row:last-child { border-bottom: none; }
-  .hk-row .grow { flex: 1; min-width: 0; }
+  .hk-row .grow { flex: 1; min-width: 0; display: flow-root; }
   .hk-row.overdue { box-shadow: inset 3px 0 0 0 var(--error-color); }
   .hk-name {
     font-weight: 500; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -338,6 +350,30 @@ const STYLES = `
   .hk-form { padding: 8px 16px 16px; border-bottom: 1px solid var(--divider-color); }
   .hk-form-title { font-size: 1.05rem; font-weight: 500; margin-bottom: 8px; }
   .hk-form-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .hk-form-photos { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 12px; }
+  .hk-photo-strip { display: flex; gap: 8px; flex-wrap: wrap; }
+  .hk-photo { position: relative; width: 64px; }
+  .hk-photo-link {
+    display: block; width: 64px; height: 64px; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--divider-color);
+  }
+  .hk-photo-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .hk-photo-badge {
+    position: absolute; left: 3px; top: 3px; padding: 0 4px; border-radius: 3px;
+    font-size: 0.65rem; color: #fff; background: rgba(0, 0, 0, 0.6); pointer-events: none;
+  }
+  .hk-photo-actions { position: absolute; right: -6px; top: -6px; }
+  .hk-photo-actions ha-icon-button {
+    --mdc-icon-button-size: 28px; --ha-icon-button-size: 28px; --mdc-icon-size: 16px;
+    border-radius: 50%; color: #fff; background: rgba(0, 0, 0, 0.6);
+  }
+  /* Floats in the name block, so the phone layout, which gives the block a full
+     line, keeps the cover beside the name. */
+  .hk-cover {
+    float: inline-start; display: block; width: 40px; height: 40px; margin-inline-end: 8px;
+    border-radius: 6px; overflow: hidden; border: 1px solid var(--divider-color);
+  }
+  .hk-cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .hk-form-actions .spacer { flex: 1; }
 `;
 
@@ -345,6 +381,8 @@ interface EditState {
   open: boolean;
   task: Partial<Task> | null;
   error?: string;
+  /** Photos picked in the form. They upload after Create (#399). */
+  photos?: StagedPhoto[];
   /** Set while Create runs, so a second press is ignored (X12-4). */
   busy?: boolean;
 }
@@ -403,6 +441,9 @@ export class HomeKeeperCard extends HTMLElement {
   // async window.open). The caching/expiry rules are shared with the panel; see
   // `SignedUrlCache` in documents.ts.
   private _signedDocs = new SignedUrlCache();
+  // Signed URLs of the task covers (#399): the thumbnail on the row, and the original
+  // that a tap opens.
+  private _photoUrls = new TaskPhotoUrlCache();
   // HA label registry (id -> entry), fetched once so label chips can show real
   // names rather than raw ids. Empty until loaded; lookups fall back to the id.
   private _labels: Record<string, HassLabel> = {};
@@ -667,6 +708,7 @@ export class HomeKeeperCard extends HTMLElement {
         : [];
       // Pre-sign any pinned file documents so their chips render as plain anchors.
       await this._signDocuments();
+      await this._signCovers();
       this._error = false;
       this._signal = this._stateSignal(this._hass);
     } catch (err) {
@@ -848,6 +890,7 @@ export class HomeKeeperCard extends HTMLElement {
     this._render();
   }
   private _closeForm(): void {
+    releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
     this._edit = { open: false, task: null };
     this._render();
   }
@@ -884,8 +927,18 @@ export class HomeKeeperCard extends HTMLElement {
       edit,
       async () => {
         try {
-          await api.addTask(hass, buildTaskPayload(task));
+          const created = await api.addTask(hass, buildTaskPayload(task));
+          // The photos upload now that the task has an id. A failed photo does not
+          // undo the task, and the form closes, so a second Create cannot make a
+          // second task. A toast says how many photos failed.
+          const staged = edit.photos ?? [];
+          const { failed } = staged.length
+            ? await uploadStaged(staged, (photoId, file) =>
+                api.uploadTaskPhoto(hass, created.id, photoId, file),
+              )
+            : { failed: [] };
           this._closeForm();
+          if (failed.length) toast(this, t('photos.uploadPartial', { n: String(failed.length) }));
           await this._refresh();
         } catch (err) {
           edit.error = String((err as { message?: string })?.message || err);
@@ -1025,6 +1078,39 @@ export class HomeKeeperCard extends HTMLElement {
       }
     }
     await this._signedDocs.ensure(this._hass, needed);
+  }
+
+  /**
+   * Pre-mint the URLs of each task's cover, in 1 batch: the thumbnail for the row and
+   * the original for the link around it. Best-effort, like `_signDocuments`: a row
+   * shows no cover until its URLs are signed.
+   */
+  private async _signCovers(): Promise<void> {
+    if (!this._hass) return;
+    const refs = this._tasks.flatMap((task) => {
+      const cover = coverOf(task);
+      return cover
+        ? [
+            { taskId: task.id, photoId: cover.id, thumb: true },
+            { taskId: task.id, photoId: cover.id, thumb: false },
+          ]
+        : [];
+    });
+    await this._photoUrls.ensure(this._hass, refs).catch(() => false);
+  }
+
+  /** The cover of *task* as a link to the original, or '' until both URLs are signed. */
+  private _coverHtml(task: Task): string {
+    const cover = coverOf(task);
+    if (!cover) return '';
+    const thumb = this._photoUrls.getByKey(taskPhotoKey({ taskId: task.id, photoId: cover.id, thumb: true }));
+    const full = this._photoUrls.getByKey(taskPhotoKey({ taskId: task.id, photoId: cover.id, thumb: false }));
+    if (!thumb || !full) return '';
+    return `<a class="hk-cover" href="${safeFileHref(full)}" target="_blank" rel="noopener" aria-label="${escapeHTML(
+      t('photos.open', { name: cover.name }),
+    )}"><img src="${safeFileHref(thumb)}" alt="${escapeHTML(
+      t('photos.coverAlt', { task: task.name }),
+    )}" loading="lazy" decoding="async" /></a>`;
   }
 
   /**
@@ -1187,6 +1273,7 @@ export class HomeKeeperCard extends HTMLElement {
     return `
       <div class="hk-row${overdue ? ' overdue' : ''}">
         <div class="grow">
+          ${this._coverHtml(task)}
           <div class="hk-name">${escapeHTML(task.name)}</div>
           <div class="hk-meta">${meta}</div>
           ${notes}
@@ -1386,6 +1473,53 @@ export class HomeKeeperCard extends HTMLElement {
     wireMarkdown(body);
   }
 
+  /**
+   * The photos of the new task: the picked photos with Remove, and Add photo. The
+   * first photo is the cover. The card has no Make cover; the panel has it.
+   */
+  private _formPhotos(): HTMLElement {
+    const list = this._edit.photos ?? [];
+    const box = document.createElement('div');
+    box.className = 'hk-form-photos';
+    const add =
+      list.length < MAX_TASK_PHOTOS
+        ? `<ha-button class="hk-photo-add" appearance="plain"><ha-icon slot="start" icon="mdi:camera-plus-outline"></ha-icon>${escapeHTML(
+            t('photos.add'),
+          )}</ha-button>`
+        : '';
+    box.innerHTML = `${list.length ? `<div class="hk-photo-strip">${stagedTilesHtml(list, false)}</div>` : ''}${add}`;
+    box.querySelectorAll<HTMLElement>('.hk-staged-remove').forEach((btn) => {
+      btn.innerHTML = '<ha-icon icon="mdi:close"></ha-icon>';
+      btn.addEventListener('click', () => {
+        this._edit.photos = unstage(this._edit.photos ?? [], btn.dataset.stagedKey ?? '', (u) =>
+          URL.revokeObjectURL(u),
+        );
+        this._render();
+      });
+    });
+    const addBtn = box.querySelector<HTMLElement>('.hk-photo-add');
+    if (addBtn) {
+      const picker = document.createElement('input');
+      picker.type = 'file';
+      picker.accept = STAGED_PHOTO_ACCEPT;
+      picker.multiple = true;
+      picker.style.display = 'none';
+      picker.addEventListener('change', () => {
+        const res = stageFiles(this._edit.photos ?? [], Array.from(picker.files ?? []), (f) =>
+          URL.createObjectURL(f),
+        );
+        picker.value = '';
+        this._edit.photos = res.list;
+        const first = res.rejected[0];
+        this._edit.error = first ? rejectionMessage(first.file, first.reason) : undefined;
+        this._render();
+      });
+      addBtn.addEventListener('click', () => picker.click());
+      box.appendChild(picker);
+    }
+    return box;
+  }
+
   /** Render the card's *create* form (the header "+"). Editing/deleting lives in
    *  the sidebar panel, so this is always a new-task form. */
   private _renderForm(host: HTMLElement): void {
@@ -1418,6 +1552,7 @@ export class HomeKeeperCard extends HTMLElement {
     });
     this._liveHassEls.push(form);
     wrap.appendChild(form);
+    wrap.appendChild(this._formPhotos());
 
     if (this._edit.error) {
       const err = document.createElement('ha-alert');
