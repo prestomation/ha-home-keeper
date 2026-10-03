@@ -22,7 +22,7 @@ summary: How the dev docs are typed, capped and checked, and how to keep a desig
 
 ## Design docs
 
-- The 14 docs in `docs/design/` say how each subsystem works and why. Each has Goals,
+- The 15 docs in `docs/design/` say how each subsystem works and why. Each has Goals,
   Non-goals, Design, Trade-offs and One-way doors. The rules files say only what to do,
   and link to a design doc for the how.
 - A design doc lists the files that implement it in `implements`, and the hash of those

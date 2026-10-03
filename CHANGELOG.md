@@ -11,8 +11,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **[Task photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos).**
-  Attach up to 6 photos to a task to show what needs work and where. The first photo
-  shows on the task list, the task page and the completion dialog. (Fixes #399)
+  Attach up to 6 photos to a task to show what needs work and where, also when you create
+  it from the panel or the dashboard card. Any user who can create a task can add its
+  photos, and the cover shows on the task list, the card and the task page. (Fixes #399)
 - **[After photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos#after-photos).**
   Add a photo when you mark a task done, also on a one-tap task. The task page and the
   Completed group show it beside the task photo.

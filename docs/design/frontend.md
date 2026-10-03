@@ -30,7 +30,7 @@ implements:
   - custom_components/home_keeper/card_resource.py
   - custom_components/home_keeper/backend_i18n.py
 related: [architecture, coordinator-entities, events-api, profiles-notifications]
-source_hash: 32e3e9248aa7
+source_hash: 465cd3e4c905
 ---
 
 # Frontend
@@ -96,7 +96,8 @@ a task changed elsewhere, but not while a form or a dialog is open.
 ### Task layouts and preferences
 
 The Tasks tab draws a list as Rows, Tiles or a Board. `task-layout.ts` holds the pure part:
-`parseTaskLayout`, `shortDueLabel`, `urgencyClass` and the action-sheet actions.
+`parseTaskLayout`, `shortDueLabel`, `urgencyClass` and the action-sheet actions, which
+follow `defer.deferVerbs`.
 `panel-lists.ts` draws the markup; `panel-controls.groupTasks` gives the board columns.
 
 - **Per browser:** a choice about this screen (group by, filter, tree collapse) goes in
@@ -115,7 +116,8 @@ floating Add, wrapped chips, stacked rows). Never put `container-type` on `:host
 
 `card.ts` defines `HomeKeeperCard` and its editor, and shapes tasks with `card-filter.ts`.
 It refreshes from `todo/item/subscribe`, which any user can open; an admin also listens for
-`home_keeper_task_completed`.
+`home_keeper_task_completed`. The rows and the New task form show task photos
+([task-photos](task-photos.md)).
 
 `card.async_register_card` uses one delivery path per install: a Lovelace resource in storage
 mode, else `frontend.add_extra_js_url`. Both at once race the scoped element registry.

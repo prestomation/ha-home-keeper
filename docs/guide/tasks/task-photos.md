@@ -10,7 +10,33 @@ work on one date. Task photos stay on the task across all of its completions.
 
 ![A task page with its cover photo beside the task name and a strip of photos above the schedule](../../images/58-panel-task-photos.png)
 
-## Add a photo
+## Add photos when you create a task
+
+The **New task** form has a **Photos** section under the name and the notes.
+
+1. Select **Add photo**, then select 1 or more images. On a phone, you can also take a
+   photo with the camera.
+2. To make a different photo the cover, select the star on that photo. To remove a
+   photo, select its delete button.
+3. Select **Create**. Home Keeper creates the task, then uploads the photos.
+
+If a photo does not upload, Home Keeper keeps the task and opens the task page. A
+message tells you how many photos did not upload. Add those photos again on the task page.
+
+![The New task form with 2 photos in the Photos section under the notes](../../images/58k-panel-task-form-photos.png)
+
+The **Edit task** form shows the same **Photos** section. There, each change applies
+immediately, as on the task page.
+
+### From the dashboard card
+
+The **New task** form of the [dashboard card](../views/dashboard-card.md) has an
+**Add photo** button under the fields. The first photo is the cover. The card shows the
+cover on each task row. Select the cover to open the full image.
+
+![The New task form of the dashboard card with a photo, and a cover on a task row](../../images/card-add-form-photos.png)
+
+## Add a photo to a task
 
 1. Open the task.
 2. On the **Schedule** tab, select **Add photo** in the **Photos** section.
@@ -24,7 +50,7 @@ On a phone, the file picker can also open the camera.
 The first photo is the cover. The cover shows in 3 places:
 
 - Beside the task name at the top of the task page.
-- On the task row in the task list.
+- On the task row in the task list and on the dashboard card.
 - At the top of the dialog that logs a completion, when the task asks for
   completion details.
 
@@ -62,6 +88,12 @@ in place of the cover.
 
 ![The Completed group with the after photo on the task row](../../images/58i-panel-completed-after-photo.png)
 
+## Who can add photos
+
+A photo is part of the task. So any user who can create a task can also add, remove
+and reorder its photos. A user who is not an admin does this from the dashboard card.
+See [the security model](../../SECURITY.md) for the details.
+
 ## Where the files are
 
 Home Keeper keeps the files in the `home_keeper/task_photos` folder of your Home
@@ -89,4 +121,4 @@ short-lived URL for a photo. Use it to show the photo in a notification. The
 `home_keeper.remove_task_photo` and `home_keeper.set_task_photo_cover` actions
 change the photos without the panel.
 
-An action cannot send a file, so you add a photo only in the panel.
+An action cannot send a file, so you add a photo only in the panel or on the card.

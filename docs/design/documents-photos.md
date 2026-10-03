@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-upload.ts
   - custom_components/home_keeper/frontend/src/markdown.ts
 related: [appliances, completions, store, frontend, events-api]
-source_hash: a2cda8ea47e4
+source_hash: 03cbaba05feb
 ---
 
 # Documents and photos
@@ -16,8 +16,8 @@ source_hash: a2cda8ea47e4
 An appliance holds a list of documents (manuals, warranties, receipts), and each part has
 1 optional attached file. A document is a `link` (an external URL) or a `file` (an upload
 that Home Keeper keeps on disk, so it opens offline). Notes on tasks, appliances, parts and
-completions render as Markdown. A completion photo is a different thing: Home Assistant
-stores it, and Home Keeper keeps only its URL.
+completions render as Markdown. Home Assistant stores a completion photo, and Home Keeper
+keeps only its URL. Photos on a task are in [task-photos](task-photos.md).
 
 ## Goals
 
@@ -42,7 +42,7 @@ stores it, and Home Keeper keeps only its URL.
 ### Pure checks and HA input/output are 2 modules
 
 `documents.py` has no Home Assistant import, so unit tests reach every security check.
-`manuals.py` does the disk work, the 2 HTTP views and the URL signing, with every blocking
+`manuals.py` does the disk work, the HTTP views and the URL signing, with every blocking
 file call in the executor (`documents.resolve_under_root` calls `Path.resolve`).
 
 ### Where files live
@@ -63,8 +63,9 @@ multipart `POST`. The steps:
 1. `require_admin`, then `manuals._begin_upload`: the request must carry a real user that is
    not system-generated, the entry must be loaded, and the appliance must exist.
 2. `manuals._parse_upload` streams the 1 file part to a temp file in 256 KB reads and
-   1 MB writes. It stops at `MAX_DOCUMENT_BYTES` (100 MB) and returns 413. The view raises
-   the aiohttp body cap per request, because Home Assistant's global cap is 16 MB.
+   1 MB writes. It stops at its `max_bytes` cap, by default `MAX_DOCUMENT_BYTES` (100 MB),
+   and returns 413. The view raises the aiohttp body cap per request, because Home
+   Assistant's global cap is 16 MB.
 3. `documents.validate_upload_stream` rejects an empty file, an oversize file, and a type
    outside `TYPE_EXTENSIONS` (PDF, PNG, JPEG, WebP, GIF). `documents.sniff_content_type` reads
    the magic bytes. The client's MIME header is never read.
@@ -102,15 +103,16 @@ is in progress. `openDocument` and `openPartFile` are a fallback until the first
 `store.remove_asset_document` and `store.remove_part_file` delete 1 file, and
 `store._delete_dropped_part_files` deletes the file of a part that an update removed.
 `store.delete_asset` removes the appliance directory with 1 `rmtree`, and
-`async_remove_entry` removes the whole tree. A generic asset write keeps stored `file`
-documents unchanged, so only the view and these calls can add or remove a file.
+`async_remove_entry` removes this tree and the task photo tree. A generic asset write keeps
+stored `file` documents unchanged, so only the view and these calls can add or remove a file.
 
 ### Panel upload and completion photos
 
 `panel-upload.ts` runs 1 upload at a time. `runUpload` refuses a file over the limit before
-it sends a byte (`MAX_DOCUMENT_BYTES` in `limits.ts` mirrors `const.py`). It shows a progress
-bar after a short delay and has a cancel button. A 413 with no Home Keeper message means a
-reverse proxy refused the body, so the error links to the proxy fix.
+it sends a byte. The default limit is `MAX_DOCUMENT_BYTES` in `limits.ts`, which mirrors
+`const.py`, and a caller can give a lower one. `runUpload` shows a progress bar after a short
+delay and has a cancel button. A 413 with no Home Keeper message means a reverse proxy refused
+the body, so the error links to the proxy fix. `filePicker` takes the types to accept.
 
 The completion dialog uses Home Assistant's `ha-picture-upload`, which stores the image in
 the `image_upload` integration and returns a path such as `/api/image/serve/<id>/original`.
