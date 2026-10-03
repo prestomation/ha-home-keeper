@@ -1,7 +1,8 @@
 /**
  * The preset summary at the top of the companion form: which preset a draft came
  * from, which of its sections the user changed, and how far a preview row's reading
- * is from the preset's limit.
+ * is from the preset's limit. Also what a companion row on the Companions card says
+ * about where a companion comes from.
  *
  * Pure: no DOM, no Home Assistant. The form draws what these return.
  */
@@ -27,6 +28,57 @@ export function presetFor(
 ): DeclarativeCompanionPreset | null {
   if (!draft.preset_id || !presets) return null;
   return presets.find((p) => p.id === draft.preset_id) ?? null;
+}
+
+/** Where a companion comes from, as its row on the Companions card shows it. */
+export interface CompanionOrigin {
+  // The integration whose entities it watches. Its logo goes on the row.
+  domain: string | null;
+  // The integration's brand name from the catalog, or `null` when no preset names it.
+  brand: string | null;
+  // The preset's shape, which picks the badge on the logo.
+  shape: string | null;
+  // The entity platform it selects (`sensor`, `binary_sensor`, `update`).
+  platform: string | null;
+  // The preset's limit as a short phrase, only while the trigger is the preset's own.
+  limitText: string | null;
+  // The icon for a row with no integration logo.
+  icon: string | null;
+  // True when no preset made it.
+  custom: boolean;
+}
+
+/**
+ * Where *spec* comes from: its integration, brand, shape, platform and limit.
+ *
+ * The integration is the spec's own `target_integration`, so a custom companion and a
+ * companion from a preset the catalog no longer has still get their logo. The brand
+ * comes from the spec's preset, else from any preset made for the same integration.
+ * The limit is said only while the trigger is still the preset's, so an edited limit
+ * is never shown wrong. *presets* is `null` when the preset list did not load.
+ */
+export function companionOrigin(
+  spec: Pick<DeclarativeCompanion, 'preset_id' | 'selection' | 'trigger'>,
+  presets: readonly DeclarativeCompanionPreset[] | null,
+): CompanionOrigin {
+  const preset = presetFor(spec, presets);
+  const domain = spec.selection.target_integration || null;
+  const kin = domain
+    ? (presets ?? []).find((p) => p.requires_integration === domain && p.brand)
+    : undefined;
+  const sameTrigger =
+    !!preset &&
+    JSON.stringify(comparable(spec as DeclarativeCompanion, 'trigger')) ===
+      JSON.stringify(comparable(preset.default_spec, 'trigger'));
+  return {
+    domain,
+    brand: preset?.brand || kin?.brand || null,
+    shape: preset?.shape || null,
+    platform: spec.selection.domain || null,
+    limitText: (sameTrigger && preset?.limit_text) || null,
+    icon: preset?.icon || null,
+    custom: !spec.preset_id,
+  };
 }
 
 /**

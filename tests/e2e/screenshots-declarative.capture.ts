@@ -18,8 +18,17 @@
  *     SHOT_DIR=../../docs/images \
  *     npx playwright test --config=screenshots-declarative.config.ts
  */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { test, expect } from '@playwright/test';
-import { callService, listTasks, openPanel, openSettingsSection } from './tests/helpers';
+import {
+  authToken,
+  callService,
+  listTasks,
+  openPanel,
+  openSettingsSection,
+} from './tests/helpers';
+import { wsCommand } from './user-data';
 import { centre } from './shots';
 import { PHONE } from './viewports';
 
@@ -246,53 +255,77 @@ test('capture a declarative-companion task page', async ({ page }) => {
 });
 
 /**
- * The declarative companion row in Settings → Companions, at both widths (the
- * phone-layout fix).
+ * The declarative companion rows (21h desktop, 21i phone): the integration logo with
+ * its shape badge, the meta line under the name, the Custom chip, and Edit and Delete.
  *
- * The row is the surface the maintainer reported: below 700px it kept the desktop's
- * single-line layout, the status and preset chips came out of their box over the Edit
- * button, and Delete went past the right edge with nothing to scroll. Seeded from a
- * *preset* on purpose — `preset_id` is what puts the long "Preset: device_pulse"
- * badge on the name line, which is the chip that did the covering.
+ * 3 companions show the 3 kinds of row: 1 from an integration preset (Roborock, with
+ * its logo, badge and limit), 1 from a general preset (no integration, so the preset
+ * icon), and 1 made by hand for ZHA (its logo and the Custom chip). The integration
+ * preset is added from its own `default_spec`, so the trigger is the preset's and the
+ * row says the limit.
+ *
+ * The browser gets the logos from fixture files, not from brands.home-assistant.io,
+ * so the shots do not change with the network.
  *
  * Both shots come from here rather than the main capture because only this file
- * creates a companion, and it deletes it again so the container is left as it was found.
- * `tests/responsive-layout.spec.ts` asserts the layout; these only photograph it.
+ * creates a companion, and it deletes them again so the container is left as it was
+ * found. `tests/responsive-layout.spec.ts` asserts the layout; these only photograph it.
  */
 test('capture the declarative companion row at both widths', async ({ page }) => {
-  const created = await callService(
-    'home_keeper',
-    'add_declarative_companion',
+  await page.route('https://brands.home-assistant.io/**', (route) => {
+    const domain = new URL(route.request().url()).pathname.split('/').at(-2) ?? '';
+    const file = path.join(__dirname, 'brands', `${domain}.png`);
+    return fs.existsSync(file)
+      ? route.fulfill({ path: file, contentType: 'image/png' })
+      : route.fulfill({ status: 404 });
+  });
+  const presets: Array<{ id: string; default_spec: Record<string, unknown> }> = (
+    await wsCommand(authToken(), { type: 'home_keeper/list_declarative_presets' })
+  ).presets;
+  const roborock = presets.find((p) => p.id === 'roborock_life_low');
+  const firmware = presets.find((p) => p.id === 'firmware_update_available');
+  if (!roborock || !firmware) throw new Error('the presets this capture uses are gone');
+  const specs = [
+    roborock.default_spec,
+    firmware.default_spec,
     {
-      name: 'Device Pulse',
-      preset_id: 'device_pulse',
-      selection: { domain: 'binary_sensor', device_class: 'battery' },
-      trigger: { mode: 'availability', for_seconds: 3600, clear_on_recover: true },
+      name: 'Zigbee device offline',
+      preset_id: null,
+      selection: { target_integration: 'zha', domain: 'binary_sensor' },
+      trigger: { mode: 'availability', for_seconds: 21600, clear_on_recover: true },
       task_template: { name_template: 'Check on {{ device_name or friendly_name }}' },
     },
-    true,
-  );
-  const specId = created.companion.id as string;
+  ];
+  const specIds: string[] = [];
 
   try {
+    for (const spec of specs) {
+      const created = await callService('home_keeper', 'add_declarative_companion', spec, true);
+      specIds.push(created.companion.id as string);
+    }
     const panel = page.locator('home-keeper-panel').first();
 
-    // 21h. The desktop row, where Edit and Delete sit beside the text. Shot as the
+    // 21h. The desktop rows, with Edit and Delete beside the text. Shot as the
     // Companions card: the Settings page around it is four cards of other settings.
     await openPanel(page);
     await openSettingsSection(panel, 'companions');
     const companions = panel.locator('#hk-companions');
     await expect(companions).toBeVisible();
-    const row = companions.locator('.hk-decl-row').first();
-    await expect(row).toBeVisible();
-    await expect(row.locator('.hk-decl-preset-chip')).toBeVisible();
+    await expect(companions.locator('.hk-decl-row')).toHaveCount(3);
+    const row = companions.locator('.hk-decl-row', { hasText: 'Roborock' });
+    await expect(row.locator('img.hk-decl-logo')).toHaveJSProperty('complete', true);
+    await expect(row.locator('.hk-decl-shape')).toBeVisible();
+    await expect(row.locator('.hk-decl-meta')).toContainText('Roborock');
+    await expect(row.locator('.hk-decl-meta')).toContainText('24 hours');
+    const custom = companions.locator('.hk-decl-row', { hasText: 'Zigbee device offline' });
+    await expect(custom.locator('.hk-decl-custom')).toBeVisible();
     await expect(row.locator('.hk-decl-edit')).toBeVisible();
     await expect(row.locator('.hk-decl-delete')).toBeVisible();
-    await centre(row);
+    await centre(companions.locator('.hk-companion-group-decl'));
     await page.waitForTimeout(500);
     await companions.screenshot({ path: `${OUT}/21h-panel-declarative-row-actions.png` });
 
-    // 21i. The same row on a phone. The buttons take a line of their own under the
+    // 21i. The same rows on a phone. The buttons take a line of their own under the
     // name, and both are on the screen at a size a thumb can hit.
     await page.setViewportSize(PHONE);
     await openPanel(page);
@@ -300,15 +333,17 @@ test('capture the declarative companion row at both widths', async ({ page }) =>
     await expect(companions).toBeVisible();
     const phoneRow = companions.locator('.hk-decl-row').first();
     await expect(phoneRow.locator('.hk-decl-delete')).toBeVisible();
+    await expect(phoneRow.locator('.hk-decl-tile')).toBeVisible();
     // Scroll to the *buttons*, not the row: the row's own top is on screen while its
-    // action line is still under the bottom tab bar, which is exactly the half of the
-    // fix the shot exists to show.
+    // action line is still under the bottom tab bar.
     await phoneRow.locator('.hk-companion-actions').scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${OUT}/21i-panel-mobile-declarative-row.png` });
     await page.setViewportSize({ width: 1280, height: 720 });
   } finally {
-    await callService('home_keeper', 'delete_declarative_companion', { id: specId });
+    for (const id of specIds) {
+      await callService('home_keeper', 'delete_declarative_companion', { id });
+    }
   }
 });
 

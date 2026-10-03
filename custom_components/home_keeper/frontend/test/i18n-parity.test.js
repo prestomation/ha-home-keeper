@@ -58,14 +58,13 @@ const INTENTIONALLY_IDENTICAL = new Set([
 const DECLARATIVE_COGNATES = {
   ca: [
     'declarative.companions.chip_error',
-    'declarative.companions.preset_badge',
     'declarative.companions.section_exclusions',
     'declarative.companions.summary_exclusions.other',
     'transfer.documentLabel',
   ],
   da: ['declarative.companions.summary_filters.one'],
   de: ['declarative.companions.field_name'],
-  es: ['declarative.companions.chip_error', 'declarative.companions.preset_badge'],
+  es: ['declarative.companions.chip_error'],
   fr: [
     'declarative.companions.field_description',
     'declarative.companions.section_exclusions',
@@ -74,17 +73,14 @@ const DECLARATIVE_COGNATES = {
     'field.skipNote',
     'transfer.documentLabel',
   ],
-  it: ['declarative.companions.preset_badge'],
   nb: ['declarative.companions.summary_filters.one'],
   nl: [
-    'declarative.companions.preset_badge',
     'declarative.companions.section_trigger',
     'declarative.companions.summary_filters.one',
     'declarative.companions.summary_filters.other',
     'defer.preset.1w',
     'transfer.documentLabel',
   ],
-  'pt-BR': ['declarative.companions.preset_badge'],
   sv: ['declarative.companions.summary_filters.one'],
 };
 

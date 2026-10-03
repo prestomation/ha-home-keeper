@@ -31,6 +31,9 @@
   "declarative_preset.limit.below": "{description}阈值：低于 {limit}。",
   "declarative_preset.limit.above": "{description}阈值：高于 {limit}。",
   "declarative_preset.limit.life": "{description}阈值：剩余不足 {limit}，或低于 10%。",
+  "declarative_preset.limit_short.below": "低于 {limit}",
+  "declarative_preset.limit_short.above": "高于 {limit}",
+  "declarative_preset.limit_short.life": "剩余不足 {limit}",
   "declarative_preset.unit.hours": "{n} 小时",
   "declarative_preset.unit.days": "{n} 天",
   "declarative_task.completion_prompt": "由声明式搭档“{name}”开启。条件消失时，Home Keeper 会自动完成此任务，因此无法手动完成。"

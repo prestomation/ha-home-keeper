@@ -150,7 +150,18 @@ Each declarative companion gets a row under **Settings → Companions** with an 
 button and a Delete button. On a phone the row stacks, and the buttons take a line of
 their own.
 
-![A declarative companion row in Settings, Companions: the name with its Enabled and Preset chips, then Edit and Delete](../../images/21h-panel-declarative-row-actions.png)
+The row shows where the companion comes from:
+
+- **Logo.** The logo of the integration that the companion watches. If Home Assistant
+  has no logo for it, the row shows a generic logo or the preset icon.
+- **Badge.** A small icon on the logo shows what the companion looks for, such as
+  supplies that run low or parts near the end of their life. Hold the pointer on it to
+  see its name.
+- **Line under the name.** The integration, the entity platform, the limit and the
+  number of tasks. The limit shows only while the trigger is the same as in the preset.
+- **Custom chip.** You made the companion yourself, and no preset made it.
+
+![A declarative companion row in Settings, Companions: the integration logo with a badge, the name with its Enabled chip, a line with the integration, platform, limit and task count, then Edit and Delete](../../images/21h-panel-declarative-row-actions.png)
 
 ![The same row on a phone, with Edit and Delete on a line under the name](../../images/21i-panel-mobile-declarative-row.png)
 

@@ -135,3 +135,24 @@ def test_the_preset_list_says_each_limit(ha):
     assert by_id["tplink_life_low"]["limit"] is None
     assert "Limit:" not in by_id["tplink_life_low"]["description"]
     assert by_id["firmware_update_available"]["limit"] is None
+
+
+def test_the_preset_list_names_each_brand_shape_and_short_limit(ha):
+    token = ha.headers["Authorization"].split(" ", 1)[1]
+    reply = ws_send(token, {"type": "home_keeper/list_declarative_presets"})
+    assert reply.get("success"), reply
+    by_id = {p["id"]: p for p in reply["result"]["presets"]}
+    zha = by_id["zha_wear_high"]
+    assert (zha["brand"], zha["shape"], zha["limit_text"]) == (
+        "Zigbee (ZHA)",
+        "wear_high",
+        "above 180 days",
+    )
+    tplink = by_id["tplink_life_low"]
+    assert (tplink["shape"], tplink["limit_text"]) == ("life_low", None)
+    general = by_id["firmware_update_available"]
+    assert (general["brand"], general["shape"], general["limit_text"]) == (
+        None,
+        None,
+        None,
+    )

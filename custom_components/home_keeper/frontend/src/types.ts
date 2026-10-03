@@ -284,6 +284,9 @@ export interface Hass {
   labels?: Record<string, HassLabel>;
   states?: Record<string, HassEntity>;
   language?: string;
+  // Home Assistant's own translations. The panel reads only an integration's title
+  // with it (`component.<domain>.title`), and gets `''` for a key it has not loaded.
+  localize?: (key: string) => string;
   // The instance's configured currency, used to format a completion's cost, and its
   // language, which the backend formats the shopping-list lines in.
   // `time_zone` is the zone the panel reads and writes times in (see `setTimeZone`).
@@ -749,6 +752,13 @@ export interface DeclarativeCompanionPreset {
   // The one limit an integration preset's trigger compares with, or `null`. The
   // preview draws each reading against it. Older backends omit it.
   limit?: PresetLimit | null;
+  // An integration preset's brand name (`Roborock`), its shape (`life_low`, a key of
+  // SHAPES in `declarative_presets.py`) and its limit as a short localized phrase
+  // (`less than 24 hours left`). A companion row shows them. A general preset sends
+  // `null`, and older backends omit them.
+  brand?: string | null;
+  shape?: string | null;
+  limit_text?: string | null;
   default_spec: Omit<DeclarativeCompanion, 'id' | 'created' | 'updated'>;
 }
 
