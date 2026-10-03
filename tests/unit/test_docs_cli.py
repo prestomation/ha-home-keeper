@@ -566,6 +566,20 @@ def test_hook(repo: Path, capsys, monkeypatch) -> None:
     assert run(repo, "hook", capsys=capsys) == ""
 
 
+def test_missing_base_ref_fails(repo: Path) -> None:
+    # tmp_path is not a git repository, so no ref exists there.
+    assert problems(repo, base="origin/main") == [
+        "[git] origin/main: no such git ref. Fetch it, or drop --base."
+    ]
+
+
+def test_ref_exists_on_this_repository() -> None:
+    if not (_ROOT / ".git").exists():
+        pytest.skip("needs the git checkout")
+    assert docs.ref_exists(_ROOT, "HEAD") is True
+    assert docs.ref_exists(_ROOT, "no-such-ref-for-docs-cli") is False
+
+
 def test_goal_change_notice(repo: Path) -> None:
     path = repo / "docs/design/engine.md"
     doc = docs.load_docs(repo, docs.load_config(repo))[0]

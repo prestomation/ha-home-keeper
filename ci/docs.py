@@ -622,7 +622,14 @@ def check(
     problems += check_doc_refs(root, cfg, files)
     problems += check_duplicates(cfg, [d for d in docs if d.kind in cfg.caps])
     if base:
-        notices += goal_changes(root, base, [d for d in docs if d.kind == "design"])
+        if ref_exists(root, base):
+            design = [d for d in docs if d.kind == "design"]
+            notices += goal_changes(root, base, design)
+        else:
+            # A missing base would make the goal-change report silently empty.
+            problems.append(
+                Problem("git", base, "no such git ref. Fetch it, or drop --base.")
+            )
     return problems, notices
 
 
@@ -743,6 +750,19 @@ def check_duplicates(cfg: Config, docs: list[Doc]) -> list[Problem]:
             elif not other:
                 seen[s] = (doc.path, n)
     return problems
+
+
+def ref_exists(root: Path, ref: str) -> bool:
+    try:
+        subprocess.run(
+            ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+            cwd=root,
+            capture_output=True,
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return True
 
 
 def goal_changes(root: Path, base: str, docs: list[Doc]) -> list[str]:
