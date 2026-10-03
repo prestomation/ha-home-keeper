@@ -34,6 +34,11 @@ summary: The branch, review, screenshot, walkthrough and documentation gates tha
   the issue with `Fixes #N` and the release closes it. PR comments, `/q review` and
   replies to review threads are still required. Repo automation that posts from a fixed
   template (`notify-issues` in `release.yml`, the `ha-beta.yml` reporter) is allowed.
+- **1 exception: the preview-build comment.** When the maintainer asks for it in the
+  current session, the `preview-comment` skill (`.claude/skills/preview-comment/SKILL.md`)
+  posts 1 short note on the issue: the preview version, how to install it, the preview
+  guide pages, and that the PR may wait for feedback. The agent shows the exact final
+  text first, and posts it unchanged only after the maintainer approves that text.
 - Commit messages, PR bodies and code comments follow STE, but the CHANGELOG budget and
   vale do not apply to them.
 

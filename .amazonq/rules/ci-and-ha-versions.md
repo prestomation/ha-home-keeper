@@ -123,3 +123,5 @@ bash ci/test-mutation-frontend.sh          # Stryker, changed line ranges only
 - The scripts only find. The weekly `preset-upkeep` skill decides, edits the catalog and
   opens 1 draft PR. Neither script is a PR gate.
 - The `open-work` skill only reports open work, sorted by who must act next.
+- The `preview-comment` skill tells a reporter that a preview build is ready. It posts
+  only what the maintainer approved ([pr-workflow.md](pr-workflow.md)).
