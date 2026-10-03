@@ -164,9 +164,13 @@ def test_kept_payload_fields_hold_only_small_values() -> None:
     fields = [f for spine in api_surface.PAYLOAD_SPINES.values() for f in spine]
     fields += [f for spec in api_surface.EVENTS for f in spec.extra]
     dropped = api_surface.EVENT_ENTITY_DROPPED_FIELDS
+    # Dropped by key name, the same way ``event.event_attributes`` drops them.
     unsafe = sorted(
-        {f"{f.name}: {f.type!r}" for f in fields if f.type.strip() not in _SMALL_TYPES}
-        - {f"{f.name}: {f.type!r}" for f in fields if f.name in dropped}
+        {
+            f"{f.name}: {f.type!r}"
+            for f in fields
+            if f.name not in dropped and f.type.strip() not in _SMALL_TYPES
+        }
     )
     assert unsafe == [], {
         "kept_fields_without_a_small_type": unsafe,
