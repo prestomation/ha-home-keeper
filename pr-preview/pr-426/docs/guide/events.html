@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.10.2">
 <title data-rh="true">Events &amp; automations | Home Keeper</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/img/logo.svg"><meta data-rh="true" name="twitter:image" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/img/logo.svg"><meta data-rh="true" property="og:url" content="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/docs/guide/events"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Events &amp; automations | Home Keeper"><meta data-rh="true" name="description" content="Home Keeper fires a Home Assistant bus event for every state change. Use these"><meta data-rh="true" property="og:description" content="Home Keeper fires a Home Assistant bus event for every state change. Use these"><link data-rh="true" rel="icon" href="/ha-home-keeper/pr-preview/pr-426/img/favicon.svg"><link data-rh="true" rel="canonical" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/docs/guide/events"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/docs/guide/events" hreflang="en"><link data-rh="true" rel="alternate" href="https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/docs/guide/events" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Events","item":"https://prestomation.github.io/ha-home-keeper/pr-preview/pr-426/docs/guide/events"}]}</script><link rel="stylesheet" href="/ha-home-keeper/pr-preview/pr-426/assets/css/styles.eef33b07.css">
-<script src="/ha-home-keeper/pr-preview/pr-426/assets/js/runtime~main.c571195d.js" defer="defer"></script>
+<script src="/ha-home-keeper/pr-preview/pr-426/assets/js/runtime~main.af0d434b.js" defer="defer"></script>
 <script src="/ha-home-keeper/pr-preview/pr-426/assets/js/main.bd95cae6.js" defer="defer"></script>
 </head>
 <body>
@@ -58,7 +58,7 @@ device page. It gets each task, part and appliance event of that device.</p>
 <p>Home Keeper also adds 1 <strong>Home Keeper Events</strong> entity on the Home Keeper device. It
 gets all events. Use it for a task that has no device, and for the events when a task
 or an appliance is created or deleted.</p>
-<p><img decoding="async" loading="lazy" alt="The Home Keeper device with the Events entity" src="/ha-home-keeper/pr-preview/pr-426/assets/images/79e-device-service-events-4dbe64d38c787f455ab2ff6bf7442700.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="The Home Keeper device with the Events entity" src="/ha-home-keeper/pr-preview/pr-426/assets/images/79e-device-service-events-58999b2355a6074f209e6b5b8eea6a75.png" width="1280" height="805" class="img_ev3q"></p>
 <p>To use an event entity in an automation (Home Assistant 2026.7 or later):</p>
 <ol>
 <li class="">Go to <strong>Settings → Automations &amp; scenes</strong>, and create an automation.</li>
@@ -68,7 +68,7 @@ entity.</li>
 <li class="">In <strong>Event type</strong>, select 1 or more events, such as <strong>Task completed</strong> or
 <strong>Task became overdue</strong>.</li>
 </ol>
-<p><img decoding="async" loading="lazy" alt="Event received trigger with a device target" src="/ha-home-keeper/pr-preview/pr-426/assets/images/79c-automation-event-received-08d12a503d07d9ffe9ec7cfa7d999692.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="Event received trigger with a device target" src="/ha-home-keeper/pr-preview/pr-426/assets/images/79c-automation-event-received-fb4928c3625bc62e8ff2ebb3663c6fc7.png" width="1280" height="720" class="img_ev3q"></p>
 <p><img decoding="async" loading="lazy" alt="The list of event types" src="/ha-home-keeper/pr-preview/pr-426/assets/images/79d-automation-event-types-63f7f811190ee510c5b652774da093f1.png" width="1280" height="720" class="img_ev3q"></p>
 <p>The event type is the event name without <code>home_keeper_</code>, such as
 <code>task_completed</code> or <code>part_low_stock</code>. The attributes are the event data, without the
@@ -78,7 +78,7 @@ large fields (<code>source</code>, <code>managed_by</code>, <code>task_chips</co
 <p>If 2 tasks are on the same device, add a condition on the <code>task_id</code> or <code>name</code>
 attribute to select 1 task.</p>
 <p>The more-info dialog of the entity shows the last event and when it occurred.</p>
-<p><img decoding="async" loading="lazy" alt="More-info dialog of an event entity" src="/ha-home-keeper/pr-preview/pr-426/assets/images/79b-device-event-more-info-1ec08ce54f84d7db60eae749b1103b84.png" width="1280" height="720" class="img_ev3q"></p>
+<p><img decoding="async" loading="lazy" alt="More-info dialog of an event entity" src="/ha-home-keeper/pr-preview/pr-426/assets/images/79b-device-event-more-info-e168b62dee97d08dc52d546307ba2d72.png" width="1280" height="720" class="img_ev3q"></p>
 <p>The event entities copy the bus events. If an event fires while Home Keeper
 reloads, the entity can miss it. Home Keeper reloads when you add a task to a device.
 The bus event always fires. Use a <code>platform: event</code> trigger if an automation must
