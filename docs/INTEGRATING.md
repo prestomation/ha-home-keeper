@@ -119,6 +119,8 @@ task. Home Keeper reads `managed_by` and acts on it.
 - Home Keeper removes the locked fields from every `update_task` payload, also from your
   own calls. A locked field keeps the value it had at creation. Lock only the fields your
   integration never changes. To change one, delete the task and add it again.
+- `photos` cannot be locked. Photos belong to the household, like the stock of a managed
+  part, so users can always add, remove and reorder them.
 - `add_task` rejects `deletion_protected` without `config_entry_id` (`invalid_task`),
   because Home Keeper then cannot see that your integration is gone.
 

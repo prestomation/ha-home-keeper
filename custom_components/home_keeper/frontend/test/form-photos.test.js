@@ -237,12 +237,26 @@ describe('the Edit task form', () => {
     );
   });
 
-  it('shows no Photos section for a task whose owner locks its photos and has none', async () => {
-    const locked = { ...saved, photos: [], managed_by: { integration: 'x', locked_fields: ['photos'] } };
-    const { panel } = await mountPanel('/tasks', hassWith([locked]));
+  it('keeps every photo control when an owner puts photos in locked_fields', async () => {
+    // Photos belong to the household, like the stock of a managed part: an owning
+    // integration cannot lock them.
+    const managed = { ...saved, managed_by: { integration: 'x', locked_fields: ['name', 'photos'] } };
+    const { panel } = await mountPanel('/tasks', hassWith([managed]));
     await waitFor(() => panel._tasks.length);
     panel._openEdit(panel._tasks[0]);
-    await waitFor(() => panel.shadowRoot.querySelector('#hk-task-form-basics'));
-    expect(panel.shadowRoot.querySelector('.hk-form-photos')).toBeNull();
+    const section = await waitFor(() => panel.shadowRoot.querySelector('.hk-form-photos'));
+    expect(section.querySelector('.hk-photo-add')).toBeTruthy();
+    expect(section.querySelectorAll('.hk-photo-remove')).toHaveLength(2);
+    expect(section.querySelector('.hk-photo-cover-btn').dataset.photoId).toBe('p2');
+  });
+
+  it('invites a first photo on a managed task with none', async () => {
+    const managed = { ...saved, photos: [], managed_by: { integration: 'x', locked_fields: ['photos'] } };
+    const { panel } = await mountPanel('/tasks', hassWith([managed]));
+    await waitFor(() => panel._tasks.length);
+    panel._openEdit(panel._tasks[0]);
+    const section = await waitFor(() => panel.shadowRoot.querySelector('.hk-form-photos'));
+    expect(section.querySelector('.hk-photo-hint').textContent).toBe(t('photos.empty'));
+    expect(section.querySelector('.hk-photo-add')).toBeTruthy();
   });
 });
