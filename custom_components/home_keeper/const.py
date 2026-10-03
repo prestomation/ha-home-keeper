@@ -335,7 +335,7 @@ OPTION_PROFILES = "profiles"
 # loudly it lands (channel, urgency) and how it looks (icon, color).
 # Edited from the panel's Settings → Notifications card and the set_options service;
 # consumed by the notify service, the action listener, and the coordinator's automatic
-# source. See notifications.py and docs/PROFILES_REFACTOR_PLAN.md.
+# source. See docs/design/profiles-notifications.md.
 OPTION_NOTIFICATIONS = "notifications"
 # An existing Home Assistant to-do list (a ``todo.*`` entity id) that auto-buy
 # reminders are mirrored onto — a shopping list, so "go buy more" reaches voice
@@ -416,7 +416,7 @@ REC_ONE_OFF = "one-off"
 # ``sensor_tasks.py``). Three modes: ``usage`` (a meter — due after the reading
 # advances ``target`` units since the last completion), ``threshold`` (due when
 # the reading crosses a numeric comparison) and ``state`` (due when the entity enters
-# a given state). See docs/SENSOR_TASKS_PLAN.md.
+# a given state). See docs/design/sensor-tasks.md.
 REC_SENSOR = "sensor"
 # A counted wear item's *use* task: the one surface a household taps to say "I wore
 # it / I used it once". It has no cadence and no due date at all — ``next_due`` is
@@ -426,7 +426,7 @@ REC_SENSOR = "sensor"
 # replacement task beside it arms once enough entries accumulate since the last
 # replacement (see ``reconcile.uses_since_replacement``). Distinct from
 # ``triggered``, which an owner arms and clears, and from ``sensor``, which reads a
-# number: nothing ever arms a use task. See docs/COUNTED_WEAR_ITEMS_PLAN.md.
+# number: nothing ever arms a use task. See docs/design/appliances.md.
 REC_USE = "use"
 RECURRENCE_TYPES = [
     REC_FLOATING,
@@ -601,7 +601,7 @@ MAX_USE_NOUN_LEN = 16
 # DEFERRED (not implemented this prototype): a stable cross-integration contribution
 # interface so integrations like Battery Notes can push maintenance tasks without
 # this integration knowing anything about them. The intended hook is a dispatcher
-# signal plus a `home_keeper.contribute_task` service. See docs/DESIGN.md.
+# signal plus a `home_keeper.contribute_task` service. See IDEAS.md.
 SIGNAL_TASK_CONTRIBUTION = f"{DOMAIN}_task_contribution"
 
 # ── Companion discovery ──────────────────────────────────────────────────────

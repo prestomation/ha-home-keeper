@@ -5,7 +5,8 @@ These are deliberately *pure* functions: they take and return timezone-aware
 That keeps the product's core logic trivially unit-testable in isolation (the
 caller is responsible for passing an aware ``now`` from ``homeassistant.util.dt``).
 
-Two recurrence models are supported:
+The task has 6 recurrence types (``const.RECURRENCE_TYPES``). The 2 clock-based ones
+are below; ``docs/design/recurrence.md`` covers all 6.
 
 * **floating** — the next due date is measured from the last completion:
   ``next_due = last_completed + interval·unit``. A task that has *never* been

@@ -478,7 +478,7 @@ class HomeKeeperCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         triggers and per-device diagnostics from ``device.config_entries``. So
         ``device_trigger.py`` and ``async_get_device_diagnostics`` are no longer
         offered on a device we merely link to. Tasks on Home Keeper's own appliance
-        devices keep both. See ``docs/DEVICE_REGISTRY_2026_8_PLAN.md``.
+        devices keep both. See ``docs/design/appliances.md``.
         """
         device_id = task.get("device_id")
         device = self._existing_device(device_id)

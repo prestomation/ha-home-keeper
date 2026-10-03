@@ -1,7 +1,7 @@
 """Registry-device provisioning for Home Keeper assets.
 
-This is the *virtual-device* half of the asset feature (see ``IDEAS.md`` /
-``docs/DESIGN.md``): when an appliance has no Home Assistant device to attach
+This is the *virtual-device* half of the asset feature (see
+``docs/design/appliances.md``): when an appliance has no Home Assistant device to attach
 maintenance tasks to, Home Keeper registers a real device-registry entry for it so
 tasks, future batteries, and asset metadata all converge on one device page.
 
@@ -377,7 +377,7 @@ async def async_detach_legacy_merged_devices(
     Deliberately limited to devices that have **another** config entry besides ours.
     Removing the last entry from a device deletes it, which would strand the entities
     sitting on it — that case is the already-split leftover, and repairing it needs the
-    entities re-pointed first (still open; see ``docs/DEVICE_REGISTRY_2026_8_PLAN.md``).
+    entities re-pointed first (still open; see ``IDEAS.md``).
 
     That check and the update below are not atomic: nothing stops another integration
     removing its own entry in between, which would make ours the last one after all.

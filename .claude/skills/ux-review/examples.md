@@ -1,3 +1,8 @@
+---
+title: UX review examples
+summary: A fictional worked example of each ux-review stage file and the report format, for reviewers to copy the shape.
+---
+
 # Worked examples
 
 A short, fictional example of each stage's file — copy the **shape**, not the
@@ -105,8 +110,38 @@ dropped one and why.
 
 ## `report.md` (Stage 3)
 
-Use the output format in `SKILL.md`. The Top-3 block and one finding, filled,
-for shape:
+### Report format
+
+```
+## Goal (as understood)
+One line: the task, persona, and what success looks like.
+Reviewed on: <viewport / device> — note if findings are device-specific.
+
+## Since last review        (only when a prior report was given)
+- fixed: prior findings now resolved (credit them)
+- unchanged: prior findings still open (re-cite, don't re-derive)
+- regressed / new-from-fix: what a fix broke
+
+## What's working
+1–3 goal-relevant strengths. A probe that got the purpose or first click right counts.
+
+## Top 3 changes
+The synthesis, not a re-list: if the agent does only three things, what are they? Prefer
+the root-cause decision that clears several findings ("all four panels use the same card
+style, so nothing outranks anything — set a hierarchy and F3/F5/F7 resolve"). Name the
+findings each change clears.
+
+## Findings (worst first)
+For each:
+- severity: high | medium | low (note if conditional, e.g. "high on desktop, n/a on iOS")
+- principle: clarity | hierarchy | consistency | feedback | discoverability | craft | tone | ...
+- scope: which screen/step — or "cross-screen" if it spans a flow
+- observation: what, and where — for craft/tone, the measurement or the brief's tone words
+- why it matters: impact on THIS persona's goal — cite the convention or the probe's answer
+- suggested direction: concrete, a direction not a mandate (one or two sentences)
+```
+
+The Top-3 block and one finding, filled, for shape:
 
 ```
 ## Top 3 changes

@@ -8,7 +8,7 @@ to the right task (Mark done → ``complete_task``, Snooze → ``snooze_task``, 
 task. The pure filter/queue live in :mod:`profiles`, the payload/decoding in
 :mod:`notifications`; this is the thin Home Assistant boundary.
 
-See ``docs/PROFILES_REFACTOR_PLAN.md`` / ``docs/ACTIONABLE_NOTIFICATIONS_PLAN.md``.
+See ``docs/design/profiles-notifications.md``.
 """
 
 from __future__ import annotations

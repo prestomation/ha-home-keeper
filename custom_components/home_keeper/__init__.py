@@ -343,7 +343,7 @@ DELETE_TASK_SCHEMA = vol.Schema(
 # ``origin`` is a free-form marker the caller passes so it can recognise (and ignore)
 # the completion event it triggered. Home Keeper only echoes it back in the event.
 # The metadata fields (note/cost/photo/who) are the optional per-completion context;
-# ``photo`` is an image-upload id and ``who`` a person entity id.
+# ``photo`` is an image URL and ``who`` a person entity id.
 COMPLETE_TASK_SCHEMA = vol.Schema(
     {
         vol.Required("task_id"): cv.string,
@@ -1159,7 +1159,7 @@ def _register_services(hass: HomeAssistant) -> None:
         Raises HA core's ``Unauthorized`` rather than a translated
         ``ServiceValidationError``: this is an auth failure, not bad input, and the
         websocket/REST layers already map it to a 401/``unauthorized`` the frontend
-        renders. See ``.amazonq/rules/architecture-and-code.md`` → "Privilege model".
+        renders. See ``.amazonq/rules/architecture.md`` → "Privilege model".
         """
         if not await _caller_is_admin(call):
             raise Unauthorized(context=call.context)

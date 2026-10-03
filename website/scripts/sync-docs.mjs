@@ -6,7 +6,7 @@
 //   docs/INTEGRATING.md  -> website/developer/integrating.md
 //   docs/GLUE_INTEGRATIONS.md -> website/developer/glue-integrations.md
 //   docs/EVENTS.md       -> website/developer/events.md
-//   docs/DESIGN.md       -> website/developer/architecture.md
+//   docs/design/architecture.md -> website/developer/architecture.md
 //   docs/SECURITY.md     -> website/developer/security.md
 //
 // The generated trees (website/docs/guide, website/developer) are gitignored; the
@@ -30,6 +30,7 @@ import {
   guideFileDrift,
   guideFilesOnDisk,
   DEV_DOCS,
+  stripSourceHead,
 } from './doc-map.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -146,8 +147,9 @@ async function buildUserGuide() {
     position += 1;
     const file = guideFile(spec);
     const raw = await readFile(resolve(repo, file), 'utf8');
-    // Drop the leading H1 — the frontmatter title renders it.
-    const withoutH1 = raw.replace(/^#\s+.+\n+/, '');
+    // Drop the source front matter and the leading H1 — the generated
+    // frontmatter title renders it.
+    const withoutH1 = stripSourceHead(raw);
     const body = rewriteLinks(withoutH1, posix.dirname(file)).trim();
     const page =
       frontmatter({title: spec.title, label: spec.label, position, slug: `/guide/${spec.slug}`}) +
@@ -174,8 +176,9 @@ async function buildDeveloperGuide() {
 
   for (const spec of DEV_DOCS) {
     const raw = await readFile(resolve(repo, spec.file), 'utf8');
-    // Drop the leading H1 — the frontmatter title renders it.
-    const withoutH1 = raw.replace(/^#\s+.+\n+/, '');
+    // Drop the source front matter and the leading H1 — the generated
+    // frontmatter title renders it.
+    const withoutH1 = stripSourceHead(raw);
     const body = rewriteLinks(withoutH1, posix.dirname(spec.file)).trim();
     const page =
       frontmatter({title: spec.title, label: spec.label, position: spec.pos}) +
@@ -193,7 +196,7 @@ async function buildDeveloperGuide() {
 async function buildReleaseNotes() {
   const raw = await readFile(resolve(repo, 'CHANGELOG.md'), 'utf8');
   // Drop the leading H1 — frontmatter title renders it.
-  const withoutH1 = raw.replace(/^#\s+.+\n+/, '');
+  const withoutH1 = stripSourceHead(raw);
   const body = rewriteLinks(withoutH1, '').trim();
   const page =
     frontmatter({title: 'Release Notes', label: 'Release Notes', position: 99}) +

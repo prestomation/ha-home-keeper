@@ -31,7 +31,7 @@ links via ``async_entity_id_to_device_id`` and no longer copies identifiers at a
 So results here support claims about *upgrading from a pre-2026.8 install* — which is
 what #183 reports — and must not be read as claims about how Battery Notes behaves
 today. Worth noting for the model decision in
-``docs/DEVICE_REGISTRY_2026_8_PLAN.md``: upstream has moved to entity-level linking,
+``docs/design/appliances.md``: upstream has moved to entity-level linking,
 and Home Keeper has not.
 """
 

@@ -435,8 +435,7 @@ const EDGE_SENSOR_MODES: readonly string[] = [
  * `last_replaced`, consumes a spare and moves `last_completed`, which is the instant
  * `reconcile.cycle_start` measures the next count from — so renewing the coating at 10
  * of 25 wears restarts the count instead of letting it climb to 31 of 25.
- * `docs/COUNTED_WEAR_ITEMS_PLAN.md` always said early completion was allowed; only
- * this predicate withheld it.
+ * Early completion is allowed (`docs/design/appliances.md`).
  */
 export function isMonitoredDormant(task: Task): boolean {
   if (task.next_due) return false;

@@ -116,7 +116,7 @@ export const DEV_DOCS = [
   {file: 'docs/INTEGRATING.md', out: 'integrating.md', title: 'Integrating with Home Keeper', label: 'Integrating', pos: 1},
   {file: 'docs/GLUE_INTEGRATIONS.md', out: 'glue-integrations.md', title: 'Glue integrations', label: 'Glue integrations', pos: 3},
   {file: 'docs/EVENTS.md', out: 'events.md', title: 'Events reference', label: 'Events', pos: 4},
-  {file: 'docs/DESIGN.md', out: 'architecture.md', title: 'Architecture', label: 'Architecture', pos: 5},
+  {file: 'docs/design/architecture.md', out: 'architecture.md', title: 'Architecture', label: 'Architecture', pos: 5},
   {file: 'docs/SECURITY.md', out: 'security.md', title: 'Security model', label: 'Security', pos: 6},
 ];
 
@@ -149,6 +149,16 @@ export const DOC_ROUTES = {
   'docs/INTEGRATING.md': '/developer/integrating',
   'docs/GLUE_INTEGRATIONS.md': '/developer/glue-integrations',
   'docs/EVENTS.md': '/developer/events',
-  'docs/DESIGN.md': '/developer/architecture',
+  'docs/design/architecture.md': '/developer/architecture',
   'docs/SECURITY.md': '/developer/security',
 };
+
+/**
+ * Remove what a source doc carries for the repository and not for the site: the
+ * YAML front matter that `ci/docs.py` reads, then the leading H1, which the
+ * generated frontmatter title replaces. Without this the source block would render
+ * as a rule and a heading in the page body.
+ */
+export function stripSourceHead(raw) {
+  return raw.replace(/^---\n[\s\S]*?\n---\n+/, '').replace(/^#\s+.+\n+/, '');
+}

@@ -89,6 +89,21 @@ jobs:
           reporter: github-pr-review
           filter_mode: added
 
+  docs-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The drift report names the commits since a doc last changed, and
+          # --base compares each design doc's goals with the base branch.
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install PyYAML
+      - name: Check the docs (drift, coverage, length, history, links)
+        run: python3 ci/docs.py check --base origin/${{ github.base_ref || 'main' }}
+
   changelog-release-gap:
     runs-on: ubuntu-latest
     steps:
