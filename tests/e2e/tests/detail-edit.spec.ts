@@ -90,7 +90,7 @@ test.describe('Home Keeper panel — editing beside a detail page', () => {
     await expect(panel.locator('#hk-form')).toBeVisible();
 
     const renamed = `${original} (edited)`;
-    const nameField = panel.locator('#hk-form input').first();
+    const nameField = panel.locator('#hk-form ha-selector-text input').first();
     await nameField.fill(renamed);
     await panel.locator('#f-save').click();
 
@@ -102,7 +102,7 @@ test.describe('Home Keeper panel — editing beside a detail page', () => {
     // Put the name back so the seeded fixture is unchanged for the next spec.
     await panel.locator('.d-edit').click();
     await expect(panel.locator('#hk-form')).toBeVisible();
-    await panel.locator('#hk-form input').first().fill(original);
+    await panel.locator('#hk-form ha-selector-text input').first().fill(original);
     await panel.locator('#f-save').click();
     await expect(heading).toHaveText(original);
 
