@@ -64,7 +64,7 @@ export function companionOrigin(
   const preset = presetFor(spec, presets);
   const domain = spec.selection.target_integration || null;
   const kin = domain
-    ? (presets ?? []).find((p) => p.requires_integration === domain && p.brand)
+    ? presets?.find((p) => p.requires_integration === domain && p.brand)
     : undefined;
   const sameTrigger =
     !!preset &&
@@ -75,7 +75,7 @@ export function companionOrigin(
     brand: preset?.brand || kin?.brand || null,
     shape: preset?.shape || null,
     platform: spec.selection.domain || null,
-    limitText: (sameTrigger && preset?.limit_text) || null,
+    limitText: sameTrigger ? preset.limit_text || null : null,
     icon: preset?.icon || null,
     custom: !spec.preset_id,
   };

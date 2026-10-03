@@ -114,14 +114,28 @@ describe('declarativeRow', () => {
     expect(el.querySelector('.hk-decl-custom').textContent).toBe('Custom');
     expect(el.querySelector('.hk-decl-shape')).toBeNull();
     expect(el.querySelector('img.hk-decl-logo').dataset.fallbackIcon).toBe('mdi:puzzle-outline');
-    // No title for the platform: the raw id stands in.
-    expect(meta(el)).toEqual(['Zigbee Home Automation', 'binary_sensor', '2 matched task(s)']);
+    expect(meta(el)).toEqual(['Zigbee Home Automation', 'Binary sensor', '2 matched task(s)']);
   });
 
   it('falls back to the domain when Home Assistant has no title or no localize', () => {
     const spec = { ...SPEC, preset_id: null, selection: { ...SELECTION, target_integration: 'my_hacs' } };
     expect(meta(render(spec, host({ _hass: undefined })))[0]).toBe('my_hacs');
-    expect(meta(render(spec, host({ _hass: {} })))).toEqual(['my_hacs', 'sensor', '2 matched task(s)']);
+    expect(meta(render(spec, host({ _hass: {} })))).toEqual(['my_hacs', 'Sensor', '2 matched task(s)']);
+  });
+
+  it('names a platform the panel has no name for from Home Assistant, else by its id', () => {
+    const spec = { ...SPEC, selection: { ...SELECTION, domain: 'lock' } };
+    const p = host({ _hass: { localize: (key) => ({ 'component.lock.title': 'Lock' })[key] ?? '' } });
+    expect(meta(render(spec, p))[1]).toBe('Lock');
+    expect(meta(render(spec, host({ _hass: {} })))[1]).toBe('lock');
+  });
+
+  it('names each platform the form offers in the panel language', () => {
+    setLanguage('de');
+    const names = ['binary_sensor', 'sensor', 'update', 'switch', 'number'].map(
+      (domain) => meta(render({ ...SPEC, selection: { ...SELECTION, domain } }))[1],
+    );
+    expect(names).toEqual(['Binärsensor', 'Sensor', 'Aktualisierung', 'Schalter', 'Zahl']);
   });
 
   it('shows the preset icon and "Any integration" when there is no target integration', () => {

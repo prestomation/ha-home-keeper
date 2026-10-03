@@ -161,7 +161,7 @@ The row shows where the companion comes from:
   number of tasks. The limit shows only while the trigger is the same as in the preset.
 - **Custom chip.** You made the companion yourself, and no preset made it.
 
-![A declarative companion row in Settings, Companions: the integration logo with a badge, the name with its Enabled chip, a line with the integration, platform, limit and task count, then Edit and Delete](../../images/21h-panel-declarative-row-actions.png)
+![Declarative companion rows in Settings, Companions. Each row has the integration logo with a badge, the name and its chips, and a line with the integration, platform, limit and task count. Edit and Delete are at the right](../../images/21h-panel-declarative-row-actions.png)
 
 ![The same row on a phone, with Edit and Delete on a line under the name](../../images/21i-panel-mobile-declarative-row.png)
 

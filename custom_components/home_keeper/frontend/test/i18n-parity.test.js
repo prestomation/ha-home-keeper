@@ -55,16 +55,20 @@ const INTENTIONALLY_IDENTICAL = new Set([
 // `declarative.companions.chip_error` is "Error" in Catalan and Spanish, which take
 // the Latin noun unchanged. Every other locale inflects or translates it ("Errore",
 // "Erreur", "Fehler", "Chyba", "Virhe", "Fout", "Błąd", "Feil", "Fel", "Ошибка").
+// `declarative.companions.platform.sensor` is "Sensor" in the Germanic, Polish and
+// Ibero-Romance locales, and Home Assistant itself names the platform so there.
+// `platform.update` is "Update" in Dutch, which takes the English word.
 const DECLARATIVE_COGNATES = {
   ca: [
     'declarative.companions.chip_error',
+    'declarative.companions.platform.sensor',
     'declarative.companions.section_exclusions',
     'declarative.companions.summary_exclusions.other',
     'transfer.documentLabel',
   ],
-  da: ['declarative.companions.summary_filters.one'],
-  de: ['declarative.companions.field_name'],
-  es: ['declarative.companions.chip_error'],
+  da: ['declarative.companions.platform.sensor', 'declarative.companions.summary_filters.one'],
+  de: ['declarative.companions.field_name', 'declarative.companions.platform.sensor'],
+  es: ['declarative.companions.chip_error', 'declarative.companions.platform.sensor'],
   fr: [
     'declarative.companions.field_description',
     'declarative.companions.section_exclusions',
@@ -73,15 +77,19 @@ const DECLARATIVE_COGNATES = {
     'field.skipNote',
     'transfer.documentLabel',
   ],
-  nb: ['declarative.companions.summary_filters.one'],
+  nb: ['declarative.companions.platform.sensor', 'declarative.companions.summary_filters.one'],
   nl: [
+    'declarative.companions.platform.sensor',
+    'declarative.companions.platform.update',
     'declarative.companions.section_trigger',
     'declarative.companions.summary_filters.one',
     'declarative.companions.summary_filters.other',
     'defer.preset.1w',
     'transfer.documentLabel',
   ],
-  sv: ['declarative.companions.summary_filters.one'],
+  sv: ['declarative.companions.platform.sensor', 'declarative.companions.summary_filters.one'],
+  pl: ['declarative.companions.platform.sensor'],
+  'pt-BR': ['declarative.companions.platform.sensor'],
 };
 
 const COGNATE_IDENTICAL = {

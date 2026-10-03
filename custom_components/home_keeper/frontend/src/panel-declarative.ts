@@ -303,6 +303,22 @@ const SHAPE_BADGES: Record<string, { icon: string; key: string }> = {
 /** The icon a companion row shows when it has no integration logo. */
 const COMPANION_ICON = 'mdi:puzzle-outline';
 
+/** The name of each entity platform the companion form offers, in the panel language. */
+const PLATFORM_NAMES: Record<string, string> = {
+  binary_sensor: 'declarative.companions.platform.binary_sensor',
+  sensor: 'declarative.companions.platform.sensor',
+  update: 'declarative.companions.platform.update',
+  switch: 'declarative.companions.platform.switch',
+  number: 'declarative.companions.platform.number',
+};
+
+/** The name of entity platform *domain*. Home Assistant does not load the titles of
+ *  the entity platforms in a panel, so the panel has its own for the common ones. */
+function platformName(p: PanelHost, domain: string): string {
+  const key = PLATFORM_NAMES[domain];
+  return key ? t(key) : integrationTitle(p, domain);
+}
+
 /** Home Assistant's title for *domain* (`component.<domain>.title`), else *domain*. */
 function integrationTitle(p: PanelHost, domain: string): string {
   return p._hass?.localize?.(`component.${domain}.title`) || domain;
@@ -337,7 +353,7 @@ export function declarativeRow(p: PanelHost, spec: DeclarativeCompanion): string
     : t('declarative.companions.any_integration');
   const meta = [
     source,
-    origin.platform ? integrationTitle(p, origin.platform) : '',
+    origin.platform ? platformName(p, origin.platform) : '',
     origin.limitText ?? '',
     t('declarative.companions.matches', { count: String(count) }),
   ]

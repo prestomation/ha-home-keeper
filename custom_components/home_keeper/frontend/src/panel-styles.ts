@@ -2291,7 +2291,8 @@ export const STYLES = `
     display: flex; flex-wrap: wrap; column-gap: 6px; row-gap: 2px; margin-top: 2px;
     color: var(--hk-ink-2); font-size: 0.85rem;
   }
-  .hk-decl-meta > span + span::before { content: "·"; margin-right: 6px; }
+  /* The dot goes after a part, so a line that wraps ends with it and never starts with it. */
+  .hk-decl-meta > span:not(:last-child)::after { content: "·"; margin-left: 6px; }
   .hk-decl-custom {
     display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
     border: 1px dashed var(--hk-line); border-radius: var(--hk-r-btn);
