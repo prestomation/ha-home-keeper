@@ -31,8 +31,8 @@ The admin and usage split is also the security boundary ([SECURITY.md](../../doc
 - A call with no `context.user_id` comes from an automation or the core and is trusted.
 - Raise the bare `Unauthorized`. It is the 1 exception to localized exceptions, and the
   websocket and REST layers map it to `unauthorized` and 401.
-- Usage stays open: task reads, create, complete, snooze and skip, profiles, companions,
-  and the card's reads.
+- Usage stays open: task reads, create, edit, delete, complete, snooze and skip, task
+  photos, profiles, companions, and the card's reads.
 - **An appliance read projects for a non-admin.** A non-admin gets
   `assets.card_projection`, a whitelist of the fields that the card shows. A new field is
   private until someone adds it to the whitelist. A mutation that echoes the whole asset
@@ -42,6 +42,28 @@ The admin and usage split is also the security boundary ([SECURITY.md](../../doc
   on `home_keeper.notify` fails the call.
 - Serve only built assets (`frontend/dist/`) as a static path. Home Assistant serves
   static paths before authentication.
+
+### How to decide
+
+Use this list for each new service, websocket command, HTTP method and event. Write the
+result in the plan's Security section ([pr-workflow.md](pr-workflow.md)).
+
+- **Open: a task and its data.** A field, file or list on a task follows the task. A user
+  who can create a task can also edit it, delete it and add its photos.
+- **Open: a read that the card or a native entity needs.**
+- **Admin-only: appliances and parts.** They own Home Assistant devices, and they hold
+  costs and serial numbers.
+- **Admin-only: settings, profiles and notification delivery**, and each operation that
+  can send text to a place the caller cannot reach.
+- **Admin-only: bulk and whole-store operations**: the orphan delete, import, export and
+  the appliance report.
+- **Admin-only: each operation that shows what Home Assistant hides from a user**, such
+  as a template preview or an entity registry list.
+- **A reply never leaks.** A reply holds only data that the caller can already read. If
+  the reply would leak, project it or gate the operation.
+- **An upload always needs a real user.** A signed URL never writes.
+- **If no rule fits, ask the maintainer.** Write the answer in the plan, then add the rule
+  here.
 
 ## Pure core
 

@@ -67,6 +67,9 @@ your topic before you change code or push.
 - **A plan lives in the PR body.** It starts with the CHANGELOG bullet it will ship.
 - **List one-way doors.** The plan and the PR body name every external contract the
   change commits to: service fields, event payloads, storage, attributes, user-data keys.
+- **Add a Security section.** The plan and the PR body say if each service, websocket
+  command, HTTP method and event that the change adds or changes is admin-only or open,
+  and why ([architecture.md](.amazonq/rules/architecture.md#how-to-decide)).
 - **A subjective UI choice starts with an artifact.** Mock up the options at desktop and
   phone width, then agree on 1.
 

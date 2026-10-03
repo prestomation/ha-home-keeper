@@ -24,6 +24,15 @@ summary: The branch, review, screenshot, walkthrough and documentation gates tha
   each one before work starts. The PR body has a **One-way doors** section that lists
   each committed surface: the field, its format, where it appears, and what automations
   will rely on. Frontend form data and private helpers are not one-way doors.
+- **Security.** The plan writes this section before work starts, and the PR body keeps
+  it next to **One-way doors**. It is a table with 1 row for each service, websocket
+  command, HTTP method (`POST /api/...`) and event that the change adds or changes. The
+  columns are: the surface, admin-only or open (before and after), the rule from
+  [How to decide](architecture.md#how-to-decide) that applies, and what a user who is
+  not an admin can now read or write. Below the table, name each new limit (file size,
+  count, disk use) and each change to `admin_only` or `admin_methods` in
+  `api_surface.py`, to `docs/SECURITY.md` and to `tests/integration/test_admin_gates.py`.
+  If no surface changes, write "No surface changed".
 - **Ask Amazon Q for a review after each push and when you open the PR.** Post a PR
   comment `/q review {request}`. Ask for critical, skeptical feedback, most serious
   first, and name the topics: correctness (edge cases, time zones, error paths),
