@@ -151,6 +151,8 @@ const S: Record<string, string> = {
   show_notes: 'Show notes',
   show_area: 'Show area / device',
   show_labels: 'Show labels',
+  show_schedule: 'Show schedule',
+  show_history_count: 'Show completion count',
   hide_managed: 'Hide integration-managed tasks',
   show_disabled: 'Include disabled tasks',
   confirm_complete: 'Confirm before completing',
@@ -1242,8 +1244,15 @@ export class HomeKeeperCard extends HTMLElement {
         )
         .join('');
     }
+    // The line under the name: the schedule and the completion count. Each part has
+    // its own row setting (#432). If both are off, the line is not rendered.
     const n = task.completions?.length ?? 0;
-    const meta = `${escapeHTML(recurrenceSummary(task))}${n ? ` · ${escapeHTML(tn('history.count', n))}` : ''}`;
+    const metaParts: string[] = [];
+    if (this._config.show_schedule !== false) metaParts.push(escapeHTML(recurrenceSummary(task)));
+    if (n && this._config.show_history_count !== false) {
+      metaParts.push(escapeHTML(tn('history.count', n)));
+    }
+    const meta = metaParts.length ? `<div class="hk-meta">${metaParts.join(' · ')}</div>` : '';
     const notes =
       this._config.show_notes && task.notes
         ? `<div class="hk-notes">${markdownBlock(task.notes)}</div>`
@@ -1277,7 +1286,7 @@ export class HomeKeeperCard extends HTMLElement {
         <div class="grow">
           ${this._coverHtml(task)}
           <div class="hk-name">${escapeHTML(task.name)}</div>
-          <div class="hk-meta">${meta}</div>
+          ${meta}
           ${notes}
           <div class="hk-chips">${statusChip}${areaChip}${tagChip}${noteChip}${labelChips}${taskChipsHtml}${docsHtml}${managedChip}</div>
         </div>
@@ -1660,6 +1669,8 @@ export class HomeKeeperCardEditor extends HTMLElement {
           { name: 'show_notes', selector: selBool() },
           { name: 'show_area', selector: selBool() },
           { name: 'show_labels', selector: selBool() },
+          { name: 'show_schedule', selector: selBool() },
+          { name: 'show_history_count', selector: selBool() },
           { name: 'hide_managed', selector: selBool() },
           { name: 'show_disabled', selector: selBool() },
           { name: 'confirm_complete', selector: selBool() },

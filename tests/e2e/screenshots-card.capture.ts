@@ -295,6 +295,21 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await noteDialog.locator('ha-button', { hasText: 'Close' }).click();
   await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
 
+  // 7a. Rows with the schedule and the completion count turned off (#432). Compare
+  // with card-note-chip.png, which shows the same 3 rows with the defaults.
+  const compact = {
+    type: 'custom:home-keeper-card',
+    title: 'Home maintenance',
+    show_schedule: false,
+    show_history_count: false,
+  };
+  await card.evaluate((el: ConfigurableCard, c) => el.setConfig(c), compact);
+  await expect(card.locator('.hk-meta')).toHaveCount(0);
+  await shotCardTop(page, card, `${OUT}/card-row-compact.png`, 3);
+  await card.evaluate((el: ConfigurableCard) =>
+    el.setConfig({ type: 'custom:home-keeper-card', title: 'Home maintenance' }),
+  );
+
   // 7b. The phone layout is a different arrangement, not a narrower one — the row
   // wraps its chips and actions — so the note chip and its dialog get their own
   // shot at phone width too. Last in the file, since it changes the viewport.
@@ -310,6 +325,14 @@ test('capture Home Keeper card screenshots', async ({ page }) => {
   await shotDialog(page, mobileNoteDialog, `${OUT}/card-note-dialog-mobile.png`);
   await mobileNoteDialog.locator('ha-button', { hasText: 'Close' }).click();
   await expect(page.locator('ha-dialog[open]')).toHaveCount(0);
+
+  // 7b2. The compact rows from step 7a at phone width (#432).
+  await mobileCard.evaluate((el: ConfigurableCard, c) => el.setConfig(c), compact);
+  await expect(mobileCard.locator('.hk-meta')).toHaveCount(0);
+  await shotCardTop(page, mobileCard, `${OUT}/card-row-compact-mobile.png`, 3);
+  await mobileCard.evaluate((el: ConfigurableCard) =>
+    el.setConfig({ type: 'custom:home-keeper-card', title: 'Home maintenance' }),
+  );
 
   // 7c. The create form at phone width. Create is disabled while an add runs, so a
   // second tap cannot make a duplicate task (F05-3); the form itself looks the same.

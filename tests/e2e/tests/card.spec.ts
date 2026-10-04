@@ -78,6 +78,26 @@ test.describe('Home Keeper card — dashboard', () => {
     await expect(dog.locator('ha-assist-chip.hk-label').first()).toHaveAttribute('label', 'Dog');
   });
 
+  test('show_schedule and show_history_count remove the line under the name (#432)', async ({
+    page,
+  }) => {
+    const card = await openCardDashboard(page);
+    const row = card.locator('.hk-row', { hasText: 'Replace fridge filter' });
+    await expect(row.locator('.hk-meta')).toHaveCount(1, { timeout: 30_000 });
+    type ConfigurableCard = { setConfig: (c: Record<string, unknown>) => void };
+    await card.evaluate((el: ConfigurableCard) =>
+      el.setConfig({
+        type: 'custom:home-keeper-card',
+        show_schedule: false,
+        show_history_count: false,
+      }),
+    );
+    await expect(row.locator('.hk-name')).toBeVisible();
+    await expect(card.locator('.hk-meta')).toHaveCount(0);
+    // The status chip with the due date stays.
+    await expect(row.locator('.hk-chips ha-assist-chip').first()).toBeVisible();
+  });
+
   test('a task surfaces its chosen appliance links as openable chips', async ({ page }) => {
     const card = await openCardDashboard(page);
     // The seeded water-filter task pins three of its appliance's documents: an

@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.30.0b1]
+
+### Added
+
+- **[Shorter card rows](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#choose-what-each-row-shows).**
+  Turn off **Show schedule** or **Show completion count** in the card editor to remove
+  that text from each row. (Fixes #432)
+
 ## [0.29.0] - 2026-10-04
 
 ### Added

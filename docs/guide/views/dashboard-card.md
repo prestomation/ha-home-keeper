@@ -35,6 +35,25 @@ entity changes its state.
 
 ![Home Keeper task card grouped into status sections](../../images/card-grouped.png)
 
+#### Choose what each row shows
+
+Each row shows the task name. Below the name, the row shows the schedule and the
+number of completions. Use these card editor options to control each row:
+
+| Option | Default | Shows |
+| --- | --- | --- |
+| **Show schedule** | On | The schedule, such as "Every month after completion" |
+| **Show completion count** | On | The number of completions, such as "2 completions" |
+| **Show notes** | Off | The task note |
+| **Show area / device** | On | The area or device chip |
+| **Show labels** | Off | The label chips |
+
+In YAML, the keys are `show_schedule`, `show_history_count`, `show_notes`, `show_area`
+and `show_labels`. If you turn off both **Show schedule** and **Show completion count**,
+the row shows the chips directly below the name. The status chip still shows the due date.
+
+![Home Keeper task card with the schedule and completion count turned off](../../images/card-row-compact.png)
+
 #### Task photos on the card
 
 A task with [photos](../tasks/task-photos.md) shows its cover at the start of its row.
