@@ -129,8 +129,9 @@ only lists documents already shown on a card.
 Home Keeper reads the whole image of a task photo to make its thumbnail. It refuses
 a file that is not a readable PNG, JPEG, WebP or GIF image.
 
-The pixel limit is 50 million. A baseline RGB or greyscale JPEG has a limit of 250
-million, because Home Keeper decodes it at 1/8 of its size or less.
+The pixel limit is 50 million. A baseline RGB or greyscale JPEG has the limit of
+Pillow itself, about 179 million, because Home Keeper decodes it at 1/8 of its size or
+less. Home Keeper does not change the Pillow limit, which all of Home Assistant shares.
 
 Home Assistant serves only the 2 built JavaScript bundles as a static path. Home
 Assistant serves static paths before authentication, so Home Keeper does
