@@ -6,6 +6,35 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.29.0] - 2026-10-04
+
+### Added
+
+- **[Task list layouts](https://prestomation.github.io/ha-home-keeper/docs/guide/panel#task-list-layouts).**
+  Pick Rows, Tiles or Board in the Layout menu on the Tasks tab. Tap a tile or a board
+  card for its actions, or press and hold to open the task. (Fixes #327) (Thanks @joss94!)
+- **[Undo after Done](https://prestomation.github.io/ha-home-keeper/docs/guide/completions#undo-a-one-tap-done).**
+  A one-tap Done in the panel now shows a message that names the task. Select Undo in
+  the message to remove your completion, also when another person completed the task.
+- **[Task photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos).**
+  Attach up to 6 photos to a task to show what needs work and where. Add them when you
+  create the task in the panel or on the dashboard card, as any user who can create
+  tasks. (Fixes #399)
+- **[After photos](https://prestomation.github.io/ha-home-keeper/docs/guide/task-photos#after-photos).**
+  Add a photo when you mark a task done, also on a one-tap task. The task page and the
+  Completed group show it beside the task photo.
+
+### Changed
+
+- **Clearer companion rows.** Each declarative companion on the Companions card now
+  shows the logo of the integration it watches, the kind of duty, the entity platform
+  and the limit. A companion you made yourself has a Custom chip.
+
+### Fixed
+
+- **Undo after snooze.** Undo of a completion now puts back the date that a snoozed or
+  moved task had. Before, the task became overdue at once.
+
 ## [0.29.0b4]
 
 ### Fixed
