@@ -11,9 +11,9 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 ### Added
 
 - **[Filter groups](https://prestomation.github.io/ha-home-keeper/docs/guide/profiles#how-filters-combine).**
-  A Profile or a dashboard card can now hold more than 1 group of filters, and it shows
-  the tasks that match any group. Home Keeper converts each saved Profile on the first
-  start after the update, so make a backup first. (Fixes #291)
+  A Profile or a dashboard card now holds 1 or more groups of filters, and a task that
+  matches any group is in the list. Home Keeper converts each saved Profile on the first
+  start after the update, and a downgrade needs a backup. (Fixes #291)
 
 ### Changed
 
