@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: 9f2a6a80f2cb
+source_hash: ac0f9539910d
 ---
 
 # Store
@@ -115,7 +115,7 @@ pass, `delete_orphaned_tasks` and `async_import_records`. The `Store` write lock
 ### Unload, reload and concurrency
 
 `async_unload_entry` calls `store.close`. After that, `_save` raises
-`StoreClosedError`. A reload builds a new `HomeKeeperStore` that reads the file again,
+`models.StoreClosedError`. A reload builds a new `HomeKeeperStore` that reads the file again,
 so a pass that still holds the old store fails at its save. It cannot write its old
 snapshot over the new file.
 

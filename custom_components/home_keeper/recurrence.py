@@ -653,9 +653,9 @@ def apply_completion(
     entry: dict = {"ts": ts_iso}
     if metadata:
         entry.update(metadata)
-    if rec_type == REC_FIXED and not backfill and task.get("next_due"):
+    if not backfill and _keeps_prior_due(task, rec_type, now=now):
         # Keep the due date this completion replaces, so that an undo can put it
-        # back (B07-1). A fixed schedule cannot calculate it again from the log.
+        # back (B07-1).
         entry[PRIOR_DUE] = task.get("next_due")
     task["completions"] = _record_entry(task.get("completions", []), entry)
     if backfill and rec_type in (REC_FLOATING, REC_FIXED):
@@ -819,16 +819,35 @@ def _rewinds(task: dict, previous: str | None, moment: datetime) -> bool:
     return skipped is None or skipped < moment
 
 
+def _keeps_prior_due(task: dict, rec_type: str, *, now: datetime) -> bool:
+    """Whether a completion must record the due date it replaces.
+
+    A fixed schedule cannot calculate that date again from the log, so it always
+    records it. A floating task can, except after a snooze, a due today or a moved
+    date: the log does not show those. So a floating task records the date only
+    when it is not the one that the log gives.
+    """
+    due = _parse(task.get("next_due"))
+    if due is None:
+        return False
+    if rec_type == REC_FIXED:
+        return True
+    if rec_type != REC_FLOATING:
+        return False
+    return compute_next_due(task, now=now) != due
+
+
 def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
     """Return *task* with the completion at ISO timestamp *ts* removed.
 
     Undoes an accidental completion: drops the first matching history entry,
     re-derives ``last_completed`` from the remaining history (the latest, or None),
-    and recomputes ``next_due`` from that state. For a floating task this rewinds
-    the clock to the prior completion; for a fixed task ``next_due`` stays
-    schedule-driven; for a triggered task ``next_due`` is left untouched (its
-    armed/dormant state is condition-driven, not history-driven — editing the
-    replacement log must not arm a dormant task). A no-op when *ts* is not present.
+    and recomputes ``next_due`` from that state. A fixed or floating completion that
+    recorded the due date it replaced puts that date back. Else a floating task
+    rewinds the clock to the prior completion. For a triggered task ``next_due`` is
+    left untouched (its armed/dormant state is condition-driven, not
+    history-driven — editing the replacement log must not arm a dormant task). A
+    no-op when *ts* is not present.
     """
     history = list(task.get("completions", []))
     removed: dict | None = None
@@ -851,9 +870,10 @@ def remove_completion(task: dict, ts: str, *, now: datetime) -> dict:
         # latest completion, skip, snooze or due-today set stays (B07-2).
         return task
     prior_due = removed.get(PRIOR_DUE)
-    if rec_type == REC_FIXED and prior_due:
+    if rec_type in (REC_FIXED, REC_FLOATING) and prior_due:
         # Put back the due date this completion replaced. An overdue occurrence
-        # comes back as overdue (B07-1).
+        # comes back as overdue (B07-1), and a snoozed or moved date comes back as
+        # it was.
         task["next_due"] = prior_due
     elif rec_type == REC_ONE_OFF:
         # Undoing the (final) completion of a do-once task re-arms it to its ``due``

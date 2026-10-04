@@ -383,6 +383,8 @@ interface EditState {
   error?: string;
   /** Photos picked in the form. They upload after Create (#399). */
   photos?: StagedPhoto[];
+  /** The last refusal of a picked photo, so a clean pick clears only that error. */
+  photoError?: string;
   /** Set while Create runs, so a second press is ignored (X12-4). */
   busy?: boolean;
 }
@@ -938,7 +940,7 @@ export class HomeKeeperCard extends HTMLElement {
               )
             : { failed: [] };
           this._closeForm();
-          if (failed.length) toast(this, t('photos.uploadPartial', { n: String(failed.length) }));
+          if (failed.length) toast(this, tn('photos.uploadPartial', failed.length));
           await this._refresh();
         } catch (err) {
           edit.error = String((err as { message?: string })?.message || err);
@@ -1510,8 +1512,15 @@ export class HomeKeeperCard extends HTMLElement {
         );
         picker.value = '';
         this._edit.photos = res.list;
+        // A refused file shows on the form's error line. A clean pick clears only a
+        // refusal from an earlier pick, never another error such as "Name required".
         const first = res.rejected[0];
-        this._edit.error = first ? rejectionMessage(first.file, first.reason) : undefined;
+        if (first) {
+          this._edit.error = rejectionMessage(first.file, first.reason);
+          this._edit.photoError = this._edit.error;
+        } else if (this._edit.error && this._edit.error === this._edit.photoError) {
+          this._edit.error = undefined;
+        }
         this._render();
       });
       addBtn.addEventListener('click', () => picker.click());

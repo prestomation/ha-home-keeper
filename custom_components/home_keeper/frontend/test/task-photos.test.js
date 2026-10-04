@@ -6,6 +6,7 @@ import {
   completionFullUrl,
   completionThumbUrl,
   coverOf,
+  coverOriginalRefs,
   coverRefs,
   detailRefs,
   headPhotoLabels,
@@ -14,7 +15,7 @@ import {
   photosOf,
   taskPhotoKey,
 } from '../src/task-photos.ts';
-import { t } from '../src/i18n.ts';
+import { t, tn } from '../src/i18n.ts';
 
 const photo = (id) => ({ id, name: `${id}.jpg`, filename: `${id}.jpg`, content_type: 'image/jpeg', size: 1 });
 const task = (id, n) => ({ id, name: id, photos: Array.from({ length: n }, (_, i) => photo(`${id}p${i}`)) });
@@ -290,5 +291,20 @@ describe('the photo of the last completion (#399)', () => {
       cover: t('photos.cover'),
       last: t('photos.lastCompletion'),
     });
+  });
+});
+
+describe('the completion dialog cover', () => {
+  it('signs the original of the cover only', () => {
+    expect(coverOriginalRefs(task('t', 2))).toEqual([{ taskId: 't', photoId: 'tp0', thumb: false }]);
+    expect(coverOriginalRefs(task('t', 0))).toEqual([]);
+    expect(coverOriginalRefs(null)).toEqual([]);
+  });
+});
+
+describe('the partial upload message', () => {
+  it('counts 1 photo and more photos in English', () => {
+    expect(tn('photos.uploadPartial', 1)).toBe('Task created. 1 photo did not upload.');
+    expect(tn('photos.uploadPartial', 2)).toBe('Task created. 2 photos did not upload.');
   });
 });

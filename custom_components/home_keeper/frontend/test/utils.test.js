@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import {
+  addedCompletion,
   ASSET_TABS,
   DEFAULT_ASSET_TAB,
   DEFAULT_TASK_TAB,
@@ -2401,5 +2402,33 @@ describe('isCompletedOneOff', () => {
     expect(isCompletedOneOff({ ...done, next_due: '2026-11-01T10:00:00Z' })).toBe(false);
     expect(isCompletedOneOff({ ...done, last_completed: null })).toBe(false);
     expect(isCompletedOneOff({ ...done, last_completed: '' })).toBe(false);
+  });
+});
+
+describe('addedCompletion', () => {
+  const c = (ts) => ({ ts });
+  it('is the one new completion', () => {
+    expect(addedCompletion(new Set(['a']), { completions: [c('a'), c('2026-01-02T00:00:00Z')] })).toEqual(
+      c('2026-01-02T00:00:00Z'),
+    );
+  });
+  it('is the new last_completed when more than one is new', () => {
+    const done = {
+      completions: [c('2026-01-03T00:00:00Z'), c('2026-01-02T00:00:00Z')],
+      last_completed: '2026-01-02T00:00:00Z',
+    };
+    expect(addedCompletion(new Set(), done)).toEqual(c('2026-01-02T00:00:00Z'));
+  });
+  it('is the newest new one when last_completed is not new', () => {
+    const done = {
+      completions: [c('old'), c('2026-01-02T00:00:00Z'), c('2026-01-03T00:00:00Z'), c('2026-01-01T00:00:00Z')],
+      last_completed: 'old',
+    };
+    expect(addedCompletion(new Set(['old']), done)).toEqual(c('2026-01-03T00:00:00Z'));
+  });
+  it('is undefined when nothing is new', () => {
+    expect(addedCompletion(new Set(['a']), { completions: [c('a')] })).toBeUndefined();
+    expect(addedCompletion(new Set(), null)).toBeUndefined();
+    expect(addedCompletion(new Set(), {})).toBeUndefined();
   });
 });

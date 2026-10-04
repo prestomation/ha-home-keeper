@@ -85,12 +85,19 @@ test.describe('Task photos (#399)', { tag: '@responsive' }, () => {
     ).toHaveCount(0);
   });
 
-  test('the completion dialog shows the cover', async ({ page }) => {
+  test('the completion dialog shows the cover, linked to the original', async ({ page }) => {
     await openPanel(page);
     const panel = page.locator('home-keeper-panel').first();
     await panel.locator(`.done-btn[data-id="${TASK.fridgeFilter}"]`).click();
     const cover = panel.locator('ha-dialog[open] .hk-completion-cover img');
     await expect(cover).toHaveAttribute('src', /size=thumb&authSig=/, { timeout: 15_000 });
+    // The dialog opened from the list, where no task page signs the original. The
+    // link must still open it.
+    const link = panel.locator('ha-dialog[open] .hk-completion-cover-link');
+    await expect(link).toHaveAttribute('href', /authSig=/, { timeout: 15_000 });
+    const href = (await link.getAttribute('href')) ?? '';
+    expect(href).not.toContain('size=thumb');
+    expect((await fetchSigned(page, href)).status()).toBe(200);
     await page.keyboard.press('Escape');
     await expect(panel.locator('ha-dialog[open]')).toHaveCount(0, { timeout: 10_000 });
   });

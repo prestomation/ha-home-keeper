@@ -6,6 +6,23 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.29.0b4]
+
+### Fixed
+
+- **Undo after snooze.** Undo after Done now puts back the date that a snoozed or moved
+  task had. Before, the task became overdue at once.
+- **Undo on shared tasks.** Undo removes your own completion, also when another person
+  completed the same task at about the same time.
+- **Reliable photo uploads.** A double tap on upload, or a connection that drops while you
+  remove a photo, no longer leaves a photo that does not open. A task that has 6 photos
+  now refuses a new photo before the file uploads.
+- **Very large photos.** A photo that is too large to read now gets a message that says so.
+- **Photo in Done dialog.** The task photo in the Done dialog now opens when you start the
+  dialog from the task list.
+- **Photo form messages.** The message after a failed photo upload counts the photos
+  correctly. On the dashboard card, a photo pick no longer hides the "Name required" message.
+
 ## [0.29.0b3]
 
 ### Changed

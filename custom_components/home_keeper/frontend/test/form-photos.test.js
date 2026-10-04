@@ -2,13 +2,14 @@
 // and uploads them after Create; a saved task shows the live strip of its task page.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { definePanelStubs, emitChange, makeHass, mountPanel, waitFor } from './panel-harness.js';
-import { t } from '../src/i18n.ts';
+import { t, tn } from '../src/i18n.ts';
 
 // An XMLHttpRequest that answers each upload by itself. A URL in `failUrls` gets a
 // 500, every other URL gets the task back.
 class AutoXHR {
   static sent = [];
   static failUrls = new Set();
+  static delayMs = 0;
   constructor() {
     this.upload = new EventTarget();
     this._listeners = new EventTarget();
@@ -27,7 +28,7 @@ class AutoXHR {
       this.status = fail ? 500 : 200;
       this.responseText = fail ? '{"message":"boom"}' : '{"task":{"id":"new1","photos":[]}}';
       this._listeners.dispatchEvent(new Event('load'));
-    }, 0);
+    }, AutoXHR.delayMs);
   }
   abort() {}
 }
@@ -41,6 +42,7 @@ beforeAll(definePanelStubs);
 beforeEach(() => {
   AutoXHR.sent = [];
   AutoXHR.failUrls = new Set();
+  AutoXHR.delayMs = 0;
   revoked.length = 0;
   realXHR = globalThis.XMLHttpRequest;
   globalThis.XMLHttpRequest = AutoXHR;
@@ -183,7 +185,7 @@ describe('the New task form', () => {
     expect(hass.calls.filter((m) => m.type === 'home_keeper/add_task')).toHaveLength(1);
     expect(panel._edit.open).toBe(false);
     expect(navigations).toEqual(['/home-keeper/tasks/new1']);
-    expect(toasts).toContain(t('photos.uploadPartial', { n: '1' }));
+    expect(toasts).toContain(tn('photos.uploadPartial', 1));
   });
 
   it('uploads nothing for a task with no photos', async () => {
@@ -202,6 +204,42 @@ describe('the New task form', () => {
     await waitFor(() => !panel._edit.open);
     expect(revoked).toEqual(['blob:a.jpg']);
     expect(panel._edit.photos).toBeUndefined();
+  });
+
+  it('drops the staged photos when a navigation closes the form', async () => {
+    const { panel } = await openNewTask();
+    pick(panel, [img('a.jpg')]);
+    await waitFor(() => staged(panel).length === 1);
+    panel.route = { prefix: '/home-keeper', path: '/settings' };
+    await waitFor(() => !panel._edit.open);
+    expect(panel._edit.open).toBe(false);
+    expect(revoked).toEqual(['blob:a.jpg']);
+  });
+
+  it('drops the staged photos when another form replaces the draft', async () => {
+    const { panel } = await openNewTask();
+    pick(panel, [img('a.jpg')]);
+    await waitFor(() => staged(panel).length === 1);
+    panel._openCreate();
+    expect(revoked).toEqual(['blob:a.jpg']);
+    expect(panel._edit.photos).toBeUndefined();
+  });
+
+  it('leaves a newer draft open when a navigation came during the upload', async () => {
+    const { panel } = await openNewTask();
+    AutoXHR.delayMs = 200;
+    pick(panel, [img('a.jpg')]);
+    await waitFor(() => staged(panel).length === 1);
+    emitChange(panel.shadowRoot.querySelector('#hk-task-form-basics'), { name: 'Fix insulation' });
+    panel.shadowRoot.querySelector('#f-save').click();
+    // The upload is in flight. A second New task form replaces the first draft.
+    await waitFor(() => AutoXHR.sent.length === 1);
+    panel._openCreate();
+    const newer = panel._edit;
+    await waitFor(() => revoked.length === 2);
+    expect(panel._edit).toBe(newer);
+    expect(panel._edit.open).toBe(true);
+    expect(revoked).toEqual(['blob:a.jpg', 'blob:a.jpg']);
   });
 });
 

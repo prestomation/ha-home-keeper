@@ -111,6 +111,13 @@ export function coverRefs(tasks: Task[]): TaskPhotoRef[] {
   return refs;
 }
 
+/** The original of *task*'s cover, for the link around the cover in the completion
+ *  dialog. Empty when the task has no photo. */
+export function coverOriginalRefs(task: Task | null | undefined): TaskPhotoRef[] {
+  const cover = task ? coverOf(task) : undefined;
+  return cover && task ? [{ taskId: task.id, photoId: cover.id, thumb: false }] : [];
+}
+
 /** Every URL the task page needs: each photo's thumbnail for the strip and the
  *  header, and each original for the link that opens it. */
 export function detailRefs(task: Task): TaskPhotoRef[] {
