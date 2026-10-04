@@ -755,7 +755,11 @@ def test_x03_8_heal_repoints_related_devices_and_options():
             "profiles": [
                 {
                     "id": "p1",
-                    "filter": {"devices": [DEAD_THERMOSTAT], "exclude_devices": []},
+                    "filter": {
+                        "groups": [
+                            {"devices": [DEAD_THERMOSTAT], "exclude_devices": []}
+                        ]
+                    },
                 }
             ],
         }
@@ -769,7 +773,9 @@ def test_x03_8_heal_repoints_related_devices_and_options():
             "profiles": [
                 {
                     "id": "p1",
-                    "filter": {"devices": ["zwave_real"], "exclude_devices": []},
+                    "filter": {
+                        "groups": [{"devices": ["zwave_real"], "exclude_devices": []}]
+                    },
                 }
             ],
         }

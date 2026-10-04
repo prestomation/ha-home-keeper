@@ -39,8 +39,12 @@ def tasks():
     ]
 
 
-def filt(**over):
-    return profiles.normalize_filter(over)
+def filt(status=None, **group):
+    """A filter with *status* and, when *group* has keys, 1 group of them."""
+    raw: dict = {"groups": [group] if group else []}
+    if status is not None:
+        raw["status"] = status
+    return profiles.normalize_filter(raw)
 
 
 def count(tasks, **over):

@@ -648,9 +648,18 @@ def _device_options() -> dict[str, Any]:
         const.OPTION_SYNC_PROBLEM_SENSORS: True,
         const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: [DEAD, "keep"],
         const.OPTION_PROFILES: [
-            {"id": "p1", "filter": {"devices": [DEAD], "exclude_devices": ["x"]}},
-            {"id": "p2", "filter": {"devices": [], "exclude_devices": [DEAD, LIVE]}},
+            {
+                "id": "p1",
+                "filter": {"groups": [{"devices": [DEAD], "exclude_devices": ["x"]}]},
+            },
+            {
+                "id": "p2",
+                "filter": {
+                    "groups": [{"devices": [], "exclude_devices": [DEAD, LIVE]}]
+                },
+            },
             {"id": "p3"},  # no filter block
+            {"id": "p4", "filter": {"groups": ["not a group"]}},
             "not a profile",
         ],
     }
@@ -669,10 +678,17 @@ def test_x03_8_repoint_device_ids_moves_exclusions_and_profile_filters():
         const.OPTION_SYNC_PROBLEM_SENSORS: True,
         const.OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES: [LIVE, "keep"],
         const.OPTION_PROFILES: [
-            {"id": "p1", "filter": {"devices": [LIVE], "exclude_devices": ["x"]}},
+            {
+                "id": "p1",
+                "filter": {"groups": [{"devices": [LIVE], "exclude_devices": ["x"]}]},
+            },
             # The dead id and the live id are one device now: listed once.
-            {"id": "p2", "filter": {"devices": [], "exclude_devices": [LIVE]}},
+            {
+                "id": "p2",
+                "filter": {"groups": [{"devices": [], "exclude_devices": [LIVE]}]},
+            },
             {"id": "p3"},
+            {"id": "p4", "filter": {"groups": ["not a group"]}},
             "not a profile",
         ],
     }
@@ -687,10 +703,14 @@ def test_x03_8_repoint_device_ids_reports_no_change():
 
 def test_x03_8_repoint_device_ids_moves_only_a_profile_filter():
     stored = {
-        const.OPTION_PROFILES: [{"id": "p", "filter": {"exclude_devices": [DEAD]}}]
+        const.OPTION_PROFILES: [
+            {"id": "p", "filter": {"groups": [{"exclude_devices": [DEAD]}]}}
+        ]
     }
     assert opts.repoint_device_ids(stored, {DEAD: LIVE}) == {
-        const.OPTION_PROFILES: [{"id": "p", "filter": {"exclude_devices": [LIVE]}}]
+        const.OPTION_PROFILES: [
+            {"id": "p", "filter": {"groups": [{"exclude_devices": [LIVE]}]}}
+        ]
     }
 
 
@@ -706,7 +726,8 @@ def test_x03_8_device_ids_in_options_reads_past_a_bad_profile():
         const.OPTION_PROFILES: [
             "not a profile",
             {"id": "p0"},
-            {"id": "p", "filter": {"devices": [DEAD]}},
+            {"id": "p1", "filter": {"groups": "not a list"}},
+            {"id": "p", "filter": {"groups": [{"devices": [DEAD]}]}},
         ]
     }
     assert opts.device_ids_in_options(stored) == {DEAD}

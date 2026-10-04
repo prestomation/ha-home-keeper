@@ -10,7 +10,7 @@ implements:
   - custom_components/home_keeper/diagnostics.py
   - custom_components/home_keeper/manifest.json
 related: [recurrence, store, coordinator-entities, events-api, frontend, companions-presets]
-source_hash: aa604d26b144
+source_hash: b435781b175c
 ---
 
 # Architecture
@@ -98,9 +98,9 @@ resource, the storage document and the uploaded files.
 
 ### Config entry and options
 
-The config flow is 1 confirmation step with no data. `options.py` defines every option key
-and default (`options.ALL_OPTIONS`). The options flow, the `set_options` service and the
-panel Settings tab edit them.
+The config flow is 1 confirmation step with no data. The entry is version 2:
+`async_migrate_entry` moves v1 flat profile filters into groups. `options.py` defines
+every option key and default (`options.ALL_OPTIONS`) that the 3 editing surfaces edit.
 
 - The service and the panel send a partial update to `options.async_set_options`. It
   merges, refuses a save that strands a notification (`options.ProfileInUseError`),

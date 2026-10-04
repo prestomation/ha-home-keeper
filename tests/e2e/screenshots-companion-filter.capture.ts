@@ -68,7 +68,7 @@ test.beforeAll(async () => {
       {
         id: 'shot-leak-tasks',
         name: 'Active leaks',
-        filter: { status: 'all', companions: [`home_keeper:declarative:${specId}`] },
+        filter: { status: 'all', groups: [{ companions: [`home_keeper:declarative:${specId}`] }] },
       },
     ],
   });

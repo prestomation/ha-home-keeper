@@ -37,7 +37,7 @@ ENTRY_ID = "home_keeper_test_entry"
 PROFILE = {
     "id": "options_flow_profile",
     "name": "Options flow profile",
-    "filter": {"status": "overdue", "labels": [], "areas": [], "devices": []},
+    "filter": {"status": "overdue", "groups": [{}]},
     "sync": {
         "entity_id": "todo.options_flow_list",
         "two_way": True,

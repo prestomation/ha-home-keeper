@@ -44,7 +44,7 @@ test.describe('Home Keeper panel — synced problem task', { tag: '@responsive' 
         {
           id: 'e2e_everything',
           name: 'Everything',
-          filter: { status: 'all', labels: [], areas: [], devices: [] },
+          filter: { status: 'all', groups: [{ labels: [], areas: [], devices: [] }] },
         },
       ],
     });

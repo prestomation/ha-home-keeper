@@ -7,8 +7,9 @@ implements:
   - custom_components/home_keeper/notifier.py
   - custom_components/home_keeper/frontend/src/panel-settings.ts
   - custom_components/home_keeper/frontend/src/card-filter.ts
+  - custom_components/home_keeper/frontend/src/group-editor.ts
 related: [coordinator-entities, events-api, sync, companions-presets, frontend]
-source_hash: e929620aa766
+source_hash: ce4094582243
 ---
 
 # Profiles and notifications
@@ -37,19 +38,23 @@ notifications and to-do list sync all read the same profile.
 
 ### Profile model (`profiles.py`)
 
-A profile is `{id, name, filter, sync}` in the `profiles` option. `profiles.normalize_filter`
-builds the filter from a fixed key set, so it is also the allowlist: `status`, `labels`,
-`areas`, `devices`, `companions`, the 4 `exclude_*` lists and `exclude_shopping`.
-`status` is `all`, `overdue` (the default) or `due_soon`. `profiles.normalize_profile`
-gives a stable hex `id`; `profiles.resolve_profile` finds by id first, then by name.
+A profile is `{id, name, filter, sync}`; a filter is `{status, groups}`. The fixed key
+set of `profiles.normalize_filter` is the allowlist of a group: `name` (display only),
+`labels`, `labels_match` (`any`/`all`), `areas`, `devices`, `companions`, 4 `exclude_*`
+lists and `exclude_shopping`. `status` is `all`, `overdue` (default) or `due_soon`.
+`normalize_profile` gives a stable hex `id`; `resolve_profile` finds by id, then name.
 
 In `profiles.matches_filter`, a task must be enabled and have a `next_due`. `overdue` is
-due at the current time or earlier; `due_soon` adds the 3-day `transitions.DUE_SOON_WINDOW`. Include
-lists are OR inside 1 list and AND across lists, and an empty list means "any". Exclude
-lists apply last and win. `companions` matches `profiles.companion_keys`: the
-`managed_by.integration` domain, plus a narrower key for a declarative companion or a
-problem-sensor task. `exclude_shopping` drops buy reminders by kind, as they have no id of
-their own. `profiles.due_queue` sorts the matches by `next_due`, then by name.
+due now or earlier; `due_soon` adds the 3-day `transitions.DUE_SOON_WINDOW`. Then the
+task must match 1 active group. A group with no value is not active; with no active group,
+every task in the tier matches. In a group, include lists are AND; an empty list is "any".
+`labels` is OR, or AND if `labels_match` is `all`. Exclude lists win in their group only.
+`companions` matches `profiles.companion_keys`: the owner domain, or a narrower key for a
+declarative companion or a problem-sensor task. `exclude_shopping` drops buy reminders by
+kind. `due_queue` sorts by `next_due`, then name.
+
+`migrate_options_v1` moves v1 flat keys into 1 group (entry version 2); `set_options`
+refuses them. `liftLegacyCardConfig` lifts a card's flat keys. `group-editor.ts` draws groups.
 
 ### Effective ids and the TypeScript twin (`card-filter.ts`)
 

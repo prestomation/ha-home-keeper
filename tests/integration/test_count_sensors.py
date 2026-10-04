@@ -23,7 +23,7 @@ _ALL_SENSOR = "sensor.home_keeper_tasks"
 _PROFILE = {
     "id": "it_count_profile",
     "name": "Count probe",
-    "filter": {"status": "all", "labels": [], "areas": [], "devices": []},
+    "filter": {"status": "all", "groups": []},
 }
 _PROFILE_UID = "home_keeper_profile_it_count_profile_tasks"
 
@@ -113,7 +113,11 @@ def test_x13_4_todo_and_calendar_have_translated_names_on_the_service_device(ha)
 
 def test_profile_sensor_lifecycle(ha):
     """A profile's sensor appears, keeps its entity id on rename, and is pruned."""
-    call_service(ha, "home_keeper", "set_options", {"profiles": [_PROFILE]})
+    # Keep the profiles that are already saved. Other suites read them, for example
+    # ``test_migration`` reads the seeded legacy profile.
+    before = call_service(ha, "home_keeper", "list_profiles", {}, return_response=True)
+    saved = before.get("service_response", before).get("profiles", [])
+    call_service(ha, "home_keeper", "set_options", {"profiles": [*saved, _PROFILE]})
     try:
         entry = _poll(lambda: _registry_entry(ha, _PROFILE_UID))
         assert entry, "saving a profile should create its count sensor"
@@ -128,13 +132,13 @@ def test_profile_sensor_lifecycle(ha):
         # A rename must not move the entity: the unique id is keyed on the profile id,
         # which is what keeps a dashboard badge working across an edit.
         renamed = {**_PROFILE, "name": "Count probe renamed"}
-        call_service(ha, "home_keeper", "set_options", {"profiles": [renamed]})
+        call_service(ha, "home_keeper", "set_options", {"profiles": [*saved, renamed]})
         entry = _poll(lambda: _registry_entry(ha, _PROFILE_UID))
         assert entry and entry["entity_id"] == entity_id, (
             "renaming a profile must keep its entity id"
         )
     finally:
-        call_service(ha, "home_keeper", "set_options", {"profiles": []})
+        call_service(ha, "home_keeper", "set_options", {"profiles": saved})
 
     # Deleting the profile removes the registry entry rather than leaving it
     # "unavailable" on the device page.
