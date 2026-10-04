@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_6b71c2d8cf329a53_api_surface_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-03 22:59 +0000
+            created at 2026-10-04 07:00 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -1010,7 +1010,7 @@
     <p class="pln"><span class="n"><a id="t926" href="#t926">926</a></span><span class="t">    <span class="com"># Uploads spool to a temp file; a restart mid-upload would otherwise strand it.</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t927" href="#t927">927</a></span><span class="t">    <span class="key">await</span> <span class="nam">manuals</span><span class="op">.</span><span class="nam">async_cleanup_temp_uploads</span><span class="op">(</span><span class="nam">hass</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t928" href="#t928">928</a></span><span class="t">    <span class="com"># Photo folders of tasks deleted while the files could not go (#399).</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t929" href="#t929">929</a></span><span class="t">    <span class="key">await</span> <span class="nam">manuals</span><span class="op">.</span><span class="nam">async_sweep_task_photos</span><span class="op">(</span><span class="nam">hass</span><span class="op">,</span> <span class="nam">set</span><span class="op">(</span><span class="nam">store</span><span class="op">.</span><span class="nam">get_tasks</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t929" href="#t929">929</a></span><span class="t">    <span class="key">await</span> <span class="nam">manuals</span><span class="op">.</span><span class="nam">async_sweep_task_photos</span><span class="op">(</span><span class="nam">hass</span><span class="op">,</span> <span class="nam">store</span><span class="op">.</span><span class="nam">get_tasks</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t930" href="#t930">930</a></span><span class="t">    <span class="nam">websocket_api</span><span class="op">.</span><span class="nam">async_register</span><span class="op">(</span><span class="nam">hass</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t931" href="#t931">931</a></span><span class="t">    <span class="key">await</span> <span class="nam">hass</span><span class="op">.</span><span class="nam">config_entries</span><span class="op">.</span><span class="nam">async_forward_entry_setups</span><span class="op">(</span><span class="nam">entry</span><span class="op">,</span> <span class="nam">PLATFORMS</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t932" href="#t932">932</a></span><span class="t">    <span class="com"># Platforms have removed entities for deleted/excluded tasks; drop Home Keeper</span>&nbsp;</span><span class="r"></span></p>
@@ -2275,7 +2275,7 @@
             <a class="nav" href="z_6b71c2d8cf329a53_api_surface_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-10-03 22:59 +0000
+            created at 2026-10-04 07:00 +0000
         </p>
     </div>
 </footer>
