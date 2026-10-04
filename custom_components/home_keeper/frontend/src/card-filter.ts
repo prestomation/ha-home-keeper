@@ -85,6 +85,10 @@ export interface HomeKeeperCardConfig {
   show_area?: boolean;
   /** Show the task's own label chips. Default false. */
   show_labels?: boolean;
+  /** Show the schedule summary under the task name. Default true. */
+  show_schedule?: boolean;
+  /** Show the completion count under the task name. Default true. */
+  show_history_count?: boolean;
   /** Ask for confirmation before completing a task. Default false. */
   confirm_complete?: boolean;
   /** Hide the entire card (header included) instead of showing "No tasks match

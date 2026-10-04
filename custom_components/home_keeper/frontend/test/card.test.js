@@ -495,6 +495,53 @@ describe('Card notes render as Markdown (issue #163)', () => {
   });
 });
 
+// The line under the task name: the schedule and the completion count (issue #432).
+// Each part has its own row setting. Both default to on.
+describe('Card schedule and completion count settings (issue #432)', () => {
+  const done = [
+    {
+      ...sampleTasks[0],
+      completions: [
+        { id: 'c1', completed_at: '2026-01-01T00:00:00+00:00' },
+        { id: 'c2', completed_at: '2026-02-01T00:00:00+00:00' },
+      ],
+    },
+  ];
+
+  async function metaOf(config) {
+    const card = makeCard({ type: 'custom:home-keeper-card', ...config });
+    card.hass = { callWS: async () => ({ tasks: done }), language: 'en' };
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    return sr(card).querySelector('.hk-meta');
+  }
+
+  it('shows the schedule and the count by default', async () => {
+    const meta = await metaOf({});
+    expect(meta.textContent).toBe('Every month after completion · 2 completions');
+  });
+
+  it('hides only the schedule when show_schedule is off', async () => {
+    const meta = await metaOf({ show_schedule: false });
+    expect(meta.textContent).toBe('2 completions');
+  });
+
+  it('hides only the count when show_history_count is off', async () => {
+    const meta = await metaOf({ show_history_count: false });
+    expect(meta.textContent).toBe('Every month after completion');
+  });
+
+  it('removes the whole line when both are off', async () => {
+    expect(await metaOf({ show_schedule: false, show_history_count: false })).toBeNull();
+  });
+
+  it('removes the line for a task with no completions when the schedule is off', async () => {
+    const card = makeCard({ type: 'custom:home-keeper-card', show_schedule: false });
+    card.hass = { callWS: async () => ({ tasks: sampleTasks }), language: 'en' };
+    await waitFor(() => sr(card)?.querySelector('.hk-row'));
+    expect(sr(card).querySelector('.hk-meta')).toBeNull();
+  });
+});
+
 // Note quick-view (issue #340). A task with a note gets a one-tap chip that opens a
 // read-only dialog showing the full note as Markdown, independent of the card's
 // "Show notes" row setting — the point is a compact row that still reaches the note.
