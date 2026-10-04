@@ -6,6 +6,15 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.29.0b5]
+
+### Added
+
+- **[QR code labels](https://prestomation.github.io/ha-home-keeper/docs/guide/qr-labels).**
+  Print QR code labels for your appliances and tasks, 1 at a time or many on a label
+  sheet, and stick them on the appliance. An admin who scans a label opens that page in
+  Home Keeper. (Fixes #428)
+
 ## [0.29.0b4]
 
 ### Fixed

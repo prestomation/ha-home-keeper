@@ -30,6 +30,8 @@ How the panel and the card work is in [frontend](../../docs/design/frontend.md).
 
 - Escape all user content with `escapeHTML` before it goes into `innerHTML`.
 - The frontend has no runtime dependencies. The Rollup config has no `node-resolve` plugin.
+- A third-party module that the panel needs is vendored into `src/` with its license
+  header and a note on the changes, as `qrcodegen.ts` is. Do not edit a vendored file.
 
 ### Markdown
 

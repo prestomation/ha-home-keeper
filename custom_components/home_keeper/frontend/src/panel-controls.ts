@@ -25,6 +25,7 @@ import {
 } from './card-filter';
 import { t } from './i18n';
 import type { PanelHost } from './panel-host';
+import { openLabelPicker } from './panel-labels';
 import {
   PANEL_BUCKETS,
   TASK_FILTERS,
@@ -159,8 +160,13 @@ export function controls(p: PanelHost): string {
   // how what is listed is arranged. The pills keep the lead, because their counts
   // answer "how much is overdue" before anyone has to type anything.
   const addLabel = onTasks ? t('btn.addTask') : t('btn.addAppliance');
+  // Print labels opens a checklist of what the list shows (`panel-labels.ts`). It is
+  // secondary: Add stays the 1 primary action of the row.
   const actions = `
       <span class="hk-controls-spacer"></span>
+      <ha-button ${btnAttrs('secondary')} id="labels-btn" class="hk-labels-btn">${escapeHTML(
+        t('labels.printButton'),
+      )}</ha-button>
       <ha-button ${btnAttrs('primary')} id="add-btn" class="hk-add-btn">${escapeHTML(addLabel)}</ha-button>`;
   return `<div class="hk-controls">${filterControl}${assetFilterControl}${searchControl(p)}${viewControl}${profileControl(p)}${menuPair}${actions}</div>`;
 }
@@ -539,6 +545,7 @@ export function wireControls(p: PanelHost, root: ShadowRoot): void {
     if (p._view === 'tasks') p._openCreate();
     else p._openCreateAsset();
   });
+  root.getElementById('labels-btn')?.addEventListener('click', () => openLabelPicker(p));
 
   // Filter / group-by segmented controls.
   root.querySelectorAll<HTMLElement>('.hk-seg-btn').forEach((b) =>

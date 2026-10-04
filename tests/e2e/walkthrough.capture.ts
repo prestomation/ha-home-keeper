@@ -800,6 +800,21 @@ async function desktopTour(page: Page, panel: Locator): Promise<void> {
   await expect(page.locator('.hk-confirm-scrim')).toHaveCount(0);
   await page.waitForTimeout(BEAT);
 
+  // 4a-qr. QR label (#428): a code of this page's link, to print and stick on the
+  //        appliance. Print labels on the list does the same for many at once.
+  await panel.locator('.d-label').click();
+  await expect(panel.locator('ha-dialog.hk-label-dialog .hk-label-qr svg')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('ha-dialog.hk-label-dialog [data-label-close]').click();
+  await expect(panel.locator('ha-dialog.hk-label-dialog')).toHaveCount(0);
+  await panel.locator('#labels-btn').click();
+  const labelPicks = panel.locator('ha-dialog.hk-label-dialog [data-label-pick]');
+  await labelPicks.nth(1).check();
+  await labelPicks.nth(2).check();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('ha-dialog.hk-label-dialog [data-label-close]').click();
+  await expect(panel.locator('ha-dialog.hk-label-dialog')).toHaveCount(0);
+
   // 4a3. Archive — an appliance that was replaced can be tucked out of the default
   //      list without losing its documents/parts/history, and brought back any time.
   await panel.locator('.d-archive').click();
@@ -1397,6 +1412,12 @@ async function phoneTour(page: Page, panel: Locator): Promise<void> {
   await page.waitForTimeout(BEAT * 2);
   await panel.locator('.hk-subtab[data-tab="history"]').click();
   await page.waitForTimeout(BEAT * 2);
+  // 5a. The QR label dialog fills the phone screen.
+  await panel.locator('.d-label').click();
+  await expect(panel.locator('ha-dialog.hk-label-dialog .hk-label-qr svg')).toBeVisible();
+  await page.waitForTimeout(BEAT * 2);
+  await panel.locator('ha-dialog.hk-label-dialog [data-label-close]').click();
+  await expect(panel.locator('ha-dialog.hk-label-dialog')).toHaveCount(0);
   await panel.locator('#back-btn').click();
   await page.waitForTimeout(BEAT);
 

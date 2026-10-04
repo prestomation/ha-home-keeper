@@ -290,7 +290,16 @@ export interface Hass {
   // The instance's configured currency, used to format a completion's cost, and its
   // language, which the backend formats the shopping-list lines in.
   // `time_zone` is the zone the panel reads and writes times in (see `setTimeZone`).
-  config?: { currency?: string; language?: string; time_zone?: string };
+  config?: {
+    currency?: string;
+    language?: string;
+    time_zone?: string;
+    // The addresses HA is set to be reached at, and its country. A QR label prints
+    // the external URL first, and the country picks the first label sheet.
+    external_url?: string | null;
+    internal_url?: string | null;
+    country?: string | null;
+  };
   // Auth token, used to POST a document upload to the Home Keeper HTTP view with an
   // Authorization header (the real `hass` object exposes this; we under-declare it).
   //

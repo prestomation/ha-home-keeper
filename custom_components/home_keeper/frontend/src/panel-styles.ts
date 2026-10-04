@@ -2362,6 +2362,53 @@ export const STYLES = `
   .hk-preset-pick-name { font-weight: 500; }
   .hk-preset-pick-desc { color: var(--secondary-text-color); font-size: 0.9rem; }
   .hk-preset-pick-count { color: var(--hk-accent-ink); font-size: 0.85rem; font-weight: 500; }
+  /* The QR label dialog (panel-labels.ts). The code keeps its own white ground in
+     a dark theme: a phone reads dark on light only. No min-width, for the reason
+     given at .hk-decl-dialog-body below. */
+  .hk-label-body { display: flex; flex-direction: column; gap: 14px; width: 100%; box-sizing: border-box; }
+  .hk-label-preview {
+    display: flex; align-items: center; gap: 14px; padding: 12px;
+    border: 1px dashed var(--hk-line); border-radius: var(--hk-r-card);
+  }
+  .hk-label-qr { flex: none; width: 120px; height: 120px; }
+  .hk-label-qr svg { display: block; width: 100%; height: 100%; }
+  .hk-label-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; color: var(--hk-ink-2); }
+  .hk-label-text .hk-label-l1 { color: var(--hk-ink); font-weight: 500; font-size: 1.05rem; }
+  .hk-label-field { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; color: var(--hk-ink-2); }
+  .hk-label-field input, .hk-label-field select {
+    min-height: var(--hk-tap); box-sizing: border-box; padding: 0 10px; font: inherit; font-size: 16px;
+    color: var(--hk-ink); background: var(--hk-surface);
+    border: 1px solid var(--hk-line); border-radius: var(--hk-r-btn);
+  }
+  .hk-label-link-row { display: flex; gap: 8px; align-items: center; }
+  .hk-label-link { flex: 1 1 auto; min-width: 0; font-family: var(--code-font-family, monospace); }
+  .hk-label-list-head { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .hk-label-list-head .hk-eyebrow { flex: 1 1 auto; }
+  .hk-label-list {
+    display: grid; gap: 6px; max-height: 260px; overflow-y: auto; padding: 2px;
+  }
+  .hk-label-pick, .hk-label-check {
+    display: flex; align-items: center; gap: 12px; min-height: var(--hk-tap); cursor: pointer;
+    box-sizing: border-box;
+  }
+  .hk-label-pick {
+    padding: 0 12px; border: 1px solid var(--hk-line); border-radius: var(--hk-r-row);
+  }
+  .hk-label-pick:has(input:checked) { border-color: var(--hk-accent-line); background: var(--hk-accent-soft); }
+  .hk-label-pick input, .hk-label-check input {
+    flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--hk-accent);
+  }
+  .hk-label-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .hk-label-lines {
+    border: 0; margin: 0; padding: 0; display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px;
+  }
+  .hk-label-lines legend { padding: 0; margin-bottom: 4px; }
+  .hk-label-hint { margin: 0; font-size: 0.85rem; color: var(--hk-ink-2); }
+  /* A phone dialog is too narrow for the sheet name beside the skip field. */
+  @media (max-width: 700px) {
+    .hk-label-grid { grid-template-columns: minmax(0, 1fr); }
+  }
   /* No min-width: an ha-dialog is a fixed width (580px at its default "medium"),
      so a body wider than that dialog's content box does not widen the dialog — it
      overruns it. A 560px floor put every row 28px past the right padding edge, and

@@ -1,3 +1,8 @@
+import {
+  emptyLabelDialog,
+  renderLabelDialog,
+  type LabelDialogState,
+} from './panel-labels';
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
 import { SIGNED_URL_REFRESH_MS, SignedUrlCache, assetFileRefs } from './documents';
@@ -237,6 +242,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // keeps the writes in order.
   _presetNudge: PresetNudgeState | null = null;
   _presetDialog: PresetDialogState = { open: false, ids: [], selected: [], busy: false };
+  _labelDialog: LabelDialogState = emptyLabelDialog();
   _presetNudgeSaving: Promise<void> = Promise.resolve();
   _installedIntegrations: string[] | null = null;
   _declDialog: DeclarativeDialogState = { open: false, kind: 'picker', draft: null };
@@ -1834,6 +1840,8 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         this._completion.open ||
         this._moveCompletion.open ||
         this._presetDialog.open ||
+        // The label dialog has a number field and a checklist (see _labelDialog).
+        this._labelDialog.open ||
         // The skip note and the declarative dialog have text fields too. A render
         // while one is open drops focus to `<body>` mid-word (F10-4).
         this._snooze.open ||
@@ -2262,6 +2270,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     if (dialogHost && this._actionSheet.open) renderActionSheet(this, dialogHost);
     if (dialogHost && this._declDialog.open) renderDeclarativeDialog(this, dialogHost);
     if (dialogHost && this._presetDialog.open) renderPresetDialog(this, dialogHost);
+    if (dialogHost && this._labelDialog.open) renderLabelDialog(this, dialogHost);
     // renderConfirmDeleteDialog appends directly to document.body (not shadow root).
 
     // The drawer is a sibling of the whole content column, so it belongs to every
