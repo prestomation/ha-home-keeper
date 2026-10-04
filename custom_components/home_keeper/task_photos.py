@@ -166,8 +166,10 @@ def stray_photo_files(present: list[str], photos: list[dict[str, Any]]) -> list[
     """
     owned: set[str] = set()
     for photo in photos:
-        photo_id = str(photo.get("id") or "")
-        owned.add(f"{photo_id}__{photo.get('filename') or ''}")
+        photo_id = photo.get("id")
+        if not photo_id:
+            continue
+        owned.add(f"{photo_id}__{photo.get('filename')}")
         owned.add(f"thumb_{photo_id}__{THUMB_FILENAME}")
     return sorted(
         name for name in present if not name.startswith(".") and name not in owned

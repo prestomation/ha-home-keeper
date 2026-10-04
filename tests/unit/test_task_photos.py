@@ -310,6 +310,13 @@ def test_stray_photo_files():
     ]
     assert tp.stray_photo_files(["z", "y"], []) == ["y", "z"]
     assert tp.stray_photo_files([], photos) == []
+    # A record with no id owns no file.
+    assert tp.stray_photo_files(
+        ["__x.jpg", "thumb___thumb.jpg"], [{"filename": "x.jpg"}]
+    ) == [
+        "__x.jpg",
+        "thumb___thumb.jpg",
+    ]
 
 
 def test_stale_task_dirs():
