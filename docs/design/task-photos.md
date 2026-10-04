@@ -9,7 +9,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-task-photos.ts
   - custom_components/home_keeper/frontend/src/panel-photo-markup.ts
 related: [documents-photos, store, completions, transfer, frontend, events-api]
-source_hash: 29da4773e806
+source_hash: 89a4e60af490
 ---
 
 # Task photos
@@ -42,7 +42,7 @@ A completion photo is a different record, which [completions](completions.md) de
 `photos` on a task is a list of `{id, name, filename, content_type, size, created}`.
 `photos[0]` is the cover. `MAX_TASK_PHOTOS` (6) and `MAX_TASK_PHOTO_BYTES` (25 MB) are in
 `const.py`, and `limits.ts` mirrors both. `task_photos.py` imports no Home Assistant code.
-`task_photos.append_photo` refuses a 7th photo and gives a taken id a new uuid.
+`task_photos.append_photo` refuses a 7th photo and a taken id.
 `task_photos.make_cover` moves a photo to the front. `task_photos.normalize_photo_entry`
 refuses a type outside `IMAGE_TYPES` and a filename that `documents.safe_segment` changes.
 `models.build_task` and `models.merge_update` take no `photos` key, so `add_task`,
@@ -64,20 +64,21 @@ keeps a photo named `thumb.jpg` off the path of the thumbnail. Both call
 It has no admin gate. A multipart `POST` runs these steps:
 
 1. `manuals._uploader_is_a_real_user` refuses a request from a system user, so a signed URL
-   cannot write. The task must exist.
+   cannot write. The task must exist and have fewer than 6 photos, before the body streams.
 2. `manuals._parse_upload` streams the file to a temp file and stops at 25 MB.
 3. `task_photos.validate_photo_upload` runs the document checks. Then it refuses a type
    outside `IMAGE_TYPES`: PNG, JPEG, WebP and GIF.
-4. `manuals._store_task_photo` makes the thumbnail first, then moves the file into place.
-5. `store.add_task_photo` saves the entry. If the task is gone or full, the view deletes the
-   files. The reply holds the task and the entry.
+4. An id that a photo or an upload in flight holds gets a new uuid (`manuals._photo_uploads`).
+   `manuals._store_task_photo` makes the thumbnail first, then moves the file into place.
+5. `store.add_task_photo` saves the entry. If the task is gone or full, or the store closed,
+   the view deletes the files. The reply holds the task and the entry.
 
 `photo_thumbs.make_thumbnail` runs in the executor and imports Pillow on first use. It opens
 only the 4 upload formats. It applies the EXIF orientation, puts transparency on white, and
 writes a JPEG of at most `TASK_PHOTO_THUMB_PX` (256) pixels on the long side. A pixel limit
-stops a decompression bomb before the decode. The limit is 50 megapixels, or 250 for a
-baseline JPEG that draft mode decodes at a smaller size. A file that does not decode raises
-`photo_thumbs.ThumbnailError`, and the view returns 400 before a file is in the folder.
+stops a decompression bomb before the decode: 50 megapixels, or the Pillow limit (about 179,
+never changed) for a baseline JPEG that draft mode decodes smaller. A file that is too large
+or does not decode raises `photo_thumbs.ThumbnailError`, and the view returns 400 at once.
 
 ### Serve and sign
 
@@ -93,12 +94,12 @@ signs a list in 1 call, and a photo that is gone gets `url: null`.
 `remove_task_photo` and `set_task_photo_cover` are open, as `update_task` is. Each has a
 websocket twin that returns the task. `store._mutate_task_photos` runs the change, saves, and
 fires `home_keeper_task_updated` with `changed_fields: ["photos"]`. A cover that is already
-first gives no save and no event. `store.remove_task_photo` also deletes the 2 files.
+first gives no save and no event. `store.remove_task_photo` deletes the 2 files after it saves.
 
 `store._save` keeps the ids of the tasks that have photos. After each save, it removes the
 folder of each such task that the save dropped, whatever path deleted the task. The files
-go only after a save that succeeds. At setup, `manuals.async_sweep_task_photos`
-removes each folder that `task_photos.stale_task_dirs` finds with no live task.
+go only after a save that succeeds. At setup, `manuals.async_sweep_task_photos` removes each
+folder with no live task, and each file that no photo and no upload in flight names.
 
 ### Panel and card
 

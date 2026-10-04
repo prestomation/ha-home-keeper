@@ -28,6 +28,7 @@ from .models import TaskValidationError
 IMAGE_TYPES = frozenset({"image/png", "image/jpeg", "image/webp", "image/gif"})
 THUMB_FILENAME = "thumb.jpg"
 _MAX_NAME_LEN = 200
+FULL_MESSAGE = f"a task can have at most {MAX_TASK_PHOTOS} photos"
 
 
 def photos_of(task: dict[str, Any]) -> list[dict[str, Any]]:
@@ -98,15 +99,16 @@ def normalize_photo_entry(raw: Any) -> dict[str, Any]:
 def append_photo(task: dict[str, Any], raw: Any, *, created: str) -> dict[str, Any]:
     """Validate *raw* as a new photo and append it to *task* (in place).
 
-    *created* is the ISO timestamp the store stamps (this module has no clock). A
-    taken id gets a new one. Returns the stored entry.
+    *created* is the ISO timestamp the store stamps (this module has no clock).
+    Returns the stored entry. A taken id raises: the upload view writes the files
+    under the id before this runs, so a record under a new id would name no file.
     """
     photos = list(photos_of(task))
     if len(photos) >= MAX_TASK_PHOTOS:
-        raise TaskValidationError(f"a task can have at most {MAX_TASK_PHOTOS} photos")
+        raise TaskValidationError(FULL_MESSAGE)
     entry = normalize_photo_entry({**raw, "created": created})
     if entry["id"] in {p.get("id") for p in photos}:
-        entry["id"] = str(uuid.uuid4())
+        raise TaskValidationError("the photo id is already in use")
     photos.append(entry)
     task["photos"] = photos
     return entry
@@ -153,6 +155,23 @@ def photo_path(root: Path, task_id: str, photo_id: str, filename: str) -> Path:
 def thumb_path(root: Path, task_id: str, photo_id: str) -> Path:
     """The on-disk path of a photo's thumbnail. Blocking."""
     return documents.document_path(root, task_id, f"thumb_{photo_id}", THUMB_FILENAME)
+
+
+def stray_photo_files(present: list[str], photos: list[dict[str, Any]]) -> list[str]:
+    """The file names in a live task's folder that no photo of the task owns.
+
+    *present* is the listing of the folder. A photo owns its original
+    (``<id>__<filename>``) and its thumbnail (``thumb_<id>__thumb.jpg``). A name with
+    a leading dot is never a photo file, so it stays.
+    """
+    owned: set[str] = set()
+    for photo in photos:
+        photo_id = str(photo.get("id") or "")
+        owned.add(f"{photo_id}__{photo.get('filename') or ''}")
+        owned.add(f"thumb_{photo_id}__{THUMB_FILENAME}")
+    return sorted(
+        name for name in present if not name.startswith(".") and name not in owned
+    )
 
 
 def stale_task_dirs(present: list[str], live_ids: set[str]) -> list[str]:

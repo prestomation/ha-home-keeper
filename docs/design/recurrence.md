@@ -8,7 +8,7 @@ implements:
   - custom_components/home_keeper/frontend/src/defer-dialogs.ts
   - custom_components/home_keeper/frontend/src/panel-defer.ts
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
-source_hash: 72acedfe806c
+source_hash: f868863c0b09
 ---
 
 # Task model and recurrence
@@ -92,7 +92,8 @@ A naive input gets the configured zone with `replace(tzinfo=...)`, which keeps w
 than the latest one only fills in the log. For a fixed task,
 `recurrence._advance_fixed_schedule` moves past `max(now, next_due)`. Done before the time of
 day clears today's occurrence, and an overdue task jumps over all missed occurrences in
-1 step. The entry keeps `prior_due`, so `recurrence.remove_completion` can restore it.
+1 step. The entry keeps `prior_due`, so `recurrence.remove_completion` can restore it. A
+floating entry keeps it only after a snooze, a due today or a moved date.
 
 `recurrence.skip_occurrence` writes to `skips`, never to `completions`, and does not change
 `last_completed`. A floating task becomes due 1 interval from `now`. A fixed task moves as it

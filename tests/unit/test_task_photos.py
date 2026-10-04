@@ -185,12 +185,13 @@ def test_append_photo_ignores_a_created_from_the_caller():
     assert entry["created"] == "2026-10-01"
 
 
-def test_append_photo_gives_a_taken_id_a_new_one():
+def test_append_photo_refuses_a_taken_id():
+    # The files are on disk under the id before the record is saved, so a record
+    # under a new id would name no file.
     task = _task(1)
-    entry = tp.append_photo(task, _entry(id="p0"), created="x")
-    assert entry["id"] != "p0"
-    uuid.UUID(entry["id"])
-    assert len({p["id"] for p in task["photos"]}) == 2
+    with raises_exactly(TaskValidationError, "the photo id is already in use"):
+        tp.append_photo(task, _entry(id="p0"), created="x")
+    assert [p["id"] for p in task["photos"]] == ["p0"]
 
 
 def test_append_photo_does_not_change_the_list_in_place():
@@ -288,6 +289,27 @@ def test_a_photo_named_thumb_jpg_does_not_take_the_thumbnail_path(tmp_path: Path
 def test_photo_path_refuses_traversal(tmp_path: Path):
     path = tp.photo_path(tmp_path, "../../etc", "p", "passwd")
     assert path.is_relative_to(tmp_path.resolve())
+
+
+def test_stray_photo_files():
+    photos = [{"id": "a", "filename": "gap.jpg"}, {"id": "b", "filename": "x.png"}]
+    present = [
+        "a__gap.jpg",
+        "thumb_a__thumb.jpg",
+        "b__x.png",
+        "thumb_b__thumb.jpg",
+        "c__old.jpg",
+        "thumb_c__thumb.jpg",
+        "a__other.jpg",
+        ".keep",
+    ]
+    assert tp.stray_photo_files(present, photos) == [
+        "a__other.jpg",
+        "c__old.jpg",
+        "thumb_c__thumb.jpg",
+    ]
+    assert tp.stray_photo_files(["z", "y"], []) == ["y", "z"]
+    assert tp.stray_photo_files([], photos) == []
 
 
 def test_stale_task_dirs():

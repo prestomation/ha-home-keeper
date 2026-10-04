@@ -1,7 +1,7 @@
 import { PANEL_VERSION } from 'panel-version';
 import * as api from './api';
 import { SIGNED_URL_REFRESH_MS, SignedUrlCache, assetFileRefs } from './documents';
-import { TaskPhotoUrlCache, coverRefs, detailRefs } from './task-photos';
+import { TaskPhotoUrlCache, coverOriginalRefs, coverRefs, detailRefs } from './task-photos';
 import {
   buildTaskPayload,
   consumableLinkToken,
@@ -10,7 +10,7 @@ import {
   type FormField,
   type HaFormElement,
 } from './forms';
-import { setLanguage, t } from './i18n';
+import { setLanguage, t, tn } from './i18n';
 import { MAX_IMPORT_BYTES, MAX_IMPORT_WS_BYTES, importFitsWebsocket } from './limits';
 import {
   createPreview,
@@ -90,6 +90,7 @@ import type {
 } from './types';
 import {
   toast,
+  addedCompletion,
   guardWrite,
   type WriteGuard,
   btnAttrs,
@@ -432,7 +433,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     this._settingsSection = section;
     if (sectionOnly && this._patchSettingsSection()) return;
     // Leaving a list/detail closes any open form (forms are ephemeral overlays)...
-    this._edit = { open: false, task: null };
+    this._setEdit({ open: false, task: null });
     // An upload belongs to the draft it started in. Closing the draft cancels it, so
     // its result cannot land in a different draft (X12-8).
     this._abortUpload();
@@ -1037,7 +1038,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
   // ── task form lifecycle ─────────────────────────────────────────────────────
   _openCreate(): void {
     this._rememberDrawerOpener();
-    this._edit = {
+    this._setEdit({
       open: true,
       task: {
         recurrence_type: 'floating',
@@ -1045,7 +1046,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
         unit: 'months',
         consumable_link: '',
       } as Partial<Task>,
-    };
+    });
     this._render();
   }
   _openEdit(task: Task): void {
@@ -1065,7 +1066,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     // pending edit, because `_applyLocation` clears ephemeral forms on the way — see
     // `_pendingEdit`, which re-opens it once the location has settled.
     if (this._view === 'tasks' && this._editsThisPage('task', task.id)) {
-      this._edit = { open: true, task: seeded };
+      this._setEdit({ open: true, task: seeded });
       this._render();
     } else {
       this._pendingEdit = seeded;
@@ -1086,7 +1087,7 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
    */
   _openDuplicate(task: Task): void {
     this._rememberDrawerOpener();
-    this._edit = { open: true, task: duplicateTaskSeed(task) };
+    this._setEdit({ open: true, task: duplicateTaskSeed(task) });
     this._render();
   }
 
@@ -1103,9 +1104,18 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
     return this._detail.kind === kind && !!id && this._detail.id === id;
   }
   _closeForm(): void {
-    releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
-    this._edit = { open: false, task: null };
+    this._setEdit({ open: false, task: null });
     this._render();
+  }
+
+  /**
+   * Replace the task form's draft. Every path that drops a draft comes here, so the
+   * preview URLs of its picked photos are always released, also when a navigation
+   * or a new form replaces it instead of Cancel.
+   */
+  private _setEdit(next: EditState): void {
+    releaseStaged(this._edit.photos, (url) => URL.revokeObjectURL(url));
+    this._edit = next;
   }
 
   async _submitForm(button?: Element | null): Promise<void> {
@@ -1141,15 +1151,24 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       // Photos picked in the New task form upload now that the task has an id. A
       // failed photo does not undo the task: the form closes, and the task page opens
       // so the user can add the photo again there.
-      const staged = this._edit.photos ?? [];
+      const draft = this._edit;
+      const staged = draft.photos ?? [];
       if (staged.length) {
         const hass = this._hass;
         const { failed } = await uploadStaged(staged, (photoId, file) =>
           api.uploadTaskPhoto(hass, saved.id, photoId, file),
         );
+        // A navigation during the upload replaced the draft. Leave the form that is
+        // open now alone, and release this draft's previews here.
+        if (this._edit !== draft) {
+          releaseStaged(staged, (url) => URL.revokeObjectURL(url));
+          if (failed.length) toast(this, tn('photos.uploadPartial', failed.length));
+          await this._refresh();
+          return;
+        }
         if (failed.length) {
           this._closeForm();
-          toast(this, t('photos.uploadPartial', { n: String(failed.length) }));
+          toast(this, tn('photos.uploadPartial', failed.length));
           await this._refresh();
           this._openDetail('task', saved.id);
           return;
@@ -1314,12 +1333,15 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       async () => {
         const hass = this._hass;
         if (!hass) return;
-        const before = new Set((task.completions ?? []).map((c) => c.ts));
+        // The action sheet keeps the task it opened with, so read the log of the
+        // task as the panel has it now.
+        const current = this._tasks.find((x) => x.id === task.id) ?? task;
+        const before = new Set((current.completions ?? []).map((c) => c.ts));
         try {
           const done = await api.completeTask(hass, task.id);
           // Say which task is done, and offer Undo. In Tiles and Board the task moves to
           // another section, so without this the only sign of the tap is a reflow.
-          const added = done?.completions?.find((c) => !before.has(c.ts));
+          const added = addedCompletion(before, done);
           if (added) {
             toast(this, t('done.toast', { name: task.name }), {
               text: t('btn.undo'),
@@ -2341,12 +2363,18 @@ export class HomeKeeperPanel extends HTMLElement implements PanelHost {
       ...assetFileRefs(this._assetEdit.asset ?? {}),
     ];
     // Task photos (#399): every cover thumbnail, for the list rows and the completion
-    // dialog, plus every photo of the open task.
+    // dialog, plus every photo of the open task. The completion dialog also links its
+    // cover to the original, and it can open from a list, where no task page signs it.
     const detailTask =
       this._detail?.kind === 'task'
         ? this._tasks.find((task) => task.id === this._detail?.id)
         : undefined;
-    const photoRefs = [...coverRefs(this._tasks), ...(detailTask ? detailRefs(detailTask) : [])];
+    const logging = this._completion.open && this._completion.ts == null;
+    const photoRefs = [
+      ...coverRefs(this._tasks),
+      ...(detailTask ? detailRefs(detailTask) : []),
+      ...(logging ? coverOriginalRefs(this._completion.task) : []),
+    ];
     // A screen with no uploaded files still calls through, so the cache drops the URLs
     // of whatever was on the previous one.
     await Promise.all([

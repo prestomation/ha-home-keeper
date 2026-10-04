@@ -74,9 +74,9 @@ Home Keeper captures it and a task with no sensor cannot supply it.
 
 `_complete` in `panel.ts` refuses a scan-only task with a toast. For `optional` or
 `required` it calls `openCompletionDialog`. Otherwise it calls `api.completeTask`, and the
-toast's Undo deletes the new entry by its `ts`. On a one-tap task, the Done with photo or
-note item of the Done menu opens the dialog (`defer.deferVerbs`). The card has no dialog,
-so a `required` task sends the user to the panel.
+toast's Undo deletes the entry that Done added (`utils.addedCompletion`). On a one-tap
+task, the Done with photo or note item of the Done menu opens the dialog
+(`defer.deferVerbs`). The card has no dialog, so a `required` task sends the user to the panel.
 
 `renderCompletionDialog` in `panel-dialogs.ts` builds one `ha-form` for both uses. To log
 a completion it shows the task cover ([task-photos](task-photos.md)), Completed at, note,
@@ -100,8 +100,8 @@ the latest as backfill: it moves neither `last_completed` nor a floating or fixe
   the whole entry at the new `ts` and derives `last_completed` once from the final list.
   Only a floating task recomputes `next_due`, and only if the latest entry changed. It
   fires `home_keeper_task_uncompleted` then `home_keeper_task_completed`.
-- **Delete.** `store.delete_completion` calls `recurrence.remove_completion`. A fixed task
-  gets its `prior_due` back, a one-off re-arms if its log is empty, and stock and the
+- **Delete.** `store.delete_completion` calls `recurrence.remove_completion`. A latest entry
+  with a `prior_due` puts it back, a one-off re-arms if its log is empty, and stock and the
   meter baseline return. Event: `home_keeper_task_uncompleted` with the removed `ts`.
 
 `panel-history.ts` wires these 3 row buttons. A sync-owned problem-sensor task refuses all 3.

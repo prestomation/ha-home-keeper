@@ -58,6 +58,18 @@ class TaskValidationError(ValueError):
     """Raised when task input fails validation."""
 
 
+class StoreClosedError(RuntimeError):
+    """A write reached a store that an unload closed (X02-2).
+
+    A reload builds a new store that loads the file again. A pass that started
+    before the unload still holds the old store, and its save would write the old
+    snapshot over the new one. The closed store refuses the save instead.
+
+    Defined here, in the pure core, so the upload view can catch it with no import
+    of ``store``. ``store`` imports it from here.
+    """
+
+
 def _finite_float(value: Any, field: str) -> float:
     """Parse *value* to a float, rejecting NaN/Infinity.
 

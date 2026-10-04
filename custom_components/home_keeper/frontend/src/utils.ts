@@ -1,5 +1,5 @@
 import { getLanguage, t, tlist, tn } from './i18n';
-import type { Asset, Hass, HassArea, HassLabel, Part, Task } from './types';
+import type { Asset, Completion, Hass, HassArea, HassLabel, Part, Task } from './types';
 
 /** Home Keeper's own integration domain (`const.DOMAIN`). A task Home Keeper syncs
  *  or materializes itself carries it in `managed_by.integration`, which is how the
@@ -301,6 +301,28 @@ export async function copyText(value: string): Promise<boolean> {
   } finally {
     area.remove();
   }
+}
+
+/**
+ * The completion that a Done added, for its Undo.
+ *
+ * *before* holds the `ts` of each completion the task had when Done was pressed.
+ * Another person can complete the same task in that time, so more than one entry
+ * can be new. The one that Done made is the newest: the task's `last_completed`
+ * when it is new, else the latest new `ts`. Undefined when nothing is new.
+ */
+export function addedCompletion(
+  before: ReadonlySet<string>,
+  done: Pick<Task, 'completions' | 'last_completed'> | null | undefined,
+): Completion | undefined {
+  const fresh = (done?.completions ?? []).filter((c) => !before.has(c.ts));
+  const last = done?.last_completed;
+  const named = last ? fresh.find((c) => c.ts === last) : undefined;
+  if (named) return named;
+  return fresh.reduce<Completion | undefined>(
+    (best, c) => (!best || Date.parse(c.ts) > Date.parse(best.ts) ? c : best),
+    undefined,
+  );
 }
 
 /**

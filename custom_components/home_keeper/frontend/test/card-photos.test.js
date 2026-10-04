@@ -3,7 +3,7 @@
 // the controls with no admin check.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { HomeKeeperCard } from '../src/card.ts';
-import { t } from '../src/i18n.ts';
+import { t, tn } from '../src/i18n.ts';
 
 beforeAll(() => {
   for (const tag of [
@@ -215,6 +215,25 @@ describe('photos in the card New task form', () => {
     expect(tiles(card)).toEqual([]);
   });
 
+  it('keeps an error that a pick did not cause', async () => {
+    const { card } = await openForm();
+    sr(card).querySelector('#hk-create').click();
+    await waitFor(() => sr(card).querySelector('.hk-form ha-alert'));
+    expect(sr(card).querySelector('.hk-form ha-alert').textContent).toBe(t('error.nameRequired'));
+    pick(card, [img('a.jpg')]);
+    await waitFor(() => tiles(card).length === 1);
+    expect(sr(card).querySelector('.hk-form ha-alert').textContent).toBe(t('error.nameRequired'));
+  });
+
+  it('clears an earlier refusal when the next pick is clean', async () => {
+    const { card } = await openForm();
+    pick(card, [img('manual.pdf', 'application/pdf')]);
+    await waitFor(() => sr(card).querySelector('.hk-form ha-alert'));
+    pick(card, [img('a.jpg')]);
+    await waitFor(() => tiles(card).length === 1);
+    expect(sr(card).querySelector('.hk-form ha-alert')).toBeNull();
+  });
+
   it('hides Add photo when 6 photos are picked', async () => {
     const { card } = await openForm();
     pick(card, Array.from({ length: 6 }, (_, i) => img(`${i}.jpg`)));
@@ -248,7 +267,7 @@ describe('photos in the card New task form', () => {
     await waitFor(() => !card._edit.open);
     expect(AutoXHR.sent).toHaveLength(2);
     expect(calls.filter((m) => m.type === 'home_keeper/add_task')).toHaveLength(1);
-    expect(toasts).toEqual([t('photos.uploadPartial', { n: '1' })]);
+    expect(toasts).toEqual([tn('photos.uploadPartial', 1)]);
   });
 
   it('uploads nothing and shows no toast for a task with no photos', async () => {

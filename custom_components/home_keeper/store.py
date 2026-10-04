@@ -77,6 +77,7 @@ from .const import (
     resolve_use_task_naming,
     resolve_wear_task_naming,
 )
+from .models import StoreClosedError
 from .problem_tasks import problem_sensor_entity_id as _problem_entity
 from .problem_tasks import problem_source as _problem_source
 from .problem_tasks import reconcile_problem_tasks as _reconcile_problem_tasks
@@ -261,15 +262,6 @@ def _changed_fields(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     ignore = {"completions", "skips", "last_completed", "next_due", "created"}
     keys = (set(before) | set(after)) - ignore
     return sorted(k for k in keys if before.get(k) != after.get(k))
-
-
-class StoreClosedError(RuntimeError):
-    """A write reached a store that an unload closed (X02-2).
-
-    A reload builds a new store that loads the file again. A pass that started
-    before the unload still holds the old store, and its save would write the old
-    snapshot over the new one. The closed store refuses the save instead.
-    """
 
 
 class HomeKeeperStore:
@@ -1341,21 +1333,27 @@ class HomeKeeperStore:
     async def remove_task_photo(self, task_id: str, photo_id: str) -> dict[str, Any]:
         """Remove a photo from a task and delete its files; return the task.
 
-        Raises ``KeyError`` for an unknown task or photo.
+        Raises ``KeyError`` for an unknown task or photo. The save comes before the
+        file delete. If the delete does not finish, a file stays on disk with no
+        record, and the setup sweep removes it. The other order can leave a record
+        whose file is gone.
         """
+        removed: list[dict[str, Any]] = []
 
         async def remove(task: dict[str, Any]) -> dict[str, Any]:
-            from . import manuals  # lazy: manuals -> devices would cycle at load
-
-            removed = task_photos.remove_photo(task, photo_id)
-            if removed is None:
+            photo = task_photos.remove_photo(task, photo_id)
+            if photo is None:
                 raise KeyError(photo_id)
-            await manuals.async_delete_task_photo(
-                self._hass, task_id, photo_id, removed["filename"]
-            )
+            removed.append(photo)
             return task
 
-        return await self._mutate_task_photos(task_id, remove)
+        task = await self._mutate_task_photos(task_id, remove)
+        from . import manuals  # lazy: manuals -> devices would cycle at load
+
+        await manuals.async_delete_task_photo(
+            self._hass, task_id, photo_id, removed[0]["filename"]
+        )
+        return task
 
     async def set_task_photo_cover(self, task_id: str, photo_id: str) -> dict[str, Any]:
         """Make a photo the cover (the first photo) of a task; return the task.

@@ -926,7 +926,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Uploads spool to a temp file; a restart mid-upload would otherwise strand it.
     await manuals.async_cleanup_temp_uploads(hass)
     # Photo folders of tasks deleted while the files could not go (#399).
-    await manuals.async_sweep_task_photos(hass, set(store.get_tasks()))
+    await manuals.async_sweep_task_photos(hass, store.get_tasks())
     websocket_api.async_register(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Platforms have removed entities for deleted/excluded tasks; drop Home Keeper

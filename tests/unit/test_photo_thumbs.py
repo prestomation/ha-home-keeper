@@ -107,17 +107,33 @@ def test_too_many_pixels_is_refused(tmp_path, monkeypatch):
         thumbs.make_thumbnail(src, tmp_path / "thumb.jpg", 256)
 
 
+@pytest.mark.filterwarnings("ignore::PIL.Image.DecompressionBombWarning")
 def test_a_jpeg_has_its_own_higher_limit(tmp_path, monkeypatch):
-    # Draft mode decodes an 800x800 JPEG for a 32px thumbnail at 1/8: 100x100.
+    # Draft mode decodes an 800x800 JPEG for a 32px thumbnail at 1/8: 100x100. The
+    # JPEG limit is Pillow's own: 2 x MAX_IMAGE_PIXELS.
     monkeypatch.setattr(thumbs, "_MAX_PIXELS", 100 * 100)
-    monkeypatch.setattr(thumbs, "_MAX_PIXELS_JPEG", 800 * 800)
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 800 * 800 / 2)
     src = _write(tmp_path / "a.jpg", Image.new("RGB", (800, 800)), "JPEG")
     dst = tmp_path / "thumb.jpg"
     thumbs.make_thumbnail(src, dst, 32)
     assert _open(dst).size == (32, 32)
-    monkeypatch.setattr(thumbs, "_MAX_PIXELS_JPEG", 800 * 800 - 1)
+    # One pixel over: Pillow's own check in Image.open refuses it, and the message
+    # says the image is too large, not that it cannot be read.
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", (800 * 800 - 1) / 2)
     with raises_exactly(thumbs.ThumbnailError, "the image is too large to read"):
         thumbs.make_thumbnail(src, dst, 32)
+
+
+def test_a_png_over_the_pillow_limit_says_too_large(tmp_path, monkeypatch):
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 10)
+    src = _write(tmp_path / "a.png", Image.new("RGB", (10, 10)), "PNG")
+    with raises_exactly(thumbs.ThumbnailError, "the image is too large to read"):
+        thumbs.make_thumbnail(src, tmp_path / "thumb.jpg", 256)
+
+
+def test_no_pillow_limit_gives_no_jpeg_limit(monkeypatch):
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", None)
+    assert thumbs._max_pixels_jpeg() == float("inf")
 
 
 def test_a_jpeg_that_draft_mode_does_not_shrink_is_refused(tmp_path, monkeypatch):
@@ -168,7 +184,7 @@ def test_a_cmyk_jpeg_gets_the_lower_limit(tmp_path):
 def test_a_baseline_jpeg_gets_the_higher_limit(tmp_path, mode):
     src = _write(tmp_path / "b.jpg", Image.new(mode, (10, 10)), "JPEG")
     with Image.open(src) as image:
-        assert thumbs._pixel_limit(image) == thumbs._MAX_PIXELS_JPEG
+        assert thumbs._pixel_limit(image) == thumbs._max_pixels_jpeg()
 
 
 @pytest.mark.parametrize("fmt", ["PNG", "GIF", "WEBP"])
@@ -185,8 +201,10 @@ def test_a_format_the_upload_does_not_accept_is_refused(tmp_path, fmt):
         thumbs.make_thumbnail(src, tmp_path / "thumb.jpg", 256)
 
 
-def test_the_limits_keep_a_200_megapixel_jpeg_and_refuse_a_huge_png():
-    assert thumbs._MAX_PIXELS_JPEG >= 2e8
+def test_the_jpeg_limit_is_the_pillow_limit_and_a_huge_png_is_refused():
+    # Home Keeper never changes Pillow's global, which all of Home Assistant shares.
+    assert Image.MAX_IMAGE_PIXELS == 1024 * 1024 * 1024 // 4 // 3
+    assert thumbs._max_pixels_jpeg() == 2 * Image.MAX_IMAGE_PIXELS
     assert thumbs._MAX_PIXELS <= 5e7
 
 

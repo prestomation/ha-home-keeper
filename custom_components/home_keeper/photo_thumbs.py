@@ -20,11 +20,12 @@ from .const import TASK_PHOTO_THUMB_PX
 
 # A decompression bomb is a small file that expands to a huge bitmap. A baseline
 # RGB or greyscale JPEG is decoded in draft mode, at 1/8 of its size or less for a
-# thumbnail, so it can be as large as the biggest phone sensor (200 megapixels) and
-# still decode to a few megapixels. A progressive JPEG keeps every coefficient at
+# thumbnail, so it can be very large and still decode to a few megapixels. Its limit
+# is the one Pillow itself enforces in ``Image.open`` (2 x ``MAX_IMAGE_PIXELS``,
+# about 179 megapixels by default). Home Keeper does not change that global, because
+# it applies to all of Home Assistant. A progressive JPEG keeps every coefficient at
 # full size while it decodes, and a CMYK one has 4 channels, so those two get the
 # limit of every other format: 50 megapixels of RGB is about 150 MB of memory.
-_MAX_PIXELS_JPEG = 2.5e8
 _MAX_PIXELS = 5e7
 # The formats the upload accepts (see ``task_photos.IMAGE_TYPES``). Pillow tries
 # only these, so a file it would read as TIFF or BMP is refused here as well.
@@ -39,7 +40,13 @@ def _pixel_limit(image: Image.Image) -> float:
         and not image.info.get("progressive")
         and not image.info.get("progression")
     )
-    return _MAX_PIXELS_JPEG if draft_decodes else _MAX_PIXELS
+    return _max_pixels_jpeg() if draft_decodes else _MAX_PIXELS
+
+
+def _max_pixels_jpeg() -> float:
+    """The largest baseline JPEG that Pillow opens, read when it is needed."""
+    limit = Image.MAX_IMAGE_PIXELS
+    return 2.0 * limit if limit else float("inf")
 
 
 class ThumbnailError(ValueError):
@@ -77,11 +84,13 @@ def make_thumbnail(src: Path, dst: Path, px: int = TASK_PHOTO_THUMB_PX) -> None:
             frame.save(dst, "JPEG", quality=82, optimize=True)
     except ThumbnailError:
         raise
+    # Pillow's own size check in ``Image.open``: the same answer as the checks above.
+    except Image.DecompressionBombError as err:
+        raise ThumbnailError("the image is too large to read") from err
     # Pillow raises SyntaxError and ValueError as well as OSError for some broken
     # files, so all of them mean "not a readable image" here.
     except (
         UnidentifiedImageError,
-        Image.DecompressionBombError,
         OSError,
         SyntaxError,
         ValueError,

@@ -94,6 +94,38 @@ def test_remove_task_photo_deletes_its_files(store, deleted):  # noqa: F811
     assert [e["changed_fields"] for e in fired] == [["photos"]]
 
 
+def test_remove_task_photo_saves_before_it_deletes(store, monkeypatch):  # noqa: F811
+    # A delete that does not finish leaves a file with no record, which the setup
+    # sweep removes. A save that does not happen must not leave a record with no file.
+    task = _with_photos(store, 1)
+    order: list[str] = []
+    manuals = sys.modules["hk.manuals"]
+
+    async def _photo(hass, task_id, photo_id, filename):
+        order.append(f"delete:{store._store.saves}")
+
+    monkeypatch.setattr(manuals, "async_delete_task_photo", _photo, raising=False)
+    saves = store._store.saves
+    _run(store.remove_task_photo(task["id"], "p0"))
+    assert order == [f"delete:{saves + 1}"]
+
+
+def test_remove_task_photo_keeps_the_files_when_the_save_fails(
+    store,  # noqa: F811
+    deleted,
+    monkeypatch,
+):
+    task = _with_photos(store, 1)
+
+    async def _fail() -> None:
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(store, "_save", _fail)
+    with pytest.raises(RuntimeError):
+        _run(store.remove_task_photo(task["id"], "p0"))
+    assert deleted == []
+
+
 def test_remove_an_unknown_task_photo(store, deleted):  # noqa: F811
     task = _with_photos(store, 1)
     with pytest.raises(KeyError):

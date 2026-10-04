@@ -142,6 +142,7 @@ class _Hass:
             language="en", path=lambda *parts: str(root.joinpath(*parts))
         )
         self.coord: object | None = None
+        self.data: dict = {}
 
     async def async_add_executor_job(self, func, *args):
         return func(*args)
@@ -456,6 +457,80 @@ def test_a_task_photo_upload_with_a_taken_id_gets_a_new_one(hass, tmp_path):
     assert (_task_dir(tmp_path) / f"{new_id}__a.png").is_file()
 
 
+def test_a_task_photo_upload_with_an_id_in_flight_gets_a_new_one(hass, tmp_path):
+    # A double submit: the first upload with this id has not saved its record yet.
+    # The second must not write to the same path.
+    uploads = hass.data.setdefault(manuals._PHOTO_UPLOADS_KEY, set())
+    uploads.add(("t1", PHOTO_ID))
+    store = _TaskStore({"t1": {"id": "t1"}})
+    hass.coord = types.SimpleNamespace(store=store)
+
+    _post_photo(hass, "a.png", _png())
+
+    new_id = store.added[0]["id"]
+    assert new_id != PHOTO_ID
+    assert (_task_dir(tmp_path) / f"{new_id}__a.png").is_file()
+    assert not (_task_dir(tmp_path) / f"{PHOTO_ID}__a.png").exists()
+    # The upload frees its own id when it ends, and leaves the other one alone.
+    assert uploads == {("t1", PHOTO_ID)}
+
+
+def test_a_task_photo_upload_holds_its_id_until_the_record_is_saved(hass, tmp_path):
+    seen: list[set] = []
+
+    class _Watching(_TaskStore):
+        async def add_task_photo(self, task_id, photo):
+            seen.append(set(hass.data[manuals._PHOTO_UPLOADS_KEY]))
+            return await super().add_task_photo(task_id, photo)
+
+    hass.coord = types.SimpleNamespace(store=_Watching({"t1": {"id": "t1"}}))
+    _post_photo(hass, "a.png", _png())
+    assert seen == [{("t1", PHOTO_ID)}]
+    assert hass.data[manuals._PHOTO_UPLOADS_KEY] == set()
+
+
+def test_a_task_photo_upload_to_a_full_task_stops_before_the_body(hass, tmp_path):
+    photos = [{"id": f"p{i}"} for i in range(manuals.MAX_TASK_PHOTOS)]
+    hass.coord = types.SimpleNamespace(
+        store=_TaskStore({"t1": {"id": "t1", "photos": photos}})
+    )
+    reader = _Reader([_BodyPartReader("a.png", [_png()])])
+
+    result = asyncio.run(
+        manuals.HomeKeeperTaskPhotoView().post(
+            _PhotoRequest(hass, reader), "t1", PHOTO_ID
+        )
+    )
+
+    assert result == ("message", "invalid_task", 400)
+    assert len(reader._parts) == 1
+    assert not _task_dir(tmp_path).exists()
+
+
+def test_a_task_photo_upload_to_one_below_the_cap_is_read(hass, tmp_path):
+    photos = [{"id": f"p{i}"} for i in range(manuals.MAX_TASK_PHOTOS - 1)]
+    store = _TaskStore({"t1": {"id": "t1", "photos": photos}})
+    hass.coord = types.SimpleNamespace(store=store)
+
+    result = _post_photo(hass, "a.png", _png())
+
+    assert result[0] == "json"
+    assert len(store.added) == 1
+
+
+def test_a_task_photo_upload_across_an_unload_removes_its_files(hass, tmp_path):
+    from hk_models import StoreClosedError
+
+    store = _TaskStore({"t1": {"id": "t1"}}, fail=StoreClosedError("closed"))
+    hass.coord = types.SimpleNamespace(store=store)
+
+    result = _post_photo(hass, "a.png", _png())
+
+    assert result == ("message", "integration_not_loaded", 404)
+    assert list(_task_dir(tmp_path).glob("*")) == []
+    assert hass.data[manuals._PHOTO_UPLOADS_KEY] == set()
+
+
 def test_a_task_photo_upload_needs_a_real_user(hass, tmp_path):
     hass.coord = types.SimpleNamespace(store=_TaskStore({"t1": {"id": "t1"}}))
     request = _PhotoRequest(hass, _Reader([]))
@@ -537,13 +612,51 @@ def test_the_sweep_removes_only_the_folders_of_gone_tasks(hass, tmp_path):
         (root / name).mkdir(parents=True)
         (root / name / "x").write_bytes(b"x")
 
-    asyncio.run(manuals.async_sweep_task_photos(hass, {"live"}))
+    asyncio.run(manuals.async_sweep_task_photos(hass, {"live": {"id": "live"}}))
 
     assert sorted(p.name for p in root.iterdir()) == [".incoming", "live"]
 
 
+def test_the_sweep_removes_stray_files_of_a_live_task(hass, tmp_path):
+    folder = _task_dir(tmp_path)
+    folder.mkdir(parents=True)
+    names = [
+        "a__gap.jpg",
+        "thumb_a__thumb.jpg",
+        "old__x.jpg",
+        "thumb_old__thumb.jpg",
+        "busy__y.jpg",
+        "thumb_busy__thumb.jpg",
+    ]
+    for name in names:
+        (folder / name).write_bytes(b"x")
+    # An upload with the id "busy" is in flight: its files stay.
+    hass.data[manuals._PHOTO_UPLOADS_KEY] = {("t1", "busy")}
+    task = {"id": "t1", "photos": [{"id": "a", "filename": "gap.jpg"}]}
+
+    asyncio.run(manuals.async_sweep_task_photos(hass, {"t1": task}))
+
+    assert sorted(p.name for p in folder.iterdir()) == [
+        "a__gap.jpg",
+        "busy__y.jpg",
+        "thumb_a__thumb.jpg",
+        "thumb_busy__thumb.jpg",
+    ]
+
+
+def test_the_sweep_keeps_the_folder_of_an_upload_in_flight(hass, tmp_path):
+    folder = _task_dir(tmp_path, "new")
+    folder.mkdir(parents=True)
+    (folder / "busy__y.jpg").write_bytes(b"x")
+    hass.data[manuals._PHOTO_UPLOADS_KEY] = {("new", "busy")}
+
+    asyncio.run(manuals.async_sweep_task_photos(hass, {}))
+
+    assert (folder / "busy__y.jpg").is_file()
+
+
 def test_the_sweep_with_no_photo_folder_does_nothing(hass, tmp_path):
-    asyncio.run(manuals.async_sweep_task_photos(hass, {"live"}))
+    asyncio.run(manuals.async_sweep_task_photos(hass, {"live": {"id": "live"}}))
     assert not (tmp_path / manuals.TASK_PHOTOS_SUBDIR).exists()
 
 
