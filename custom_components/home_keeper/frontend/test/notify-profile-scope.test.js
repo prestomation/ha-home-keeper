@@ -19,15 +19,19 @@ afterEach(() => {
 
 const filter = (status) => ({
   status,
-  labels: [],
-  areas: [],
-  devices: [],
-  companions: [],
-  exclude_labels: [],
-  exclude_areas: [],
-  exclude_devices: [],
-  exclude_companions: [],
-  exclude_shopping: false,
+  groups: [
+    {
+      labels: [],
+      areas: [],
+      devices: [],
+      companions: [],
+      exclude_labels: [],
+      exclude_areas: [],
+      exclude_devices: [],
+      exclude_companions: [],
+      exclude_shopping: false,
+    },
+  ],
 });
 
 const profile = (id, name, status) => ({

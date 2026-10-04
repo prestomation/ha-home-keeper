@@ -170,8 +170,18 @@ def current_options(entry: ConfigEntry) -> dict[str, Any]:
     return _normalize(dict(entry.options), _empty_options(), read=True)
 
 
-# The device-id lists in a profile filter. A profile filter matches a task on these.
+# The device-id lists in each group of a profile filter. A group matches a task on
+# these.
 _PROFILE_DEVICE_KEYS = ("devices", "exclude_devices")
+
+
+def _filter_groups(profile: Any) -> list[dict[str, Any]]:
+    """The groups of *profile*'s filter that are dicts, or ``[]``."""
+    filt = profile.get("filter") if isinstance(profile, dict) else None
+    groups = filt.get("groups") if isinstance(filt, dict) else None
+    if not isinstance(groups, list):
+        return []
+    return [g for g in groups if isinstance(g, dict)]
 
 
 def _repoint_ids(ids: Any, mapping: dict[str, str]) -> list[str] | None:
@@ -190,15 +200,14 @@ def device_ids_in_options(options: dict[str, Any]) -> set[str]:
     """Every device id that *options* refers to.
 
     These are the problem-sensor device exclusions and the device lists of each
-    profile filter. The device-split repair in ``devices.py`` resolves them.
+    group of each profile filter. The device-split repair in ``devices.py`` resolves
+    them.
     """
     found = set(options.get(OPTION_PROBLEM_SENSOR_EXCLUDE_DEVICES) or [])
     for profile in options.get(OPTION_PROFILES) or []:
-        filt = profile.get("filter") if isinstance(profile, dict) else None
-        if not isinstance(filt, dict):
-            continue
-        for key in _PROFILE_DEVICE_KEYS:
-            found.update(filt.get(key) or [])
+        for group in _filter_groups(profile):
+            for key in _PROFILE_DEVICE_KEYS:
+                found.update(group.get(key) or [])
     return found
 
 
@@ -222,17 +231,24 @@ def repoint_device_ids(
         changed = True
     new_profiles: list[Any] = []
     for profile in options.get(OPTION_PROFILES) or []:
-        filt = profile.get("filter") if isinstance(profile, dict) else None
-        if not isinstance(filt, dict):
+        if not _filter_groups(profile):
             new_profiles.append(profile)
             continue
-        new_filt = dict(filt)
-        for key in _PROFILE_DEVICE_KEYS:
-            ids = _repoint_ids(filt.get(key), mapping)
-            if ids is not None:
-                new_filt[key] = ids
-                changed = True
-        new_profiles.append({**profile, "filter": new_filt})
+        new_groups: list[Any] = []
+        for group in profile["filter"]["groups"]:
+            if not isinstance(group, dict):
+                new_groups.append(group)
+                continue
+            new_group = dict(group)
+            for key in _PROFILE_DEVICE_KEYS:
+                ids = _repoint_ids(group.get(key), mapping)
+                if ids is not None:
+                    new_group[key] = ids
+                    changed = True
+            new_groups.append(new_group)
+        new_profiles.append(
+            {**profile, "filter": {**profile["filter"], "groups": new_groups}}
+        )
     if OPTION_PROFILES in options:
         result[OPTION_PROFILES] = new_profiles
     return result if changed else None

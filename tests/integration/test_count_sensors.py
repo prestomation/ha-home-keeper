@@ -23,7 +23,7 @@ _ALL_SENSOR = "sensor.home_keeper_tasks"
 _PROFILE = {
     "id": "it_count_profile",
     "name": "Count probe",
-    "filter": {"status": "all", "labels": [], "areas": [], "devices": []},
+    "filter": {"status": "all", "groups": []},
 }
 _PROFILE_UID = "home_keeper_profile_it_count_profile_tasks"
 

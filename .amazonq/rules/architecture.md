@@ -136,6 +136,18 @@ How the entities work is in [coordinator-entities](../../docs/design/coordinator
   Store each plural as `.one`, `.few`, `.many` and `.other` in every locale.
 - Babel is the 1 Python runtime dependency, for CLDR plural rules.
 
+## Profile filters
+
+- **A profile filter is `{status, groups}`. Groups are the only shape.** A task matches
+  the profile when it matches 1 active group. `profiles.matches_filter` and its TS twin
+  `card-filter.profileMatches` read only `groups`.
+  `tests/fixtures/profile_filter_cases.json` keeps the 2 in step.
+- The v1 to v2 config-entry migration (`profiles.migrate_options_v1`) converts the flat
+  keys once. `set_options` refuses them. A v1 reader refuses a v2 entry, so a downgrade
+  needs a backup.
+- The card is the 1 place that reads the old shape. `setConfig` lifts `labels`, `areas`,
+  `devices` and `label_match` into `groups[0]`, because HA cannot rewrite a dashboard.
+
 ## Notification delivery
 
 Details are in [profiles-notifications](../../docs/design/profiles-notifications.md).

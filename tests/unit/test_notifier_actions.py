@@ -409,10 +409,10 @@ class _AreaRegistry:
 
 def _auto_options() -> dict[str, Any]:
     kitchen = profiles.normalize_profile(
-        {"id": "pk", "name": "Kitchen", "filter": {"areas": ["kitchen"]}}
+        {"id": "pk", "name": "Kitchen", "filter": {"groups": [{"areas": ["kitchen"]}]}}
     )
     garage = profiles.normalize_profile(
-        {"id": "pg", "name": "Garage", "filter": {"areas": ["garage"]}}
+        {"id": "pg", "name": "Garage", "filter": {"groups": [{"areas": ["garage"]}]}}
     )
     notifs = [
         notifications.normalize_notification(

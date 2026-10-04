@@ -17,12 +17,9 @@ afterEach(() => {
 
 const FILTER = {
   status: 'overdue',
-  labels: [],
-  areas: [],
-  devices: [],
-  exclude_labels: [],
-  exclude_areas: [],
-  exclude_devices: [],
+  groups: [
+    { labels: [], areas: [], devices: [], exclude_labels: [], exclude_areas: [], exclude_devices: [] },
+  ],
 };
 
 const SYNC = { entity_id: '', two_way: true, vanish_as_completed: true };

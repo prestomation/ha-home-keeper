@@ -507,15 +507,14 @@ def test_a_profile_selects_the_tasks_of_one_declarative_companion(ha, specs):
     probe = {
         "id": "it_declarative_profile",
         "name": "Declarative probe",
-        "filter": {"status": "all", "companions": [key]},
+        "filter": {"status": "all", "groups": [{"companions": [key]}]},
     }
     excluded = {
         "id": "it_declarative_excluded",
         "name": "Declarative excluded",
         "filter": {
             "status": "all",
-            "companions": ["home_keeper"],
-            "exclude_companions": [key],
+            "groups": [{"companions": ["home_keeper"], "exclude_companions": [key]}],
         },
     }
 

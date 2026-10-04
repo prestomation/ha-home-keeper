@@ -1,8 +1,8 @@
 # Profiles (saved filters you reuse everywhere)
 
 Home Keeper supports saving a filter as a **Profile**. A Profile has a status tier and
-optional **label**, **area**, **device**, and **companion** filters. Create and edit
-Profiles in **Settings → Profiles**.
+one or more groups of **label**, **area**, **device**, and **companion** filters. Create
+and edit Profiles in **Settings → Profiles**.
 
 A Profile is used in 4 places:
 
@@ -26,14 +26,51 @@ The **Include** setting has 3 tiers. Each tier includes the tiers before it:
 
 #### How filters combine
 
-A filter can hold more than one value, and Home Keeper matches a task with any one of
-them. A **Labels** filter set to `urgent` and `safety` selects tasks with either label. A
-Profile with values in more than one filter shows only the tasks that match every one of
-them. Each filter you set makes the result smaller. It never makes the result larger.
+A Profile holds one or more groups of filters. The Profile selects a task that
+matches any one group.
 
-> **A Profile with values in both Labels and Companions does not show both groups
-> together.** It shows only the tasks that match both filters. To combine 2 groups of
-> tasks, put both values in one filter. An example is 2 labels in **Labels**.
+Inside a group, a task must match every filter that has a value. A group's **Labels**,
+**Areas**, **Devices**, and **Companions** filters combine this way. Each group also
+has its own **Label match** setting. **Any selected label** matches a task with at
+least one of the listed labels. **All selected labels** matches a task only if it has
+every listed label.
+
+For a kids' chore list, add a group with `kids` in **Labels** and the garage in
+**Exclude areas**. Select **Add another group**, then add a second group with `dog` in
+**Labels** and the yard in **Areas**. The first field in a group is an optional **Group
+name**. Each group is a collapsible row that shows its name and a summary of its
+filters. Only one group is open at a time. The Profile selects a `kids` task outside the
+garage and a `dog` task in the yard.
+
+![Profile with 2 filter groups](../../images/profile-filter-groups.png)
+
+For vet prep, set **Label match** to **All selected labels** on one group and select
+`dog` and `vet` in **Labels**. The Profile selects only a task that has both labels.
+
+An empty group is ignored if another group has a value. If every group is empty, the
+Profile selects every task in its **Include** tier.
+
+The `home_keeper.set_options` service writes each Profile's filter as `filter.groups`,
+and `home_keeper.list_profiles` returns it the same way. The service refuses the old
+flat filter keys with an error. This example sets the kids' chore list above:
+
+```yaml
+action: home_keeper.set_options
+data:
+  profiles:
+    - id: kids_chores
+      name: Kids' chores
+      filter:
+        status: all
+        groups:
+          - labels: [kids]
+            exclude_areas: [garage]
+          - labels: [dog]
+            areas: [yard]
+```
+
+Home Keeper converts each saved Profile to groups on the first start after the update.
+An older version cannot read the new form, so make a backup before you update.
 
 #### Filter by companion
 
@@ -75,16 +112,17 @@ declarative companion**. It then selects no task. Remove it from the list.
 
 #### Exclusions
 
-**Exclude labels**, **Exclude areas**, **Exclude devices**, and **Exclude companions**
-remove tasks from the Profile. An exclusion takes precedence over the include filters. Nothing is removed
-if the exclusion is empty. This is useful for a Profile of all tasks except the tasks with one
-label, such as `professional`.
+Each group has its own **Exclude labels**, **Exclude areas**, **Exclude devices**, and
+**Exclude companions** filters. An exclusion removes a task from its group, and it
+takes precedence over the group's include filters. Nothing is removed if the exclusion
+is empty. The kids' chore list above excludes the garage from the `kids` group this
+way.
 
 Exclusions apply to inherited labels and areas. A task that has the `professional`
 label through its device or its area is also excluded.
 
 **Exclude shopping** removes every auto-created
-["Buy {part}"](../appliances/appliances.md#auto-create-a-buy-task-when-a-part-runs-low) task from the Profile. It
+["Buy {part}"](../appliances/appliances.md#auto-create-a-buy-task-when-a-part-runs-low) task from its group. It
 is a switch and not a picker. A buy task has only the label and the area of its
 appliance, so a picker cannot select it. The switch is off by default, so an existing
 Profile includes the buy tasks until you turn it on. Use it to limit a spoken

@@ -6,6 +6,21 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.30.0b2]
+
+### Added
+
+- **[Filter groups](https://prestomation.github.io/ha-home-keeper/docs/guide/profiles#how-filters-combine).**
+  A Profile or a dashboard card can now hold more than 1 group of filters, and it shows
+  the tasks that match any group. Home Keeper converts each saved Profile on the first
+  start after the update, so make a backup first. (Fixes #291)
+
+### Changed
+
+- **Profile filter services.** `home_keeper.set_options` and `home_keeper.list_profiles`
+  now use `filter.groups` for a Profile's filter, and the old flat filter keys give an
+  error. An existing card with the old keys still works.
+
 ## [0.30.0b1]
 
 ### Added

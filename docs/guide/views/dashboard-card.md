@@ -17,8 +17,8 @@ Editing and deletion of a task are supported only in the panel.
 
 The card editor has these options:
 
-- Filter by status, area, device, label, recurrence type, a "due within N days"
-  window, or a saved [Profile](./profiles.md).
+- Filter by status, recurrence type, a "due within N days" window, a saved
+  [Profile](./profiles.md), or one or more groups of label, area, and device filters.
 - Sort and group the tasks, and limit the number of rows.
 - Select what each row shows.
 - **Hide card when empty** removes the card from the dashboard when the filter matches
@@ -102,8 +102,10 @@ the label or if its attached device or area has the label.
    `home_keeper.add_task` and `home_keeper.update_task` services also set labels.
 2. Optional. Apply the same labels to devices or appliances in **Settings → Devices**
    to include all their tasks.
-3. In the card editor, set **Limit to labels**. With more than 1 label, set the
-   **Any/All** match mode.
+3. In the card editor, add a group and select the labels in **Labels**. With more than
+   1 label, set **Label match**. Select **Add another group** for a second group. An
+   existing card with the old label setting still works, and the card editor moves it
+   into a group on its next save.
 4. Optional. Enable **Show labels** to show each task's labels on its row.
 
 ![Home Keeper card filtered to the "dog" label, showing label chips on each row](../../images/card-label-filter.png)

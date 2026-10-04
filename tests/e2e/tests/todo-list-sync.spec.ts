@@ -86,7 +86,7 @@ async function setSync(on: boolean): Promise<void> {
           {
             id: PROFILE_ID,
             name: PROFILE_NAME,
-            filter: { status: 'overdue', labels: [], areas: [], devices: [] },
+            filter: { status: 'overdue', groups: [{ labels: [], areas: [], devices: [] }] },
             sync: { entity_id: FAMILY_LIST, two_way: true, vanish_as_completed: false },
           },
         ]

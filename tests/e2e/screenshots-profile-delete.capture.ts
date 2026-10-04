@@ -27,7 +27,7 @@ import { callService, openPanel, openSettingsSection } from './tests/helpers';
 
 const OUT = process.env.SHOT_DIR || '/tmp/home-keeper-shots';
 
-const FILTER = { status: 'overdue', labels: [], areas: [], devices: [] };
+const FILTER = { status: 'overdue', groups: [{ labels: [], areas: [], devices: [] }] };
 
 const HELD = { id: 'shot_held', name: 'My chores', filter: FILTER };
 const FREE = { id: 'shot_free', name: 'Garden', filter: FILTER };
