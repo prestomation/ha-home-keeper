@@ -494,6 +494,12 @@ describe('collapse options (issue #435)', () => {
     expect(startsCollapsed(group('device:overdue', 1), { type: 'x', collapsed_groups: ['status:overdue'] })).toBe(false);
   });
 
+  it('matches an id that has a colon, and an id that YAML gives as a number', () => {
+    expect(startsCollapsed(group('area:living:room', 1), { type: 'x', collapsed_groups: ['living:room'] })).toBe(true);
+    expect(startsCollapsed(group('device:123', 1), { type: 'x', collapsed_groups: [123] })).toBe(true);
+    expect(startsCollapsed(group('device:124', 1), { type: 'x', collapsed_groups: [123] })).toBe(false);
+  });
+
   it('matches the fallback group by none', () => {
     expect(startsCollapsed(group('area:none', 1), { type: 'x', collapsed_groups: ['none'] })).toBe(true);
   });

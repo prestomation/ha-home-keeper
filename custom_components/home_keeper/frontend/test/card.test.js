@@ -600,6 +600,21 @@ describe('Card collapse options (issue #435)', () => {
     expect(state(card)).toEqual({ 'status:overdue': true, 'status:later': false });
   });
 
+  it('keeps a group the user opened when only group_by changes', async () => {
+    const card = await open({ collapsed: true });
+    const overdue = sr(card).querySelector('details[data-group-key="status:overdue"]');
+    overdue.open = true;
+    overdue.dispatchEvent(new Event('toggle'));
+    card.setConfig({ type: 'custom:home-keeper-card', group_by: 'none', collapsed: true });
+    card.setConfig({ type: 'custom:home-keeper-card', group_by: 'status', collapsed: true });
+    expect(state(card)).toEqual({ 'status:overdue': true, 'status:later': false });
+  });
+
+  it('counts the tasks that max_items leaves in the group for collapse_above', async () => {
+    // 3 overdue tasks, max_items 2: the group shows 2, so collapse_above 2 keeps it open.
+    expect(state(await open({ max_items: 2, collapse_above: 2 }))['status:overdue']).toBe(true);
+  });
+
   it('starts over from the options when a collapse option changes', async () => {
     const card = await open({ collapsed: true });
     const overdue = sr(card).querySelector('details[data-group-key="status:overdue"]');

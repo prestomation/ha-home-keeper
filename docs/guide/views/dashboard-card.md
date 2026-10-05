@@ -64,9 +64,10 @@ header to open the group. Use these card options:
 | --- | --- | --- |
 | **Start groups closed** (`collapsed`) | Off | Every group starts closed. |
 | **Start these groups closed** (`collapsed_groups`) | None | Only the groups in the list start closed. |
-| **Start a group closed above** (`collapse_above`) | 0 (off) | A group with more tasks than this number starts closed. |
+| **Start a group closed above** (`collapse_above`) | 0 (off) | A group that shows more tasks than this number starts closed. |
 
-If you set more than 1 option, a group starts closed when any option applies to it. In
+If you set more than 1 option, a group starts closed when any option applies to it. The
+count for `collapse_above` is after the **Max tasks shown** limit. In
 `collapsed_groups`, write a status group as `overdue`, `shopping`, `counted`, `today`,
 `soon`, `later`, `monitored`, `none` or `disabled`. Write an area group or a device group
 as the area ID or the device ID. The name `none` is the group with no area or no device.

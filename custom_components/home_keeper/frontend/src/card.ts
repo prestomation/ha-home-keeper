@@ -190,9 +190,10 @@ const COLLAPSE_STATUS_OPTS: { value: string; label: string }[] = [
   { value: 'none', label: 'No schedule, area or device' },
   { value: 'disabled', label: 'Disabled' },
 ];
-/** One string for the 3 collapse options, to tell when a new config changes them. */
+/** One string for the 3 collapse options, to tell when a new config changes them. A group
+ *  key has its own prefix per grouping mode, so `group_by` is not part of it. */
 function collapseSignature(c: HomeKeeperCardConfig): string {
-  return JSON.stringify([c.collapsed, c.collapsed_groups, c.collapse_above, c.group_by]);
+  return JSON.stringify([c.collapsed, c.collapsed_groups, c.collapse_above]);
 }
 const GROUP_OPTS: { value: CardGroupBy; label: string }[] = [
   { value: 'none', label: 'None' },

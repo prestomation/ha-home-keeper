@@ -58,7 +58,8 @@ export interface HomeKeeperCardConfig {
   /** Start these groups closed. A status group by its name (`overdue`, `today`), an area
    *  or a device group by its id. The full key (`status:overdue`) also works. */
   collapsed_groups?: string[];
-  /** Start a group closed when it holds more than this many tasks (0 = off). */
+  /** Start a group closed when it shows more than this many tasks (0 = off). The count
+   *  is after `max_items`, so it is the number of rows the group would show. */
   collapse_above?: number;
   /** Restrict to these areas (a task's own area, else its device's area). */
   areas?: string[];
@@ -177,9 +178,10 @@ export function startsCollapsed<T>(group: Group<T>, config: HomeKeeperCardConfig
   if (config.collapsed === true) return true;
   const above = Number(config.collapse_above) || 0;
   if (above > 0 && group.items.length > above) return true;
-  // A key reads `prefix:name`. A name in the list matches the part after the prefix.
+  // A key reads `prefix:name`. A name in the list matches the part after the first colon,
+  // so an id that has a colon of its own still matches. YAML can give an id as a number.
   const name = group.key.slice(group.key.indexOf(':') + 1);
-  return (config.collapsed_groups ?? []).some((e) => e === group.key || e === name);
+  return (config.collapsed_groups ?? []).some((e) => String(e) === group.key || String(e) === name);
 }
 
 /**
