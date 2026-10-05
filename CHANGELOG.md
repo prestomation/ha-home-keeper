@@ -6,6 +6,14 @@ All notable changes to Home Keeper are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses semantic
 versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 
+## [0.30.0b2]
+
+### Added
+
+- **[Groups that start closed](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#start-groups-closed).**
+  Make a grouped card start with all groups closed, only chosen groups closed, or every
+  group above a set size closed. The group headers and counts stay in view. (Fixes #435)
+
 ## [0.30.0b1]
 
 ### Added
@@ -13,9 +21,6 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
 - **[Shorter card rows](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#choose-what-each-row-shows).**
   Turn off **Show schedule** or **Show completion count** in the card editor to remove
   that text from each row. (Fixes #432)
-- **[Groups that start closed](https://prestomation.github.io/ha-home-keeper/docs/guide/dashboard-card#start-groups-closed).**
-  Make a grouped card start with all groups closed, only chosen groups closed, or every
-  group above a set size closed. The group headers and counts stay in view. (Fixes #435)
 
 ## [0.29.0] - 2026-10-04
 
