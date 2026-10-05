@@ -78,13 +78,6 @@ add_task:
       example: "FREQ=WEEKLY;BYDAY=TU,FR"
       selector:
         text:
-    moved_occurrences:
-      name: Moved dates
-      description: >-
-        For fixed tasks - a list of single dates moved off the rule, each with a
-        from and a to datetime. Use move_occurrence to move a date.
-      selector:
-        object:
     anchor:
       name: Anchor
       description: For fixed tasks - ISO datetime of the first occurrence (sets time-of-day).
@@ -329,11 +322,6 @@ update_task:
       description: An iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR (fixed).
       selector:
         text:
-    moved_occurrences:
-      name: Moved dates
-      description: The list of moved dates, each with a from and a to datetime (fixed).
-      selector:
-        object:
     anchor:
       name: Anchor
       description: ISO datetime of the first occurrence (fixed).

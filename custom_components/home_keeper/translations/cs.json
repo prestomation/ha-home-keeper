@@ -67,10 +67,6 @@
           "name": "Pravidlo",
           "description": "Pro pevné úkoly: pravidlo RRULE formátu iCalendar, například FREQ=WEEKLY;BYDAY=TU,FR nebo FREQ=MONTHLY;BYDAY=1TU. Použijte ho místo freq a interval. COUNT a UNTIL nejsou povoleny."
         },
-        "moved_occurrences": {
-          "name": "Přesunuté termíny",
-          "description": "Pro pevné úkoly: seznam jednotlivých termínů přesunutých mimo pravidlo, každý s datem a časem from a to. K přesunu termínu použijte move_occurrence."
-        },
         "anchor": {
           "name": "Kotva",
           "description": "Pro pevné úkoly: ISO datum a čas prvního výskytu (nastaví denní čas)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Pravidlo",
           "description": "Pro pevné úkoly: pravidlo RRULE formátu iCalendar, například FREQ=WEEKLY;BYDAY=TU,FR nebo FREQ=MONTHLY;BYDAY=1TU. Použijte ho místo freq a interval. COUNT a UNTIL nejsou povoleny."
-        },
-        "moved_occurrences": {
-          "name": "Přesunuté termíny",
-          "description": "Pro pevné úkoly: seznam jednotlivých termínů přesunutých mimo pravidlo, každý s datem a časem from a to. K přesunu termínu použijte move_occurrence."
         },
         "anchor": {
           "name": "Kotva",

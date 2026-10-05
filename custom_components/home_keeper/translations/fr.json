@@ -67,10 +67,6 @@
           "name": "Règle",
           "description": "Pour les tâches fixes : une RRULE iCalendar, par exemple FREQ=WEEKLY;BYDAY=TU,FR ou FREQ=MONTHLY;BYDAY=1TU. Utilisez-la à la place de freq et interval. COUNT et UNTIL ne sont pas autorisés."
         },
-        "moved_occurrences": {
-          "name": "Dates déplacées",
-          "description": "Pour les tâches fixes : une liste de dates isolées déplacées hors de la règle, chacune avec une date et heure from et to. Utilisez move_occurrence pour déplacer une date."
-        },
         "anchor": {
           "name": "Ancre",
           "description": "Pour les tâches fixed : date/heure ISO de la première occurrence (définit l'heure de la journée)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Règle",
           "description": "Pour les tâches fixes : une RRULE iCalendar, par exemple FREQ=WEEKLY;BYDAY=TU,FR ou FREQ=MONTHLY;BYDAY=1TU. Utilisez-la à la place de freq et interval. COUNT et UNTIL ne sont pas autorisés."
-        },
-        "moved_occurrences": {
-          "name": "Dates déplacées",
-          "description": "Pour les tâches fixes : une liste de dates isolées déplacées hors de la règle, chacune avec une date et heure from et to. Utilisez move_occurrence pour déplacer une date."
         },
         "anchor": {
           "name": "Ancre",

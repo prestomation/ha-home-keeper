@@ -9,7 +9,7 @@ implements:
   - custom_components/home_keeper/frontend/src/panel-defer.ts
   - custom_components/home_keeper/frontend/src/rrule.ts
   - custom_components/home_keeper/frontend/src/panel-rule.ts
-max_lines: 191
+max_lines: 193
 exception: 6 recurrence types plus the RRULE engine and moved dates of a fixed schedule
 related: [store, completions, sensor-tasks, appliances, events-api, transfer, frontend]
 source_hash: c90239d0b3da
@@ -31,8 +31,9 @@ panel and the dashboard card the Snooze, Skip and Due today actions and the sche
   daylight-saving change and after a reload from storage.
 - **G4. Defer without loss.** Snooze, skip and due today move the due date and never change
   the completion log or lose a fixed occurrence.
-- **G5. Pure core.** Both Python modules import only the standard library and `const.py`,
-  and take time and zone as arguments, so unit tests and mutmut run without Home Assistant.
+- **G5. Pure core.** Both Python modules import only the standard library, `dateutil.rrule`
+  and `const.py`, and take time and zone as arguments, so unit tests and mutmut run without
+  Home Assistant.
 
 ## Non-goals
 
@@ -98,7 +99,8 @@ rule or the current `to`, and a move to its own date undoes the move. It refuses
 the past or on a date that the schedule has. `next_due` changes only if it is the moved
 date or the new date is earlier, so a snooze stays. `recurrence.prune_moves` removes the
 moves that are fully past. `recurrence.upcoming_occurrences` lists the next dates as
-`{start, moved_from}` rows.
+`{start, moved_from}` rows. `store.add_task` and `store.update_task` refuse
+`moved_occurrences`, so every move goes through these checks and fires its event.
 
 ### Schedule form
 

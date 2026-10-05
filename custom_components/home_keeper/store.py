@@ -173,6 +173,20 @@ def _reload_for_update(before: dict[str, Any], after: dict[str, Any]) -> bool:
     return owns and entity_set_key(before) != entity_set_key(after)
 
 
+def _refuse_moves(data: dict[str, Any]) -> None:
+    """Refuse ``moved_occurrences`` in a task add or edit.
+
+    ``move_occurrence`` is the 1 way to move a date. It checks that the date is on the
+    rule and that the new date is free, and it fires ``task_occurrence_moved``. A list
+    written through ``add_task`` or ``update_task`` would skip all 3. An import keeps
+    the list, because it builds the task with ``models`` directly.
+    """
+    if "moved_occurrences" in data:
+        raise models.TaskValidationError(
+            "moved_occurrences cannot be set here; use move_occurrence to move a date"
+        )
+
+
 def _reject_synced_problem(task: dict[str, Any], origin: str | None) -> None:
     """Raise unless *origin* authorizes mutating a problem-sensor-synced task.
 
@@ -534,6 +548,7 @@ class HomeKeeperStore:
                     f"source keys {sorted(reserved)} are reserved for Home Keeper's "
                     "own task reconcilers and cannot be set via add_task"
                 )
+        _refuse_moves(data)
         task = models.build_task(data, now=dt_util.now())
         self._check_template_syntax(task)
         self._tasks[task["id"]] = task
@@ -571,6 +586,7 @@ class HomeKeeperStore:
         existing = self._tasks.get(task_id)
         if existing is None:
             raise KeyError(task_id)
+        _refuse_moves(updates)
         # The reconciler writes a wear part task's tag from its part, so a change
         # made here would be undone on the next pass without a message.
         if _is_part_owned_tag_update(existing, updates):

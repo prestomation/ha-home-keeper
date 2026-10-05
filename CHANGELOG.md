@@ -16,7 +16,8 @@ versioning, with PEP 440 pre-release suffixes (`bN`/`aN`/`rcN`) for betas.
   Tuesday of each month. (Fixes #391)
 - **[Move one date](https://prestomation.github.io/ha-home-keeper/docs/guide/fixed-schedules#move-one-date).**
   Move one future date of a fixed task from the dashboard card, the task page or the
-  Home Assistant calendar, and keep the other dates as they are. (Fixes #390)
+  Home Assistant calendar, and keep the other dates as they are. (Fixes #390) In the
+  calendar, a new time on the event of any other task snoozes that task to it.
 
 ### Changed
 

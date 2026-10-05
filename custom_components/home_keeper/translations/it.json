@@ -67,10 +67,6 @@
           "name": "Regola",
           "description": "Per le attività fisse: una RRULE iCalendar, ad esempio FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Usala al posto di freq e interval. COUNT e UNTIL non sono consentiti."
         },
-        "moved_occurrences": {
-          "name": "Date spostate",
-          "description": "Per le attività fisse: un elenco di singole date spostate fuori dalla regola, ognuna con una data e ora from e to. Usa move_occurrence per spostare una data."
-        },
         "anchor": {
           "name": "Ancora",
           "description": "Per le attività fixed: data/ora ISO della prima occorrenza (imposta l'ora del giorno)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Regola",
           "description": "Per le attività fisse: una RRULE iCalendar, ad esempio FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Usala al posto di freq e interval. COUNT e UNTIL non sono consentiti."
-        },
-        "moved_occurrences": {
-          "name": "Date spostate",
-          "description": "Per le attività fisse: un elenco di singole date spostate fuori dalla regola, ognuna con una data e ora from e to. Usa move_occurrence per spostare una data."
         },
         "anchor": {
           "name": "Ancora",

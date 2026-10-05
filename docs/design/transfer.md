@@ -5,7 +5,7 @@ implements:
   - custom_components/home_keeper/transfer.py
   - custom_components/home_keeper/transfer_runner.py
 related: [store, appliances, completions, recurrence, documents-photos, events-api]
-source_hash: 78f7b6817807
+source_hash: c03a67eb91d0
 ---
 
 # Import and export

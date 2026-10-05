@@ -67,10 +67,6 @@
           "name": "Regel",
           "description": "Voor vaste taken: een iCalendar-RRULE, zoals FREQ=WEEKLY;BYDAY=TU,FR of FREQ=MONTHLY;BYDAY=1TU. Gebruik deze in plaats van freq en interval. COUNT en UNTIL zijn niet toegestaan."
         },
-        "moved_occurrences": {
-          "name": "Verplaatste datums",
-          "description": "Voor vaste taken: een lijst met losse datums die van de regel zijn verplaatst, elk met een from- en een to-tijdstip. Gebruik move_occurrence om een datum te verplaatsen."
-        },
         "anchor": {
           "name": "Anker",
           "description": "Voor fixed-taken: ISO-datum/tijd van de eerste keer (stelt het tijdstip van de dag in)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Regel",
           "description": "Voor vaste taken: een iCalendar-RRULE, zoals FREQ=WEEKLY;BYDAY=TU,FR of FREQ=MONTHLY;BYDAY=1TU. Gebruik deze in plaats van freq en interval. COUNT en UNTIL zijn niet toegestaan."
-        },
-        "moved_occurrences": {
-          "name": "Verplaatste datums",
-          "description": "Voor vaste taken: een lijst met losse datums die van de regel zijn verplaatst, elk met een from- en een to-tijdstip. Gebruik move_occurrence om een datum te verplaatsen."
         },
         "anchor": {
           "name": "Anker",

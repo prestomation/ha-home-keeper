@@ -30,8 +30,9 @@ The store is in [store](../../docs/design/store.md), the task model in
   and `interval`, and `models.normalize_fields` converts them on the way in. The store
   converts the stored tasks 1 time on load. No task stores both.
 - **A moved date goes in `moved_occurrences`**, never as EXDATE or RDATE in the rule text.
-  Each entry is `{from, to}`, and `from` is always the date on the rule. The task form does
-  not write the list.
+  Each entry is `{from, to}`, and `from` is always the date on the rule. Only
+  `move_occurrence` writes the list: `add_task` and `update_task` refuse it, and an import
+  keeps it.
 - **A move is a usage action, as a snooze is.** Do not gate `move_occurrence` to admins.
 - **A glue integration sets a default interval but never locks it.** Leave `sensor` out of
   `managed_by.locked_fields`. Use `completion_blocked` only for a read-only mirror.

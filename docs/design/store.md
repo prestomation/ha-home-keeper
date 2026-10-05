@@ -4,7 +4,7 @@ summary: Holds all Home Keeper data in one JSON document and is the one place th
 implements:
   - custom_components/home_keeper/store.py
 related: [architecture, coordinator-entities, events-api, transfer, appliances, completions]
-source_hash: e23f2c70ebe0
+source_hash: 77a547d2c02c
 ---
 
 # Store

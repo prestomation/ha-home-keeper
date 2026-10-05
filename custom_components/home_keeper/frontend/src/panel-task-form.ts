@@ -490,10 +490,13 @@ export function renderTaskForm(p: PanelHost, host: HTMLElement): void {
     form.id = `hk-task-form-${section.key}`;
     // Muted per-field helper text under each field (keyed `help.<field>`); returns
     // '' where no string is authored, so helpers appear only where we wrote them.
+    // Every on a fixed schedule counts between schedule dates, not completions.
+    const fixed = formData.recurrence_type === 'fixed';
     form.computeHelper = (s: { name: string }): string => {
       if (!s.name) return '';
-      const h = t('help.' + s.name);
-      return h === 'help.' + s.name ? '' : h;
+      const key = fixed && s.name === 'interval' ? 'help.intervalFixed' : 'help.' + s.name;
+      const h = t(key);
+      return h === key ? '' : h;
     };
     // An active-season window: its own heading, numbered, with Remove beside it and
     // Add another season under the last one. The windows are a list the user grows

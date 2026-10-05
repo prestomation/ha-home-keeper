@@ -153,7 +153,6 @@ ADD_TASK_SCHEMA = vol.Schema(
         # Takes the place of ``freq``/``interval``, which stay accepted and are
         # converted to a rule.
         vol.Optional("rrule"): cv.string,
-        vol.Optional("moved_occurrences"): [dict],
         vol.Optional("anchor"): cv.string,
         # Due date for a one-off (do-once) task. Optional: defaults to "now" (due
         # today) when omitted. Naive values are interpreted in HA's configured tz.
@@ -215,7 +214,6 @@ UPDATE_TASK_SCHEMA = vol.Schema(
         vol.Optional("unit"): cv.string,
         vol.Optional("freq"): cv.string,
         vol.Optional("rrule"): cv.string,
-        vol.Optional("moved_occurrences"): [dict],
         vol.Optional("anchor"): cv.string,
         vol.Optional("due"): cv.string,
         vol.Optional("sensor"): dict,
@@ -746,6 +744,11 @@ TRANSFER_TASK_RECORD_SCHEMA = vol.Schema(
             _entry_schema(COMPLETION_ENTRY_FIELDS, "completed_at")
         ],
         vol.Optional("skips"): [_entry_schema(SKIP_ENTRY_FIELDS, "skipped_at")],
+        # A fixed task's moved dates. No service takes them: ``move_occurrence`` is the
+        # 1 way to move a date, but a document carries the list so a backup keeps it.
+        vol.Optional("moved_occurrences"): [
+            {vol.Required("from"): cv.string, vol.Required("to"): cv.string}
+        ],
     },
     # An unknown field is a named warning on import, not an error, so the schema has
     # to allow one. Same reasoning as the document below.

@@ -67,10 +67,6 @@
           "name": "Regla",
           "description": "Per a tasques fixes: una RRULE d'iCalendar, com ara FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Fes-la servir en lloc de freq i interval. No s'admeten COUNT ni UNTIL."
         },
-        "moved_occurrences": {
-          "name": "Dates mogudes",
-          "description": "Per a tasques fixes: una llista de dates soltes mogudes fora de la regla, cadascuna amb una data i hora from i to. Fes servir move_occurrence per moure una data."
-        },
         "anchor": {
           "name": "Àncora",
           "description": "Per a tasques fixes: data i hora ISO de la primera ocurrència (estableix l'hora del dia)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Regla",
           "description": "Per a tasques fixes: una RRULE d'iCalendar, com ara FREQ=WEEKLY;BYDAY=TU,FR o FREQ=MONTHLY;BYDAY=1TU. Fes-la servir en lloc de freq i interval. No s'admeten COUNT ni UNTIL."
-        },
-        "moved_occurrences": {
-          "name": "Dates mogudes",
-          "description": "Per a tasques fixes: una llista de dates soltes mogudes fora de la regla, cadascuna amb una data i hora from i to. Fes servir move_occurrence per moure una data."
         },
         "anchor": {
           "name": "Àncora",

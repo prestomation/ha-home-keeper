@@ -67,10 +67,6 @@
           "name": "Regel",
           "description": "Für feste Aufgaben: eine iCalendar-RRULE, z. B. FREQ=WEEKLY;BYDAY=TU,FR oder FREQ=MONTHLY;BYDAY=1TU. Verwende sie anstelle von freq und interval. COUNT und UNTIL sind nicht erlaubt."
         },
-        "moved_occurrences": {
-          "name": "Verschobene Termine",
-          "description": "Für feste Aufgaben: eine Liste einzelner Termine, die von der Regel weg verschoben wurden, jeweils mit einem from- und einem to-Zeitpunkt. Verwende move_occurrence, um einen Termin zu verschieben."
-        },
         "anchor": {
           "name": "Anker",
           "description": "Für fixed-Aufgaben: ISO-Datum/Uhrzeit des ersten Auftretens (legt die Tageszeit fest)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Regel",
           "description": "Für feste Aufgaben: eine iCalendar-RRULE, z. B. FREQ=WEEKLY;BYDAY=TU,FR oder FREQ=MONTHLY;BYDAY=1TU. Verwende sie anstelle von freq und interval. COUNT und UNTIL sind nicht erlaubt."
-        },
-        "moved_occurrences": {
-          "name": "Verschobene Termine",
-          "description": "Für feste Aufgaben: eine Liste einzelner Termine, die von der Regel weg verschoben wurden, jeweils mit einem from- und einem to-Zeitpunkt. Verwende move_occurrence, um einen Termin zu verschieben."
         },
         "anchor": {
           "name": "Anker",

@@ -67,10 +67,6 @@
           "name": "Regra",
           "description": "Para tarefas fixas: uma RRULE do iCalendar, como FREQ=WEEKLY;BYDAY=TU,FR ou FREQ=MONTHLY;BYDAY=1TU. Use-a no lugar de freq e interval. COUNT e UNTIL não são permitidos."
         },
-        "moved_occurrences": {
-          "name": "Datas movidas",
-          "description": "Para tarefas fixas: uma lista de datas avulsas movidas para fora da regra, cada uma com uma data e hora from e to. Use move_occurrence para mover uma data."
-        },
         "anchor": {
           "name": "Âncora",
           "description": "Para tarefas fixed: data e hora ISO da primeira ocorrência (define o horário do dia)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Regra",
           "description": "Para tarefas fixas: uma RRULE do iCalendar, como FREQ=WEEKLY;BYDAY=TU,FR ou FREQ=MONTHLY;BYDAY=1TU. Use-a no lugar de freq e interval. COUNT e UNTIL não são permitidos."
-        },
-        "moved_occurrences": {
-          "name": "Datas movidas",
-          "description": "Para tarefas fixas: uma lista de datas avulsas movidas para fora da regra, cada uma com uma data e hora from e to. Use move_occurrence para mover uma data."
         },
         "anchor": {
           "name": "Âncora",

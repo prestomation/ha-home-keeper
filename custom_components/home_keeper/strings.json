@@ -67,10 +67,6 @@
           "name": "Rule",
           "description": "For fixed tasks: an iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR or FREQ=MONTHLY;BYDAY=1TU. Use it in place of freq and interval. COUNT and UNTIL are not allowed."
         },
-        "moved_occurrences": {
-          "name": "Moved dates",
-          "description": "For fixed tasks: a list of single dates moved off the rule, each with a from and a to datetime. Use move_occurrence to move a date."
-        },
         "anchor": {
           "name": "Anchor",
           "description": "For fixed tasks: ISO datetime of the first occurrence (sets the time of day)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Rule",
           "description": "For fixed tasks: an iCalendar RRULE, such as FREQ=WEEKLY;BYDAY=TU,FR or FREQ=MONTHLY;BYDAY=1TU. Use it in place of freq and interval. COUNT and UNTIL are not allowed."
-        },
-        "moved_occurrences": {
-          "name": "Moved dates",
-          "description": "For fixed tasks: a list of single dates moved off the rule, each with a from and a to datetime. Use move_occurrence to move a date."
         },
         "anchor": {
           "name": "Anchor",

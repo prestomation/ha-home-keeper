@@ -15,12 +15,13 @@ and Friday mornings:
 
 1. Set **Every** to 1 and **Frequency** to weekly.
 2. Press **Tue** and **Fri**.
-3. Set **First occurrence** to the next Tuesday at 07:00.
+3. Set **First date** to the next Tuesday at 07:00. Its time is the time of day of
+   every date.
 
 The box under the form shows the rule in words and the next 4 dates, so you can check
 the schedule before you save it.
 
-<img src="docs/images/71-panel-fixed-weekdays.png" alt="The task form with Frequency set to weekly, the Tuesday and Friday buttons pressed, and the next 4 dates under the form" width="820">
+<img src="docs/images/71-panel-fixed-weekdays.png" alt="The task form with Frequency set to weekly and the Tuesday and Friday buttons pressed" width="820">
 
 Daily, monthly and yearly schedules need no days. A monthly task on the 29th, 30th or
 31st uses the last day of a shorter month, then goes back to its own day.
@@ -67,7 +68,7 @@ for a holiday. You can move that one date and keep the other dates as they are.
   select **Only this event**. A change to the whole series is not accepted there, so
   use the panel for it.
 
-<img src="docs/images/73-panel-upcoming-moved.png" alt="The Upcoming block of a trash task with a Friday date moved to Saturday, marked Moved, with Undo and Move buttons" width="820">
+<img src="docs/images/73-panel-upcoming-moved.png" alt="The Upcoming block of a trash task with a Tuesday date moved to Wednesday, marked Moved, with Undo and Move buttons" width="820">
 
 <img src="docs/images/74-panel-snooze-later-date.png" alt="The Snooze dialog on A later date, with one date picked and a new date and time for it" width="820">
 

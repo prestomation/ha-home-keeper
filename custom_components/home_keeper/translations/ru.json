@@ -67,10 +67,6 @@
           "name": "Правило",
           "description": "Для задач с фиксированным расписанием: правило RRULE в формате iCalendar, например FREQ=WEEKLY;BYDAY=TU,FR или FREQ=MONTHLY;BYDAY=1TU. Используйте его вместо freq и interval. COUNT и UNTIL не допускаются."
         },
-        "moved_occurrences": {
-          "name": "Перенесённые даты",
-          "description": "Для задач с фиксированным расписанием: список отдельных дат, перенесённых из правила, каждая с датой и временем from и to. Для переноса даты используйте move_occurrence."
-        },
         "anchor": {
           "name": "Привязка",
           "description": "Для фиксированных задач: дата и время первого выполнения в формате ISO (задаёт время суток)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Правило",
           "description": "Для задач с фиксированным расписанием: правило RRULE в формате iCalendar, например FREQ=WEEKLY;BYDAY=TU,FR или FREQ=MONTHLY;BYDAY=1TU. Используйте его вместо freq и interval. COUNT и UNTIL не допускаются."
-        },
-        "moved_occurrences": {
-          "name": "Перенесённые даты",
-          "description": "Для задач с фиксированным расписанием: список отдельных дат, перенесённых из правила, каждая с датой и временем from и to. Для переноса даты используйте move_occurrence."
         },
         "anchor": {
           "name": "Привязка",

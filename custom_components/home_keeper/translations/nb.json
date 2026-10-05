@@ -67,10 +67,6 @@
           "name": "Regel",
           "description": "For faste oppgaver: en iCalendar-RRULE, for eksempel FREQ=WEEKLY;BYDAY=TU,FR eller FREQ=MONTHLY;BYDAY=1TU. Bruk den i stedet for freq og interval. COUNT og UNTIL er ikke tillatt."
         },
-        "moved_occurrences": {
-          "name": "Flyttede datoer",
-          "description": "For faste oppgaver: en liste over enkeltdatoer som er flyttet bort fra regelen, hver med et from- og et to-tidspunkt. Bruk move_occurrence for å flytte en dato."
-        },
         "anchor": {
           "name": "Anker",
           "description": "For fixed-oppgaver: ISO-dato og -tid for første forekomst (angir tid på dagen)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Regel",
           "description": "For faste oppgaver: en iCalendar-RRULE, for eksempel FREQ=WEEKLY;BYDAY=TU,FR eller FREQ=MONTHLY;BYDAY=1TU. Bruk den i stedet for freq og interval. COUNT og UNTIL er ikke tillatt."
-        },
-        "moved_occurrences": {
-          "name": "Flyttede datoer",
-          "description": "For faste oppgaver: en liste over enkeltdatoer som er flyttet bort fra regelen, hver med et from- og et to-tidspunkt. Bruk move_occurrence for å flytte en dato."
         },
         "anchor": {
           "name": "Anker",

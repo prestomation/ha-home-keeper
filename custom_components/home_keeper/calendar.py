@@ -96,20 +96,6 @@ def _single_event(task: dict, start: datetime) -> CalendarEvent:
     )
 
 
-def _same_rule(given: object, task: dict | None) -> bool:
-    """Whether the event dialog handed back a rule that changes nothing.
-
-    For a repeating event Home Assistant's dialog sends the series rule back with an
-    "Only this event" edit, and may rewrite it on the way (drop ``INTERVAL=1``,
-    reorder a list, simplify a rule it cannot show). The rule of one date cannot
-    change, so for a fixed task it is ignored. An event that does not repeat
-    (*task* is ``None``) must not gain one.
-    """
-    if task is not None:
-        return True
-    return given in (None, "")
-
-
 def _due_ahead(task: dict, now: datetime) -> datetime | None:
     """A fixed task's ``next_due`` while its event has not ended, else ``None``.
 
@@ -319,11 +305,14 @@ class HomeKeeperCalendarEntity(
         if start.tzinfo is None:
             start = start.replace(tzinfo=dt_util.get_default_time_zone())
         is_fixed = task.get("recurrence_type") == REC_FIXED
-        # Only the start time may change here. A new name, or a rule that differs
-        # from the one this event carries, is an edit of the task.
+        # Only the start time may change here. A new name is an edit of the task. For
+        # a repeating event, Home Assistant's dialog sends the series rule back with
+        # an "Only this event" edit, and may rewrite it on the way (drop
+        # ``INTERVAL=1``, reorder a list), so a fixed task ignores it. An event that
+        # does not repeat must not gain a rule.
         summary = event.get("summary")
-        changed_other = summary not in (None, "", task["name"]) or not _same_rule(
-            event.get("rrule"), task if is_fixed else None
+        changed_other = summary not in (None, "", task["name"]) or (
+            not is_fixed and event.get("rrule") not in (None, "")
         )
         try:
             if is_fixed and _UID_SEPARATOR not in uid:

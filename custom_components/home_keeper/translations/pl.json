@@ -67,10 +67,6 @@
           "name": "Reguła",
           "description": "Dla zadań stałych: reguła RRULE w formacie iCalendar, np. FREQ=WEEKLY;BYDAY=TU,FR lub FREQ=MONTHLY;BYDAY=1TU. Użyj jej zamiast freq i interval. COUNT i UNTIL są niedozwolone."
         },
-        "moved_occurrences": {
-          "name": "Przeniesione terminy",
-          "description": "Dla zadań stałych: lista pojedynczych terminów przeniesionych poza regułę, każdy z datą i godziną from oraz to. Aby przenieść termin, użyj move_occurrence."
-        },
         "anchor": {
           "name": "Kotwica",
           "description": "Dla zadań fixed: data i czas ISO pierwszego wystąpienia (ustawia porę dnia)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Reguła",
           "description": "Dla zadań stałych: reguła RRULE w formacie iCalendar, np. FREQ=WEEKLY;BYDAY=TU,FR lub FREQ=MONTHLY;BYDAY=1TU. Użyj jej zamiast freq i interval. COUNT i UNTIL są niedozwolone."
-        },
-        "moved_occurrences": {
-          "name": "Przeniesione terminy",
-          "description": "Dla zadań stałych: lista pojedynczych terminów przeniesionych poza regułę, każdy z datą i godziną from oraz to. Aby przenieść termin, użyj move_occurrence."
         },
         "anchor": {
           "name": "Kotwica",

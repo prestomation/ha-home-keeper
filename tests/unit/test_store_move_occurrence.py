@@ -159,3 +159,24 @@ def test_moving_an_unmoved_date_to_itself_says_nothing(store):
     _run(store.move_occurrence(task["id"], dt(2026, 6, 19, 7), dt(2026, 6, 19, 7)))
     assert store._store.saves == 0
     assert store._hass.bus.fired == []
+
+
+@pytest.mark.parametrize("method", ["add", "update"])
+def test_a_task_edit_cannot_write_moved_dates(store, method):
+    # move_occurrence is the 1 way to move a date: it checks the date and fires the
+    # event. A list sent with add_task or update_task would skip both.
+    task = _bins(store)
+    moves = [
+        {"from": dt(2026, 6, 16, 7).isoformat(), "to": dt(2026, 6, 17, 7).isoformat()}
+    ]
+    with pytest.raises(TaskValidationError, match="move_occurrence"):
+        if method == "add":
+            _run(
+                store.add_task(
+                    {"name": "Bins", "rrule": "FREQ=DAILY", "moved_occurrences": moves}
+                )
+            )
+        else:
+            _run(store.update_task(task["id"], {"moved_occurrences": moves}))
+    assert store._tasks[task["id"]]["moved_occurrences"] == []
+    assert len(store._tasks) == 1

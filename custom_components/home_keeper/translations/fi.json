@@ -67,10 +67,6 @@
           "name": "Sääntö",
           "description": "Kiinteille tehtäville: iCalendar-muotoinen RRULE, esimerkiksi FREQ=WEEKLY;BYDAY=TU,FR tai FREQ=MONTHLY;BYDAY=1TU. Käytä sitä freq- ja interval-kenttien sijaan. COUNT ja UNTIL eivät ole sallittuja."
         },
-        "moved_occurrences": {
-          "name": "Siirretyt päivät",
-          "description": "Kiinteille tehtäville: luettelo yksittäisistä säännöstä siirretyistä päivistä, joilla kullakin on from- ja to-ajankohta. Siirrä päivä move_occurrence-palvelulla."
-        },
         "anchor": {
           "name": "Ankkuri",
           "description": "Kiinteille tehtäville: ensimmäisen esiintymän ISO-aikaleima (asettaa kellonajan)."
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "Sääntö",
           "description": "Kiinteille tehtäville: iCalendar-muotoinen RRULE, esimerkiksi FREQ=WEEKLY;BYDAY=TU,FR tai FREQ=MONTHLY;BYDAY=1TU. Käytä sitä freq- ja interval-kenttien sijaan. COUNT ja UNTIL eivät ole sallittuja."
-        },
-        "moved_occurrences": {
-          "name": "Siirretyt päivät",
-          "description": "Kiinteille tehtäville: luettelo yksittäisistä säännöstä siirretyistä päivistä, joilla kullakin on from- ja to-ajankohta. Siirrä päivä move_occurrence-palvelulla."
         },
         "anchor": {
           "name": "Ankkuri",

@@ -67,10 +67,6 @@
           "name": "规则",
           "description": "用于固定任务：iCalendar RRULE，例如 FREQ=WEEKLY;BYDAY=TU,FR 或 FREQ=MONTHLY;BYDAY=1TU。用它代替 freq 和 interval。不允许使用 COUNT 和 UNTIL。"
         },
-        "moved_occurrences": {
-          "name": "已移动的日期",
-          "description": "用于固定任务：从规则中移出的单个日期列表，每项包含 from 和 to 日期时间。使用 move_occurrence 移动日期。"
-        },
         "anchor": {
           "name": "锚点",
           "description": "对于固定任务：首次发生的 ISO 日期时间（设置每日时间）。"
@@ -176,10 +172,6 @@
         "rrule": {
           "name": "规则",
           "description": "用于固定任务：iCalendar RRULE，例如 FREQ=WEEKLY;BYDAY=TU,FR 或 FREQ=MONTHLY;BYDAY=1TU。用它代替 freq 和 interval。不允许使用 COUNT 和 UNTIL。"
-        },
-        "moved_occurrences": {
-          "name": "已移动的日期",
-          "description": "用于固定任务：从规则中移出的单个日期列表，每项包含 from 和 to 日期时间。使用 move_occurrence 移动日期。"
         },
         "anchor": {
           "name": "锚点",
